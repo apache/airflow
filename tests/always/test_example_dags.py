@@ -51,7 +51,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
     "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
-    "tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",

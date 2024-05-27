@@ -140,6 +140,11 @@ jobs:
           breeze testing integration-tests --integration qdrant
           breeze down
         if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
+      - name: "Integration Tests Postgres: mssql"
+        run: |
+          breeze testing integration-tests --integration mssql
+          breeze down
+        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
       # For Self Hosted runners we run complete set of integration tests
       # in one big test - as we have enough resources to start all integrations
       # and we do that for both - postgres and mysql

@@ -188,6 +188,10 @@ if [[ ${INTEGRATION_KAFKA} == "true" ]]; then
     check_service "Kafka Cluster" "run_nc broker 9092" 50
 fi
 
+if [[ ${INTEGRATION_MSSQL} == "true" ]]; then
+    check_service "mssql" "run_nc mssql 1433" 50
+fi
+
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
