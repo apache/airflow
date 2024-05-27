@@ -256,7 +256,7 @@ class SambaHook(BaseHook):
             speed up large file transfers
         """
         extra_args = (buffer_size,) if buffer_size else ()
-        with open(local_filepath, "rb") as f, self.open_file(path=destination_filepath, mode="wb") as g:
+        with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
             copyfileobj(f, g, *extra_args)
 
     @classmethod
