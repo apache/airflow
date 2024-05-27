@@ -61,7 +61,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
     "tests/system/providers/jdbc/example_jdbc_queries.py",
     "tests/system/providers/microsoft/mssql/example_mssql.py",
-    "tests/system/providers/snowflake/example_snowflake.py",
     "tests/system/providers/trino/example_trino.py",
 )
 
