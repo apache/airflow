@@ -366,7 +366,7 @@ $(document).ready(() => {
   const textAreas = document.getElementsByTagName("textarea");
 
   Array.from(textAreas).forEach((textArea) => {
-    if (textArea.id !== "description") {
+    if (textArea.id !== "description" && !$(textArea).is(':hidden')) {
       // Change TextArea widget to CodeMirror
       editor = CodeMirror.fromTextArea(textArea, {
         mode: { name: "javascript", json: true },
