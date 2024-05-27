@@ -26,6 +26,7 @@ from airflow.hooks.base import BaseHook
 
 logger = logging.getLogger(__name__)
 
+
 class FTPHook(BaseHook):
     """
     Interact with FTP.
