@@ -166,36 +166,15 @@ with DAG(
     )
     # [END howto_operator_gcs_to_gcs_single_file]
 
-    # [START howto_operator_gcs_to_gcs_wildcard]
-    copy_files_with_wildcard = GCSToGCSOperator(
-        task_id="copy_files_with_wildcard",
-        source_bucket=BUCKET_NAME_SRC,
-        source_object="data/*.txt",
-        destination_bucket=BUCKET_NAME_DST,
-        destination_object="backup/",
-    )
-    # [END howto_operator_gcs_to_gcs_wildcard]
-
     # [START howto_operator_gcs_to_gcs_without_wildcard]
-    copy_files_without_wildcard = GCSToGCSOperator(
-        task_id="copy_files_without_wildcard",
+    copy_files = GCSToGCSOperator(
+        task_id="copy_files",
         source_bucket=BUCKET_NAME_SRC,
         source_object="subdir/",
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
     )
     # [END howto_operator_gcs_to_gcs_without_wildcard]
-
-    # [START howto_operator_gcs_to_gcs_delimiter]
-    copy_files_with_delimiter = GCSToGCSOperator(
-        task_id="copy_files_with_delimiter",
-        source_bucket=BUCKET_NAME_SRC,
-        source_object="data/",
-        destination_bucket=BUCKET_NAME_DST,
-        destination_object="backup/",
-        delimiter=".txt",
-    )
-    # [END howto_operator_gcs_to_gcs_delimiter]
 
     # [START howto_operator_gcs_to_gcs_match_glob]
     copy_files_with_match_glob = GCSToGCSOperator(
@@ -264,9 +243,7 @@ with DAG(
         sync_to_subdirectory,
         sync_from_subdirectory,
         copy_single_file,
-        copy_files_with_wildcard,
-        copy_files_without_wildcard,
-        copy_files_with_delimiter,
+        copy_files,
         copy_files_with_match_glob,
         copy_files_with_list,
         move_single_file,
