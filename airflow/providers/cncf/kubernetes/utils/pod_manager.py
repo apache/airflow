@@ -516,7 +516,7 @@ class PodManager(LoggingMixin):
                 # a timeout is a normal thing and we ignore it and resume following logs
                 if not isinstance(exc, TimeoutError):
                     self.log.warning(
-                        "Pod %s log read interrupted but container %s still running",
+                        "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
                         pod.metadata.name,
                         container_name,
                     )
