@@ -171,8 +171,8 @@ class TestIntegrationFTPHook:
                 conn_type="ftp",
                 host="localhost",
                 port=10000,
-                login='user',
-                password='pass123',
+                login="user",
+                password="pass123",
                 extra='{"passive": true}',
             )
         )
