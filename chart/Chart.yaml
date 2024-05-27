@@ -34,7 +34,7 @@ keywords:
   - scheduler
 dependencies:
   - name: postgresql
-    version: 13.2.24
+    version: 16.3.0
     repository: https://charts.bitnami.com/bitnami
     condition: postgresql.enabled
 maintainers:
@@ -76,8 +76,8 @@ annotations:
       links:
       - name: '#37197'
         url: https://github.com/apache/airflow/pull/37197
-    - description: 'Misc: Default airflow version to 2.8.3'
+    - description: 'Misc: Default airflow version to 2.9.1'
       kind: changed
       links:
-      - name: '#38036'
-        url: https://github.com/apache/airflow/pull/38036
+      - name: '#39433'
+        url: https://github.com/apache/airflow/pull/39433
