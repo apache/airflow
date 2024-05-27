@@ -47,7 +47,6 @@ from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDe
 from airflow.exceptions import TaskNotFound
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
-from airflow.models.operator import needs_expansion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
@@ -201,7 +200,7 @@ def get_mapped_task_instances(
         except TaskNotFound:
             error_message = f"Task id {task_id} not found"
             raise NotFound(error_message)
-        if not needs_expansion(task):
+        if not task.get_needs_expansion():
             error_message = f"Task id {task_id} is not mapped"
             raise NotFound(error_message)
 

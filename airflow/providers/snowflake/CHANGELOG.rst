@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+* ``Remove unused 'copy_into_postifx' param from docstring (#39454)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 5.5.0
 .....
 

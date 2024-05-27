@@ -228,7 +228,8 @@ function check_boto_upgrade() {
     # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
     # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
+       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
     pip check
 }
 
