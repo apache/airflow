@@ -88,6 +88,7 @@ class TestMySqlHookConn:
         self.connection.extra = json.dumps({"charset": "utf-8"})
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
         assert self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
 
     @mock.patch("MySQLdb.connect")
