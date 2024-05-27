@@ -34,8 +34,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 def cache_token_decorator(get_subject_token_method):
     """Cache calls to ``SubjectTokenSupplier`` instances' ``get_token_supplier`` methods.
 
-    Different instances of a same SubjectTokenSupplier class with the same credentials and oidc issuer url
-    share access tokens.
+    Different instances of a same SubjectTokenSupplier class with the same attributes
+    share the OIDC token cache.
 
     :param get_subject_token_method: A method that returns both a token and an integer specifying
         the time in seconds until the token expires
