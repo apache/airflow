@@ -4678,7 +4678,6 @@ class DagRunModelView(AirflowModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
-        "add": "create",
         "delete": "delete",
         "edit": "edit",
         "list": "read",
