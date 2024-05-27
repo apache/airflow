@@ -20,6 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from opensearchpy import RequestsHttpConnection
 from opensearchpy.exceptions import OpenSearchException
 
 from airflow.exceptions import AirflowException
@@ -27,6 +28,8 @@ from airflow.models import BaseOperator
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 if TYPE_CHECKING:
+    from opensearchpy import Connection as OpenSearchConnectionClass
+
     from airflow.utils.context import Context
 
 
@@ -42,6 +45,7 @@ class OpenSearchQueryOperator(BaseOperator):
     :param search_object: A Search object from opensearch-dsl.
     :param index_name: The name of the index to search for documents.
     :param opensearch_conn_id: opensearch connection to use
+    :param opensearch_conn_class: opensearch connection class to use
     :param log_query: Whether to log the query used. Defaults to True and logs query used.
     """
 
@@ -54,7 +58,7 @@ class OpenSearchQueryOperator(BaseOperator):
         search_object: Any | None = None,
         index_name: str | None = None,
         opensearch_conn_id: str = "opensearch_default",
-        opensearch_conn_class: str = "RequestsHttpConnection",
+        opensearch_conn_class: type[OpenSearchConnectionClass] | None = RequestsHttpConnection,
         log_query: bool = True,
         **kwargs,
     ) -> None:

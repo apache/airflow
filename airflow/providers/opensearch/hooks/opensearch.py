@@ -19,18 +19,16 @@ from __future__ import annotations
 
 import json
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from opensearchpy import OpenSearch, RequestsHttpConnection
 
+if TYPE_CHECKING:
+    from opensearchpy import Connection as OpenSearchConnectionClass
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.utils.module_loading import import_string
 from airflow.utils.strings import to_boolean
-
-DEFAULT_CONN_TYPES = frozenset(
-    {"RequestsHttpConnection", "Urllib3HttpConnection", "AsyncHttpConnection", "PoolingConnection"}
-)
 
 
 class OpenSearchHook(BaseHook):
@@ -50,7 +48,7 @@ class OpenSearchHook(BaseHook):
         self,
         open_search_conn_id: str,
         log_query: bool,
-        open_search_conn_class: str = "RequestsHttpConnection",
+        open_search_conn_class: type[OpenSearchConnectionClass] | None = RequestsHttpConnection,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -59,35 +57,8 @@ class OpenSearchHook(BaseHook):
 
         self.use_ssl = to_boolean(str(self.conn.extra_dejson.get("use_ssl", False)))
         self.verify_certs = to_boolean(str(self.conn.extra_dejson.get("verify_certs", False)))
-        self.connection_class = self._load_conn_type(open_search_conn_class)
+        self.connection_class = open_search_conn_class
         self.__SERVICE = "es"
-
-    def _load_conn_type(self, module_name: str | None) -> Any:
-        """
-        Check if the connection type module is listed in 'DEFAULT_CONN_TYPES' and load it.
-
-        This method protects against the execution of random modules.
-        """
-        if module_name:
-            if module_name in DEFAULT_CONN_TYPES:
-                try:
-                    module_name_full = f"opensearchpy.{module_name}"
-                    module = import_string(module_name_full)
-                    self.log.info("Loaded connection type: %s", module_name)
-                    return module
-                except ImportError as error:
-                    self.log.debug("Cannot import connection type '%s' due to: %s", module_name, error)
-                    raise AirflowException(error)
-            else:
-                self.log.warning(
-                    "Skipping import of connection type '%s'. The class should be listed in ",
-                    module_name
-                    + "{"
-                    + ", ".join(map(str, DEFAULT_CONN_TYPES))
-                    + "}. Defaulting to RequestsHttpConnection",
-                )
-        # fallback
-        return RequestsHttpConnection
 
     @cached_property
     def conn(self):

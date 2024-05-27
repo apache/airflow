@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import opensearchpy
 import pytest
-from opensearchpy.connection.http_requests import RequestsHttpConnection
-from opensearchpy.connection.http_urllib3 import Urllib3HttpConnection
+from opensearchpy import Urllib3HttpConnection
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -30,7 +30,7 @@ pytestmark = pytest.mark.db_test
 
 
 MOCK_SEARCH_RETURN = {"status": "test"}
-DEFAULT_CONN = RequestsHttpConnection
+DEFAULT_CONN = opensearchpy.connection.http_requests.RequestsHttpConnection
 
 
 class TestOpenSearchHook:
@@ -66,18 +66,11 @@ class TestOpenSearchHook:
 
     def test_load_conn_param(self, mock_hook):
         hook_default = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
-        assert issubclass(hook_default.connection_class, DEFAULT_CONN)
+        assert hook_default.connection_class == DEFAULT_CONN
 
         hook_Urllib3 = OpenSearchHook(
             open_search_conn_id="opensearch_default",
             log_query=True,
-            open_search_conn_class="Urllib3HttpConnection",
+            open_search_conn_class=Urllib3HttpConnection,
         )
-        assert issubclass(hook_Urllib3.connection_class, Urllib3HttpConnection)
-
-        hook_invalid_conn = OpenSearchHook(
-            open_search_conn_id="opensearch_default",
-            log_query=True,
-            open_search_conn_class="invalid_connection",
-        )
-        assert issubclass(hook_invalid_conn.connection_class, DEFAULT_CONN)
+        assert hook_Urllib3.connection_class == Urllib3HttpConnection
