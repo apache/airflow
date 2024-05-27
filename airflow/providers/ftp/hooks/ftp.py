@@ -66,7 +66,7 @@ class FTPHook(BaseHook):
                 port = ftplib.FTP_PORT
                 if params.port is not None:
                     port = params.port
-                logger.info("Connecting via FTP to %s:%d" % (params.host, port))
+                logger.info("Connecting via FTP to %s:%d", params.host, port)
                 self.conn.connect(params.host, port)
                 if params.login:
                     self.conn.login(params.login, params.password)
