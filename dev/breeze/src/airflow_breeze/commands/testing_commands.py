@@ -430,7 +430,7 @@ option_skip_provider_tests = click.option(
 )
 option_skip_providers = click.option(
     "--skip-providers",
-    help="Coma separated list of providers to skip when running tests",
+    help="Space-separated list of provider ids to skip when running tests",
     type=str,
     default="",
     envvar="SKIP_PROVIDERS",
@@ -749,7 +749,7 @@ def _run_test_command(
     if skip_providers:
         ignored_path_list = [
             f"--ignore=tests/providers/{provider_id.replace('.','/')}"
-            for provider_id in skip_providers.split(",")
+            for provider_id in skip_providers.split(" ")
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:
