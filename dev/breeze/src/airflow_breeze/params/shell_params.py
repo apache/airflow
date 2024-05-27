@@ -42,6 +42,8 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
+    MOUNT_TESTS,
+    MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
@@ -328,7 +330,7 @@ class ShellParams:
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.use_airflow_version is not None:
+        if self.use_airflow_version is not None and self.mount_sources not in [MOUNT_REMOVE, MOUNT_TESTS]:
             get_console().print(
                 "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
                 f"from sources but from {self.use_airflow_version}[/]\n"
@@ -340,6 +342,8 @@ class ShellParams:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local-all-sources.yml")
+        elif self.mount_sources == MOUNT_TESTS:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources-only.yml")
         elif self.mount_sources == MOUNT_REMOVE:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.forward_credentials:
@@ -520,6 +524,7 @@ class ShellParams:
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
+        _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_SYSTEM_TESTS", self.run_system_tests)

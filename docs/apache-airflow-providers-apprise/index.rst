@@ -64,7 +64,7 @@ apache-airflow-providers-apprise package
 `Apprise <https://github.com/caronc/apprise>`__
 
 
-Release: 1.3.0
+Release: 1.3.1
 
 Provider package
 ----------------
@@ -88,5 +88,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.7.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.7.0``
-``apprise``
+``apprise``         ``>=1.8.0``
 ==================  ==================

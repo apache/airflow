@@ -554,7 +554,7 @@ class KubernetesPodOperator(BaseOperator):
 
         return pod_request_obj
 
-    def await_pod_start(self, pod: k8s.V1Pod):
+    def await_pod_start(self, pod: k8s.V1Pod) -> None:
         try:
             self.pod_manager.await_pod_start(
                 pod=pod,
@@ -566,22 +566,22 @@ class KubernetesPodOperator(BaseOperator):
                 self._read_pod_events(pod, reraise=False)
             raise
 
-    def extract_xcom(self, pod: k8s.V1Pod):
+    def extract_xcom(self, pod: k8s.V1Pod) -> dict[Any, Any] | None:
         """Retrieve xcom value and kill xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
             self.log.info("xcom result file is empty.")
             return None
-        else:
-            self.log.info("xcom result: \n%s", result)
-            return json.loads(result)
+
+        self.log.info("xcom result: \n%s", result)
+        return json.loads(result)
 
     def execute(self, context: Context):
         """Based on the deferrable parameter runs the pod asynchronously or synchronously."""
-        if self.deferrable:
-            self.execute_async(context)
-        else:
+        if not self.deferrable:
             return self.execute_sync(context)
+
+        self.execute_async(context)
 
     def execute_sync(self, context: Context):
         result = None
@@ -670,7 +670,7 @@ class KubernetesPodOperator(BaseOperator):
         del self.client
         del self.pod_manager
 
-    def execute_async(self, context: Context):
+    def execute_async(self, context: Context) -> None:
         self.pod_request_obj = self.build_pod_request_obj(context)
         self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
             pod_request_obj=self.pod_request_obj,
@@ -688,7 +688,7 @@ class KubernetesPodOperator(BaseOperator):
 
         self.invoke_defer_method()
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None):
+    def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
@@ -743,7 +743,7 @@ class KubernetesPodOperator(BaseOperator):
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
-                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
@@ -771,7 +771,7 @@ class KubernetesPodOperator(BaseOperator):
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
                 if self.do_xcom_push:
                     xcom_sidecar_output = self.extract_xcom(pod=self.pod)
@@ -782,7 +782,7 @@ class KubernetesPodOperator(BaseOperator):
         finally:
             self._clean(event)
 
-    def _clean(self, event: dict[str, Any]):
+    def _clean(self, event: dict[str, Any]) -> None:
         if event["status"] == "running":
             return
         istio_enabled = self.is_istio_enabled(self.pod)
@@ -807,27 +807,27 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.pod,
             )
 
-    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
-    def execute_complete(self, context: Context, event: dict, **kwargs):
-        return self.trigger_reentry(context=context, event=event)
-
-    def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None):
+    def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
         try:
             since_seconds = (
                 math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
                 if since_time
                 else None
             )
-            logs = self.pod_manager.read_pod_logs(
+            logs = self.client.read_namespaced_pod_log(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
                 pod=pod,
                 container_name=self.base_container_name,
                 follow=follow,
+                timestamps=False,
                 since_seconds=since_seconds,
+                _preload_content=False,
             )
             for raw_line in logs:
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
                 if line:
-                    self.log.info("Container logs: %s", line)
+                    self.log.info("[%s] logs: %s", self.base_container_name, line)
         except (HTTPError, ApiException) as e:
             self.log.warning(
                 "Reading of logs interrupted with error %r; will retry. "
@@ -835,7 +835,7 @@ class KubernetesPodOperator(BaseOperator):
                 e if not isinstance(e, ApiException) else e.reason,
             )
 
-    def post_complete_action(self, *, pod, remote_pod, **kwargs):
+    def post_complete_action(self, *, pod, remote_pod, **kwargs) -> None:
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
         self.cleanup(
             pod=pod,
@@ -903,7 +903,7 @@ class KubernetesPodOperator(BaseOperator):
                 )
             )
 
-    def _read_pod_events(self, pod, *, reraise=True):
+    def _read_pod_events(self, pod, *, reraise=True) -> None:
         """Will fetch and emit events from pod."""
         with _optionally_suppress(reraise=reraise):
             for event in self.pod_manager.read_pod_events(pod).items:
@@ -951,15 +951,11 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                should_delete_pod = (
-                    (self.on_finish_action == OnFinishAction.DELETE_POD)
-                    or (
-                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                        and pod.status.phase == PodPhase.SUCCEEDED
-                    )
-                    or (
-                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                        and container_is_succeeded(pod, self.base_container_name)
+                should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
+                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                    and (
+                        pod.status.phase == PodPhase.SUCCEEDED
+                        or container_is_succeeded(pod, self.base_container_name)
                     )
                 )
                 if should_delete_pod:
@@ -976,8 +972,8 @@ class KubernetesPodOperator(BaseOperator):
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
-            labels_value += f",{self.POD_CHECKED_KEY}!=True"
-        labels_value += ",!airflow-worker"
+            labels_value = f"{labels_value},{self.POD_CHECKED_KEY}!=True"
+        labels_value = f"{labels_value},!airflow-worker"
         return labels_value
 
     @staticmethod
@@ -1139,6 +1135,10 @@ class KubernetesPodOperator(BaseOperator):
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
+    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        return self.trigger_reentry(context=context, event=event)
+
 
 class _optionally_suppress(AbstractContextManager):
     """
@@ -1152,7 +1152,7 @@ class _optionally_suppress(AbstractContextManager):
     :meta private:
     """
 
-    def __init__(self, *exceptions, reraise=False):
+    def __init__(self, *exceptions, reraise: bool = False) -> None:
         self._exceptions = exceptions or (Exception,)
         self.reraise = reraise
         self.exception = None
@@ -1160,7 +1160,7 @@ class _optionally_suppress(AbstractContextManager):
     def __enter__(self):
         return self
 
-    def __exit__(self, exctype, excinst, exctb):
+    def __exit__(self, exctype, excinst, exctb) -> bool:
         error = exctype is not None
         matching_error = error and issubclass(exctype, self._exceptions)
         if (error and not matching_error) or (matching_error and self.reraise):

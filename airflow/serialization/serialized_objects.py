@@ -68,7 +68,7 @@ from airflow.task.priority_strategy import (
 )
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import Context, DatasetEventAccessor, DatasetEventAccessors
+from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import exactly_one
 from airflow.utils.module_loading import import_string, qualname
@@ -536,12 +536,12 @@ class BaseSerialization:
         elif var.__class__.__name__ == "V1Pod" and _has_kubernetes() and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
-        elif isinstance(var, DatasetEventAccessors):
+        elif isinstance(var, OutletEventAccessors):
             return cls._encode(
                 cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
                 type_=DAT.DATASET_EVENT_ACCESSORS,
             )
-        elif isinstance(var, DatasetEventAccessor):
+        elif isinstance(var, OutletEventAccessor):
             return cls._encode(
                 cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
                 type_=DAT.DATASET_EVENT_ACCESSOR,
@@ -553,6 +553,7 @@ class BaseSerialization:
         elif isinstance(var, MappedOperator):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
+            var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
@@ -693,11 +694,11 @@ class BaseSerialization:
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
         elif type_ == DAT.DATASET_EVENT_ACCESSORS:
-            d = DatasetEventAccessors()  # type: ignore[assignment]
+            d = OutletEventAccessors()  # type: ignore[assignment]
             d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
             return d
         elif type_ == DAT.DATASET_EVENT_ACCESSOR:
-            return DatasetEventAccessor(extra=cls.deserialize(var))
+            return OutletEventAccessor(extra=cls.deserialize(var))
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -1184,6 +1185,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls.deserialize(value) for arg, value in v.items()}
             elif k in {"expand_input", "op_kwargs_expand_input"}:
                 v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
+            elif k == "operator_class":
+                v = {k_: cls.deserialize(v_, use_pydantic_models=True) for k_, v_ in v.items()}
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1199,7 +1202,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
-            # TODO: refactor deserialization of BaseOperator and MappedOperaotr (split it out), then check
+            # TODO: refactor deserialization of BaseOperator and MappedOperator (split it out), then check
             # could go away.
             if not hasattr(op, k):
                 setattr(op, k, None)

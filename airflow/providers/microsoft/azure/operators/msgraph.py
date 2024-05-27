@@ -39,8 +39,6 @@ if TYPE_CHECKING:
 
     from kiota_abstractions.request_adapter import ResponseType
     from kiota_abstractions.request_information import QueryParams
-    from kiota_abstractions.response_handler import NativeResponseType
-    from kiota_abstractions.serialization import ParsableFactory
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
@@ -59,9 +57,6 @@ class MSGraphAsyncOperator(BaseOperator):
     :param url: The url being executed on the Microsoft Graph API (templated).
     :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
         `str`, `int`, `float`, `bool` and `datetime` (default is None).
-    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-        lambda response, error_map: response.json()).  The default expression will convert the native response
-        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param key: The key that will be used to store `XCom's` ("return_value" is default).
@@ -94,9 +89,6 @@ class MSGraphAsyncOperator(BaseOperator):
         *,
         url: str,
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
@@ -116,7 +108,6 @@ class MSGraphAsyncOperator(BaseOperator):
         super().__init__(**kwargs)
         self.url = url
         self.response_type = response_type
-        self.response_handler = response_handler
         self.path_parameters = path_parameters
         self.url_template = url_template
         self.method = method
@@ -134,7 +125,6 @@ class MSGraphAsyncOperator(BaseOperator):
         self.results: list[Any] | None = None
 
     def execute(self, context: Context) -> None:
-        self.log.info("Executing url '%s' as '%s'", self.url, self.method)
         self.defer(
             trigger=MSGraphTrigger(
                 url=self.url,
@@ -167,14 +157,14 @@ class MSGraphAsyncOperator(BaseOperator):
         self.log.debug("context: %s", context)
 
         if event:
-            self.log.info("%s completed with %s: %s", self.task_id, event.get("status"), event)
+            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
 
             response = event.get("response")
 
-            self.log.info("response: %s", response)
+            self.log.debug("response: %s", response)
 
             if response:
                 response = self.serializer.deserialize(response)
@@ -281,7 +271,6 @@ class MSGraphAsyncOperator(BaseOperator):
                         url=url,
                         query_parameters=query_parameters,
                         response_type=self.response_type,
-                        response_handler=self.response_handler,
                         conn_id=self.conn_id,
                         timeout=self.timeout,
                         proxies=self.proxies,

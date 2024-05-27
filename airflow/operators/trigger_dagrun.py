@@ -28,7 +28,13 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSkipException,
+    DagNotFound,
+    DagRunAlreadyExists,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
@@ -72,24 +78,30 @@ class TriggerDagRunLink(BaseOperatorLink):
 
 class TriggerDagRunOperator(BaseOperator):
     """
-    Triggers a DAG run for a specified ``dag_id``.
+    Triggers a DAG run for a specified DAG ID.
 
-    :param trigger_dag_id: The dag_id to trigger (templated).
+    :param trigger_dag_id: The ``dag_id`` of the DAG to trigger (templated).
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
-    :param logical_date: Logical date for the dag (templated).
-    :param reset_dag_run: Whether clear existing dag run if already exists.
-        This is useful when backfill or rerun an existing dag run.
-        This only resets (not recreates) the dag run.
-        Dag run conf is immutable and will not be reset on rerun of an existing dag run.
+    :param logical_date: Logical date for the triggered DAG (templated).
+    :param reset_dag_run: Whether clear existing DAG run if already exists.
+        This is useful when backfill or rerun an existing DAG run.
+        This only resets (not recreates) the DAG run.
+        DAG run conf is immutable and will not be reset on rerun of an existing DAG run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
-        When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
-    :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
-    :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
+        When reset_dag_run=True and dag run exists, existing DAG run will be cleared to rerun.
+    :param wait_for_completion: Whether or not wait for DAG run completion. (default: False)
+    :param poke_interval: Poke interval to check DAG run status when wait_for_completion=True.
         (default: 60)
-    :param allowed_states: List of allowed states, default is ``['success']``.
-    :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param allowed_states: Optional list of allowed DAG run states of the triggered DAG. This is useful when
+        setting ``wait_for_completion`` to True. Must be a valid DagRunState.
+        Default is ``[DagRunState.SUCCESS]``.
+    :param failed_states: Optional list of failed or disallowed DAG run states of the triggered DAG. This is
+        useful when setting ``wait_for_completion`` to True. Must be a valid DagRunState.
+        Default is ``[DagRunState.FAILED]``.
+    :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a DAG run of the triggered
+        DAG for the same logical date already exists.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
     :param execution_date: Deprecated parameter; same as ``logical_date``.
@@ -101,6 +113,7 @@ class TriggerDagRunOperator(BaseOperator):
         "logical_date",
         "conf",
         "wait_for_completion",
+        "skip_when_already_exists",
     )
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
@@ -116,8 +129,9 @@ class TriggerDagRunOperator(BaseOperator):
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
-        allowed_states: list[str] | None = None,
-        failed_states: list[str] | None = None,
+        allowed_states: list[str | DagRunState] | None = None,
+        failed_states: list[str | DagRunState] | None = None,
+        skip_when_already_exists: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         execution_date: str | datetime.datetime | None = None,
         **kwargs,
@@ -137,6 +151,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
+        self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
 
         if execution_date is not None:
@@ -196,6 +211,10 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_run = e.dag_run
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
+                if self.skip_when_already_exists:
+                    raise AirflowSkipException(
+                        "Skipping due to skip_when_already_exists is set to True and DagRunAlreadyExists"
+                    )
                 raise e
         if dag_run is None:
             raise RuntimeError("The dag_run should be set here!")

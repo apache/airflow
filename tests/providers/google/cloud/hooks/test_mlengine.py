@@ -36,9 +36,9 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )
 
-pytest.mlengine_hook = MLEngineAsyncHook()
-pytest.PROJECT_ID = "test-project"
-pytest.JOB_ID = "test-job-id"
+mlengine_hook = MLEngineAsyncHook()
+PROJECT_ID = "test-project"
+JOB_ID = "test-job-id"
 
 
 @pytest.mark.db_test
@@ -1029,9 +1029,9 @@ def session():
 @pytest.mark.asyncio
 @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook._get_link")
 async def test_async_get_job_should_execute_successfully(mocked_link):
-    await pytest.mlengine_hook.get_job(project_id=pytest.PROJECT_ID, job_id=pytest.JOB_ID, session=session)
+    await mlengine_hook.get_job(project_id=PROJECT_ID, job_id=JOB_ID, session=session)
     mocked_link.assert_awaited_once_with(
-        url=f"https://ml.googleapis.com/v1/projects/{pytest.PROJECT_ID}/jobs/{pytest.JOB_ID}", session=session
+        url=f"https://ml.googleapis.com/v1/projects/{PROJECT_ID}/jobs/{JOB_ID}", session=session
     )
 
 
@@ -1040,13 +1040,13 @@ async def test_async_get_job_should_fail_if_no_job_id():
     with pytest.raises(
         AirflowException, match=r"An unique job id is required for Google MLEngine training job."
     ):
-        await pytest.mlengine_hook.get_job(project_id=pytest.PROJECT_ID, job_id=None, session=session)
+        await mlengine_hook.get_job(project_id=PROJECT_ID, job_id=None, session=session)
 
 
 @pytest.mark.asyncio
 async def test_async_get_job_should_fail_if_no_project_id():
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
-        await pytest.mlengine_hook.get_job(project_id=None, job_id=pytest.JOB_ID, session=session)
+        await mlengine_hook.get_job(project_id=None, job_id=JOB_ID, session=session)
 
 
 @pytest.mark.asyncio
@@ -1054,7 +1054,7 @@ async def test_async_get_job_should_fail_if_no_project_id():
 async def test_async_get_job_status_should_execute_successfully(mocked_get):
     mocked_get.return_value = ClientResponse(
         "get",
-        URL(f"https://ml.googleapis.com/v1/projects/{pytest.PROJECT_ID}/jobs/{pytest.JOB_ID}"),
+        URL(f"https://ml.googleapis.com/v1/projects/{PROJECT_ID}/jobs/{JOB_ID}"),
         request_info=mock.Mock(),
         writer=mock.Mock(),
         continue100=None,
@@ -1066,7 +1066,7 @@ async def test_async_get_job_status_should_execute_successfully(mocked_get):
     mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
     mocked_get.return_value._body = b'{"state": "SUCCEEDED"}'
 
-    job_status = await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    job_status = await mlengine_hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
     mocked_get.assert_awaited_once()
     assert job_status == "success"
 
@@ -1077,7 +1077,7 @@ async def test_async_get_job_status_still_running_should_execute_successfully(mo
     """Assets that the MLEngineAsyncHook returns a pending response when job is still in running state"""
     mocked_get.return_value = ClientResponse(
         "get",
-        URL(f"https://ml.googleapis.com/v1/projects/{pytest.PROJECT_ID}/jobs/{pytest.JOB_ID}"),
+        URL(f"https://ml.googleapis.com/v1/projects/{PROJECT_ID}/jobs/{JOB_ID}"),
         request_info=mock.Mock(),
         writer=mock.Mock(),
         continue100=None,
@@ -1089,7 +1089,7 @@ async def test_async_get_job_status_still_running_should_execute_successfully(mo
     mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
     mocked_get.return_value._body = b'{"state": "RUNNING"}'
 
-    job_status = await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    job_status = await mlengine_hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
     mocked_get.assert_awaited_once()
     assert job_status == "pending"
 
@@ -1100,7 +1100,7 @@ async def test_async_get_job_status_with_oserror_should_execute_successfully(moc
     """Assets that the MLEngineAsyncHook returns a pending response when OSError is raised"""
     mocked_get.side_effect = OSError()
 
-    job_status = await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    job_status = await mlengine_hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
     mocked_get.assert_awaited_once()
     assert job_status == "pending"
 
@@ -1111,7 +1111,7 @@ async def test_async_get_job_status_with_exception_should_execute_successfully(m
     """Assets that the logging is done correctly when MLEngineAsyncHook raises Exception"""
     mocked_get.side_effect = Exception()
 
-    await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    await mlengine_hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
     assert "Query execution finished with errors..." in caplog.text
 
 
@@ -1120,10 +1120,10 @@ async def test_async_get_job_status_should_fail_if_no_job_id():
     with pytest.raises(
         AirflowException, match=r"An unique job id is required for Google MLEngine training job."
     ):
-        await pytest.mlengine_hook.get_job_status(project_id=pytest.PROJECT_ID, job_id=None)
+        await mlengine_hook.get_job_status(project_id=PROJECT_ID, job_id=None)
 
 
 @pytest.mark.asyncio
 async def test_async_get_job_status_should_fail_if_no_project_id():
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
-        await pytest.mlengine_hook.get_job_status(project_id=None, job_id=pytest.JOB_ID)
+        await mlengine_hook.get_job_status(project_id=None, job_id=JOB_ID)

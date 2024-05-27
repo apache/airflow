@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 import yandex.cloud.dataproc.v1.cluster_pb2 as cluster_pb
@@ -32,8 +31,9 @@ from google.protobuf.json_format import MessageToDict
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+from tests.system.utils import get_test_env_id
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = get_test_env_id()
 DAG_ID = "example_yandexcloud_hook"
 
 # Fill it with your identifiers

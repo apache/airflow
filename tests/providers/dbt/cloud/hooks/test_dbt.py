@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
@@ -25,13 +26,14 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.dbt.cloud.hooks.dbt import (
+    DBT_CAUSE_MAX_LENGTH,
     DbtCloudHook,
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
     TokenAuth,
     fallback_to_default_account,
 )
-from airflow.utils import db
+from airflow.utils import db, timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -401,6 +403,35 @@ class TestDbtCloudHook:
     )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
+    def test_trigger_job_run_with_longer_cause(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        cause = "Some cause that is longer than limit. " * 15
+        expected_cause = cause[:DBT_CAUSE_MAX_LENGTH]
+        assert len(cause) > DBT_CAUSE_MAX_LENGTH
+
+        with pytest.warns(
+            UserWarning,
+            match=f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
+            f" characters and will be truncated.",
+        ):
+            hook.trigger_job_run(job_id=JOB_ID, cause=cause, account_id=account_id)
+
+        assert hook.method == "POST"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
+            data=json.dumps({"cause": expected_cause, "steps_override": None, "schema_override": None}),
+        )
+        hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
     def test_list_job_runs(self, mock_http_run, mock_paginate, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
         hook.list_job_runs(account_id=account_id)
@@ -521,11 +552,20 @@ class TestDbtCloudHook:
             for argval in wait_for_job_run_status_test_args
         ],
     )
-    def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected_output):
+    def test_wait_for_job_run_status(self, job_run_status, expected_status, expected_output, time_machine):
         config = {"run_id": RUN_ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
         hook = DbtCloudHook(ACCOUNT_ID_CONN)
 
-        with patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status:
+        # Freeze time for avoid real clock side effects
+        time_machine.move_to(timezone.datetime(1970, 1, 1), tick=False)
+
+        def fake_sleep(seconds):
+            # Shift frozen time every time we call a ``time.sleep`` during this test case.
+            time_machine.shift(timedelta(seconds=seconds))
+
+        with patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status, patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep
+        ):
             mock_job_run_status.return_value = job_run_status
 
             if expected_output != "timeout":

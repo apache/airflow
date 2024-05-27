@@ -38,42 +38,18 @@ from typing import TYPE_CHECKING, Any, Sequence
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select, update
 
-from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
-from airflow.stats import Stats
-
-try:
-    from airflow.cli.cli_config import (
-        ARG_DAG_ID,
-        ARG_EXECUTION_DATE,
-        ARG_OUTPUT_PATH,
-        ARG_SUBDIR,
-        ARG_VERBOSE,
-        ActionCommand,
-        Arg,
-        GroupCommand,
-        lazy_load_command,
-        positive_int,
-    )
-except ImportError:
-    try:
-        from airflow import __version__ as airflow_version
-    except ImportError:
-        from airflow.version import version as airflow_version
-
-    import packaging.version
-
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    base_version = packaging.version.parse(airflow_version).base_version
-
-    if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
-        raise AirflowOptionalProviderFeatureException(
-            "Kubernetes Executor from CNCF Provider should only be used with Airflow 2.7.0+.\n"
-            f"This is Airflow {airflow_version} and Kubernetes and CeleryKubernetesExecutor are "
-            f"available in the 'airflow.executors' package. You should not use "
-            f"the provider's executors in this version of Airflow."
-        )
-    raise
+from airflow.cli.cli_config import (
+    ARG_DAG_ID,
+    ARG_EXECUTION_DATE,
+    ARG_OUTPUT_PATH,
+    ARG_SUBDIR,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+    positive_int,
+)
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -82,6 +58,8 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
+from airflow.stats import Stats
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -132,14 +110,14 @@ KUBERNETES_COMMANDS = (
             "(created by KubernetesExecutor/KubernetesPodOperator) "
             "in evicted/failed/succeeded/pending states"
         ),
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.cleanup_pods"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
         args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
