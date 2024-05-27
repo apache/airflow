@@ -31,16 +31,10 @@ services:
     restart: "on-failure"
     ports:
       - "${MSSQL_HOST_PORT}:1433"
-    healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost,1433 -U sa -P "airflow123" -Q "SELECT 1" -b -o /dev/null
-      interval: 10s
-      timeout: 50s
-      retries: 20
-      start_period: 50s
   airflow:
     depends_on:
       mssql:
-        condition: service_healthy
+        condition: service_started
     environment:
       - INTEGRATION_MSSQL=true
 volumes:
