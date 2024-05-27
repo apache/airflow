@@ -343,7 +343,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"airflow/__init__.py" = ["F401"]
+"airflow/__init__.py" = ["F401", "TCH004"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 

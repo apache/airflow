@@ -42,7 +42,7 @@ class MySqlOperator(SQLExecuteQueryOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:MySqlOperator`
+        :ref:`howto/operator:mysql`
 
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement, a list of str (sql statements), or reference to a template file.
