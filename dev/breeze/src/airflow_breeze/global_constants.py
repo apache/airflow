@@ -53,13 +53,14 @@ DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = [
     "cassandra",
     "celery",
+    "drill",
+    "kafka",
     "kerberos",
     "mongo",
+    "mssql",
     "pinot",
     "trino",
-    "kafka",
     "qdrant",
-    "mssql",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
@@ -239,6 +240,7 @@ FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 MSSQL_HOST_PORT = "21433"
+DRILL_HOST_PORT = "28047"
 
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True

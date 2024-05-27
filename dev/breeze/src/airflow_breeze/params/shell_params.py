@@ -39,6 +39,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_CELERY_BROKER,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
+    DRILL_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -539,6 +540,7 @@ class ShellParams:
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
+        _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_SYSTEM_TESTS", self.run_system_tests)
