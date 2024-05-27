@@ -26,9 +26,8 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
-from openlineage.client.facet import DataSourceDatasetFacet, ExternalQueryRunFacet, SqlJobFacet
+from openlineage.client.facet import ErrorMessageRunFacet, ExternalQueryRunFacet, SqlJobFacet
 from openlineage.client.run import Dataset
-from openlineage.common.provider.bigquery import BigQueryErrorRunFacet
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -48,6 +47,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
     BigQueryIntervalCheckOperator,
     BigQueryPatchDatasetOperator,
+    BigQueryTableCheckOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
@@ -730,7 +730,8 @@ class TestBigQueryOperator:
             sql="SELECT * FROM test_table",
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        assert hasattr(deserialized_dag.tasks[0], "sql")
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -739,11 +740,8 @@ class TestBigQueryOperator:
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
-
-        # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-            {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink": {}}
-        ]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        assert deserialized_dag.tasks[0].operator_extra_links[0].name == "BigQuery Console"
 
         # Check DeSerialized version of operator link
         assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleLink)
@@ -767,7 +765,8 @@ class TestBigQueryOperator:
             sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
         )
         serialized_dag = dag_maker.get_serialized_data()
-        assert "sql" in serialized_dag["dag"]["tasks"][0]["__var"]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        assert hasattr(deserialized_dag.tasks[0], "sql")
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[TASK_ID]
@@ -776,12 +775,10 @@ class TestBigQueryOperator:
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
-
-        # Check Serialized version of operator link
-        assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-            {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 0}},
-            {"airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink": {"index": 1}},
-        ]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        operator_extra_links = deserialized_dag.tasks[0].operator_extra_links
+        assert operator_extra_links[0].name == "BigQuery Console #1"
+        assert operator_extra_links[1].name == "BigQuery Console #2"
 
         # Check DeSerialized version of operator link
         assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleIndexableLink)
@@ -1714,21 +1711,19 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-        with open(file="tests/providers/google/cloud/operators/job_details.json") as f:
+        with open(file="tests/providers/google/cloud/utils/job_details.json") as f:
             job_details = json.loads(f.read())
         mock_hook.return_value.get_client.return_value.get_job.return_value._properties = job_details
+        mock_hook.return_value.get_client.return_value.get_table.side_effect = Exception()
 
         lineage = op.get_openlineage_facets_on_complete(None)
         assert lineage.inputs == [
-            Dataset(
-                namespace="bigquery",
-                name="airflow-openlineage.new_dataset.test_table",
-                facets={"dataSource": DataSourceDatasetFacet(name="bigquery", uri="bigquery")},
-            )
+            Dataset(namespace="bigquery", name="airflow-openlineage.new_dataset.test_table")
         ]
 
         assert lineage.run_facets == {
             "bigQuery_job": mock.ANY,
+            "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }
         assert lineage.job_facets == {"sql": SqlJobFacet(query="SELECT * FROM test_table")}
@@ -1758,7 +1753,7 @@ class TestBigQueryInsertJobOperator:
             operator.execute(MagicMock())
         lineage = operator.get_openlineage_facets_on_complete(None)
 
-        assert lineage.run_facets["bigQuery_error"] == BigQueryErrorRunFacet(clientError=mock.ANY)
+        assert isinstance(lineage.run_facets["errorMessage"], ErrorMessageRunFacet)
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -1920,6 +1915,62 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-dag"] == "yelling_dag_name"
         assert configuration["labels"]["airflow-task"] == "yelling_task_id"
 
+    def test_labels_starting_with_numbers(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("123_dag"):
+            op = BigQueryInsertJobOperator(
+                task_id="123_task",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert configuration["labels"]["airflow-dag"] == "123_dag"
+        assert configuration["labels"]["airflow-task"] == "123_task"
+
+    def test_labels_starting_with_underscore(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("_dag_starting_with_underscore"):
+            op = BigQueryInsertJobOperator(
+                task_id="_task_starting_with_underscore",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert "labels" in configuration
+        assert configuration["labels"]["airflow-dag"] == "_dag_starting_with_underscore"
+        assert configuration["labels"]["airflow-task"] == "_task_starting_with_underscore"
+
+    def test_labels_starting_with_hyphen(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("-dag-starting-with-hyphen"):
+            op = BigQueryInsertJobOperator(
+                task_id="-task-starting-with-hyphen",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert "labels" in configuration
+        assert configuration["labels"]["airflow-dag"] == "-dag-starting-with-hyphen"
+        assert configuration["labels"]["airflow-task"] == "-task-starting-with-hyphen"
+
     def test_labels_invalid_names(self, dag_maker):
         configuration = {
             "query": {
@@ -1937,7 +1988,7 @@ class TestBigQueryInsertJobOperator:
         assert "labels" not in configuration
 
         op = BigQueryInsertJobOperator(
-            task_id="123_task",
+            task_id="task_id_with_exactly_64_characters_00000000000000000000000000000",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
             project_id=TEST_GCP_PROJECT_ID,
@@ -2443,3 +2494,49 @@ class TestBigQueryColumnCheckOperator:
         )
         with pytest.raises(AirflowException):
             ti.task.execute(MagicMock())
+
+
+class TestBigQueryTableCheckOperator:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
+    def test_encryption_configuration(self, mock_job, mock_hook):
+        encryption_configuration = {
+            "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+        }
+
+        mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
+            {
+                "check_name": ["row_count_check"],
+                "check_result": [1],
+            }
+        )
+        mock_hook.return_value.insert_job.return_value = mock_job
+        mock_hook.return_value.project_id = TEST_GCP_PROJECT_ID
+
+        check_statement = "COUNT(*) = 1"
+        operator = BigQueryTableCheckOperator(
+            task_id="TASK_ID",
+            table="test_table",
+            checks={"row_count_check": {"check_statement": check_statement}},
+            encryption_configuration=encryption_configuration,
+            location=TEST_DATASET_LOCATION,
+        )
+
+        operator.execute(MagicMock())
+        mock_hook.return_value.insert_job.assert_called_with(
+            configuration={
+                "query": {
+                    "query": f"""SELECT check_name, check_result FROM (
+    SELECT 'row_count_check' AS check_name, MIN(row_count_check) AS check_result
+    FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS row_count_check
+          FROM test_table ) AS sq
+    ) AS check_table""",
+                    "useLegacySql": True,
+                    "destinationEncryptionConfiguration": encryption_configuration,
+                }
+            },
+            project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION,
+            job_id="",
+            nowait=False,
+        )

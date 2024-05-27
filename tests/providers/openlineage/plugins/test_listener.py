@@ -33,9 +33,19 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+EXPECTED_TRY_NUMBER_1 = 1 if AIRFLOW_V_2_10_PLUS else 0
+EXPECTED_TRY_NUMBER_2 = 2 if AIRFLOW_V_2_10_PLUS else 1
+
+TRY_NUMBER_BEFORE_EXECUTION = 0 if AIRFLOW_V_2_10_PLUS else 1
+TRY_NUMBER_RUNNING = 0 if AIRFLOW_V_2_10_PLUS else 1
+TRY_NUMBER_FAILED = 0 if AIRFLOW_V_2_10_PLUS else 1
+TRY_NUMBER_SUCCESS = 0 if AIRFLOW_V_2_10_PLUS else 2
+TRY_NUMBER_AFTER_EXECUTION = 0 if AIRFLOW_V_2_10_PLUS else 2
 
 
 class TemplateOperator(BaseOperator):
@@ -304,7 +314,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         job_name="job_name",
         parent_job_name="dag_id",
         parent_run_id="dag_id.dag_run_run_id",
-        run_id="dag_id.task_id.execution_date.1",
+        run_id=f"dag_id.task_id.execution_date.{EXPECTED_TRY_NUMBER_1}",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -319,7 +329,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         job_name="job_name",
         parent_job_name="dag_id",
         parent_run_id="dag_id.dag_run_run_id",
-        run_id="dag_id.task_id.execution_date.2",
+        run_id=f"dag_id.task_id.execution_date.{EXPECTED_TRY_NUMBER_2}",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -334,7 +344,9 @@ def test_run_id_is_constant_across_all_methods(mocked_adapter):
     """
 
     def mock_task_id(dag_id, task_id, execution_date, try_number):
-        return f"{dag_id}.{task_id}.{execution_date}.{try_number}"
+        returned_try_number = try_number if AIRFLOW_V_2_10_PLUS else max(try_number - 1, 1)
+
+        return f"{dag_id}.{task_id}.{execution_date}.{returned_try_number}"
 
     listener, task_instance = _create_listener_and_task_instance()
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
@@ -344,7 +356,11 @@ def test_run_id_is_constant_across_all_methods(mocked_adapter):
     assert listener.adapter.start_task.call_args.kwargs["run_id"] == expected_run_id_1
 
     listener.on_task_instance_failed(None, task_instance, None)
-    assert listener.adapter.fail_task.call_args.kwargs["run_id"] == expected_run_id_1
+    assert (
+        listener.adapter.fail_task.call_args.kwargs["run_id"] == expected_run_id_1
+        if AIRFLOW_V_2_10_PLUS
+        else expected_run_id_2
+    )
 
     # This run_id will not be different as we did NOT simulate increase of the try_number attribute,
     listener.on_task_instance_success(None, task_instance, None)
@@ -354,7 +370,11 @@ def test_run_id_is_constant_across_all_methods(mocked_adapter):
     # This is how airflow works, and that's why we expect the run_id to remain constant across all methods.
     task_instance.try_number += 1
     listener.on_task_instance_success(None, task_instance, None)
-    assert listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id_2
+    assert (
+        listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id_2
+        if AIRFLOW_V_2_10_PLUS
+        else expected_run_id_1
+    )
 
 
 def test_running_task_correctly_calls_openlineage_adapter_run_id_method():
@@ -406,7 +426,7 @@ def test_successful_task_correctly_calls_openlineage_adapter_run_id_method(mock_
         dag_id="dag_id",
         task_id="task_id",
         execution_date="execution_date",
-        try_number=1,
+        try_number=EXPECTED_TRY_NUMBER_1,
     )
 
 
@@ -431,16 +451,16 @@ def test_listener_on_task_instance_failed_is_called_before_try_number_increment(
 
     _, task_instance = _create_test_dag_and_task(fail_callable, "failure")
     # try_number before execution
-    assert task_instance.try_number == 0
+    assert task_instance.try_number == TRY_NUMBER_BEFORE_EXECUTION
     with suppress(CustomError):
         task_instance.run()
 
     # try_number at the moment of function being called
-    assert captured_try_numbers["running"] == 0
-    assert captured_try_numbers["failed"] == 0
+    assert captured_try_numbers["running"] == TRY_NUMBER_RUNNING
+    assert captured_try_numbers["failed"] == TRY_NUMBER_FAILED
 
     # try_number after task has been executed
-    assert task_instance.try_number == 0
+    assert task_instance.try_number == TRY_NUMBER_AFTER_EXECUTION
 
 
 @mock.patch("airflow.models.taskinstance.get_listener_manager")
@@ -460,15 +480,15 @@ def test_listener_on_task_instance_success_is_called_after_try_number_increment(
 
     _, task_instance = _create_test_dag_and_task(success_callable, "success")
     # try_number before execution
-    assert task_instance.try_number == 0
+    assert task_instance.try_number == TRY_NUMBER_BEFORE_EXECUTION
     task_instance.run()
 
     # try_number at the moment of function being called
-    assert captured_try_numbers["running"] == 0
-    assert captured_try_numbers["success"] == 0
+    assert captured_try_numbers["running"] == TRY_NUMBER_RUNNING
+    assert captured_try_numbers["success"] == TRY_NUMBER_SUCCESS
 
     # try_number after task has been executed
-    assert task_instance.try_number == 0
+    assert task_instance.try_number == TRY_NUMBER_AFTER_EXECUTION
 
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
@@ -524,6 +544,27 @@ def test_listener_on_task_instance_success_do_not_call_adapter_when_disabled_ope
     mocked_adapter.build_task_instance_run_id.assert_not_called()
     listener.extractor_manager.extract_metadata.assert_not_called()
     listener.adapter.complete_task.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "max_workers,expected",
+    [
+        (None, 1),
+        ("8", 8),
+    ],
+)
+@mock.patch("airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor", autospec=True)
+def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_executor, max_workers, expected):
+    """mock ProcessPoolExecutor and check if conf.dag_state_change_process_pool_size is applied to max_workers"""
+    listener = OpenLineageListener()
+    # mock ProcessPoolExecutor class
+    try:
+        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): max_workers}):
+            listener.on_dag_run_running(mock.MagicMock(), None)
+        mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
+        mock_executor.return_value.submit.assert_called_once()
+    finally:
+        conf.dag_state_change_process_pool_size.cache_clear()
 
 
 class TestOpenLineageSelectiveEnable:

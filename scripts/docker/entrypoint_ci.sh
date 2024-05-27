@@ -205,6 +205,8 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+        # Some packages might leave legacy typing module which causes test issues
+        pip uninstall -y typing || true
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -226,7 +228,8 @@ function check_boto_upgrade() {
     # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
     # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
+       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
     pip check
 }
 

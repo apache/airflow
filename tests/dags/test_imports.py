@@ -35,7 +35,7 @@ from airflow.utils import file
 import airflow.decorators, airflow.models\
 , airflow.sensors
 
-if prod:
+if prod:   # type: ignore[name-defined]
     import airflow.if_branch
 else:
     import airflow.else_branch

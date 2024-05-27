@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 
 import kubernetes
 import pytest
+from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
 from sqlalchemy.orm import make_transient
 
@@ -623,6 +624,44 @@ class TestKubernetesHook:
         mock_job_status.assert_has_calls([mock.call(job_name=JOB_NAME, namespace=NAMESPACE)] * 5)
         mock_sleep.assert_has_calls([mock.call(POLL_INTERVAL)] * 4)
         assert job_actual == job_expected
+
+    @patch(f"{HOOK_MODULE}.json.dumps")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_create_job_retries_on_500_error(self, mock_client, mock_json_dumps):
+        mock_client.create_namespaced_job.side_effect = [
+            ApiException(status=500),
+            MagicMock(),
+        ]
+
+        hook = KubernetesHook()
+        hook.create_job(job=mock.MagicMock())
+
+        assert mock_client.create_namespaced_job.call_count == 2
+
+    @patch(f"{HOOK_MODULE}.json.dumps")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_create_job_fails_on_other_exception(self, mock_client, mock_json_dumps):
+        mock_client.create_namespaced_job.side_effect = [ApiException(status=404)]
+
+        hook = KubernetesHook()
+        with pytest.raises(ApiException):
+            hook.create_job(job=mock.MagicMock())
+
+    @patch(f"{HOOK_MODULE}.json.dumps")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_create_job_retries_three_times(self, mock_client, mock_json_dumps):
+        mock_client.create_namespaced_job.side_effect = [
+            ApiException(status=500),
+            ApiException(status=500),
+            ApiException(status=500),
+            ApiException(status=500),
+        ]
+
+        hook = KubernetesHook()
+        with pytest.raises(ApiException):
+            hook.create_job(job=mock.MagicMock())
+
+        assert mock_client.create_namespaced_job.call_count == 3
 
 
 class TestKubernetesHookIncorrectConfiguration:

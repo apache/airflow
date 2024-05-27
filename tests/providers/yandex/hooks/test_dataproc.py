@@ -20,7 +20,7 @@ import json
 from unittest import mock
 
 from airflow.models import Connection
-from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
+from airflow.providers.yandex.hooks.dataproc import DataprocHook
 
 # Airflow connection with type "yandexcloud" must be created
 CONNECTION_ID = "yandexcloud_default"

@@ -427,75 +427,75 @@ You can see details about the limitation `here <https://pytest-xdist.readthedocs
 
 The error in this case will look similar to:
 
-  .. code-block::
+.. code-block::
 
-     Different tests were collected between gw0 and gw7. The difference is:
+   Different tests were collected between gw0 and gw7. The difference is:
 
 
 The fix for that is to sort the parameters in ``parametrize``. For example instead of this:
 
-  .. code-block:: python
+.. code-block:: python
 
-     @pytest.mark.parametrize("status", ALL_STATES)
-     def test_method():
-         ...
+   @pytest.mark.parametrize("status", ALL_STATES)
+   def test_method():
+       ...
 
 
 do that:
 
 
-  .. code-block:: python
+.. code-block:: python
 
-     @pytest.mark.parametrize("status", sorted(ALL_STATES))
-     def test_method():
-         ...
+   @pytest.mark.parametrize("status", sorted(ALL_STATES))
+   def test_method():
+       ...
 
 Similarly if your parameters are defined as result of utcnow() or other dynamic method - you should
 avoid that, or assign unique IDs for those parametrized tests. Instead of this:
 
-  .. code-block:: python
+.. code-block:: python
 
-     @pytest.mark.parametrize(
-         "url, expected_dag_run_ids",
-         [
-             (
-                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
-                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
-                 [],
-             ),
-             (
-                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
-                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
-                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
-             ),
-         ],
-     )
-     def test_end_date_gte_lte(url, expected_dag_run_ids):
-         ...
+   @pytest.mark.parametrize(
+       "url, expected_dag_run_ids",
+       [
+           (
+               f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
+               f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+               [],
+           ),
+           (
+               f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
+               f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+               ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
+           ),
+       ],
+   )
+   def test_end_date_gte_lte(url, expected_dag_run_ids):
+       ...
 
 Do this:
 
-  .. code-block:: python
+.. code-block:: python
 
-     @pytest.mark.parametrize(
-         "url, expected_dag_run_ids",
-         [
-             pytest.param(
-                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
-                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
-                 [],
-                 id="end_date_gte",
-             ),
-             pytest.param(
-                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
-                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
-                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
-                 id="end_date_lte",
-             ),
-         ],
-     )
-     def test_end_date_gte_lte(url, expected_dag_run_ids):
-         ...
+   @pytest.mark.parametrize(
+       "url, expected_dag_run_ids",
+       [
+           pytest.param(
+               f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
+               f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+               [],
+               id="end_date_gte",
+           ),
+           pytest.param(
+               f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
+               f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
+               ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
+               id="end_date_lte",
+           ),
+       ],
+   )
+   def test_end_date_gte_lte(url, expected_dag_run_ids):
+       ...
 
 
 
@@ -515,107 +515,107 @@ Moving object creation from top-level to inside tests. This code will break coll
 the test is marked as DB test:
 
 
-  .. code-block:: python
+.. code-block:: python
 
-     TI = TaskInstance(
-         task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
-         run_id="fake_run",
-         state=State.RUNNING,
-     )
+   TI = TaskInstance(
+       task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
+       run_id="fake_run",
+       state=State.RUNNING,
+   )
 
 
-     class TestCallbackRequest:
-         @pytest.mark.parametrize(
-             "input,request_class",
-             [
-                 (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
-                 (
-                     TaskCallbackRequest(
-                         full_filepath="filepath",
-                         simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                         processor_subdir="/test_dir",
-                         is_failure_callback=True,
-                     ),
-                     TaskCallbackRequest,
-                 ),
-                 (
-                     DagCallbackRequest(
-                         full_filepath="filepath",
-                         dag_id="fake_dag",
-                         run_id="fake_run",
-                         processor_subdir="/test_dir",
-                         is_failure_callback=False,
-                     ),
-                     DagCallbackRequest,
-                 ),
-                 (
-                     SlaCallbackRequest(
-                         full_filepath="filepath",
-                         dag_id="fake_dag",
-                         processor_subdir="/test_dir",
-                     ),
-                     SlaCallbackRequest,
-                 ),
-             ],
-         )
-         def test_from_json(self, input, request_class):
-             ...
+   class TestCallbackRequest:
+       @pytest.mark.parametrize(
+           "input,request_class",
+           [
+               (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
+               (
+                   TaskCallbackRequest(
+                       full_filepath="filepath",
+                       simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
+                       processor_subdir="/test_dir",
+                       is_failure_callback=True,
+                   ),
+                   TaskCallbackRequest,
+               ),
+               (
+                   DagCallbackRequest(
+                       full_filepath="filepath",
+                       dag_id="fake_dag",
+                       run_id="fake_run",
+                       processor_subdir="/test_dir",
+                       is_failure_callback=False,
+                   ),
+                   DagCallbackRequest,
+               ),
+               (
+                   SlaCallbackRequest(
+                       full_filepath="filepath",
+                       dag_id="fake_dag",
+                       processor_subdir="/test_dir",
+                   ),
+                   SlaCallbackRequest,
+               ),
+           ],
+       )
+       def test_from_json(self, input, request_class):
+           ...
 
 
 Instead - this will not break collection. The TaskInstance is not initialized when the module is parsed,
 it will only be initialized when the test gets executed because we moved initialization of it from
 top level / parametrize to inside the test:
 
-  .. code-block:: python
+.. code-block:: python
 
-    pytestmark = pytest.mark.db_test
+  pytestmark = pytest.mark.db_test
 
 
-    class TestCallbackRequest:
-        @pytest.mark.parametrize(
-            "input,request_class",
-            [
-                (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
-                (
-                    None,  # to be generated when test is run
-                    TaskCallbackRequest,
-                ),
-                (
-                    DagCallbackRequest(
-                        full_filepath="filepath",
-                        dag_id="fake_dag",
-                        run_id="fake_run",
-                        processor_subdir="/test_dir",
-                        is_failure_callback=False,
-                    ),
-                    DagCallbackRequest,
-                ),
-                (
-                    SlaCallbackRequest(
-                        full_filepath="filepath",
-                        dag_id="fake_dag",
-                        processor_subdir="/test_dir",
-                    ),
-                    SlaCallbackRequest,
-                ),
-            ],
-        )
-        def test_from_json(self, input, request_class):
-            if input is None:
-                ti = TaskInstance(
-                    task=BashOperator(
-                        task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
-                    ),
-                    run_id="fake_run",
-                    state=State.RUNNING,
-                )
+  class TestCallbackRequest:
+      @pytest.mark.parametrize(
+          "input,request_class",
+          [
+              (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
+              (
+                  None,  # to be generated when test is run
+                  TaskCallbackRequest,
+              ),
+              (
+                  DagCallbackRequest(
+                      full_filepath="filepath",
+                      dag_id="fake_dag",
+                      run_id="fake_run",
+                      processor_subdir="/test_dir",
+                      is_failure_callback=False,
+                  ),
+                  DagCallbackRequest,
+              ),
+              (
+                  SlaCallbackRequest(
+                      full_filepath="filepath",
+                      dag_id="fake_dag",
+                      processor_subdir="/test_dir",
+                  ),
+                  SlaCallbackRequest,
+              ),
+          ],
+      )
+      def test_from_json(self, input, request_class):
+          if input is None:
+              ti = TaskInstance(
+                  task=BashOperator(
+                      task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                  ),
+                  run_id="fake_run",
+                  state=State.RUNNING,
+              )
 
-                input = TaskCallbackRequest(
-                    full_filepath="filepath",
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
-                    processor_subdir="/test_dir",
-                    is_failure_callback=True,
-                )
+              input = TaskCallbackRequest(
+                  full_filepath="filepath",
+                  simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
+                  processor_subdir="/test_dir",
+                  is_failure_callback=True,
+              )
 
 
 Sometimes it is difficult to rewrite the tests, so you might add conditional handling and mock out some
@@ -624,119 +624,119 @@ will hit the Database while parsing the tests, because this is what Variable.set
 parametrize specification is being parsed - even if test is marked as DB test.
 
 
-  .. code-block:: python
+.. code-block:: python
 
-      from airflow.models.variable import Variable
+    from airflow.models.variable import Variable
 
-      pytestmark = pytest.mark.db_test
+    pytestmark = pytest.mark.db_test
 
-      initial_db_init()
+    initial_db_init()
 
 
-      @pytest.mark.parametrize(
-          "env, expected",
-          [
-              pytest.param(
-                  {"plain_key": "plain_value"},
-                  "{'plain_key': 'plain_value'}",
-                  id="env-plain-key-val",
-              ),
-              pytest.param(
-                  {"plain_key": Variable.setdefault("plain_var", "banana")},
-                  "{'plain_key': 'banana'}",
-                  id="env-plain-key-plain-var",
-              ),
-              pytest.param(
-                  {"plain_key": Variable.setdefault("secret_var", "monkey")},
-                  "{'plain_key': '***'}",
-                  id="env-plain-key-sensitive-var",
-              ),
-              pytest.param(
-                  {"plain_key": "{{ var.value.plain_var }}"},
-                  "{'plain_key': '{{ var.value.plain_var }}'}",
-                  id="env-plain-key-plain-tpld-var",
-              ),
-          ],
-      )
-      def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-          ...
+    @pytest.mark.parametrize(
+        "env, expected",
+        [
+            pytest.param(
+                {"plain_key": "plain_value"},
+                "{'plain_key': 'plain_value'}",
+                id="env-plain-key-val",
+            ),
+            pytest.param(
+                {"plain_key": Variable.setdefault("plain_var", "banana")},
+                "{'plain_key': 'banana'}",
+                id="env-plain-key-plain-var",
+            ),
+            pytest.param(
+                {"plain_key": Variable.setdefault("secret_var", "monkey")},
+                "{'plain_key': '***'}",
+                id="env-plain-key-sensitive-var",
+            ),
+            pytest.param(
+                {"plain_key": "{{ var.value.plain_var }}"},
+                "{'plain_key': '{{ var.value.plain_var }}'}",
+                id="env-plain-key-plain-tpld-var",
+            ),
+        ],
+    )
+    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+        ...
 
 
 You can make the code conditional and mock out the Variable to avoid hitting the database.
 
 
-  .. code-block:: python
+.. code-block:: python
 
-      from airflow.models.variable import Variable
+    from airflow.models.variable import Variable
 
-      pytestmark = pytest.mark.db_test
-
-
-      if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
-          # Handle collection of the test by non-db case
-          Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
-      else:
-          initial_db_init()
+    pytestmark = pytest.mark.db_test
 
 
-      @pytest.mark.parametrize(
-          "env, expected",
-          [
-              pytest.param(
-                  {"plain_key": "plain_value"},
-                  "{'plain_key': 'plain_value'}",
-                  id="env-plain-key-val",
-              ),
-              pytest.param(
-                  {"plain_key": Variable.setdefault("plain_var", "banana")},
-                  "{'plain_key': 'banana'}",
-                  id="env-plain-key-plain-var",
-              ),
-              pytest.param(
-                  {"plain_key": Variable.setdefault("secret_var", "monkey")},
-                  "{'plain_key': '***'}",
-                  id="env-plain-key-sensitive-var",
-              ),
-              pytest.param(
-                  {"plain_key": "{{ var.value.plain_var }}"},
-                  "{'plain_key': '{{ var.value.plain_var }}'}",
-                  id="env-plain-key-plain-tpld-var",
-              ),
-          ],
-      )
-      def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-          ...
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+        # Handle collection of the test by non-db case
+        Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+    else:
+        initial_db_init()
+
+
+    @pytest.mark.parametrize(
+        "env, expected",
+        [
+            pytest.param(
+                {"plain_key": "plain_value"},
+                "{'plain_key': 'plain_value'}",
+                id="env-plain-key-val",
+            ),
+            pytest.param(
+                {"plain_key": Variable.setdefault("plain_var", "banana")},
+                "{'plain_key': 'banana'}",
+                id="env-plain-key-plain-var",
+            ),
+            pytest.param(
+                {"plain_key": Variable.setdefault("secret_var", "monkey")},
+                "{'plain_key': '***'}",
+                id="env-plain-key-sensitive-var",
+            ),
+            pytest.param(
+                {"plain_key": "{{ var.value.plain_var }}"},
+                "{'plain_key': '{{ var.value.plain_var }}'}",
+                id="env-plain-key-plain-tpld-var",
+            ),
+        ],
+    )
+    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+        ...
 
 You can also use fixture to create object that needs database just like this.
 
 
-  .. code-block:: python
+.. code-block:: python
 
-      from airflow.models import Connection
+    from airflow.models import Connection
 
-      pytestmark = pytest.mark.db_test
-
-
-      @pytest.fixture()
-      def get_connection1():
-          return Connection()
+    pytestmark = pytest.mark.db_test
 
 
-      @pytest.fixture()
-      def get_connection2():
-          return Connection(host="apache.org", extra={})
+    @pytest.fixture()
+    def get_connection1():
+        return Connection()
 
 
-      @pytest.mark.parametrize(
-          "conn",
-          [
-              "get_connection1",
-              "get_connection2",
-          ],
-      )
-      def test_as_json_from_connection(self, conn: Connection):
-          conn = request.getfixturevalue(conn)
-          ...
+    @pytest.fixture()
+    def get_connection2():
+        return Connection(host="apache.org", extra={})
+
+
+    @pytest.mark.parametrize(
+        "conn",
+        [
+            "get_connection1",
+            "get_connection2",
+        ],
+    )
+    def test_as_json_from_connection(self, conn: Connection):
+        conn = request.getfixturevalue(conn)
+        ...
 
 
 Running Unit tests
@@ -1061,7 +1061,7 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
-Running Tests with provider packages
+Running provider compatibility tests
 ....................................
 
 Airflow 2.0 introduced the concept of splitting the monolithic Airflow package into separate
@@ -1107,6 +1107,129 @@ This prepares airflow .whl package in the dist folder.
 .. code-block:: bash
 
      breeze --use-airflow-version wheel --use-packages-from-dist --mount-sources skip
+
+Compatibility Provider unit tests against older airflow releases
+................................................................
+
+Our CI runs provider tests for providers with previous compatible airflow releases. This allows to check
+if the providers still work when installed for older airflow versions.
+
+.. note::
+
+  For now it's done for 2.9.1 version only.
+
+Those tests can be used to test compatibility of the providers with past and future releases of airflow.
+For example it could be used to run latest provider versions with released or main
+Airflow 3 if they are developed independently.
+
+The tests use the current source version of ``tests`` folder - so care should be taken that the tests
+implemented for providers in the sources allow to run it against previous versions of Airflow and
+against Airflow installed from package rather than from the sources.
+
+This can be reproduced locally building providers from tag/commit of the airflow repository.
+
+1. Make sure to build latest Breeze ci image
+
+.. code-block:: bash
+
+   breeze ci-image build --python 3.8
+
+2. Build providers from latest sources:
+
+.. code-block:: bash
+
+   rm dist/*
+   breeze release-management prepare-provider-packages --include-not-ready-providers \
+      --version-suffix-for-pypi dev0 --package-format wheel
+
+3. Prepare provider constraints
+
+.. code-block:: bash
+
+   breeze release-management generate-constraints --airflow-constraints-mode constraints-source-providers --answer yes
+
+3. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
+
+.. code-block::bash
+
+  breeze shell --use-packages-from-dist --package-format wheel\
+   --use-airflow-version 2.9.1 --airflow-constraints-reference constraints-2.9.1 \
+   --install-airflow-with-constraints \
+   --providers-skip-constraints \
+   --mount-sources tests
+
+4. You can then run tests as usual:
+
+.. code-block::bash
+
+   pytest tests/providers/<provider>/test.py
+
+5. Iterate with the tests
+
+The tests are run using:
+
+* airflow installed from PyPI
+* tests coming from the current airflow sources (they are mounted inside the breeze image)
+* provider packages built from the current airflow sources and placed in dist
+
+This means that you can modify and run tests and re-run them, but if you want to modify provider code
+you need to exit breeze, rebuild the provider package and restart breeze using the command above.
+
+Rebuilding single provider package can be done using this command:
+
+.. code-block::bash
+
+  breeze release-management prepare-provider-packages \
+    --version-suffix-for-pypi dev0 --package-format wheel <provider>
+
+
+Note that some of the tests if written without taking care about the compatibility, might not work with older
+versions of Airflow - this is because of refactorings, renames, and tests relying on internals of Airflow that
+are not part of the public API. We deal with it in one of the following ways:
+
+1) If the whole provider is supposed to only work for later airflow version, we remove the whole provider
+   by excluding it from compatibility test configuration (see below)
+
+2) Some compatibility shims are defined in ``tests/test_utils/compat.py`` - and they can be used to make the
+   tests compatible - for example importing ``ParseImportError`` after the exception has been renamed from
+   ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback import in ``compat.py`` that
+   falls back to old import automatically, so all tests testing / expecting ``ParseImportError`` should import
+   it from the ``tests.tests_utils.compat`` module. There are few other compatibility shims defined there and
+   you can add more if needed in a similar way.
+
+3) If only some tests are not compatible and use features that are available only in newer airflow version,
+    we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``compat.py``
+    For example:
+
+.. code-block::python
+
+  from tests.test_utils.compat import AIRFLOW_V_2_7_PLUS
+
+  @pytest.mark.skip(not AIRFLOW_V_2_7_PLUS, reason="The tests should be skipped for Airflow < 2.7")
+  def some_test_that_only_works_for_airflow_2_7_plus():
+    pass
+
+4) Sometimes, the tests should only be run when airflow is installed from the sources. In this case you can
+   add conditional ``skipif`` markerfor ``RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES`` to the test. For example:
+
+.. code-block::python
+
+  @pytest.mark.skipif(RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+                      reason="Plugin initialization is done early in case of packages")
+  def test_plugin():
+     pass
+
+
+How providers compatibility tests are run in CI?
+-------------------------------------------------
+
+We run a set of back-compatibility tests based on the configuration specified in the
+``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
+file - where we specify:
+* python version
+* airflow version
+* which providers should be removed (exclusions)
+* whether to run tests
 
 Other Settings
 --------------
@@ -1169,7 +1292,7 @@ to **ignore**, e.g. set ``PYTHONWARNINGS`` environment variable to ``ignore``.
 
 .. code-block:: bash
 
-     pytest tests/core/ --disable-capture-warnings
+    pytest tests/core/ --disable-capture-warnings
 
 Code Coverage
 -------------
@@ -1186,19 +1309,19 @@ a. Initiate a breeze shell.
 
 b. Execute one of the commands below based on the desired coverage area:
 
-   - **Core:** ``python scripts/cov/core_coverage.py``
-   - **REST API:** ``python scripts/cov/restapi_coverage.py``
-   - **CLI:** ``python scripts/cov/cli_coverage.py``
-   - **Webserver:** ``python scripts/cov/www_coverage.py``
+- **Core:** ``python scripts/cov/core_coverage.py``
+- **REST API:** ``python scripts/cov/restapi_coverage.py``
+- **CLI:** ``python scripts/cov/cli_coverage.py``
+- **Webserver:** ``python scripts/cov/www_coverage.py``
 
 c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
 
- .. note::
+.. note::
 
-     In order to see the coverage report, you must start webserver first in breeze environment via the
-     `airflow webserver`. Once you enter `breeze`, you can start `tmux`  (terminal multiplexer) and
-     split the terminal (by pressing `ctrl-B "` for example) to continue testing and run the webserver
-     in one terminal and run tests in the second one (you can switch between the terminals with `ctrl-B <arrow>`).
+   In order to see the coverage report, you must start webserver first in breeze environment via the
+   ``airflow webserver``. Once you enter ``breeze``, you can start ``tmux``  (terminal multiplexer) and
+   split the terminal (by pressing ``ctrl-B "`` for example) to continue testing and run the webserver
+   in one terminal and run tests in the second one (you can switch between the terminals with ``ctrl-B <arrow>``).
 
 Modules Not Fully Covered:
 ..........................

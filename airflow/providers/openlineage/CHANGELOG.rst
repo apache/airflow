@@ -26,10 +26,43 @@
 Changelog
 ---------
 
-main
+1.8.0
 .....
 
-In Airflow 2.10.0, we fix the way try_number works, so that it no longer returns different values depending on task instance state.  Importantly, after the task is done, it no longer shows current_try + 1. Thus in 1.7.2 we patch this provider to fix try_number references so they no longer adjust for the old, bad behavior.
+.. warning::
+  In Airflow 2.10.0, we fix the way try_number works.
+  For Airflow >= 2.10.0, use ``apache-airflow-providers-openlineage >= 1.8.0``.
+  Older versions of Airflow are not affected, In case you run an incompatible version
+  an exception will be raised asking you to upgrade provider version.
+
+Features
+~~~~~~~~
+
+* ``Scheduler to handle incrementing of try_number (#39336)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Prevent error when extractor can't be imported (#39736)``
+* ``Re-configure ORM in spawned OpenLineage process in scheduler. (#39735)``
+
+Misc
+~~~~
+
+* ``chore: Update conf retrieval docstring and adjust pool_size (#39721)``
+* ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+* ``Use 'ProcessPoolExecutor' over 'ThreadPoolExecutor'. (#39235)``
+* ``misc: Add custom provider runtime checks (#39609)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``openlineage: notify that logged exception was caught (#39493)``
+* ``chore: Add more OpenLineage logs to facilitate debugging (#39136)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add missing 'dag_state_change_process_pool_size' in 'provider.yaml'. (#39674)``
+   * ``Run unit tests for Providers with airflow installed as package. (#39513)``
+   * ``Reapply templates for all providers (#39554)``
+
 
 1.7.1
 .....

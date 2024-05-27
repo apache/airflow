@@ -16,25 +16,6 @@
 # under the License.
 ---
 
-# Skip: Integration and System Tests
-- tests/integration/
-- tests/system/
-# Skip: DAGs for tests
-- tests/dags/
-- tests/dags_corrupted/
-- tests/dags_with_system_exit/
-
-
-# Always
-- tests/always/test_connection.py::TestConnection::test_connection_extra_no_encryption
-- tests/always/test_connection.py::TestConnection::test_connection_extra_with_encryption
-- tests/always/test_connection.py::TestConnection::test_connection_extra_with_encryption_rotate_fernet_key
-- tests/always/test_connection.py::TestConnection::test_connection_from_uri
-- tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_conn
-- tests/always/test_connection.py::TestConnection::test_connection_get_uri_from_uri
-- tests/always/test_connection.py::TestConnection::test_from_json_extra
-
-
 # API
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestGetConnection::test_should_respond_200
 - tests/api_connexion/endpoints/test_connection_endpoint.py::TestPatchConnection::test_patch_should_respond_200
@@ -266,23 +247,6 @@
 - tests/www/views/test_views_tasks.py::test_xcom_return_value_is_not_bytes
 
 
-# Unclassified (OTHER)
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_only_collect_emails_from_sla_missed_tasks
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_exception
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_invalid_sla
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_callback_sent_notification
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_recording_missing_sla
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_deleted_task
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_doesnot_raise_integrity_error
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_dag_file_processor_sla_miss_email_exception
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_execute_on_failure_callbacks_without_dag
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_failure_callbacks_should_not_drop_hostname
-- tests/dag_processing/test_processor.py::TestDagFileProcessor::test_process_file_should_failure_callback
-- tests/triggers/test_external_task.py::TestTaskStateTrigger::test_task_state_trigger_success
-
-
 # Providers
 - tests/providers/amazon/aws/deferrable/hooks/test_base_aws.py::TestAwsBaseAsyncHook::test_get_client_async
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_cluster_status
@@ -359,14 +323,7 @@
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
 - tests/providers/amazon/aws/utils/test_connection_wrapper.py::TestAwsConnectionWrapper::test_get_endpoint_url_from_extra
-- tests/providers/apache/livy/operators/test_livy.py::TestLivyOperator::test_execution_with_extra_options
 - tests/providers/apache/spark/operators/test_spark_sql.py::TestSparkSqlOperator::test_execute
-- tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_issue_search
-- tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_project_issue_count
-- tests/providers/atlassian/jira/operators/test_jira.py::TestJiraOperator::test_update_issue
-- tests/providers/atlassian/jira/sensors/test_jira.py::TestJiraSensor::test_issue_label_set
-- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_executemany
-- tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_insert_rows_replace_executemany_hana_dialect
 - tests/providers/common/sql/hooks/test_dbapi.py::TestDbApiHook::test_instance_check_works_for_legacy_db_api_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSQLCheckOperatorDbHook::test_get_hook
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_branch_false_with_dag_run
@@ -376,6 +333,7 @@
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_invalid_query_result_with_dag_run
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies
 - tests/providers/common/sql/operators/test_sql.py::TestSqlBranch::test_with_skip_in_branch_downstream_dependencies2
+- tests/providers/cncf/kubernetes/cli/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_incorrect_column_names
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_no_query
 - tests/providers/databricks/hooks/test_databricks_sql.py::test_query
@@ -394,7 +352,6 @@
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_task_deferred
 - tests/providers/databricks/sensors/test_databricks_partition.py::TestDatabricksPartitionSensor::test_unsupported_conn_type
 - tests/providers/databricks/sensors/test_databricks_sql.py::TestDatabricksSqlSensor::test_unsupported_conn_type
-- tests/providers/docker/operators/test_docker.py::test_hook_usage
 - tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
 - tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
@@ -701,7 +658,6 @@
 - tests/providers/sftp/operators/test_sftp.py::TestSFTPOperator::test_json_file_transfer_put
 - tests/providers/sftp/operators/test_sftp.py::TestSFTPOperator::test_pickle_file_transfer_get
 - tests/providers/sftp/operators/test_sftp.py::TestSFTPOperator::test_pickle_file_transfer_put
-- tests/providers/slack/operators/test_slack.py::TestSlackAPIFileOperator::test_both_channel_and_channels_set
 - tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperator::test_snowflake_operator
 - tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperatorForParams::test_overwrite_params
 - tests/providers/snowflake/operators/test_snowflake_sql.py::test_exec_success
@@ -731,13 +687,8 @@
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_without_fields
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_no_rows
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
-- tests/providers/vertica/operators/test_vertica.py::TestVerticaOperator::test_execute
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_constructor
 - tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_execute_with_input_json
 - tests/providers/yandex/hooks/test_yandex.py::TestYandexHook::test_provider_user_agent
 - tests/providers/yandex/hooks/test_yandex.py::TestYandexHook::test_backcompat_prefix_works
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_hive_job_operator
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_mapreduce_job_operator
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_spark_job_operator
-- tests/providers/yandex/operators/test_yandexcloud_dataproc.py::TestDataprocClusterCreateOperator::test_create_pyspark_job_operator
 - tests/providers/yandex/secrets/test_lockbox.py::TestLockboxSecretBackend::test_yandex_lockbox_secret_backend_get_connection_from_json

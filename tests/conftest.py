@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import functools
 import json
 import os
 import platform
@@ -30,11 +29,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
-import yaml
 from itsdangerous import URLSafeSerializer
 
 if TYPE_CHECKING:
     from tests._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
+    from tests._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -121,6 +120,7 @@ collect_ignore = [
 
 # https://docs.pytest.org/en/stable/reference/reference.html#stash
 capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
+forbidden_warnings_key = pytest.StashKey["ForbiddenWarningsPlugin"]()
 
 
 @pytest.fixture
@@ -213,7 +213,7 @@ def trace_sql(request):
         yield
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser):
     """Add options parser for custom plugins."""
     group = parser.getgroup("airflow")
     group.addoption(
@@ -298,6 +298,12 @@ def pytest_addoption(parser):
         help="Disable DB clear before each test module.",
     )
     group.addoption(
+        "--disable-forbidden-warnings",
+        action="store_true",
+        dest="disable_forbidden_warnings",
+        help="Disable raising an error if forbidden warnings detected.",
+    )
+    group.addoption(
         "--disable-capture-warnings",
         action="store_true",
         dest="disable_capture_warnings",
@@ -314,6 +320,11 @@ def pytest_addoption(parser):
             "then 'warnings.txt' will be used."
         ),
     )
+    parser.addini(
+        name="forbidden_warnings",
+        type="linelist",
+        help="List of internal Airflow warnings which are prohibited during tests execution.",
+    )
 
 
 def initial_db_init():
@@ -323,8 +334,12 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
+    from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
-    db.resetdb(use_migration_files=True)
+    if AIRFLOW_V_2_10_PLUS:
+        db.resetdb(use_migration_files=True)
+    else:
+        db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
@@ -417,25 +432,43 @@ def pytest_configure(config: pytest.Config) -> None:
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
-    # Setup capture warnings
+    # Setup internal warnings plugins
     if "ignore" in sys.warnoptions:
+        config.option.disable_forbidden_warnings = True
         config.option.disable_capture_warnings = True
+    if not config.pluginmanager.get_plugin("warnings"):
+        # Internal forbidden warnings plugin depends on builtin pytest warnings plugin
+        config.option.disable_forbidden_warnings = True
+
+    forbidden_warnings: list[str] | None = config.getini("forbidden_warnings")
+    if not config.option.disable_forbidden_warnings and forbidden_warnings:
+        from tests._internals.forbidden_warnings import ForbiddenWarningsPlugin
+
+        forbidden_warnings_plugin = ForbiddenWarningsPlugin(
+            config=config,
+            forbidden_warnings=tuple(map(str.strip, forbidden_warnings)),
+        )
+        config.pluginmanager.register(forbidden_warnings_plugin)
+        config.stash[forbidden_warnings_key] = forbidden_warnings_plugin
+
     if not config.option.disable_capture_warnings:
         from tests._internals.capture_warnings import CaptureWarningsPlugin
 
-        plugin = CaptureWarningsPlugin(
+        capture_warnings_plugin = CaptureWarningsPlugin(
             config=config, output_path=config.getoption("warning_output_path", default=None)
         )
-        config.pluginmanager.register(plugin)
-        config.stash[capture_warnings_key] = plugin
+        config.pluginmanager.register(capture_warnings_plugin)
+        config.stash[capture_warnings_key] = capture_warnings_plugin
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
     os.environ.pop("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK", None)
-    capture_warnings = config.stash.get(capture_warnings_key, None)
-    if capture_warnings:
+    if forbidden_warnings_plugin := config.stash.get(forbidden_warnings_key, None):
+        del config.stash[forbidden_warnings_key]
+        config.pluginmanager.unregister(forbidden_warnings_plugin)
+    if capture_warnings_plugin := config.stash.get(capture_warnings_key, None):
         del config.stash[capture_warnings_key]
-        config.pluginmanager.unregister(capture_warnings)
+        config.pluginmanager.unregister(capture_warnings_plugin)
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -612,34 +645,6 @@ def skip_if_credential_file_missing(item):
         credential_path = os.path.join(os.environ.get("CREDENTIALS_DIR"), credential_file)
         if not os.path.exists(credential_path):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
-
-
-@functools.lru_cache(maxsize=None)
-def deprecations_ignore() -> tuple[str, ...]:
-    with open(Path(__file__).resolve().parent / "deprecations_ignore.yml") as fp:
-        return tuple(yaml.safe_load(fp))
-
-
-def setup_error_warnings(item: pytest.Item):
-    if item.nodeid.startswith(deprecations_ignore()):
-        return
-
-    # We cannot add everything related to the airflow package it into `filterwarnings`
-    # in the pyproject.toml sections, because it invokes airflow import before we setup test environment.
-    # Instead of that, we are dynamically adding as `filterwarnings` marker.
-    prohibited_warnings = (
-        "airflow.exceptions.RemovedInAirflow3Warning",
-        "airflow.utils.context.AirflowContextDeprecationWarning",
-        "airflow.exceptions.AirflowProviderDeprecationWarning",
-    )
-    for w in prohibited_warnings:
-        # Add marker at the beginning of the markers list. In this case, it does not conflict with
-        # filterwarnings markers, which are set explicitly in the test suite.
-        item.add_marker(pytest.mark.filterwarnings(f"error::{w}"), append=False)
-
-
-def pytest_itemcollected(item: pytest.Item):
-    setup_error_warnings(item)
 
 
 def pytest_runtest_setup(item):
@@ -1289,6 +1294,20 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
+
+
+@pytest.fixture
+def airflow_root_path() -> Path:
+    import airflow
+
+    return Path(airflow.__path__[0]).parent
+
+
+# This constant is set to True if tests are run with Airflow installed from Packages rather than running
+# the tests within Airflow sources. While most tests in CI are run using Airflow sources, there are
+# also compatibility tests that only use `tests` package and run against installed packages of Airflow in
+# for supported Airflow versions.
+RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES = not (Path(__file__).parents[1] / "airflow" / "__init__.py").exists()
 
 
 if TYPE_CHECKING:
