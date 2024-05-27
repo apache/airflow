@@ -25,6 +25,8 @@ import { Table, Tbody, Box, Thead } from "@chakra-ui/react";
 import { useGridData } from "src/api";
 import { useOffsetTop } from "src/utils";
 
+import useMultipleSelection from "../useMultipleSelection";
+
 import renderTaskRows from "./renderTaskRows";
 import DagRuns from "./dagRuns";
 import useSelection from "../useSelection";
@@ -62,6 +64,13 @@ const Grid = ({
       }
       return true;
     });
+
+  const {
+    selectedTaskInstances,
+    onAddSelectedTask,
+    clearSelectionTasks,
+    onAddSelectedTaskBlock,
+  } = useMultipleSelection(groups, dagRunIds, openGroupIds);
 
   const onGanttScroll = (e: Event) => {
     const { scrollTop } = e.currentTarget as HTMLDivElement;
@@ -130,6 +139,7 @@ const Grid = ({
             openGroupIds={openGroupIds}
             onToggleGroups={onToggleGroups}
             isGridCollapsed={isGridCollapsed}
+            selectedTaskInstances={selectedTaskInstances}
           />
         </Thead>
         <Tbody ref={tableRef}>
@@ -140,6 +150,10 @@ const Grid = ({
             onToggleGroups,
             hoveredTaskState,
             isGridCollapsed,
+            selectedTaskInstances,
+            onAddSelectedTask,
+            clearSelectionTasks,
+            onAddSelectedTaskBlock,
           })}
         </Tbody>
       </Table>

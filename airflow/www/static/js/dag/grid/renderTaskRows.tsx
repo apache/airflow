@@ -40,6 +40,10 @@ interface RowProps {
   hoveredTaskState?: string | null;
   isParentMapped?: boolean;
   isGridCollapsed?: boolean;
+  selectedTaskInstances: SelectionProps[];
+  onAddSelectedTask: (selection: SelectionProps) => void;
+  onAddSelectedTaskBlock: ({ runId, taskId, mapIndex }: SelectionProps) => void;
+  clearSelectionTasks: () => void;
 }
 
 const renderTaskRows = ({ task, level = 0, ...rest }: RowProps) => (
@@ -54,25 +58,47 @@ const renderTaskRows = ({ task, level = 0, ...rest }: RowProps) => (
 interface TaskInstancesProps {
   task: Task;
   dagRunIds: string[];
-  selectedRunId?: string | null;
-  onSelect: (selection: SelectionProps) => void;
   hoveredTaskState?: string | null;
   isGridCollapsed?: boolean;
+  selectedTaskInstances: SelectionProps[];
+  onSelect: (selection: SelectionProps) => void;
+  onAddSelectedTask: (selection: SelectionProps) => void;
+  clearSelectionTasks: () => void;
+  onAddSelectedTaskBlock: ({ runId, taskId, mapIndex }: SelectionProps) => void;
 }
 
 const TaskInstances = ({
   task,
   dagRunIds,
-  selectedRunId,
-  onSelect,
   hoveredTaskState,
   isGridCollapsed,
+  selectedTaskInstances,
+  onSelect,
+  onAddSelectedTask,
+  clearSelectionTasks,
+  onAddSelectedTaskBlock,
 }: TaskInstancesProps) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId: string) => {
       // Check if an instance exists for the run, or return an empty box
       const instance = task.instances.find((ti) => ti && ti.runId === runId);
-      const isSelected = selectedRunId === runId && !isGridCollapsed;
+      const isSelected =
+        !isGridCollapsed &&
+        selectedTaskInstances.some(
+          (ti) => ti && ti.runId === runId && ti.taskId === task.id
+        );
+      const isSelectedColumn =
+        !isGridCollapsed &&
+        selectedTaskInstances.some((ti) => ti && ti.runId === runId);
+
+      let color;
+      if (isSelectedColumn) {
+        color = "blue.100";
+      }
+      if (isSelected) {
+        color = "blue.400";
+      }
+
       return (
         <Box
           py="4px"
@@ -81,13 +107,16 @@ const TaskInstances = ({
           data-selected={isSelected}
           transition="background-color 0.2s"
           key={`${runId}-${task.id}-${instance ? instance.note : ""}`}
-          bg={isSelected ? "blue.100" : undefined}
+          bg={color}
         >
           {instance ? (
             <StatusBox
               instance={instance}
               group={task}
               onSelect={onSelect}
+              onAddSelectedTask={onAddSelectedTask}
+              clearSelectionTasks={clearSelectionTasks}
+              onAddSelectedTaskBlock={onAddSelectedTaskBlock}
               isActive={
                 hoveredTaskState === undefined ||
                 hoveredTaskState === instance.state
@@ -114,13 +143,20 @@ const Row = (props: RowProps) => {
     hoveredTaskState,
     isParentMapped,
     isGridCollapsed,
+    selectedTaskInstances,
+    onAddSelectedTask,
+    clearSelectionTasks,
+    onAddSelectedTaskBlock,
   } = props;
+
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
 
   const hoverBlue = `${colors.blue[100]}50`;
   const isGroup = !!task.children;
-  const isSelected = selected.taskId === task.id;
+  const isSelected =
+    selected.taskId === task.id ||
+    selectedTaskInstances.some((ti) => ti.taskId === task.id);
 
   const isOpen = openGroupIds.some((g) => g === task.id);
 
@@ -162,7 +198,10 @@ const Row = (props: RowProps) => {
             position="sticky"
             left={0}
             cursor="pointer"
-            onClick={() => onSelect({ taskId: task.id })}
+            onClick={() => {
+              clearSelectionTasks();
+              onSelect({ taskId: task.id });
+            }}
             borderBottom={0}
             width="100%"
             zIndex={1}
@@ -195,10 +234,13 @@ const Row = (props: RowProps) => {
           <TaskInstances
             dagRunIds={dagRunIds}
             task={task}
-            selectedRunId={selected.runId}
             onSelect={onSelect}
             hoveredTaskState={hoveredTaskState}
             isGridCollapsed={isGridCollapsed}
+            selectedTaskInstances={selectedTaskInstances}
+            onAddSelectedTask={onAddSelectedTask}
+            clearSelectionTasks={clearSelectionTasks}
+            onAddSelectedTaskBlock={onAddSelectedTaskBlock}
           />
         </Td>
       </Tr>

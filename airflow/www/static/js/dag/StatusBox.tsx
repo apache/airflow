@@ -78,6 +78,9 @@ interface Props {
   group: Task;
   instance: TaskInstance;
   onSelect: (selection: SelectionProps) => void;
+  onAddSelectedTask: (selection: SelectionProps) => void;
+  onAddSelectedTaskBlock: ({ runId, taskId, mapIndex }: SelectionProps) => void;
+  clearSelectionTasks: () => void;
   isActive: boolean;
   containsNotes?: boolean;
 }
@@ -86,6 +89,9 @@ const StatusBox = ({
   group,
   instance,
   onSelect,
+  onAddSelectedTask,
+  onAddSelectedTaskBlock,
+  clearSelectionTasks,
   isActive,
   containsNotes = false,
 }: Props) => {
@@ -120,9 +126,17 @@ const StatusBox = ({
     }
   };
 
-  const onClick = () => {
+  const onClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     onMouseLeave();
-    onSelect({ taskId, runId });
+    if (event.ctrlKey) {
+      onAddSelectedTask({ taskId, runId });
+    } else if (event.shiftKey) {
+      onAddSelectedTaskBlock({ taskId, runId });
+    } else {
+      clearSelectionTasks();
+      onAddSelectedTask({ taskId, runId });
+      onSelect({ taskId, runId });
+    }
   };
 
   return (
@@ -137,7 +151,7 @@ const StatusBox = ({
         <StatusWithNotes
           state={instance.state}
           containsNotes={containsNotes}
-          onClick={onClick}
+          onClick={(e) => onClick(e)}
           cursor="pointer"
           data-testid="task-instance"
           zIndex={1}
@@ -156,6 +170,8 @@ const StatusBox = ({
 const compareProps = (prevProps: Props, nextProps: Props) =>
   isEqual(prevProps.group, nextProps.group) &&
   isEqual(prevProps.instance, nextProps.instance) &&
-  isEqual(prevProps.isActive, nextProps.isActive);
+  isEqual(prevProps.isActive, nextProps.isActive) &&
+  isEqual(prevProps.onAddSelectedTask, nextProps.onAddSelectedTask) &&
+  isEqual(prevProps.onAddSelectedTaskBlock, nextProps.onAddSelectedTaskBlock);
 
 export default React.memo(StatusBox, compareProps);
