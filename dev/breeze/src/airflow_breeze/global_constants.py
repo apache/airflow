@@ -51,7 +51,17 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka", "qdrant"]
+TESTABLE_INTEGRATIONS = [
+    "cassandra",
+    "celery",
+    "kerberos",
+    "mongo",
+    "pinot",
+    "trino",
+    "kafka",
+    "qdrant",
+    "mssql",
+]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
@@ -219,6 +229,7 @@ MYSQL_HOST_PORT = "23306"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
+MSSQL_HOST_PORT = "21433"
 
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
