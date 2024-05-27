@@ -22,9 +22,10 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1715384430
+source-date-epoch: 1716287658
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.4.1
   - 5.4.0
   - 5.3.4
   - 5.3.3
@@ -160,10 +161,19 @@ config:
       index_patterns:
         description: |
           Comma separated list of index patterns to use when searching for logs (default: `_all`).
+          The index_patterns_callable takes precedence over this.
         version_added: 2.6.0
         type: string
         example: something-*
         default: "_all"
+      index_patterns_callable:
+        description: |
+          A string representing the full path to the Python callable path which accept TI object and
+          return comma separated list of index patterns. This will takes precedence over index_patterns.
+        version_added: 5.5.0
+        type: string
+        example: module.callable
+        default: ""
   elasticsearch_configs:
     description: ~
     options:

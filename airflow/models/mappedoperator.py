@@ -807,7 +807,12 @@ class MappedOperator(AbstractOperator):
         return parent_count * current_count
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        current_count = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        from airflow.serialization.serialized_objects import _ExpandInputRef
+
+        exp_input = self._get_specified_expand_input()
+        if isinstance(exp_input, _ExpandInputRef):
+            exp_input = exp_input.deref(self.dag)
+        current_count = exp_input.get_total_map_length(run_id, session=session)
         try:
             parent_count = super().get_mapped_ti_count(run_id, session=session)
         except NotMapped:

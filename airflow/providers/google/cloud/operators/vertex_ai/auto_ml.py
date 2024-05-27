@@ -138,6 +138,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         region: str,
         impersonation_chain: str | Sequence[str] | None = None,
         parent_model: str | None = None,
+        window_stride_length: int | None = None,
+        window_max_count: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -170,6 +172,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.quantiles = quantiles
         self.validation_options = validation_options
         self.budget_milli_node_hours = budget_milli_node_hours
+        self.window_stride_length = window_stride_length
+        self.window_max_count = window_max_count
 
     def execute(self, context: Context):
         self.hook = AutoMLHook(
@@ -220,6 +224,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
             sync=self.sync,
+            window_stride_length=self.window_stride_length,
+            window_max_count=self.window_max_count,
         )
 
         if model:

@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.11.1
+......
+
+Misc
+~~~~
+
+* `` AIP-21: yandexcloud: rename files, emit deprecation warning (#39618)``
+* ``yandex provider: bump version for yq http client package (#39548)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``add doc about Yandex Query operator (#39445)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 3.11.0
 ......
 
