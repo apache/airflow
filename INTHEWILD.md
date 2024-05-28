@@ -515,6 +515,7 @@ Currently, **officially** using Airflow:
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@coredipper](https://github.com/coredipper) & [@higee](https://github.com/higee) & [@azclub](https://github.com/azclub)]
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
+1. [Wikimedia Foundation](https://wikimediafoundation.org) [[@tullis](https://github.com/tullis)]
 1. [Wildlifestudios](https://wildlifestudios.com/)
 1. [Wise](https://wise.com) [[@koszti](https://github.com/koszti)]
 1. [WiseBanyan](https://wisebanyan.com/)
