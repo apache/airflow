@@ -25,12 +25,9 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-#from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.configuration import TEST_DAGS_FOLDER
-#from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.listeners.listener import get_listener_manager
-#from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.utils import timezone
@@ -46,8 +43,6 @@ from tests.test_utils.db import (
     clear_db_sla_miss,
 )
 from tests.test_utils.mock_executor import MockExecutor
-
-
 
 pytestmark = pytest.mark.db_test
 
