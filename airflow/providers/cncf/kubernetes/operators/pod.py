@@ -807,8 +807,7 @@ class KubernetesPodOperator(BaseOperator):
             logs = self.client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                pod=pod,
-                container_name=self.base_container_name,
+                container=self.base_container_name,
                 follow=follow,
                 timestamps=False,
                 since_seconds=since_seconds,
