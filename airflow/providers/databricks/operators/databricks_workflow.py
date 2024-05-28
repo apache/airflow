@@ -215,83 +215,9 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
     TaskGroup, it must contain the ``_convert_to_databricks_workflow_task`` method. If any tasks
     do not contain this method then the Taskgroup will raise an error at parse time.
 
-    Here is an example of what a DAG looks like with a DatabricksWorkflowTaskGroup:
-
-    .. code-block:: python
-
-        job_clusters = [
-            {
-                "job_cluster_key": "Shared_job_cluster",
-                "new_cluster": {
-                    "cluster_name": "",
-                    "spark_version": "11.3.x-scala2.12",
-                    "aws_attributes": {
-                        "first_on_demand": 1,
-                        "availability": "SPOT_WITH_FALLBACK",
-                        "zone_id": "us-east-2b",
-                        "spot_bid_price_percent": 100,
-                        "ebs_volume_count": 0,
-                    },
-                    "node_type_id": "i3.xlarge",
-                    "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
-                    "enable_elastic_disk": False,
-                    "data_security_mode": "LEGACY_SINGLE_USER_STANDARD",
-                    "runtime_engine": "STANDARD",
-                    "num_workers": 8,
-                },
-            }
-        ]
-
-    with dag:
-        task_group = DatabricksWorkflowTaskGroup(
-            group_id="test_workflow",
-            databricks_conn_id="databricks_conn",
-            job_clusters=job_cluster_spec,
-            notebook_params={},
-            notebook_packages=[
-                {
-                    "pypi": {
-                        "package": "simplejson"
-                    }
-                },
-            ]
-        )
-        with task_group:
-            notebook_1 = DatabricksNotebookOperator(
-                task_id="notebook_1",
-                databricks_conn_id="databricks_conn",
-                notebook_path="/Users/<user>/Test workflow",
-                source="WORKSPACE",
-                job_cluster_key="Shared_job_cluster",
-                notebook_packages=[
-                    {
-                        "pypi": {
-                            "package": "Faker"
-                        }
-                    }
-                ]
-            )
-            notebook_2 = DatabricksNotebookOperator(
-                task_id="notebook_2",
-                databricks_conn_id="databricks_conn",
-                notebook_path="/Users/<user>/Test workflow",
-                source="WORKSPACE",
-                job_cluster_key="Shared_job_cluster",
-                notebook_params={
-                    "foo": "bar",
-                },
-            )
-            notebook_1 >> notebook_2
-
-    With this example, Airflow will produce a job named <dag_name>.test_workflow that will
-    run notebook_1 and then notebook_2. The job will be created in the databricks workspace
-    if it does not already exist. If the job already exists, it will be updated to match
-    the workflow defined in the DAG.
-
-    To minimize update conflicts, we recommend that you keep parameters in the ``notebook_params`` of the
-    ``DatabricksWorkflowTaskGroup`` and not in the ``DatabricksNotebookOperator`` whenever possible.
-    This is because, tasks in the ``DatabricksWorkflowTaskGroup`` are passed in on the job trigger time and
-    do not modify the job definition.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksWorkflowTaskGroup`
 
     :param databricks_conn_id: The name of the databricks connection to use.
     :param existing_clusters: A list of existing clusters to use for this workflow.
@@ -341,7 +267,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         super().__init__(**kwargs)
 
     def __exit__(self, _type, _value, _tb):
-        """Exit the context manager and add tasks to a single _CreateDatabricksWorkflowOperator."""
+        """Exit the context manager and add tasks to a single ``_CreateDatabricksWorkflowOperator``."""
         roots = list(self.get_roots())
         tasks = _flatten_node(self)
 

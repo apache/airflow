@@ -24,7 +24,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.providers.databricks.operators.workflow import (
+from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     _CreateDatabricksWorkflowOperator,
     _flatten_node,
@@ -34,7 +34,7 @@ from airflow.providers.databricks.operators.workflow import (
 @pytest.fixture
 def mock_databricks_hook():
     """Provide a mock DatabricksHook."""
-    with patch("airflow.providers.databricks.operators.workflow.DatabricksHook") as mock_hook:
+    with patch("airflow.providers.databricks.operators.databricks_workflow.DatabricksHook") as mock_hook:
         yield mock_hook
 
 
@@ -159,28 +159,28 @@ def test_execute_invalid_task_group(context):
 @pytest.fixture
 def mock_databricks_workflow_operator():
     with patch(
-        "airflow.providers.databricks.operators.workflow._CreateDatabricksWorkflowOperator"
+        "airflow.providers.databricks.operators.databricks_workflow._CreateDatabricksWorkflowOperator"
     ) as mock_operator:
         yield mock_operator
 
 
 @pytest.fixture
 def example_dag():
-    return DAG(dag_id="example_dag")
+    return DAG(dag_id="example_databricks_workflow_dag")
 
 
 def test_task_group_initialization(example_dag):
     task_group = DatabricksWorkflowTaskGroup(
-        group_id="test_workflow", databricks_conn_id="databricks_conn", dag=example_dag
+        group_id="test_databricks_workflow", databricks_conn_id="databricks_conn", dag=example_dag
     )
-    assert task_group.group_id == "test_workflow"
+    assert task_group.group_id == "test_databricks_workflow"
     assert task_group.databricks_conn_id == "databricks_conn"
     assert task_group.dag == example_dag
 
 
 def test_task_group_exit_creates_operator(mock_databricks_workflow_operator, example_dag):
     with DatabricksWorkflowTaskGroup(
-        group_id="test_workflow", databricks_conn_id="databricks_conn", dag=example_dag
+        group_id="test_databricks_workflow", databricks_conn_id="databricks_conn", dag=example_dag
     ) as task_group:
         task1 = MagicMock(task_id="task1")
         task1._convert_to_databricks_workflow_task = MagicMock(return_value={})
@@ -207,7 +207,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator, exa
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
     with DatabricksWorkflowTaskGroup(
-        group_id="test_workflow1", databricks_conn_id="databricks_conn", dag=DAG(dag_id="test_dag")
+        group_id="test_databricks_workflow1", databricks_conn_id="databricks_conn", dag=DAG(dag_id="test_dag")
     ) as task_group:
         task1 = MagicMock(task_id="task1")
         task1._convert_to_databricks_workflow_task = MagicMock(return_value={})
@@ -222,7 +222,7 @@ def test_task_group_exit_with_invalid_task(example_dag):
         AirflowException, match="Task invalid_task does not support conversion to databricks workflow task"
     ):
         with DatabricksWorkflowTaskGroup(
-            group_id="test_workflow", databricks_conn_id="databricks_conn", dag=example_dag
+            group_id="test_databricks_workflow", databricks_conn_id="databricks_conn", dag=example_dag
         ) as task_group:
             invalid_task = MagicMock(spec=BaseOperator)
             invalid_task.task_id = "invalid_task"

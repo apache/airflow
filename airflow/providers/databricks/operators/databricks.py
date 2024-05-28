@@ -30,7 +30,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
-from airflow.providers.databricks.operators.workflow import (
+from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowRunMetadata,
     DatabricksWorkflowTaskGroup,
 )
