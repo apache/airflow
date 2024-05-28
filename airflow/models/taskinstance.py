@@ -122,7 +122,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
 from airflow.utils.platform import getuser
-from airflow.utils.retries import run_with_db_retries
+from airflow.utils.retries import retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
@@ -1782,6 +1782,7 @@ class TaskInstance(Base, LoggingMixin):
     @classmethod
     @internal_api_call
     @provide_session
+    @retry_db_transaction
     def get_task_instance(
         cls,
         dag_id: str,
