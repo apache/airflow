@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
+
 from cgroupspy.nodes import Node
 
 from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner
@@ -76,9 +77,9 @@ class TestCgroupTaskRunner:
         assert not return_code
 
     @mock.patch("airflow.task.task_runner.base_task_runner.BaseTaskRunner.__init__")
-    @mock.patch('builtins.open', new_callable=mock.mock_open)
+    @mock.patch("builtins.open", new_callable=mock.mock_open)
     def test_log_memory_usage(self, mock_open_file, mock_super_init):
-        mock_open_file.return_value.read.return_value = '12345789'
+        mock_open_file.return_value.read.return_value = "12345789"
         mem_cgroup_node = mock.Mock()
         mem_cgroup_node.full_path = "/test/cgroup"
         mem_cgroup_node.controller = mock.MagicMock()
