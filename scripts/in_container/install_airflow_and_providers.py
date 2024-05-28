@@ -294,6 +294,7 @@ def find_installation_spec(
 
 ALLOWED_PACKAGE_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
 
 
 @click.command()
@@ -422,6 +423,13 @@ ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "cons
     help="Should install packages from dist folder if set.",
 )
 @click.option(
+    "--mount-sources",
+    type=click.Choice(ALLOWED_MOUNT_SOURCES),
+    required=True,
+    envvar="MOUNT_SOURCES",
+    help="What sources are mounted .",
+)
+@click.option(
     "--install-airflow-with-constraints",
     is_flag=True,
     default=False,
@@ -439,6 +447,7 @@ def install_airflow_and_providers(
     github_actions: bool,
     github_repository: str,
     install_selected_providers: str,
+    mount_sources: str,
     package_format: str,
     providers_constraints_mode: str,
     providers_constraints_location: str,
@@ -523,7 +532,15 @@ def install_airflow_and_providers(
                 run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
         else:
             run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
-    console.print("[green]Done!")
+    if mount_sources == "providers-and-tests":
+        console.print("[bright_blue]Removing installed providers")
+        run_command(
+            ["pip freeze | grep apache-airflow-providers | xargs pip uninstall -y "],
+            github_actions=github_actions,
+            shell=True,
+            check=False,
+        )
+    console.print("\n[green]Done!")
 
 
 if __name__ == "__main__":

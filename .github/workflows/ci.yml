@@ -120,6 +120,7 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
+      testable-integrations: ${{ steps.selective-checks.outputs.testable-integrations }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
@@ -470,14 +471,13 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      testable-integrations: ${{ needs.build-info.outputs.testable-integrations }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      is-airflow-runner: ${{ needs.build-info.outputs.is-airflow-runner }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'

@@ -46,7 +46,16 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
+
+try:
+    from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
+except ImportError:
+    # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
+    from airflow.auth.managers.fab.models import (  # type: ignore[no-redef]
+        Permission,
+        Resource,
+        assoc_permission_role,
+    )
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session

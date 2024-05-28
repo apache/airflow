@@ -15,27 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
-  mssql:
-    container_name: mssql
-    image: "mcr.microsoft.com/mssql/server:2019-latest"
-    labels:
-      breeze.description: "Integration required for mssql hooks."
-    volumes:
-      - mssql-db-volume:/var/opt/mssql
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_PID: "Developer"
-      MSSQL_SA_PASSWORD: "airflow123"
-    restart: "on-failure"
-    ports:
-      - "${MSSQL_HOST_PORT}:1433"
   airflow:
-    depends_on:
-      mssql:
-        condition: service_started
+    stdin_open: true  # docker run -i
+    tty: true  # docker run -t
     environment:
-      - INTEGRATION_MSSQL=true
-volumes:
-  mssql-db-volume:
+      - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
+    # We only mount tests folder
+    volumes:
+      - ../../../.bash_aliases:/root/.bash_aliases:cached
+      - ../../../.bash_history:/root/.bash_history:cached
+      - ../../../.inputrc:/root/.inputrc:cached
+      # Remove airflow sources from container
+      - ../../../empty:/opt/airflow/airflow
+      # but keep tests
+      - ../../../tests/:/opt/airflow/tests:cached
+      # and providers
+      - ../../../airflow/providers:/opt/airflow/airflow/providers:cached
+      # and entrypoint and in_container scripts for testing
+      - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
+      - ../../../scripts/in_container/:/opt/airflow/scripts/in_container

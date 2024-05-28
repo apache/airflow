@@ -822,6 +822,10 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/transfer/azure_blob_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.azure_blob_to_s3
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Amazon DynamoDB
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/s3_to_dynamodb.rst
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_dynamodb
 
 extra-links:
   - airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink

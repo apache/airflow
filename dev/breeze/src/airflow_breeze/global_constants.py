@@ -25,7 +25,6 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -112,8 +111,18 @@ MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 MOUNT_TESTS = "tests"
+MOUNT_PROVIDERS_AND_TESTS = "providers-and-tests"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE, MOUNT_TESTS]
+ALLOWED_MOUNT_OPTIONS = [
+    MOUNT_SELECTED,
+    MOUNT_ALL,
+    MOUNT_SKIP,
+    MOUNT_REMOVE,
+    MOUNT_TESTS,
+    MOUNT_PROVIDERS_AND_TESTS,
+]
+
+USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
 ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
@@ -476,29 +485,23 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
-def _exclusion(providers: Iterable[str]) -> str:
-    return " ".join(
-        [f"apache_airflow_providers_{provider.replace('.', '_').replace('-','_')}*" for provider in providers]
-    )
-
-
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.7.1",
-        "remove-providers": _exclusion(["common.io", "fab"]),
+        "remove-providers": "common.io fab",
         "run-tests": "false",
     },
     {
         "python-version": "3.8",
-        "airflow-version": "2.8.0",
-        "remove-providers": _exclusion(["fab"]),
-        "run-tests": "false",
+        "airflow-version": "2.8.4",
+        "remove-providers": "fab",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.9.1",
-        "remove-providers": _exclusion([]),
+        "remove-providers": "",
         "run-tests": "true",
     },
 ]
