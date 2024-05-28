@@ -3657,8 +3657,13 @@ class TaskInstance(Base, LoggingMixin):
                     run_id=ti.run_id,
                 ),
                 session=session,
-                nowait=True,
-            ).one()
+                skip_locked=True,
+            ).one_or_none()
+
+            if not dag_run:
+                cls.logger().debug("Skip locked rows, rollback")
+                session.rollback()
+                return
 
             task = ti.task
             if TYPE_CHECKING:
