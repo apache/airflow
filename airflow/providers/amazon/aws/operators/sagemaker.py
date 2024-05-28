@@ -750,20 +750,18 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 method_name="execute_complete",
             )
 
-        return self.serialize_result()
+        return self.serialize_result(transform_config["TransformJobName"])
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
 
         self.log.info(event["message"])
-        return self.serialize_result()
+        return self.serialize_result(event["job_name"])
 
-    def serialize_result(self) -> dict[str, dict]:
-        transform_config = self.config.get("Transform", self.config)
-        self.serialized_model = serialize(self.hook.describe_model(transform_config["ModelName"]))
-        self.serialized_transform = serialize(
-            self.hook.describe_transform_job(transform_config["TransformJobName"])
-        )
+    def serialize_result(self, job_name: str) -> dict[str, dict]:
+        job_description = self.hook.describe_transform_job(job_name)
+        self.serialized_model = serialize(self.hook.describe_model(job_description["ModelName"]))
+        self.serialized_transform = serialize(job_description)
         return {"Model": self.serialized_model, "Transform": self.serialized_transform}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
@@ -1154,7 +1152,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 method_name="execute_complete",
             )
 
-        return self.serialize_result()
+        return self.serialize_result(self.config["TrainingJobName"])
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
         event = validate_execute_complete_event(event)
@@ -1163,12 +1161,10 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             raise AirflowException(f"Error while running job: {event}")
 
         self.log.info(event["message"])
-        return self.serialize_result()
+        return self.serialize_result(event["job_name"])
 
-    def serialize_result(self) -> dict[str, dict]:
-        self.serialized_training_data = serialize(
-            self.hook.describe_training_job(self.config["TrainingJobName"])
-        )
+    def serialize_result(self, job_name: str) -> dict[str, dict]:
+        self.serialized_training_data = serialize(self.hook.describe_training_job(job_name))
         return {"Training": self.serialized_training_data}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:

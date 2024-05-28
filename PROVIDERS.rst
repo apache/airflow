@@ -326,3 +326,14 @@ There are the following consequences (or lack of them) of removing the provider:
     last released. This however, should only be done in case there are no viable alternatives for the users.
 * Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
   of accepting new provider described above.
+
+Provider Dependencies
+=====================
+
+The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
+
+All provider dependencies, including versions and constraints, are listed in this file.
+When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
+
+To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
+Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.

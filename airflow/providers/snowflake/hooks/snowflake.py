@@ -34,6 +34,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
 
 T = TypeVar("T")
@@ -462,9 +463,7 @@ class SnowflakeHook(DbApiHook):
     def get_openlineage_default_schema(self) -> str | None:
         return self._get_conn_params["schema"]
 
-    def _get_openlineage_authority(self, _) -> str:
-        from openlineage.common.provider.snowflake import fix_snowflake_sqlalchemy_uri
-
+    def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())
         return urlparse(uri).hostname
 

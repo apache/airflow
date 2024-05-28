@@ -22,12 +22,16 @@ from unittest import mock
 import pytest
 
 from airflow.providers.openlineage.conf import (
+    _is_true,
+    _safe_int_convert,
     config_path,
     custom_extractors,
+    dag_state_change_process_pool_size,
     disabled_operators,
     is_disabled,
     is_source_enabled,
     namespace,
+    selective_enable,
     transport,
 )
 from tests.test_utils.config import conf_vars, env_vars
@@ -46,6 +50,23 @@ _CONFIG_OPTION_TRANSPORT = "transport"
 _VAR_DISABLED = "OPENLINEAGE_DISABLED"
 _CONFIG_OPTION_DISABLED = "disabled"
 _VAR_URL = "OPENLINEAGE_URL"
+_CONFIG_OPTION_SELECTIVE_ENABLE = "selective_enable"
+_CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE = "dag_state_change_process_pool_size"
+
+_BOOL_PARAMS = (
+    ("1", True),
+    ("t", True),
+    ("T", True),
+    ("tRuE ", True),
+    (" true", True),
+    ("TRUE", True),
+    ("0", False),
+    ("f", False),
+    ("F", False),
+    (" fAlSe", False),
+    ("false ", False),
+    ("FALSE", False),
+)
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +78,8 @@ def clear_cache():
     namespace.cache_clear()
     transport.cache_clear()
     is_disabled.cache_clear()
+    selective_enable.cache_clear()
+    dag_state_change_process_pool_size.cache_clear()
     try:
         yield
     finally:
@@ -67,6 +90,51 @@ def clear_cache():
         namespace.cache_clear()
         transport.cache_clear()
         is_disabled.cache_clear()
+        selective_enable.cache_clear()
+        dag_state_change_process_pool_size.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    (
+        *_BOOL_PARAMS,
+        ("some_string", False),
+        ("aasd123", False),
+        (True, True),
+        (False, False),
+    ),
+)
+def test_is_true(var_string, expected):
+    assert _is_true(var_string) is expected
+
+
+@pytest.mark.parametrize(
+    "input_value, expected",
+    [
+        ("123", 123),
+        (456, 456),
+        ("789", 789),
+        (0, 0),
+        ("0", 0),
+    ],
+)
+def test_safe_int_convert(input_value, expected):
+    assert _safe_int_convert(input_value, default=1) == expected
+
+
+@pytest.mark.parametrize(
+    "input_value, default",
+    [
+        ("abc", 1),
+        ("", 2),
+        (None, 3),
+        ("123abc", 4),
+        ([], 5),
+        ("1.2", 6),
+    ],
+)
+def test_safe_int_convert_erroneous_values(input_value, default):
+    assert _safe_int_convert(input_value, default) == default
 
 
 @env_vars({_VAR_CONFIG_PATH: "env_var_path"})
@@ -89,6 +157,16 @@ def test_config_path_empty_conf_option():
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): None})
 def test_config_path_do_not_fail_if_conf_option_missing():
     assert config_path() == ""
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_disable_source_code(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): var_string}):
+        result = is_source_enabled()
+        assert result is not expected  # conf is disabled_... and func is enabled_... hence the `not` here
 
 
 @env_vars({_VAR_DISABLE_SOURCE_CODE: "true"})
@@ -122,6 +200,31 @@ def test_disable_source_code_empty_conf_option():
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): None})
 def test_disable_source_code_do_not_fail_if_conf_option_missing():
     assert is_source_enabled() is True
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_selective_enable(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): var_string}):
+        result = selective_enable()
+        assert result is expected
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): "asdadawlaksnd"})
+def test_selective_enable_not_working_for_random_string():
+    assert selective_enable() is False
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): ""})
+def test_selective_enable_empty_conf_option():
+    assert selective_enable() is False
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): None})
+def test_selective_enable_do_not_fail_if_conf_option_missing():
+    assert selective_enable() is False
 
 
 @pytest.mark.parametrize(
@@ -387,3 +490,25 @@ def test_is_disabled_empty_conf_option():
 )
 def test_is_disabled_do_not_fail_if_conf_option_missing():
     assert is_disabled() is True
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    (
+        ("1", 1),
+        ("2   ", 2),
+        ("  3", 3),
+        ("4.56", 1),  # default
+        ("asdf", 1),  # default
+        ("true", 1),  # default
+        ("false", 1),  # default
+        ("None", 1),  # default
+        ("", 1),  # default
+        (" ", 1),  # default
+        (None, 1),  # default
+    ),
+)
+def test_dag_state_change_process_pool_size(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
+        result = dag_state_change_process_pool_size()
+        assert result == expected

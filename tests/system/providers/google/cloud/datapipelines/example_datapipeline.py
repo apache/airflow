@@ -34,10 +34,11 @@ from airflow.providers.google.cloud.operators.datapipeline import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "google-datapipeline"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 GCP_LOCATION = os.environ.get("location", "us-central1")
 
 PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "defualt-pipeline-name")

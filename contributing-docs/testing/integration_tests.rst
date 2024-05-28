@@ -58,6 +58,8 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | mongo        | Integration required for MongoDB hooks.            |
 +--------------+----------------------------------------------------+
+| mssql        | Integration required for mssql hooks.              |
++--------------+----------------------------------------------------+
 | openlineage  | Integration required for Openlineage hooks.        |
 +--------------+----------------------------------------------------+
 | otel         | Integration required for OTEL/opentelemetry hooks. |

@@ -117,7 +117,12 @@ class AzureContainerInstancesOperator(BaseOperator):
             memory_in_gb=14.0,
             cpu=4.0,
             gpu=GpuResource(count=1, sku="K80"),
-            dns_config=["10.0.0.10", "10.0.0.11"],
+            subnet_ids=[
+                {
+                    "id": "/subscriptions/00000000-0000-0000-0000-00000000000/resourceGroups/my_rg/providers/Microsoft.Network/virtualNetworks/my_vnet/subnets/my_subnet"
+                }
+            ],
+            dns_config={"name_servers": ["10.0.0.10", "10.0.0.11"]},
             diagnostics={
                 "log_analytics": {
                     "workspaceId": "workspaceid",

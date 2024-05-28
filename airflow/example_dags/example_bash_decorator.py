@@ -38,7 +38,7 @@ def example_bash_decorator():
     # [START howto_decorator_bash]
     @task.bash
     def run_after_loop() -> str:
-        return "echo 1"
+        return "echo https://airflow.apache.org/"
 
     run_this = run_after_loop()
     # [END howto_decorator_bash]
