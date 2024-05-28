@@ -1575,6 +1575,29 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 
 @internal_api_call
 @provide_session
+def _defer_task_from_task_deferred(
+    ti: TaskInstance | TaskInstancePydantic, exception: TaskDeferred, session: Session = NEW_SESSION
+) -> TaskInstancePydantic | TaskInstance:
+    from airflow.models.trigger import Trigger
+
+    # First, make the trigger entry
+    trigger_row = Trigger.from_object(exception.trigger)
+    updated_ti = _defer_task(
+        ti=ti,
+        session=session,
+        trigger_row=trigger_row,
+        trigger_kwargs=exception.kwargs,
+        next_method=exception.method_name,
+        timeout=exception.timeout,
+    )
+
+    session.merge(updated_ti)
+    session.commit()
+    return updated_ti
+
+
+@internal_api_call
+@provide_session
 def _defer_task(
     ti: TaskInstance | TaskInstancePydantic,
     *,
@@ -3007,21 +3030,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta: private
         """
-        from airflow.models.trigger import Trigger
-
-        # First, make the trigger entry
-        trigger_row = Trigger.from_object(exception.trigger)
-        _defer_task(
-            ti=self,
-            session=session,
-            trigger_row=trigger_row,
-            trigger_kwargs=exception.kwargs,
-            next_method=exception.method_name,
-            timeout=exception.timeout,
-        )
-
-        session.merge(self)
-        session.commit()
+        _defer_task_from_task_deferred(ti=self, session=session, exception=exception)
 
     @provide_session
     def defer_task_from_start_trigger(
