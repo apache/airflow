@@ -15,3 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID = "example-project"

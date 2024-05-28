@@ -24,7 +24,6 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence, Tuple
 
-from deprecated import deprecated
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.automl_v1beta1 import (
     BatchPredictResult,
@@ -35,15 +34,15 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
-from airflow.providers.google.cloud.links.automl import (
-    AutoMLDatasetLink,
-    AutoMLDatasetListLink,
-    AutoMLModelLink,
-    AutoMLModelPredictLink,
-    AutoMLModelTrainLink,
+from airflow.providers.google.cloud.links.translate import (
+    TranslationDatasetListLink,
+    TranslationLegacyDatasetLink,
+    TranslationLegacyModelLink,
+    TranslationLegacyModelPredictLink,
+    TranslationLegacyModelTrainLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
@@ -119,8 +118,8 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
     )
     operator_extra_links = (
-        AutoMLModelTrainLink(),
-        AutoMLModelLink(),
+        TranslationLegacyModelTrainLink(),
+        TranslationLegacyModelLink(),
     )
 
     def __init__(
@@ -173,7 +172,9 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLModelTrainLink.persist(context=context, task_instance=self, project_id=project_id)
+            TranslationLegacyModelTrainLink.persist(
+                context=context, task_instance=self, project_id=project_id
+            )
         operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
         result = Model.to_dict(operation_result)
         model_id = hook.extract_object_id(result)
@@ -181,7 +182,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
 
         self.xcom_push(context, key="model_id", value=model_id)
         if project_id:
-            AutoMLModelLink.persist(
+            TranslationLegacyModelLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=self.model["dataset_id"] or "-",
@@ -194,6 +195,9 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
 class AutoMLPredictOperator(GoogleCloudBaseOperator):
     """
     Runs prediction operation on Google Cloud AutoML.
+
+    AutoMLPredictOperator for text, image, and video prediction has been deprecated.
+    Please use endpoint_id param instead of model_id param.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -228,7 +232,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLModelPredictLink(),)
+    operator_extra_links = (TranslationLegacyModelPredictLink(),)
 
     def __init__(
         self,
@@ -325,7 +329,7 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
 
         project_id = self.project_id or hook.project_id
         if project_id and self.model_id:
-            AutoMLModelPredictLink.persist(
+            TranslationLegacyModelPredictLink.persist(
                 context=context,
                 task_instance=self,
                 model_id=self.model_id,
@@ -389,7 +393,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLModelPredictLink(),)
+    operator_extra_links = (TranslationLegacyModelPredictLink(),)
 
     def __init__(
         self,
@@ -426,7 +430,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        model: Model = hook.get_model(
+        self.model: Model = hook.get_model(
             model_id=self.model_id,
             location=self.location,
             project_id=self.project_id,
@@ -435,7 +439,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
 
-        if not hasattr(model, "translation_model_metadata"):
+        if not hasattr(self.model, "translation_model_metadata"):
             _raise_exception_for_deprecated_operator(
                 self.__class__.__name__,
                 [
@@ -462,7 +466,7 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
         self.log.info("Batch prediction is ready.")
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLModelPredictLink.persist(
+            TranslationLegacyModelPredictLink.persist(
                 context=context,
                 task_instance=self,
                 model_id=self.model_id,
@@ -511,7 +515,7 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLDatasetLink(),)
+    operator_extra_links = (TranslationLegacyDatasetLink(),)
 
     def __init__(
         self,
@@ -560,7 +564,7 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="dataset_id", value=dataset_id)
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLDatasetLink.persist(
+            TranslationLegacyDatasetLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=dataset_id,
@@ -611,7 +615,7 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLDatasetLink(),)
+    operator_extra_links = (TranslationLegacyDatasetLink(),)
 
     def __init__(
         self,
@@ -668,7 +672,7 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
         self.log.info("Import is completed")
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLDatasetLink.persist(
+            TranslationLegacyDatasetLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=self.dataset_id,
@@ -679,6 +683,10 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
 class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists column specs in a table.
+
+    Operator AutoMLTablesListColumnSpecsOperator has been deprecated due to shutdown of
+    a legacy version of AutoML Tables on March 31, 2024. For additional information
+    see: https://cloud.google.com/automl-tables/docs/deprecations.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -722,7 +730,7 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLDatasetLink(),)
+    operator_extra_links = (TranslationLegacyDatasetLink(),)
 
     def __init__(
         self,
@@ -754,6 +762,11 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        raise AirflowException(
+            "Operator AutoMLTablesListColumnSpecsOperator has been deprecated due to shutdown of "
+            "a legacy version of AutoML Tables on March 31, 2024. "
+            "For additional information see: https://cloud.google.com/automl-tables/docs/deprecations."
+        )
 
     def execute(self, context: Context):
         hook = CloudAutoMLHook(
@@ -777,7 +790,7 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         self.log.info("Columns specs obtained.")
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLDatasetLink.persist(
+            TranslationLegacyDatasetLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=self.dataset_id,
@@ -786,20 +799,14 @@ class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
         return result
 
 
-@deprecated(
-    reason=(
-        "Class `AutoMLTablesUpdateDatasetOperator` has been deprecated and no longer available. "
-        "Please use `UpdateDatasetOperator` instead"
-    ),
-    category=AirflowProviderDeprecationWarning,
-    action="error",
-)
 class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     Updates a dataset.
 
-    AutoMLTablesUpdateDatasetOperator has been deprecated and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
+    Operator AutoMLTablesUpdateDatasetOperator has been deprecated due to shutdown of
+    a legacy version of AutoML Tables on March 31, 2024. For additional information
+    see: https://cloud.google.com/automl-tables/docs/deprecations.
+    Please use :class:`airflow.providers.google.cloud.operators.vertex_ai.dataset.UpdateDatasetOperator`
     instead.
 
     .. seealso::
@@ -834,7 +841,7 @@ class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
         "location",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLDatasetLink(),)
+    operator_extra_links = (TranslationLegacyDatasetLink(),)
 
     def __init__(
         self,
@@ -859,6 +866,12 @@ class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        raise AirflowException(
+            "Operator AutoMLTablesUpdateDatasetOperator has been deprecated due to shutdown of "
+            "a legacy version of AutoML Tables on March 31, 2024. "
+            "For additional information see: https://cloud.google.com/automl-tables/docs/deprecations. "
+            "Please use UpdateDatasetOperator from Vertex AI instead."
+        )
 
     def execute(self, context: Context):
         hook = CloudAutoMLHook(
@@ -876,7 +889,7 @@ class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
         self.log.info("Dataset updated.")
         project_id = hook.project_id
         if project_id:
-            AutoMLDatasetLink.persist(
+            TranslationLegacyDatasetLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=hook.extract_object_id(self.dataset),
@@ -924,7 +937,7 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLModelLink(),)
+    operator_extra_links = (TranslationLegacyModelLink(),)
 
     def __init__(
         self,
@@ -968,7 +981,7 @@ class AutoMLGetModelOperator(GoogleCloudBaseOperator):
         model = Model.to_dict(result)
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLModelLink.persist(
+            TranslationLegacyModelLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=model["dataset_id"],
@@ -1069,14 +1082,6 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
         self.log.info("Deletion is completed")
 
 
-@deprecated(
-    reason=(
-        "Class `AutoMLDeployModelOperator` has been deprecated and no longer available. Please use "
-        "`DeployModelOperator` instead"
-    ),
-    category=AirflowProviderDeprecationWarning,
-    action="error",
-)
 class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     """
     Deploys a model; if a model is already deployed, deploying it with the same parameters has no effect.
@@ -1087,8 +1092,10 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     Only applicable for Text Classification, Image Object Detection and Tables; all other
     domains manage deployment automatically.
 
-    AutoMLDeployModelOperator has been deprecated and no longer available. Please use
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator`
+    Operator AutoMLDeployModelOperator has been deprecated due to shutdown of a legacy version
+    of AutoML Natural Language, Vision, Video Intelligence on March 31, 2024.
+    For additional information see: https://cloud.google.com/vision/automl/docs/deprecations .
+    Please use :class:`airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.DeployModelOperator`
     instead.
 
     .. seealso::
@@ -1151,24 +1158,20 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        raise AirflowException(
+            "Operator AutoMLDeployModelOperator has been deprecated due to shutdown of "
+            "a legacy version of AutoML AutoML Natural Language, Vision, Video Intelligence "
+            "on March 31, 2024. "
+            "For additional information see: https://cloud.google.com/vision/automl/docs/deprecations. "
+            "Please use DeployModelOperator from Vertex AI instead."
+        )
 
     def execute(self, context: Context):
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        model = hook.get_model(
-            model_id=self.model_id,
-            location=self.location,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        if not hasattr(model, "translation_model_metadata"):
-            _raise_exception_for_deprecated_operator(self.__class__.__name__, "DeployModelOperator")
         self.log.info("Deploying model_id %s", self.model_id)
-
         operation = hook.deploy_model(
             model_id=self.model_id,
             location=self.location,
@@ -1185,6 +1188,10 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
 class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists table specs in a dataset.
+
+    Operator AutoMLTablesListTableSpecsOperator has been deprecated due to shutdown of
+    a legacy version of AutoML Tables on March 31, 2024. For additional information
+    see: https://cloud.google.com/automl-tables/docs/deprecations.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1223,7 +1230,7 @@ class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLDatasetLink(),)
+    operator_extra_links = (TranslationLegacyDatasetLink(),)
 
     def __init__(
         self,
@@ -1251,6 +1258,11 @@ class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
         self.retry = retry
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        raise AirflowException(
+            "Operator AutoMLTablesListTableSpecsOperator has been deprecated due to shutdown of "
+            "a legacy version of AutoML Tables on March 31, 2024. "
+            "For additional information see: https://cloud.google.com/automl-tables/docs/deprecations. "
+        )
 
     def execute(self, context: Context):
         hook = CloudAutoMLHook(
@@ -1273,7 +1285,7 @@ class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
         self.log.info("Table specs obtained.")
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLDatasetLink.persist(
+            TranslationLegacyDatasetLink.persist(
                 context=context,
                 task_instance=self,
                 dataset_id=self.dataset_id,
@@ -1318,7 +1330,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (AutoMLDatasetListLink(),)
+    operator_extra_links = (TranslationDatasetListLink(),)
 
     def __init__(
         self,
@@ -1373,7 +1385,7 @@ class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
         )
         project_id = self.project_id or hook.project_id
         if project_id:
-            AutoMLDatasetListLink.persist(context=context, task_instance=self, project_id=project_id)
+            TranslationDatasetListLink.persist(context=context, task_instance=self, project_id=project_id)
         return result
 
 

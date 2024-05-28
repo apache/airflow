@@ -1279,6 +1279,7 @@ pymysql
 pyodbc
 pypa
 PyPI
+pyproject
 pypsrp
 pyspark
 pytest
@@ -1655,6 +1656,7 @@ todo
 tokenization
 tokopedia
 tolerations
+toml
 toolchain
 Tooltip
 tooltip

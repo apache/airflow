@@ -17,17 +17,20 @@
 
 .. _howto/operator:SnowflakeOperator:
 
-SnowflakeOperator
-=================
+SQLExecuteQueryOperator to connect to Snowflake
+===============================================
 
-Use the :class:`SnowflakeOperator <airflow.providers.snowflake.operators.snowflake>` to execute
+Use the :class:`SQLExecuteQueryOperator <airflow.providers.common.sql.operators.sql>` to execute
 SQL commands in a `Snowflake <https://docs.snowflake.com/en/>`__ database.
+
+.. warning::
+    Previously, SnowflakeOperator was used to perform this kind of operation. But at the moment SnowflakeOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
 
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-Use the ``snowflake_conn_id`` argument to connect to your Snowflake instance where
+Use the ``conn_id`` argument to connect to your Snowflake instance where
 the connection metadata is structured as follows:
 
 .. list-table:: Snowflake Airflow Connection Metadata
@@ -45,7 +48,7 @@ the connection metadata is structured as follows:
    * - Extra: dictionary
      - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``
 
-An example usage of the SnowflakeOperator is as follows:
+An example usage of the SQLExecuteQueryOperator to connect to Snowflake is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
     :language: python

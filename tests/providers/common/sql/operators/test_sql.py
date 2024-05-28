@@ -42,8 +42,12 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+]
 
 
 class MockHook:

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
 
-from airflow import __version__ as airflow_version
+from airflow import __version__ as airflow_version, settings
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
@@ -111,13 +111,16 @@ class OpenLineageListener:
             # we return here because Airflow 2.3 needs task from deferred state
             if task_instance.next_method is not None:
                 return
-            parent_run_id = self.adapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+            parent_run_id = self.adapter.build_dag_run_id(
+                dag_id=dag.dag_id,
+                execution_date=dagrun.execution_date,
+            )
 
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
-                execution_date=task_instance.execution_date,
                 try_number=task_instance.try_number,
+                execution_date=task_instance.execution_date,
             )
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
@@ -184,13 +187,16 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_success():
-            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(
+                dag_id=dag.dag_id,
+                execution_date=dagrun.execution_date,
+            )
 
             task_uuid = OpenLineageAdapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
-                execution_date=task_instance.execution_date,
                 try_number=_get_try_number_success(task_instance),
+                execution_date=task_instance.execution_date,
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
@@ -246,13 +252,16 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_failure():
-            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(
+                dag_id=dag.dag_id,
+                execution_date=dagrun.execution_date,
+            )
 
             task_uuid = OpenLineageAdapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
-                execution_date=task_instance.execution_date,
                 try_number=task_instance.try_number,
+                execution_date=task_instance.execution_date,
             )
             event_type = RunState.FAIL.value.lower()
             operator_name = task.task_type.lower()
@@ -281,8 +290,16 @@ class OpenLineageListener:
 
     @property
     def executor(self):
+        def initializer():
+            # Re-configure the ORM engine as there are issues with multiple processes
+            # if process calls Airflow DB.
+            settings.configure_orm()
+
         if not self._executor:
-            self._executor = ProcessPoolExecutor(max_workers=conf.dag_state_change_process_pool_size())
+            self._executor = ProcessPoolExecutor(
+                max_workers=conf.dag_state_change_process_pool_size(),
+                initializer=initializer,
+            )
         return self._executor
 
     @hookimpl

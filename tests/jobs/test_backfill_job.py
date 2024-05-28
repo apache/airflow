@@ -2116,6 +2116,8 @@ class TestBackfillJob:
 
         dag.clear()
 
+    # Qyarantined issue tracked in https://github.com/apache/airflow/issues/39858
+    @pytest.mark.quarantined
     def test_backfill_failed_dag_with_upstream_failed_task(self, dag_maker):
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / "test_backfill_with_upstream_failed_task.py"))
         dag = self.dagbag.get_dag("test_backfill_with_upstream_failed_task")

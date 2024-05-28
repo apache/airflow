@@ -207,6 +207,12 @@ function determine_airflow_to_use() {
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
+        # Upgrade pytest and pytest extensions to latest version if they have been accidentally
+        # downgraded by constraints
+        pip install --upgrade pytest pytest aiofiles aioresponses pytest-asyncio pytest-custom-exit-code \
+           pytest-icdiff pytest-instafail pytest-mock pytest-rerunfailures pytest-timeouts \
+           pytest-xdist pytest requests_mock time-machine \
+           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -228,7 +234,8 @@ function check_boto_upgrade() {
     # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
     # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
+       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
     pip check
 }
 

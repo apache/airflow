@@ -21,9 +21,12 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 
-from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
-    AwsSecurityManagerOverride,
-)
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.8.0", __file__):
+    from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
+        AwsSecurityManagerOverride,
+    )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 

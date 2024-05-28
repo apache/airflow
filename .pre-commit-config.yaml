@@ -18,7 +18,7 @@
 default_stages: [commit, push]
 default_language_version:
   python: python3
-  node: 21.6.1
+  node: 22.2.0
 minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
@@ -335,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.4.3"]
+        additional_dependencies: ["ruff==0.4.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.4.3"]
+        additional_dependencies: ["ruff==0.4.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters

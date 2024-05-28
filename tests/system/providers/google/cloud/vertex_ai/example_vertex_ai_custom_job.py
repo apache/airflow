@@ -17,9 +17,7 @@
 # under the License.
 
 
-"""
-Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations.
-"""
+"""Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations."""
 
 from __future__ import annotations
 
@@ -49,15 +47,13 @@ from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFile
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "example_vertex_ai_custom_job_operations"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 REGION = "us-central1"
 CUSTOM_DISPLAY_NAME = f"train-housing-custom-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"custom-housing-model-{ENV_ID}"
-
+DAG_ID = "vertex_ai_custom_job_operations"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 CUSTOM_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
-
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
 
 
@@ -133,6 +129,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+
     model_id_v1 = create_custom_training_job.output["model_id"]
     # [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
 
@@ -140,7 +137,7 @@ with DAG(
     create_custom_training_job_deferrable = CreateCustomTrainingJobOperator(
         task_id="custom_task_deferrable",
         staging_bucket=f"gs://{CUSTOM_GCS_BUCKET_NAME}",
-        display_name=f"{CUSTOM_DISPLAY_NAME}_DEF",
+        display_name=f"{CUSTOM_DISPLAY_NAME}-def",
         script_path=LOCAL_TRAINING_SCRIPT_PATH,
         container_uri=CONTAINER_URI,
         requirements=["gcsfs==0.7.1"],
@@ -148,12 +145,12 @@ with DAG(
         # run params
         dataset_id=tabular_dataset_id,
         replica_count=REPLICA_COUNT,
-        model_display_name=f"{MODEL_DISPLAY_NAME}_DEF",
+        model_display_name=f"{MODEL_DISPLAY_NAME}-def",
         region=REGION,
         project_id=PROJECT_ID,
         deferrable=True,
     )
-    model_id_v1_deferrable = create_custom_training_job.output["model_id"]
+    model_id_deferrable_v1 = create_custom_training_job_deferrable.output["model_id"]
     # [END how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
 
     # [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
@@ -176,26 +173,26 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
 
-    # [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
-    create_custom_training_job_v2_deferrable = CreateCustomTrainingJobOperator(
-        task_id="custom_task_v2_deferrable",
+    # [START how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
+    create_custom_training_job_deferrable_v2 = CreateCustomTrainingJobOperator(
+        task_id="custom_task_deferrable_v2",
         staging_bucket=f"gs://{CUSTOM_GCS_BUCKET_NAME}",
-        display_name=f"{CUSTOM_DISPLAY_NAME}_DEF",
+        display_name=f"{CUSTOM_DISPLAY_NAME}-def",
         script_path=LOCAL_TRAINING_SCRIPT_PATH,
         container_uri=CONTAINER_URI,
         requirements=["gcsfs==0.7.1"],
         model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
-        parent_model=model_id_v1,
+        parent_model=model_id_deferrable_v1,
         # run params
         dataset_id=tabular_dataset_id,
         replica_count=REPLICA_COUNT,
-        model_display_name=f"{MODEL_DISPLAY_NAME}_DEF",
+        model_display_name=f"{MODEL_DISPLAY_NAME}-def",
         sync=False,
         region=REGION,
         project_id=PROJECT_ID,
         deferrable=True,
     )
-    # [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator_deferrable]
+    # [END how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
 
     # [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
@@ -207,6 +204,15 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_custom_training_job_operator]
+
+    delete_custom_training_job_deferrable = DeleteCustomTrainingJobOperator(
+        task_id="delete_custom_training_job_deferrable",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_task_deferrable', key='training_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_task_deferrable', key='custom_job_id') }}",
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     delete_tabular_dataset = DeleteDatasetOperator(
         task_id="delete_tabular_dataset",
@@ -230,14 +236,13 @@ with DAG(
             create_tabular_dataset,
             # TEST BODY
             [create_custom_training_job, create_custom_training_job_deferrable],
-            [create_custom_training_job_v2, create_custom_training_job_v2_deferrable],
+            [create_custom_training_job_v2, create_custom_training_job_deferrable_v2],
             # TEST TEARDOWN
-            delete_custom_training_job,
+            [delete_custom_training_job, delete_custom_training_job_deferrable],
             delete_tabular_dataset,
             delete_bucket,
         )
     )
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 

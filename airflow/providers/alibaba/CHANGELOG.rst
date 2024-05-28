@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+2.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix oss key prefix bug in oss_task_handler (#39627)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 2.8.0
 .....
 
