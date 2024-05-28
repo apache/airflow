@@ -1619,8 +1619,6 @@ def _defer_task(
             ti.trigger_timeout = ti.start_date + execution_timeout
     if ti.test_mode:
         _add_log(event=ti.state, task_instance=ti, session=session)
-    session.merge(ti)
-    session.commit()
     return ti
 
 
@@ -3004,7 +3002,7 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def defer_task_from_task_deferred(self, session: Session, exception: TaskDeferred) -> None:
+    def defer_task_from_task_deferred(self, exception: TaskDeferred, session: Session = NEW_SESSION) -> None:
         """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
@@ -3022,11 +3020,14 @@ class TaskInstance(Base, LoggingMixin):
             timeout=exception.timeout,
         )
 
+        session.merge(self)
+        session.commit()
+
     @provide_session
     def defer_task_from_start_trigger(
         self,
-        session: Session,
         start_trigger_args: StartTriggerArgs,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Mark the task as deferred and sets up the trigger that is needed to resume it when start_trigger arguments passed.
 
