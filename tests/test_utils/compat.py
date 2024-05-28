@@ -47,6 +47,12 @@ AIRFLOW_V_2_8_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.8.0")
 AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
 AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
 
+try:
+    from airflow.models.baseoperatorlink import BaseOperatorLink
+except ImportError:
+    # Compatibility for Airflow 2.7.*
+    from airflow.models.baseoperator import BaseOperatorLink
+
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
     if AIRFLOW_V_2_10_PLUS:
@@ -66,6 +72,45 @@ def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
         return SerializedBaseOperator.deserialize_operator(serialized_operator)
 
 
+def connection_to_dict(
+    connection: Connection, *, prune_empty: bool = False, validate: bool = True
+) -> dict[str, Any]:
+    """
+    Convert Connection to json-serializable dictionary (compatibility code for Airflow 2.7 tests)
+
+    :param connection: connection to convert to dict
+    :param prune_empty: Whether or not remove empty values.
+    :param validate: Validate dictionary is JSON-serializable
+
+    :meta private:
+    """
+    conn = {
+        "conn_id": connection.conn_id,
+        "conn_type": connection.conn_type,
+        "description": connection.description,
+        "host": connection.host,
+        "login": connection.login,
+        "password": connection.password,
+        "schema": connection.schema,
+        "port": connection.port,
+    }
+    if prune_empty:
+        conn = prune_dict(val=conn, mode="strict")
+    if (extra := connection.extra_dejson) or not prune_empty:
+        conn["extra"] = extra
+
+    if validate:
+        json.dumps(conn)
+    return conn
+
+
+def connection_as_json(connection: Connection) -> str:
+    """Convert Connection to JSON-string object (compatibility code for Airflow 2.7 tests)."""
+    conn_repr = connection_to_dict(connection, prune_empty=True, validate=False)
+    conn_repr.pop("conn_id", None)
+    return json.dumps(conn_repr)
+
+
 @contextlib.contextmanager
 def ignore_provider_compatibility_error(minimum_version: str, module_name: str):
     """
@@ -73,7 +118,6 @@ def ignore_provider_compatibility_error(minimum_version: str, module_name: str):
 
     :param minimum_version: The version string that should be in the error message.
     :param module_name: The name of the module that is being tested.
-    :param include_import_errors: Whether to include ImportError in the list of errors to ignore.
     """
     import pytest
 
