@@ -30,8 +30,11 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     _CreateDatabricksWorkflowOperator,
     _flatten_node,
 )
+from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
+
+DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
 @pytest.fixture
@@ -168,9 +171,9 @@ def mock_databricks_workflow_operator():
 
 
 def test_task_group_initialization():
-    with DAG(dag_id="example_databricks_workflow_dag") as example_dag:
+    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
-            group_id="test_databricks_workflow", databricks_conn_id="databricks_conn", dag=example_dag
+            group_id="test_databricks_workflow", databricks_conn_id="databricks_conn"
         ) as task_group:
             task_1 = EmptyOperator(task_id="task1")
             task_1._convert_to_databricks_workflow_task = MagicMock(return_value={})
@@ -180,7 +183,7 @@ def test_task_group_initialization():
 
 
 def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
-    with DAG(dag_id="example_databricks_workflow_dag") as example_dag:
+    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow",
             databricks_conn_id="databricks_conn",
@@ -190,10 +193,10 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
             task2 = MagicMock(task_id="task2")
             task2._convert_to_databricks_workflow_task = MagicMock(return_value={})
 
-            task1.set_downstream(task2)
-
             task_group.add(task1)
             task_group.add(task2)
+
+            task1.set_downstream(task2)
 
     mock_databricks_workflow_operator.assert_called_once_with(
         dag=example_dag,
@@ -209,7 +212,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
 
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
-    with DAG(dag_id="example_databricks_workflow_dag"):
+    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE):
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow1",
             databricks_conn_id="databricks_conn",

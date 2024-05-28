@@ -2041,7 +2041,7 @@ class TestDatabricksNotebookOperator:
         ]
 
     def test_convert_to_databricks_workflow_task(self):
-        dag = DAG(dag_id="example_dag")
+        dag = DAG(dag_id="example_dag", start_date=datetime.now())
         operator = DatabricksNotebookOperator(
             notebook_path="/path/to/notebook",
             source="WORKSPACE",
