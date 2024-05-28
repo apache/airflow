@@ -22,7 +22,6 @@ import functools
 import json
 import logging
 import os
-import re2
 import sys
 import traceback
 import warnings
@@ -30,6 +29,7 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
+import re2
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker

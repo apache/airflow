@@ -22,13 +22,12 @@ from __future__ import annotations
 import inspect
 import logging
 import os
-import re
 import warnings
 from contextlib import suppress
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
@@ -130,12 +129,11 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
             yield timestamp, idx, line
 
 
-def split_log_to_messages(log: str) -> List[str]:
-    lines = log.split("\n")  # do not remove \r symbols
-    log_messages = []
+def split_log_to_messages(log: str) -> list[str]:
+    log_messages: list[str] = []
 
-    msg = []
-    for line in lines:
+    msg: list[str] = []
+    for line in log.split("\n"):  # do not remove \r symbols
         if settings.LOG_FORMAT_RE_PATTERN_COMPILED.match(line) is not None:
             if len(msg) != 0:
                 log_messages.append("\n".join(msg))
