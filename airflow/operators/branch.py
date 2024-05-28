@@ -73,10 +73,12 @@ class BaseBranchOperator(BaseOperator, BranchMixIn):
 
     Users should create a subclass from this operator and implement the function
     `choose_branch(self, context)`. This should run whatever business logic
-    is needed to determine the branch, and return either the task_id for
-    a single task (as a str) or a list of task_ids.
+    is needed to determine the branch, and return one of the following:
+    - A single task_id (as a str)
+    - A single task_group_id (as a str)
+    - A list containing a combination of task_ids and task_group_ids
 
-    The operator will continue with the returned task_id(s), and all other
+    The operator will continue with the returned task_id(s) and/or task_group_id(s), and all other
     tasks directly downstream of this operator will be skipped.
     """
 
