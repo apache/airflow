@@ -53,6 +53,7 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServiceDeleteJobOperator,
     CloudDataTransferServiceGetOperationOperator,
     CloudDataTransferServiceListOperationsOperator,
+    CloudDataTransferServiceRunJobOperator,
     CloudDataTransferServiceUpdateJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -147,6 +148,14 @@ with DAG(
         expected_statuses={GcpTransferOperationStatus.SUCCESS},
     )
 
+    # [START howto_operator_gcp_transfer_run_job]
+    run_transfer = CloudDataTransferServiceRunJobOperator(
+        task_id="run_transfer",
+        job_name="{{task_instance.xcom_pull('create_transfer')['name']}}",
+        project_id=PROJECT_ID_TRANSFER,
+    )
+    # [END howto_operator_gcp_transfer_run_job]
+
     list_operations = CloudDataTransferServiceListOperationsOperator(
         task_id="list_operations",
         request_filter={
@@ -180,6 +189,7 @@ with DAG(
         >> create_transfer
         >> wait_for_transfer
         >> update_transfer
+        >> run_transfer
         >> list_operations
         >> get_operation
         >> [delete_transfer, delete_bucket_src, delete_bucket_dst]
