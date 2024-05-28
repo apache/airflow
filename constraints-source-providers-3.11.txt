@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-27T21:33:01.683644
+# This constraints file was automatically generated on 2024-05-28T11:54:22.281623
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -173,7 +173,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
 duckdb==0.10.3
-elastic-transport==8.13.0
+elastic-transport==8.13.1
 elasticsearch==8.13.2
 email_validator==2.1.1
 entrypoints==0.4
@@ -223,7 +223,7 @@ google-cloud-dataform==0.5.9
 google-cloud-dataplex==2.0.0
 google-cloud-dataproc-metastore==1.15.3
 google-cloud-dataproc==5.9.3
-google-cloud-dlp==3.17.0
+google-cloud-dlp==3.18.0
 google-cloud-kms==2.23.0
 google-cloud-language==2.13.3
 google-cloud-logging==3.10.0
@@ -385,7 +385,7 @@ opentelemetry-proto==1.24.0
 opentelemetry-sdk==1.24.0
 opentelemetry-semantic-conventions==0.45b0
 opsgenie-sdk==2.1.5
-oracledb==2.2.0
+oracledb==2.2.1
 ordered-set==4.1.0
 orjson==3.10.3
 oss2==2.18.5
@@ -418,7 +418,7 @@ pre-commit==3.7.1
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.20.0
-prompt_toolkit==3.0.44
+prompt_toolkit==3.0.45
 proto-plus==1.23.0
 protobuf==4.25.3
 psutil==5.9.8
@@ -620,7 +620,7 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.283.0
+yandexcloud==0.286.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.49
