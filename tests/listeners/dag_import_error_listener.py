@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from airflow.listeners import hookimpl
 
-new: dict["key":"value"] = {}
-existing: dict["key":"value"] = {}
+new = {}
+existing = {}
 
 @hookimpl
 def on_new_dag_import_error(filename, stacktrace):
