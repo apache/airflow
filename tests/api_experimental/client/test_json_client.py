@@ -84,4 +84,3 @@ class TestJsonClient:
         mock_delete_pool.return_value = Response(status_code=200, json=self.pool)
         pool = self.client.delete_pool(name="foo")
         assert pool == ("foo", 1, "foo_test")
-
