@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -40,6 +41,7 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
+    MOUNT_PROVIDERS_AND_TESTS,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_TESTS,
@@ -50,6 +52,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
+    USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
     get_airflow_version,
 )
@@ -330,12 +333,20 @@ class ShellParams:
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.use_airflow_version is not None and self.mount_sources not in [MOUNT_REMOVE, MOUNT_TESTS]:
+        if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
                 "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
-                f"from sources but from {self.use_airflow_version}[/]\n"
+                f"from sources but from {self.use_airflow_version} since you attempt"
+                f" to use {self.mount_sources} (but you can use any of "
+                f"{USE_AIRFLOW_MOUNT_SOURCES} in such case[/]\n"
             )
             self.mount_sources = MOUNT_REMOVE
+        if self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES and self.use_airflow_version is None:
+            get_console().print(
+                "[error]You need to specify --use-airflow-version when using one of the"
+                f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
+            )
+            sys.exit(1)
         if self.forward_ports and not self.project_name == "pre-commit":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
@@ -343,7 +354,9 @@ class ShellParams:
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local-all-sources.yml")
         elif self.mount_sources == MOUNT_TESTS:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources-only.yml")
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources.yml")
+        elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "providers-and-tests-sources.yml")
         elif self.mount_sources == MOUNT_REMOVE:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.forward_credentials:
@@ -510,6 +523,7 @@ class ShellParams:
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
+        _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "PACKAGE_FORMAT", self.package_format)

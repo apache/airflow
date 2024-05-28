@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import traceback
-import uuid
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
@@ -36,6 +35,7 @@ from openlineage.client.facet import (
     SourceCodeLocationJobFacet,
 )
 from openlineage.client.run import Job, Run, RunEvent, RunState
+from openlineage.client.uuid import generate_static_uuid
 
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
@@ -43,6 +43,8 @@ from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.models.dagrun import DagRun
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
@@ -111,15 +113,25 @@ class OpenLineageAdapter(LoggingMixin):
             return yaml.safe_load(config_file)
 
     @staticmethod
-    def build_dag_run_id(dag_id, dag_run_id):
-        return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{conf.namespace()}.{dag_id}.{dag_run_id}"))
+    def build_dag_run_id(dag_id: str, execution_date: datetime) -> str:
+        return str(
+            generate_static_uuid(
+                instant=execution_date,
+                data=f"{conf.namespace()}.{dag_id}".encode(),
+            )
+        )
 
     @staticmethod
-    def build_task_instance_run_id(dag_id, task_id, execution_date, try_number):
+    def build_task_instance_run_id(
+        dag_id: str,
+        task_id: str,
+        try_number: int,
+        execution_date: datetime,
+    ):
         return str(
-            uuid.uuid3(
-                uuid.NAMESPACE_URL,
-                f"{conf.namespace()}.{dag_id}.{task_id}.{execution_date}.{try_number}",
+            generate_static_uuid(
+                instant=execution_date,
+                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}".encode(),
             )
         )
 
@@ -306,7 +318,10 @@ class OpenLineageAdapter(LoggingMixin):
                 eventTime=dag_run.start_date.isoformat(),
                 job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
                 run=self._build_run(
-                    run_id=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
+                    run_id=self.build_dag_run_id(
+                        dag_id=dag_run.dag_id,
+                        execution_date=dag_run.execution_date,
+                    ),
                     job_name=dag_run.dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
@@ -328,7 +343,12 @@ class OpenLineageAdapter(LoggingMixin):
                 eventType=RunState.COMPLETE,
                 eventTime=dag_run.end_date.isoformat(),
                 job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
-                run=Run(runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id)),
+                run=Run(
+                    runId=self.build_dag_run_id(
+                        dag_id=dag_run.dag_id,
+                        execution_date=dag_run.execution_date,
+                    ),
+                ),
                 inputs=[],
                 outputs=[],
                 producer=_PRODUCER,
@@ -347,7 +367,10 @@ class OpenLineageAdapter(LoggingMixin):
                 eventTime=dag_run.end_date.isoformat(),
                 job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
                 run=Run(
-                    runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
+                    runId=self.build_dag_run_id(
+                        dag_id=dag_run.dag_id,
+                        execution_date=dag_run.execution_date,
+                    ),
                     facets={"errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python")},
                 ),
                 inputs=[],

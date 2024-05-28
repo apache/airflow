@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
+    TESTABLE_INTEGRATIONS,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -1204,6 +1205,10 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def testable_integrations(self) -> list[str]:
+        return TESTABLE_INTEGRATIONS
 
     @cached_property
     def is_committer_build(self):
