@@ -16,9 +16,9 @@
 # under the License.
 
 """
-Example DAG to demonstrate annotating a dataset event with extra information.
+Example DAG to demonstrate reading dataset events annotated with extra information.
 
-Also see examples in ``example_inlet_event_extra.py``.
+Also see examples in ``example_outlet_event_extra.py``.
 """
 
 from __future__ import annotations
@@ -26,7 +26,6 @@ from __future__ import annotations
 import datetime
 
 from airflow.datasets import Dataset
-from airflow.datasets.metadata import Metadata
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
@@ -34,47 +33,29 @@ from airflow.operators.bash import BashOperator
 ds = Dataset("s3://output/1.txt")
 
 with DAG(
-    dag_id="dataset_with_extra_by_yield",
+    dag_id="read_dataset_event",
     catchup=False,
     start_date=datetime.datetime.min,
     schedule="@daily",
-    tags=["produces"],
+    tags=["consumes"],
 ):
 
-    @task(outlets=[ds])
-    def dataset_with_extra_by_yield():
-        yield Metadata(ds, {"hi": "bye"})
+    @task(inlets=[ds])
+    def read_dataset_event(*, inlet_events=None):
+        for event in inlet_events[ds][:-2]:
+            print(event.extra["hi"])
 
-    dataset_with_extra_by_yield()
+    read_dataset_event()
 
 with DAG(
-    dag_id="dataset_with_extra_by_context",
+    dag_id="read_dataset_event_from_classic",
     catchup=False,
     start_date=datetime.datetime.min,
     schedule="@daily",
-    tags=["produces"],
+    tags=["consumes"],
 ):
-
-    @task(outlets=[ds])
-    def dataset_with_extra_by_context(*, outlet_events=None):
-        outlet_events[ds].extra = {"hi": "bye"}
-
-    dataset_with_extra_by_context()
-
-with DAG(
-    dag_id="dataset_with_extra_from_classic_operator",
-    catchup=False,
-    start_date=datetime.datetime.min,
-    schedule="@daily",
-    tags=["produces"],
-):
-
-    def _dataset_with_extra_from_classic_operator_post_execute(context):
-        context["outlet_events"].extra = {"hi": "bye"}
-
     BashOperator(
-        task_id="dataset_with_extra_from_classic_operator",
+        task_id="read_dataset_event_from_classic",
         outlets=[ds],
-        bash_command=":",
-        post_execute=_dataset_with_extra_from_classic_operator_post_execute,
+        bash_command="echo {{ inlet_events['s3://output/1.txt'][-1].extra }}",
     )
