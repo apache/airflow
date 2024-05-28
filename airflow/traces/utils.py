@@ -96,8 +96,9 @@ def parse_tracestate(tracestate_str: str | None = None) -> dict:
     tokens = tracestate_str.split(",")
     result = {}
     for pair in tokens:
-        key, value = pair.split("=")
-        result[key.strip()] = value.strip()
+        if '=' in pair:
+            key, value = pair.split("=")
+            result[key.strip()] = value.strip()
     return result
 
 
