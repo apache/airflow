@@ -4124,6 +4124,14 @@ components:
           readOnly: true
           items:
             type: string
+        doc_md:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Task documentation.
+
+            *New in version 2.10.0*
 
     TaskCollection:
       type: object
