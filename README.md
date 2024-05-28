@@ -72,7 +72,6 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
 - [What goes into the next release?](#what-goes-into-the-next-release)
 - [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
-- [Airflow merchandise](#airflow-merchandise)
 - [Links](#links)
 - [Sponsors](#sponsors)
 
@@ -98,14 +97,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)         | Stable version (2.9.1)      |
-|-------------|----------------------------|-----------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11, 3.12 | 3.8, 3.9, 3.10, 3.11, 3.12  |
-| Platform    | AMD64/ARM64(\*)            | AMD64/ARM64(\*)             |
-| Kubernetes  | 1.26, 1.27, 1.28, 1.29     | 1.26, 1.27, 1.28, 1.29      |
-| PostgreSQL  | 12, 13, 14, 15, 16         | 12, 13, 14, 15, 16          |
-| MySQL       | 8.0, 8.4, Innovation       | 8.0, Innovation             |
-| SQLite      | 3.15.0+                    | 3.15.0+                     |
+|             | Main version (dev)           | Stable version (2.9.1)      |
+|-------------|------------------------------|-----------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11, 3.12   | 3.8, 3.9, 3.10, 3.11, 3.12  |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)             |
+| Kubernetes  | 1.26, 1.27, 1.28, 1.29, 1.30 | 1.26, 1.27, 1.28, 1.29      |
+| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16          |
+| MySQL       | 8.0, 8.4, Innovation         | 8.0, Innovation             |
+| SQLite      | 3.15.0+                      | 3.15.0+                     |
 
 \* Experimental
 
@@ -512,11 +511,6 @@ repository.
 ## Can I use the Apache Airflow logo in my presentation?
 
 Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
-
-## Airflow merchandise
-
-If you would love to have Apache Airflow stickers, t-shirt, etc. then check out
-[Redbubble Shop](https://www.redbubble.com/i/sticker/Apache-Airflow-by-comdev/40497530.EJUG5).
 
 ## Links
 

@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.1.1
+......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`e81cefb8a6 <https://github.com/apache/airflow/commit/e81cefb8a65c53e9ba340d456915b260ff87afdf>`_  2024-05-26   ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
+`ecf6e57e27 <https://github.com/apache/airflow/commit/ecf6e57e275cc002f40cd0412647bbd0242cfdef>`_  2024-05-13   ``Update example AzureContainerInstancesOperator (#39466)``
+=================================================================================================  ===========  ===================================================================================
+
 10.1.0
 ......
 
-Latest change: 2024-05-11
+Latest change: 2024-05-12
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`97e867f170 <https://github.com/apache/airflow/commit/97e867f1701fae287a20dff7e0f9e9ecbdc38f27>`_  2024-05-12   ``Prepare docs 2nd wave May 2024 (#39565)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
 `73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``

@@ -248,7 +248,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.4.3",
+        "ruff==0.4.5",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -845,6 +845,18 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         # via build_data (or so it seem) so we need to modify internal _optional_dependencies
         # field in core.metadata until this is possible
         self.metadata.core._optional_dependencies = self.optional_dependencies
+
+        # Add entrypoints dynamically for all provider packages, in editable build
+        # else they will not be found by plugin manager
+        if version != "standard":
+            entry_points = self.metadata.core._entry_points or {}
+            plugins = entry_points.get("airflow.plugins") or {}
+            for provider in PROVIDER_DEPENDENCIES.values():
+                for plugin in provider["plugins"]:
+                    plugin_class: str = plugin["plugin-class"]
+                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[::-1]
+            entry_points["airflow.plugins"] = plugins
+            self.metadata.core._entry_points = entry_points
 
     def _add_devel_ci_dependencies(self, deps: list[str], python_exclusion: str) -> None:
         """

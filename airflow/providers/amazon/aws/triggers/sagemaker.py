@@ -121,7 +121,7 @@ class SageMakerTrigger(BaseTrigger):
                 status_message=f"{self.job_type} job not done yet",
                 status_args=[self._get_response_status_key(self.job_type)],
             )
-            yield TriggerEvent({"status": "success", "message": "Job completed."})
+            yield TriggerEvent({"status": "success", "message": "Job completed.", "job_name": self.job_name})
 
 
 class SageMakerPipelineTrigger(BaseTrigger):

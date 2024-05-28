@@ -37,37 +37,19 @@ from celery import states as celery_states
 from packaging.version import Version
 
 from airflow import __version__ as airflow_version
-
-try:
-    from airflow.cli.cli_config import (
-        ARG_DAEMON,
-        ARG_LOG_FILE,
-        ARG_PID,
-        ARG_SKIP_SERVE_LOGS,
-        ARG_STDERR,
-        ARG_STDOUT,
-        ARG_VERBOSE,
-        ActionCommand,
-        Arg,
-        GroupCommand,
-        lazy_load_command,
-    )
-except ImportError:
-    import packaging.version
-
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    base_version = packaging.version.parse(airflow_version).base_version
-
-    if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
-        raise AirflowOptionalProviderFeatureException(
-            "Celery Executor from Celery Provider should only be used with Airflow 2.7.0+.\n"
-            f"This is Airflow {airflow_version} and Celery and CeleryKubernetesExecutor are "
-            f"available in the 'airflow.executors' package. You should not use "
-            f"the provider's executors in this version of Airflow."
-        )
-    raise
-
+from airflow.cli.cli_config import (
+    ARG_DAEMON,
+    ARG_LOG_FILE,
+    ARG_PID,
+    ARG_SKIP_SERVE_LOGS,
+    ARG_STDERR,
+    ARG_STDOUT,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+)
 from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
@@ -369,6 +351,7 @@ class CeleryExecutor(BaseExecutor):
             super().change_state(key, state, info, remove_running=remove_running)
         except AttributeError:
             # Earlier versions of the BaseExecutor don't accept the remove_running parameter for this method
+            # TODO: Remove when min airflow version >= 2.9.2
             super().change_state(key, state, info)
         self.tasks.pop(key, None)
 

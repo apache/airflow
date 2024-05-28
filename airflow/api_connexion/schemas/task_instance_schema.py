@@ -220,8 +220,22 @@ class SetTaskInstanceNoteFormSchema(Schema):
     note = fields.String(allow_none=True, validate=validate.Length(max=1000))
 
 
+class TaskDependencySchema(Schema):
+    """Schema for task scheduling dependencies."""
+
+    name = fields.String()
+    reason = fields.String()
+
+
+class TaskDependencyCollectionSchema(Schema):
+    """Task scheduling dependencies collection schema."""
+
+    dependencies = fields.List(fields.Nested(TaskDependencySchema))
+
+
 task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
+task_dependencies_collection_schema = TaskDependencyCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()

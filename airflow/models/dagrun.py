@@ -1548,7 +1548,7 @@ class DagRun(Base, LoggingMixin):
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
                 ti.defer_task(
-                    defer=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
+                    exception=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
                     session=session,
                 )
             else:
