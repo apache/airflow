@@ -22,12 +22,14 @@ from airflow.listeners import hookimpl
 new = {}
 existing = {}
 
+
 @hookimpl
 def on_new_dag_import_error(filename, stacktrace):
     """Execute when new dag import error appears"""
-    new["filename"]=stacktrace
-    print("new error>> filename:"+str(filename))
+    new["filename"] = stacktrace
+    print("new error>> filename:" + str(filename))
     print("new error>> stacktrace:" + str(stacktrace))
+
 
 @hookimpl
 def on_existing_dag_import_error(filename, stacktrace):
@@ -35,6 +37,7 @@ def on_existing_dag_import_error(filename, stacktrace):
     existing["filename"] = stacktrace
     print("existing error>> filename:" + str(filename))
     print("existing error>> stacktrace:" + str(stacktrace))
+
 
 def clear():
     global new, existing

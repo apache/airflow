@@ -21,13 +21,20 @@ from __future__ import annotations
 import os
 import sys
 from unittest import mock
+
 import pytest
+
 from airflow import settings
-from airflow.configuration import TEST_DAGS_FOLDER, conf
-from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance
-from airflow.utils import timezone
+#from airflow.configuration import TEST_DAGS_FOLDER, conf
+from airflow.configuration import TEST_DAGS_FOLDER
+#from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
+from airflow.dag_processing.processor import DagFileProcessor
+from airflow.listeners.listener import get_listener_manager
+#from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance
+from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
+from airflow.utils import timezone
+from tests.listeners import dag_import_error_listener
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -39,8 +46,8 @@ from tests.test_utils.db import (
     clear_db_sla_miss,
 )
 from tests.test_utils.mock_executor import MockExecutor
-from airflow.listeners.listener import get_listener_manager
-from tests.listeners import dag_import_error_listener
+
+
 
 pytestmark = pytest.mark.db_test
 
@@ -64,6 +71,7 @@ def disable_load_example():
     with conf_vars({("core", "load_examples"): "false"}):
         with env_vars({"AIRFLOW__CORE__LOAD_EXAMPLES": "false"}):
             yield
+
 
 @pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor:
