@@ -16,12 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import json
+import os
 from importlib.metadata import version
 from typing import TYPE_CHECKING, Any, cast
 
 from packaging.version import Version
 
-from airflow.models import Operator
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.models import Connection, Operator
+from airflow.utils.helpers import prune_dict
 
 try:
     # ImportError has been renamed to ParseImportError in airflow 2.10.0, and since our provider tests should
@@ -32,6 +37,7 @@ try:
     from airflow.models.errors import ParseImportError
 except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef]
+
 
 from airflow import __version__ as airflow_version
 
@@ -58,3 +64,29 @@ def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         return SerializedBaseOperator.deserialize_operator(serialized_operator)
+
+
+@contextlib.contextmanager
+def ignore_provider_compatibility_error(minimum_version: str, module_name: str):
+    """
+    Context manager that ignores Provider Compatibility RuntimeError with a specific message.
+
+    :param minimum_version: The version string that should be in the error message.
+    :param module_name: The name of the module that is being tested.
+    :param include_import_errors: Whether to include ImportError in the list of errors to ignore.
+    """
+    import pytest
+
+    try:
+        yield
+    except RuntimeError as e:
+        if f"needs Apache Airflow {minimum_version}" in str(e):
+            pytest.skip(
+                reason=f"Skip module {module_name} as "
+                f"minimum Airflow version is required {minimum_version}.",
+                allow_module_level=True,
+            )
+        else:
+            raise
+    except AirflowOptionalProviderFeatureException as e:
+        pytest.skip(reason=f"Skip test as optional feature is not available {e}.", allow_module_level=True)

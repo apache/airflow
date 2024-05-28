@@ -20,10 +20,13 @@ from unittest import mock
 
 from sqlalchemy import Column, MetaData, String, Table
 
-from airflow.providers.fab.auth_manager.models import (
-    add_index_on_ab_register_user_username_postgres,
-    add_index_on_ab_user_username_postgres,
-)
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.models import (
+        add_index_on_ab_register_user_username_postgres,
+        add_index_on_ab_user_username_postgres,
+    )
 
 _mock_conn = mock.MagicMock()
 _mock_conn.dialect = mock.MagicMock()
