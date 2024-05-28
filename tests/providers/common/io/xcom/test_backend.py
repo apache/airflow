@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
 
 pytestmark = [
     pytest.mark.db_test,
@@ -32,10 +31,9 @@ import airflow.models.xcom
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 
-try:
+with ignore_provider_compatibility_error("2.8.0", __file__):
     from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
-except AirflowOptionalProviderFeatureException:
-    pass
+
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils import db

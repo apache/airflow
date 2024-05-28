@@ -21,7 +21,10 @@ from unittest import mock
 
 from openlineage.client.run import Dataset
 
-from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.8.0", __file__):
+    from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
 
 
 def test_file_transfer_copy():

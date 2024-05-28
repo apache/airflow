@@ -1167,10 +1167,25 @@ are not part of the public API. We deal with it in one of the following ways:
   def test_plugin():
      pass
 
+5) Sometimes Pytest collection fails to work, when certain imports used by the tests either do not exist
+   or fail with RuntimeError about compatibility ("minimum Airflow version is required") or because they
+   raise AirflowOptionalProviderFeatureException. In such case you should wrap the imports in
+   ``ignore_provider_compatibility_error`` context manager adding the ``__file__``
+   module name as parameter.  This will stop failing pytest collection and automatically skip the whole
+   module from tests.
+
+   For example:
+
+.. code-block::python
+
+   with ignore_provider_compatibility_error("2.8.0", __file__):
+       from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
+
+6) In some cases in order to enable collection of pytest on older airflow version you might need to convert
+   top-level import into a local import, so that Pytest parser does not fail on collection.
 
 Running provider compatibility tests in CI
 ------------------------------------------
-
 
 In CI those tests are run in a slightly more complex way because we want to run them against the build
 provider packages, rather than mounted from sources.

@@ -19,7 +19,10 @@ from __future__ import annotations
 from airflow.api.auth.backend.kerberos_auth import (
     init_app as base_init_app,
 )
-from airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth import init_app
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth import init_app
 
 
 class TestKerberosAuth:
