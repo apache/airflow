@@ -165,8 +165,11 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
         # Now you can use listener and task_instance in your tests to simulate their interaction.
     """
 
-    def mock_task_id(dag_id, task_id, execution_date, try_number):
-        return f"{dag_id}.{task_id}.{execution_date}.{try_number}"
+    def mock_dag_id(dag_id, execution_date):
+        return f"{execution_date}.{dag_id}"
+
+    def mock_task_id(dag_id, task_id, try_number, execution_date):
+        return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
 
     listener = OpenLineageListener()
     listener.log = mock.Mock()
@@ -177,7 +180,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     listener.extractor_manager.extract_metadata.return_value = metadata
 
     adapter = mock.Mock()
-    adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
+    adapter.build_dag_run_id.side_effect = mock_dag_id
     adapter.build_task_instance_run_id.side_effect = mock_task_id
     adapter.start_task = mock.Mock()
     adapter.fail_task = mock.Mock()
@@ -189,6 +192,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.dag_run.run_id = "dag_run_run_id"
     task_instance.dag_run.data_interval_start = None
     task_instance.dag_run.data_interval_end = None
+    task_instance.dag_run.execution_date = "execution_date"
     task_instance.task = mock.Mock()
     task_instance.task.task_id = "task_id"
     task_instance.task.dag = mock.Mock()
@@ -230,12 +234,12 @@ def test_adapter_start_task_is_called_with_proper_arguments(
 
     listener.on_task_instance_running(None, task_instance, None)
     listener.adapter.start_task.assert_called_once_with(
-        run_id="dag_id.task_id.execution_date.1",
+        run_id="execution_date.dag_id.task_id.1",
         job_name="job_name",
         job_description="Test DAG Description",
         event_time="2023-01-01T13:01:01",
         parent_job_name="dag_id",
-        parent_run_id="dag_id.dag_run_run_id",
+        parent_run_id="execution_date.dag_id",
         code_location=None,
         nominal_start_time=None,
         nominal_end_time=None,
@@ -260,13 +264,16 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
     failure events, thus confirming that the adapter's failure handling is functioning as expected.
     """
 
-    def mock_task_id(dag_id, task_id, execution_date, try_number):
-        return f"{dag_id}.{task_id}.{execution_date}.{try_number}"
+    def mock_dag_id(dag_id, execution_date):
+        return f"{execution_date}.{dag_id}"
+
+    def mock_task_id(dag_id, task_id, try_number, execution_date):
+        return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
 
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
+    mocked_adapter.build_dag_run_id.side_effect = mock_dag_id
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
-    mocked_adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
     mock_disabled.return_value = False
 
     listener.on_task_instance_failed(None, task_instance, None)
@@ -274,8 +281,8 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="dag_id.dag_run_run_id",
-        run_id="dag_id.task_id.execution_date.1",
+        parent_run_id="execution_date.dag_id",
+        run_id="execution_date.dag_id.task_id.1",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -295,13 +302,16 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     during the task's lifecycle events.
     """
 
-    def mock_task_id(dag_id, task_id, execution_date, try_number):
-        return f"{dag_id}.{task_id}.{execution_date}.{try_number}"
+    def mock_dag_id(dag_id, execution_date):
+        return f"{execution_date}.{dag_id}"
+
+    def mock_task_id(dag_id, task_id, try_number, execution_date):
+        return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
 
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
+    mocked_adapter.build_dag_run_id.side_effect = mock_dag_id
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
-    mocked_adapter.build_dag_run_id.side_effect = lambda x, y: f"{x}.{y}"
     mock_disabled.return_value = False
 
     listener.on_task_instance_success(None, task_instance, None)
@@ -313,8 +323,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="dag_id.dag_run_run_id",
-        run_id=f"dag_id.task_id.execution_date.{EXPECTED_TRY_NUMBER_1}",
+        parent_run_id="execution_date.dag_id",
+        run_id=f"execution_date.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -328,8 +338,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="dag_id.dag_run_run_id",
-        run_id=f"dag_id.task_id.execution_date.{EXPECTED_TRY_NUMBER_2}",
+        parent_run_id="execution_date.dag_id",
+        run_id=f"execution_date.dag_id.task_id.{EXPECTED_TRY_NUMBER_2}",
         task=listener.extractor_manager.extract_metadata(),
     )
 
@@ -343,15 +353,14 @@ def test_run_id_is_constant_across_all_methods(mocked_adapter):
     try_number attribute, as it would occur in Airflow, to verify that the run_id updates accordingly.
     """
 
-    def mock_task_id(dag_id, task_id, execution_date, try_number):
+    def mock_task_id(dag_id, task_id, try_number, execution_date):
         returned_try_number = try_number if AIRFLOW_V_2_10_PLUS else max(try_number - 1, 1)
-
-        return f"{dag_id}.{task_id}.{execution_date}.{returned_try_number}"
+        return f"{execution_date}.{dag_id}.{task_id}.{returned_try_number}"
 
     listener, task_instance = _create_listener_and_task_instance()
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
-    expected_run_id_1 = "dag_id.task_id.execution_date.1"
-    expected_run_id_2 = "dag_id.task_id.execution_date.2"
+    expected_run_id_1 = "execution_date.dag_id.task_id.1"
+    expected_run_id_2 = "execution_date.dag_id.task_id.2"
     listener.on_task_instance_running(None, task_instance, None)
     assert listener.adapter.start_task.call_args.kwargs["run_id"] == expected_run_id_1
 
