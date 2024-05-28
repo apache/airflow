@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from httpx import Response
 from unittest.mock import patch
 
 import httpx
 import pytest
+from httpx import Response
 
 from airflow.api.client.json_client import Client
 
