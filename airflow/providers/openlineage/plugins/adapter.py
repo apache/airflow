@@ -276,6 +276,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
+        error: str | BaseException | None = None,
     ) -> RunEvent:
         """
         Emit openlineage event of type FAIL.
@@ -287,7 +288,16 @@ class OpenLineageAdapter(LoggingMixin):
         :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param error: error
         """
+        error_facet = {}
+        if error:
+            if isinstance(error, BaseException):
+                import traceback
+
+                error = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
+            error_facet = {"errorMessage": ErrorMessageRunFacet(message=error, programmingLanguage="python")}
+
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=end_time,
@@ -296,7 +306,7 @@ class OpenLineageAdapter(LoggingMixin):
                 job_name=job_name,
                 parent_job_name=parent_job_name,
                 parent_run_id=parent_run_id,
-                run_facets=task.run_facets,
+                run_facets={**task.run_facets, **error_facet},
             ),
             job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
