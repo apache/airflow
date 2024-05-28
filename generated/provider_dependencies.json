@@ -1160,8 +1160,8 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.7.0",
-      "snowflake-connector-python>=2.7.8",
-      "snowflake-sqlalchemy>=1.1.0"
+      "snowflake-connector-python>=2.7.11",
+      "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],
     "plugins": [],
