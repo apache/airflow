@@ -22,18 +22,9 @@ services:
     labels:
       breeze.description: "Integration required for YDB tests."
     hostname: ydb
-    container_name: "ydb-local"
     environment:
       YDB_USE_IN_MEMORY_PDISKS: true
-      GRPC_TLS_PORT: 2135
       GRPC_PORT: 2136
-      MON_PORT: 8765
-    ports:
-      - "2135:2135"
-      - "2136:2136"
-#    volumes:
-#      - ./ydb/volume/ydb_certs:/ydb_certs
-#      - ./ydb/volume/ydb_data:/ydb_data
     restart: "on-failure"
 
   airflow:

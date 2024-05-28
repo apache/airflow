@@ -32,7 +32,7 @@ DEFAULT_DATE = timezone.datetime(2024, 1, 1)
 @pytest.fixture(scope="module", autouse=True)
 def ydb_connections():
     """Create YDB connection which use for testing purpose."""
-    c = Connection(conn_id="ydb_default", conn_type="ydb", host="ydb", port=2135, extra={"database": "local"})
+    c = Connection(conn_id="ydb_default", conn_type="ydb", host="grpc://ydb", port=2136, extra={"database": "/local"})
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv(f"AIRFLOW_CONN_YDB_DEFAULT", c.as_json())
@@ -54,5 +54,6 @@ class TestYDBOperator:
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
         )
 
+        # breakpoint()
         results = operator.execute(self.mock_context)
         assert results == [(987, )]

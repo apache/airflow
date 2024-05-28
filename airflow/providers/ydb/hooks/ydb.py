@@ -100,7 +100,7 @@ class YDBConnection:
         )
         driver = ydb.Driver(driver_config)
         # wait until driver become initialized
-        driver.wait(fail_fast=True, timeout=10)
+        driver.wait(fail_fast=True, timeout=30)
         ydb_session_pool = ydb.SessionPool(driver, size=5)
         self.delegatee = Connection(ydb_session_pool=ydb_session_pool)
 
