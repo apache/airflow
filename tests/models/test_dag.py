@@ -2178,9 +2178,9 @@ class TestDag:
             include_parentdag=False,
             session=session,
         )
-        # session.refresh(upstream_ti)
-        # session.refresh(ti)
-        # session.refresh(ti2)
+        session.refresh(upstream_ti)
+        session.refresh(ti)
+        session.refresh(ti2)
         assert upstream_ti.state is None  # cleared
         assert ti.state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared

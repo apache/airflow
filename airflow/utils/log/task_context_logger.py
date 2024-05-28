@@ -27,6 +27,7 @@ from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ class TaskContextLogger:
             assert isinstance(h, FileTaskHandler)
         return h
 
-    def _log(self, level: int, msg: str, *args, ti: TaskInstance):
+    def _log(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message to the task instance logs.
 
@@ -109,7 +110,7 @@ class TaskContextLogger:
         finally:
             task_handler.close()
 
-    def critical(self, msg: str, *args, ti: TaskInstance):
+    def critical(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level CRITICAL to the task instance logs.
 
@@ -118,7 +119,7 @@ class TaskContextLogger:
         """
         self._log(logging.CRITICAL, msg, *args, ti=ti)
 
-    def fatal(self, msg: str, *args, ti: TaskInstance):
+    def fatal(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level FATAL to the task instance logs.
 
@@ -127,7 +128,7 @@ class TaskContextLogger:
         """
         self._log(logging.FATAL, msg, *args, ti=ti)
 
-    def error(self, msg: str, *args, ti: TaskInstance):
+    def error(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level ERROR to the task instance logs.
 
@@ -136,7 +137,7 @@ class TaskContextLogger:
         """
         self._log(logging.ERROR, msg, *args, ti=ti)
 
-    def warn(self, msg: str, *args, ti: TaskInstance):
+    def warn(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level WARN to the task instance logs.
 
@@ -145,7 +146,7 @@ class TaskContextLogger:
         """
         self._log(logging.WARNING, msg, *args, ti=ti)
 
-    def warning(self, msg: str, *args, ti: TaskInstance):
+    def warning(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level WARNING to the task instance logs.
 
@@ -154,7 +155,7 @@ class TaskContextLogger:
         """
         self._log(logging.WARNING, msg, *args, ti=ti)
 
-    def info(self, msg: str, *args, ti: TaskInstance):
+    def info(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level INFO to the task instance logs.
 
@@ -163,7 +164,7 @@ class TaskContextLogger:
         """
         self._log(logging.INFO, msg, *args, ti=ti)
 
-    def debug(self, msg: str, *args, ti: TaskInstance):
+    def debug(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level DEBUG to the task instance logs.
 
@@ -172,7 +173,7 @@ class TaskContextLogger:
         """
         self._log(logging.DEBUG, msg, *args, ti=ti)
 
-    def notset(self, msg: str, *args, ti: TaskInstance):
+    def notset(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level NOTSET to the task instance logs.
 

@@ -167,6 +167,17 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, sessio
     return val
 
 
+def _get_dag_run(dag_id, run_id, session):
+    dag_run = None
+    for obj in session:
+        if isinstance(obj, DagRun):
+            if dag_id == obj.dag_id and run_id == obj.run_id:
+                dag_run = obj
+    if not dag_run:
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    return dag_run
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -268,10 +279,9 @@ class FileTaskHandler(logging.Handler):
     def _render_filename_db_access(
         *, ti, try_number: int, session=None
     ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
-        # ti = _ensure_ti(ti, session)
-        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id))
-        template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
+        dag_run = _get_dag_run(dag_id=ti.dag_id, run_id=ti.run_id, session=session)
+        filename_template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(filename_template)
         filename = None
         if jinja_tpl:
             if getattr(ti, "task", None) is not None:

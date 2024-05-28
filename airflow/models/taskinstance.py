@@ -453,7 +453,7 @@ def clear_task_instances(
     from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     cleared = []
-    logger = TaskContextLogger("webserver", call_site_logger=log)
+
     for ti in tis:
         TaskInstanceHistory.record_ti(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
@@ -561,10 +561,11 @@ def clear_task_instances(
                     dr.start_date = None
                     dr.clear_number += 1
 
+    logger = TaskContextLogger("webserver", call_site_logger=log)
     for ti in cleared:
-        logger.info("Task was manually cleared", ti=ti)
+        logger.info("Task was manually cleared", ti=ti.key)
 
-    session.flush()
+    session.commit()
 
 
 @internal_api_call
