@@ -516,7 +516,7 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
                 job_name=self.job_name,
             )
 
-        return hook.run_transfer_job(job_name=self.job_name, project_id=self.project_id)
+        return hook.run_transfer_job(job_name=self.job_name, project_id=project_id)
 
 
 class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
