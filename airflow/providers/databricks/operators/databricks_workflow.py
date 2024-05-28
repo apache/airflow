@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class DatabricksWorkflowRunMetadata:
+class WorkflowRunMetadata:
     """
     Metadata for a Databricks workflow run.
 
@@ -292,7 +292,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
                     f"Task {task.task_id} does not support conversion to databricks workflow task."
                 )
 
-            task.databricks_workflow_run_metadata = create_databricks_workflow_task.output
+            task.workflow_run_metadata = create_databricks_workflow_task.output
             create_databricks_workflow_task.relevant_upstreams.append(task.task_id)
             create_databricks_workflow_task.add_task(task)
 

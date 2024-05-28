@@ -31,8 +31,8 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
-    DatabricksWorkflowRunMetadata,
     DatabricksWorkflowTaskGroup,
+    WorkflowRunMetadata,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
@@ -933,7 +933,7 @@ class DatabricksNotebookOperator(BaseOperator):
 
     template_fields = (
         "notebook_params",
-        "databricks_workflow_run_metadata",
+        "workflow_run_metadata",
     )
     CALLER = "DatabricksNotebookOperator"
 
@@ -952,7 +952,7 @@ class DatabricksNotebookOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         wait_for_termination: bool = True,
         databricks_conn_id: str = "databricks_default",
-        databricks_workflow_run_metadata: dict | None = None,
+        workflow_run_metadata: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
@@ -973,7 +973,7 @@ class DatabricksNotebookOperator(BaseOperator):
         self.deferrable = deferrable
 
         # This is used to store the metadata of the Databricks job run when the job is launched from within DatabricksWorkflowTaskGroup.
-        self.databricks_workflow_run_metadata: dict | None = databricks_workflow_run_metadata
+        self.workflow_run_metadata: dict | None = workflow_run_metadata
 
         super().__init__(**kwargs)
 
@@ -1166,14 +1166,14 @@ class DatabricksNotebookOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         if self._databricks_workflow_task_group:
             # If we are in a DatabricksWorkflowTaskGroup, we should have an upstream task launched.
-            if not self.databricks_workflow_run_metadata:
+            if not self.workflow_run_metadata:
                 launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
-                self.databricks_workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
-            databricks_workflow_run_metadata = DatabricksWorkflowRunMetadata(  # type: ignore[arg-type]
-                **self.databricks_workflow_run_metadata
+                self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
+            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
+                **self.workflow_run_metadata
             )
-            self.databricks_run_id = databricks_workflow_run_metadata.run_id
-            self.databricks_conn_id = databricks_workflow_run_metadata.conn_id
+            self.databricks_run_id = workflow_run_metadata.run_id
+            self.databricks_conn_id = workflow_run_metadata.conn_id
         else:
             self.launch_notebook_job()
         if self.wait_for_termination:
