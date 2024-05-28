@@ -26,7 +26,7 @@ harder to debug the tests and to use your IDE to run them.
 
 That's why we recommend using local virtualenv for development and testing.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Installation in local virtualenv
 --------------------------------
