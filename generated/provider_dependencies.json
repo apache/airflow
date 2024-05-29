@@ -1244,7 +1244,9 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "common.sql"
+      "amazon",
+      "common.sql",
+      "microsoft.azure"
     ],
     "excluded-python-versions": [],
     "state": "ready"
