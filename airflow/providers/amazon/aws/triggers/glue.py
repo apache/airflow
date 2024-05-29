@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import cached_property
-from typing import Any, AsyncIterator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
