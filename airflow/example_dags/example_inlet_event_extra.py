@@ -56,6 +56,6 @@ with DAG(
 ):
     BashOperator(
         task_id="read_dataset_event_from_classic",
-        outlets=[ds],
+        inlets=[ds],
         bash_command="echo {{ inlet_events['s3://output/1.txt'][-1].extra }}",
     )
