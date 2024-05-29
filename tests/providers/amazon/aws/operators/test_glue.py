@@ -16,16 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
+from moto import mock_aws
 
-from airflow.exceptions import TaskDeferred
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.exceptions import TaskDeferred, AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook, GlueDataQualityHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
-from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
+from airflow.providers.amazon.aws.operators.glue import GlueJobOperator, \
+    GlueDataQualityRuleSetEvaluationRunOperator, GlueDataQualityOperator
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -295,3 +298,189 @@ class TestGlueJobOperator:
         mock_load_file.assert_called_once_with(
             "folder/file", "artifacts/glue-scripts/file", bucket_name="bucket_name", replace=True
         )
+
+
+class TestGlueDataQualityOperator:
+    RULE_SET_NAME = "TestRuleSet"
+    RULE_SET = 'Rules=[ColumnLength "review_id" = 15]'
+    TARGET_TABLE = {"TableName": "TestTable", "DatabaseName": "TestDB"}
+
+    @pytest.fixture
+    def glue_data_quality_hook(self) -> Generator[GlueDataQualityHook, None, None]:
+        with mock_aws():
+            hook = GlueDataQualityHook(aws_conn_id="aws_default")
+            yield hook
+
+    def test_init(self):
+        self.operator = GlueDataQualityOperator(
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET
+        )
+        self.operator.defer = mock.MagicMock()
+
+        assert self.operator.name == self.RULE_SET_NAME
+        assert self.operator.ruleset == self.RULE_SET
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_execute_create_rule(self, glue_data_quality_mock_conn):
+        self.operator = GlueDataQualityOperator(
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+            description="create ruleset",
+        )
+        self.operator.defer = mock.MagicMock()
+
+        class RuleSetNotFoundException(Exception):
+            pass
+
+        glue_data_quality_mock_conn.exceptions.EntityNotFoundException = RuleSetNotFoundException
+        glue_data_quality_mock_conn.get_data_quality_ruleset.side_effect = RuleSetNotFoundException()
+
+        self.operator.execute({})
+        glue_data_quality_mock_conn.create_data_quality_ruleset.assert_called_once_with(
+            Description="create ruleset",
+            Name=self.RULE_SET_NAME,
+            Ruleset=self.RULE_SET,
+        )
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_execute_update_rule(self, dataquality_conn_mock):
+        self.operator = GlueDataQualityOperator(
+            task_id="update_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+            description="update ruleset",
+            update_rule_set=True,
+        )
+        self.operator.defer = mock.MagicMock()
+
+        dataquality_conn_mock.get_data_quality_ruleset.return_value = {"Name": self.RULE_SET_NAME}
+
+        self.operator.execute({})
+        dataquality_conn_mock.update_data_quality_ruleset.assert_called_once_with(
+            Description="update ruleset", Name=self.RULE_SET_NAME, Ruleset=self.RULE_SET
+        )
+
+    def test_validate_inputs(self):
+        self.operator = GlueDataQualityOperator(
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+        )
+
+        assert self.operator.validate_inputs() is None
+
+    def test_validate_inputs_error(self):
+        self.operator = GlueDataQualityOperator(
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset='[ColumnLength "review_id" = 15]',
+        )
+
+        with pytest.raises(AttributeError, match="RuleSet must starts with Rules = \\[ and ends with \\]"):
+            self.operator.validate_inputs()
+
+
+class TestGlueDataQualityRuleSetEvaluationRunOperator:
+    RUN_ID = "1234567890"
+    DATA_SOURCE = {"GlueTable": {"DatabaseName": "TestDB", "TableName": "TestTable"}}
+    ROLE = "role_arn"
+    RULE_SET_NAMES = ["TestRuleSet"]
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(GlueDataQualityHook, "conn") as _conn:
+            _conn.start_data_quality_ruleset_evaluation_run.return_value = {"RunId": self.RUN_ID}
+            yield _conn
+
+    @pytest.fixture
+    def glue_data_quality_hook(self) -> Generator[GlueDataQualityHook, None, None]:
+        with mock_aws():
+            hook = GlueDataQualityHook(aws_conn_id="aws_default")
+            yield hook
+
+    def setup_method(self):
+        self.operator = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="stat_evaluation_run",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            rule_set_names=self.RULE_SET_NAMES,
+            show_results=False,
+        )
+        self.operator.defer = mock.MagicMock()
+
+    def test_init(self):
+        assert self.operator.datasource == self.DATA_SOURCE
+        assert self.operator.role == self.ROLE
+        assert self.operator.rule_set_names == self.RULE_SET_NAMES
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_start_data_quality_ruleset_evaluation_run(self, glue_data_quality_mock_conn):
+        glue_data_quality_mock_conn.get_data_quality_ruleset.return_value = {"Name": "TestRuleSet"}
+
+        self.op = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="stat_evaluation_run",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            number_of_workers=10,
+            timeout=1000,
+            rule_set_names=self.RULE_SET_NAMES,
+            rule_set_evaluation_run_kwargs={"AdditionalRunOptions": {"CloudWatchMetricsEnabled": True}},
+        )
+
+        self.op.wait_for_completion = False
+        self.op.execute({})
+
+        glue_data_quality_mock_conn.start_data_quality_ruleset_evaluation_run.assert_called_once_with(
+            DataSource=self.DATA_SOURCE,
+            Role=self.ROLE,
+            NumberOfWorkers=10,
+            Timeout=1000,
+            RulesetNames=self.RULE_SET_NAMES,
+            AdditionalRunOptions={"CloudWatchMetricsEnabled": True},
+        )
+
+    def test_validate_inputs(self, mock_conn):
+        mock_conn.get_data_quality_ruleset.return_value = {"Name": "TestRuleSet"}
+        assert self.operator.validate_inputs() is None
+
+    def test_validate_inputs_error(self, mock_conn):
+        class RuleSetNotFoundException(Exception):
+            pass
+
+        mock_conn.exceptions.EntityNotFoundException = RuleSetNotFoundException
+        mock_conn.get_data_quality_ruleset.side_effect = RuleSetNotFoundException()
+
+        self.operator = GlueDataQualityRuleSetEvaluationRunOperator(
+            task_id="stat_evaluation_run",
+            datasource=self.DATA_SOURCE,
+            role=self.ROLE,
+            rule_set_names=["dummy"],
+        )
+
+        with pytest.raises(AirflowException, match="Following RulesetNames are not found \\['dummy'\\]"):
+            self.operator.validate_inputs()
+
+    @pytest.mark.parametrize(
+        "wait_for_completion, deferrable",
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+        ],
+    )
+    @mock.patch.object(GlueDataQualityHook, "get_waiter")
+    def test_start_data_quality_ruleset_evaluation_run_wait_combinations(
+        self, _, wait_for_completion, deferrable, mock_conn, glue_data_quality_hook
+    ):
+        mock_conn.get_data_quality_ruleset.return_value = {"Name": "TestRuleSet"}
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.RUN_ID
+        assert glue_data_quality_hook.get_waiter.call_count == wait_for_completion
+        assert self.operator.defer.call_count == deferrable

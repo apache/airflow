@@ -430,3 +430,103 @@ class GlueJobHook(AwsBaseHook):
             self.conn.create_job(**config)
 
         return self.job_name
+
+
+class GlueDataQualityHook(AwsBaseHook):
+    """
+    Interact with AWS Glue Data Quality.
+
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        kwargs["client_type"] = "glue"
+        super().__init__(*args, **kwargs)
+
+    def has_data_quality_ruleset(self, name: str) -> bool:
+        try:
+            self.conn.get_data_quality_ruleset(Name=name)
+            return True
+        except self.conn.exceptions.EntityNotFoundException:
+            return False
+
+    def update_glue_data_quality_ruleset(self, config: dict[str, Any]) -> None:
+        if self.has_data_quality_ruleset(config["Name"]):
+            self.log.info("Updating AWS Glue data quality ruleset with: %s", config)
+            self.conn.update_data_quality_ruleset(**config)
+        else:
+            raise AirflowException(f"AWS Glue data quality ruleset {config['Name']} not exists to update")
+
+    def create_glue_data_quality_ruleset(self, config: dict[str, Any]) -> None:
+        if not self.has_data_quality_ruleset(config["Name"]):
+            self.log.info("Creating AWS Glue data quality ruleset with: %s", config)
+            self.conn.create_data_quality_ruleset(**config)
+        else:
+            raise AirflowException(
+                f"AWS Glue data quality ruleset {config['Name']} already exists with same name."
+            )
+
+    def display_result(self, result: dict[str, Any]) -> None:
+        import pandas as pd
+
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.width", None)
+        pd.set_option("display.max_colwidth", None)
+
+        self.log.info(
+            "AWS Glue data quality ruleset evaluation result for RulesetName: %s RulesetEvaluationRunId: %s Score: %s",
+            result.get("RulesetName"),
+            result.get("RulesetEvaluationRunId"),
+            result.get("Score"),
+        )
+
+        rule_results = result["RuleResults"]
+        rule_results_df = pd.DataFrame(rule_results)
+        self.log.info(rule_results_df)
+
+    def get_evaluation_run_results(self, run_id: str) -> dict[str, Any]:
+        response = self.conn.get_data_quality_ruleset_evaluation_run(RunId=run_id)
+
+        return self.conn.batch_get_data_quality_result(ResultIds=response["ResultIds"])
+
+    def validate_evaluation_run_results(
+        self, evaluation_run_id: str, show_results: bool = True, verify_result_status: bool = True
+    ) -> None:
+        results = self.get_evaluation_run_results(evaluation_run_id)
+        total_failed_rules = 0
+
+        if results.get("ResultsNotFound"):
+            self.log.info(
+                "AWS Glue data quality ruleset evaluation run, results not found for %s",
+                results["ResultsNotFound"],
+            )
+
+        for result in results["Results"]:
+            rule_results = result["RuleResults"]
+            total_failed_rules = total_failed_rules + sum(
+                1 for result in rule_results if result.get("Result") == "FAIL" or result.get("Result") == "ERROR"
+            )
+
+            if show_results:
+                self.display_result(result)
+
+        self.log.info(
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: %s",
+            total_failed_rules,
+        )
+
+        if verify_result_status and total_failed_rules > 0:
+            raise AirflowException(
+                "AWS Glue data quality ruleset evaluation run failed for one or more rules"
+            )
