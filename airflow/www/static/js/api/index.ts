@@ -66,7 +66,12 @@ axios.interceptors.request.use((config) => {
 });
 
 axios.interceptors.response.use((res: AxiosResponse) =>
-  res.data ? camelcaseKeys(res.data, { deep: true }) : res
+  // Don't convert case for rendered_fields whose keys should remain the same.
+  res.data
+    ? camelcaseKeys(res.data, {
+        deep: res.data.rendered_fields === undefined,
+      })
+    : res
 );
 
 axios.defaults.headers.common.Accept = "application/json";

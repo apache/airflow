@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from sqlalchemy import inspect
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
@@ -30,8 +31,10 @@ from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
+from airflow.www.views import get_key_paths, get_value_from_path
 
 if TYPE_CHECKING:
     from airflow.models import SlaMiss
@@ -83,7 +86,48 @@ class TaskInstanceSchema(SQLAlchemySchema):
             slamiss_instance = {"sla_miss": obj[1]}
             return get_value(slamiss_instance, attr, default)
         elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
+            task_instance = obj[0]
+            task = None
+            session = inspect(task_instance).session
+            rendered_value = get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
+            dag = get_airflow_app().dag_bag.get_dag(task_instance.dag_id, session=session)
+
+            if dag:
+                try:
+                    task = dag.get_task(task_instance.task_id)
+                except Exception:
+                    task = None
+
+            if not task:
+                for key, value in rendered_value.items():
+                    rendered_value[key] = {"value": value, "renderer": None}
+                return rendered_value
+            else:
+                task_instance.refresh_from_task(task)
+
+                for template_field in task.template_fields:
+                    content = getattr(task, template_field)
+                    renderer = task.template_fields_renderers.get(template_field, None)
+                    content_value = rendered_value[template_field]
+
+                    if isinstance(content, dict):
+                        rendered_value[template_field] = {"value": content_value, "renderer": renderer}
+                        for dict_keys in get_key_paths(content):
+                            template_path = f"{template_field}.{dict_keys}"
+                            renderer = task.template_fields_renderers.get(template_path, template_path)
+                            nested_content_value = get_value_from_path(dict_keys, content_value)
+                            rendered_value[template_path] = {
+                                "value": nested_content_value,
+                                "renderer": renderer,
+                            }
+                    else:
+                        rendered_value[template_field] = {
+                            "value": rendered_value[template_field],
+                            "renderer": renderer,
+                        }
+
+                return rendered_value
+
         return get_value(obj[0], attr, default)
 
 
