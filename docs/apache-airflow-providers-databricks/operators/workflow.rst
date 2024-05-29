@@ -25,6 +25,20 @@ Use the :class:`~airflow.providers.databricks.operators.databricks_workflow.Data
 Databricks notebook job runs as Airflow tasks. The task group launches a `Databricks Workflow <https://docs.databricks.com/en/workflows/index.html/>`_ and runs the notebook jobs from within it, resulting in a `75% cost reduction <https://www.databricks.com/product/pricing>`_ ($0.40/DBU for all-purpose compute, $0.07/DBU for Jobs compute) when compared to executing ``DatabricksNotebookOperator`` outside of ``DatabricksWorkflowTaskGroup``.
 
 
+There are a few advantages to defining your Databricks Workflows in Airflow:
+
+=======================================  =============================================  =================================
+Authoring interface                      via Databricks (Web-based with Databricks UI)  via Airflow(Code with Airflow DAG)
+=======================================  =============================================  =================================
+Workflow compute pricing                 ✅                                             ✅
+Notebook code in source control          ✅                                             ✅
+Workflow structure in source control                                                    ✅
+Retry from beginning                     ✅                                             ✅
+Retry single task                                                                       ✅
+Task groups within Workflows                                                            ✅
+Trigger workflows from other DAGs                                                       ✅
+Workflow-level parameters                                                               ✅
+=======================================  =============================================  =================================
 
 Examples
 --------
@@ -40,6 +54,16 @@ With this example, Airflow will produce a job named ``<dag_name>.test_workflow_<
 run task ``notebook_1`` and then ``notebook_2``. The job will be created in the databricks workspace
 if it does not already exist. If the job already exists, it will be updated to match
 the workflow defined in the DAG.
+
+The following image displays the resulting Databricks Workflow in the Airflow UI (based on the above example provided)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. image:: ../img/databricks_workflow_task_group_airflow_graph_view.png
+
+The corresponding Databricks Workflow  in the Databricks UI for the run triggered from the Airflow DAG is depicted below
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: ../img/workflow_run_databricks_graph_view.png
+
 
 To minimize update conflicts, we recommend that you keep parameters in the ``notebook_params`` of the
 ``DatabricksWorkflowTaskGroup`` and not in the ``DatabricksNotebookOperator`` whenever possible.
