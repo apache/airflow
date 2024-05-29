@@ -99,6 +99,7 @@ class Job(Base, LoggingMixin):
         "TaskInstance",
         back_populates="queued_by_job",
         primaryjoin="Job.id == foreign(TaskInstance.queued_by_job_id)",
+        uselist=False,
     )
 
     dag_runs = relationship(  # Only makes sense for SchedulerJob and BackfillJob instances.
