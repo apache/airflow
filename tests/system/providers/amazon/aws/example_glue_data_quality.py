@@ -90,7 +90,7 @@ def glue_data_quality_workflow():
 
     # [START howto_sensor_glue_data_quality_ruleset_evaluation_run]
     await_evaluation_run_sensor = GlueDataQualityRuleSetEvaluationRunSensor(
-        task_id="evaluation_run_sensor",
+        task_id="await_evaluation_run_sensor",
         evaluation_run_id=start_evaluation_run.output,
     )
     # [END howto_sensor_glue_data_quality_ruleset_evaluation_run]
