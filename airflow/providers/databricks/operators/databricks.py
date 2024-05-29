@@ -1049,7 +1049,7 @@ class DatabricksNotebookOperator(BaseOperator):
 
         return None
 
-    def _extend_workflow_notebook_packages(self, databricks_workflow_task_group: DatabricksWorkflowTaskGroup):
+    def _extend_workflow_notebook_packages(self, databricks_workflow_task_group: DatabricksWorkflowTaskGroup) -> None:
         """Extend the task group packages into the notebook's packages, without adding any duplicates."""
         for task_group_package in databricks_workflow_task_group.notebook_packages:
             exists = any(
@@ -1060,7 +1060,7 @@ class DatabricksNotebookOperator(BaseOperator):
 
     def _convert_to_databricks_workflow_task(
         self, relevant_upstreams: list[BaseOperator], context: Context | None = None
-    ):
+    ) -> None:
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
         databricks_workflow_task_group = self._databricks_workflow_task_group
         if not databricks_workflow_task_group:
@@ -1123,7 +1123,7 @@ class DatabricksNotebookOperator(BaseOperator):
         self.log.info("Check the job run in Databricks: %s", url)
         return self.databricks_run_id
 
-    def _handle_terminal_run_state(self, run_state):
+    def _handle_terminal_run_state(self, run_state: RunState) -> None:
         if run_state.life_cycle_state != "TERMINATED":
             raise AirflowException(
                 f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"

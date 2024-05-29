@@ -29,9 +29,9 @@ from airflow.utils.timezone import datetime
 
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
 
-DATABRICKS_CONN_ID = os.getenv("ASTRO_DATABRICKS_CONN_ID", "databricks_conn")
+DATABRICKS_CONN_ID = os.getenv("DATABRICKS_CONN_ID", "databricks_conn")
 DATABRICKS_NOTIFICATION_EMAIL = os.getenv(
-    "ASTRO_DATABRICKS_NOTIFICATION_EMAIL", "your_email@serviceprovider.com"
+    "DATABRICKS_NOTIFICATION_EMAIL", "your_email@serviceprovider.com"
 )
 
 GROUP_ID = os.getenv("DATABRICKS_GROUP_ID", "1234").replace(".", "_")
@@ -64,7 +64,7 @@ dag = DAG(
     start_date=datetime(2022, 1, 1),
     schedule_interval=None,
     catchup=False,
-    tags=["example", "async", "databricks"],
+    tags=["example", "databricks"],
 )
 with dag:
     # [START howto_databricks_workflow_notebook]

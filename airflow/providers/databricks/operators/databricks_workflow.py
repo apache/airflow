@@ -91,8 +91,8 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
 
     def __init__(
         self,
-        task_id,
-        databricks_conn_id,
+        task_id: str,
+        databricks_conn_id: str,
         existing_clusters: list[str] | None = None,
         extra_job_params: dict[str, Any] | None = None,
         job_clusters: list[dict[str, object]] | None = None,
@@ -121,12 +121,12 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     def _hook(self) -> DatabricksHook:
         return self._get_hook(caller=self.caller)
 
-    def add_task(self, task: BaseOperator):
+    def add_task(self, task: BaseOperator) -> None:
         """Add a task to the list of tasks to convert to a Databricks workflow."""
         self.tasks_to_convert.append(task)
 
     @property
-    def databricks_job_name(self):
+    def databricks_job_name(self) -> str:
         return f"{self.dag_id}.{self.task_group.group_id}"
 
     def create_workflow_json(self, context: Context | None = None) -> dict[str, object]:
@@ -169,7 +169,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
             job_id = self._hook.create_job(job_spec)
         return job_id
 
-    def _wait_for_job_to_start(self, run_id: int):
+    def _wait_for_job_to_start(self, run_id: int) -> None:
         run_url = self._hook.get_run_page_url(run_id)
         self.log.info("Check the progress of the Databricks job at %s", run_url)
         life_cycle_state = self._hook.get_run_state(run_id).life_cycle_state
@@ -242,11 +242,11 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
 
     def __init__(
         self,
-        databricks_conn_id,
-        existing_clusters=None,
+        databricks_conn_id: str,
+        existing_clusters: list[str] | None = None,
         extra_job_params: dict[str, Any] | None = None,
-        jar_params=None,
-        job_clusters=None,
+        jar_params: list[str] | None = None,
+        job_clusters: list[dict] | None = None,
         max_concurrent_runs: int = 1,
         notebook_packages: list[dict[str, Any]] | None = None,
         notebook_params: dict | None = None,
@@ -266,7 +266,7 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         self.spark_submit_params = spark_submit_params or []
         super().__init__(**kwargs)
 
-    def __exit__(self, _type, _value, _tb):
+    def __exit__(self, _type: type[BaseException] | None, _value: BaseException | None, _tb: TracebackType | None) -> None:
         """Exit the context manager and add tasks to a single ``_CreateDatabricksWorkflowOperator``."""
         roots = list(self.get_roots())
         tasks = _flatten_node(self)

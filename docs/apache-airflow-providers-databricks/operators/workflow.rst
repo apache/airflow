@@ -22,7 +22,7 @@ DatabricksWorkflowTaskGroup
 ===========================
 
 Use the :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup` to launch and monitor
-notebook job runs on Databricks as Airflow tasks.
+Databricks notebook job runs as Airflow tasks. The task group launches a `Databricks Workflow <https://docs.databricks.com/en/workflows/index.html/>`_ and runs the notebook jobs from within it, resulting in a `75% cost reduction <https://www.databricks.com/product/pricing>`_ ($0.40/DBU for all-purpose compute, $0.07/DBU for Jobs compute) when compared to executing ``DatabricksNotebookOperator`` outside of ``DatabricksWorkflowTaskGroup``.
 
 
 
