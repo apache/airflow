@@ -27,7 +27,7 @@ from mergedeep import merge
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
@@ -128,9 +128,9 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.tasks_to_convert.append(task)
 
     @property
-    def databricks_job_name(self) -> str:
+    def job_name(self) -> str:
         if not self.task_group:
-            raise AirflowException("Task group must be set before accessing databricks_job_name")
+            raise AirflowException("Task group must be set before accessing job_name")
         return f"{self.dag_id}.{self.task_group.group_id}"
 
     def create_workflow_json(self, context: Context | None = None) -> dict[str, object]:
@@ -143,7 +143,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         ]
 
         default_json = {
-            "name": self.databricks_job_name,
+            "name": self.job_name,
             "email_notifications": {"no_alert_for_skipped_runs": False},
             "timeout_seconds": 0,
             "tasks": task_json,
@@ -155,19 +155,19 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
 
     def _create_or_reset_job(self, context: Context) -> int:
         job_spec = self.create_workflow_json(context=context)
-        existing_jobs = self._hook.list_jobs(job_name=self.databricks_job_name)
+        existing_jobs = self._hook.list_jobs(job_name=self.job_name)
         job_id = existing_jobs[0]["job_id"] if existing_jobs else None
         if job_id:
             self.log.info(
                 "Updating existing Databricks workflow job %s with spec %s",
-                self.databricks_job_name,
+                self.job_name,
                 json.dumps(job_spec, indent=2),
             )
             self._hook.reset_job(job_id, job_spec)
         else:
             self.log.info(
                 "Creating new Databricks workflow job %s with spec %s",
-                self.databricks_job_name,
+                self.job_name,
                 json.dumps(job_spec, indent=2),
             )
             job_id = self._hook.create_job(job_spec)
@@ -177,9 +177,13 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         run_url = self._hook.get_run_page_url(run_id)
         self.log.info("Check the progress of the Databricks job at %s", run_url)
         life_cycle_state = self._hook.get_run_state(run_id).life_cycle_state
-        if life_cycle_state not in ("PENDING", "RUNNING", "BLOCKED"):
+        if life_cycle_state not in (
+            RunLifeCycleState.PENDING.value,
+            RunLifeCycleState.RUNNING.value,
+            RunLifeCycleState.BLOCKED.value,
+        ):
             raise AirflowException(f"Could not start the workflow job. State: {life_cycle_state}")
-        while life_cycle_state in ("PENDING", "BLOCKED"):
+        while life_cycle_state in (RunLifeCycleState.PENDING.value, RunLifeCycleState.BLOCKED.value):
             self.log.info("Waiting for the Databricks job to start running")
             time.sleep(5)
             life_cycle_state = self._hook.get_run_state(run_id).life_cycle_state

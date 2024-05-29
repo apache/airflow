@@ -25,6 +25,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     _CreateDatabricksWorkflowOperator,
@@ -120,8 +121,8 @@ def test_wait_for_job_to_start(mock_databricks_hook):
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     mock_hook_instance = mock_databricks_hook.return_value
     mock_hook_instance.get_run_state.side_effect = [
-        MagicMock(life_cycle_state="PENDING"),
-        MagicMock(life_cycle_state="RUNNING"),
+        MagicMock(life_cycle_state=RunLifeCycleState.PENDING.value),
+        MagicMock(life_cycle_state=RunLifeCycleState.RUNNING.value),
     ]
 
     operator._wait_for_job_to_start(123)
@@ -139,7 +140,9 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
     mock_hook_instance = mock_databricks_hook.return_value
     mock_hook_instance.run_now.return_value = 789
     mock_hook_instance.list_jobs.return_value = [{"job_id": 123}]
-    mock_hook_instance.get_run_state.return_value = MagicMock(life_cycle_state="RUNNING")
+    mock_hook_instance.get_run_state.return_value = MagicMock(
+        life_cycle_state=RunLifeCycleState.RUNNING.value
+    )
 
     task = MagicMock(spec=BaseOperator)
     task._convert_to_databricks_workflow_task = MagicMock(return_value={})

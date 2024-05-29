@@ -29,7 +29,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
@@ -1126,7 +1126,7 @@ class DatabricksNotebookOperator(BaseOperator):
         return self.databricks_run_id
 
     def _handle_terminal_run_state(self, run_state: RunState) -> None:
-        if run_state.life_cycle_state != "TERMINATED":
+        if run_state.life_cycle_state != RunLifeCycleState.TERMINATED.value:
             raise AirflowException(
                 f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"
             )
@@ -1160,9 +1160,10 @@ class DatabricksNotebookOperator(BaseOperator):
             run = self._hook.get_run(self.databricks_run_id)
             run_state = RunState(**run["state"])
             self.log.info(
-                "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
+                "Current state of the databricks task %s is %s",
+                self._get_databricks_task_id(self.task_id),
+                run_state.life_cycle_state,
             )
-            self.log.info("Current state of the job: %s", run_state.life_cycle_state)
         self._handle_terminal_run_state(run_state)
 
     def execute(self, context: Context) -> None:
