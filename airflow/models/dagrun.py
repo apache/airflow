@@ -57,6 +57,7 @@ from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
@@ -1577,6 +1578,18 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
+            elif isinstance(ti.task, MappedOperator) and ti.task.start_trigger_args is not None:
+                context = ti.get_template_context()
+                mapped_kwargs, _ = ti.task._expand_mapped_kwargs(context, session)
+                start_from_trigger = mapped_kwargs.get("start_from_trigger", ti.task.start_trigger_args)
+                if start_from_trigger is True and "trigger_kwargs" in mapped_kwargs:
+                    start_trigger_args = ti.task.start_trigger_args
+                    start_trigger_args.trigger_kwargs = mapped_kwargs.get("trigger_kwargs")
+                    if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        ti.try_number += 1
+                    ti.defer_task_from_start_trigger(session=session, start_trigger_args=start_trigger_args)
+                else:
+                    schedulable_ti_ids.append((ti.task_id, ti.map_index))
             elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
                 ti.start_date = timezone.utcnow()
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
