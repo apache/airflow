@@ -22,8 +22,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
+from packaging.version import Version
 
-from airflow import __version__ as airflow_version, settings
+from airflow import __version__ as AIRFLOW_VERSION, settings
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
@@ -43,18 +44,17 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun, TaskInstance
+    from airflow.utils.state import TaskInstanceState
 
 _openlineage_listener: OpenLineageListener | None = None
+_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def _get_try_number_success(val):
     # todo: remove when min airflow version >= 2.10.0
-    from packaging.version import parse
-
-    if parse(parse(airflow_version).base_version) < parse("2.10.0"):
-        return val.try_number - 1
-    else:
+    if _IS_AIRFLOW_2_10_OR_HIGHER:
         return val.try_number
+    return val.try_number - 1
 
 
 class OpenLineageListener:
@@ -69,10 +69,10 @@ class OpenLineageListener:
     @hookimpl
     def on_task_instance_running(
         self,
-        previous_state,
+        previous_state: TaskInstanceState,
         task_instance: TaskInstance,
         session: Session,  # This will always be QUEUED
-    ):
+    ) -> None:
         if not getattr(task_instance, "task", None) is not None:
             self.log.warning(
                 "No task set for TI object task_id: %s - dag_id: %s - run_id %s",
@@ -159,7 +159,9 @@ class OpenLineageListener:
         on_running()
 
     @hookimpl
-    def on_task_instance_success(self, previous_state, task_instance: TaskInstance, session):
+    def on_task_instance_success(
+        self, previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session
+    ) -> None:
         self.log.debug("OpenLineage listener got notification about task instance success")
 
         dagrun = task_instance.dag_run
@@ -223,8 +225,37 @@ class OpenLineageListener:
 
         on_success()
 
-    @hookimpl
-    def on_task_instance_failed(self, previous_state, task_instance: TaskInstance, session):
+    if _IS_AIRFLOW_2_10_OR_HIGHER:
+
+        @hookimpl
+        def on_task_instance_failed(
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: TaskInstance,
+            error: None | str | BaseException,
+            session: Session,
+        ) -> None:
+            self._on_task_instance_failed(
+                previous_state=previous_state, task_instance=task_instance, error=error, session=session
+            )
+
+    else:
+
+        @hookimpl
+        def on_task_instance_failed(
+            self, previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session
+        ) -> None:
+            self._on_task_instance_failed(
+                previous_state=previous_state, task_instance=task_instance, error=None, session=session
+            )
+
+    def _on_task_instance_failed(
+        self,
+        previous_state: TaskInstanceState,
+        task_instance: TaskInstance,
+        session: Session,
+        error: None | str | BaseException = None,
+    ) -> None:
         self.log.debug("OpenLineage listener got notification about task instance failure")
 
         dagrun = task_instance.dag_run
@@ -280,6 +311,7 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                error=error,
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
@@ -289,7 +321,7 @@ class OpenLineageListener:
         on_failure()
 
     @property
-    def executor(self):
+    def executor(self) -> ProcessPoolExecutor:
         def initializer():
             # Re-configure the ORM engine as there are issues with multiple processes
             # if process calls Airflow DB.
@@ -303,17 +335,17 @@ class OpenLineageListener:
         return self._executor
 
     @hookimpl
-    def on_starting(self, component):
+    def on_starting(self, component) -> None:
         self.log.debug("on_starting: %s", component.__class__.__name__)
 
     @hookimpl
-    def before_stopping(self, component):
+    def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
         with timeout(30):
             self.executor.shutdown(wait=True)
 
     @hookimpl
-    def on_dag_run_running(self, dag_run: DagRun, msg: str):
+    def on_dag_run_running(self, dag_run: DagRun, msg: str) -> None:
         if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
             self.log.debug(
                 "Skipping OpenLineage event emission for DAG `%s` "
@@ -338,7 +370,7 @@ class OpenLineageListener:
         )
 
     @hookimpl
-    def on_dag_run_success(self, dag_run: DagRun, msg: str):
+    def on_dag_run_success(self, dag_run: DagRun, msg: str) -> None:
         if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
             self.log.debug(
                 "Skipping OpenLineage event emission for DAG `%s` "
@@ -355,7 +387,7 @@ class OpenLineageListener:
         self.executor.submit(self.adapter.dag_success, dag_run=dag_run, msg=msg)
 
     @hookimpl
-    def on_dag_run_failed(self, dag_run: DagRun, msg: str):
+    def on_dag_run_failed(self, dag_run: DagRun, msg: str) -> None:
         if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
             self.log.debug(
                 "Skipping OpenLineage event emission for DAG `%s` "

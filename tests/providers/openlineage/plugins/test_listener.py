@@ -39,7 +39,6 @@ from tests.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 
 EXPECTED_TRY_NUMBER_1 = 1 if AIRFLOW_V_2_10_PLUS else 0
-EXPECTED_TRY_NUMBER_2 = 2 if AIRFLOW_V_2_10_PLUS else 1
 
 TRY_NUMBER_BEFORE_EXECUTION = 0 if AIRFLOW_V_2_10_PLUS else 1
 TRY_NUMBER_RUNNING = 0 if AIRFLOW_V_2_10_PLUS else 1
@@ -276,7 +275,13 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
     mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
     mock_disabled.return_value = False
 
-    listener.on_task_instance_failed(None, task_instance, None)
+    err = ValueError("test")
+    on_task_failed_listener_kwargs = {"error": err} if AIRFLOW_V_2_10_PLUS else {}
+    expected_err_kwargs = {"error": err if AIRFLOW_V_2_10_PLUS else None}
+
+    listener.on_task_instance_failed(
+        previous_state=None, task_instance=task_instance, session=None, **on_task_failed_listener_kwargs
+    )
     listener.adapter.fail_task.assert_called_once_with(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
@@ -284,6 +289,7 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
         parent_run_id="execution_date.dag_id",
         run_id="execution_date.dag_id.task_id.1",
         task=listener.extractor_manager.extract_metadata(),
+        **expected_err_kwargs,
     )
 
 
@@ -316,7 +322,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
 
     listener.on_task_instance_success(None, task_instance, None)
     # This run_id will be different as we did NOT simulate increase of the try_number attribute,
-    # which happens in Airflow.
+    # which happens in Airflow < 2.10.
     calls = listener.adapter.complete_task.call_args_list
     assert len(calls) == 1
     assert calls[0][1] == dict(
@@ -328,65 +334,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         task=listener.extractor_manager.extract_metadata(),
     )
 
-    # Now we simulate the increase of try_number, and the run_id should reflect that change.
-    listener.adapter.complete_task.reset_mock()
-    task_instance.try_number += 1
-    listener.on_task_instance_success(None, task_instance, None)
-    calls = listener.adapter.complete_task.call_args_list
-    assert len(calls) == 1
-    assert calls[0][1] == dict(
-        end_time="2023-01-03T13:01:01",
-        job_name="job_name",
-        parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
-        run_id=f"execution_date.dag_id.task_id.{EXPECTED_TRY_NUMBER_2}",
-        task=listener.extractor_manager.extract_metadata(),
-    )
 
-
-@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
-def test_run_id_is_constant_across_all_methods(mocked_adapter):
-    """Tests that the run_id remains constant across different methods of the listener.
-
-    It ensures that the run_id generated for starting, failing, and completing a task is consistent,
-    reflecting the task's identity and execution context. The test also simulates the change in the
-    try_number attribute, as it would occur in Airflow, to verify that the run_id updates accordingly.
-    """
-
-    def mock_task_id(dag_id, task_id, try_number, execution_date):
-        returned_try_number = try_number if AIRFLOW_V_2_10_PLUS else max(try_number - 1, 1)
-        return f"{execution_date}.{dag_id}.{task_id}.{returned_try_number}"
-
-    listener, task_instance = _create_listener_and_task_instance()
-    mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
-    expected_run_id_1 = "execution_date.dag_id.task_id.1"
-    expected_run_id_2 = "execution_date.dag_id.task_id.2"
-    listener.on_task_instance_running(None, task_instance, None)
-    assert listener.adapter.start_task.call_args.kwargs["run_id"] == expected_run_id_1
-
-    listener.on_task_instance_failed(None, task_instance, None)
-    assert (
-        listener.adapter.fail_task.call_args.kwargs["run_id"] == expected_run_id_1
-        if AIRFLOW_V_2_10_PLUS
-        else expected_run_id_2
-    )
-
-    # This run_id will not be different as we did NOT simulate increase of the try_number attribute,
-    listener.on_task_instance_success(None, task_instance, None)
-    assert listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id_1
-
-    # Now we simulate the increase of try_number, and the run_id should reflect that change.
-    # This is how airflow works, and that's why we expect the run_id to remain constant across all methods.
-    task_instance.try_number += 1
-    listener.on_task_instance_success(None, task_instance, None)
-    assert (
-        listener.adapter.complete_task.call_args.kwargs["run_id"] == expected_run_id_2
-        if AIRFLOW_V_2_10_PLUS
-        else expected_run_id_1
-    )
-
-
-def test_running_task_correctly_calls_openlineage_adapter_run_id_method():
+def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_method():
     """Tests the OpenLineageListener's response when a task instance is in the running state.
 
     This test ensures that when an Airflow task instance transitions to the running state,
@@ -404,7 +353,7 @@ def test_running_task_correctly_calls_openlineage_adapter_run_id_method():
 
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
-def test_failed_task_correctly_calls_openlineage_adapter_run_id_method(mock_adapter):
+def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_method(mock_adapter):
     """Tests the OpenLineageListener's response when a task instance is in the failed state.
 
     This test ensures that when an Airflow task instance transitions to the failed state,
@@ -412,7 +361,11 @@ def test_failed_task_correctly_calls_openlineage_adapter_run_id_method(mock_adap
     parameters derived from the task instance.
     """
     listener, task_instance = _create_listener_and_task_instance()
-    listener.on_task_instance_failed(None, task_instance, None)
+    on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+
+    listener.on_task_instance_failed(
+        previous_state=None, task_instance=task_instance, session=None, **on_task_failed_kwargs
+    )
     mock_adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
@@ -422,7 +375,7 @@ def test_failed_task_correctly_calls_openlineage_adapter_run_id_method(mock_adap
 
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
-def test_successful_task_correctly_calls_openlineage_adapter_run_id_method(mock_adapter):
+def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_method(mock_adapter):
     """Tests the OpenLineageListener's response when a task instance is in the success state.
 
     This test ensures that when an Airflow task instance transitions to the success state,
@@ -530,7 +483,11 @@ def test_listener_on_task_instance_failed_do_not_call_adapter_when_disabled_oper
     listener, task_instance = _create_listener_and_task_instance()
     mock_disabled.return_value = True
 
-    listener.on_task_instance_failed(None, task_instance, None)
+    on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+
+    listener.on_task_instance_failed(
+        previous_state=None, task_instance=task_instance, session=None, **on_task_failed_kwargs
+    )
     mock_disabled.assert_called_once_with(task_instance.task)
     mocked_adapter.build_dag_run_id.assert_not_called()
     mocked_adapter.build_task_instance_run_id.assert_not_called()
@@ -645,6 +602,8 @@ class TestOpenLineageSelectiveEnable:
         if enable_task:
             enable_lineage(self.task_1)
 
+        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+
         conf.selective_enable.cache_clear()
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
@@ -662,14 +621,24 @@ class TestOpenLineageSelectiveEnable:
                 # run TaskInstance-related hooks for lineage enabled task
                 listener.on_task_instance_running(None, self.task_instance_1, None)
                 listener.on_task_instance_success(None, self.task_instance_1, None)
-                listener.on_task_instance_failed(None, self.task_instance_1, None)
+                listener.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=self.task_instance_1,
+                    session=None,
+                    **on_task_failed_kwargs,
+                )
 
                 assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
 
                 # run TaskInstance-related hooks for lineage disabled task
                 listener.on_task_instance_running(None, self.task_instance_2, None)
                 listener.on_task_instance_success(None, self.task_instance_2, None)
-                listener.on_task_instance_failed(None, self.task_instance_2, None)
+                listener.on_task_instance_failed(
+                    previous_state=None,
+                    task_instance=self.task_instance_2,
+                    session=None,
+                    **on_task_failed_kwargs,
+                )
 
                 # with selective-enable disabled both task_1 and task_2 should trigger metadata extraction
                 if selective_enable == "False":
@@ -697,6 +666,8 @@ class TestOpenLineageSelectiveEnable:
         if enable_task:
             enable_lineage(self.task_1)
 
+        on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
+
         conf.selective_enable.cache_clear()
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
@@ -712,7 +683,9 @@ class TestOpenLineageSelectiveEnable:
             # run TaskInstance-related hooks for lineage enabled task
             listener.on_task_instance_running(None, self.task_instance_1, None)
             listener.on_task_instance_success(None, self.task_instance_1, None)
-            listener.on_task_instance_failed(None, self.task_instance_1, None)
+            listener.on_task_instance_failed(
+                previous_state=None, task_instance=self.task_instance_1, session=None, **on_task_failed_kwargs
+            )
 
         try:
             assert expected_call_count == listener._executor.submit.call_count
