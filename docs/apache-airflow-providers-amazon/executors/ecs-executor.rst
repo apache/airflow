@@ -124,7 +124,7 @@ provider package.
 Dockerfile for ECS Executor
 ---------------------------
 
-An example Dockerfile can be found `here <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/executors/ecs/Dockerfile>`__, it creates an
+An example Dockerfile can be found `here <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/executors/Dockerfile>`__, it creates an
 image that can be used on an ECS container to run Airflow tasks using
 the AWS ECS Executor in Apache Airflow. The image supports AWS CLI/API
 integration, allowing you to interact with AWS services within your
@@ -185,6 +185,13 @@ Then you can build your image by ``cd``-ing to the directory with the Dockerfile
 .. code-block:: bash
 
    docker build -t my-airflow-image \
+    --build-arg aws_default_region=YOUR_DEFAULT_REGION .
+
+For users on Apple Silicon, you must specify the arch using ``docker buildx``:
+
+.. code-block:: bash
+
+  docker buildx build --platform=linux/amd64 -t my-airflow-image \
     --build-arg aws_default_region=YOUR_DEFAULT_REGION .
 
 
