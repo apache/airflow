@@ -21,7 +21,7 @@ Installation
 
 This document describes prerequisites for running Breeze and installation process.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Docker Desktop
 --------------

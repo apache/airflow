@@ -334,7 +334,7 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
-    from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+    from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_10_PLUS
 
     if AIRFLOW_V_2_10_PLUS:
         db.resetdb(use_migration_files=True)
@@ -345,7 +345,8 @@ def initial_db_init():
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     init_appbuilder(flask_app)
-    get_auth_manager().init()
+    if AIRFLOW_V_2_8_PLUS:
+        get_auth_manager().init()
 
 
 @pytest.fixture(autouse=True, scope="session")
