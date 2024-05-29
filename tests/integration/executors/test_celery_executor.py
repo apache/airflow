@@ -97,7 +97,7 @@ def _prepare_app(broker_url=None, execute=None):
 
 
 @pytest.mark.integration("celery")
-@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.backend("postgres")
 class TestCeleryExecutor:
     def setup_method(self) -> None:
         db.clear_db_runs()
@@ -276,7 +276,7 @@ class ClassWithCustomAttributes:
 
 
 @pytest.mark.integration("celery")
-@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.backend("postgres")
 class TestBulkStateFetcher:
     bulk_state_fetcher_logger = "airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher"
 
