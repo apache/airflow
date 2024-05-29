@@ -1701,7 +1701,7 @@ export interface components {
       sub_dag?: components["schemas"]["DAG"];
       downstream_task_ids?: string[];
       /**
-       * @description Task documentation.
+       * @description Task documentation in markdown.
        *
        * *New in version 2.10.0*
        */

@@ -64,7 +64,7 @@ const TaskDocumentation = ({ taskId }: Props) => {
             <AccordionButton p={0} fontSize="inherit">
               <Box flex="1" textAlign="left">
                 <Text as="strong" size="lg">
-                  Task Documentation:
+                  Task Documentation
                 </Text>
               </Box>
               <AccordionIcon />

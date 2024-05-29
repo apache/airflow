@@ -28,7 +28,6 @@ export default function useTaskDetail({ taskId }: { taskId: string }) {
   return useQuery(["taskDetails", taskId], async () => {
     const url = taskDetailURI.replace("_TASK_ID_", taskId);
 
-    const datum = await axios.get<AxiosResponse, API.Task>(url);
-    return datum;
+    return axios.get<AxiosResponse, API.Task>(url);
   });
 }

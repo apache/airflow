@@ -4129,7 +4129,7 @@ components:
           readOnly: true
           nullable: true
           description: |
-            Task documentation.
+            Task documentation in markdown.
 
             *New in version 2.10.0*
 
