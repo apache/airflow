@@ -2016,6 +2016,7 @@ class TestDatabricksNotebookOperator:
         assert str(exc_info.value) == exception_message
 
     def test_extend_workflow_notebook_packages(self):
+        """Test that the operator can extend the notebook packages of a Databricks workflow task group."""
         databricks_workflow_task_group = MagicMock()
         databricks_workflow_task_group.notebook_packages = [
             {"pypi": {"package": "numpy"}},
@@ -2041,6 +2042,7 @@ class TestDatabricksNotebookOperator:
         ]
 
     def test_convert_to_databricks_workflow_task(self):
+        """Test that the operator can convert itself to a Databricks workflow task."""
         dag = DAG(dag_id="example_dag", start_date=datetime.now())
         operator = DatabricksNotebookOperator(
             notebook_path="/path/to/notebook",
@@ -2090,6 +2092,7 @@ class TestDatabricksNotebookOperator:
         assert task_json == expected_json
 
     def test_convert_to_databricks_workflow_task_no_task_group(self):
+        """Test that an error is raised if the operator is not in a TaskGroup."""
         operator = DatabricksNotebookOperator(
             notebook_path="/path/to/notebook",
             source="WORKSPACE",
@@ -2109,6 +2112,7 @@ class TestDatabricksNotebookOperator:
             operator._convert_to_databricks_workflow_task(relevant_upstreams)
 
     def test_convert_to_databricks_workflow_task_cluster_conflict(self):
+        """Test that an error is raised if both `existing_cluster_id` and `job_cluster_key` are set."""
         operator = DatabricksNotebookOperator(
             notebook_path="/path/to/notebook",
             source="WORKSPACE",

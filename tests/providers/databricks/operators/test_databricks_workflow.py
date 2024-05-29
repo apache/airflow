@@ -129,6 +129,7 @@ def test_wait_for_job_to_start(mock_databricks_hook):
 
 
 def test_execute(mock_databricks_hook, context, mock_task_group):
+    """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     operator.task_group = mock_task_group
     mock_task_group.jar_params = {}
@@ -155,6 +156,7 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
 
 
 def test_execute_invalid_task_group(context):
+    """Test that _CreateDatabricksWorkflowOperator.execute raises an exception if the task group is invalid."""
     operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
     operator.task_group = MagicMock()  # Not a DatabricksWorkflowTaskGroup
 
@@ -171,6 +173,7 @@ def mock_databricks_workflow_operator():
 
 
 def test_task_group_initialization():
+    """Test that DatabricksWorkflowTaskGroup initializes correctly."""
     with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow", databricks_conn_id="databricks_conn"
@@ -183,6 +186,7 @@ def test_task_group_initialization():
 
 
 def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
+    """Test that DatabricksWorkflowTaskGroup creates a _CreateDatabricksWorkflowOperator on exit."""
     with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow",
@@ -212,6 +216,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
 
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
+    """Test that tasks added to a DatabricksWorkflowTaskGroup are set upstream to the operator."""
     with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE):
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow1",

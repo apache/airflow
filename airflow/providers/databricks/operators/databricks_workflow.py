@@ -31,6 +31,8 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from airflow.models.taskmixin import DAGNode
     from airflow.utils.context import Context
 
@@ -127,6 +129,8 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
 
     @property
     def databricks_job_name(self) -> str:
+        if not self.task_group:
+            raise AirflowException("Task group must be set before accessing databricks_job_name")
         return f"{self.dag_id}.{self.task_group.group_id}"
 
     def create_workflow_json(self, context: Context | None = None) -> dict[str, object]:
@@ -266,7 +270,9 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         self.spark_submit_params = spark_submit_params or []
         super().__init__(**kwargs)
 
-    def __exit__(self, _type: type[BaseException] | None, _value: BaseException | None, _tb: TracebackType | None) -> None:
+    def __exit__(
+        self, _type: type[BaseException] | None, _value: BaseException | None, _tb: TracebackType | None
+    ) -> None:
         """Exit the context manager and add tasks to a single ``_CreateDatabricksWorkflowOperator``."""
         roots = list(self.get_roots())
         tasks = _flatten_node(self)
