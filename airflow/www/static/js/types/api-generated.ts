@@ -474,6 +474,8 @@ export interface paths {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
       };
     };
   };
@@ -1497,6 +1499,12 @@ export interface components {
       /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
       queued_when?: string | null;
       pid?: number | null;
+      /**
+       * @description Executor the task is configured to run on or None (which indicates the default executor)
+       *
+       * *New in version 2.10.0*
+       */
+      executor?: string | null;
       executor_config?: string;
       sla_miss?: components["schemas"]["SLAMiss"];
       /**
@@ -1688,6 +1696,7 @@ export interface components {
       wait_for_downstream?: boolean;
       retries?: number;
       queue?: string | null;
+      executor?: string | null;
       pool?: string;
       pool_slots?: number;
       execution_timeout?: components["schemas"]["TimeDelta"];
@@ -2233,6 +2242,8 @@ export interface components {
       pool?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       queue?: string[];
+      /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
+      executor?: string[];
     };
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
@@ -2561,6 +2572,8 @@ export interface components {
     FilterPool: string[];
     /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
     FilterQueue: string[];
+    /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
+    FilterExecutor: string[];
     /**
      * @description List of tags to filter results.
      *
@@ -3964,6 +3977,8 @@ export interface operations {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -4192,6 +4207,8 @@ export interface operations {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
         /**
          * The name of the field to order the results by.
          * Prefix a field name with `-` to reverse the sort order.

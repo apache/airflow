@@ -1503,6 +1503,7 @@ paths:
       - $ref: "#/components/parameters/FilterState"
       - $ref: "#/components/parameters/FilterPool"
       - $ref: "#/components/parameters/FilterQueue"
+      - $ref: "#/components/parameters/FilterExecutor"
     get:
       summary: List task instances
       description: >
@@ -1671,6 +1672,7 @@ paths:
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/FilterPool"
         - $ref: "#/components/parameters/FilterQueue"
+        - $ref: "#/components/parameters/FilterExecutor"
         - $ref: "#/components/parameters/OrderBy"
       responses:
         "200":
@@ -3751,6 +3753,13 @@ components:
         pid:
           type: integer
           nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
         executor_config:
           type: string
         sla_miss:
@@ -4087,6 +4096,10 @@ components:
           type: number
           readOnly: true
         queue:
+          type: string
+          readOnly: true
+          nullable: true
+        executor:
           type: string
           readOnly: true
           nullable: true
@@ -4943,6 +4956,11 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        executor:
+          type: array
+          items:
+            type: string
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
 
     # Common data type
     ScheduleInterval:
@@ -5499,7 +5517,14 @@ components:
         items:
           type: string
       description: The value can be repeated to retrieve multiple matching values (OR condition).
-
+    FilterExecutor:
+      in: query
+      name: executor
+      schema:
+        type: array
+        items:
+          type: string
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
     FilterTags:
       in: query
       name: tags
