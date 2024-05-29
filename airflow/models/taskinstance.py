@@ -1760,6 +1760,12 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
+        Index(
+            "ti_end_date",
+            "end_date",
+            postgresql_where=text("end_date IS NOT NULL"),
+            sqlite_where=text("end_date IS NOT NULL"),
+        ),
         PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
         ForeignKeyConstraint(
             [trigger_id],
