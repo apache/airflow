@@ -28,6 +28,8 @@ from sqlalchemy.engine import URL
 # import ydb_sqlalchemy.dbapi.connection as YDBConnection
 from airflow.providers.ydb.hooks.dbapi.connection import Connection
 from airflow.providers.ydb.hooks.dbapi.cursor import YdbQuery
+from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
+
 import ydb
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -100,7 +102,7 @@ class YDBConnection:
         )
         driver = ydb.Driver(driver_config)
         # wait until driver become initialized
-        driver.wait(fail_fast=True, timeout=30)
+        driver.wait(fail_fast=True, timeout=10)
         ydb_session_pool = ydb.SessionPool(driver, size=5)
         self.delegatee = Connection(ydb_session_pool=ydb_session_pool)
 
@@ -207,7 +209,7 @@ class YDBHook(DbApiHook):
     def sqlalchemy_url(self) -> URL:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         return URL.create(
-            drivername="postgresql",
+            drivername="ydb",
             username=conn.login,
             password=conn.password,
             host=conn.host,
@@ -220,25 +222,15 @@ class YDBHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if not host:
-            raise ValueError("YDB host must be specified, " + conn.debug_info())
+            raise ValueError("YDB host must be specified")
         port = conn.port or DEFAULT_YDB_GRPCS_PORT
         endpoint = f"{host}:{port}"
-        database = conn.extra_dejson.get("database") # "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
+        connection_extra = conn.extra_dejson
+        database = connection_extra.get("database") # "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
         if not database:
             raise ValueError("YDB database must be specified")
         
-        if not conn.login and not conn.password:
-            credentials = ydb.AnonymousCredentials()
-        elif conn.login and conn.password:
-            driver_config = ydb.DriverConfig(
-                endpoint=endpoint,
-                database=database,
-            )
-
-            credentials = ydb.StaticCredentials(driver_config, user=conn.login, password=conn.password)
-        elif conn.password:
-            credentials = ydb.AccessTokenCredentials(conn.password)
-
+        credentials = get_credentials_from_connection(endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra)
         self.conn = YDBConnection(endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl)
         return self.conn
 
