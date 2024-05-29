@@ -22,16 +22,19 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import TaskDeferred, AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook, GlueDataQualityHook
+from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
-from airflow.providers.amazon.aws.operators.glue import GlueJobOperator, \
-    GlueDataQualityRuleSetEvaluationRunOperator, GlueDataQualityOperator
+from airflow.providers.amazon.aws.operators.glue import (
+    GlueDataQualityOperator,
+    GlueDataQualityRuleSetEvaluationRunOperator,
+    GlueJobOperator,
+)
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+    from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 
 TASK_ID = "test_glue_operator"
 DAG_ID = "test_dag_id"
@@ -313,9 +316,7 @@ class TestGlueDataQualityOperator:
 
     def test_init(self):
         self.operator = GlueDataQualityOperator(
-            task_id="create_data_quality_ruleset",
-            name=self.RULE_SET_NAME,
-            ruleset=self.RULE_SET
+            task_id="create_data_quality_ruleset", name=self.RULE_SET_NAME, ruleset=self.RULE_SET
         )
         self.operator.defer = mock.MagicMock()
 

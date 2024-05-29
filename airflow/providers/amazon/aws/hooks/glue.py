@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 from functools import cached_property
+from typing import Any
 
 from botocore.exceptions import ClientError
 
@@ -515,7 +516,9 @@ class GlueDataQualityHook(AwsBaseHook):
         for result in results["Results"]:
             rule_results = result["RuleResults"]
             total_failed_rules = total_failed_rules + sum(
-                1 for result in rule_results if result.get("Result") == "FAIL" or result.get("Result") == "ERROR"
+                1
+                for result in rule_results
+                if result.get("Result") == "FAIL" or result.get("Result") == "ERROR"
             )
 
             if show_results:

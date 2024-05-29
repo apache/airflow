@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook, GlueDataQualityHook
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import GlueDataQualityRuleSetEvaluationRunCompleteTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event

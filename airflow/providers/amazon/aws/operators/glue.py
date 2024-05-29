@@ -25,12 +25,14 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook, GlueDataQualityHook
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger, \
-    GlueDataQualityRuleSetEvaluationRunCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue import (
+    GlueDataQualityRuleSetEvaluationRunCompleteTrigger,
+    GlueJobCompleteTrigger,
+)
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:

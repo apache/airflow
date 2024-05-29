@@ -19,12 +19,14 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task_group, task
+from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
-from airflow.providers.amazon.aws.operators.glue import GlueDataQualityOperator, \
-    GlueDataQualityRuleSetEvaluationRunOperator
+from airflow.providers.amazon.aws.operators.glue import (
+    GlueDataQualityOperator,
+    GlueDataQualityRuleSetEvaluationRunOperator,
+)
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -67,7 +69,7 @@ def glue_data_quality_workflow():
                 "TableName": athena_table,
                 "DatabaseName": athena_database,
             }
-        }
+        },
     )
     # [END howto_operator_glue_data_quality_operator]
 
@@ -76,12 +78,12 @@ def glue_data_quality_workflow():
         task_id="start_evaluation_run",
         datasource={
             "GlueTable": {
-                'TableName': athena_table,
-                'DatabaseName': athena_database,
+                "TableName": athena_table,
+                "DatabaseName": athena_database,
             }
         },
         role=test_context[ROLE_ARN_KEY],
-        rule_set_names=[rule_set_name]
+        rule_set_names=[rule_set_name],
     )
     start_evaluation_run.wait_for_completion = False
     # [END howto_operator_glue_data_quality_ruleset_evaluation_run_operator]

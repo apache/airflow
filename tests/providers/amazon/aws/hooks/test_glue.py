@@ -29,7 +29,7 @@ from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook, GlueDataQualityHook
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 if TYPE_CHECKING:
@@ -566,7 +566,6 @@ class TestGlueDataQualityHook:
 
     @mock.patch.object(AwsBaseHook, "conn")
     def test_validate_evaluation_results(self, mock_conn, caplog):
-
         response_evaluation_run = {"RunId": self.RUN_ID, "ResultIds": ["resultId1"]}
 
         response_batch_result = {
@@ -601,11 +600,11 @@ class TestGlueDataQualityHook:
         )
 
         assert caplog.messages == [
-            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0"]
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0"
+        ]
 
     @mock.patch.object(AwsBaseHook, "conn")
     def test_validate_evaluation_results_should_fail_when_any_rules_failed(self, mock_conn, caplog):
-
         response_batch_result = {
             "RunId": self.RUN_ID,
             "ResultIds": ["resultId1"],
@@ -646,7 +645,7 @@ class TestGlueDataQualityHook:
 
             with pytest.raises(
                 AirflowException,
-                match="AWS Glue data quality ruleset evaluation run failed for one or more rules"
+                match="AWS Glue data quality ruleset evaluation run failed for one or more rules",
             ):
                 self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=False)
 
@@ -656,10 +655,10 @@ class TestGlueDataQualityHook:
             )
 
         assert caplog.messages == [
-            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 1"]
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 1"
+        ]
 
     def test_display_results(self, caplog):
-
         results = {
             "ResultId": "resultId1",
             "Score": 5.0,

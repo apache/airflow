@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import asyncio
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook, GlueDataQualityHook
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
