@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+.. note::
+  This release contains several new features including:
+  • Introduction of Stored Procedure Support in Teradata Hook
+  • Inclusion of the TeradataStoredProcedureOperator for executing stored procedures
+  • Integration of Azure Blob Storage to Teradata Transfer Operator
+  • Integration of Amazon S3 to Teradata Transfer Operator
+  • Provision of necessary documentation, along with unit and system tests, for the Teradata Provider modifications.
+
+* ``Updates to Teradata Provider (#39217)``
+
 2.1.1
 .....
 
