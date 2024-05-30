@@ -7409,6 +7409,14 @@
                             ],
                             "default": null
                         },
+                        "gitSshKey": {
+                            "description": "Base64 converted ssh private key",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "sshKeySecret": {
                             "description": "Name of a Secret containing the repo `sshKeySecret`.",
                             "type": [

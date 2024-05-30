@@ -2473,7 +2473,6 @@ dags:
     # subpath within the repo where dags are located
     # should be "" if dags are at repo root
     subPath: "tests/dags"
-    sshKeySecret: ~
     # if your repo needs a user name password
     # you can load them to a k8s secret like the one below
     #   ---
@@ -2491,6 +2490,13 @@ dags:
     # and specify the name of the secret below
     #
     # credentialsSecret: git-credentials
+    #
+    #
+    # If you are using an ssh clone url, you can load
+    # the ssh private key to a k8s secret like the one below
+    # gitSshKey: <base64_encoded_data>
+    # and specify the name of the secret below
+    # sshKeySecret: airflow-ssh-secret
     #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
