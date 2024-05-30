@@ -40,6 +40,8 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix deprecated calls in 'cncf.kubernetes' provider (#39381)``
+* ``Handling exception getting logs when pods finish success (#39296)``
+* ``fix wrong arguments in read_namespaced_pod_log call (#39874)``
 
 Misc
 ~~~~
@@ -48,11 +50,13 @@ Misc
 * ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
 * ``Simplify 'airflow_version' imports (#39497)``
 * ``Replace pod_manager.read_pod_logs with client.read_namespaced_pod_log in KubernetesPodOperator._write_logs (#39112)``
+* ``Add a warning message to KPO to warn of one second interval logs duplication (#39861)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Reapply templates for all providers (#39554)``
    * ``Faster 'airflow_version' imports (#39552)``
+   * ``Prepare docs 3rd wave May 2024 (#39738)``
 
 8.2.0
 .....
