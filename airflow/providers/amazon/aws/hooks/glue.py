@@ -462,6 +462,16 @@ class GlueDataQualityHook(AwsBaseHook):
             return False
 
     def _log_results(self, result: dict[str, Any]) -> None:
+        """
+        Print the outcome of ruleset.
+        An evaluation run can involve multiple rulesets evaluated against a data source (Glue table).
+
+        Name	Description	                                 Result	    EvaluatedMetrics                                                                    EvaluationMessage
+        Rule_1	RowCount between 150000 and 600000	         PASS	    {'Dataset.*.RowCount': 300000.0}	                                                NaN
+        Rule_2	IsComplete "marketplace"	                 PASS	    {'Column.marketplace.Completeness': 1.0}	                                        NaN
+        Rule_3  ColumnLength "marketplace" between 1 and 2   FAIL       {'Column.marketplace.MaximumLength': 9.0, 'Column.marketplace.MinimumLength': 3.0}  Value: 9.0 does not meet the constraint requirement!
+
+        """
         import pandas as pd
 
         pd.set_option("display.max_rows", None)
