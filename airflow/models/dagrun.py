@@ -1538,13 +1538,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
-            elif (
-                ti.task.start_from_trigger is True
-                and ti.task.start_trigger_args is not None
-                and not ti.task.on_execute_callback
-                and not ti.task.on_success_callback
-                and not ti.task.outlets
-            ):
+            elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
                 ti.defer_task_from_scheduler(session=session, start_trigger_args=ti.task.start_trigger_args)
