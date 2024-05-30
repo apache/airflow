@@ -357,7 +357,7 @@ class TestGlueDataQualityOperator:
         exception = client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
 
-        glue_data_quality_mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        glue_data_quality_mock_conn.exceptions.AlreadyExistsException = returned_exception
         glue_data_quality_mock_conn.create_data_quality_ruleset.side_effect = exception
 
         with pytest.raises(AirflowException, match=error_message):
