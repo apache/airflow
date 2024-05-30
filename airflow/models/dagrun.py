@@ -1547,9 +1547,7 @@ class DagRun(Base, LoggingMixin):
             ):
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
-                ti.defer_task_from_start_trigger(
-                    session=session, start_trigger_args=ti.task.start_trigger_args
-                )
+                ti.defer_task_from_scheduler(session=session, start_trigger_args=ti.task.start_trigger_args)
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 

@@ -283,7 +283,7 @@ def _run_raw_task(
             # a trigger.
             if raise_on_defer:
                 raise
-            ti.defer_task_from_task_deferred(exception=defer, session=session)
+            ti.defer_task_from_exception(exception=defer, session=session)
             ti.log.info(
                 "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, execution_date=%s, start_date=%s",
                 ti.dag_id,
@@ -1575,7 +1575,7 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 
 @internal_api_call
 @provide_session
-def _defer_task_from_task_deferred(
+def _defer_task_from_exception(
     ti: TaskInstance | TaskInstancePydantic, exception: TaskDeferred, session: Session = NEW_SESSION
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
@@ -3025,15 +3025,15 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def defer_task_from_task_deferred(self, exception: TaskDeferred, session: Session = NEW_SESSION) -> None:
+    def defer_task_from_exception(self, exception: TaskDeferred, session: Session = NEW_SESSION) -> None:
         """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
-        _defer_task_from_task_deferred(ti=self, session=session, exception=exception)
+        _defer_task_from_exception(ti=self, session=session, exception=exception)
 
     @provide_session
-    def defer_task_from_start_trigger(
+    def defer_task_from_scheduler(
         self,
         start_trigger_args: StartTriggerArgs,
         session: Session = NEW_SESSION,

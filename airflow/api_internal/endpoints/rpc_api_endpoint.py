@@ -51,7 +51,7 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance,
         _add_log,
         _defer_task,
-        _defer_task_from_task_deferred,
+        _defer_task_from_exception,
         _get_template_context,
         _handle_failure,
         _handle_reschedule,
@@ -65,7 +65,7 @@ def _initialize_map() -> dict[str, Callable]:
     functions: list[Callable] = [
         _default_action_log_internal,
         _defer_task,
-        _defer_task_from_task_deferred,
+        _defer_task_from_exception,
         _get_template_context,
         _get_ti_db_access,
         _update_rtif,
