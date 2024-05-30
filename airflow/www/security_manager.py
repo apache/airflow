@@ -167,9 +167,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
             )(baseview.blueprint)
 
     @cached_property
-    @provide_session
     def _auth_manager_is_authorized_map(
-        self, session: Session = NEW_SESSION
+        self,
     ) -> dict[str, Callable[[str, str | None, BaseUser | None], bool]]:
         """
         Return the map associating a FAB resource name to the corresponding auth manager is_authorized_ API.
@@ -179,7 +178,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
         auth_manager = get_auth_manager()
         methods = get_method_from_fab_action_map()
 
-        def get_connection_id(resource_pk):
+        @provide_session
+        def get_connection_id(resource_pk, session):
             if not resource_pk:
                 return None
             connection = session.scalar(select(Connection).where(Connection.id == resource_pk).limit(1))
@@ -187,7 +187,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Connection not found")
             return connection.conn_id
 
-        def get_dag_id_from_dagrun_id(resource_pk):
+        @provide_session
+        def get_dag_id_from_dagrun_id(resource_pk, session):
             if not resource_pk:
                 return None
             dagrun = session.scalar(select(DagRun).where(DagRun.id == resource_pk).limit(1))
@@ -195,7 +196,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("DagRun not found")
             return dagrun.dag_id
 
-        def get_dag_id_from_task_instance(resource_pk):
+        @provide_session
+        def get_dag_id_from_task_instance(resource_pk, session):
             if not resource_pk:
                 return None
             composite_pk = json.loads(resource_pk)
@@ -213,7 +215,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Task instance not found")
             return dag_id
 
-        def get_pool_name(resource_pk):
+        @provide_session
+        def get_pool_name(resource_pk, session):
             if not resource_pk:
                 return None
             pool = session.scalar(select(Pool).where(Pool.id == resource_pk).limit(1))
@@ -221,12 +224,13 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Pool not found")
             return pool.pool
 
-        def get_variable_key(resource_pk):
+        @provide_session
+        def get_variable_key(resource_pk, session):
             if not resource_pk:
                 return None
             variable = session.scalar(select(Variable).where(Variable.id == resource_pk).limit(1))
             if not variable:
-                raise AirflowException("Connection not found")
+                raise AirflowException("Variable not found")
             return variable.key
 
         return {
