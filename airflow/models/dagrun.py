@@ -1539,6 +1539,7 @@ class DagRun(Base, LoggingMixin):
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
             elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
+                ti.start_date = timezone.utcnow()
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
                 ti.defer_task_from_scheduler(session=session, start_trigger_args=ti.task.start_trigger_args)
