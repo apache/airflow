@@ -612,16 +612,7 @@ class KubernetesPodOperator(BaseOperator):
                     mode=ExecutionMode.SYNC,
                 )
 
-            if self.get_logs:
-                self.pod_manager.fetch_requested_container_logs(
-                    pod=self.pod,
-                    containers=self.container_logs,
-                    follow_logs=True,
-                )
-            if not self.get_logs or (
-                self.container_logs is not True and self.base_container_name not in self.container_logs
-            ):
-                self.await_container_completion(pod=self.pod, container_name=self.base_container_name)
+            self.await_pod_completion(pod=self.pod)
             if self.callbacks:
                 self.callbacks.on_pod_completion(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
@@ -654,9 +645,18 @@ class KubernetesPodOperator(BaseOperator):
         retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
         reraise=True,
     )
-    def await_container_completion(self, pod: k8s.V1Pod, container_name: str):
+    def await_pod_completion(self, pod: k8s.V1Pod):
         try:
-            self.pod_manager.await_container_completion(pod=pod, container_name=container_name)
+            if self.get_logs:
+                self.pod_manager.fetch_requested_container_logs(
+                    pod=pod,
+                    containers=self.container_logs,
+                    follow_logs=True,
+                )
+            if not self.get_logs or (
+                self.container_logs is not True and self.base_container_name not in self.container_logs
+            ):
+                self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
         except kubernetes.client.exceptions.ApiException as exc:
             if exc.status and str(exc.status) == "401":
                 self.log.warning(

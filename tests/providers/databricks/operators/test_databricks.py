@@ -2014,3 +2014,122 @@ class TestDatabricksNotebookOperator:
             "Set it instead to `None` if you desire the task to run indefinitely."
         )
         assert str(exc_info.value) == exception_message
+
+    def test_extend_workflow_notebook_packages(self):
+        """Test that the operator can extend the notebook packages of a Databricks workflow task group."""
+        databricks_workflow_task_group = MagicMock()
+        databricks_workflow_task_group.notebook_packages = [
+            {"pypi": {"package": "numpy"}},
+            {"pypi": {"package": "pandas"}},
+        ]
+
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            notebook_packages=[
+                {"pypi": {"package": "numpy"}},
+                {"pypi": {"package": "scipy"}},
+            ],
+        )
+
+        operator._extend_workflow_notebook_packages(databricks_workflow_task_group)
+
+        assert operator.notebook_packages == [
+            {"pypi": {"package": "numpy"}},
+            {"pypi": {"package": "scipy"}},
+            {"pypi": {"package": "pandas"}},
+        ]
+
+    def test_convert_to_databricks_workflow_task(self):
+        """Test that the operator can convert itself to a Databricks workflow task."""
+        dag = DAG(dag_id="example_dag", start_date=datetime.now())
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            notebook_packages=[
+                {"pypi": {"package": "numpy"}},
+                {"pypi": {"package": "scipy"}},
+            ],
+            dag=dag,
+        )
+
+        databricks_workflow_task_group = MagicMock()
+        databricks_workflow_task_group.notebook_packages = [
+            {"pypi": {"package": "numpy"}},
+        ]
+        databricks_workflow_task_group.notebook_params = {"param1": "value1"}
+
+        operator.notebook_packages = [{"pypi": {"package": "pandas"}}]
+        operator.notebook_params = {"param2": "value2"}
+        operator.task_group = databricks_workflow_task_group
+        operator.task_id = "test_task"
+        operator.upstream_task_ids = ["upstream_task"]
+        relevant_upstreams = [MagicMock(task_id="upstream_task")]
+
+        task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams)
+
+        expected_json = {
+            "task_key": "example_dag__test_task",
+            "depends_on": [],
+            "timeout_seconds": 0,
+            "email_notifications": {},
+            "notebook_task": {
+                "notebook_path": "/path/to/notebook",
+                "source": "WORKSPACE",
+                "base_parameters": {
+                    "param2": "value2",
+                    "param1": "value1",
+                },
+            },
+            "libraries": [
+                {"pypi": {"package": "pandas"}},
+                {"pypi": {"package": "numpy"}},
+            ],
+        }
+
+        assert task_json == expected_json
+
+    def test_convert_to_databricks_workflow_task_no_task_group(self):
+        """Test that an error is raised if the operator is not in a TaskGroup."""
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            notebook_packages=[
+                {"pypi": {"package": "numpy"}},
+                {"pypi": {"package": "scipy"}},
+            ],
+        )
+        operator.task_group = None
+        relevant_upstreams = [MagicMock(task_id="upstream_task")]
+
+        with pytest.raises(
+            AirflowException,
+            match="Calling `_convert_to_databricks_workflow_task` without a parent TaskGroup.",
+        ):
+            operator._convert_to_databricks_workflow_task(relevant_upstreams)
+
+    def test_convert_to_databricks_workflow_task_cluster_conflict(self):
+        """Test that an error is raised if both `existing_cluster_id` and `job_cluster_key` are set."""
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            notebook_packages=[
+                {"pypi": {"package": "numpy"}},
+                {"pypi": {"package": "scipy"}},
+            ],
+        )
+        databricks_workflow_task_group = MagicMock()
+        operator.existing_cluster_id = "existing-cluster-id"
+        operator.job_cluster_key = "job-cluster-key"
+        operator.task_group = databricks_workflow_task_group
+        relevant_upstreams = [MagicMock(task_id="upstream_task")]
+
+        with pytest.raises(
+            ValueError,
+            match="Both existing_cluster_id and job_cluster_key are set. Only one can be set per task.",
+        ):
+            operator._convert_to_databricks_workflow_task(relevant_upstreams)

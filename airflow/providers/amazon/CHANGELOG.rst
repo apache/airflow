@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+8.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Overrides for AWS Batch submit_job (#39903)``
+* ``Add transfer operator S3ToDynamoDBOperator (#39654)``
+
+Misc
+~~~~
+
+* ``Resolving ECS fargate deprecated warnings (#39834)``
+
 8.23.0
 ......
 
