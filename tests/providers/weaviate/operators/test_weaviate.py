@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 pytest.importorskip("weaviate")
@@ -33,12 +34,16 @@ from airflow.providers.weaviate.operators.weaviate import (  # noqa: E402
 class TestWeaviateIngestOperator:
     @pytest.fixture
     def operator(self):
-        return WeaviateIngestOperator(
-            task_id="weaviate_task",
-            conn_id="weaviate_conn",
-            class_name="my_class",
-            input_json=[{"data": "sample_data"}],
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Passing 'input_json' to WeaviateIngestOperator is deprecated and you should use 'input_data' instead",
+        ):
+            return WeaviateIngestOperator(
+                task_id="weaviate_task",
+                conn_id="weaviate_conn",
+                class_name="my_class",
+                input_json=[{"data": "sample_data"}],
+            )
 
     def test_constructor(self, operator):
         assert operator.conn_id == "weaviate_conn"
