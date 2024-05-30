@@ -52,7 +52,7 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.10.0
-  - pyodbc
+  - pyodbc>=5.0.0
 
 integrations:
   - integration-name: ODBC
