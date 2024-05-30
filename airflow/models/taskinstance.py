@@ -153,7 +153,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models.abstractoperator import StartTriggerArgs, TaskStateChangeCallback
+    from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
@@ -164,6 +164,7 @@ if TYPE_CHECKING:
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 

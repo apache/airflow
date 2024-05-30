@@ -160,7 +160,7 @@ This is particularly useful when deferring is the only thing the ``execute`` met
     from datetime import timedelta
     from typing import Any
 
-    from airflow.models.abstractoperator import StartTriggerArgs
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.sensors.base import BaseSensorOperator
     from airflow.utils.context import Context
 

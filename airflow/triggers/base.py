@@ -17,9 +17,29 @@
 from __future__ import annotations
 
 import abc
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+@dataclass
+class StartTriggerArgs:
+    """Arguments required for start task execution from triggerer."""
+
+    trigger_cls: str
+    next_method: str
+    trigger_kwargs: dict[str, Any] | None = None
+    timeout: timedelta | None = None
+
+    def serialize(self):
+        return {
+            "trigger_cls": self.trigger_cls,
+            "trigger_kwargs": self.trigger_kwargs,
+            "next_method": self.next_method,
+            "timeout": self.timeout,
+        }
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):

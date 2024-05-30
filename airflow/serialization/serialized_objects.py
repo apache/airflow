@@ -40,7 +40,7 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
-from airflow.models.baseoperator import BaseOperator, StartTriggerArgs
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dagrun import DagRun
@@ -66,7 +66,7 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
 )
-from airflow.triggers.base import BaseTrigger
+from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.docs import get_docs_url
