@@ -21,7 +21,7 @@ Release management tasks
 Maintainers also can use Breeze for other purposes (those are commands that regular contributors likely
 do not need or have no access to run). Those are usually connected with releasing Airflow:
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Those are all of the available release management commands:
 

@@ -111,8 +111,18 @@ MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 MOUNT_TESTS = "tests"
+MOUNT_PROVIDERS_AND_TESTS = "providers-and-tests"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE, MOUNT_TESTS]
+ALLOWED_MOUNT_OPTIONS = [
+    MOUNT_SELECTED,
+    MOUNT_ALL,
+    MOUNT_SKIP,
+    MOUNT_REMOVE,
+    MOUNT_TESTS,
+    MOUNT_PROVIDERS_AND_TESTS,
+]
+
+USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
 ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
@@ -478,9 +488,9 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
-        "airflow-version": "2.7.1",
+        "airflow-version": "2.7.3",
         "remove-providers": "common.io fab",
-        "run-tests": "false",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",

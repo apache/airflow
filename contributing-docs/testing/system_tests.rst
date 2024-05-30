@@ -21,7 +21,7 @@ Airflow System Tests
 System tests need to communicate with external services/systems that are available
 if you have appropriate credentials configured for your tests.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Purpose of System Tests
 -----------------------
