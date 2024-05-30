@@ -29,7 +29,7 @@ def _read_file(path):
     with open(path) as infile:
         return infile.read()
 
-def get_credentials_from_connection(endpoint: str, database: str, connection, connection_extra: dict):
+def get_credentials_from_connection(endpoint: str, database: str, connection, connection_extra: dict = {}):
     """
     Return YDB credentials object for YDB SDK based on connection settings.
 
@@ -40,6 +40,7 @@ def get_credentials_from_connection(endpoint: str, database: str, connection, co
     * service_account_json_path
     * service_account_json
     * use_vm_metadata
+    * anonymous
 
     :param endpoint: address of YDB cluster, e.g. grpcs://my-server.com:2135
     :param database: YDB database name, e.g. /local
@@ -57,7 +58,7 @@ def get_credentials_from_connection(endpoint: str, database: str, connection, co
 
     token = connection_extra.get("token")
     if token:
-        credentials = ydb.AccessTokenCredentials(token)
+        return ydb.AccessTokenCredentials(token)
 
     service_account_json_path = connection_extra.get("service_account_json_path")
     if service_account_json_path:

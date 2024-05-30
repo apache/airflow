@@ -16,23 +16,126 @@
 # under the License.
 from __future__ import annotations
 
-import re
-from datetime import datetime, timedelta
-from airflow.utils import timezone
-from unittest.mock import MagicMock, PropertyMock, call, patch
-
-import pytest
-import responses
-from responses import matchers
+from unittest.mock import patch
 
 from airflow.models.connection import Connection
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
-TEST_ENDPOINT="my_endpoint"
-TEST_DATABASE="/my_db"
+
+TEST_ENDPOINT = "my_endpoint"
+TEST_DATABASE = "/my_db"
+MAGIC_CONST = 42
+
 
 @patch("ydb.StaticCredentials")
 def test_static_creds(mock):
-    mock.return_value = 1
-    c = Connection(conn_type="ydb", host="localhost", login="my_login")
+    mock.return_value = MAGIC_CONST
+    c = Connection(conn_type="ydb", host="localhost", login="my_login", password="my_pwd")
     credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c, {})
-    assert isinstance(credentials, int)
+    assert credentials == MAGIC_CONST
+
+    assert len(mock.call_args.args) == 1
+    driver_config = mock.call_args.args[0]
+    assert driver_config.endpoint == TEST_ENDPOINT
+    assert driver_config.database == TEST_DATABASE
+    assert mock.call_args.kwargs == {"user": "my_login", "password": "my_pwd"}
+
+
+@patch("ydb.AccessTokenCredentials")
+def test_token_creds(mock):
+    mock.return_value = MAGIC_CONST
+    c = Connection(conn_type="ydb", host="localhost")
+    credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c, {"token": "my_token"})
+    assert credentials == MAGIC_CONST
+
+    mock.assert_called_with("my_token")
+
+
+@patch("ydb.AnonymousCredentials")
+def test_anonymous_creds(mock):
+    mock.return_value = MAGIC_CONST
+    c = Connection(conn_type="ydb", host="localhost")
+    credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c)
+    assert credentials == MAGIC_CONST
+    mock.assert_called_once()
+
+
+@patch("ydb.iam.auth.MetadataUrlCredentials")
+def test_vm_metadata_creds(mock):
+    mock.return_value = MAGIC_CONST
+    c = Connection(conn_type="ydb", host="localhost")
+    credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c, {"use_vm_metadata": True})
+    assert credentials == MAGIC_CONST
+    mock.assert_called_once()
+
+
+@patch("ydb.iam.auth.BaseJWTCredentials.from_file")
+def test_service_account_json_path_creds(mock):
+    mock.return_value = MAGIC_CONST
+    c = Connection(conn_type="ydb", host="localhost")
+
+    credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c,
+                                                  {"service_account_json_path": "my_path"})
+    assert credentials == MAGIC_CONST
+    mock.assert_called_once()
+
+    assert len(mock.call_args.args) == 2
+    assert mock.call_args.args[1] == "my_path"
+
+
+def test_creds_priority():
+    # 1. static creds
+    with patch("ydb.StaticCredentials") as mock:
+        c = Connection(conn_type="ydb", host="localhost", login="my_login", password="my_pwd")
+        mock.return_value = MAGIC_CONST
+        credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c,
+                                                      {
+                                                          "service_account_json_path": "my_path",
+                                                          "use_vm_metadata": True,
+                                                          "token": "my_token",
+                                                      })
+        assert credentials == MAGIC_CONST
+        mock.assert_called_once()
+
+    # 2. token
+    with patch("ydb.AccessTokenCredentials") as mock:
+        c = Connection(conn_type="ydb", host="localhost", password="my_pwd")
+        mock.return_value = MAGIC_CONST
+        credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c,
+                                                      {
+                                                          "service_account_json_path": "my_path",
+                                                          "use_vm_metadata": True,
+                                                          "token": "my_token",
+                                                      })
+        assert credentials == MAGIC_CONST
+        mock.assert_called_once()
+
+    # 3. service account json path
+    with patch("ydb.iam.auth.BaseJWTCredentials.from_file") as mock:
+        c = Connection(conn_type="ydb", host="localhost")
+        mock.return_value = MAGIC_CONST
+        credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c,
+                                                      {
+                                                          "service_account_json_path": "my_path",
+                                                          "use_vm_metadata": True,
+                                                      })
+        assert credentials == MAGIC_CONST
+        mock.assert_called_once()
+
+    # 4. vm metadata
+    with patch("ydb.iam.auth.MetadataUrlCredentials") as mock:
+        c = Connection(conn_type="ydb", host="localhost")
+        mock.return_value = MAGIC_CONST
+        credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c,
+                                                      {
+                                                          "use_vm_metadata": True,
+                                                      })
+        assert credentials == MAGIC_CONST
+        mock.assert_called_once()
+
+    # 5. anonymous
+    with patch("ydb.AnonymousCredentials") as mock:
+        c = Connection(conn_type="ydb", host="localhost")
+        mock.return_value = MAGIC_CONST
+        credentials = get_credentials_from_connection(TEST_ENDPOINT, TEST_DATABASE, c, {})
+        assert credentials == MAGIC_CONST
+        mock.assert_called_once()
