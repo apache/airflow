@@ -47,6 +47,7 @@ class TaskInstanceHistory(Base):
     run_id = Column(StringID(), primary_key=True, nullable=False)
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, primary_key=True, default=0)
+    # The rest of the columns are kept in sync with TaskInstance, added below
 
     __table_args__ = (
         PrimaryKeyConstraint(
@@ -79,6 +80,7 @@ class TaskInstanceHistory(Base):
             self.state = state
 
 
+# Add remaining columns from TaskInstance to TaskInstanceHistory, as we want to keep them in sync
 for column in TaskInstance.__table__.columns:
     if column.name not in TaskInstanceHistory.__table__.columns:
         setattr(TaskInstanceHistory, column.name, column.copy())
