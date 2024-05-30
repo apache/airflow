@@ -3042,9 +3042,6 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta: private
         """
-        if start_trigger_args.trigger_kwargs is None:
-            raise AirflowException("trigger_kwargs is required")
-
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
