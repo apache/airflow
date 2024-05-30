@@ -59,11 +59,11 @@ class TestYandexHook:
         mock_get_credentials.return_value = {"token": 122323}
         sdk_prefix = "MyAirflow"
 
+        hook = YandexCloudBaseHook()
         with conf_vars({("yandex", "sdk_user_agent_prefix"): sdk_prefix}), pytest.warns(
             AirflowProviderDeprecationWarning,
             match="Using `provider_user_agent` in `YandexCloudBaseHook` is deprecated. Please use it in `utils.user_agent` instead.",
         ):
-            hook = YandexCloudBaseHook()
             assert hook.provider_user_agent().startswith(sdk_prefix)
 
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")

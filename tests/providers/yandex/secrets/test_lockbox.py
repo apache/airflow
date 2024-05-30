@@ -65,15 +65,21 @@ class TestLockboxSecretBackend:
 
         mock_get_value.return_value = json.dumps(c)
 
+        match = "Encountered non-JSON in `extra` field for connection 'airflow_to_yandexcloud'. Support for non-JSON `extra` will be removed in Airflow 3.0"
         with pytest.warns(
             RemovedInAirflow3Warning,
-            match="Encountered non-JSON in `extra` field for connection 'airflow_to_yandexcloud'. Support for non-JSON `extra` will be removed in Airflow 3.0",
+            match=match,
         ):
             conn = LockboxSecretBackend().get_connection(conn_id)
 
-            assert conn.conn_id == conn_id
-            assert conn.conn_type == conn_type
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match=match,
+        ):
             assert conn.extra == extra
+
+        assert conn.conn_id == conn_id
+        assert conn.conn_type == conn_type
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
     def test_yandex_lockbox_secret_backend_get_variable(self, mock_get_value):
