@@ -1349,26 +1349,39 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __setstate__(self, state):
         self.__dict__ = state
 
+    def render_value(self, context, jinja_env, value):
+        return self.render_template(
+            value,
+            context,
+            jinja_env,
+            set(),
+        )
+
     def render_template_fields(
         self,
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """Template all attributes listed in *self.template_fields* except for callable.
 
         This mutates the attributes in-place and is irreversible.
 
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja's environment to use for rendering.
         """
+        template_fields_to_render = []
+
+        render_fn = functools.partial(self.render_value, context, jinja_env)
         for name in self.template_fields:
             attribute = getattr(self, name)
             if callable(attribute):
-                setattr(self, name, attribute())
+                setattr(self, name, attribute(render_fn))
+            else:
+                template_fields_to_render.append(name)
 
         if not jinja_env:
             jinja_env = self.get_template_env()
-        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+        self._do_render_template_fields(self, template_fields_to_render, context, jinja_env, set())
 
     @provide_session
     def clear(

@@ -362,14 +362,15 @@ class TestBaseOperator:
     def test_render_template_fields_func(self):
         """Verify if operator attributes are correctly templated."""
 
-        def fn_to_template():
-            return "{{ bar }}"
+        def fn_to_template(render_fn):
+            tmp = render_fn("{{ bar }}")
+            return "foo_" + tmp
 
         task = MockOperator(task_id="op1", arg2=fn_to_template)
 
         # Trigger templating and verify if attributes are templated correctly
         task.render_template_fields(context={"bar": "bartemplated"})
-        assert task.arg2 == "bartemplated"
+        assert task.arg2 == "foo_bartemplated"
 
     @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
     def test_render_template_fields_no_change(self, content):
