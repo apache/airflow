@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-28T11:59:30.271122
+# This constraints file was automatically generated on 2024-05-30T06:45:54.662929
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -139,8 +139,8 @@ pure-sasl==0.6.2
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pycparser==2.22
-pydantic==2.7.1
-pydantic_core==2.18.2
+pydantic==2.7.2
+pydantic_core==2.18.3
 pykerberos==1.2.4
 pyspnego==0.10.2
 python-daemon==3.0.1
@@ -153,7 +153,7 @@ pytz==2024.1
 referencing==0.35.1
 requests-kerberos==0.14.0
 requests-toolbelt==1.0.0
-requests==2.32.2
+requests==2.32.3
 rfc3339-validator==0.1.4
 rich-argparse==1.4.0
 rich==13.7.1
