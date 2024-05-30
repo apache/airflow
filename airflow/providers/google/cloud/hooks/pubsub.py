@@ -36,6 +36,7 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
+from google.cloud.pubsub_v1.types import PublisherOptions
 from google.pubsub_v1.services.subscriber.async_client import SubscriberAsyncClient
 from googleapiclient.errors import HttpError
 
@@ -79,6 +80,7 @@ class PubSubHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        enable_message_ordering: bool = False,
         **kwargs,
     ) -> None:
         if kwargs.get("delegate_to") is not None:
@@ -90,6 +92,7 @@ class PubSubHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
         )
+        self.enable_message_ordering = enable_message_ordering
         self._client = None
 
     def get_conn(self) -> PublisherClient:
@@ -99,7 +102,13 @@ class PubSubHook(GoogleBaseHook):
         :return: Google Cloud Pub/Sub client object.
         """
         if not self._client:
-            self._client = PublisherClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = PublisherClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                publisher_options=PublisherOptions(
+                    enable_message_ordering=self.enable_message_ordering,
+                ),
+            )
         return self._client
 
     @cached_property
