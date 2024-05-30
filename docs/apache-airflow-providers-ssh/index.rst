@@ -68,7 +68,7 @@ apache-airflow-providers-ssh package
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 3.11.0
+Release: 3.11.1
 
 Provider package
 ----------------

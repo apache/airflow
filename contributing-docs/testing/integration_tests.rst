@@ -22,7 +22,7 @@ Some of the tests in Airflow are integration tests. These tests require ``airflo
 image and extra images with integrations (such as ``celery``, ``mongodb``, etc.).
 The integration tests are all stored in the ``tests/integration`` folder.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Enabling Integrations
 ---------------------
@@ -57,6 +57,8 @@ The following integrations are available:
 | kerberos     | Integration that provides Kerberos authentication. |
 +--------------+----------------------------------------------------+
 | mongo        | Integration required for MongoDB hooks.            |
++--------------+----------------------------------------------------+
+| mssql        | Integration required for mssql hooks.              |
 +--------------+----------------------------------------------------+
 | openlineage  | Integration required for Openlineage hooks.        |
 +--------------+----------------------------------------------------+

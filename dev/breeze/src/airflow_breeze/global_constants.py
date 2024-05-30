@@ -25,7 +25,6 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -51,7 +50,17 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka", "qdrant"]
+TESTABLE_INTEGRATIONS = [
+    "cassandra",
+    "celery",
+    "kerberos",
+    "mongo",
+    "pinot",
+    "trino",
+    "kafka",
+    "qdrant",
+    "mssql",
+]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
@@ -102,8 +111,18 @@ MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 MOUNT_TESTS = "tests"
+MOUNT_PROVIDERS_AND_TESTS = "providers-and-tests"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE, MOUNT_TESTS]
+ALLOWED_MOUNT_OPTIONS = [
+    MOUNT_SELECTED,
+    MOUNT_ALL,
+    MOUNT_SKIP,
+    MOUNT_REMOVE,
+    MOUNT_TESTS,
+    MOUNT_PROVIDERS_AND_TESTS,
+]
+
+USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
 ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
@@ -219,6 +238,7 @@ MYSQL_HOST_PORT = "23306"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
+MSSQL_HOST_PORT = "21433"
 
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
@@ -410,7 +430,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.14.0"
+HELM_VERSION = "v3.15.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -465,29 +485,23 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
-def _exclusion(providers: Iterable[str]) -> str:
-    return " ".join(
-        [f"apache_airflow_providers_{provider.replace('.', '_').replace('-','_')}*" for provider in providers]
-    )
-
-
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
-        "airflow-version": "2.7.1",
-        "remove-providers": _exclusion(["common.io", "fab"]),
-        "run-tests": "false",
+        "airflow-version": "2.7.3",
+        "remove-providers": "common.io fab",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",
-        "airflow-version": "2.8.0",
-        "remove-providers": _exclusion(["fab"]),
-        "run-tests": "false",
+        "airflow-version": "2.8.4",
+        "remove-providers": "fab",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.9.1",
-        "remove-providers": _exclusion([]),
+        "remove-providers": "",
         "run-tests": "true",
     },
 ]

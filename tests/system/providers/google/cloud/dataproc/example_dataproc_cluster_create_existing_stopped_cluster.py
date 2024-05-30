@@ -36,7 +36,7 @@ from airflow.utils.trigger_rule import TriggerRule
 DAG_ID = "example_dataproc_cluster_create_existing_stopped_cluster"
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEMS_TESTS_GCP_PROJECTS")
+PROJECT_ID = os.environ.get("SYSTEMS_TESTS_GCP_PROJECTS") or ""
 
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"

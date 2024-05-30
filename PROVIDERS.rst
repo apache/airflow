@@ -19,7 +19,7 @@
 Apache Airflow Providers
 ************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 What is a provider?
 ===================

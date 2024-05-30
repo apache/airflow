@@ -77,7 +77,7 @@ apache-airflow-providers-github package
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.6.0
+Release: 2.6.1
 
 Provider package
 ----------------

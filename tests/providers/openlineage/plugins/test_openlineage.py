@@ -36,16 +36,15 @@ class TestOpenLineageProviderPlugin:
         is_disabled.cache_clear()
         transport.cache_clear()
         config_path.cache_clear()
-        self.old_modules = dict(sys.modules)
+        # Remove module under test if loaded already before. This lets us
+        # import the same source files for more than one test.
+        if "airflow.providers.openlineage.plugins.openlineage" in sys.modules:
+            del sys.modules["airflow.providers.openlineage.plugins.openlineage"]
 
     def teardown_method(self):
         is_disabled.cache_clear()
         transport.cache_clear()
         config_path.cache_clear()
-        # Remove any new modules imported during the test run. This lets us
-        # import the same source files for more than one test.
-        for mod in [m for m in sys.modules if m not in self.old_modules]:
-            del sys.modules[mod]
 
     @pytest.mark.parametrize(
         "mocks, expected",

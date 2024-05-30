@@ -33,7 +33,7 @@ you are developing your own operators and DAGs.
 
 This - seemingly unsolvable - puzzle is solved by having pinned constraints files.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pinned constraint files
 -----------------------

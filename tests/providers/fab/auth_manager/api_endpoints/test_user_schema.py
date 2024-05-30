@@ -18,14 +18,19 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.api_connexion.schemas.user_schema import user_collection_item_schema, user_schema
-from airflow.providers.fab.auth_manager.models import User
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.api_connexion.schemas.user_schema import user_collection_item_schema, user_schema
+    from airflow.providers.fab.auth_manager.models import User
+
 from airflow.utils import timezone
-from tests.test_utils.api_connexion_utils import create_role, delete_role
 
 TEST_EMAIL = "test@example.org"
 
 DEFAULT_TIME = "2021-01-09T13:59:56.336000+00:00"
+
+from tests.test_utils.api_connexion_utils import create_role, delete_role  # noqa: E402
 
 pytestmark = pytest.mark.db_test
 

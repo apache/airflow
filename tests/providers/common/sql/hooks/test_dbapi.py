@@ -27,6 +27,11 @@ from pyodbc import Cursor
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+]
 
 
 class DbApiHookInProvider(DbApiHook):

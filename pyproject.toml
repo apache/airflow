@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.4.10",
+    "trove-classifiers==2024.5.22",
 ]
 build-backend = "hatchling.build"
 
@@ -343,7 +343,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"airflow/__init__.py" = ["F401"]
+"airflow/__init__.py" = ["F401", "TCH004"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -382,6 +382,7 @@ combine-as-imports = true
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"tests/providers/common/io/xcom/test_backend.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = ["E402"]
@@ -394,6 +395,7 @@ combine-as-imports = true
 "tests/providers/google/cloud/hooks/vertex_ai/test_model_service.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = ["E402"]
 "tests/providers/google/cloud/hooks/vertex_ai/test_prediction_service.py" = ["E402"]
+"tests/providers/google/cloud/links/test_translate.py" = ["E402"]
 "tests/providers/google/cloud/operators/test_automl.py"= ["E402"]
 "tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]

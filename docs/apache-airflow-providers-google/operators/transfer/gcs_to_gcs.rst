@@ -116,27 +116,10 @@ Copy multiple files
 
 There are several ways to copy multiple files, various examples of which are presented following.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcs_to_gcs_wildcard]
-    :end-before: [END howto_operator_gcs_to_gcs_wildcard]
-
-The ``source_object`` value may contain one wild card, denoted as "*". All files matching the wild card expression will
-be copied. In this example, all root level files ending with ``.txt`` in ``BUCKET_1_SRC`` will be copied to the ``data``
-folder in ``BUCKET_1_DST``, with file names unchanged.
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcs_to_gcs_delimiter]
-    :end-before: [END howto_operator_gcs_to_gcs_delimiter]
-
-For source_objects with no wildcard, all files in source_objects would be listed, using provided delimiter if any.
-Then copy files from source_objects to destination_object and rename each source file.
-
 As previously stated, the ``delimiter`` field, as well as utilizing a wildcard (``*``) in the source object(s),
 are both deprecated. Thus, it is not recommended to use them - but to utilize ``match_glob`` instead, as follows:
+
+The following example would copy the files that matches the glob pattern in ``data/`` folder from ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bucket.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
@@ -153,9 +136,7 @@ the ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bu
     :start-after: [START howto_operator_gcs_to_gcs_without_wildcard]
     :end-before: [END howto_operator_gcs_to_gcs_without_wildcard]
 
-The delimiter field may be specified to select any source files starting with ``source_object`` and ending with the
-value supplied to ``delimiter``. This example uses the ``delimiter`` value to implement the same functionality as the
-prior example.
+
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
@@ -164,8 +145,7 @@ prior example.
     :end-before: [END howto_operator_gcs_to_gcs_list]
 
 Lastly, files may be copied by omitting the ``source_object`` argument and instead supplying a list to ``source_objects``
-argument. In this example, ``OBJECT_1`` and ``OBJECT_2`` will be copied from ``BUCKET_1_SRC`` to ``BUCKET_1_DST``. Instead
-of specific file names, the list can contain one or more wild card expressions, each with no more than one wild card.
+argument. In this example, ``OBJECT_1`` and ``OBJECT_2`` will be copied from ``BUCKET_1_SRC`` to ``BUCKET_1_DST``.
 Supplying a list of size 1 functions the same as supplying a value to the ``source_object`` argument.
 
 Move single file

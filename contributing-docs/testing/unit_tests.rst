@@ -20,7 +20,7 @@ Airflow Unit Tests
 
 All unit tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Writing Unit Tests
 ------------------
@@ -1061,72 +1061,39 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
-Running provider compatibility tests
-....................................
-
-Airflow 2.0 introduced the concept of splitting the monolithic Airflow package into separate
-providers packages. The main "apache-airflow" package contains the bare Airflow implementation,
-and additionally we have 70+ providers that we can install additionally to get integrations with
-external services. Those providers live in the same monorepo as Airflow, but we build separate
-packages for them and the main "apache-airflow" package does not contain the providers.
-
-Most of the development in Breeze happens by iterating on sources and when you run
-your tests during development, you usually do not want to build packages and install them separately.
-Therefore by default, when you enter Breeze airflow and all providers are available directly from
-sources rather than installed from packages. This is for example to test the "provider discovery"
-mechanism available that reads provider information from the package meta-data.
-
-When Airflow is run from sources, the metadata is read from provider.yaml
-files, but when Airflow is installed from packages, it is read via the package entrypoint
-``apache_airflow_provider``.
-
-By default, all packages are prepared in wheel format. To install Airflow from packages you
-need to run the following steps:
-
-1. Prepare provider packages
-
-.. code-block:: bash
-
-     breeze release-management prepare-provider-packages [PACKAGE ...]
-
-If you run this command without packages, you will prepare all packages. However, You can specify
-providers that you would like to build if you just want to build few provider packages.
-The packages are prepared in ``dist`` folder. Note that this command cleans up the ``dist`` folder
-before running, so you should run it before generating ``apache-airflow`` package.
-
-2. Prepare airflow packages
-
-.. code-block:: bash
-
-     breeze release-management prepare-airflow-package
-
-This prepares airflow .whl package in the dist folder.
-
-3. Enter breeze installing both airflow and providers from the dist packages
-
-.. code-block:: bash
-
-     breeze --use-airflow-version wheel --use-packages-from-dist --mount-sources skip
 
 Compatibility Provider unit tests against older airflow releases
 ................................................................
 
+Why we run provider compatibility tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Our CI runs provider tests for providers with previous compatible airflow releases. This allows to check
 if the providers still work when installed for older airflow versions.
 
-.. note::
+The back-compatibility tests based on the configuration specified in the
+``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
+file - where we specify:
+* python version
+* airflow version
+* which providers should be removed for the tests (exclusions)
+* whether to run tests for this airflow/python version
 
-  For now it's done for 2.9.1 version only.
-
-Those tests can be used to test compatibility of the providers with past and future releases of airflow.
+Those tests can be used to test compatibility of the providers with past (and future!) releases of airflow.
 For example it could be used to run latest provider versions with released or main
 Airflow 3 if they are developed independently.
 
-The tests use the current source version of ``tests`` folder - so care should be taken that the tests
-implemented for providers in the sources allow to run it against previous versions of Airflow and
-against Airflow installed from package rather than from the sources.
+The tests use the current source version of ``tests`` folder and current ``providers`` - so care should be
+taken that the tests implemented for providers in the sources allow to run it against previous versions
+of Airflow and against Airflow installed from PyPI package rather than from the sources.
 
-This can be reproduced locally building providers from tag/commit of the airflow repository.
+Running the compatibility tests locally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Running tests can be easily done locally by running appropriate ``breeze`` command. In CI the command
+is slightly different as it is run using providers build using wheel packages, but it is faster
+to run it locally and easier to iterate if you need to fix provider using provider sources mounted
+directly to the container.
 
 1. Make sure to build latest Breeze ci image
 
@@ -1134,54 +1101,34 @@ This can be reproduced locally building providers from tag/commit of the airflow
 
    breeze ci-image build --python 3.8
 
-2. Build providers from latest sources:
-
-.. code-block:: bash
-
-   rm dist/*
-   breeze release-management prepare-provider-packages --include-not-ready-providers \
-      --version-suffix-for-pypi dev0 --package-format wheel
-
-3. Prepare provider constraints
-
-.. code-block:: bash
-
-   breeze release-management generate-constraints --airflow-constraints-mode constraints-source-providers --answer yes
-
-3. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
+2. Enter breeze environment by selecting the appropriate airflow version and choosing
+   ``providers-and-tests`` option for ``--mount-sources`` flag.
 
 .. code-block::bash
 
-  breeze shell --use-packages-from-dist --package-format wheel\
-   --use-airflow-version 2.9.1 --airflow-constraints-reference constraints-2.9.1 \
-   --install-airflow-with-constraints \
-   --providers-skip-constraints \
-   --mount-sources tests
+  breeze shell --use-airflow-version 2.9.1 --mount-sources providers-and-tests
 
-4. You can then run tests as usual:
+3. You can then run tests as usual:
 
 .. code-block::bash
 
    pytest tests/providers/<provider>/test.py
 
-5. Iterate with the tests
+4. Iterate with the tests and providers. Both providers and tests are mounted from local sources so
+   changes you do locally in both - tests and provider sources are immediately reflected inside the
+   breeze container and you can re-run the tests inside ``breeze`` container without restarting the
+   container (which makes it faster to iterate).
 
-The tests are run using:
+.. note::
 
-* airflow installed from PyPI
-* tests coming from the current airflow sources (they are mounted inside the breeze image)
-* provider packages built from the current airflow sources and placed in dist
+   Since providers are installed from sources rather than from packages, plugins from providers are not
+   recognised by ProvidersManager for airflow < 2.10 and tests that expect plugins to work might not work.
+   In such case you should follow the ``CI`` way of running the tests (see below).
 
-This means that you can modify and run tests and re-run them, but if you want to modify provider code
-you need to exit breeze, rebuild the provider package and restart breeze using the command above.
+Implementing compatibility for provider tests for older Airflow versions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Rebuilding single provider package can be done using this command:
-
-.. code-block::bash
-
-  breeze release-management prepare-provider-packages \
-    --version-suffix-for-pypi dev0 --package-format wheel <provider>
-
+When you implement tests for providers, you should make sure that they are compatible with older
 
 Note that some of the tests if written without taking care about the compatibility, might not work with older
 versions of Airflow - this is because of refactorings, renames, and tests relying on internals of Airflow that
@@ -1209,8 +1156,9 @@ are not part of the public API. We deal with it in one of the following ways:
   def some_test_that_only_works_for_airflow_2_7_plus():
     pass
 
-4) Sometimes, the tests should only be run when airflow is installed from the sources. In this case you can
-   add conditional ``skipif`` markerfor ``RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES`` to the test. For example:
+4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
+   In this case you can add conditional ``skipif`` markerfor ``RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES``
+   to the test. For example:
 
 .. code-block::python
 
@@ -1219,17 +1167,90 @@ are not part of the public API. We deal with it in one of the following ways:
   def test_plugin():
      pass
 
+5) Sometimes Pytest collection fails to work, when certain imports used by the tests either do not exist
+   or fail with RuntimeError about compatibility ("minimum Airflow version is required") or because they
+   raise AirflowOptionalProviderFeatureException. In such case you should wrap the imports in
+   ``ignore_provider_compatibility_error`` context manager adding the ``__file__``
+   module name as parameter.  This will stop failing pytest collection and automatically skip the whole
+   module from tests.
 
-How providers compatibility tests are run in CI?
--------------------------------------------------
+   For example:
 
-We run a set of back-compatibility tests based on the configuration specified in the
-``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
-file - where we specify:
-* python version
-* airflow version
-* which providers should be removed (exclusions)
-* whether to run tests
+.. code-block::python
+
+   with ignore_provider_compatibility_error("2.8.0", __file__):
+       from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
+
+6) In some cases in order to enable collection of pytest on older airflow version you might need to convert
+   top-level import into a local import, so that Pytest parser does not fail on collection.
+
+Running provider compatibility tests in CI
+------------------------------------------
+
+In CI those tests are run in a slightly more complex way because we want to run them against the build
+provider packages, rather than mounted from sources.
+
+The exact way CI tests are run can be reproduced locally building providers from selected tag/commit and
+using them to install and run tests against the selected airflow version.
+
+Herr id how to reproduce it.
+
+1. Make sure to build latest Breeze ci image
+
+.. code-block:: bash
+
+   breeze ci-image build --python 3.8
+
+2. Build providers from latest sources:
+
+.. code-block:: bash
+
+   rm dist/*
+   breeze release-management prepare-provider-packages --include-not-ready-providers \
+      --version-suffix-for-pypi dev0 --package-format wheel
+
+3. Prepare provider constraints
+
+.. code-block:: bash
+
+   breeze release-management generate-constraints --airflow-constraints-mode constraints-source-providers --answer yes
+
+4. Remove providers that are not compatible with Airflow version installed by default. You can look up
+   the incompatible providers in the ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the
+   ``./dev/breeze/src/airflow_breeze/global_constants.py`` file.
+
+5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
+
+.. code-block::bash
+
+  breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
+   --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests
+
+6. You can then run tests as usual:
+
+.. code-block::bash
+
+   pytest tests/providers/<provider>/test.py
+
+7. Iterate with the tests
+
+The tests are run using:
+
+* airflow installed from PyPI
+* tests coming from the current airflow sources (they are mounted inside the breeze image)
+* provider packages built from the current airflow sources and placed in dist
+
+This means that you can modify and run tests and re-run them because sources are mounted from the host,
+but if you want to modify provider code you need to exit breeze, rebuild the provider package and
+restart breeze using the command above.
+
+Rebuilding single provider package can be done using this command:
+
+.. code-block::bash
+
+  breeze release-management prepare-provider-packages \
+    --version-suffix-for-pypi dev0 --package-format wheel <provider>
+
 
 Other Settings
 --------------
