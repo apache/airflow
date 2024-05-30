@@ -463,8 +463,7 @@ class GlueDataQualityHook(AwsBaseHook):
 
     def _log_results(self, result: dict[str, Any]) -> None:
         """
-        Print the outcome of ruleset.
-        An evaluation run can involve multiple rulesets evaluated against a data source (Glue table).
+        Print the outcome of evaluation run, An evaluation run can involve multiple rulesets evaluated against a data source (Glue table).
 
         Name    Description                                     Result        EvaluatedMetrics                                                                    EvaluationMessage
         Rule_1    RowCount between 150000 and 600000             PASS        {'Dataset.*.RowCount': 300000.0}                                                       NaN
