@@ -178,7 +178,7 @@ class TestLogView:
             "localhost\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
             "try_number=1.\n"
-            "\n" # read_log_stream add \n after each try file
+            "\n"  # read_log_stream add \n after each try file
         ]
 
     def test_test_test_read_log_stream_should_read_all_logs(self):

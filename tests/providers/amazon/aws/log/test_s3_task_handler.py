@@ -125,7 +125,7 @@ class TestS3TaskHandler:
         mock_open().write.assert_not_called()
 
     def test_read(self):
-        """"Write with \n at the end of log"""
+        """Write with \n at the end of log"""
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
