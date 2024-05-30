@@ -22,6 +22,7 @@ Revises: 142555e44c17
 Create Date: 2021-07-15 15:26:12.710749
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -224,8 +225,7 @@ def upgrade():
                 constraints = get_mssql_table_constraints(conn, "task_instance")
                 pk, _ = constraints["PRIMARY KEY"].popitem()
                 batch_op.drop_constraint(pk, type_="primary")
-            elif dialect_name not in ("sqlite"):
-                batch_op.drop_constraint("task_instance_pkey", type_="primary")
+            batch_op.drop_constraint("task_instance_pkey", type_="primary")
             batch_op.drop_index("ti_dag_date")
             batch_op.drop_index("ti_state_lkp")
             batch_op.drop_column("execution_date")
@@ -401,7 +401,7 @@ def _multi_table_update(dialect_name, target, column):
     if dialect_name == "sqlite":
         # Most SQLite versions don't support multi table update (and SQLA doesn't know about it anyway), so we
         # need to do a Correlated subquery update
-        sub_q = select(dag_run.c[column.name]).where(condition)
+        sub_q = select(dag_run.c[column.name]).where(condition).scalar_subquery()
 
         return target.update().values({column: sub_q})
     else:

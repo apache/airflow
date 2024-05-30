@@ -22,6 +22,7 @@ Revises: 6e96a59344a4
 Create Date: 2019-08-01 15:19:57.585620
 
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -276,6 +277,7 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
 
 def reorder_columns(columns):
     """Reorder the columns for creating constraint.
+
     Preserve primary key ordering
     ``['task_id', 'dag_id', 'execution_date']``
 
@@ -326,6 +328,7 @@ def create_constraint(operator, constraint_dict):
 
 def modify_execution_date_with_constraint(conn, batch_operator, table_name, type_, nullable) -> None:
     """Change type of column execution_date.
+
     Helper function changes type of column execution_date by
     dropping and recreating any primary/unique constraint associated with
     the column

@@ -26,6 +26,7 @@ from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     AllowListValidator,
     BlockListValidator,
+    get_validator,
     validate_stat,
 )
 
@@ -160,25 +161,12 @@ def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
     """Get DataDog StatsD logger."""
     from datadog import DogStatsd
 
-    metrics_validator: ListValidator
-
     dogstatsd = DogStatsd(
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),
         namespace=conf.get("metrics", "statsd_prefix"),
         constant_tags=cls.get_constant_tags(),
     )
-    if conf.get("metrics", "metrics_allow_list", fallback=None):
-        metrics_validator = AllowListValidator(conf.get("metrics", "metrics_allow_list"))
-        if conf.get("metrics", "metrics_block_list", fallback=None):
-            log.warning(
-                "Ignoring metrics_block_list as both metrics_allow_list "
-                "and metrics_block_list have been set"
-            )
-    elif conf.get("metrics", "metrics_block_list", fallback=None):
-        metrics_validator = BlockListValidator(conf.get("metrics", "metrics_block_list"))
-    else:
-        metrics_validator = AllowListValidator()
     datadog_metrics_tags = conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True)
     metric_tags_validator = BlockListValidator(conf.get("metrics", "statsd_disabled_tags", fallback=None))
-    return SafeDogStatsdLogger(dogstatsd, metrics_validator, datadog_metrics_tags, metric_tags_validator)
+    return SafeDogStatsdLogger(dogstatsd, get_validator(), datadog_metrics_tags, metric_tags_validator)

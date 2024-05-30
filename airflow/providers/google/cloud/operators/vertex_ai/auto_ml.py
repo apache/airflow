@@ -138,6 +138,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         region: str,
         impersonation_chain: str | Sequence[str] | None = None,
         parent_model: str | None = None,
+        window_stride_length: int | None = None,
+        window_max_count: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -170,12 +172,15 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         self.quantiles = quantiles
         self.validation_options = validation_options
         self.budget_milli_node_hours = budget_milli_node_hours
+        self.window_stride_length = window_stride_length
+        self.window_max_count = window_max_count
 
     def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
         model, training_id = self.hook.create_auto_ml_forecasting_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -219,6 +224,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
             sync=self.sync,
+            window_stride_length=self.window_stride_length,
+            window_max_count=self.window_max_count,
         )
 
         if model:
@@ -283,6 +290,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
         model, training_id = self.hook.create_auto_ml_image_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -391,6 +399,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         credentials, _ = self.hook.get_credentials_and_project_id()
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
         model, training_id = self.hook.create_auto_ml_tabular_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -485,6 +494,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
         model, training_id = self.hook.create_auto_ml_text_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -561,6 +571,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
         model, training_id = self.hook.create_auto_ml_video_training_job(
             project_id=self.project_id,
             region=self.region,

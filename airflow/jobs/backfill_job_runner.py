@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, Mapping, Sequence
 
 import attr
 import pendulum
-from sqlalchemy import select, tuple_, update
+from sqlalchemy import case, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -46,7 +46,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.timetables.base import DagRunInfo
 from airflow.utils import helpers, timezone
-from airflow.utils.configuration import conf as airflow_conf, tmp_configuration_copy
+from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -245,7 +245,16 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(
                 update(TI)
                 .where(filter_for_tis)
-                .values(state=TaskInstanceState.SCHEDULED)
+                .values(
+                    state=TaskInstanceState.SCHEDULED,
+                    try_number=case(
+                        (
+                            or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
+                            TI.try_number + 1,
+                        ),
+                        else_=TI.try_number,
+                    ),
+                )
                 .execution_options(synchronize_session=False)
             )
             session.flush()
@@ -425,6 +434,8 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         try:
             for ti in dag_run.get_task_instances(session=session):
                 if ti in schedulable_tis:
+                    if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        ti.try_number += 1
                     ti.set_state(TaskInstanceState.SCHEDULED)
                 if ti.state != TaskInstanceState.REMOVED:
                     tasks_to_run[ti.key] = ti
@@ -475,10 +486,8 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         """
         executed_run_dates = []
 
-        is_unit_test = airflow_conf.getboolean("core", "unit_test_mode")
-
         while (ti_status.to_run or ti_status.running) and not ti_status.deadlocked:
-            self.log.debug("*** Clearing out not_ready list ***")
+            self.log.debug("Clearing out not_ready list")
             ti_status.not_ready.clear()
 
             # we need to execute the tasks bottom to top
@@ -517,6 +526,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
+                        ti.try_number += 1
                         ti.set_state(TaskInstanceState.SCHEDULED, session=session)
                         if ti.dag_run not in ti_status.active_runs:
                             ti_status.active_runs.add(ti.dag_run)
@@ -554,6 +564,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     else:
                         self.log.debug("Sending %s to executor", ti)
                         # Skip scheduled state, we are executing immediately
+                        if ti.state in (TaskInstanceState.UP_FOR_RETRY, None):
+                            # i am not sure why this is necessary.
+                            # seemingly a quirk of backfill runner.
+                            # it should be handled elsewhere i think.
+                            # seems the leaf tasks are set SCHEDULED but others not.
+                            # but i am not going to look too closely since we need
+                            # to nuke the current backfill approach anyway.
+                            ti.try_number += 1
                         ti.state = TaskInstanceState.QUEUED
                         ti.queued_by_job_id = self.job.id
                         ti.queued_dttm = timezone.utcnow()
@@ -697,7 +715,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.debug(e)
 
             perform_heartbeat(
-                job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=is_unit_test
+                job=self.job,
+                heartbeat_callback=self.heartbeat_callback,
+                only_if_necessary=True,
             )
             # execute the tasks in the queue
             executor.heartbeat()
@@ -727,6 +747,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 ti_status.to_run.update({ti.key: ti for ti in new_mapped_tis})
 
                 for new_ti in new_mapped_tis:
+                    new_ti.try_number += 1
                     new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
 
             # Set state to failed for running TIs that are set up for retry if disable-retry flag is set
@@ -749,6 +770,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
             self._log_progress(ti_status)
             session.commit()
+            time.sleep(1)
 
         # return updated status
         return executed_run_dates
@@ -931,7 +953,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 "combination. Please adjust backfill dates or wait for this DagRun to finish.",
             )
             return
-        # picklin'
         pickle_id = None
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()

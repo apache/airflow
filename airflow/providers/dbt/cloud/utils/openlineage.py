@@ -21,11 +21,23 @@ import re
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
+from airflow import __version__ as airflow_version
+
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
     from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
     from airflow.providers.openlineage.extractors.base import OperatorLineage
+
+
+def _get_try_number(val):
+    # todo: remove when min airflow version >= 2.10.0
+    from packaging.version import parse
+
+    if parse(parse(airflow_version).base_version) < parse("2.10.0"):
+        return val.try_number - 1
+    else:
+        return val.try_number
 
 
 def generate_openlineage_events_from_dbt_cloud_run(
@@ -47,7 +59,14 @@ def generate_openlineage_events_from_dbt_cloud_run(
     """
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
 
-    from airflow.providers.openlineage.conf import namespace
+    try:
+        from airflow.providers.openlineage.conf import namespace
+    except ModuleNotFoundError as e:
+        from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+        msg = "Please install `apache-airflow-providers-openlineage>=1.7.0`"
+        raise AirflowOptionalProviderFeatureException(e, msg)
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import (
         _PRODUCER,
@@ -124,7 +143,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
             dag_id=task_instance.dag_id,
             task_id=operator.task_id,
             execution_date=task_instance.execution_date,
-            try_number=task_instance.try_number - 1,
+            try_number=_get_try_number(task_instance),
         )
 
         parent_job = ParentRunMetadata(

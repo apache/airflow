@@ -21,7 +21,7 @@ import json
 import multiprocessing
 import time
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
@@ -32,10 +32,11 @@ from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_for_logging_task_metadata,
     annotations_to_key,
-    create_pod_id,
+    create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
 
 try:
@@ -59,22 +60,6 @@ if TYPE_CHECKING:
         KubernetesResultsType,
         KubernetesWatchType,
     )
-
-# Singleton here is duplicated version of airflow.utils.singleton.Singleton until
-# min-airflow version is 2.7.0 for the provider. then it can be imported from airflow.utils.singleton.
-
-T = TypeVar("T")
-
-
-class Singleton(type, Generic[T]):
-    """Metaclass that allows to implement singleton pattern."""
-
-    _instances: dict[Singleton[T], T] = {}
-
-    def __call__(cls: Singleton[T], *args, **kwargs) -> T:
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
 
 
 class ResourceVersion(metaclass=Singleton):
@@ -113,9 +98,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     kube_client, self.resource_version, self.scheduler_job_id, self.kube_config
                 )
             except ReadTimeoutError:
-                self.log.warning(
-                    "There was a timeout error accessing the Kube API. Retrying request.", exc_info=True
-                )
+                self.log.info("Kubernetes watch timed out waiting for events. Restarting watch.")
                 time.sleep(1)
             except Exception:
                 self.log.exception("Unknown error in KubernetesJobWatcher. Failing")
@@ -156,7 +139,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
-        kwargs = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+        kwargs: dict[str, Any] = {"label_selector": f"airflow-worker={scheduler_job_id}"}
         if resource_version:
             kwargs["resource_version"] = resource_version
         if kube_config.kube_client_request_args:
@@ -164,6 +147,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: str | None = None
+
+        # For info about k8s timeout settings see
+        # https://github.com/kubernetes-client/python/blob/v29.0.0/examples/watch/timeout-settings.md
+        # and https://github.com/kubernetes-client/python/blob/v29.0.0/kubernetes/client/api_client.py#L336-L339
+        client_timeout = 30
+        server_conn_timeout = 3600
+        kwargs["_request_timeout"] = client_timeout
+        kwargs["timeout_seconds"] = server_conn_timeout
 
         for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
             task = event["object"]
@@ -413,7 +404,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
             scheduler_job_id=self.scheduler_job_id,
-            pod_id=create_pod_id(dag_id, task_id),
+            pod_id=create_unique_id(dag_id, task_id),
             dag_id=dag_id,
             task_id=task_id,
             kube_image=self.kube_config.kube_image,

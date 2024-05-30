@@ -46,7 +46,14 @@ from google.cloud.bigquery import (
     UnknownJob,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
+from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
+from google.cloud.bigquery.table import (
+    EncryptionConfiguration,
+    Row,
+    RowIterator,
+    Table,
+    TableReference,
+)
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas_gbq import read_gbq
@@ -65,12 +72,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
-
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    # Remove when Airflow providers min Airflow version is "2.7.0"
-    from hashlib import md5
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -1586,7 +1588,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
-    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
+    ) -> BigQueryJob | UnknownJob:
         """Retrieve a BigQuery job.
 
         .. seealso:: https://cloud.google.com/bigquery/docs/reference/v2/jobs
@@ -1594,8 +1596,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
             numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
             characters.
-        :param project_id: Google Cloud Project where the job is running
-        :param location: location the job is running
+        :param project_id: Google Cloud Project where the job is running.
+        :param location: Location where the job is running.
         """
         client = self.get_client(project_id=project_id, location=location)
         job = client.get_job(job_id=job_id, project=project_id, location=location)
@@ -2390,6 +2392,48 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         return project_id, dataset_id, table_id
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_query_results(
+        self,
+        job_id: str,
+        location: str,
+        max_results: int | None = None,
+        selected_fields: list[str] | str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT_RETRY,
+        job_retry: Retry = DEFAULT_JOB_RETRY,
+    ) -> list[dict[str, Any]]:
+        """
+        Get query results given a job_id.
+
+        :param job_id: The ID of the job.
+            The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
+            dashes (-). The maximum length is 1,024 characters.
+        :param location: The location used for the operation.
+        :param selected_fields: List of fields to return (comma-separated). If
+            unspecified, all fields are returned.
+        :param max_results: The maximum number of records (rows) to be fetched
+            from the table.
+        :param project_id: Google Cloud Project where the job ran.
+        :param retry: How to retry the RPC.
+        :param job_retry: How to retry failed jobs.
+
+        :return: List of rows where columns are filtered by selected fields, when given
+
+        :raises: AirflowException
+        """
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
+        job = self.get_job(job_id=job_id, project_id=project_id, location=location)
+        if not isinstance(job, QueryJob):
+            raise AirflowException(f"Job '{job_id}' is not a query job")
+
+        if job.state != "DONE":
+            raise AirflowException(f"Job '{job_id}' is not in DONE state")
+
+        rows = [dict(row) for row in job.result(max_results=max_results, retry=retry, job_retry=job_retry)]
+        return [{k: row[k] for k in row if k in selected_fields} for row in rows] if selected_fields else rows
+
     @property
     def scopes(self) -> Sequence[str]:
         """
@@ -2805,15 +2849,16 @@ class BigQueryCursor(BigQueryBaseCursor):
         return -1
 
     def execute(self, operation: str, parameters: dict | None = None) -> None:
-        """Execute a BigQuery query, and return the job ID.
+        """Execute a BigQuery query, and update the BigQueryCursor description.
 
         :param operation: The query to execute.
         :param parameters: Parameters to substitute into the query.
         """
         sql = _bind_parameters(operation, parameters) if parameters else operation
         self.flush_results()
-        self.job_id = self._run_query(sql)
-
+        job = self._run_query(sql)
+        self.job_id = job.job_id
+        self.location = self.location or job.location
         query_results = self._get_query_result()
         if "schema" in query_results:
             self.description = _format_schema_for_description(query_results["schema"])
@@ -2953,15 +2998,15 @@ class BigQueryCursor(BigQueryBaseCursor):
         self,
         sql,
         location: str | None = None,
-    ) -> str:
-        """Run job query."""
+    ) -> BigQueryJob:
+        """Run a job query and return the job instance."""
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
         configuration = self._prepare_query_configuration(sql)
         job = self.hook.insert_job(configuration=configuration, project_id=self.project_id, location=location)
 
-        return job.job_id
+        return job
 
     def _prepare_query_configuration(
         self,
@@ -3313,7 +3358,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
     async def _get_job(
         self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
-    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
+    ) -> BigQueryJob | UnknownJob:
         """
         Get BigQuery job by its ID, project ID and location.
 
@@ -3421,15 +3466,25 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
                 raise
 
-    def get_records(self, query_results: dict[str, Any], as_dict: bool = False) -> list[Any]:
+    # TODO: Convert get_records into an async method
+    def get_records(
+        self,
+        query_results: dict[str, Any],
+        as_dict: bool = False,
+        selected_fields: str | list[str] | None = None,
+    ) -> list[Any]:
         """Convert a response from BigQuery to records.
 
         :param query_results: the results from a SQL query
         :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
+        :param selected_fields:
         """
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
         buffer: list[Any] = []
         if rows := query_results.get("rows"):
             fields = query_results["schema"]["fields"]
+            fields = [field for field in fields if not selected_fields or field["name"] in selected_fields]
             fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:

@@ -58,7 +58,6 @@ When writing a deferrable operators these are the main points to consider:
 * Your operator will be stopped and removed from its worker while deferred, and no state persists automatically. You can persist state by instructing Airflow to resume the operator at a certain method or by passing certain kwargs.
 * You can defer multiple times, and you can defer before or after your operator does significant work. Or, you can defer if certain conditions are met. For example, if a system does not have an immediate answer. Deferral is entirely under your control.
 * Any operator can defer; no special marking on its class is needed, and it's not limited to sensors.
-* In order for any changes to a trigger to be reflected, the *triggerer* needs to be restarted whenever the trigger is modified.
 * If you want to add an operator or sensor that supports both deferrable and non-deferrable modes, it's suggested to add ``deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)`` to the ``__init__`` method of the operator and use it to decide whether to run the operator in deferrable mode. You can configure the default value of ``deferrable`` for all the operators and sensors that support switching between deferrable and non-deferrable mode through ``default_deferrable`` in the ``operator`` section. Here's an example of a sensor that supports both modes.
 
 .. code-block:: python
@@ -141,6 +140,60 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 
 ``execution_timeout`` on operators is determined from the *total runtime*, not individual executions between deferrals. This means that if ``execution_timeout`` is set, an operator can fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
 
+Triggering Deferral from Start
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you want to defer your task directly to the triggerer without going into the worker, you can add the class level attributes ``start_trigger`` and ``next_method`` to your deferrable operator.
+
+* ``start_trigger``: An instance of a trigger you want to defer to. It will be serialized into the database.
+* ``next_method``: The method name on your operator that you want Airflow to call when it resumes.
+
+
+This is particularly useful when deferring is the only thing the ``execute`` method does. Here's a basic refinement of the previous example.
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from typing import Any
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
+
+
+    class WaitOneHourSensor(BaseSensorOperator):
+        start_trigger = TimeDeltaTrigger(timedelta(hours=1))
+        next_method = "execute_complete"
+
+        def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+            # We have no more work to do here. Mark as complete.
+            return
+
+``start_trigger`` and ``next_method`` can also be set at the instance level for more flexible configuration.
+
+.. warning::
+    Dynamic task mapping is not supported when ``start_trigger`` and ``next_method`` are assigned in instance level.
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from typing import Any
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
+
+
+    class WaitOneHourSensor(BaseSensorOperator):
+        def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
+            super().__init__(*args, **kwargs)
+            self.start_trigger = TimeDeltaTrigger(timedelta(hours=1))
+            self.next_method = "execute_complete"
+
+        def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+            # We have no more work to do here. Mark as complete.
+            return
+
 Writing Triggers
 ~~~~~~~~~~~~~~~~
 
@@ -157,6 +210,7 @@ There's some design constraints to be aware of when writing your own trigger:
 * You should assume that a trigger instance can run *more than once*. This can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine. So, you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
 * If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is running in multiple places. If you only fire one event and don't need to pass information back to the operator, you can just set the payload to ``None``.
 * A trigger can suddenly be removed from one triggerer service and started on a new one. For example, if subnets are changed and a network partition results or if there is a deployment. If desired, you can implement the ``cleanup`` method, which is always called after ``run``, whether the trigger exits cleanly or otherwise.
+* In order for any changes to a trigger to be reflected, the *triggerer* needs to be restarted whenever the trigger is modified.
 
 .. note::
 

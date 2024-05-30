@@ -20,9 +20,12 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterAvailableTrigger,
+    NeptuneClusterInstancesAvailableTrigger,
     NeptuneClusterStoppedTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -80,3 +83,47 @@ class TestNeptuneClusterStoppedTrigger:
 
         assert resp == TriggerEvent({"status": "success", "db_cluster_id": CLUSTER_ID})
         assert mock_get_waiter().wait.call_count == 1
+
+
+class TestNeptuneClusterInstancesAvailableTrigger:
+    def test_serialization(self):
+        """
+        Asserts that the TaskStateTrigger correctly serializes its arguments
+        and classpath.
+        """
+        trigger = NeptuneClusterInstancesAvailableTrigger(db_cluster_id=CLUSTER_ID)
+        classpath, kwargs = trigger.serialize()
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.neptune.NeptuneClusterInstancesAvailableTrigger"
+        )
+        assert "db_cluster_id" in kwargs
+        assert kwargs["db_cluster_id"] == CLUSTER_ID
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = "available"
+        mock_get_waiter().wait = AsyncMock()
+        trigger = NeptuneClusterInstancesAvailableTrigger(db_cluster_id=CLUSTER_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
+
+        assert resp == TriggerEvent({"status": "success", "db_cluster_id": CLUSTER_ID})
+        assert mock_get_waiter().wait.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    async def test_run_fail(self, mock_async_conn):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        wait_mock = AsyncMock()
+        wait_mock.side_effect = WaiterError("name", "reason", {"test": [{"lastStatus": "my_status"}]})
+        a_mock.get_waiter().wait = wait_mock
+        trigger = NeptuneClusterInstancesAvailableTrigger(
+            db_cluster_id=CLUSTER_ID, waiter_delay=1, waiter_max_attempts=2
+        )
+
+        with pytest.raises(AirflowException):
+            await trigger.run().asend(None)

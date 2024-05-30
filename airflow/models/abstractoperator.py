@@ -112,7 +112,7 @@ class AbstractOperator(Templater, DAGNode):
     outlets: list
     inlets: list
     trigger_rule: TriggerRule
-
+    _needs_expansion: bool | None = None
     _on_failure_fail_dagrun = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
@@ -122,6 +122,8 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
+            "start_trigger",
+            "next_method",
             # For compatibility with TG, for operators these are just the current task, no point showing
             "roots",
             "leaves",
@@ -392,6 +394,19 @@ class AbstractOperator(Templater, DAGNode):
         :meta private:
         """
         return next(self.iter_mapped_task_groups(), None)
+
+    def get_needs_expansion(self) -> bool:
+        """
+        Return true if the task is MappedOperator or is in a mapped task group.
+
+        :meta private:
+        """
+        if self._needs_expansion is None:
+            if self.get_closest_mapped_task_group() is not None:
+                self._needs_expansion = True
+            else:
+                self._needs_expansion = False
+        return self._needs_expansion
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from current abstract operator.
