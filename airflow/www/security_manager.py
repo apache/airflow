@@ -179,7 +179,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
         methods = get_method_from_fab_action_map()
 
         @provide_session
-        def get_connection_id(resource_pk, session):
+        def get_connection_id(resource_pk, session: Session = NEW_SESSION):
             if not resource_pk:
                 return None
             connection = session.scalar(select(Connection).where(Connection.id == resource_pk).limit(1))
@@ -188,7 +188,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             return connection.conn_id
 
         @provide_session
-        def get_dag_id_from_dagrun_id(resource_pk, session):
+        def get_dag_id_from_dagrun_id(resource_pk, session: Session = NEW_SESSION):
             if not resource_pk:
                 return None
             dagrun = session.scalar(select(DagRun).where(DagRun.id == resource_pk).limit(1))
@@ -197,7 +197,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             return dagrun.dag_id
 
         @provide_session
-        def get_dag_id_from_task_instance(resource_pk, session):
+        def get_dag_id_from_task_instance(resource_pk, session: Session = NEW_SESSION):
             if not resource_pk:
                 return None
             composite_pk = json.loads(resource_pk)
@@ -216,7 +216,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             return dag_id
 
         @provide_session
-        def get_pool_name(resource_pk, session):
+        def get_pool_name(resource_pk, session: Session = NEW_SESSION):
             if not resource_pk:
                 return None
             pool = session.scalar(select(Pool).where(Pool.id == resource_pk).limit(1))
@@ -225,7 +225,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             return pool.pool
 
         @provide_session
-        def get_variable_key(resource_pk, session):
+        def get_variable_key(resource_pk, session: Session = NEW_SESSION):
             if not resource_pk:
                 return None
             variable = session.scalar(select(Variable).where(Variable.id == resource_pk).limit(1))
