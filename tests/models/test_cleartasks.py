@@ -26,6 +26,7 @@ from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
@@ -174,8 +175,11 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        assert session.query(TaskInstanceHistory).count() == 0
         clear_task_instances(qry, session, dag_run_state=state, dag=dag)
         session.flush()
+        # 2 TIs were cleared so 2 history records should be created
+        assert session.query(TaskInstanceHistory).count() == 2
 
         session.refresh(dr)
 

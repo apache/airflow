@@ -46,6 +46,7 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
@@ -58,6 +59,7 @@ def clear_db_runs():
         session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
+        session.query(TaskInstanceHistory).delete()
 
 
 def clear_db_datasets():

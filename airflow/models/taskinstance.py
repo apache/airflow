@@ -450,6 +450,12 @@ def clear_task_instances(
     )
     dag_bag = DagBag(read_dags_from_db=True)
     for ti in tis:
+        # stamp ti history record
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        # what about non terminal state
+        ti_history = TaskInstanceHistory(ti, state=ti.state)
+        session.merge(ti_history)
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
@@ -1790,6 +1796,9 @@ class TaskInstance(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
+    try_history = relationship(
+        "TaskInstanceHistory", back_populates="task_instance", cascade="all, delete, delete-orphan"
+    )
 
     task: Operator | None = None
     test_mode: bool = False
@@ -3186,6 +3195,12 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
+            # stamp ti history record
+            from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+            ti_history = TaskInstanceHistory(ti, state=TaskInstanceState.FAILED)
+            session.add(ti_history)
+
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
