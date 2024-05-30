@@ -1578,23 +1578,28 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
-            elif isinstance(ti.task, MappedOperator) and ti.task.start_trigger_args is not None:
-                context = ti.get_template_context()
-                mapped_kwargs, _ = ti.task._expand_mapped_kwargs(context, session)
-                start_from_trigger = mapped_kwargs.get("start_from_trigger", ti.task.start_trigger_args)
-                if start_from_trigger is True and "trigger_kwargs" in mapped_kwargs:
-                    start_trigger_args = ti.task.start_trigger_args
-                    start_trigger_args.trigger_kwargs = mapped_kwargs.get("trigger_kwargs")
+            # check whether the operator supports start execution from triggerer
+            elif ti.task.start_trigger_args is not None:
+                start_trigger_args = ti.task.start_trigger_args
+                if isinstance(ti.task, MappedOperator):
+                    context = ti.get_template_context()
+                    mapped_kwargs, _ = ti.task._expand_mapped_kwargs(context, session)
+                    start_from_trigger = mapped_kwargs.get("start_from_trigger", ti.task.start_from_trigger)
+
+                    # update the trigger_kwargs if it's in expanded kwargs
+                    start_trigger_args.trigger_kwargs = mapped_kwargs.get(
+                        "trigger_kwargs", start_trigger_args.trigger_kwargs
+                    )
+                else:
+                    start_from_trigger = ti.task.start_from_trigger
+
+                if start_from_trigger is True:
+                    ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1
-                    ti.defer_task_from_start_trigger(session=session, start_trigger_args=start_trigger_args)
+                    ti.defer_task(exception=None, session=session)
                 else:
                     schedulable_ti_ids.append((ti.task_id, ti.map_index))
-            elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
-                ti.start_date = timezone.utcnow()
-                if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                    ti.try_number += 1
-                ti.defer_task(exception=None, session=session)
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
