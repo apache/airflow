@@ -34,16 +34,12 @@ from airflow.providers.weaviate.operators.weaviate import (  # noqa: E402
 class TestWeaviateIngestOperator:
     @pytest.fixture
     def operator(self):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="Passing 'input_json' to WeaviateIngestOperator is deprecated and you should use 'input_data' instead",
-        ):
-            return WeaviateIngestOperator(
-                task_id="weaviate_task",
-                conn_id="weaviate_conn",
-                class_name="my_class",
-                input_json=[{"data": "sample_data"}],
-            )
+        return WeaviateIngestOperator(
+            task_id="weaviate_task",
+            conn_id="weaviate_conn",
+            class_name="my_class",
+            input_data=[{"data": "sample_data"}],
+        )
 
     def test_constructor(self, operator):
         assert operator.conn_id == "weaviate_conn"
@@ -54,6 +50,33 @@ class TestWeaviateIngestOperator:
 
     @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
     def test_execute_with_input_json(self, mock_log, operator):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Passing 'input_json' to WeaviateIngestOperator is deprecated and you should use 'input_data' instead",
+        ):
+            operator = WeaviateIngestOperator(
+                task_id="weaviate_task",
+                conn_id="weaviate_conn",
+                class_name="my_class",
+                input_json=[{"data": "sample_data"}],
+            )
+
+        operator.hook.batch_data = MagicMock()
+
+        operator.execute(context=None)
+
+        operator.hook.batch_data.assert_called_once_with(
+            class_name="my_class",
+            data=[{"data": "sample_data"}],
+            batch_config_params={},
+            vector_col="Vector",
+            uuid_col="id",
+            tenant=None,
+        )
+        mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
+
+    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
+    def test_execute_with_input_data(self, mock_log, operator):
         operator.hook.batch_data = MagicMock()
 
         operator.execute(context=None)
