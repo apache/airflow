@@ -155,6 +155,7 @@ if TYPE_CHECKING:
 PAGE_SIZE = conf.getint("webserver", "page_size")
 FILTER_TAGS_COOKIE = "tags_filter"
 FILTER_STATUS_COOKIE = "dag_status_filter"
+FILTER_LASTRUN_COOKIE = "last_run_filter"
 LINECHART_X_AXIS_TICKFORMAT = (
     "function (d, i) { let xLabel;"
     "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
@@ -780,6 +781,7 @@ class Airflow(AirflowBaseView):
         arg_search_query = request.args.get("search")
         arg_tags_filter = request.args.getlist("tags")
         arg_status_filter = request.args.get("status")
+        arg_lastrun_filter = request.args.get("lastrun")
         arg_sorting_key = request.args.get("sorting_key", "dag_id")
         arg_sorting_direction = request.args.get("sorting_direction", default="asc")
 
@@ -788,17 +790,29 @@ class Airflow(AirflowBaseView):
             # Remove the reset_tags=reset from the URL
             return redirect(url_for("Airflow.index"))
 
-        cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        if arg_lastrun_filter == "reset_filter":
+            flask_session[FILTER_LASTRUN_COOKIE] = None
+            return redirect(url_for("Airflow.index"))
+
+        filter_tags_cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
         if arg_tags_filter:
             flask_session[FILTER_TAGS_COOKIE] = ",".join(arg_tags_filter)
-        elif cookie_val:
+        elif filter_tags_cookie_val:
             # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", tags=cookie_val.split(",")))
+            return redirect(url_for("Airflow.index", tags=filter_tags_cookie_val.split(",")))
+
+        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
+        if arg_lastrun_filter:
+            arg_lastrun_filter = arg_lastrun_filter.strip().lower()
+            flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
+        elif filter_lastrun_cookie_val:
+            # If tags exist in cookie, but not URL, add them to the URL
+            return redirect(url_for("Airflow.index", lastrun=filter_lastrun_cookie_val))
 
         if arg_status_filter is None:
-            cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
-            if cookie_val:
-                arg_status_filter = cookie_val
+            filter_status_cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
+            if filter_status_cookie_val:
+                arg_status_filter = filter_status_cookie_val
             else:
                 arg_status_filter = "active" if hide_paused_dags_by_default else "all"
                 flask_session[FILTER_STATUS_COOKIE] = arg_status_filter
@@ -842,14 +856,19 @@ class Airflow(AirflowBaseView):
                 flask_session[FILTER_TAGS_COOKIE] = None
                 return redirect(url_for("Airflow.index"))
 
-            all_dags = dags_query
-            active_dags = dags_query.where(~DagModel.is_paused)
-            paused_dags = dags_query.where(DagModel.is_paused)
-
             # find DAGs which have a RUNNING DagRun
             running_dags = dags_query.join(DagRun, DagModel.dag_id == DagRun.dag_id).where(
-                DagRun.state == DagRunState.RUNNING
+                (DagRun.state == DagRunState.RUNNING) | (DagRun.state == DagRunState.QUEUED)
             )
+
+            lastrun_running_is_paused = session.execute(
+                running_dags.with_only_columns(DagModel.dag_id, DagModel.is_paused).distinct(DagModel.dag_id)
+            ).all()
+
+            lastrun_running_count_active = len(
+                list(filter(lambda x: not x.is_paused, lastrun_running_is_paused))
+            )
+            lastrun_running_count_paused = len(list(filter(lambda x: x.is_paused, lastrun_running_is_paused)))
 
             # find DAGs for which the latest DagRun is FAILED
             subq_all = (
@@ -876,34 +895,49 @@ class Airflow(AirflowBaseView):
             )
             failed_dags = dags_query.join(subq_join, DagModel.dag_id == subq_join.c.dag_id)
 
-            is_paused_count = dict(
+            lastrun_failed_is_paused_count = dict(
                 session.execute(
-                    all_dags.with_only_columns(DagModel.is_paused, func.count()).group_by(DagModel.is_paused)
+                    failed_dags.with_only_columns(DagModel.is_paused, func.count()).group_by(
+                        DagModel.is_paused
+                    )
                 ).all()
             )
 
-            status_count_active = is_paused_count.get(False, 0)
-            status_count_paused = is_paused_count.get(True, 0)
+            lastrun_failed_count_active = lastrun_failed_is_paused_count.get(False, 0)
+            lastrun_failed_count_paused = lastrun_failed_is_paused_count.get(True, 0)
 
-            status_count_running = get_query_count(running_dags, session=session)
-            status_count_failed = get_query_count(failed_dags, session=session)
+            if arg_lastrun_filter == "running":
+                dags_query = running_dags
+            elif arg_lastrun_filter == "failed":
+                dags_query = failed_dags
 
+            all_dags = dags_query
+            active_dags = dags_query.where(~DagModel.is_paused)
+            paused_dags = dags_query.where(DagModel.is_paused)
+
+            status_is_paused = session.execute(
+                all_dags.with_only_columns(DagModel.dag_id, DagModel.is_paused).distinct(DagModel.dag_id)
+            ).all()
+
+            status_count_active = len(list(filter(lambda x: not x.is_paused, status_is_paused)))
+            status_count_paused = len(list(filter(lambda x: x.is_paused, status_is_paused)))
             all_dags_count = status_count_active + status_count_paused
+
             if arg_status_filter == "active":
                 current_dags = active_dags
                 num_of_all_dags = status_count_active
+                lastrun_count_running = lastrun_running_count_active
+                lastrun_count_failed = lastrun_failed_count_active
             elif arg_status_filter == "paused":
                 current_dags = paused_dags
                 num_of_all_dags = status_count_paused
-            elif arg_status_filter == "running":
-                current_dags = running_dags
-                num_of_all_dags = status_count_running
-            elif arg_status_filter == "failed":
-                current_dags = failed_dags
-                num_of_all_dags = status_count_failed
+                lastrun_count_running = lastrun_running_count_paused
+                lastrun_count_failed = lastrun_failed_count_paused
             else:
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
+                lastrun_count_running = lastrun_running_count_active + lastrun_running_count_paused
+                lastrun_count_failed = lastrun_failed_count_active + lastrun_failed_count_paused
 
             if arg_sorting_key == "dag_id":
                 if arg_sorting_direction == "desc":
@@ -1105,8 +1139,9 @@ class Airflow(AirflowBaseView):
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
-            status_count_running=status_count_running,
-            status_count_failed=status_count_failed,
+            lastrun_filter=arg_lastrun_filter,
+            lastrun_count_running=lastrun_count_running,
+            lastrun_count_failed=lastrun_count_failed,
             tags_filter=arg_tags_filter,
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
