@@ -64,7 +64,6 @@ from airflow.security.permissions import (
     RESOURCE_XCOM,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 
@@ -77,8 +76,6 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.auth.managers.models.base_user import BaseUser
 
 
@@ -178,8 +175,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
         auth_manager = get_auth_manager()
         methods = get_method_from_fab_action_map()
 
-        @provide_session
-        def get_connection_id(resource_pk, session: Session = NEW_SESSION):
+        session = self.appbuilder.session
+
+        def get_connection_id(resource_pk):
             if not resource_pk:
                 return None
             connection = session.scalar(select(Connection).where(Connection.id == resource_pk).limit(1))
@@ -187,8 +185,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Connection not found")
             return connection.conn_id
 
-        @provide_session
-        def get_dag_id_from_dagrun_id(resource_pk, session: Session = NEW_SESSION):
+        def get_dag_id_from_dagrun_id(resource_pk):
             if not resource_pk:
                 return None
             dagrun = session.scalar(select(DagRun).where(DagRun.id == resource_pk).limit(1))
@@ -196,8 +193,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("DagRun not found")
             return dagrun.dag_id
 
-        @provide_session
-        def get_dag_id_from_task_instance(resource_pk, session: Session = NEW_SESSION):
+        def get_dag_id_from_task_instance(resource_pk):
             if not resource_pk:
                 return None
             composite_pk = json.loads(resource_pk)
@@ -215,8 +211,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Task instance not found")
             return dag_id
 
-        @provide_session
-        def get_pool_name(resource_pk, session: Session = NEW_SESSION):
+        def get_pool_name(resource_pk):
             if not resource_pk:
                 return None
             pool = session.scalar(select(Pool).where(Pool.id == resource_pk).limit(1))
@@ -224,8 +219,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Pool not found")
             return pool.pool
 
-        @provide_session
-        def get_variable_key(resource_pk, session: Session = NEW_SESSION):
+        def get_variable_key(resource_pk):
             if not resource_pk:
                 return None
             variable = session.scalar(select(Variable).where(Variable.id == resource_pk).limit(1))
