@@ -680,8 +680,6 @@
 - tests/providers/ssh/hooks/test_ssh.py::TestSSHHook::test_tunnel_with_private_key_ecdsa
 - tests/providers/ssh/hooks/test_ssh.py::TestSSHHook::test_tunnel_with_private_key_passphrase
 - tests/providers/ssh/hooks/test_ssh.py::TestSSHHook::test_tunnel_without_password
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_with_fields
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_with_commit_every
 - tests/providers/teradata/hooks/test_teradata.py::TestTeradataHook::test_bulk_insert_rows_without_fields
