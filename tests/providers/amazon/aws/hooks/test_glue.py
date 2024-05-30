@@ -509,11 +509,9 @@ class TestGlueDataQualityHook:
 
     @mock.patch.object(GlueDataQualityHook, "conn")
     def test_quality_ruleset_doesnt_exists(self, mock_conn):
-
         error_message = f"Cannot find Data Quality Ruleset in account 1234567 with name {self.RULE_SET_NAME}"
 
-        err_response = {"Error": {"Code": "EntityNotFoundException",
-                                  "Message": error_message}}
+        err_response = {"Error": {"Code": "EntityNotFoundException", "Message": error_message}}
 
         exception = boto3.client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)

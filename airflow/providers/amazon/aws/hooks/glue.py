@@ -500,9 +500,14 @@ class GlueDataQualityHook(AwsBaseHook):
         for result in results["Results"]:
             rule_results = result["RuleResults"]
 
-            total_failed_rules += len(list(
-                filter(lambda result: result.get("Result") == "FAIL" or result.get("Result") == "ERROR",
-                       rule_results)))
+            total_failed_rules += len(
+                list(
+                    filter(
+                        lambda result: result.get("Result") == "FAIL" or result.get("Result") == "ERROR",
+                        rule_results,
+                    )
+                )
+            )
 
             if show_results:
                 self._log_results(result)

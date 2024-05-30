@@ -352,8 +352,7 @@ class TestGlueDataQualityOperator:
         self.operator.defer = mock.MagicMock()
         error_message = f"Another ruleset with the same name already exists: {self.RULE_SET_NAME}"
 
-        err_response = {"Error": {"Code": "AlreadyExistsException",
-                                  "Message": error_message}}
+        err_response = {"Error": {"Code": "AlreadyExistsException", "Message": error_message}}
 
         exception = client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)
@@ -398,8 +397,7 @@ class TestGlueDataQualityOperator:
         self.operator.defer = mock.MagicMock()
         error_message = f"Cannot find Data Quality Ruleset in account 1234567 with name {self.RULE_SET_NAME}"
 
-        err_response = {"Error": {"Code": "EntityNotFoundException",
-                                  "Message": error_message}}
+        err_response = {"Error": {"Code": "EntityNotFoundException", "Message": error_message}}
 
         exception = client("glue").exceptions.ClientError(err_response, "test")
         returned_exception = type(exception)

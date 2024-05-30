@@ -329,7 +329,8 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
                 self.log.info("AWS Glue data quality ruleset created successfully")
         except ClientError as error:
             raise AirflowException(
-                f"AWS Glue data quality ruleset failed: {error.response['Error']['Message']}")
+                f"AWS Glue data quality ruleset failed: {error.response['Error']['Message']}"
+            )
 
 
 class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualityHook]):
@@ -421,8 +422,11 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         if not glue_table.get("DatabaseName") or not glue_table.get("TableName"):
             raise AttributeError("DataSource glue table must have DatabaseName and TableName")
 
-        not_found_ruleset = [ruleset_name for ruleset_name in self.rule_set_names if
-                             not self.hook.has_data_quality_ruleset(ruleset_name)]
+        not_found_ruleset = [
+            ruleset_name
+            for ruleset_name in self.rule_set_names
+            if not self.hook.has_data_quality_ruleset(ruleset_name)
+        ]
 
         if not_found_ruleset:
             raise AirflowException(f"Following RulesetNames are not found {not_found_ruleset}")
