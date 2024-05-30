@@ -22,6 +22,8 @@ import urllib.parse
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from botocore.exceptions import ClientError
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -273,7 +275,7 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
     """
 
     aws_hook_class = GlueDataQualityHook
-    template_fields: Sequence[str] = ("name", "ruleset", "data_quality_ruleset_kwargs")
+    template_fields: Sequence[str] = ("name", "ruleset", "description", "data_quality_ruleset_kwargs")
 
     template_fields_renderers = {
         "data_quality_ruleset_kwargs": "json",
@@ -318,18 +320,21 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
             "Description": self.description,
             **self.data_quality_ruleset_kwargs,
         }
-
-        if self.update_rule_set:
-            self.hook.update_glue_data_quality_ruleset(config)
-            self.log.info("AWS Glue data quality ruleset updated successfully")
-        else:
-            self.hook.create_glue_data_quality_ruleset(config)
-            self.log.info("AWS Glue data quality ruleset created successfully")
+        try:
+            if self.update_rule_set:
+                self.hook.conn.update_data_quality_ruleset(**config)
+                self.log.info("AWS Glue data quality ruleset updated successfully")
+            else:
+                self.hook.conn.create_data_quality_ruleset(**config)
+                self.log.info("AWS Glue data quality ruleset created successfully")
+        except ClientError as error:
+            raise AirflowException(
+                f"AWS Glue data quality ruleset failed: {error.response['Error']['Message']}")
 
 
 class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualityHook]):
     """
-    Once you have a ruleset definition (either recommended or your own), you call this operation to evaluate the ruleset against a data source (Glue table).
+    Evaluate a ruleset against a data source (Glue table).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -416,11 +421,8 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         if not glue_table.get("DatabaseName") or not glue_table.get("TableName"):
             raise AttributeError("DataSource glue table must have DatabaseName and TableName")
 
-        not_found_ruleset = []
-
-        for ruleset_name in self.rule_set_names:
-            if not self.hook.has_data_quality_ruleset(ruleset_name):
-                not_found_ruleset.append(ruleset_name)
+        not_found_ruleset = [ruleset_name for ruleset_name in self.rule_set_names if
+                             not self.hook.has_data_quality_ruleset(ruleset_name)]
 
         if not_found_ruleset:
             raise AirflowException(f"Following RulesetNames are not found {not_found_ruleset}")

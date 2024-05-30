@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
+from boto3 import client
 from moto import mock_aws
 
 from airflow.exceptions import AirflowException, TaskDeferred
@@ -333,12 +334,6 @@ class TestGlueDataQualityOperator:
         )
         self.operator.defer = mock.MagicMock()
 
-        class RuleSetNotFoundException(Exception):
-            pass
-
-        glue_data_quality_mock_conn.exceptions.EntityNotFoundException = RuleSetNotFoundException
-        glue_data_quality_mock_conn.get_data_quality_ruleset.side_effect = RuleSetNotFoundException()
-
         self.operator.execute({})
         glue_data_quality_mock_conn.create_data_quality_ruleset.assert_called_once_with(
             Description="create ruleset",
@@ -347,7 +342,36 @@ class TestGlueDataQualityOperator:
         )
 
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_execute_update_rule(self, dataquality_conn_mock):
+    def test_execute_create_rule_should_fail_if_rule_already_exists(self, glue_data_quality_mock_conn):
+        self.operator = GlueDataQualityOperator(
+            task_id="create_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+            description="create ruleset",
+        )
+        self.operator.defer = mock.MagicMock()
+        error_message = f"Another ruleset with the same name already exists: {self.RULE_SET_NAME}"
+
+        err_response = {"Error": {"Code": "AlreadyExistsException",
+                                  "Message": error_message}}
+
+        exception = client("glue").exceptions.ClientError(err_response, "test")
+        returned_exception = type(exception)
+
+        glue_data_quality_mock_conn.exceptions.InvalidClusterStateFault = returned_exception
+        glue_data_quality_mock_conn.create_data_quality_ruleset.side_effect = exception
+
+        with pytest.raises(AirflowException, match=error_message):
+            self.operator.execute({})
+
+        glue_data_quality_mock_conn.create_data_quality_ruleset.assert_called_once_with(
+            Description="create ruleset",
+            Name=self.RULE_SET_NAME,
+            Ruleset=self.RULE_SET,
+        )
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_execute_update_rule(self, glue_data_quality_mock_conn):
         self.operator = GlueDataQualityOperator(
             task_id="update_data_quality_ruleset",
             name=self.RULE_SET_NAME,
@@ -357,10 +381,36 @@ class TestGlueDataQualityOperator:
         )
         self.operator.defer = mock.MagicMock()
 
-        dataquality_conn_mock.get_data_quality_ruleset.return_value = {"Name": self.RULE_SET_NAME}
-
         self.operator.execute({})
-        dataquality_conn_mock.update_data_quality_ruleset.assert_called_once_with(
+        glue_data_quality_mock_conn.update_data_quality_ruleset.assert_called_once_with(
+            Description="update ruleset", Name=self.RULE_SET_NAME, Ruleset=self.RULE_SET
+        )
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_execute_update_rule_should_fail_if_rule_not_exists(self, glue_data_quality_mock_conn):
+        self.operator = GlueDataQualityOperator(
+            task_id="update_data_quality_ruleset",
+            name=self.RULE_SET_NAME,
+            ruleset=self.RULE_SET,
+            description="update ruleset",
+            update_rule_set=True,
+        )
+        self.operator.defer = mock.MagicMock()
+        error_message = f"Cannot find Data Quality Ruleset in account 1234567 with name {self.RULE_SET_NAME}"
+
+        err_response = {"Error": {"Code": "EntityNotFoundException",
+                                  "Message": error_message}}
+
+        exception = client("glue").exceptions.ClientError(err_response, "test")
+        returned_exception = type(exception)
+
+        glue_data_quality_mock_conn.exceptions.EntityNotFoundException = returned_exception
+        glue_data_quality_mock_conn.update_data_quality_ruleset.side_effect = exception
+
+        with pytest.raises(AirflowException, match=error_message):
+            self.operator.execute({})
+
+        glue_data_quality_mock_conn.update_data_quality_ruleset.assert_called_once_with(
             Description="update ruleset", Name=self.RULE_SET_NAME, Ruleset=self.RULE_SET
         )
 

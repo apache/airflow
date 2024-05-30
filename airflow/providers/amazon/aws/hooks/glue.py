@@ -461,23 +461,7 @@ class GlueDataQualityHook(AwsBaseHook):
         except self.conn.exceptions.EntityNotFoundException:
             return False
 
-    def update_glue_data_quality_ruleset(self, config: dict[str, Any]) -> None:
-        if self.has_data_quality_ruleset(config["Name"]):
-            self.log.info("Updating AWS Glue data quality ruleset with: %s", config)
-            self.conn.update_data_quality_ruleset(**config)
-        else:
-            raise AirflowException(f"AWS Glue data quality ruleset {config['Name']} not exists to update")
-
-    def create_glue_data_quality_ruleset(self, config: dict[str, Any]) -> None:
-        if not self.has_data_quality_ruleset(config["Name"]):
-            self.log.info("Creating AWS Glue data quality ruleset with: %s", config)
-            self.conn.create_data_quality_ruleset(**config)
-        else:
-            raise AirflowException(
-                f"AWS Glue data quality ruleset {config['Name']} already exists with same name."
-            )
-
-    def display_result(self, result: dict[str, Any]) -> None:
+    def _log_results(self, result: dict[str, Any]) -> None:
         import pandas as pd
 
         pd.set_option("display.max_rows", None)
@@ -515,14 +499,13 @@ class GlueDataQualityHook(AwsBaseHook):
 
         for result in results["Results"]:
             rule_results = result["RuleResults"]
-            total_failed_rules = total_failed_rules + sum(
-                1
-                for result in rule_results
-                if result.get("Result") == "FAIL" or result.get("Result") == "ERROR"
-            )
+
+            total_failed_rules += len(list(
+                filter(lambda result: result.get("Result") == "FAIL" or result.get("Result") == "ERROR",
+                       rule_results)))
 
             if show_results:
-                self.display_result(result)
+                self._log_results(result)
 
         self.log.info(
             "AWS Glue data quality ruleset evaluation run, total number of rules failed: %s",

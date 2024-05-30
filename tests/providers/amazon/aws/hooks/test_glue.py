@@ -509,60 +509,22 @@ class TestGlueDataQualityHook:
 
     @mock.patch.object(GlueDataQualityHook, "conn")
     def test_quality_ruleset_doesnt_exists(self, mock_conn):
-        class RuleSetNotFoundException(Exception):
-            pass
 
-        mock_conn.exceptions.EntityNotFoundException = RuleSetNotFoundException
-        mock_conn.get_data_quality_ruleset.side_effect = RuleSetNotFoundException()
+        error_message = f"Cannot find Data Quality Ruleset in account 1234567 with name {self.RULE_SET_NAME}"
+
+        err_response = {"Error": {"Code": "EntityNotFoundException",
+                                  "Message": error_message}}
+
+        exception = boto3.client("glue").exceptions.ClientError(err_response, "test")
+        returned_exception = type(exception)
+
+        mock_conn.exceptions.EntityNotFoundException = returned_exception
+        mock_conn.get_data_quality_ruleset.side_effect = exception
 
         result = self.glue.has_data_quality_ruleset(name=self.RULE_SET_NAME)
 
         assert result is False
         mock_conn.get_data_quality_ruleset.assert_called_once_with(Name=self.RULE_SET_NAME)
-
-    @mock.patch.object(AwsBaseHook, "conn")
-    def test_create_glue_data_quality_ruleset(self, mock_conn):
-        class RuleSetNotFoundException(Exception):
-            pass
-
-        mock_conn.exceptions.EntityNotFoundException = RuleSetNotFoundException
-        mock_conn.get_data_quality_ruleset.side_effect = RuleSetNotFoundException()
-
-        self.glue.create_glue_data_quality_ruleset(self.RULE_SET_CONFIG)
-
-        mock_conn.create_data_quality_ruleset.assert_called_once_with(**self.RULE_SET_CONFIG)
-
-    @mock.patch.object(AwsBaseHook, "conn")
-    def test_create_glue_data_quality_ruleset_should_fail_if_ruleset_already_exists(self, mock_conn):
-        mock_conn.get_data_quality_ruleset.return_value = {"Name": self.RULE_SET_NAME}
-
-        with pytest.raises(
-            AirflowException,
-            match=f"AWS Glue data quality ruleset {self.RULE_SET_NAME} already exists with same name.",
-        ):
-            self.glue.create_glue_data_quality_ruleset(self.RULE_SET_CONFIG)
-
-    @mock.patch.object(AwsBaseHook, "conn")
-    def test_update_glue_data_quality_ruleset(self, mock_conn):
-        mock_conn.get_data_quality_ruleset.return_value = {"Name": self.RULE_SET_NAME}
-
-        self.glue.update_glue_data_quality_ruleset(self.RULE_SET_CONFIG)
-
-        mock_conn.update_data_quality_ruleset.assert_called_once_with(**self.RULE_SET_CONFIG)
-
-    @mock.patch.object(AwsBaseHook, "conn")
-    def test_update_glue_data_quality_ruleset_should_fail_if_ruleset_not_exists(self, mock_conn):
-        class RuleSetNotFoundException(Exception):
-            pass
-
-        mock_conn.exceptions.EntityNotFoundException = RuleSetNotFoundException
-        mock_conn.get_data_quality_ruleset.side_effect = RuleSetNotFoundException()
-
-        with pytest.raises(
-            AirflowException,
-            match=f"AWS Glue data quality ruleset {self.RULE_SET_NAME} not exists to update",
-        ):
-            self.glue.update_glue_data_quality_ruleset(self.RULE_SET_CONFIG)
 
     @mock.patch.object(AwsBaseHook, "conn")
     def test_validate_evaluation_results(self, mock_conn, caplog):
@@ -657,37 +619,3 @@ class TestGlueDataQualityHook:
         assert caplog.messages == [
             "AWS Glue data quality ruleset evaluation run, total number of rules failed: 1"
         ]
-
-    def test_display_results(self, caplog):
-        results = {
-            "ResultId": "resultId1",
-            "Score": 5.0,
-            "RulesetName": "rulesetOne",
-            "RulesetEvaluationRunId": "1234444",
-            "RuleResults": [
-                {
-                    "Name": "Rule_1",
-                    "Description": "RowCount between 150000 and 600000",
-                    "EvaluatedMetrics": {"Dataset.*.RowCount": 300000.0},
-                    "Result": "PASS",
-                },
-                {
-                    "Name": "Rule_2",
-                    "Description": "ColumnLength 'marketplace' between 1 and 2",
-                    "EvaluationMessage": "Value: 9.0 does not meet the constraint requirement!",
-                    "Result": "FAIL",
-                    "EvaluatedMetrics": {
-                        "Column.marketplace.MaximumLength": 9.0,
-                        "Column.marketplace.MinimumLength": 2.0,
-                    },
-                },
-            ],
-        }
-
-        with caplog.at_level(logging.INFO, logger=self.glue.log.name):
-            caplog.clear()
-            self.glue.display_result(results)
-
-        msg = "AWS Glue data quality ruleset evaluation result for RulesetName: rulesetOne RulesetEvaluationRunId: 1234444 Score: 5.0"
-
-        assert msg in caplog.messages[0]
