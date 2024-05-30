@@ -26,7 +26,6 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     text,
 )
-from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
@@ -66,8 +65,6 @@ class TaskInstanceHistory(Base):
             onupdate="CASCADE",
         ),
     )
-
-    task_instance = relationship("TaskInstance", back_populates="try_history")
 
     def __init__(
         self,

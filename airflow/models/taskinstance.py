@@ -1796,9 +1796,6 @@ class TaskInstance(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
     note = association_proxy("task_instance_note", "content", creator=_creator_note)
-    try_history = relationship(
-        "TaskInstanceHistory", back_populates="task_instance", cascade="all, delete, delete-orphan"
-    )
 
     task: Operator | None = None
     test_mode: bool = False
