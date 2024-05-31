@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 DEFAULT_YDB_GRPCS_PORT = 2135
 
+
 class YDBCursor:
     def __init__(self, delegatee, is_ddl):
         self.delegatee = delegatee
@@ -74,7 +75,7 @@ class YDBCursor:
         return self.delegatee.setoutputsize()
 
     def __enter__(self):
-        return self    
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -119,7 +120,7 @@ class YDBConnection:
         self.delegatee.rollback()
 
     def __enter__(self):
-        return self    
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -128,12 +129,14 @@ class YDBConnection:
         self.delegatee.close()
 
     def _get_table_client_settings(self) -> ydb.TableClientSettings:
-        return ydb.TableClientSettings().\
-            with_native_date_in_result_sets(True).\
-            with_native_datetime_in_result_sets(True).\
-            with_native_timestamp_in_result_sets(True).\
-            with_native_interval_in_result_sets(True).\
-            with_native_json_in_result_sets(False)
+        return (
+            ydb.TableClientSettings()
+            .with_native_date_in_result_sets(True)
+            .with_native_datetime_in_result_sets(True)
+            .with_native_timestamp_in_result_sets(True)
+            .with_native_interval_in_result_sets(True)
+            .with_native_json_in_result_sets(False)
+        )
 
 
 class YDBHook(DbApiHook):
@@ -196,7 +199,7 @@ class YDBHook(DbApiHook):
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},
             "placeholders": {
-                "host": 'eg. grpcs://my_host or ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net',
+                "host": "eg. grpcs://my_host or ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net",
                 "login": "root",
                 "password": "my_password",
                 "database": "e.g. local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b",
@@ -226,12 +229,18 @@ class YDBHook(DbApiHook):
         port = conn.port or DEFAULT_YDB_GRPCS_PORT
         endpoint = f"{host}:{port}"
         connection_extra = conn.extra_dejson
-        database = connection_extra.get("database") # "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
+        database = connection_extra.get(
+            "database"
+        )  # "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
         if not database:
             raise ValueError("YDB database must be specified")
-        
-        credentials = get_credentials_from_connection(endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra)
-        self.conn = YDBConnection(endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl)
+
+        credentials = get_credentials_from_connection(
+            endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra
+        )
+        self.conn = YDBConnection(
+            endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl
+        )
         return self.conn
 
     def get_uri(self) -> str:

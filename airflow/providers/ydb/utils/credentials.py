@@ -25,9 +25,11 @@ from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
+
 def _read_file(path):
     with open(path) as infile:
         return infile.read()
+
 
 def get_credentials_from_connection(endpoint: str, database: str, connection, connection_extra: dict = {}):
     """

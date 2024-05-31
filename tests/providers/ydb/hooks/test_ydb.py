@@ -76,10 +76,7 @@ class FakeYDBCursor:
 @patch("airflow.providers.ydb.hooks.dbapi.connection.Connection._cursor_class", new_callable=PropertyMock)
 def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connection):
     mock_get_connection.return_value = Connection(
-        conn_type="ydb",
-        host="localhost",
-        port=2135,
-        extra={"database": "my_db"}
+        conn_type="ydb", host="localhost", port=2135, extra={"database": "my_db"}
     )
     driver_instance = FakeDriver()
 
