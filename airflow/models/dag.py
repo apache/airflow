@@ -81,7 +81,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
+from airflow.datasets import BaseDataset, Dataset, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -177,7 +177,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDatasetEventInput, Collection["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -582,8 +582,7 @@ class DAG(LoggingMixin):
         if start_date and start_date.tzinfo:
             tzinfo = None if start_date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
-        elif "start_date" in self.default_args and self.default_args["start_date"]:
-            date = self.default_args["start_date"]
+        elif date := self.default_args.get("start_date"):
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
                 self.default_args["start_date"] = date
@@ -594,11 +593,8 @@ class DAG(LoggingMixin):
         self.timezone: Timezone | FixedTimezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
-        if "end_date" in self.default_args and self.default_args["end_date"]:
-            if isinstance(self.default_args["end_date"], str):
-                self.default_args["end_date"] = timezone.parse(
-                    self.default_args["end_date"], timezone=self.timezone
-                )
+        if isinstance(_end_date := self.default_args.get("end_date"), str):
+            self.default_args["end_date"] = timezone.parse(_end_date, timezone=self.timezone)
 
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
@@ -637,8 +633,8 @@ class DAG(LoggingMixin):
 
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: BaseDatasetEventInput | None = None
-        if isinstance(schedule, BaseDatasetEventInput):
+        self.dataset_triggers: BaseDataset | None = None
+        if isinstance(schedule, BaseDataset):
             self.dataset_triggers = schedule
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
@@ -646,7 +642,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = DatasetAll(*schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        elif schedule is not NOTSET and not isinstance(schedule, BaseDatasetEventInput):
+        elif schedule is not NOTSET and not isinstance(schedule, BaseDataset):
             schedule_interval = schedule
 
         if isinstance(schedule, DatasetOrTimeSchedule):
@@ -2952,6 +2948,8 @@ class DAG(LoggingMixin):
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
+                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
@@ -3557,6 +3555,8 @@ class DagTag(Base):
         primary_key=True,
     )
 
+    __table_args__ = (Index("idx_dag_tag_dag_id", dag_id),)
+
     def __repr__(self):
         return self.name
 
@@ -3672,6 +3672,7 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
+        back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
@@ -3868,7 +3869,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseDatasetEventInput, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseDataset, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.

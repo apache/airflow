@@ -28,6 +28,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.executors.batch import batch_executor, batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor,
@@ -41,6 +42,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
+from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
 ARN1 = "arn1"
@@ -56,6 +58,7 @@ def set_env_vars():
         (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_QUEUE): "some-job-queue",
         (CONFIG_GROUP_NAME, AllBatchConfigKeys.JOB_DEFINITION): "some-job-def",
         (CONFIG_GROUP_NAME, AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS): "3",
+        (CONFIG_GROUP_NAME, AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP): "True",
     }
     with conf_vars(overrides):
         yield
@@ -510,15 +513,12 @@ class TestAwsBatchExecutor:
         batch_mock.describe_jobs.return_value = {}
         executor.batch = batch_mock
 
-        caplog.set_level(logging.DEBUG)
-
-        executor.start()
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG):
+            executor.start()
 
         assert "succeeded" in caplog.text
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.executors.batch.boto_schema.BatchDescribeJobsResponseSchema.load"
-    )
     def test_health_check_failure(self, mock_executor, set_env_vars):
         mock_executor.batch.describe_jobs.side_effect = Exception("Test_failure")
         executor = AwsBatchExecutor()
@@ -537,11 +537,9 @@ class TestAwsBatchExecutor:
         batch_mock.describe_jobs.side_effect = {}
         executor.batch = batch_mock
 
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = (
-            "False"
-        )
-
-        executor.start()
+        env_var_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
+        with mock.patch.dict(os.environ, {env_var_key: "False"}):
+            executor.start()
 
         batch_mock.describe_jobs.assert_not_called()
 
@@ -619,6 +617,34 @@ class TestAwsBatchExecutor:
         }
         executor.batch.describe_jobs.return_value = {"jobs": [after_batch_job]}
 
+    def test_try_adopt_task_instances(self, mock_executor):
+        """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [
+                {"jobId": "001", "status": "SUCCEEDED"},
+                {"jobId": "002", "status": "SUCCEEDED"},
+            ],
+        }
+
+        orphaned_tasks = [
+            mock.Mock(spec=TaskInstance),
+            mock.Mock(spec=TaskInstance),
+            mock.Mock(spec=TaskInstance),
+        ]
+        orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
+        orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
+        orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
+        for task in orphaned_tasks:
+            task.try_number = 1
+
+        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+
+        mock_executor.batch.describe_jobs.assert_called_once()
+        # Two of the three tasks should be adopted.
+        assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
+        # The remaining one task is unable to be adopted.
+        assert 1 == len(not_adopted_tasks)
+
 
 class TestBatchExecutorConfig:
     @staticmethod
@@ -630,6 +656,11 @@ class TestBatchExecutorConfig:
     def teardown_method(self) -> None:
         self._unset_conf()
 
+    @pytest.mark.skipif(
+        RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+        reason="Config defaults are validated against provider.yaml so this test "
+        "should only run when tests are run from sources",
+    )
     def test_validate_config_defaults(self):
         """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS."""
         curr_dir = os.path.dirname(os.path.abspath(__file__))
@@ -834,3 +865,8 @@ class TestBatchExecutorConfig:
         final_run_task_kwargs = executor._submit_job_kwargs(mock_ti_key, command, "queue", exec_config)
 
         assert final_run_task_kwargs == expected_result
+
+    def test_short_import_path(self):
+        from airflow.providers.amazon.aws.executors.batch import AwsBatchExecutor as AwsBatchExecutorShortPath
+
+        assert AwsBatchExecutor is AwsBatchExecutorShortPath

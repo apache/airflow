@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from pendulum import now
+
 from airflow.decorators import dag, task
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
@@ -31,7 +33,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 
 class TestOpenLineageSelectiveEnable:
     def setup_method(self):
-        @dag(dag_id="test_selective_enable_decorated_dag")
+        @dag(dag_id="test_selective_enable_decorated_dag", start_date=now())
         def decorated_dag():
             @task
             def decorated_task():
@@ -41,7 +43,7 @@ class TestOpenLineageSelectiveEnable:
 
         self.decorated_dag = decorated_dag()
 
-        with DAG(dag_id="test_selective_enable_dag") as self.dag:
+        with DAG(dag_id="test_selective_enable_dag", start_date=now()) as self.dag:
             self.task = EmptyOperator(task_id="test_selective_enable")
 
     def test_enable_lineage_task_level(self):

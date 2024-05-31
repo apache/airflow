@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import warnings
 from functools import reduce
 from typing import TYPE_CHECKING, Mapping
 from unittest import mock
@@ -30,7 +29,7 @@ import pytest
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun, DagRunNote
@@ -41,6 +40,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
+from airflow.triggers.testing import SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -64,13 +64,7 @@ DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 def dagbag():
     from airflow.models.dagbag import DagBag
 
-    with warnings.catch_warnings():
-        # Some dags use deprecated operators, e.g SubDagOperator
-        # if it is not imported, then it might have side effects for the other tests
-        warnings.simplefilter("ignore", category=RemovedInAirflow3Warning)
-        # Ensure the DAGs we are looking at from the DB are up-to-date
-        dag_bag = DagBag(include_examples=True)
-    return dag_bag
+    return DagBag(include_examples=True)
 
 
 class TestDagRun:
@@ -1993,6 +1987,33 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+def test_schedule_tis_start_trigger(dag_maker, session):
+    """
+    Test that an operator with _start_trigger and _next_method set can be directly
+    deferred during scheduling.
+    """
+    trigger = SuccessTrigger()
+
+    class TestOperator(BaseOperator):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.start_trigger = trigger
+            self.next_method = "execute_complete"
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        task = TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    ti = TI(task=task, run_id=dr.run_id, state=None)
+    assert ti.state is None
+    dr.schedule_tis((ti,), session=session)
+    assert ti.state == TaskInstanceState.DEFERRED
+
+
 def test_mapped_expand_kwargs(dag_maker):
     with dag_maker():
 
@@ -2094,8 +2115,8 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
     task = ti.task
     for map_index in range(1, 5):
         ti = TI(task, run_id=dr.run_id, map_index=map_index)
-        ti.dag_run = dr
         session.add(ti)
+        ti.dag_run = dr
     session.flush()
     tis = dr.get_task_instances()
     for ti in tis:
@@ -2329,7 +2350,8 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task=ti,
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
         run_id=ti.run_id,
         try_number=ti.try_number,
         start_date=timezone.datetime(2017, 1, 1),

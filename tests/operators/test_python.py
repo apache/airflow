@@ -28,6 +28,7 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
+from importlib.util import find_spec
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Generator
@@ -65,18 +66,21 @@ from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
-pytestmark = pytest.mark.db_test
-
-
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+
+pytestmark = pytest.mark.db_test
+
 
 TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
 DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
-PY311 = sys.version_info >= (3, 11)
+DILL_INSTALLED = find_spec("dill") is not None
+DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
+CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
+CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
 
 class BasePythonTest:
@@ -131,6 +135,7 @@ class BasePythonTest:
             session=self.dag_maker.session,
             execution_date=self.default_date,
             run_type=DagRunType.MANUAL,
+            data_interval=(self.default_date, self.default_date),
         )
 
     def create_ti(self, fn, **kwargs) -> TI:
@@ -812,14 +817,23 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
         assert task.templates_dict == {"ds": self.ds_templated}
 
-    def test_deepcopy(self):
-        """Test that PythonVirtualenvOperator are deep-copyable."""
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_deepcopy(self, serializer):
+        """Test that operator are deep-copyable."""
 
         def f():
             return 1
 
-        task = PythonVirtualenvOperator(python_callable=f, task_id="task")
-        copy.deepcopy(task)
+        op = self.opcls(task_id="task", python_callable=f, **self.default_kwargs())
+        copy.deepcopy(op)
 
     def test_virtualenv_serializable_context_fields(self, create_task_instance):
         """Ensure all template context fields are listed in the operator.
@@ -835,7 +849,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
-            "dataset_events",  # Accessor for DatasetEvent.
+            "inlet_events",  # Accessor for inlet DatasetEvent.
+            "outlet_events",  # Accessor for outlet DatasetEvent.
         ]
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
@@ -888,6 +903,34 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             )
             assert ti.state == expected_state
 
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param(
+                "dill",
+                marks=pytest.mark.skipif(
+                    DILL_INSTALLED, reason="For this test case `dill` shouldn't be installed"
+                ),
+                id="dill",
+            ),
+            pytest.param(
+                "cloudpickle",
+                marks=pytest.mark.skipif(
+                    CLOUDPICKLE_INSTALLED, reason="For this test case `cloudpickle` shouldn't be installed"
+                ),
+                id="cloudpickle",
+            ),
+        ],
+    )
+    def test_advanced_serializer_not_installed(self, serializer, caplog):
+        """Test case for check raising an error if dill/cloudpickle is not installed."""
+
+        def f(a): ...
+
+        with pytest.raises(ModuleNotFoundError):
+            self.run_as_task(f, op_args=[42], serializer=serializer)
+        assert f"Unable to import `{serializer}` module." in caplog.text
+
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
@@ -923,12 +966,46 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         with pytest.raises(AirflowException, match="requires virtualenv"):
             self.run_as_task(f)
 
+    @CLOUDPICKLE_MARKER
+    def test_add_cloudpickle(self):
+        def f():
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
+
+        self.run_as_task(f, serializer="cloudpickle", system_site_packages=False)
+
+    @DILL_MARKER
     def test_add_dill(self):
         def f():
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
-        self.run_as_task(f, use_dill=True, system_site_packages=False)
+        self.run_as_task(f, serializer="dill", system_site_packages=False)
+
+    @DILL_MARKER
+    def test_add_dill_use_dill(self):
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+            self.run_as_task(f, use_dill=True, system_site_packages=False)
+
+    def test_ambiguous_serializer(self):
+        def f():
+            pass
+
+        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
+                self.run_as_task(f, use_dill=True, serializer="dill")
+
+    def test_invalid_serializer(self):
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
+            self.run_as_task(f, serializer="airflow")
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
@@ -938,7 +1015,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f)
 
-    def test_no_system_site_packages(self):
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_no_system_site_packages(self, serializer, extra_requirements):
         def f():
             try:
                 import funcsigs  # noqa: F401
@@ -946,7 +1032,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return True
             raise RuntimeError
 
-        self.run_as_task(f, system_site_packages=False, requirements=["dill"])
+        self.run_as_task(f, system_site_packages=False, requirements=extra_requirements)
 
     def test_system_site_packages(self):
         def f():
@@ -979,17 +1065,35 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
 
-    def test_unpinned_requirements(self):
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_unpinned_requirements(self, serializer, extra_requirements):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs", "dill"], system_site_packages=False)
+        self.run_as_task(f, requirements=["funcsigs", *extra_requirements], system_site_packages=False)
 
-    def test_range_requirements(self):
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_range_requirements(self, serializer, extra_requirements):
         def f():
             import funcsigs  # noqa: F401
 
-        self.run_as_task(f, requirements=["funcsigs>1.0", "dill"], system_site_packages=False)
+        self.run_as_task(f, requirements=["funcsigs>1.0", *extra_requirements], system_site_packages=False)
 
     def test_requirements_file(self):
         def f():
@@ -1019,7 +1123,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
 
-    def test_templated_requirements_file(self):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_templated_requirements_file(self, serializer):
         def f():
             import funcsigs
 
@@ -1028,12 +1141,21 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_operator(
             f,
             requirements="requirements.txt",
-            use_dill=True,
+            serializer=serializer,
             params={"environ": "templated_unit_test"},
             system_site_packages=False,
         )
 
-    def test_python_3(self):
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_python_3_serializers(self, serializer, extra_requirements):
         def f():
             import sys
 
@@ -1044,13 +1166,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise RuntimeError
 
-        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
+        with pytest.warns(
+            RemovedInAirflow3Warning, match="Passing non-string types.*python_version is deprecated"
+        ):
+            self.run_as_task(f, python_version=3, serializer=serializer, requirements=extra_requirements)
 
-    def test_without_dill(self):
+    def test_with_default(self):
         def f(a):
             return a
 
-        self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
+        self.run_as_task(f, system_site_packages=False, op_args=[4])
 
     def test_with_index_urls(self):
         def f(a):
@@ -1075,20 +1200,39 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
-    # context using dill (which is slow apparently).
+    # context using dill/cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-    @pytest.mark.skipif(
-        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true" or PY311,
-        reason="assertion rewriting breaks this test because dill will try to serialize "
-        "AssertRewritingHook including captured stdout and we need to run "
-        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
-        "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
-        "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
-        "That likely causes that dill is not able to serialize the `conf` correctly "
-        "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param(
+                "dill",
+                marks=[
+                    DILL_MARKER,
+                    pytest.mark.xfail(
+                        sys.version_info[:2] == (3, 11),
+                        reason=(
+                            "Also this test is failed on Python 3.11 because of impact of "
+                            "regression in Python 3.11 connected likely with CodeType behaviour "
+                            "https://github.com/python/cpython/issues/100316. "
+                            "That likely causes that dill is not able to serialize the `conf` correctly. "
+                            "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307"
+                        ),
+                    ),
+                ],
+                id="dill",
+            ),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+        ],
     )
-    def test_airflow_context(self):
+    @pytest.mark.skipif(
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        reason="assertion rewriting breaks this test because serializer will try to serialize "
+        "AssertRewritingHook including captured stdout and we need to run "
+        "it with `--assert=plain` pytest option and PYTEST_PLAIN_ASSERTS=true .",
+    )
+    def test_airflow_context(self, serializer):
         def f(
             # basic
             ds_nodash,
@@ -1127,10 +1271,17 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
+        self.run_as_operator(f, serializer=serializer, system_site_packages=True, requirements=None)
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-    def test_pendulum_context(self):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+        ],
+    )
+    def test_pendulum_context(self, serializer):
         def f(
             # basic
             ds_nodash,
@@ -1162,10 +1313,19 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=["pendulum"])
+        self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=["pendulum"])
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-    def test_base_context(self):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_base_context(self, serializer):
         def f(
             # basic
             ds_nodash,
@@ -1190,7 +1350,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=None)
+        self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -1436,8 +1596,6 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
 # therefore we have to extend timeouts for those tests
-
-
 @pytest.mark.execution_timeout(120)
 @pytest.mark.virtualenv_operator
 class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
@@ -1713,7 +1871,7 @@ def test_parse_version_info(text_input, expected_tuple):
     ],
 )
 def test_parse_version_invalid_parts(text_input):
-    with pytest.raises(ValueError, match="expected 5 components separated by '\.'"):
+    with pytest.raises(ValueError, match=r"expected 5 components separated by '\.'"):
         _parse_version_info(text_input)
 
 

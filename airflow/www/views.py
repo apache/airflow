@@ -36,7 +36,7 @@ from functools import cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
-from urllib.parse import unquote, urljoin, urlsplit
+from urllib.parse import unquote, urlencode, urljoin, urlsplit
 
 import configupdater
 import flask.json
@@ -48,6 +48,7 @@ from flask import (
     Response,
     abort,
     before_render_template,
+    current_app,
     flash,
     g,
     has_request_context,
@@ -67,11 +68,12 @@ from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_appbuilder.urltools import get_order_args, get_page_args, get_page_size_args
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
+from itsdangerous import URLSafeSerializer
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, select, union_all
+from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
@@ -101,11 +103,11 @@ from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom, errors
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
-from airflow.models.operator import needs_expansion
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
@@ -116,7 +118,7 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import json as utils_json, timezone, yaml
+from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
@@ -153,6 +155,7 @@ if TYPE_CHECKING:
 PAGE_SIZE = conf.getint("webserver", "page_size")
 FILTER_TAGS_COOKIE = "tags_filter"
 FILTER_STATUS_COOKIE = "dag_status_filter"
+FILTER_LASTRUN_COOKIE = "last_run_filter"
 LINECHART_X_AXIS_TICKFORMAT = (
     "function (d, i) { let xLabel;"
     "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
@@ -214,6 +217,35 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
+
+
+def build_scarf_url(dags_count: int) -> str:
+    """
+    Build the URL for the Scarf usage data collection.
+
+    :meta private:
+    """
+    if not settings.is_usage_data_collection_enabled():
+        return ""
+
+    scarf_domain = "https://apacheairflow.gateway.scarf.sh"
+    platform_sys, platform_arch = usage_data_collection.get_platform_info()
+    db_version = usage_data_collection.get_database_version()
+    db_name = usage_data_collection.get_database_name()
+    executor = usage_data_collection.get_executor()
+    python_version = usage_data_collection.get_python_version()
+
+    # Path Format:
+    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
+    #
+    # This path redirects to a Pixel tracking URL
+    scarf_url = (
+        f"{scarf_domain}/webserver"
+        f"/{version}/{python_version}"
+        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
+    )
+
+    return scarf_url
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
@@ -313,7 +345,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            TaskInstance._try_number,
+            TaskInstance.try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.queued_dttm).label("queued_dttm"),
@@ -325,7 +357,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance._try_number)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.try_number)
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -397,7 +429,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                     set_overall_state(record)
                     yield record
 
-            if item_is_mapped := needs_expansion(item):
+            if item_is_mapped := item.get_needs_expansion():
                 instances = list(_mapped_summary(grouped_tis[item.task_id]))
             else:
                 instances = [
@@ -408,7 +440,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                         "queued_dttm": task_instance.queued_dttm,
                         "start_date": task_instance.start_date,
                         "end_date": task_instance.end_date,
-                        "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
+                        "try_number": task_instance.try_number,
                         "note": task_instance.note,
                     }
                     for task_instance in grouped_tis[item.task_id]
@@ -632,7 +664,7 @@ def not_found(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
             status_code=404,
             error_message="Page cannot be found.",
         ),
@@ -645,7 +677,7 @@ def method_not_allowed(error):
     return (
         render_template(
             "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
             status_code=405,
             error_message="Received an invalid request.",
         ),
@@ -659,11 +691,11 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if is_logged_in else "redact",
-            airflow_version=version if is_logged_in else "redact",
+            python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
+            airflow_version=version if is_logged_in else "redacted",
             hostname=get_hostname()
             if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redact",
+            else "redacted",
             info=traceback.format_exc()
             if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
             else "Error! Please contact server admin.",
@@ -710,6 +742,8 @@ class AirflowBaseView(BaseView):
             kwargs["can_edit_dag"] = get_auth_manager().is_authorized_dag(
                 method="PUT", details=DagDetails(id=kwargs["dag"].dag_id)
             )
+            url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
+            kwargs["dag_file_token"] = url_serializer.dumps(kwargs["dag"].fileloc)
 
         return super().render_template(
             *args,
@@ -747,6 +781,7 @@ class Airflow(AirflowBaseView):
         arg_search_query = request.args.get("search")
         arg_tags_filter = request.args.getlist("tags")
         arg_status_filter = request.args.get("status")
+        arg_lastrun_filter = request.args.get("lastrun")
         arg_sorting_key = request.args.get("sorting_key", "dag_id")
         arg_sorting_direction = request.args.get("sorting_direction", default="asc")
 
@@ -755,17 +790,29 @@ class Airflow(AirflowBaseView):
             # Remove the reset_tags=reset from the URL
             return redirect(url_for("Airflow.index"))
 
-        cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        if arg_lastrun_filter == "reset_filter":
+            flask_session[FILTER_LASTRUN_COOKIE] = None
+            return redirect(url_for("Airflow.index"))
+
+        filter_tags_cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
         if arg_tags_filter:
             flask_session[FILTER_TAGS_COOKIE] = ",".join(arg_tags_filter)
-        elif cookie_val:
+        elif filter_tags_cookie_val:
             # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", tags=cookie_val.split(",")))
+            return redirect(url_for("Airflow.index", tags=filter_tags_cookie_val.split(",")))
+
+        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
+        if arg_lastrun_filter:
+            arg_lastrun_filter = arg_lastrun_filter.strip().lower()
+            flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
+        elif filter_lastrun_cookie_val:
+            # If tags exist in cookie, but not URL, add them to the URL
+            return redirect(url_for("Airflow.index", lastrun=filter_lastrun_cookie_val))
 
         if arg_status_filter is None:
-            cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
-            if cookie_val:
-                arg_status_filter = cookie_val
+            filter_status_cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
+            if filter_status_cookie_val:
+                arg_status_filter = filter_status_cookie_val
             else:
                 arg_status_filter = "active" if hide_paused_dags_by_default else "all"
                 flask_session[FILTER_STATUS_COOKIE] = arg_status_filter
@@ -790,6 +837,9 @@ class Airflow(AirflowBaseView):
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
                 dags_query = dags_query.where(
                     DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
+                    | DagModel._dag_display_property_value.ilike(
+                        "%" + escaped_arg_search_query + "%", escape="\\"
+                    )
                     | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
                 )
 
@@ -806,14 +856,19 @@ class Airflow(AirflowBaseView):
                 flask_session[FILTER_TAGS_COOKIE] = None
                 return redirect(url_for("Airflow.index"))
 
-            all_dags = dags_query
-            active_dags = dags_query.where(~DagModel.is_paused)
-            paused_dags = dags_query.where(DagModel.is_paused)
-
             # find DAGs which have a RUNNING DagRun
             running_dags = dags_query.join(DagRun, DagModel.dag_id == DagRun.dag_id).where(
-                DagRun.state == DagRunState.RUNNING
+                (DagRun.state == DagRunState.RUNNING) | (DagRun.state == DagRunState.QUEUED)
             )
+
+            lastrun_running_is_paused = session.execute(
+                running_dags.with_only_columns(DagModel.dag_id, DagModel.is_paused).distinct(DagModel.dag_id)
+            ).all()
+
+            lastrun_running_count_active = len(
+                list(filter(lambda x: not x.is_paused, lastrun_running_is_paused))
+            )
+            lastrun_running_count_paused = len(list(filter(lambda x: x.is_paused, lastrun_running_is_paused)))
 
             # find DAGs for which the latest DagRun is FAILED
             subq_all = (
@@ -840,36 +895,49 @@ class Airflow(AirflowBaseView):
             )
             failed_dags = dags_query.join(subq_join, DagModel.dag_id == subq_join.c.dag_id)
 
-            is_paused_count = dict(
+            lastrun_failed_is_paused_count = dict(
                 session.execute(
-                    all_dags.with_only_columns([DagModel.is_paused, func.count()]).group_by(
+                    failed_dags.with_only_columns(DagModel.is_paused, func.count()).group_by(
                         DagModel.is_paused
                     )
                 ).all()
             )
 
-            status_count_active = is_paused_count.get(False, 0)
-            status_count_paused = is_paused_count.get(True, 0)
+            lastrun_failed_count_active = lastrun_failed_is_paused_count.get(False, 0)
+            lastrun_failed_count_paused = lastrun_failed_is_paused_count.get(True, 0)
 
-            status_count_running = get_query_count(running_dags, session=session)
-            status_count_failed = get_query_count(failed_dags, session=session)
+            if arg_lastrun_filter == "running":
+                dags_query = running_dags
+            elif arg_lastrun_filter == "failed":
+                dags_query = failed_dags
 
+            all_dags = dags_query
+            active_dags = dags_query.where(~DagModel.is_paused)
+            paused_dags = dags_query.where(DagModel.is_paused)
+
+            status_is_paused = session.execute(
+                all_dags.with_only_columns(DagModel.dag_id, DagModel.is_paused).distinct(DagModel.dag_id)
+            ).all()
+
+            status_count_active = len(list(filter(lambda x: not x.is_paused, status_is_paused)))
+            status_count_paused = len(list(filter(lambda x: x.is_paused, status_is_paused)))
             all_dags_count = status_count_active + status_count_paused
+
             if arg_status_filter == "active":
                 current_dags = active_dags
                 num_of_all_dags = status_count_active
+                lastrun_count_running = lastrun_running_count_active
+                lastrun_count_failed = lastrun_failed_count_active
             elif arg_status_filter == "paused":
                 current_dags = paused_dags
                 num_of_all_dags = status_count_paused
-            elif arg_status_filter == "running":
-                current_dags = running_dags
-                num_of_all_dags = status_count_running
-            elif arg_status_filter == "failed":
-                current_dags = failed_dags
-                num_of_all_dags = status_count_failed
+                lastrun_count_running = lastrun_running_count_paused
+                lastrun_count_failed = lastrun_failed_count_paused
             else:
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
+                lastrun_count_running = lastrun_running_count_active + lastrun_running_count_paused
+                lastrun_count_failed = lastrun_failed_count_active + lastrun_failed_count_paused
 
             if arg_sorting_key == "dag_id":
                 if arg_sorting_direction == "desc":
@@ -927,6 +995,7 @@ class Airflow(AirflowBaseView):
             else:
                 dataset_triggered_next_run_info = {}
 
+            file_tokens = {}
             for dag in dags:
                 dag.can_edit = get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag.dag_id), user=g.user
@@ -935,6 +1004,8 @@ class Airflow(AirflowBaseView):
                 dag.can_delete = get_auth_manager().is_authorized_dag(
                     method="DELETE", details=DagDetails(id=dag.dag_id), user=g.user
                 )
+                url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
+                file_tokens[dag.dag_id] = url_serializer.dumps(dag.fileloc)
 
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
@@ -945,13 +1016,13 @@ class Airflow(AirflowBaseView):
             owner_links_dict = DagOwnerAttributes.get_all(session)
 
             if get_auth_manager().is_authorized_view(access_view=AccessView.IMPORT_ERRORS):
-                import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
+                import_errors = select(ParseImportError).order_by(ParseImportError.id)
 
                 can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
-                        errors.ImportError.filename.in_(
+                        ParseImportError.filename.in_(
                             select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(filter_dag_ids))
                         )
                     )
@@ -1032,6 +1103,11 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
+        try:
+            scarf_url = build_scarf_url(dags_count=all_dags_count)
+        except Exception:
+            scarf_url = ""
+
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
@@ -1063,13 +1139,16 @@ class Airflow(AirflowBaseView):
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
-            status_count_running=status_count_running,
-            status_count_failed=status_count_failed,
+            lastrun_filter=arg_lastrun_filter,
+            lastrun_count_running=lastrun_count_running,
+            lastrun_count_failed=lastrun_count_failed,
             tags_filter=arg_tags_filter,
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
+            scarf_url=scarf_url,
+            file_tokens=file_tokens,
         )
 
     @expose("/datasets")
@@ -1368,6 +1447,7 @@ class Airflow(AirflowBaseView):
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         no_dagrun = False
+        url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
 
         title = "Rendered Template"
         html_dict = {}
@@ -1393,6 +1473,7 @@ class Airflow(AirflowBaseView):
                     show_trigger_form_if_no_params=conf.getboolean(
                         "webserver", "show_trigger_form_if_no_params"
                     ),
+                    dag_run_id=dag_run.run_id if dag_run else "",
                     html_dict=html_dict,
                     dag=dag,
                     task_id=task_id,
@@ -1458,6 +1539,7 @@ class Airflow(AirflowBaseView):
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict=html_dict,
+            dag_run_id=dag_run.run_id if dag_run else "",
             dag=dag,
             task_id=task_id,
             task_display_name=task.task_display_name,
@@ -1466,6 +1548,7 @@ class Airflow(AirflowBaseView):
             form=form,
             root=root,
             title=title,
+            dag_file_token=url_serializer.dumps(dag.fileloc),
         )
 
     @expose("/rendered-k8s")
@@ -1489,7 +1572,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         map_index = request.args.get("map_index", -1, type=int)
-        logger.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered k8s.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -1522,6 +1605,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
+            dag_run_id=dag_run.run_id if dag_run else "",
             html_dict={"k8s": content},
             dag=dag,
             task_id=task_id,
@@ -1532,6 +1616,48 @@ class Airflow(AirflowBaseView):
             root=root,
             title=title,
         )
+
+    @expose("/object/rendered-k8s")
+    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+    @provide_session
+    def rendered_k8s_data(self, *, session: Session = NEW_SESSION):
+        """Get rendered k8s yaml."""
+        if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
+            return {"error": "Not a k8s or k8s_celery executor"}, 404
+        # This part is only used for k8s executor so providers.cncf.kubernetes must be installed
+        # with the get_rendered_k8s_spec method
+        from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec
+
+        dag_id = request.args.get("dag_id")
+        task_id = request.args.get("task_id")
+        if task_id is None:
+            return {"error": "Task id not passed in the request"}, 404
+        run_id = request.args.get("run_id")
+        map_index = request.args.get("map_index", -1, type=int)
+        logger.info("Retrieving rendered k8s data.")
+
+        dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
+        task = dag.get_task(task_id)
+        dag_run = dag.get_dagrun(run_id=run_id, session=session)
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
+
+        if not ti:
+            return {"error": f"can't find task instance {task.task_id}"}, 404
+        pod_spec = None
+        if not isinstance(ti, TaskInstance):
+            return {"error": f"{task.task_id} is not a task instance"}, 500
+        try:
+            pod_spec = get_rendered_k8s_spec(ti, session=session)
+        except AirflowException as e:
+            if not e.__cause__:
+                return {"error": f"Error rendering Kubernetes POD Spec: {e}"}, 500
+            else:
+                tmp = Markup("Error rendering Kubernetes POD Spec: {0}<br><br>Original error: {0.__cause__}")
+                return {"error": tmp.format(e)}, 500
+        except Exception as e:
+            return {"error": f"Error rendering Kubernetes Pod Spec: {e}"}, 500
+
+        return pod_spec
 
     @expose("/get_logs_with_metadata")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
@@ -1640,7 +1766,7 @@ class Airflow(AirflowBaseView):
 
         num_logs = 0
         if ti is not None:
-            num_logs = wwwutils.get_try_count(ti._try_number, ti.state)
+            num_logs = ti.try_number
         logs = [""] * num_logs
         root = request.args.get("root", "")
         return self.render_template(
@@ -1648,6 +1774,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             logs=logs,
             dag=dag_model,
+            dag_run_id=ti.run_id if ti else "",
             title="Log by attempts",
             dag_id=dag_id,
             task_id=task_id,
@@ -1740,7 +1867,7 @@ class Airflow(AirflowBaseView):
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     # fetching the value of _try_number to be shown under name try_number in UI
-                    (name, getattr(ti, "_try_number" if name == "try_number" else name))
+                    (name, getattr(ti, name))
                     for name in dir(ti)
                     if not name.startswith("_") and name not in ti_attrs_to_skip
                 )
@@ -1804,6 +1931,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
+            dag_run_id=ti.run_id if ti else "",
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
             task_id=task_id,
             execution_date=execution_date,
@@ -1856,6 +1984,7 @@ class Airflow(AirflowBaseView):
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             attributes=attributes,
             task_id=task_id,
+            dag_run_id=ti.run_id if ti else "",
             task_display_name=ti.task_display_name,
             execution_date=execution_date,
             map_index=map_index,
@@ -2141,7 +2270,7 @@ class Airflow(AirflowBaseView):
                 )
 
         try:
-            dag.create_dagrun(
+            dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
@@ -2166,7 +2295,14 @@ class Airflow(AirflowBaseView):
                 form=form,
             )
 
-        flash(f"Triggered {dag_id}, it should start any moment now.")
+        flash(f"Triggered {dag_id} with new Run ID {dag_run.run_id}, it should start any moment now.")
+        if "/grid?" in origin:
+            path, query = origin.split("?", 1)
+            params = {param.split("=")[0]: param.split("=")[1] for param in query.split("&")}
+            params["dag_run_id"] = dag_run.run_id
+            origin = f"{path}?{urlencode(params)}"
+        elif origin.endswith("/grid"):
+            origin += f"?{urlencode({'dag_run_id': dag_run.run_id})}"
         return redirect(origin)
 
     def _clear_dag_tis(
@@ -2785,7 +2921,11 @@ class Airflow(AirflowBaseView):
     @provide_session
     def grid(self, dag_id: str, session: Session = NEW_SESSION):
         """Get Dag's grid view."""
+        color_log_error_keywords = conf.get("logging", "color_log_error_keywords", fallback="")
+        color_log_warning_keywords = conf.get("logging", "color_log_warning_keywords", fallback="")
+
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        url_serializer = URLSafeSerializer(current_app.config["SECRET_KEY"])
         dag_model = DagModel.get_dagmodel(dag_id, session=session)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
@@ -2842,6 +2982,9 @@ class Airflow(AirflowBaseView):
             ),
             included_events_raw=included_events_raw,
             excluded_events_raw=excluded_events_raw,
+            color_log_error_keywords=color_log_error_keywords,
+            color_log_warning_keywords=color_log_warning_keywords,
+            dag_file_token=url_serializer.dumps(dag.fileloc),
         )
 
     @expose("/calendar")
@@ -3290,7 +3433,7 @@ class Airflow(AirflowBaseView):
             latest_run = dag_model.get_last_dagrun(session=session)
 
             events = [
-                dict(info)
+                dict(info._mapping)
                 for info in session.execute(
                     select(
                         DatasetModel.id,
@@ -3452,7 +3595,7 @@ class Airflow(AirflowBaseView):
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            datasets = [dict(dataset) for dataset in query]
+            datasets = [dict(dataset._mapping) for dataset in query]
             data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
 
             return (
@@ -3494,6 +3637,22 @@ class Airflow(AirflowBaseView):
         }
 
         return redirect(url_for("Airflow.grid", **kwargs))
+
+    @expose("/parseDagFile/<string:file_token>")
+    def parse_dag(self, file_token: str):
+        from airflow.api_connexion.endpoints.dag_parsing import reparse_dag_file
+
+        with create_session() as session:
+            response = reparse_dag_file(file_token=file_token, session=session)
+            response_messages = {
+                201: ["Reparsing request submitted successfully", "info"],
+                401: ["Unauthenticated request", "error"],
+                403: ["Permission Denied", "error"],
+                404: ["DAG not found", "error"],
+            }
+            flash(response_messages[response.status_code][0], response_messages[response.status_code][1])
+        redirect_url = get_safe_url(request.values.get("redirect_url"))
+        return redirect(redirect_url)
 
 
 class ConfigurationView(AirflowBaseView):
@@ -4672,7 +4831,6 @@ class DagRunModelView(AirflowModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
-        "add": "create",
         "delete": "delete",
         "edit": "edit",
         "list": "read",
@@ -5141,7 +5299,7 @@ class TaskInstanceModelView(AirflowModelView):
         "pool",
         "queued_by_job_id",
     ]
-
+    # todo: don't use prev_attempted_tries; just use try_number
     label_columns = {"dag_run.execution_date": "Logical Date", "prev_attempted_tries": "Try Number"}
 
     search_columns = [
@@ -5421,12 +5579,21 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = select(
             sqla.literal("dag").label("type"),
             DagModel.dag_id.label("name"),
-        ).where(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike(f"%{query}%"))
+            DagModel._dag_display_property_value.label("dag_display_name"),
+        ).where(
+            ~DagModel.is_subdag,
+            DagModel.is_active,
+            or_(
+                DagModel.dag_id.ilike(f"%{query}%"),
+                DagModel._dag_display_property_value.ilike(f"%{query}%"),
+            ),
+        )
 
         owners_query = (
             select(
                 sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
+                sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
             .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))

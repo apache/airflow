@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
+    TESTABLE_INTEGRATIONS,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -82,6 +83,8 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
     "PythonVenv Serialization WWW"
 )
+
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
 
 class FileGroupForCi(Enum):
@@ -302,60 +305,6 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
             return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"
-
-
-def find_all_providers_affected(
-    changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
-) -> list[str] | str | None:
-    all_providers: set[str] = set()
-
-    all_providers_affected = False
-    suspended_providers: set[str] = set()
-    for changed_file in changed_files:
-        provider = find_provider_affected(changed_file, include_docs=include_docs)
-        if provider == "Providers":
-            all_providers_affected = True
-        elif provider is not None:
-            if provider not in DEPENDENCIES:
-                suspended_providers.add(provider)
-            else:
-                all_providers.add(provider)
-    if all_providers_affected:
-        return "ALL_PROVIDERS"
-    if suspended_providers:
-        # We check for suspended providers only after we have checked if all providers are affected.
-        # No matter if we found that we are modifying a suspended provider individually, if all providers are
-        # affected, then it means that we are ok to proceed because likely we are running some kind of
-        # global refactoring that affects multiple providers including the suspended one. This is a
-        # potential escape hatch if someone would like to modify suspended provider,
-        # but it can be found at the review time and is anyway harmless as the provider will not be
-        # released nor tested nor used in CI anyway.
-        get_console().print("[yellow]You are modifying suspended providers.\n")
-        get_console().print(
-            "[info]Some providers modified by this change have been suspended, "
-            "and before attempting such changes you should fix the reason for suspension."
-        )
-        get_console().print(
-            "[info]When fixing it, you should set suspended = false in provider.yaml "
-            "to make changes to the provider."
-        )
-        get_console().print(f"Suspended providers: {suspended_providers}")
-        if fail_if_suspended_providers_affected:
-            get_console().print(
-                "[error]This PR did not have `allow suspended provider changes` label set so it will fail."
-            )
-            sys.exit(1)
-        else:
-            get_console().print(
-                "[info]This PR had `allow suspended provider changes` label set so it will continue"
-            )
-    if not all_providers:
-        return None
-    for provider in list(all_providers):
-        all_providers.update(
-            get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
-        )
-    return sorted(all_providers)
 
 
 def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
@@ -747,7 +696,7 @@ class SelectiveChecks:
         # prepare all providers packages and build all providers documentation
         return "Providers" in self._get_test_types_to_run()
 
-    def _fail_if_suspended_providers_affected(self):
+    def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
 
     def _get_test_types_to_run(self) -> list[str]:
@@ -800,14 +749,17 @@ class SelectiveChecks:
             get_console().print(remaining_files)
             candidate_test_types.update(all_selective_test_types())
         else:
-            if "Providers" in candidate_test_types:
-                affected_providers = find_all_providers_affected(
-                    changed_files=self._files,
+            if "Providers" in candidate_test_types or "API" in candidate_test_types:
+                affected_providers = self.find_all_providers_affected(
                     include_docs=False,
-                    fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
-                    candidate_test_types.remove("Providers")
+                    try:
+                        candidate_test_types.remove("Providers")
+                    except KeyError:
+                        # In case of API tests Providers could not be in the list originally so we can ignore
+                        # Providers missing in the list.
+                        pass
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
@@ -868,6 +820,15 @@ class SelectiveChecks:
         return " ".join(sorted(current_test_types))
 
     @cached_property
+    def providers_test_types_list_as_string(self) -> str | None:
+        all_test_types = self.parallel_test_types_list_as_string
+        if all_test_types is None:
+            return None
+        return " ".join(
+            test_type for test_type in all_test_types.split(" ") if test_type.startswith("Providers")
+        )
+
+    @cached_property
     def include_success_outputs(
         self,
     ) -> bool:
@@ -879,7 +840,7 @@ class SelectiveChecks:
 
     @staticmethod
     def _print_diff(old_lines: list[str], new_lines: list[str]):
-        diff = "\n".join([line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?"])
+        diff = "\n".join(line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?")
         get_console().print(diff)
 
     @cached_property
@@ -988,10 +949,8 @@ class SelectiveChecks:
             return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
-        providers_affected = find_all_providers_affected(
-            changed_files=self._files,
+        providers_affected = self.find_all_providers_affected(
             include_docs=True,
-            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
         )
         if (
             providers_affected == "ALL_PROVIDERS"
@@ -1100,11 +1059,7 @@ class SelectiveChecks:
             return _ALL_PROVIDERS_LIST
         if self._are_all_providers_affected():
             return _ALL_PROVIDERS_LIST
-        affected_providers = find_all_providers_affected(
-            changed_files=self._files,
-            include_docs=True,
-            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
-        )
+        affected_providers = self.find_all_providers_affected(include_docs=True)
         if not affected_providers:
             return None
         if affected_providers == "ALL_PROVIDERS":
@@ -1147,10 +1102,7 @@ class SelectiveChecks:
             if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels:
                 # Forced self-hosted runners
                 return RUNS_ON_SELF_HOSTED_RUNNER
-            if actor in COMMITTERS:
-                return RUNS_ON_SELF_HOSTED_RUNNER
-            else:
-                return RUNS_ON_PUBLIC_RUNNER
+            return RUNS_ON_PUBLIC_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
@@ -1255,7 +1207,66 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def testable_integrations(self) -> list[str]:
+        return TESTABLE_INTEGRATIONS
+
+    @cached_property
     def is_committer_build(self):
         if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
             return False
         return self._github_actor in COMMITTERS
+
+    def find_all_providers_affected(self, include_docs: bool) -> list[str] | str | None:
+        all_providers: set[str] = set()
+
+        all_providers_affected = False
+        suspended_providers: set[str] = set()
+        for changed_file in self._files:
+            provider = find_provider_affected(changed_file, include_docs=include_docs)
+            if provider == "Providers":
+                all_providers_affected = True
+            elif provider is not None:
+                if provider not in DEPENDENCIES:
+                    suspended_providers.add(provider)
+                else:
+                    all_providers.add(provider)
+        if self.needs_api_tests:
+            all_providers.add("fab")
+        if all_providers_affected:
+            return "ALL_PROVIDERS"
+        if suspended_providers:
+            # We check for suspended providers only after we have checked if all providers are affected.
+            # No matter if we found that we are modifying a suspended provider individually,
+            # if all providers are
+            # affected, then it means that we are ok to proceed because likely we are running some kind of
+            # global refactoring that affects multiple providers including the suspended one. This is a
+            # potential escape hatch if someone would like to modify suspended provider,
+            # but it can be found at the review time and is anyway harmless as the provider will not be
+            # released nor tested nor used in CI anyway.
+            get_console().print("[yellow]You are modifying suspended providers.\n")
+            get_console().print(
+                "[info]Some providers modified by this change have been suspended, "
+                "and before attempting such changes you should fix the reason for suspension."
+            )
+            get_console().print(
+                "[info]When fixing it, you should set suspended = false in provider.yaml "
+                "to make changes to the provider."
+            )
+            get_console().print(f"Suspended providers: {suspended_providers}")
+            if self._fail_if_suspended_providers_affected():
+                get_console().print(
+                    "[error]This PR did not have `allow suspended provider changes`"
+                    " label set so it will fail."
+                )
+                sys.exit(1)
+            else:
+                get_console().print(
+                    "[info]This PR had `allow suspended provider changes` label set so it will continue"
+                )
+        if not all_providers:
+            return None
+        for provider in list(all_providers):
+            all_providers.update(
+                get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+            )
+        return sorted(all_providers)

@@ -400,7 +400,13 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-                self.queued(task_key, task.task_arn)
+                try:
+                    self.running_state(task_key, task.task_arn)
+                except AttributeError:
+                    # running_state is newly added, and only needed to support task adoption (an optional
+                    # executor feature).
+                    # TODO: remove when min airflow version >= 2.9.2
+                    pass
         if failure_reasons:
             self.log.error(
                 "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
@@ -515,14 +521,14 @@ class AwsEcsExecutor(BaseExecutor):
                 task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
 
                 for task in task_descriptions:
-                    ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
+                    ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
                     self.active_workers.add_task(
                         task,
                         ti.key,
                         ti.queue,
                         ti.command_as_list(),
                         ti.executor_config,
-                        ti.prev_attempted_tries,
+                        ti.try_number,
                     )
                     adopted_tis.append(ti)
 

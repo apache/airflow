@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add-k8s-yaml-to-rendered-templates
+"""add-k8s-yaml-to-rendered-templates.
 
 Revision ID: 45ba3f1493b9
 Revises: 364159666cbd
 Create Date: 2020-10-23 23:01:52.471442
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy_jsonfield
@@ -42,12 +43,12 @@ k8s_pod_yaml = Column("k8s_pod_yaml", sqlalchemy_jsonfield.JSONField(json=json),
 
 
 def upgrade():
-    """Apply add-k8s-yaml-to-rendered-templates"""
+    """Apply add-k8s-yaml-to-rendered-templates."""
     with op.batch_alter_table(__tablename__, schema=None) as batch_op:
         batch_op.add_column(k8s_pod_yaml)
 
 
 def downgrade():
-    """Unapply add-k8s-yaml-to-rendered-templates"""
+    """Unapply add-k8s-yaml-to-rendered-templates."""
     with op.batch_alter_table(__tablename__, schema=None) as batch_op:
         batch_op.drop_column("k8s_pod_yaml")

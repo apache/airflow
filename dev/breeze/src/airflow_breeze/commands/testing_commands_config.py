@@ -56,6 +56,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {
@@ -82,11 +83,18 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced flag for tests command",
             "options": [
-                "--image-tag",
+                "--airflow-constraints-reference",
                 "--github-repository",
+                "--image-tag",
+                "--install-airflow-with-constraints",
+                "--package-format",
+                "--providers-constraints-location",
+                "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--use-packages-from-dist",
                 "--mount-sources",
                 "--skip-docker-compose-down",
+                "--skip-providers",
             ],
         },
     ],
@@ -112,6 +120,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {
@@ -136,11 +145,18 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced flag for tests command",
             "options": [
-                "--image-tag",
+                "--airflow-constraints-reference",
                 "--github-repository",
+                "--image-tag",
+                "--install-airflow-with-constraints",
+                "--package-format",
+                "--providers-constraints-location",
+                "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--use-packages-from-dist",
                 "--mount-sources",
                 "--skip-docker-compose-down",
+                "--skip-providers",
             ],
         },
     ],
@@ -169,6 +185,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {
@@ -193,11 +210,18 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced flag for tests command",
             "options": [
-                "--image-tag",
+                "--airflow-constraints-reference",
                 "--github-repository",
+                "--image-tag",
+                "--install-airflow-with-constraints",
+                "--package-format",
+                "--providers-constraints-location",
+                "--providers-skip-constraints",
                 "--use-airflow-version",
+                "--use-packages-from-dist",
                 "--mount-sources",
                 "--skip-docker-compose-down",
+                "--skip-providers",
             ],
         },
     ],
@@ -220,6 +244,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--forward-credentials",
+                "--force-sa-warnings",
             ],
         },
         {

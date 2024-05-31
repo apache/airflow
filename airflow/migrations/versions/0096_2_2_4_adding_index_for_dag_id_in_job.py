@@ -22,6 +22,7 @@ Revises: c381b21cb7e4
 Create Date: 2021-12-14 10:20:12.482940
 
 """
+
 from __future__ import annotations
 
 from alembic import op

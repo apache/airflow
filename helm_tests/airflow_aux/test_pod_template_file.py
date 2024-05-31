@@ -19,7 +19,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from shutil import copyfile, copytree
-from tempfile import TemporaryDirectory
 
 import jmespath
 import pytest
@@ -28,22 +27,26 @@ from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_
 from tests.charts.helm_template_generator import render_chart
 
 
-@pytest.fixture(scope="class", autouse=True)
-def isolate_chart(request):
+@pytest.fixture(scope="class")
+def isolate_chart(request, tmp_path_factory) -> Path:
     chart_dir = Path(__file__).parents[2] / "chart"
-    with TemporaryDirectory(prefix=request.cls.__name__) as tmp_dir:
-        temp_chart_dir = Path(tmp_dir) / "chart"
-        copytree(chart_dir, temp_chart_dir)
-        copyfile(
-            temp_chart_dir / "files/pod-template-file.kubernetes-helm-yaml",
-            temp_chart_dir / "templates/pod-template-file.yaml",
-        )
-        request.cls.temp_chart_dir = str(temp_chart_dir)
-        yield
+    tmp_dir = tmp_path_factory.mktemp(request.cls.__name__)
+    temp_chart_dir = tmp_dir / "chart"
+
+    copytree(chart_dir, temp_chart_dir)
+    copyfile(
+        temp_chart_dir / "files/pod-template-file.kubernetes-helm-yaml",
+        temp_chart_dir / "templates/pod-template-file.yaml",
+    )
+    return temp_chart_dir
 
 
 class TestPodTemplateFile:
     """Tests pod template file."""
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, isolate_chart):
+        self.temp_chart_dir = isolate_chart.as_posix()
 
     def test_should_work(self):
         docs = render_chart(
@@ -645,6 +648,18 @@ class TestPodTemplateFile:
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
+    @pytest.mark.parametrize("safe_to_evict", [True, False])
+    def test_safe_to_evict_annotation(self, safe_to_evict: bool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": safe_to_evict}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations == {
+            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
+        }
+
     def test_workers_pod_annotations(self):
         docs = render_chart(
             values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
@@ -900,3 +915,39 @@ class TestPodTemplateFile:
         if expected_init_containers == 1:
             assert initContainers[0]["name"] == "kerberos-init"
             assert initContainers[0]["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize(
+        "cmd, expected",
+        [
+            (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
+            (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
+        ],
+    )
+    def test_should_add_command(self, cmd, expected):
+        docs = render_chart(
+            values={
+                "workers": {"command": cmd},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert expected == jmespath.search("spec.containers[0].command", docs[0])
+
+    @pytest.mark.parametrize("cmd", [None, []])
+    def test_should_not_add_command(self, cmd):
+        docs = render_chart(
+            values={"workers": {"command": cmd}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    def test_should_not_add_command_by_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert None is jmespath.search("spec.containers[0].command", docs[0])

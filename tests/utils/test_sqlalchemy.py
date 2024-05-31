@@ -82,6 +82,7 @@ class TestSqlAlchemyUtils:
             execution_date=execution_date,
             start_date=start_date,
             session=self.session,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
         )
 
         assert execution_date == run.execution_date
@@ -113,6 +114,7 @@ class TestSqlAlchemyUtils:
                 execution_date=start_date,
                 start_date=start_date,
                 session=self.session,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=start_date),
             )
         dag.clear()
 

@@ -14,6 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module provides functions for safely retrieving and handling OpenLineage configurations.
+
+To prevent errors caused by invalid user-provided configuration values, we use ``conf.get()``
+to fetch values as strings and perform safe conversions using custom functions.
+
+Any invalid configuration values should be treated as incorrect and replaced with default values.
+For example, if the default for boolean ``custom_ol_var`` is False, any non-true value provided:
+``"asdf"``, ``12345``, ``{"key": 1}`` or empty string, will result in False being used.
+
+By using default values for invalid configuration values, we ensure that the configurations are handled
+safely, preventing potential runtime errors due to conversion issues.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +37,17 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 
 _CONFIG_SECTION = "openlineage"
+
+
+def _is_true(arg: Any) -> bool:
+    return str(arg).lower().strip() in ("true", "1", "t")
+
+
+def _safe_int_convert(arg: Any, default: int) -> int:
+    try:
+        return int(arg)
+    except (ValueError, TypeError):
+        return default
 
 
 @cache
@@ -41,7 +65,8 @@ def is_source_enabled() -> bool:
     option = conf.get(_CONFIG_SECTION, "disable_source_code", fallback="")
     if not option:
         option = os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", "")
-    return option.lower() not in ("true", "1", "t")
+    # when disable_source_code is True, is_source_enabled() should be False
+    return not _is_true(option)
 
 
 @cache
@@ -53,7 +78,9 @@ def disabled_operators() -> set[str]:
 
 @cache
 def selective_enable() -> bool:
-    return conf.getboolean(_CONFIG_SECTION, "selective_enable", fallback=False)
+    """[openlineage] selective_enable."""
+    option = conf.get(_CONFIG_SECTION, "selective_enable", fallback="")
+    return _is_true(option)
 
 
 @cache
@@ -85,11 +112,7 @@ def transport() -> dict[str, Any]:
 
 @cache
 def is_disabled() -> bool:
-    """[openlineage] disabled + some extra checks."""
-
-    def _is_true(val):
-        return str(val).lower().strip() in ("true", "1", "t")
-
+    """[openlineage] disabled + check if any configuration is present."""
     option = conf.get(_CONFIG_SECTION, "disabled", fallback="")
     if _is_true(option):
         return True
@@ -97,7 +120,13 @@ def is_disabled() -> bool:
     option = os.getenv("OPENLINEAGE_DISABLED", "")
     if _is_true(option):
         return True
-
     # Check if both 'transport' and 'config_path' are not present and also
     # if legacy 'OPENLINEAGE_URL' environment variables is not set
     return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
+
+
+@cache
+def dag_state_change_process_pool_size() -> int:
+    """[openlineage] dag_state_change_process_pool_size."""
+    option = conf.get(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback="")
+    return _safe_int_convert(str(option).strip(), default=1)

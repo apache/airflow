@@ -33,6 +33,11 @@ from docker_tests.constants import SOURCE_ROOT
 # isort:on (needed to workaround isort bug)
 
 DOCKER_EXAMPLES_DIR = SOURCE_ROOT / "docs" / "docker-stack" / "docker-examples"
+QUARANTINED_DOCKER_EXAMPLES: dict[str, str] = {
+    # You could temporarily disable check for specific Dockerfile
+    # In this case you need to provide a relative path with the reason, e.g:
+    # "extending/add-build-essential-extend/Dockerfile": "https://github.com/apache/airflow/issues/XX",
+}
 
 
 @lru_cache(maxsize=None)
@@ -52,10 +57,24 @@ def test_shell_script_example(script_file):
     run_command(["bash", script_file])
 
 
-@pytest.mark.parametrize("dockerfile", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/Dockerfile", recursive=True))
-def test_dockerfile_example(dockerfile, tmp_path):
-    rel_dockerfile_path = Path(dockerfile).relative_to(DOCKER_EXAMPLES_DIR)
-    image_name = str(rel_dockerfile_path).lower().replace("/", "-")
+def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
+    xfails = xfails or {}
+    result = []
+    for filepath in sorted(directory.rglob("**/Dockerfile")):
+        markers = []
+        rel_path = filepath.relative_to(directory).as_posix()
+        if xfail_reason := xfails.get(rel_path):
+            markers.append(pytest.mark.xfail(reason=xfail_reason))
+        result.append(pytest.param(filepath, rel_path, marks=markers, id=rel_path))
+    return result
+
+
+@pytest.mark.parametrize(
+    "dockerfile, relative_path",
+    docker_examples(DOCKER_EXAMPLES_DIR, xfails=QUARANTINED_DOCKER_EXAMPLES),
+)
+def test_dockerfile_example(dockerfile, relative_path, tmp_path):
+    image_name = relative_path.lower().replace("/", "-")
     content = Path(dockerfile).read_text()
     test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
 

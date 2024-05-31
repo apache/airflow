@@ -29,6 +29,9 @@ from airflow.utils.db import compare_server_default, compare_type
 
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions."""
+    # Ignore the sqlite_sequence table, which is an internal SQLite construct
+    if name == "sqlite_sequence":
+        return False
     # Ignore _anything_ to do with Celery, or FlaskSession's tables
     if type_ == "table" and (name.startswith("celery_") or name == "session"):
         return False
@@ -91,6 +94,14 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
+
+    def process_revision_directives(context, revision, directives):
+        if getattr(config.cmd_opts, "autogenerate", False):
+            script = directives[0]
+            if script.upgrade_ops and script.upgrade_ops.is_empty():
+                directives[:] = []
+                print("No change detected in ORM schema, skipping revision.")
+
     with contextlib.ExitStack() as stack:
         connection = config.attributes.get("connection", None)
 
@@ -105,6 +116,7 @@ def run_migrations_online():
             compare_server_default=compare_server_default,
             include_object=include_object,
             render_as_batch=True,
+            process_revision_directives=process_revision_directives,
         )
 
         with context.begin_transaction():

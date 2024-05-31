@@ -590,7 +590,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
 
     sync_hook_class = PubSubHook
 
-    def __init__(self, project_id: str | None = None, **kwargs: Any):
+    def __init__(self, project_id: str = PROVIDE_PROJECT_ID, **kwargs: Any):
         super().__init__(**kwargs)
         self.project_id = project_id
         self._client: SubscriberAsyncClient | None = None

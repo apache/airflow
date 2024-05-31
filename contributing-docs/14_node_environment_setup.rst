@@ -27,7 +27,7 @@ found with node\>=8.11.3 and yarn\>=1.19.1. The pre-commit framework of ours ins
 node and yarn automatically when installed - if you use ``breeze`` you do not need to install
 neither node nor yarn.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Installing yarn and its packages manually
 -----------------------------------------

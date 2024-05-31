@@ -81,6 +81,7 @@ if TYPE_CHECKING:
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.triggers.base import BaseTrigger
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -171,7 +172,7 @@ class OperatorPartial:
                 task_id = repr(self.kwargs["task_id"])
             except KeyError:
                 task_id = f"at {hex(id(self))}"
-            warnings.warn(f"Task {task_id} was never mapped!")
+            warnings.warn(f"Task {task_id} was never mapped!", category=UserWarning, stacklevel=1)
 
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
         if not mapped_kwargs:
@@ -236,6 +237,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
+            start_trigger=self.operator_class.start_trigger,
+            next_method=self.operator_class.next_method,
         )
         return op
 
@@ -278,6 +281,9 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
+    start_trigger: BaseTrigger | None
+    next_method: str | None
+    _needs_expansion: bool = True
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -306,6 +312,8 @@ class MappedOperator(AbstractOperator):
         (
             "parse_time_mapped_ti_count",
             "operator_class",
+            "start_trigger",
+            "next_method",
         )
     )
 
@@ -799,7 +807,12 @@ class MappedOperator(AbstractOperator):
         return parent_count * current_count
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        current_count = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        from airflow.serialization.serialized_objects import _ExpandInputRef
+
+        exp_input = self._get_specified_expand_input()
+        if isinstance(exp_input, _ExpandInputRef):
+            exp_input = exp_input.deref(self.dag)
+        current_count = exp_input.get_total_map_length(run_id, session=session)
         try:
             parent_count = super().get_mapped_ti_count(run_id, session=session)
         except NotMapped:

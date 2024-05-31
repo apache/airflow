@@ -312,6 +312,7 @@ class AzureSynapsePipelineHook(BaseAzureSynapseHook):
             warnings.warn(
                 "The usage of `default_conn_name=azure_synapse_connection` is deprecated and will be removed in future. Please update your code to use the new default connection name: `default_conn_name=azure_synapse_default`. ",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self._conn: ArtifactsClient | None = None
         self.azure_synapse_workspace_dev_endpoint = azure_synapse_workspace_dev_endpoint

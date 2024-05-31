@@ -125,6 +125,8 @@ class TestGKEStartPodTrigger:
             "should_delete_pod": SHOULD_DELETE_POD,
             "gcp_conn_id": GCP_CONN_ID,
             "impersonation_chain": IMPERSONATION_CHAIN,
+            "last_log_time": None,
+            "logging_interval": None,
         }
 
     @pytest.mark.asyncio

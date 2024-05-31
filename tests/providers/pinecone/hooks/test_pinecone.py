@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import Mock, patch
 
 from airflow.providers.pinecone.hooks.pinecone import PineconeHook
@@ -28,13 +29,15 @@ class TestPineconeHook:
         with patch("airflow.models.Connection.get_connection_from_secrets") as mock_get_connection:
             mock_conn = Mock()
             mock_conn.host = "pinecone.io"
-            mock_conn.login = "test_user"
-            mock_conn.password = "test_password"
+            mock_conn.login = "us-west1-gcp"  # Pinecone Environment
+            mock_conn.password = "test_password"  # Pinecone API Key
+            mock_conn.extra_dejson = {"region": "us-east-1", "debug_curl": True}
             mock_get_connection.return_value = mock_conn
             self.pinecone_hook = PineconeHook()
+            self.pinecone_hook.conn
             self.index_name = "test_index"
 
-    @patch("airflow.providers.pinecone.hooks.pinecone.pinecone.Index")
+    @patch("airflow.providers.pinecone.hooks.pinecone.Pinecone.Index")
     def test_upsert(self, mock_index):
         """Test the upsert_data_async method of PineconeHook for correct data insertion asynchronously."""
         data = [("id1", [1.0, 2.0, 3.0], {"meta": "data"})]
@@ -49,11 +52,38 @@ class TestPineconeHook:
         self.pinecone_hook.list_indexes()
         mock_list_indexes.assert_called_once()
 
+    @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.list_indexes")
+    def test_debug_curl_setting(self, mock_list_indexes):
+        """Test that the PINECONE_DEBUG_CURL environment variable is set when initializing Pinecone Object."""
+        self.pinecone_hook.list_indexes()
+        mock_list_indexes.assert_called_once()
+        assert os.environ.get("PINECONE_DEBUG_CURL") == "true"
+
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.create_index")
-    def test_create_index(self, mock_create_index):
-        """Test that the create_index method of PineconeHook is called with correct arguments."""
-        self.pinecone_hook.create_index(index_name=self.index_name, dimension=128)
-        mock_create_index.assert_called_once_with(index_name="test_index", dimension=128)
+    def test_create_index_for_pod_based(self, mock_create_index):
+        """Test that the create_index method of PineconeHook is called with correct arguments for pod based index."""
+        pod_spec = self.pinecone_hook.get_pod_spec_obj()
+        self.pinecone_hook.create_index(index_name=self.index_name, dimension=128, spec=pod_spec)
+        mock_create_index.assert_called_once_with(index_name="test_index", dimension=128, spec=pod_spec)
+
+    @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.create_index")
+    def test_create_index_for_serverless_based(self, mock_create_index):
+        """Test that the create_index method of PineconeHook is called with correct arguments for serverless index."""
+        serverless_spec = self.pinecone_hook.get_serverless_spec_obj(cloud="aws")
+        self.pinecone_hook.create_index(index_name=self.index_name, dimension=128, spec=serverless_spec)
+        mock_create_index.assert_called_once_with(
+            index_name="test_index", dimension=128, spec=serverless_spec
+        )
+
+    def test_get_pod_spec_obj(self):
+        """Test that the get_pod_spec_obj method of PineconeHook returns the correct pod spec object."""
+        pod_spec = self.pinecone_hook.get_pod_spec_obj()
+        assert pod_spec.environment == "us-west1-gcp"
+
+    def test_get_serverless_spec_obj(self):
+        """Test that the get_serverless_spec_obj method of PineconeHook returns the correct serverless spec object."""
+        serverless_spec = self.pinecone_hook.get_serverless_spec_obj(cloud="gcp")
+        assert serverless_spec.region == "us-east-1"
 
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.describe_index")
     def test_describe_index(self, mock_describe_index):

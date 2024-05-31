@@ -63,6 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -627,7 +628,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         *,
         cluster_name: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         cluster_config: dict | Cluster | None = None,
         virtual_cluster_config: dict | None = None,
         labels: dict | None = None,
@@ -815,6 +816,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                             gcp_conn_id=self.gcp_conn_id,
                             impersonation_chain=self.impersonation_chain,
                             polling_interval_seconds=self.polling_interval_seconds,
+                            delete_on_error=self.delete_on_error,
                         ),
                         method_name="execute_complete",
                     )
@@ -928,7 +930,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         self,
         *,
         cluster_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         region: str = "global",
         num_workers: int = 2,
         num_preemptible_workers: int = 0,
@@ -1047,7 +1049,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         *,
         region: str,
         cluster_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         cluster_uuid: str | None = None,
         request_id: str | None = None,
         retry: AsyncRetry | _MethodDefault = DEFAULT,
@@ -1173,7 +1175,7 @@ class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
         *,
         cluster_name: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         cluster_uuid: str | None = None,
         request_id: str | None = None,
         retry: AsyncRetry | _MethodDefault = DEFAULT,
@@ -1372,7 +1374,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         region: str,
         job_name: str = "{{task.task_id}}_{{ds_nodash}}",
         cluster_name: str = "cluster-1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         dataproc_properties: dict | None = None,
         dataproc_jars: list[str] | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -2021,7 +2023,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @staticmethod
     def _generate_temp_filename(filename):
-        return f"{time:%Y%m%d%H%M%S}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
+        return f"{time.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""
@@ -2135,7 +2137,7 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         *,
         template: dict,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -2229,7 +2231,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         *,
         template_id: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         version: int | None = None,
         request_id: str | None = None,
         parameters: dict[str, str] | None = None,
@@ -2376,7 +2378,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         *,
         template: dict,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -2513,7 +2515,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         *,
         job: dict,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -2590,6 +2592,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     polling_interval_seconds=self.polling_interval_seconds,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 method_name="execute_complete",
             )
@@ -2682,7 +2685,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         graceful_decommission_timeout: dict | Duration,
         region: str,
         request_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -2816,7 +2819,7 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
         *,
         region: str,
         cluster_name: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         tarball_gcs_dir: str | None = None,
         diagnosis_interval: dict | Interval | None = None,
         jobs: MutableSequence[str] | None = None,
@@ -2954,7 +2957,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self,
         *,
         region: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         batch: dict | Batch,
         batch_id: str,
         request_id: str | None = None,
@@ -3146,7 +3149,7 @@ class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -3210,7 +3213,7 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -3285,7 +3288,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         self,
         *,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         page_token: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -3358,7 +3361,7 @@ class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
         *,
         operation_name: str,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),

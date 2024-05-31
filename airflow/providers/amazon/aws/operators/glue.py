@@ -64,6 +64,7 @@ class GlueJobOperator(BaseOperator):
         (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
+    :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
     :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
     """
 
@@ -105,6 +106,7 @@ class GlueJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         verbose: bool = False,
+        replace_script_file: bool = False,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
@@ -130,6 +132,7 @@ class GlueJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
         self.update_config = update_config
+        self.replace_script_file = replace_script_file
         self.deferrable = deferrable
         self.job_poll_interval = job_poll_interval
         self.stop_job_run_on_kill = stop_job_run_on_kill
@@ -143,7 +146,10 @@ class GlueJobOperator(BaseOperator):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(
-                self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket
+                self.script_location,
+                self.s3_artifacts_prefix + script_name,
+                bucket_name=self.s3_bucket,
+                replace=self.replace_script_file,
             )
             s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
         else:

@@ -22,6 +22,7 @@ Revises: 54bebd308c5f
 Create Date: 2021-06-09 08:28:02.089817
 
 """
+
 from __future__ import annotations
 
 from alembic import op

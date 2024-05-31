@@ -26,9 +26,10 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, overload
+from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
 
 from pendulum import DateTime
+from sqlalchemy.orm import Session
 
 from airflow.configuration import AirflowConfigParser
 from airflow.datasets import Dataset
@@ -56,13 +57,27 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
-class DatasetEventAccessor:
+class OutletEventAccessor:
+    def __init__(self, *, extra: dict[str, Any]) -> None: ...
     extra: dict[str, Any]
 
-class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
+class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor: ...
+    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor: ...
+
+class InletEventsAccessor(Sequence[DatasetEvent]):
+    @overload
+    def __getitem__(self, key: int) -> DatasetEvent: ...
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[DatasetEvent]: ...
+    def __len__(self) -> int: ...
+
+class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
+    def __init__(self, inlets: list, *, session: Session) -> None: ...
+    def __iter__(self) -> Iterator[str]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: int | str | Dataset) -> InletEventsAccessor: ...
 
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
@@ -74,13 +89,14 @@ class Context(TypedDict, total=False):
     dag_run: DagRun | DagRunPydantic
     data_interval_end: DateTime
     data_interval_start: DateTime
-    dataset_events: DatasetEventAccessors
+    outlet_events: OutletEventAccessors
     ds: str
     ds_nodash: str
     exception: BaseException | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
+    inlet_events: InletEventsAccessors
     logical_date: DateTime
     macros: Any
     map_index_template: str
@@ -127,4 +143,4 @@ def context_merge(context: Context, **kwargs: Any) -> None: ...
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...
 def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...
-def context_get_dataset_events(context: Context) -> DatasetEventAccessors: ...
+def context_get_outlet_events(context: Context) -> OutletEventAccessors: ...

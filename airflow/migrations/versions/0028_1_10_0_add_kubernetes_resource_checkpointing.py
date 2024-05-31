@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add Kubernetes resource check-pointing
+"""Add Kubernetes resource check-pointing.
 
 Revision ID: 33ae817a1ff4
-Revises: 947454bf1dff
+Revises: d2ae31099d61
 Create Date: 2017-09-11 15:26:47.598494
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

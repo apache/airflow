@@ -22,14 +22,22 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from typing import Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.api_core.exceptions import NotFound
-from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
-from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 
 class DataprocBaseTrigger(BaseTrigger):
@@ -38,10 +46,12 @@ class DataprocBaseTrigger(BaseTrigger):
     def __init__(
         self,
         region: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,
+        cancel_on_kill: bool = True,
+        delete_on_error: bool = True,
     ):
         super().__init__()
         self.region = region
@@ -49,9 +59,21 @@ class DataprocBaseTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_interval_seconds = polling_interval_seconds
+        self.cancel_on_kill = cancel_on_kill
+        self.delete_on_error = delete_on_error
 
     def get_async_hook(self):
         return DataprocAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def get_sync_hook(self):
+        # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+        # This is because the asynchronous hook deletion is not awaited when the trigger task
+        # is cancelled. The call for deleting the cluster or job through the sync hook is not a blocking
+        # call, which means it does not wait until the cluster or job is deleted.
+        return DataprocHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
@@ -90,20 +112,78 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
-    async def run(self):
-        while True:
-            job = await self.get_async_hook().get_job(
-                project_id=self.project_id, region=self.region, job_id=self.job_id
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
             )
-            state = job.status.state
-            self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
-                break
-            await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        # Database query is needed to get the latest state of the task instance.
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state != TaskInstanceState.DEFERRED
+
+    async def run(self):
+        try:
+            while True:
+                job = await self.get_async_hook().get_job(
+                    project_id=self.project_id, region=self.region, job_id=self.job_id
+                )
+                state = job.status.state
+                self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
+                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
+                    break
+                await asyncio.sleep(self.polling_interval_seconds)
+            yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+        except asyncio.CancelledError:
+            self.log.info("Task got cancelled.")
+            try:
+                if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
+                    self.log.info(
+                        "Cancelling the job as it is safe to do so. Note that the airflow TaskInstance is not"
+                        " in deferred state."
+                    )
+                    self.log.info("Cancelling the job: %s", self.job_id)
+                    # The synchronous hook is utilized to delete the cluster when a task is cancelled. This
+                    # is because the asynchronous hook deletion is not awaited when the trigger task is
+                    # cancelled. The call for deleting the cluster or job through the sync hook is not a
+                    # blocking call, which means it does not wait until the cluster or job is deleted.
+                    self.get_sync_hook().cancel_job(
+                        job_id=self.job_id, project_id=self.project_id, region=self.region
+                    )
+                    self.log.info("Job: %s is cancelled", self.job_id)
+                    yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
+            except Exception as e:
+                self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
+                raise e
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
@@ -139,24 +219,107 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
+                "delete_on_error": self.delete_on_error,
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        while True:
-            cluster = await self.get_async_hook().get_cluster(
-                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
             )
-            state = cluster.status.state
-            self.log.info("Dataproc cluster: %s is in state: %s", self.cluster_name, state)
-            if state in (
-                ClusterStatus.State.ERROR,
-                ClusterStatus.State.RUNNING,
-            ):
-                break
-            self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
-            await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"cluster_name": self.cluster_name, "cluster_state": state, "cluster": cluster})
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        # Database query is needed to get the latest state of the task instance.
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state != TaskInstanceState.DEFERRED
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        try:
+            while True:
+                cluster = await self.fetch_cluster()
+                state = cluster.status.state
+                if state == ClusterStatus.State.ERROR:
+                    await self.delete_when_error_occurred(cluster)
+                    yield TriggerEvent(
+                        {
+                            "cluster_name": self.cluster_name,
+                            "cluster_state": ClusterStatus.State.DELETING,
+                            "cluster": cluster,
+                        }
+                    )
+                    return
+                elif state == ClusterStatus.State.RUNNING:
+                    yield TriggerEvent(
+                        {
+                            "cluster_name": self.cluster_name,
+                            "cluster_state": state,
+                            "cluster": cluster,
+                        }
+                    )
+                    return
+                self.log.info("Current state is %s", state)
+                self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
+                await asyncio.sleep(self.polling_interval_seconds)
+        except asyncio.CancelledError:
+            try:
+                if self.delete_on_error and self.safe_to_cancel():
+                    self.log.info(
+                        "Deleting the cluster as it is safe to delete as the airflow TaskInstance is not in "
+                        "deferred state."
+                    )
+                    self.log.info("Deleting cluster %s.", self.cluster_name)
+                    # The synchronous hook is utilized to delete the cluster when a task is cancelled.
+                    # This is because the asynchronous hook deletion is not awaited when the trigger task
+                    # is cancelled. The call for deleting the cluster through the sync hook is not a blocking
+                    # call, which means it does not wait until the cluster is deleted.
+                    self.get_sync_hook().delete_cluster(
+                        region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
+                    )
+                    self.log.info("Deleted cluster %s during cancellation.", self.cluster_name)
+            except Exception as e:
+                self.log.error("Error during cancellation handling: %s", e)
+                raise AirflowException("Error during cancellation handling: %s", e)
+
+    async def fetch_cluster(self) -> Cluster:
+        """Fetch the cluster status."""
+        return await self.get_async_hook().get_cluster(
+            project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
+        )
+
+    async def delete_when_error_occurred(self, cluster: Cluster) -> None:
+        """
+        Delete the cluster on error.
+
+        :param cluster: The cluster to delete.
+        """
+        if self.delete_on_error:
+            self.log.info("Deleting cluster %s.", self.cluster_name)
+            await self.get_async_hook().delete_cluster(
+                region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
+            )
+            self.log.info("Cluster %s has been deleted.", self.cluster_name)
+        else:
+            self.log.info("Cluster %s is not deleted as delete_on_error is set to False.", self.cluster_name)
 
 
 class DataprocBatchTrigger(DataprocBaseTrigger):

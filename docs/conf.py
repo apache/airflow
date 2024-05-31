@@ -57,10 +57,11 @@ ROOT_DIR = CONF_DIR.parent
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
 PACKAGE_DIR: pathlib.Path
+SYSTEM_TESTS_DIR: pathlib.Path | None
 if PACKAGE_NAME == "apache-airflow":
     PACKAGE_DIR = ROOT_DIR / "airflow"
     PACKAGE_VERSION = airflow.__version__
-    SYSTEM_TESTS_DIR = None
+    SYSTEM_TESTS_DIR = (ROOT_DIR / "tests" / "system" / "core").resolve(strict=True)
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
@@ -454,7 +455,7 @@ def get_configs_and_deprecations(
     # the config has been templated, not before
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
-    for conf_name, conf_section in configs.items():
+    for conf_section in configs.values():
         for option_name, option in list(conf_section["options"].items()):
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
@@ -464,7 +465,7 @@ def get_configs_and_deprecations(
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
-    for section_name, config in configs.items():
+    for config in configs.values():
         config["options"] = {k: v for k, v in sorted(config["options"].items())}
     configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:

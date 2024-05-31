@@ -45,12 +45,11 @@ from airflow.exceptions import (
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
-    add_pod_suffix,
     add_unique_suffix,
     rand_str,
 )
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
-    PodDefaults,
+    PodDefaults as PodDefaultsDeprecated,
     PodGenerator as PodGeneratorDeprecated,
 )
 from airflow.utils import yaml
@@ -156,12 +155,15 @@ class PodGenerator:
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
-    @deprecated(reason="This function is deprecated.", category=AirflowProviderDeprecationWarning)
+    @deprecated(
+        reason="This method is deprecated and will be removed in the future releases",
+        category=AirflowProviderDeprecationWarning,
+    )
     def gen_pod(self) -> k8s.V1Pod:
         """Generate pod."""
         result = self.ud_pod
 
-        result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
+        result.metadata.name = add_unique_suffix(name=result.metadata.name)
 
         if self.extract_xcom:
             result = self.add_xcom_sidecar(result)
@@ -180,10 +182,10 @@ class PodGenerator:
         """Add sidecar."""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
-        pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
+        pod_cp.spec.volumes.insert(0, PodDefaultsDeprecated.VOLUME)
         pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
-        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
+        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaultsDeprecated.VOLUME_MOUNT)
+        pod_cp.spec.containers.append(PodDefaultsDeprecated.SIDECAR_CONTAINER)
 
         return pod_cp
 
@@ -210,8 +212,8 @@ class PodGenerator:
             return k8s_object
         elif isinstance(k8s_legacy_object, dict):
             warnings.warn(
-                "Using a dictionary for the executor_config is deprecated and will soon be removed."
-                'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
+                "Using a dictionary for the executor_config is deprecated and will soon be removed. "
+                'Please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
                 " instead. ",
                 category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
@@ -575,7 +577,7 @@ class PodGenerator:
 
     @staticmethod
     @deprecated(
-        reason="This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
+        reason="This method is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
         category=AirflowProviderDeprecationWarning,
     )
     def make_unique_pod_id(pod_id: str) -> str | None:
@@ -595,12 +597,6 @@ class PodGenerator:
         :param pod_id: requested pod name
         :return: ``str`` valid Pod name of appropriate length
         """
-        warnings.warn(
-            "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         if not pod_id:
             return None
 
