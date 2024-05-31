@@ -56,6 +56,7 @@ from airflow.models.dataset import (
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -721,6 +722,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
+
+            ti_history = TaskInstanceHistory(ti, state=ti.state)
+            session.merge(ti_history)
 
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
