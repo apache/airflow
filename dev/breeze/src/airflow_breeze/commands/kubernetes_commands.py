@@ -596,17 +596,19 @@ def _rebuild_k8s_image(
         f"airflow base image: {params.airflow_image_name_with_tag}\n"
     )
     if copy_local_sources:
-        extra_copy_command = "COPY . /opt/airflow/"
+        extra_copy_command = "COPY --chown=airflow:0 . /opt/airflow/"
     else:
         extra_copy_command = ""
     docker_image_for_kubernetes_tests = f"""
 FROM {params.airflow_image_name_with_tag}
 
+USER airflow
+
 {extra_copy_command}
 
-COPY airflow/example_dags/ /opt/airflow/dags/
+COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
 
-COPY airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+COPY --chown=airflow:0 airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """

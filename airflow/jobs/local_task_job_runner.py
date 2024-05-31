@@ -232,8 +232,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         # Without setting this, heartbeat may get us
         self.terminating = True
         self._log_return_code_metric(return_code)
-        is_deferral = return_code == TaskReturnCode.DEFERRED.value
-        if is_deferral:
+
+        if is_deferral := return_code == TaskReturnCode.DEFERRED.value:
             self.log.info("Task exited with return code %s (task deferral)", return_code)
             _set_task_deferred_context_var()
         else:

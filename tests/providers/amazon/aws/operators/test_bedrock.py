@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCustomizeModelOperator,
     BedrockIngestDataOperator,
     BedrockInvokeModelOperator,
+    BedrockRaGOperator,
 )
 
 if TYPE_CHECKING:
@@ -346,3 +347,176 @@ class TestBedrockIngestDataOperator:
         result = self.operator.execute({})
 
         assert result == self.INGESTION_JOB_ID
+
+
+class TestBedrockRaGOperator:
+    VECTOR_SEARCH_CONFIG = {"filter": {"equals": {"key": "some key", "value": "some value"}}}
+    KNOWLEDGE_BASE_ID = "knowledge_base_id"
+    SOURCES = [{"sourceType": "S3", "s3Location": "bucket"}]
+    MODEL_ARN = "model arn"
+
+    @pytest.mark.parametrize(
+        "source_type, vector_search_config, knowledge_base_id, sources, expect_success",
+        [
+            pytest.param(
+                "invalid_source_type",
+                None,
+                None,
+                None,
+                False,
+                id="invalid_source_type",
+            ),
+            pytest.param(
+                "KNOWLEDGE_BASE",
+                VECTOR_SEARCH_CONFIG,
+                None,
+                None,
+                False,
+                id="KNOWLEDGE_BASE_without_knowledge_base_id_fails",
+            ),
+            pytest.param(
+                "KNOWLEDGE_BASE",
+                None,
+                KNOWLEDGE_BASE_ID,
+                None,
+                True,
+                id="KNOWLEDGE_BASE_passes",
+            ),
+            pytest.param(
+                "KNOWLEDGE_BASE",
+                VECTOR_SEARCH_CONFIG,
+                KNOWLEDGE_BASE_ID,
+                SOURCES,
+                False,
+                id="KNOWLEDGE_BASE_with_sources_fails",
+            ),
+            pytest.param(
+                "KNOWLEDGE_BASE",
+                VECTOR_SEARCH_CONFIG,
+                KNOWLEDGE_BASE_ID,
+                None,
+                True,
+                id="KNOWLEDGE_BASE_with_vector_config_passes",
+            ),
+            pytest.param(
+                "EXTERNAL_SOURCES",
+                VECTOR_SEARCH_CONFIG,
+                None,
+                SOURCES,
+                False,
+                id="EXTERNAL_SOURCES_with_search_config_fails",
+            ),
+            pytest.param(
+                "EXTERNAL_SOURCES",
+                None,
+                KNOWLEDGE_BASE_ID,
+                SOURCES,
+                False,
+                id="EXTERNAL_SOURCES_with_knohwledge_base_id_fails",
+            ),
+            pytest.param(
+                "EXTERNAL_SOURCES",
+                None,
+                None,
+                SOURCES,
+                True,
+                id="EXTERNAL_SOURCES_with_sources_passes",
+            ),
+        ],
+    )
+    def test_input_validation(
+        self, source_type, vector_search_config, knowledge_base_id, sources, expect_success
+    ):
+        op = BedrockRaGOperator(
+            task_id="test_rag",
+            input="some text prompt",
+            source_type=source_type,
+            model_arn=self.MODEL_ARN,
+            knowledge_base_id=knowledge_base_id,
+            vector_search_config=vector_search_config,
+            sources=sources,
+        )
+
+        if expect_success:
+            op.validate_inputs()
+        else:
+            with pytest.raises(AttributeError):
+                op.validate_inputs()
+
+    @pytest.mark.parametrize(
+        "prompt_template",
+        [
+            pytest.param(None, id="no_prompt_template"),
+            pytest.param("valid template", id="prompt_template_provided"),
+        ],
+    )
+    def test_knowledge_base_build_rag_config(self, prompt_template):
+        expected_source_type = "KNOWLEDGE_BASE"
+        op = BedrockRaGOperator(
+            task_id="test_rag",
+            input="some text prompt",
+            source_type=expected_source_type,
+            model_arn=self.MODEL_ARN,
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+            vector_search_config=self.VECTOR_SEARCH_CONFIG,
+            prompt_template=prompt_template,
+        )
+        expected_config_without_template = {
+            "knowledgeBaseId": self.KNOWLEDGE_BASE_ID,
+            "modelArn": self.MODEL_ARN,
+            "retrievalConfiguration": {"vectorSearchConfiguration": self.VECTOR_SEARCH_CONFIG},
+        }
+        expected_config_template = {
+            "generationConfiguration": {"promptTemplate": {"textPromptTemplate": prompt_template}}
+        }
+        config = op.build_rag_config()
+
+        assert len(config.keys()) == 2
+        assert config.get("knowledgeBaseConfiguration", False)
+        assert config["type"] == expected_source_type
+
+        if not prompt_template:
+            assert config["knowledgeBaseConfiguration"] == expected_config_without_template
+        else:
+            assert config["knowledgeBaseConfiguration"] == {
+                **expected_config_without_template,
+                **expected_config_template,
+            }
+
+    @pytest.mark.parametrize(
+        "prompt_template",
+        [
+            pytest.param(None, id="no_prompt_template"),
+            pytest.param("valid template", id="prompt_template_provided"),
+        ],
+    )
+    def test_external_sources_build_rag_config(self, prompt_template):
+        expected_source_type = "EXTERNAL_SOURCES"
+        op = BedrockRaGOperator(
+            task_id="test_rag",
+            input="some text prompt",
+            source_type=expected_source_type,
+            model_arn=self.MODEL_ARN,
+            sources=self.SOURCES,
+            prompt_template=prompt_template,
+        )
+        expected_config_without_template = {
+            "modelArn": self.MODEL_ARN,
+            "sources": self.SOURCES,
+        }
+        expected_config_template = {
+            "generationConfiguration": {"promptTemplate": {"textPromptTemplate": prompt_template}}
+        }
+        config = op.build_rag_config()
+
+        assert len(config.keys()) == 2
+        assert config.get("externalSourcesConfiguration", False)
+        assert config["type"] == expected_source_type
+
+        if not prompt_template:
+            assert config["externalSourcesConfiguration"] == expected_config_without_template
+        else:
+            assert config["externalSourcesConfiguration"] == {
+                **expected_config_without_template,
+                **expected_config_template,
+            }

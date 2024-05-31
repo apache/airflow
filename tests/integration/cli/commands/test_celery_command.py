@@ -29,7 +29,7 @@ from tests.test_utils.config import conf_vars
 
 
 @pytest.mark.integration("celery")
-@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.backend("postgres")
 class TestWorkerServeLogs:
     @classmethod
     def setup_class(cls):

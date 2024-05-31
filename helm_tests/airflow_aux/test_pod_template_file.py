@@ -19,7 +19,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from shutil import copyfile, copytree
-from tempfile import TemporaryDirectory
 
 import jmespath
 import pytest
@@ -28,22 +27,26 @@ from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_
 from tests.charts.helm_template_generator import render_chart
 
 
-@pytest.fixture(scope="class", autouse=True)
-def isolate_chart(request):
+@pytest.fixture(scope="class")
+def isolate_chart(request, tmp_path_factory) -> Path:
     chart_dir = Path(__file__).parents[2] / "chart"
-    with TemporaryDirectory(prefix=request.cls.__name__) as tmp_dir:
-        temp_chart_dir = Path(tmp_dir) / "chart"
-        copytree(chart_dir, temp_chart_dir)
-        copyfile(
-            temp_chart_dir / "files/pod-template-file.kubernetes-helm-yaml",
-            temp_chart_dir / "templates/pod-template-file.yaml",
-        )
-        request.cls.temp_chart_dir = str(temp_chart_dir)
-        yield
+    tmp_dir = tmp_path_factory.mktemp(request.cls.__name__)
+    temp_chart_dir = tmp_dir / "chart"
+
+    copytree(chart_dir, temp_chart_dir)
+    copyfile(
+        temp_chart_dir / "files/pod-template-file.kubernetes-helm-yaml",
+        temp_chart_dir / "templates/pod-template-file.yaml",
+    )
+    return temp_chart_dir
 
 
 class TestPodTemplateFile:
     """Tests pod template file."""
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, isolate_chart):
+        self.temp_chart_dir = isolate_chart.as_posix()
 
     def test_should_work(self):
         docs = render_chart(

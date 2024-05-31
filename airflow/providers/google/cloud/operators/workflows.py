@@ -41,11 +41,8 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
     from airflow.utils.context import Context
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    # Remove when Airflow providers min Airflow version is "2.7.0"
-    from hashlib import md5
+
+from airflow.utils.hashlib_wrapper import md5
 
 
 class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):

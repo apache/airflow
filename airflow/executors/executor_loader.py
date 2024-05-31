@@ -202,10 +202,10 @@ class ExecutorLoader:
         elif executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
         else:
-            raise AirflowException(f"Unknown executor being loaded: {executor_name}")
+            raise AirflowException(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
-    def load_executor(cls, executor_name: ExecutorName | str) -> BaseExecutor:
+    def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:
         """
         Load the executor.
 
@@ -217,7 +217,9 @@ class ExecutorLoader:
 
         :return: an instance of executor class via executor_name
         """
-        if isinstance(executor_name, str):
+        if not executor_name:
+            _executor_name = cls.get_default_executor_name()
+        elif isinstance(executor_name, str):
             _executor_name = cls.lookup_executor_name_by_str(executor_name)
         else:
             _executor_name = executor_name

@@ -77,4 +77,6 @@ class TestSagemakerTrigger:
         generator = sagemaker_trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "success", "message": "Job completed."})
+        assert response == TriggerEvent(
+            {"status": "success", "message": "Job completed.", "job_name": JOB_NAME}
+        )

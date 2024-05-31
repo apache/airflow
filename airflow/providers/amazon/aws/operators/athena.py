@@ -266,7 +266,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if self.output_location:
             parsed = urlparse(self.output_location)
-            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path or "/"))
 
         return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
 

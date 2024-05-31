@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "BigQueryErrorRunFacet": {
+        "allOf": [
+          {
+            "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientError": {
+                "type": "string"
+              },
+              "parserError": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "type": "object"
+      }
+    },
+    "type": "object",
+    "properties": {
+      "bigQuery_error": {
+        "$ref": "#/$defs/BigQueryErrorRunFacet"
+      }
+    }
+  }

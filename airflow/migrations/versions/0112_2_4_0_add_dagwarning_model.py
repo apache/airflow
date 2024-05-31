@@ -18,7 +18,7 @@
 """Add DagWarning model.
 
 Revision ID: 424117c37d18
-Revises: 3c94c427fdf6
+Revises: f5fcbda3e651
 Create Date: 2022-04-27 15:57:36.736743
 """
 
