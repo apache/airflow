@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-30T06:47:45.538246
+# This constraints file was automatically generated on 2024-05-31T13:01:23.960480
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -321,7 +321,7 @@ google-api-python-client==2.131.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.29.0
-google-cloud-aiplatform==1.52.0
+google-cloud-aiplatform==1.53.0
 google-cloud-appengine-logging==1.4.3
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
@@ -347,7 +347,7 @@ google-cloud-memcache==1.9.3
 google-cloud-monitoring==2.21.0
 google-cloud-orchestration-airflow==1.12.1
 google-cloud-os-login==2.14.3
-google-cloud-pubsub==2.21.1
+google-cloud-pubsub==2.21.2
 google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
@@ -449,6 +449,7 @@ marshmallow==3.21.2
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.1
 mdurl==0.1.2
+mergedeep==1.3.4
 methodtools==0.4.7
 microsoft-kiota-abstractions==1.3.3
 microsoft-kiota-authentication-azure==1.0.0
@@ -456,7 +457,7 @@ microsoft-kiota-http==1.3.1
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.2.0
-moto==5.0.8
+moto==5.0.9
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.28.0
@@ -466,7 +467,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.110
+mypy-boto3-rds==1.34.116
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.105
 mypy-extensions==1.0.0
@@ -491,15 +492,15 @@ openlineage-python==1.16.0
 openlineage_sql==1.16.0
 openpyxl==3.1.3
 opensearch-py==2.6.0
-opentelemetry-api==1.24.0
-opentelemetry-exporter-otlp-proto-common==1.24.0
-opentelemetry-exporter-otlp-proto-grpc==1.24.0
-opentelemetry-exporter-otlp-proto-http==1.24.0
-opentelemetry-exporter-otlp==1.24.0
-opentelemetry-exporter-prometheus==0.45b0
-opentelemetry-proto==1.24.0
-opentelemetry-sdk==1.24.0
-opentelemetry-semantic-conventions==0.45b0
+opentelemetry-api==1.25.0
+opentelemetry-exporter-otlp-proto-common==1.25.0
+opentelemetry-exporter-otlp-proto-grpc==1.25.0
+opentelemetry-exporter-otlp-proto-http==1.25.0
+opentelemetry-exporter-otlp==1.25.0
+opentelemetry-exporter-prometheus==0.46b0
+opentelemetry-proto==1.25.0
+opentelemetry-sdk==1.25.0
+opentelemetry-semantic-conventions==0.46b0
 opsgenie-sdk==2.1.5
 oracledb==2.2.1
 ordered-set==4.1.0
