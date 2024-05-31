@@ -60,8 +60,6 @@
 - tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_fallback_task
 - tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_not_file_task
 - tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_old_file_task
-- tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_with_allow_nested_operators_false
-- tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_without_allow_nested_operators
 - tests/models/test_cleartasks.py::TestClearTasks::test_dags_clear
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_interval_save_runtime
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_max_active_runs
