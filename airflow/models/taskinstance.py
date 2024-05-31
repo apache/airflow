@@ -1586,13 +1586,16 @@ def _defer_task(
         trigger_kwargs = exception.kwargs
         next_method = exception.method_name
         timeout = exception.timeout
-    else:
+    elif ti.task is not None and ti.task.start_trigger_args is not None:
         trigger_row = Trigger(
-            classpath=ti.task.start_trigger_args.trigger_cls, kwargs=ti.task.start_trigger_args.trigger_kwargs
+            classpath=ti.task.start_trigger_args.trigger_cls,
+            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
         )
         trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
         next_method = ti.task.start_trigger_args.next_method
         timeout = ti.task.start_trigger_args.timeout
+    else:
+        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
 
     # First, make the trigger entry
     session.add(trigger_row)
