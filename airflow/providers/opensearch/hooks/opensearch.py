@@ -67,14 +67,15 @@ class OpenSearchHook(BaseHook):
     @cached_property
     def client(self) -> OpenSearch:
         """This function is intended for Operators that forward high level client objects."""
-        auth = (self.conn.login, self.conn.password)
-        client = OpenSearch(
+        client_args = dict(
             hosts=[{"host": self.conn.host, "port": self.conn.port}],
-            http_auth=auth,
             use_ssl=self.use_ssl,
             verify_certs=self.verify_certs,
             connection_class=self.connection_class,
         )
+        if self.conn.login and self.conn.password:
+            client_args["http_auth"] = (self.conn.login, self.conn.password)
+        client = OpenSearch(**client_args)
         return client
 
     def search(self, query: dict, index_name: str, **kwargs: Any) -> Any:
