@@ -118,7 +118,7 @@ from airflow.utils.context import (
     context_merge,
 )
 from airflow.utils.email import send_email
-from airflow.utils.helpers import prune_dict, render_template_to_string
+from airflow.utils.helpers import exactly_one, prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
@@ -159,7 +159,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
-    from airflow.models.trigger import Trigger
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -1576,38 +1575,32 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 
 @internal_api_call
 @provide_session
-def _defer_task_from_exception(
-    ti: TaskInstance | TaskInstancePydantic, exception: TaskDeferred, session: Session = NEW_SESSION
+def _defer_task(
+    ti: TaskInstance | TaskInstancePydantic,
+    session: Session = NEW_SESSION,
+    *,
+    exception: TaskDeferred | None = None,
+    start_trigger_args: StartTriggerArgs | None = None,
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
 
-    # First, make the trigger entry
-    trigger_row = Trigger.from_object(exception.trigger)
-    updated_ti = _defer_task(
-        ti=ti,
-        session=session,
-        trigger_row=trigger_row,
-        trigger_kwargs=exception.kwargs,
-        next_method=exception.method_name,
-        timeout=exception.timeout,
-    )
+    if not exactly_one(exception, start_trigger_args):
+        raise AirflowException(
+            "One and only one of the arumgent exception and start_trigger_args is required"
+        )
+    elif exception is not None:
+        trigger_row = Trigger.from_object(exception.trigger)
+        trigger_kwargs = exception.kwargs
+        next_method = exception.method_name
+        timeout = exception.timeout
+    elif start_trigger_args is not None:
+        trigger_row = Trigger(
+            classpath=start_trigger_args.trigger_cls, kwargs=start_trigger_args.trigger_kwargs
+        )
+        trigger_kwargs = start_trigger_args.trigger_kwargs
+        next_method = start_trigger_args.next_method
+        timeout = start_trigger_args.timeout
 
-    session.merge(updated_ti)
-    session.commit()
-    return updated_ti
-
-
-@internal_api_call
-@provide_session
-def _defer_task(
-    ti: TaskInstance | TaskInstancePydantic,
-    *,
-    trigger_row: Trigger,
-    trigger_kwargs: dict[str, Any] | None,
-    next_method: str,
-    timeout: timedelta | None = None,
-    session: Session = NEW_SESSION,
-) -> TaskInstancePydantic | TaskInstance:
     # First, make the trigger entry
     session.add(trigger_row)
     session.flush()
@@ -1643,6 +1636,10 @@ def _defer_task(
             ti.trigger_timeout = ti.start_date + execution_timeout
     if ti.test_mode:
         _add_log(event=ti.state, task_instance=ti, session=session)
+
+    if exception is not None:
+        session.merge(ti)
+        session.commit()
     return ti
 
 
@@ -3031,7 +3028,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta: private
         """
-        _defer_task_from_exception(ti=self, session=session, exception=exception)
+        _defer_task(ti=self, session=session, exception=exception)
 
     @provide_session
     def defer_task_from_scheduler(
@@ -3043,20 +3040,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta: private
         """
-        from airflow.models.trigger import Trigger
-
-        # First, make the trigger entry
-        trigger_row = Trigger(
-            classpath=start_trigger_args.trigger_cls, kwargs=start_trigger_args.trigger_kwargs
-        )
-        _defer_task(
-            ti=self,
-            session=session,
-            trigger_row=trigger_row,
-            trigger_kwargs=start_trigger_args.trigger_kwargs,
-            next_method=start_trigger_args.next_method,
-            timeout=start_trigger_args.timeout,
-        )
+        _defer_task(ti=self, session=session, start_trigger_args=start_trigger_args)
 
     def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""
