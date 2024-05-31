@@ -2309,11 +2309,8 @@ class TaskInstance(Base, LoggingMixin):
         if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
             ti.end_date = ti.end_date or current_time
             ti.duration = (ti.end_date - ti.start_date).total_seconds()
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
-        ti_history = TaskInstanceHistory(ti)
         session.merge(ti)
-        session.merge(ti_history)
         return True
 
     @provide_session
