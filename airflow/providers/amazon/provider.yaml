@@ -133,9 +133,9 @@ devel-dependencies:
   - aws_xray_sdk>=2.12.0
   - moto[cloudformation,glue]>=5.0.0
   - mypy-boto3-appflow>=1.33.0
-  - mypy-boto3-rds>=1.33.0
+  - mypy-boto3-rds>=1.34.52
   - mypy-boto3-redshift-data>=1.33.0
-  - mypy-boto3-s3>=1.33.0
+  - mypy-boto3-s3>=1.34.52
   - s3fs>=2023.10.0
   - openapi-schema-validator>=0.6.2
   - openapi-spec-validator>=0.7.1
