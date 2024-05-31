@@ -121,6 +121,7 @@ __lazy_imports = {
     "SlaMiss": "airflow.models.slamiss",
     "TaskFail": "airflow.models.taskfail",
     "TaskInstance": "airflow.models.taskinstance",
+    "TaskInstanceHistory": "airflow.models.taskinstancehistory",
     "TaskReschedule": "airflow.models.taskreschedule",
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
@@ -151,6 +152,7 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.models.taskfail import TaskFail
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
