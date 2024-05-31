@@ -137,16 +137,12 @@ class S3KeySensor(BaseSensorOperator):
                     metadata = self.hook.head_object(f["Key"], bucket_name)
                 else:
                     for key in self.metadata_keys:
-                        # backwards compatibility with original implementation
-                        if key == "Size":
-                            metadata[key] = f.get("ContentLength")
-                        else:
-                            try:
-                                metadata[key] = f[key]
-                            except KeyError:
-                                # supplied key might be from head_object response
-                                self.log.info("Key %s not found in response, performing head_object", key)
-                                metadata[key] = self.hook.head_object(f["Key"], bucket_name).get(key, None)
+                        try:
+                            metadata[key] = f[key]
+                        except KeyError:
+                            # supplied key might be from head_object response
+                            self.log.info("Key %s not found in response, performing head_object", key)
+                            metadata[key] = self.hook.head_object(f["Key"], bucket_name).get(key, None)
                 files.append(metadata)
         elif self.use_regex:
             keys = self.hook.get_file_metadata("", bucket_name)
