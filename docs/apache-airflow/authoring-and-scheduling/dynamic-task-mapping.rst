@@ -174,7 +174,7 @@ This would result in the add task being called 6 times. Please note, however, th
 Named mapping
 -------------
 
-By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
+By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This will typically look like ``map_index_template="{{ task.<property> }}"`` when the expansion looks like ``.expand(<property>=...)``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
 
 .. code-block:: python
 
@@ -190,7 +190,7 @@ By default, mapped tasks are assigned an integer index. It is possible to overri
         parameters=[{"date": "2024-01-01"}, {"date": "2024-01-02"}],
     )
 
-In the above example, the expanded task instances will be named "2024-01-01" and "2024-01-02". The names show up in the Airflow UI instead of "0" and "1", respectively.
+In the above example, the expanded task instances will be named "2024-01-01" and "2024-01-02". The names show up in the Airflow UI instead of "0" and "1", respectively. 
 
 Since the template is rendered after the main execution block, it is possible to also dynamically inject into the rendering context. This is useful when the logic to render a desirable name is difficult to express in the Jinja template syntax, particularly in a taskflow function. For example:
 
