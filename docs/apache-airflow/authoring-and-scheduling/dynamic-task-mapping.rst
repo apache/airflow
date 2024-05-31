@@ -190,7 +190,7 @@ By default, mapped tasks are assigned an integer index. It is possible to overri
         parameters=[{"date": "2024-01-01"}, {"date": "2024-01-02"}],
     )
 
-In the above example, the expanded task instances will be named "2024-01-01" and "2024-01-02". The names show up in the Airflow UI instead of "0" and "1", respectively. 
+In the above example, the expanded task instances will be named "2024-01-01" and "2024-01-02". The names show up in the Airflow UI instead of "0" and "1", respectively.
 
 Since the template is rendered after the main execution block, it is possible to also dynamically inject into the rendering context. This is useful when the logic to render a desirable name is difficult to express in the Jinja template syntax, particularly in a taskflow function. For example:
 
