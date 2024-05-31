@@ -132,6 +132,7 @@ class TestBatchOperator:
         assert batch_job.retry_strategy is None
         assert batch_job.container_overrides is None
         assert batch_job.array_properties is None
+        assert batch_job.ecs_properties_override is None
         assert batch_job.node_overrides is None
         assert batch_job.share_identifier is None
         assert batch_job.scheduling_priority_override is None
@@ -149,6 +150,7 @@ class TestBatchOperator:
             "job_queue",
             "container_overrides",
             "array_properties",
+            "ecs_properties_override",
             "node_overrides",
             "parameters",
             "retry_strategy",
@@ -204,6 +206,62 @@ class TestBatchOperator:
             tags={},
         )
 
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch.object(BatchClientHook, "wait_for_job")
+    @mock.patch.object(BatchClientHook, "check_job_success")
+    def test_execute_with_ecs_overrides(self, check_mock, wait_mock, job_description_mock):
+        self.batch.container_overrides = None
+        self.batch.ecs_properties_override = {
+            "taskProperties": [
+                {
+                    "containers": [
+                        {
+                            "command": [
+                                "string",
+                            ],
+                            "environment": [
+                                {"name": "string", "value": "string"},
+                            ],
+                            "name": "string",
+                            "resourceRequirements": [
+                                {"value": "string", "type": "'GPU'|'VCPU'|'MEMORY'"},
+                            ],
+                        },
+                    ]
+                },
+            ]
+        }
+        self.batch.execute(self.mock_context)
+
+        self.client_mock.submit_job.assert_called_once_with(
+            jobQueue="queue",
+            jobName=JOB_NAME,
+            jobDefinition="hello-world",
+            ecsPropertiesOverride={
+                "taskProperties": [
+                    {
+                        "containers": [
+                            {
+                                "command": [
+                                    "string",
+                                ],
+                                "environment": [
+                                    {"name": "string", "value": "string"},
+                                ],
+                                "name": "string",
+                                "resourceRequirements": [
+                                    {"value": "string", "type": "'GPU'|'VCPU'|'MEMORY'"},
+                                ],
+                            },
+                        ]
+                    },
+                ]
+            },
+            parameters={},
+            retryStrategy={"attempts": 1},
+            tags={},
+        )
+
     @mock.patch.object(BatchClientHook, "check_job_success")
     def test_wait_job_complete_using_waiters(self, check_mock):
         mock_waiters = mock.Mock()
@@ -238,7 +296,7 @@ class TestBatchOperator:
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
-    @pytest.mark.parametrize("override", ["overrides", "node_overrides"])
+    @pytest.mark.parametrize("override", ["overrides", "node_overrides", "ecs_properties_override"])
     @patch(
         "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
         new_callable=mock.PropertyMock,
@@ -269,10 +327,15 @@ class TestBatchOperator:
             "parameters": {},
             "tags": {},
         }
-        if override == "overrides":
-            expected_args["containerOverrides"] = {"a": "a"}
-        else:
-            expected_args["nodeOverrides"] = {"a": "a"}
+
+        py2api = {
+            "overrides": "containerOverrides",
+            "node_overrides": "nodeOverrides",
+            "ecs_properties_override": "ecsPropertiesOverride",
+        }
+
+        expected_args[py2api[override]] = {"a": "a"}
+
         client_mock().submit_job.assert_called_once_with(**expected_args)
 
     def test_deprecated_override_param(self):

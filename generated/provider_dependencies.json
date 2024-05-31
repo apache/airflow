@@ -411,6 +411,7 @@
       "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.7.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
+      "mergedeep>=1.3.4",
       "requests>=2.27.0,<3"
     ],
     "devel-deps": [
@@ -520,7 +521,7 @@
   "fab": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.4.1",
+      "flask-appbuilder==4.5.0",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
@@ -900,8 +901,8 @@
       "apache-airflow-providers-common-sql>=1.6.0",
       "apache-airflow>=2.7.0",
       "attrs>=22.2",
-      "openlineage-integration-common>=0.28.0",
-      "openlineage-python>=0.28.0"
+      "openlineage-integration-common>=1.15.0",
+      "openlineage-python>=1.15.0"
     ],
     "devel-deps": [],
     "plugins": [
@@ -1160,8 +1161,8 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.10.0",
       "apache-airflow>=2.7.0",
-      "snowflake-connector-python>=2.7.8",
-      "snowflake-sqlalchemy>=1.1.0"
+      "snowflake-connector-python>=2.7.11",
+      "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1244,7 +1245,9 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "common.sql"
+      "amazon",
+      "common.sql",
+      "microsoft.azure"
     ],
     "excluded-python-versions": [],
     "state": "ready"

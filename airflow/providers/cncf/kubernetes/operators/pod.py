@@ -36,6 +36,7 @@ import kubernetes
 import tenacity
 from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
@@ -611,16 +612,7 @@ class KubernetesPodOperator(BaseOperator):
                     mode=ExecutionMode.SYNC,
                 )
 
-            if self.get_logs:
-                self.pod_manager.fetch_requested_container_logs(
-                    pod=self.pod,
-                    containers=self.container_logs,
-                    follow_logs=True,
-                )
-            if not self.get_logs or (
-                self.container_logs is not True and self.base_container_name not in self.container_logs
-            ):
-                self.await_container_completion(pod=self.pod, container_name=self.base_container_name)
+            self.await_pod_completion(pod=self.pod)
             if self.callbacks:
                 self.callbacks.on_pod_completion(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
@@ -653,9 +645,18 @@ class KubernetesPodOperator(BaseOperator):
         retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
         reraise=True,
     )
-    def await_container_completion(self, pod: k8s.V1Pod, container_name: str):
+    def await_pod_completion(self, pod: k8s.V1Pod):
         try:
-            self.pod_manager.await_container_completion(pod=pod, container_name=container_name)
+            if self.get_logs:
+                self.pod_manager.fetch_requested_container_logs(
+                    pod=pod,
+                    containers=self.container_logs,
+                    follow_logs=True,
+                )
+            if not self.get_logs or (
+                self.container_logs is not True and self.base_container_name not in self.container_logs
+            ):
+                self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
         except kubernetes.client.exceptions.ApiException as exc:
             if exc.status and str(exc.status) == "401":
                 self.log.warning(
@@ -788,9 +789,18 @@ class KubernetesPodOperator(BaseOperator):
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
         if event["status"] != "timeout":
-            self.pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
-            )
+            try:
+                self.pod = self.pod_manager.await_pod_completion(
+                    self.pod, istio_enabled, self.base_container_name
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    self.pod = None
+                    self.log.warning(
+                        "Pod not found while waiting for completion. The last status was %r", event["status"]
+                    )
+                else:
+                    raise e
         if self.pod is not None:
             self.post_complete_action(
                 pod=self.pod,
@@ -807,8 +817,7 @@ class KubernetesPodOperator(BaseOperator):
             logs = self.client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                pod=pod,
-                container_name=self.base_container_name,
+                container=self.base_container_name,
                 follow=follow,
                 timestamps=False,
                 since_seconds=since_seconds,
@@ -818,11 +827,11 @@ class KubernetesPodOperator(BaseOperator):
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
                 if line:
                     self.log.info("[%s] logs: %s", self.base_container_name, line)
-        except HTTPError as e:
+        except (HTTPError, ApiException) as e:
             self.log.warning(
                 "Reading of logs interrupted with error %r; will retry. "
                 "Set log level to DEBUG for traceback.",
-                e,
+                e if not isinstance(e, ApiException) else e.reason,
             )
 
     def post_complete_action(self, *, pod, remote_pod, **kwargs) -> None:

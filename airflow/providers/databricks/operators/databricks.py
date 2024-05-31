@@ -29,13 +29,18 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
+from airflow.providers.databricks.operators.databricks_workflow import (
+    DatabricksWorkflowTaskGroup,
+    WorkflowRunMetadata,
+)
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
+    from airflow.utils.task_group import TaskGroup
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
@@ -926,7 +931,10 @@ class DatabricksNotebookOperator(BaseOperator):
     :param deferrable: Run operator in the deferrable mode.
     """
 
-    template_fields = ("notebook_params",)
+    template_fields = (
+        "notebook_params",
+        "workflow_run_metadata",
+    )
     CALLER = "DatabricksNotebookOperator"
 
     def __init__(
@@ -944,6 +952,7 @@ class DatabricksNotebookOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         wait_for_termination: bool = True,
         databricks_conn_id: str = "databricks_default",
+        workflow_run_metadata: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
@@ -962,6 +971,10 @@ class DatabricksNotebookOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_run_id: int | None = None
         self.deferrable = deferrable
+
+        # This is used to store the metadata of the Databricks job run when the job is launched from within DatabricksWorkflowTaskGroup.
+        self.workflow_run_metadata: dict | None = workflow_run_metadata
+
         super().__init__(**kwargs)
 
     @cached_property
@@ -1016,6 +1029,79 @@ class DatabricksNotebookOperator(BaseOperator):
         """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
         return f"{self.dag_id}__{task_id.replace('.', '__')}"
 
+    @property
+    def _databricks_workflow_task_group(self) -> DatabricksWorkflowTaskGroup | None:
+        """
+        Traverse up parent TaskGroups until the `is_databricks` flag associated with the root DatabricksWorkflowTaskGroup is found.
+
+        If found, returns the task group. Otherwise, return None.
+        """
+        parent_tg: TaskGroup | DatabricksWorkflowTaskGroup | None = self.task_group
+
+        while parent_tg:
+            if getattr(parent_tg, "is_databricks", False):
+                return parent_tg  # type: ignore[return-value]
+
+            if getattr(parent_tg, "task_group", None):
+                parent_tg = parent_tg.task_group
+            else:
+                return None
+
+        return None
+
+    def _extend_workflow_notebook_packages(
+        self, databricks_workflow_task_group: DatabricksWorkflowTaskGroup
+    ) -> None:
+        """Extend the task group packages into the notebook's packages, without adding any duplicates."""
+        for task_group_package in databricks_workflow_task_group.notebook_packages:
+            exists = any(
+                task_group_package == existing_package for existing_package in self.notebook_packages
+            )
+            if not exists:
+                self.notebook_packages.append(task_group_package)
+
+    def _convert_to_databricks_workflow_task(
+        self, relevant_upstreams: list[BaseOperator], context: Context | None = None
+    ) -> dict[str, object]:
+        """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
+        databricks_workflow_task_group = self._databricks_workflow_task_group
+        if not databricks_workflow_task_group:
+            raise AirflowException(
+                "Calling `_convert_to_databricks_workflow_task` without a parent TaskGroup."
+            )
+
+        if hasattr(databricks_workflow_task_group, "notebook_packages"):
+            self._extend_workflow_notebook_packages(databricks_workflow_task_group)
+
+        if hasattr(databricks_workflow_task_group, "notebook_params"):
+            self.notebook_params = {
+                **self.notebook_params,
+                **databricks_workflow_task_group.notebook_params,
+            }
+
+        base_task_json = self._get_task_base_json()
+        result = {
+            "task_key": self._get_databricks_task_id(self.task_id),
+            "depends_on": [
+                {"task_key": self._get_databricks_task_id(task_id)}
+                for task_id in self.upstream_task_ids
+                if task_id in relevant_upstreams
+            ],
+            **base_task_json,
+        }
+
+        if self.existing_cluster_id and self.job_cluster_key:
+            raise ValueError(
+                "Both existing_cluster_id and job_cluster_key are set. Only one can be set per task."
+            )
+
+        if self.existing_cluster_id:
+            result["existing_cluster_id"] = self.existing_cluster_id
+        elif self.job_cluster_key:
+            result["job_cluster_key"] = self.job_cluster_key
+
+        return result
+
     def _get_run_json(self) -> dict[str, Any]:
         """Get run json to be used for task submissions."""
         run_json = {
@@ -1038,6 +1124,17 @@ class DatabricksNotebookOperator(BaseOperator):
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
         return self.databricks_run_id
+
+    def _handle_terminal_run_state(self, run_state: RunState) -> None:
+        if run_state.life_cycle_state != RunLifeCycleState.TERMINATED.value:
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
+            raise AirflowException(
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
+            )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
     def monitor_databricks_job(self) -> None:
         if self.databricks_run_id is None:
@@ -1063,34 +1160,28 @@ class DatabricksNotebookOperator(BaseOperator):
             run = self._hook.get_run(self.databricks_run_id)
             run_state = RunState(**run["state"])
             self.log.info(
-                "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
+                "Current state of the databricks task %s is %s",
+                self._get_databricks_task_id(self.task_id),
+                run_state.life_cycle_state,
             )
-            self.log.info("Current state of the job: %s", run_state.life_cycle_state)
-        if run_state.life_cycle_state != "TERMINATED":
-            raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. "
-                f"Message: {run_state.state_message}"
-            )
-        if not run_state.is_successful:
-            raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
-            )
-        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
+        self._handle_terminal_run_state(run_state)
 
     def execute(self, context: Context) -> None:
-        self.launch_notebook_job()
+        if self._databricks_workflow_task_group:
+            # If we are in a DatabricksWorkflowTaskGroup, we should have an upstream task launched.
+            if not self.workflow_run_metadata:
+                launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
+                self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
+            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
+                **self.workflow_run_metadata
+            )
+            self.databricks_run_id = workflow_run_metadata.run_id
+            self.databricks_conn_id = workflow_run_metadata.conn_id
+        else:
+            self.launch_notebook_job()
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
-        if run_state.life_cycle_state != "TERMINATED":
-            raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. "
-                f"Message: {run_state.state_message}"
-            )
-        if not run_state.is_successful:
-            raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
-            )
-        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
+        self._handle_terminal_run_state(run_state)
