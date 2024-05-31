@@ -51,7 +51,9 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - yandexcloud>=0.278.0
+  # yandexclod 0.289.0 breaks compatibility for dataproc integration
+  # See https://github.com/yandex-cloud/python-sdk/issues/103
+  - yandexcloud>=0.278.0,<0.289.0
   - yandex-query-client>=0.1.4
 
 integrations:
