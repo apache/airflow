@@ -182,9 +182,6 @@ This is particularly useful when deferring is the only thing the ``execute`` met
 
 ``start_from_trigger`` and ``trigger_kwargs`` can also be modified at the instance level for more flexible configuration.
 
-.. warning::
-    Dynamic task mapping is not supported when ``trigger_kwargs`` is modified at instance level.
-
 .. code-block:: python
 
     from datetime import timedelta
@@ -212,6 +209,49 @@ This is particularly useful when deferring is the only thing the ``execute`` met
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
+
+To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name. For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work.
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from typing import Any
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
+
+
+    class WaitTwoHourSensor(BaseSensorOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_kwargs={},
+            next_method="execute_complete",
+            timeout=None,
+        )
+
+        def __init__(
+            self,
+            *args: list[Any],
+            trigger_kwargs: dict[str, Any] | None,
+            start_from_trigger: bool,
+            **kwargs: dict[str, Any],
+        ) -> None:
+            super().__init__(*args, **kwargs)
+            self.start_trigger_args.trigger_kwargs = trigger_kwargs
+            self.start_from_trigger = start_from_trigger
+
+        def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+            # We have no more work to do here. Mark as complete.
+            return
+
+These parameters can be mapped using the ``expand`` method.
+
+.. code-block:: python
+
+    WaitTwoHourSensor.partial(task_id="transform").expand(
+        trigger_kwargs=[{"moment": timedelta(hours=1)}], start_from_trigger=True
+    )
 
 Writing Triggers
 ~~~~~~~~~~~~~~~~
