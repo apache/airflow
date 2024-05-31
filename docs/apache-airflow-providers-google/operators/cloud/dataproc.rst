@@ -415,8 +415,8 @@ A batch can be created using:
     :end-before: [END how_to_cloud_dataproc_create_batch_operator]
 
 For creating a batch with Persistent History Server first you should create a Dataproc Cluster
-with specific parameters. Documentation how create cluster you can find  `here <
-https://cloud.google.com/dataproc/docs/concepts/jobs/history-server#setting_up_a_persistent_history_server>`__:
+with specific parameters. Documentation how create cluster you can find
+`here <https://cloud.google.com/dataproc/docs/concepts/jobs/history-server#setting_up_a_persistent_history_server>`__:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch_persistent.py
     :language: python
