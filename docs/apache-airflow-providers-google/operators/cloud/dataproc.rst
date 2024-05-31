@@ -154,7 +154,7 @@ For more information about the available fields to pass when diagnosing a cluste
 `Dataproc diagnose cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/diagnose>`_
 
 To diagnose a Dataproc cluster use:
-:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDiagnoseClusterOperator.``
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDiagnoseClusterOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_diagnose.py
     :language: python
