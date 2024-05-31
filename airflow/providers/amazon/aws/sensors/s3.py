@@ -78,7 +78,7 @@ class S3KeySensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     :param deferrable: Run operator in the deferrable mode
     :param use_regex: whether to use regex to check bucket
-    :param metadata_keys: List of head_object attributes to to gather and send to check_fn.
+    :param metadata_keys: List of head_object attributes to gather and send to ``check_fn``.
         Acceptable values: Any top level attribute returned by s3.head_object. Specify * to return
         all available attributes.
         Default value: "Size".
