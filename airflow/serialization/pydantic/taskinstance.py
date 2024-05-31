@@ -497,7 +497,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def _register_dataset_changes(self, *, events, session: Session | None = None) -> None:
         TaskInstance._register_dataset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
 
-    def defer_task_from_exception(self, exception: TaskDeferred, session: Session | None = None):
+    def defer_task(self, exception: TaskDeferred, session: Session | None = None):
         """Defer task."""
         updated_ti = _defer_task(ti=self, session=session, exception=exception)
         _set_ti_attrs(self, updated_ti)

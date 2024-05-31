@@ -118,7 +118,7 @@ from airflow.utils.context import (
     context_merge,
 )
 from airflow.utils.email import send_email
-from airflow.utils.helpers import exactly_one, prune_dict, render_template_to_string
+from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
@@ -163,7 +163,6 @@ if TYPE_CHECKING:
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
-    from airflow.triggers.base import StartTriggerArgs
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
@@ -283,7 +282,7 @@ def _run_raw_task(
             # a trigger.
             if raise_on_defer:
                 raise
-            ti.defer_task_from_exception(exception=defer, session=session)
+            ti.defer_task(exception=defer, session=session)
             ti.log.info(
                 "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, execution_date=%s, start_date=%s",
                 ti.dag_id,
@@ -1577,29 +1576,23 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 @provide_session
 def _defer_task(
     ti: TaskInstance | TaskInstancePydantic,
-    session: Session = NEW_SESSION,
-    *,
     exception: TaskDeferred | None = None,
-    start_trigger_args: StartTriggerArgs | None = None,
+    session: Session = NEW_SESSION,
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
 
-    if not exactly_one(exception, start_trigger_args):
-        raise AirflowException(
-            "One and only one of the arumgent exception and start_trigger_args is required"
-        )
-    elif exception is not None:
+    if exception is not None:
         trigger_row = Trigger.from_object(exception.trigger)
         trigger_kwargs = exception.kwargs
         next_method = exception.method_name
         timeout = exception.timeout
-    elif start_trigger_args is not None:
+    else:
         trigger_row = Trigger(
-            classpath=start_trigger_args.trigger_cls, kwargs=start_trigger_args.trigger_kwargs
+            classpath=ti.task.start_trigger_args.trigger_cls, kwargs=ti.task.start_trigger_args.trigger_kwargs
         )
-        trigger_kwargs = start_trigger_args.trigger_kwargs
-        next_method = start_trigger_args.next_method
-        timeout = start_trigger_args.timeout
+        trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
+        next_method = ti.task.start_trigger_args.next_method
+        timeout = ti.task.start_trigger_args.timeout
 
     # First, make the trigger entry
     session.add(trigger_row)
@@ -3023,24 +3016,12 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def defer_task_from_exception(self, exception: TaskDeferred, session: Session = NEW_SESSION) -> None:
+    def defer_task(self, exception: TaskDeferred | None = None, session: Session = NEW_SESSION) -> None:
         """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
         _defer_task(ti=self, session=session, exception=exception)
-
-    @provide_session
-    def defer_task_from_scheduler(
-        self,
-        start_trigger_args: StartTriggerArgs,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it when start_trigger arguments passed.
-
-        :meta: private
-        """
-        _defer_task(ti=self, session=session, start_trigger_args=start_trigger_args)
 
     def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""

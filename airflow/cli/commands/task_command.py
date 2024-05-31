@@ -673,7 +673,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
             else:
                 ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True, raise_on_defer=True)
     except TaskDeferred as defer:
-        ti.defer_task_from_exception(exception=defer, session=session)
+        ti.defer_task(exception=defer, session=session)
         log.info("[TASK TEST] running trigger in line")
 
         event = _run_inline_trigger(defer.trigger)
