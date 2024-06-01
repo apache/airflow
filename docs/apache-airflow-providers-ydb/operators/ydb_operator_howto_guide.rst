@@ -34,8 +34,14 @@ the :class:`~airflow.providers.ydb.operators.YDBExecuteQueryOperator`.
 Common Database Operations with YDBExecuteQueryOperator
 -------------------------------------------------------
 
-To use the YDBExecuteQueryOperator to carry out YDBExecuteQueryOperator request, two parameters are required: ``sql`` and ``conn_id``.
+To use the YDBExecuteQueryOperator to carry out YDB request, two parameters are required: ``sql`` and ``conn_id``.
 These two parameters are eventually fed to the DbApiHook object that interacts directly with the YDB database.
+Operator executes ither DML or DDL query. Parameters of the operators are:
+
+- ``sql`` - string with query;
+- ``is_ddl`` - flag indicating that query is DDL. By default is ``false``;
+- ``conn_id`` - YDB connection id. Default value is ``ydb_default``;
+- ``params`` - parameters to be injected into query if it is Jinja template, more details about params: :doc:`apache-airflow/core-concepts/params`
 
 Creating a YDB table
 ----------------------------------
@@ -72,7 +78,6 @@ Now let's refactor ``create_pet_table`` in our DAG:
 
         create_pet_table = YDBExecuteQueryOperator(
             task_id="create_pet_table",
-            conn_id="ydb_default",
             sql="sql/pet_schema.sql",
         )
 
@@ -86,16 +91,16 @@ Let's say we already have the SQL insert statement below in our ``dags/sql/pet_s
 
   -- populate pet table
   UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-  VALUES ( 1, 'Max', 'Dog', '2018-07-05', 'Jane');
+  VALUES (1, 'Max', 'Dog', '2018-07-05', 'Jane');
 
   UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-  VALUES ( 2, 'Susie', 'Cat', '2019-05-01', 'Phil');
+  VALUES (2, 'Susie', 'Cat', '2019-05-01', 'Phil');
 
   UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-  VALUES ( 3, 'Lester', 'Hamster', '2020-06-23', 'Lily');
+  VALUES (3, 'Lester', 'Hamster', '2020-06-23', 'Lily');
 
   UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-  VALUES ( 4, 'Quincy', 'Parrot', '2013-08-11', 'Anne');
+  VALUES (4, 'Quincy', 'Parrot', '2013-08-11', 'Anne');
 
 We can then create a YDBExecuteQueryOperator task that populate the ``pet`` table.
 
@@ -103,7 +108,6 @@ We can then create a YDBExecuteQueryOperator task that populate the ``pet`` tabl
 
   populate_pet_table = YDBExecuteQueryOperator(
       task_id="populate_pet_table",
-      conn_id="ydb_default",
       sql="sql/pet_schema.sql",
   )
 
@@ -117,7 +121,6 @@ Fetching records from your YDB table can be as simple as:
 
   get_all_pets = YDBExecuteQueryOperator(
       task_id="get_all_pets",
-      conn_id="ydb_default",
       sql="SELECT * FROM pet;",
   )
 
@@ -147,7 +150,7 @@ by creating a sql file.
 ::
 
   -- dags/sql/birth_date.sql
-  SELECT * FROM pet WHERE birth_date BETWEEN {{ params.begin_date }} AND {{ params.end_date }};
+  SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}';
 
 And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
 class.

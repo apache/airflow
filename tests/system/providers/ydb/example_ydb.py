@@ -58,14 +58,14 @@ with DAG(
     populate_pet_table = YDBExecuteQueryOperator(
         task_id="populate_pet_table",
         sql="""
-            INSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-            VALUES ( 1, 'Max', 'Dog', '2018-07-05', 'Jane');
-            INSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-            VALUES ( 2, 'Susie', 'Cat', '2019-05-01', 'Phil');
-            INSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-            VALUES ( 3, 'Lester', 'Hamster', '2020-06-23', 'Lily');
-            INSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-            VALUES ( 4, 'Quincy', 'Parrot', '2013-08-11', 'Anne');
+            INSERT INTO pet(pet_id, name, pet_type, birth_date, owner)
+            VALUES (1, 'Max', 'Dog', '2018-07-05', 'Jane');
+            INSERT INTO pet(pet_id, name, pet_type, birth_date, owner)
+            VALUES (2, 'Susie', 'Cat', '2019-05-01', 'Phil');
+            INSERT INTO pet(pet_id, name, pet_type, birth_date, owner)
+            VALUES (3, 'Lester', 'Hamster', '2020-06-23', 'Lily');
+            INSERT INTO pet(pet_id, name, pet_type, birth_date, owner)
+            VALUES (4, 'Quincy', 'Parrot', '2013-08-11', 'Anne');
             """,
     )
     # [END ydb_operator_howto_guide_populate_pet_table]
