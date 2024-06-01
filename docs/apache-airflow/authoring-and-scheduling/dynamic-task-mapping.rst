@@ -174,7 +174,7 @@ This would result in the add task being called 6 times. Please note, however, th
 Named mapping
 -------------
 
-By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
+By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This will typically look like ``map_index_template="{{ task.<property> }}"`` when the expansion looks like ``.expand(<property>=...)``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
 
 .. code-block:: python
 
