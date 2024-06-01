@@ -402,7 +402,6 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-AVAILABLE_INTEGRATIONS = ["cassandra", "kerberos", "mongo", "pinot", "celery", "statsd", "trino", "qdrant"]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
