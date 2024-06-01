@@ -156,7 +156,8 @@ to upgrade ``hatch`` easily as needed with:
 
     pipx upgrade hatch
 
-## Using Hatch to manage your Python versions
+Using Hatch to manage your Python versions
+..........................................
 
 You can also use hatch to install and manage airflow virtualenvs and development
 environments. For example, you can install Python 3.10 with this command:
