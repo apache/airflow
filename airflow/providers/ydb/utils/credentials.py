@@ -16,22 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import json
-import logging
 import ydb
 import ydb.iam.auth as auth
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 
-log = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
-def _read_file(path):
-    with open(path) as infile:
-        return infile.read()
-
-
-def get_credentials_from_connection(endpoint: str, database: str, connection, connection_extra: dict = {}):
+def get_credentials_from_connection(
+    endpoint: str, database: str, connection: Connection, connection_extra: dict[str:Any] = {}
+) -> Any:
     """
     Return YDB credentials object for YDB SDK based on connection settings.
 
@@ -64,7 +60,6 @@ def get_credentials_from_connection(endpoint: str, database: str, connection, co
 
     service_account_json_path = connection_extra.get("service_account_json_path")
     if service_account_json_path:
-        # service_account_json = _read_file(service_account_json_path)
         return auth.BaseJWTCredentials.from_file(auth.ServiceAccountCredentials, service_account_json_path)
 
     service_account_json = connection_extra.get("service_account_json")

@@ -20,7 +20,7 @@ import datetime
 import os
 
 from airflow import DAG
-from airflow.providers.ydb.operators.ydb import YDBOperator
+from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
 # [START ydb_operator_howto_guide]
 
@@ -38,7 +38,7 @@ with DAG(
     catchup=False,
 ) as dag:
     # [START ydb_operator_howto_guide_create_pet_table]
-    create_pet_table = YDBOperator(
+    create_pet_table = YDBExecuteQueryOperator(
         task_id="create_pet_table",
         sql="""
             CREATE TABLE pet (
@@ -55,7 +55,7 @@ with DAG(
 
     # [END ydb_operator_howto_guide_create_pet_table]
     # [START ydb_operator_howto_guide_populate_pet_table]
-    populate_pet_table = YDBOperator(
+    populate_pet_table = YDBExecuteQueryOperator(
         task_id="populate_pet_table",
         sql="""
             INSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
@@ -70,10 +70,10 @@ with DAG(
     )
     # [END ydb_operator_howto_guide_populate_pet_table]
     # [START ydb_operator_howto_guide_get_all_pets]
-    get_all_pets = YDBOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
+    get_all_pets = YDBExecuteQueryOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
     # [END ydb_operator_howto_guide_get_all_pets]
     # [START ydb_operator_howto_guide_get_birth_date]
-    get_birth_date = YDBOperator(
+    get_birth_date = YDBExecuteQueryOperator(
         task_id="get_birth_date",
         sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
         params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},

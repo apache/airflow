@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.exceptions import AirflowException
+from typing import Any, Iterable, Mapping
 
 
-class YDBOperator(SQLExecuteQueryOperator):
+class YDBExecuteQueryOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific YDB database.
 
@@ -31,8 +33,6 @@ class YDBOperator(SQLExecuteQueryOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    #    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "sql"}
-
     ui_color = "#ededed"
 
     def __init__(
@@ -41,8 +41,12 @@ class YDBOperator(SQLExecuteQueryOperator):
         is_ddl: bool = False,
         ydb_conn_id: str = "ydb_default",
         parameters: Mapping | Iterable | None = None,
+        params: Any = None,
         **kwargs,
     ) -> None:
+        if params is not None:
+            raise AirflowException("parameter `params` is not supported yet")
+
         if is_ddl:
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {"is_ddl": is_ddl, **hook_params}

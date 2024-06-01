@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-conn_name_attr = "ydb_conn_id"
-default_conn_name = "ydb_default"
-conn_type = "ydb"
-hook_name = "YDB"
+CONN_NAME_ATTR: str = "ydb_conn_id"
+DEFAULT_CONN_NAME: str = "ydb_default"
+CONN_TYPE: str = "ydb"

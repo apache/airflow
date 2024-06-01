@@ -16,36 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-import os
-import warnings
-from contextlib import closing
-from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Iterable, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Mapping
 
-from deprecated import deprecated
 from sqlalchemy.engine import URL
 
-# import ydb_sqlalchemy.dbapi.connection as YDBConnection
-from airflow.providers.ydb.hooks.dbapi.connection import Connection
+from airflow.providers.ydb.hooks.dbapi.connection import Connection as DbApiConnection
 from airflow.providers.ydb.hooks.dbapi.cursor import YdbQuery
+from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
 
 import ydb
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
-if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+DEFAULT_YDB_GRPCS_PORT: int = 2135
 
-DEFAULT_YDB_GRPCS_PORT = 2135
+if TYPE_CHECKING:
+    from airflow.providers.ydb.hooks.dbapi.cursor import Cursor as DbApiCursor
+    from airflow.models.connection import Connection
 
 
 class YDBCursor:
-    def __init__(self, delegatee, is_ddl):
-        self.delegatee = delegatee
-        self.is_ddl = is_ddl
+    def __init__(self, delegatee: DbApiCursor, is_ddl: bool):
+        self.delegatee: DbApiCursor = delegatee
+        self.is_ddl: bool = is_ddl
 
     def execute(self, sql: str, parameters: Optional[Mapping[str, Any]] = None):
+        if parameters is not None:
+            raise AirflowException("parameters is not supported yet")
+
         q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl)
         return self.delegatee.execute(q, parameters)
 
@@ -69,10 +68,10 @@ class YDBCursor:
         return self.delegatee.nextset()
 
     def setinputsizes(self, sizes):
-        return self.delegatee.setinputsizes()
+        return self.delegatee.setinputsizes(sizes)
 
     def setoutputsize(self, column=None):
-        return self.delegatee.setoutputsize()
+        return self.delegatee.setoutputsize(column)
 
     def __enter__(self):
         return self
@@ -93,42 +92,43 @@ class YDBCursor:
 
 
 class YDBConnection:
-    def __init__(self, endpoint, database, credentials, is_ddl):
+    def __init__(self, endpoint: str, database: str, credentials: Any, is_ddl: bool = False):
         self.is_ddl = is_ddl
         driver_config = ydb.DriverConfig(
             endpoint=endpoint,
             database=database,
-            table_client_settings=self._get_table_client_settings(),
+            table_client_settings=YDBConnection._get_table_client_settings(),
             credentials=credentials,
         )
         driver = ydb.Driver(driver_config)
         # wait until driver become initialized
         driver.wait(fail_fast=True, timeout=10)
         ydb_session_pool = ydb.SessionPool(driver, size=5)
-        self.delegatee = Connection(ydb_session_pool=ydb_session_pool)
+        self.delegatee: DbApiConnection = DbApiConnection(ydb_session_pool=ydb_session_pool)
 
-    def cursor(self):
+    def cursor(self) -> YDBCursor:
         return YDBCursor(self.delegatee.cursor(), is_ddl=self.is_ddl)
 
-    def begin(self):
+    def begin(self) -> None:
         self.delegatee.begin()
 
-    def commit(self):
+    def commit(self) -> None:
         self.delegatee.commit()
 
-    def rollback(self):
+    def rollback(self) -> None:
         self.delegatee.rollback()
 
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         self.delegatee.close()
 
-    def _get_table_client_settings(self) -> ydb.TableClientSettings:
+    @staticmethod
+    def _get_table_client_settings() -> ydb.TableClientSettings:
         return (
             ydb.TableClientSettings()
             .with_native_date_in_result_sets(True)
@@ -142,17 +142,16 @@ class YDBConnection:
 class YDBHook(DbApiHook):
     """Interact with YDB."""
 
-    conn_name_attr = "ydb_conn_id"
-    default_conn_name = "ydb_default"
-    conn_type = "ydb"
-    hook_name = "YDB"
-    supports_autocommit = True
-    supports_executemany = True
+    conn_name_attr: str = CONN_NAME_ATTR
+    default_conn_name: str = DEFAULT_CONN_NAME
+    conn_type: str = CONN_TYPE
+    hook_name: str = "YDB"
+    supports_autocommit: bool = True
+    supports_executemany: bool = True
 
     def __init__(self, *args, is_ddl: bool = False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.is_ddl = is_ddl
-        self.conn: YDBConnection = None
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -202,7 +201,7 @@ class YDBHook(DbApiHook):
                 "host": "eg. grpcs://my_host or ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net",
                 "login": "root",
                 "password": "my_password",
-                "database": "e.g. local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b",
+                "database": "e.g. /local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b",
                 "service_account_json": 'e.g. {"id": "...", "service_account_id": "...", "private_key": "..."}',
                 "token": "t1.9....AAQ",
             },
@@ -210,7 +209,7 @@ class YDBHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
         return URL.create(
             drivername="ydb",
             username=conn.login,
@@ -222,26 +221,25 @@ class YDBHook(DbApiHook):
 
     def get_conn(self) -> YDBConnection:
         """Establish a connection to a YDB database."""
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        host = conn.host
+        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        host: str | None = conn.host
         if not host:
             raise ValueError("YDB host must be specified")
-        port = conn.port or DEFAULT_YDB_GRPCS_PORT
-        endpoint = f"{host}:{port}"
-        connection_extra = conn.extra_dejson
-        database = connection_extra.get(
-            "database"
-        )  # "/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b"
+        port: int = conn.port or DEFAULT_YDB_GRPCS_PORT
+
+        connection_extra: dict[str:Any] = conn.extra_dejson
+        database: str | None = connection_extra.get("database")
         if not database:
             raise ValueError("YDB database must be specified")
 
+        endpoint = f"{host}:{port}"
         credentials = get_credentials_from_connection(
             endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra
         )
-        self.conn = YDBConnection(
+
+        return YDBConnection(
             endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl
         )
-        return self.conn
 
     def get_uri(self) -> str:
         """Extract the URI from the connection.

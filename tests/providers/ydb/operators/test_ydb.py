@@ -27,14 +27,14 @@ from responses import matchers
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.ydb.operators.ydb import YDBOperator
+from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
 
 
 # @pytest.mark.db_test
 def est_sql_templating(create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
-        YDBOperator,
+        YDBExecuteQueryOperator,
         sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
         params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
         ydb_conn_id="ydb_default1",
@@ -43,7 +43,7 @@ def est_sql_templating(create_task_instance_of_operator):
         execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     ti.render_templates()
-    task: YDBOperator = ti.task
+    task: YDBExecuteQueryOperator = ti.task
     assert task.sql == "SELECT * FROM pet WHERE birth_date BETWEEN '2020-01-01' AND '2020-12-31'"
 
 
@@ -83,7 +83,7 @@ class FakeYDBCursor:
         return 1
 
 
-class TestYDBOperator:
+class TestYDBExecuteQueryOperator:
     def setup_method(self):
         dag_id = "test_dag"
         self.dag = DAG(
@@ -110,14 +110,14 @@ class TestYDBOperator:
         mock_driver.return_value = driver_instance
         mock_session_pool.return_value = FakeSessionPool(driver_instance)
         context = {"ti": MagicMock()}
-        operator = YDBOperator(
+        operator = YDBExecuteQueryOperator(
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_one_handler
         )
 
         results = operator.execute(context)
         assert results == "fetchone: result"
 
-        operator = YDBOperator(
+        operator = YDBExecuteQueryOperator(
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
         )
 
