@@ -36,7 +36,7 @@ from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import settings
-from airflow.exceptions import SerializationError
+from airflow.exceptions import RemovedInAirflow3Warning, SerializationError
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -765,9 +765,13 @@ class TestDagBag:
 
             return dag
 
-        test_dag = nested_subdag_cycle()
-        # coherence check to make sure DAG.subdag is still functioning properly
-        assert len(test_dag.subdags) == 6
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.",
+        ):
+            test_dag = nested_subdag_cycle()
+            # coherence check to make sure DAG.subdag is still functioning properly
+            assert len(test_dag.subdags) == 6
 
         # Perform processing dag
         dagbag, found_dags, file_path = self.process_dag(nested_subdag_cycle, tmp_path)
