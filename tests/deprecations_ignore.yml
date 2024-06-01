@@ -647,5 +647,3 @@
 - tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
 - tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
-- tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_constructor
-- tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_execute_with_input_json
