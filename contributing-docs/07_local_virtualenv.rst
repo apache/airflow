@@ -272,7 +272,8 @@ You can clean the env by running:
 
 More information about hatch can be found in `Hatch: Environments <https://hatch.pypa.io/latest/environment/>`__
 
-## Using Hatch to build your packages
+Using Hatch to build your packages
+..................................
 
 You can use hatch to build installable package from the airflow sources. Such package will
 include all metadata that is configured in ``pyproject.toml`` and will be installable with pip.
