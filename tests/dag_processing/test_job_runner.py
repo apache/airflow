@@ -1431,7 +1431,7 @@ class TestDagProcessorJobRunner:
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
         dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
-        assert  conf.getboolean("core", "purge_stale_dags") == False
+        assert not conf.getboolean("core", "purge_stale_dags")
 
         with create_session() as session:
             # Add stale DAG to the DB
@@ -1501,7 +1501,7 @@ class TestDagProcessorJobRunner:
         test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
         dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
 
-        assert  conf.getboolean("core", "purge_stale_dags") == True
+        assert conf.getboolean("core", "purge_stale_dags")
 
         with create_session() as session:
             # Add stale DAG to the DB
