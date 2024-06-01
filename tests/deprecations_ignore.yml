@@ -625,6 +625,4 @@
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_invalid_sql
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_multiple_statements
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_one_statement
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
