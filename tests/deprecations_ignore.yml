@@ -46,11 +46,6 @@
 - tests/core/test_stats.py::TestStats::test_load_allow_list_validator
 - tests/core/test_stats.py::TestStats::test_load_block_list_validator
 - tests/core/test_stats.py::TestStats::test_load_custom_statsd_client
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_fallback_task
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_not_file_task
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_old_file_task
-- tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_with_allow_nested_operators_false
-- tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_without_allow_nested_operators
 - tests/models/test_cleartasks.py::TestClearTasks::test_dags_clear
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_interval_save_runtime
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_max_active_runs
@@ -99,11 +94,6 @@
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_dagbag.py::TestDagBag::test_skip_cycle_dags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
-- tests/models/test_skipmixin.py::TestSkipMixin::test_mapped_tasks_skip_all_except
-- tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_branch_task_ids_type
-- tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_iterable_branch_task_ids_type
-- tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_valid_branch_task_ids
-- tests/models/test_skipmixin.py::TestSkipMixin::test_skip_all_except
 - tests/models/test_skipmixin.py::TestSkipMixin::test_skip_none_dagrun
 - tests/models/test_taskinstance.py::TestTaskInstance::test_context_triggering_dataset_events
 - tests/models/test_taskinstance.py::TestTaskInstance::test_get_num_running_task_instances
@@ -113,8 +103,6 @@
 - tests/models/test_taskinstance.py::TestTaskInstance::test_template_with_custom_timetable_deprecated_context
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull
 - tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull_different_execution_date
-- tests/models/test_timestamp.py::test_timestamp_behaviour
-- tests/models/test_timestamp.py::test_timestamp_behaviour_with_timezone
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
 - tests/ti_deps/deps/test_prev_dagrun_dep.py::TestPrevDagrunDep::test_first_task_run_of_new_task
 
