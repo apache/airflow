@@ -163,7 +163,7 @@ class YDBHook(DbApiHook):
         return {
             "database": StringField(
                 lazy_gettext("Database name"),
-                widget=BS3PasswordFieldWidget(),
+                widget=BS3TextFieldWidget(),
                 description="Required. YDB database name",
             ),
             "service_account_json": PasswordField(

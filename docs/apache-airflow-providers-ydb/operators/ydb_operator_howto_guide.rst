@@ -17,7 +17,7 @@
 
 .. _howto/operators:ydb:
 
-How-to Guide for YDB using YDBOperator
+How-to Guide for YDB using YDBExecuteQueryOperator
 =======================================================
 
 Introduction
@@ -29,12 +29,12 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
 The purpose of this guide is to define tasks involving interactions with a YDB database with
-the :class:`~airflow.providers.ydb.operators.YDBOperator`.
+the :class:`~airflow.providers.ydb.operators.YDBExecuteQueryOperator`.
 
-Common Database Operations with YDBOperator
+Common Database Operations with YDBExecuteQueryOperator
 -------------------------------------------------------
 
-To use the YDBOperator to carry out YDBOperator request, two parameters are required: ``sql`` and ``conn_id``.
+To use the YDBExecuteQueryOperator to carry out YDBExecuteQueryOperator request, two parameters are required: ``sql`` and ``conn_id``.
 These two parameters are eventually fed to the DbApiHook object that interacts directly with the YDB database.
 
 Creating a YDB table
@@ -44,8 +44,8 @@ The code snippets below are based on Airflow-2.0
 
 .. exampleinclude:: /../../tests/system/providers/ydb/example_ydb.py
     :language: python
-    :start-after: [START ydb_sql_execute_query_operator_howto_guide]
-    :end-before: [END ydb_sql_execute_query_operator_howto_guide_create_pet_table]
+    :start-after: [START ydb_operator_howto_guide]
+    :end-before: [END ydb_operator_howto_guide_create_pet_table]
 
 
 Dumping SQL statements into your operator isn't quite appealing and will create maintainability pains somewhere
@@ -70,7 +70,7 @@ Now let's refactor ``create_pet_table`` in our DAG:
 
 .. code-block:: python
 
-        create_pet_table = YDBOperator(
+        create_pet_table = YDBExecuteQueryOperator(
             task_id="create_pet_table",
             conn_id="ydb_default",
             sql="sql/pet_schema.sql",
@@ -97,11 +97,11 @@ Let's say we already have the SQL insert statement below in our ``dags/sql/pet_s
   UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
   VALUES ( 4, 'Quincy', 'Parrot', '2013-08-11', 'Anne');
 
-We can then create a YDBOperator task that populate the ``pet`` table.
+We can then create a YDBExecuteQueryOperator task that populate the ``pet`` table.
 
 .. code-block:: python
 
-  populate_pet_table = YDBOperator(
+  populate_pet_table = YDBExecuteQueryOperator(
       task_id="populate_pet_table",
       conn_id="ydb_default",
       sql="sql/pet_schema.sql",
@@ -115,18 +115,18 @@ Fetching records from your YDB table can be as simple as:
 
 .. code-block:: python
 
-  get_all_pets = YDBOperator(
+  get_all_pets = YDBExecuteQueryOperator(
       task_id="get_all_pets",
       conn_id="ydb_default",
       sql="SELECT * FROM pet;",
   )
 
 
-Passing Parameters into YDBOperator
+Passing Parameters into YDBExecuteQueryOperator
 ------------------------------------------------------------
 
-YDBOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
-SQL requests during runtime. The BaseOperator class has the ``params`` attribute which is available to the YDBOperator
+YDBExecuteQueryOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
+SQL requests during runtime. The BaseOperator class has the ``params`` attribute which is available to the YDBExecuteQueryOperator
 by virtue of inheritance. Both ``parameters`` and ``params`` make it possible to dynamically pass in parameters in many
 interesting ways.
 
@@ -134,7 +134,7 @@ To find the owner of the pet called 'Lester':
 
 .. code-block:: python
 
-  get_birth_date = YDBOperator(
+  get_birth_date = YDBExecuteQueryOperator(
       task_id="get_birth_date",
       conn_id="ydb_default",
       sql="SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(begin_date)s AND %(end_date)s",
@@ -154,7 +154,7 @@ class.
 
 .. code-block:: python
 
-  get_birth_date = YDBOperator(
+  get_birth_date = YDBExecuteQueryOperator(
       task_id="get_birth_date",
       conn_id="ydb_default",
       sql="sql/birth_date.sql",
@@ -169,16 +169,16 @@ When we put everything together, our DAG should look like this:
 
 .. exampleinclude:: /../../tests/system/providers/ydb/example_ydb.py
     :language: python
-    :start-after: [START ydb_sql_execute_query_operator_howto_guide]
-    :end-before: [END ydb_sql_execute_query_operator_howto_guide]
+    :start-after: [START ydb_operator_howto_guide]
+    :end-before: [END ydb_operator_howto_guide]
 
 
 Conclusion
 ----------
 
-In this how-to guide we explored the Apache Airflow YDBOperator to connect to YDB database. Let's quickly highlight the key takeaways.
+In this how-to guide we explored the Apache Airflow YDBExecuteQueryOperator to connect to YDB database. Let's quickly highlight the key takeaways.
 It is best practice to create subdirectory called ``sql`` in your ``dags`` directory where you can store your sql files.
 This will make your code more elegant and more maintainable.
-And finally, we looked at the different ways you can dynamically pass parameters into our YDBOperator
+And finally, we looked at the different ways you can dynamically pass parameters into our YDBExecuteQueryOperator
 tasks using ``parameters`` or ``params`` attribute and how you can control the session parameters by passing
 options in the ``hook_params`` attribute.

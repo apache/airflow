@@ -41,11 +41,10 @@ class YDBExecuteQueryOperator(SQLExecuteQueryOperator):
         is_ddl: bool = False,
         ydb_conn_id: str = "ydb_default",
         parameters: Mapping | Iterable | None = None,
-        params: Any = None,
         **kwargs,
     ) -> None:
-        if params is not None:
-            raise AirflowException("parameter `params` is not supported yet")
+        if parameters is not None:
+            raise AirflowException("parameters are not supported yet")
 
         if is_ddl:
             hook_params = kwargs.pop("hook_params", {})

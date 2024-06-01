@@ -16,3 +16,12 @@
     under the License.
 
  .. THIS FILE IS UPDATED AUTOMATICALLY_AT_RELEASE_TIME
+
+ Package apache-airflow-providers-ydb
+------------------------------------------------------
+
+`YDB <https://ydb.tech/>`__
+
+
+This is detailed commit list of changes for versions provider package: ``ydb``.
+For high-level changelog, see :doc:`package information including changelog <index>`.
