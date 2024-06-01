@@ -26,16 +26,31 @@ The YDB connection type provides connection to a YDB database.
 Configuring the Connection
 --------------------------
 Host (required)
-    The host to connect to.
+    The host without port to connect to. Acceptable schemes: grpc/grpcs, e.g. grpc://my_host, ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net
 
 Database (required)
-    Specify the name of the database to connect to.
+    Specify the database to connect to, e.g. /local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b.
+
+Port (optional)
+    The port or the YDB cluster to connect to. Default is 2135.
 
 Login (optional)
     Specify the user name to connect.
 
 Password (optional)
     Specify the password to connect.
+
+Service account auth JSON (optional)
+    Service account auth JSON, e.g. {"id": "...", "service_account_id": "...", "private_key": "..."}.
+
+Service account auth JSON file path (optional)
+    Service account auth JSON file path. File content looks like: {"id": "...", "service_account_id": "...", "private_key": "..."}.    
+
+Access Token (optional)
+    User account IAM token.
+
+Use VM metadata (optional)
+    Whether to use VM metadata to retrieve access token
 
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
@@ -45,4 +60,4 @@ Password (optional)
 
     .. code-block:: bash
 
-        export AIRFLOW_CONN_YDB_DEFAULT='ydb://ydb_user:XXXXXXXXXXXX@grpcs://example.com:2135/database=my_db'
+        export AIRFLOW_CONN_YDB_DEFAULT='ydb://ydb_user:XXXXXXXXXXXX@grpcs://example.com:2135/database=/local'

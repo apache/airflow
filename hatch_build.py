@@ -492,7 +492,7 @@ DEPENDENCIES = [
     # We should remove this dependency when Providers are limited to Airflow 2.7+
     # as we replaced the usage of unicodecsv with csv in Airflow 2.7
     # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
+    # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
     # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
     "universal-pathlib>=0.2.2",

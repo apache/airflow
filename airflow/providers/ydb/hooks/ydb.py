@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence, Mapping
 
 from sqlalchemy.engine import URL
 
-from airflow.providers.ydb.hooks.dbapi.connection import Connection as DbApiConnection
-from airflow.providers.ydb.hooks.dbapi.cursor import YdbQuery
-from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME
+from airflow.providers.ydb.hooks._vendor.dbapi.connection import Connection as DbApiConnection
+from airflow.providers.ydb.hooks._vendor.dbapi.cursor import YdbQuery
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
+from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME
 
 import ydb
 from airflow.exceptions import AirflowException
@@ -32,7 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 DEFAULT_YDB_GRPCS_PORT: int = 2135
 
 if TYPE_CHECKING:
-    from airflow.providers.ydb.hooks.dbapi.cursor import Cursor as DbApiCursor
+    from airflow.providers.ydb.hooks._vendor.dbapi.cursor import Cursor as DbApiCursor
     from airflow.models.connection import Connection
 
 
@@ -182,7 +182,7 @@ class YDBHook(DbApiHook):
             "token": PasswordField(
                 lazy_gettext("IAM token"),
                 widget=BS3PasswordFieldWidget(),
-                description="User account IAM token. ",
+                description="User account IAM token.",
             ),
             "use_vm_metadata": BooleanField(
                 lazy_gettext("Use VM metadata"),
