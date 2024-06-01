@@ -16,14 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import re
+import pytest
 from datetime import datetime, timedelta
 from airflow.utils import timezone
-from unittest.mock import MagicMock, PropertyMock, call, patch
-
-import pytest
-import responses
-from responses import matchers
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
@@ -31,8 +27,8 @@ from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
 
 
-# @pytest.mark.db_test
-def est_sql_templating(create_task_instance_of_operator):
+@pytest.mark.db_test
+def test_sql_templating(create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
         YDBExecuteQueryOperator,
         sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
