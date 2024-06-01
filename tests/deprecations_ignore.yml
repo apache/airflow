@@ -571,12 +571,6 @@
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsGetAdsLinkOperator::test_execute
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsListAccountsOperator::test_execute
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsRetrieveAdsLinksListOperator::test_execute
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_connections_path_none_value
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_engine_version_1
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_engine_version_1_custom_auth_mount_point
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_non_existent_key
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_without_predefined_mount_point
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_do_push
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_dont_push
 - tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
@@ -625,6 +619,4 @@
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_invalid_sql
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_multiple_statements
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_one_statement
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
