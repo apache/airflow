@@ -200,7 +200,6 @@ if [[ ${INTEGRATION_DRILL} == "true" ]]; then
 fi
 
 if [[ ${INTEGRATION_YDB} == "true" ]]; then
-    check_service "YDB Cluster" "run_nc ydb 2135" 50
     check_service "YDB Cluster" "run_nc ydb 2136" 50
 fi
 

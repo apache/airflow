@@ -24,7 +24,7 @@ import pytest
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.ydb.operators.ydb import YDBOperator
+from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 1, 1)
@@ -40,7 +40,7 @@ def ydb_connections():
 
 
 @pytest.mark.integration("ydb")
-class TestYDBOperator:
+class TestYDBExecuteQueryOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
@@ -50,7 +50,7 @@ class TestYDBOperator:
 
 
     def test_execute_hello(self):
-        operator = YDBOperator(
+        operator = YDBExecuteQueryOperator(
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
         )
 
