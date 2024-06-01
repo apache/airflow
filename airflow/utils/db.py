@@ -745,8 +745,9 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="ydb_default",
             conn_type="ydb",
-            host="localhost",
-            extra={"database": "local"},
+            host="grpc://localhost",
+            port=2135,
+            extra={"database": "/local"},
         ),
         session,
     )
