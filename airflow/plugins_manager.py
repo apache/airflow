@@ -27,10 +27,12 @@ import logging
 import os
 import sys
 import types
+from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -262,8 +264,18 @@ def load_plugins_from_plugin_directory():
     """Load and register Airflow Plugins from plugins directory."""
     global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
+    plugin_files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
 
-    for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
+    if conf.getboolean("core", "LOAD_EXAMPLES"):
+        log.debug("Note: Loading plugins from examples as well: %s", settings.PLUGINS_FOLDER)
+        from airflow.example_dags import plugins as example_plugins
+
+        example_dplugins_folder = next(iter(example_plugins.__path__))
+        plugin_files = chain(
+            plugin_files, find_path_from_directory(example_dplugins_folder, ".airflowignore")
+        )
+
+    for file_path in plugin_files:
         path = Path(file_path)
         if not path.is_file() or path.suffix != ".py":
             continue
