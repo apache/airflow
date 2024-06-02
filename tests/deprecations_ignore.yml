@@ -37,22 +37,6 @@
 
 
 # Core
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_depends_on_past_backwards
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_depends_on_past_works_independently_on_ignore_depends_on_past
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_pooled_tasks
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_rerun_failed_tasks
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_rerun_failed_tasks_without_flag
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_rerun_upstream_failed_tasks
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_run_rescheduled
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_backfill_skip_active_scheduled_dagrun
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_reset_orphaned_tasks_with_orphans
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_subdag_clear_parentdag_downstream_clear
-- tests/jobs/test_backfill_job.py::TestBackfillJob::test_update_counters
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_fallback_task
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_not_file_task
-- tests/jobs/test_triggerer_job_logging.py::test_configure_trigger_log_handler_root_old_file_task
-- tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_with_allow_nested_operators_false
-- tests/models/test_baseoperatormeta.py::TestExecutorSafeguard::test_executor_when_classic_operator_called_from_decorated_task_without_allow_nested_operators
 - tests/models/test_cleartasks.py::TestClearTasks::test_dags_clear
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_interval_save_runtime
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_max_active_runs
@@ -101,22 +85,7 @@
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_dagbag.py::TestDagBag::test_skip_cycle_dags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
-- tests/models/test_skipmixin.py::TestSkipMixin::test_mapped_tasks_skip_all_except
-- tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_branch_task_ids_type
-- tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_accepted_iterable_branch_task_ids_type
-- tests/models/test_skipmixin.py::TestSkipMixin::test_raise_exception_on_not_valid_branch_task_ids
-- tests/models/test_skipmixin.py::TestSkipMixin::test_skip_all_except
 - tests/models/test_skipmixin.py::TestSkipMixin::test_skip_none_dagrun
-- tests/models/test_taskinstance.py::TestTaskInstance::test_context_triggering_dataset_events
-- tests/models/test_taskinstance.py::TestTaskInstance::test_get_num_running_task_instances
-- tests/models/test_taskinstance.py::TestTaskInstance::test_get_previous_start_date_none
-- tests/models/test_taskinstance.py::TestTaskInstance::test_handle_failure
-- tests/models/test_taskinstance.py::TestTaskInstance::test_handle_failure_fail_stop
-- tests/models/test_taskinstance.py::TestTaskInstance::test_template_with_custom_timetable_deprecated_context
-- tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull
-- tests/models/test_taskinstance.py::TestTaskInstance::test_xcom_pull_different_execution_date
-- tests/models/test_timestamp.py::test_timestamp_behaviour
-- tests/models/test_timestamp.py::test_timestamp_behaviour_with_timezone
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
 - tests/ti_deps/deps/test_prev_dagrun_dep.py::TestPrevDagrunDep::test_first_task_run_of_new_task
 
@@ -593,12 +562,6 @@
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsGetAdsLinkOperator::test_execute
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsListAccountsOperator::test_execute
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsRetrieveAdsLinksListOperator::test_execute
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_connections_path_none_value
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_engine_version_1
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_engine_version_1_custom_auth_mount_point
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_non_existent_key
-- tests/providers/hashicorp/secrets/test_vault.py::TestVaultSecrets::test_get_conn_uri_without_predefined_mount_point
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_do_push
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_dont_push
 - tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
@@ -647,8 +610,4 @@
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_invalid_sql
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_multiple_statements
 - tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_one_statement
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_auth_via_token_and_site_in_init
-- tests/providers/tableau/hooks/test_tableau.py::TestTableauHook::test_get_conn_ssl_default
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
-- tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_constructor
-- tests/providers/weaviate/operators/test_weaviate.py::TestWeaviateIngestOperator::test_execute_with_input_json
