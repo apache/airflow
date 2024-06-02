@@ -23,6 +23,9 @@ it discoverable to unit tests without exposing the entire subpackage.
 
 from __future__ import annotations
 
-from airflow.example_dags.plugins.workday import AfterWorkdayTimetable, WorkdayTimetablePlugin
+from airflow.example_dags.plugins.workday import (
+    AfterWorkdayTimetable as TestAfterWorkdayTimetable,
+    WorkdayTimetablePlugin as TestWorkdayTimetablePlugin,
+)
 
-__all__ = ["AfterWorkdayTimetable", "WorkdayTimetablePlugin"]
+__all__ = ["TestAfterWorkdayTimetable", "TestWorkdayTimetablePlugin"]

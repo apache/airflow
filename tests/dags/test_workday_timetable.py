@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import pendulum
-from workday import AfterWorkdayTimetable
+from workday import TestAfterWorkdayTimetable
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
@@ -25,7 +25,7 @@ from airflow.operators.empty import EmptyOperator
 with DAG(
     dag_id="example_workday_timetable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule=AfterWorkdayTimetable(),
+    schedule=TestAfterWorkdayTimetable(),
     tags=["example", "timetable"],
 ):
     EmptyOperator(task_id="run_this")
