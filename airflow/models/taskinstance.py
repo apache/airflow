@@ -3703,7 +3703,7 @@ class TaskInstance(Base, LoggingMixin):
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().debug(
+            cls.logger().warning(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,
