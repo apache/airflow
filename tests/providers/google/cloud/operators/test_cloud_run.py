@@ -24,11 +24,12 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from google.cloud.run_v2 import Job
+from google.cloud.run_v2 import Job, Service
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
+    CloudRunCreateServiceOperator,
     CloudRunDeleteJobOperator,
     CloudRunExecuteJobOperator,
     CloudRunListJobsOperator,
@@ -37,10 +38,12 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
+CLOUD_RUN_SERVICE_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceHook"
 TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
     "task_count": 1,
@@ -49,6 +52,9 @@ OVERRIDES = {
 
 JOB = Job()
 JOB.name = JOB_NAME
+
+SERVICE = Service()
+SERVICE.name = SERVICE_NAME
 
 
 def _assert_common_template_fields(template_fields):
@@ -387,3 +393,27 @@ class TestCloudRunListJobsOperator:
         limit = -1
         with pytest.raises(expected_exception=AirflowException):
             CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
+
+
+class TestCloudRunCreateServiceOperator:
+    def test_template_fields(self):
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME, service=SERVICE
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "service_name" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_create(self, hook_mock):
+        hook_mock.return_value.create_service.return_value = SERVICE
+
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME, service=SERVICE
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID, service=SERVICE
+        )

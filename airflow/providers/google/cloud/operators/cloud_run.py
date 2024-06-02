@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from google.cloud.run_v2 import Job
+from google.cloud.run_v2 import Job, Service
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook
+from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 
@@ -353,3 +353,58 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         except Exception:
             error = operation.exception(timeout=self.timeout_seconds)
             raise AirflowException(error)
+
+
+class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
+    """
+    Creates a Service without executing it. Pushes the created service to xcom.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :param service_name: Required. The name of the service to create.
+    :param service: Required. The service descriptor containing the configuration of the service to submit.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "service_name")
+
+    def __init__(
+        self,
+        project_id: str,
+        region: str,
+        service_name: str,
+        service: dict | Service,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.service_name = service_name
+        self.service = service
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        super().__init__(**kwargs)
+
+    def execute(self, context: Context):
+        hook: CloudRunServiceHook = CloudRunServiceHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+
+        service = hook.create_service(
+            service_name=self.service_name,
+            service=self.service,
+            region=self.region,
+            project_id=self.project_id,
+        )
+
+        return Service.to_dict(service)
