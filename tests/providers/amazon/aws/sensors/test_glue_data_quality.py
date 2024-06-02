@@ -22,8 +22,10 @@ import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
-from airflow.providers.amazon.aws.sensors.glue import GlueDataQualityRuleSetEvaluationRunSensor, \
-    GlueDataQualityRuleRecommendationRunSensor
+from airflow.providers.amazon.aws.sensors.glue import (
+    GlueDataQualityRuleRecommendationRunSensor,
+    GlueDataQualityRuleSetEvaluationRunSensor,
+)
 
 SAMPLE_RESPONSE_GET_DATA_QUALITY_EVALUATION_RUN_SUCCEEDED = {
     "RunId": "12345",
@@ -76,12 +78,7 @@ RULES = """
 SAMPLE_RESPONSE_GET_DATA_RULE_RECOMMENDATION_RUN_SUCCEEDED = {
     "RunId": "12345",
     "Status": "SUCCEEDED",
-    "DataSource": {
-        "GlueTable": {
-            "DatabaseName": "TestDB",
-            "TableName": "TestTable"
-        }
-    },
+    "DataSource": {"GlueTable": {"DatabaseName": "TestDB", "TableName": "TestTable"}},
     "RecommendedRuleset": RULES,
 }
 
@@ -319,5 +316,3 @@ class TestGlueDataQualityRuleRecommendationRunSensor:
 
         with pytest.raises(AirflowException):
             op.execute_complete(context={}, event=event)
-
-

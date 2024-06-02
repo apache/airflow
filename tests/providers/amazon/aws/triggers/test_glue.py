@@ -27,8 +27,9 @@ from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJob
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.triggers.glue import (
     GlueCatalogPartitionTrigger,
+    GlueDataQualityRuleRecommendationRunCompleteTrigger,
     GlueDataQualityRuleSetEvaluationRunCompleteTrigger,
-    GlueJobCompleteTrigger, GlueDataQualityRuleRecommendationRunCompleteTrigger,
+    GlueJobCompleteTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -124,6 +125,7 @@ class TestGlueDataQualityEvaluationRunCompletedTrigger:
         assert response == TriggerEvent({"status": "success", "evaluation_run_id": self.RUN_ID})
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         mock_get_waiter().wait.assert_called_once()
+
 
 class TestGlueDataQualityRuleRecommendationRunCompleteTrigger:
     EXPECTED_WAITER_NAME = "data_quality_rule_recommendation_run_complete"

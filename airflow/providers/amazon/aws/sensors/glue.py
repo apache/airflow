@@ -24,8 +24,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
-from airflow.providers.amazon.aws.triggers.glue import GlueDataQualityRuleSetEvaluationRunCompleteTrigger, \
-    GlueDataQualityRuleRecommendationRunCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue import (
+    GlueDataQualityRuleRecommendationRunCompleteTrigger,
+    GlueDataQualityRuleSetEvaluationRunCompleteTrigger,
+)
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.sensors.base import BaseSensorOperator

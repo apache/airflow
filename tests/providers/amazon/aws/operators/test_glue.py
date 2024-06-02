@@ -30,8 +30,9 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import (
     GlueDataQualityOperator,
+    GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
-    GlueJobOperator, GlueDataQualityRuleRecommendationRunOperator,
+    GlueJobOperator,
 )
 
 if TYPE_CHECKING:
@@ -559,7 +560,7 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
             datasource=self.DATA_SOURCE,
             role=self.ROLE,
             show_results=False,
-            recommendation_run_kwargs={"CreatedRulesetName": "test-ruleset"}
+            recommendation_run_kwargs={"CreatedRulesetName": "test-ruleset"},
         )
         self.operator.defer = mock.MagicMock()
 

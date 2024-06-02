@@ -535,14 +535,14 @@ class GlueDataQualityHook(AwsBaseHook):
         """
         Print the outcome of recommendation run, recommendation run generates multiple rules against a data source (Glue table) in Data Quality Definition Language (DQDL) format.
 
-        Ex:
         Rules = [
-                IsComplete "NAME",
-                ColumnLength "EMP_ID" between 1 and 12,
-                IsUnique "EMP_ID",
-                ColumnValues "INCOME" > 50000
-                ]
+        IsComplete "NAME",
+        ColumnLength "EMP_ID" between 1 and 12,
+        IsUnique "EMP_ID",
+        ColumnValues "INCOME" > 50000
+        ]
         """
+
         result = self.conn.get_data_quality_rule_recommendation_run(RunId=run_id)
 
         if result.get("RecommendedRuleset"):

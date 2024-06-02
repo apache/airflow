@@ -24,7 +24,8 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.sensors.glue import (
-    GlueDataQualityRuleSetEvaluationRunSensor, GlueDataQualityRuleRecommendationRunSensor,
+    GlueDataQualityRuleRecommendationRunSensor,
+    GlueDataQualityRuleSetEvaluationRunSensor,
 )
 
 
