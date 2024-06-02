@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, DagRunAlreadyExists
+from airflow.exceptions import AirflowException, DagRunAlreadyExists, RemovedInAirflow3Warning
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -51,7 +51,7 @@ from airflow.operators.empty import EmptyOperator
 dag = DAG(
     dag_id='{TRIGGERED_DAG_ID}',
     default_args={{'start_date': datetime(2019, 1, 1)}},
-    schedule_interval=None
+    schedule=None,
 )
 
 task = EmptyOperator(task_id='test', dag=dag)
@@ -550,12 +550,16 @@ class TestDagRunOperator:
     def test_trigger_dagrun_with_execution_date(self):
         """Test TriggerDagRunOperator with custom execution_date (deprecated parameter)"""
         custom_execution_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
-        task = TriggerDagRunOperator(
-            task_id="test_trigger_dagrun_with_execution_date",
-            trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=custom_execution_date,
-            dag=self.dag,
-        )
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_trigger_dagrun_with_execution_date",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                execution_date=custom_execution_date,
+                dag=self.dag,
+            )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
