@@ -608,7 +608,7 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
         glue_data_quality_mock_conn.start_data_quality_rule_recommendation_run.side_effect = exception
 
         operator = GlueDataQualityRuleRecommendationRunOperator(
-            task_id="stat_evaluation_run",
+            task_id="stat_recommendation_run",
             datasource=self.DATA_SOURCE,
             role=self.ROLE,
             recommendation_run_kwargs={"CreatedRulesetName": created_ruleset_name},
