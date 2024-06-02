@@ -37,15 +37,6 @@
 
 
 # Core
-- tests/core/test_stats.py::TestCustomStatsName::test_does_not_send_stats_using_statsd_when_the_name_is_not_valid
-- tests/core/test_stats.py::TestCustomStatsName::test_does_send_stats_using_statsd_when_the_name_is_valid
-- tests/core/test_stats.py::TestPatternOrBasicValidatorConfigOption::test_pattern_or_basic_picker
-- tests/core/test_stats.py::TestPatternOrBasicValidatorConfigOption::test_setting_allow_and_block_logs_warning
-- tests/core/test_stats.py::TestStats::test_enabled_by_config
-- tests/core/test_stats.py::TestStats::test_load_allow_and_block_list_validator_loads_only_allow_list_validator
-- tests/core/test_stats.py::TestStats::test_load_allow_list_validator
-- tests/core/test_stats.py::TestStats::test_load_block_list_validator
-- tests/core/test_stats.py::TestStats::test_load_custom_statsd_client
 - tests/models/test_cleartasks.py::TestClearTasks::test_dags_clear
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_interval_save_runtime
 - tests/models/test_dag.py::TestDag::test_bulk_write_to_db_max_active_runs
