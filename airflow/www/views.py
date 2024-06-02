@@ -2959,6 +2959,11 @@ class Airflow(AirflowBaseView):
         if default_dag_run_display_number not in num_runs_options:
             insort_left(num_runs_options, default_dag_run_display_number)
 
+        can_edit_taskinstance = get_auth_manager().is_authorized_dag(
+            method="PUT",
+            access_entity=DagAccessEntity.TASK_INSTANCE,
+        )
+
         return self.render_template(
             "airflow/grid.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
@@ -2966,6 +2971,7 @@ class Airflow(AirflowBaseView):
             dag=dag,
             doc_md=doc_md,
             num_runs=num_runs,
+            can_edit_taskinstance=can_edit_taskinstance,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
             dag_model=dag_model,

@@ -47,7 +47,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Generally, these should be resolved as soon as a parameter or operator is deprecated.
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
-    "tests/system/providers/amazon/aws/example_emr_notebook_execution.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
     "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
@@ -59,9 +58,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/google/cloud/life_sciences/example_life_sciences.py",
     "tests/system/providers/google/marketing_platform/example_analytics.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
-    "tests/system/providers/jdbc/example_jdbc_queries.py",
-    "tests/system/providers/microsoft/mssql/example_mssql.py",
-    "tests/system/providers/trino/example_trino.py",
 )
 
 

@@ -74,6 +74,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, joinedload, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
@@ -155,13 +156,6 @@ if TYPE_CHECKING:
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
-
-    # This is a workaround because mypy doesn't work with hybrid_property
-    # TODO: remove this hack and move hybrid_property back to main import block
-    # See https://github.com/python/mypy/issues/4430
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 log = logging.getLogger(__name__)
 
