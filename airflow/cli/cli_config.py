@@ -427,7 +427,7 @@ ARG_MARK_SUCCESS_PATTERN = Arg(
     ("--mark-success-pattern",),
     help=(
         "Don't run task_ids matching the regex <MARK_SUCCESS_PATTERN>, mark them as successful instead.\n"
-        "Can be used to skip dependency checks (e.g. sensors) in local testing.\n"
+        "Can be used to skip e.g. dependency check sensors or cleanup steps in local testing.\n"
     ),
 )
 

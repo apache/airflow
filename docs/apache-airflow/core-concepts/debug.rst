@@ -44,6 +44,9 @@ needed. Here are some examples of arguments:
   executor, it just runs all the tasks locally.
   By providing this argument, the DAG is executed using the executor configured in the Airflow environment.
 
+Additionally, if you don't wish to execute some subset of tasks in your local environment (e.g. dependency check sensors or cleanup steps),
+you can automatically mark them successful supplying a pattern matching their ``task_id`` in the ``mark_success_pattern`` argument.
+
 Comparison with DebugExecutor
 -----------------------------
 
