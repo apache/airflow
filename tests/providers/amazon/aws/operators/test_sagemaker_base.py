@@ -32,8 +32,16 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.utils import timezone
 
-CONFIG: dict = {"key1": "1", "key2": {"key3": "3", "key4": "4"}, "key5": [{"key6": "6"}, {"key6": "7"}]}
-PARSED_CONFIG: dict = {"key1": 1, "key2": {"key3": 3, "key4": 4}, "key5": [{"key6": 6}, {"key6": 7}]}
+CONFIG: dict = {
+    "key1": "1",
+    "key2": {"key3": "3", "key4": "4"},
+    "key5": [{"key6": "6"}, {"key6": "7"}],
+}
+PARSED_CONFIG: dict = {
+    "key1": 1,
+    "key2": {"key3": 3, "key4": 4},
+    "key5": [{"key6": 6}, {"key6": 7}],
+}
 
 EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
@@ -46,7 +54,12 @@ class TestSageMakerBaseOperator:
         self.sagemaker.aws_conn_id = "aws_default"
 
     def test_parse_integer(self):
-        self.sagemaker.integer_fields = [["key1"], ["key2", "key3"], ["key2", "key4"], ["key5", "key6"]]
+        self.sagemaker.integer_fields = [
+            ["key1"],
+            ["key2", "key3"],
+            ["key2", "key4"],
+            ["key5", "key6"],
+        ]
         self.sagemaker.parse_config_integers()
         assert self.sagemaker.config == PARSED_CONFIG
 
@@ -79,10 +92,77 @@ class TestSageMakerBaseOperator:
         with pytest.raises(AirflowException):
             self.sagemaker._get_unique_job_name("test", True, lambda _: None)
 
+    def test_check_resource_type_raises_exception_when_resource_type_is_invalid(self):
+        with pytest.raises(AirflowException) as context:
+            self.sagemaker._check_resource_type("invalid_resource")
+
+        assert str(context.value) == (
+            "Argument resource_type accepts only 'model' and 'job'. Provided value: 'invalid_resource'."
+        )
+
+    def test_get_unique_name_raises_exception_if_name_exists_when_fail_is_true(self):
+        with pytest.raises(AirflowException) as context:
+            self.sagemaker._get_unique_name(
+                "existing_name",
+                fail_if_exists=True,
+                describe_func=None,
+                check_exists_func=lambda name, describe_func: True,
+                resource_type="model",
+            )
+
+        assert str(context.value) == "A SageMaker model with name existing_name already exists."
+
+    @patch("airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=3000000)
+    def test_get_unique_name_avoids_name_collision(self, time_mock):
+        new_name = self.sagemaker._get_unique_name(
+            "existing_name",
+            fail_if_exists=False,
+            describe_func=None,
+            check_exists_func=MagicMock(side_effect=[True, False]),
+            resource_type="model",
+        )
+
+        assert new_name == "existing_name-3"
+
+    def test_get_unique_name_checks_only_once_when_resource_does_not_exist(self):
+        describe_func = MagicMock(side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op"))
+        new_name = "new_name"
+
+        name = self.sagemaker._get_unique_name(
+            new_name,
+            fail_if_exists=False,
+            describe_func=describe_func,
+            check_exists_func=self.sagemaker._check_if_job_exists,
+            resource_type="job",
+        )
+
+        describe_func.assert_called_once_with(new_name)
+        assert name == new_name
+
+    def test_check_if_resource_exists_returns_true_when_it_finds_existing_resource(self):
+        exists = self.sagemaker._check_if_resource_exists("job_123", "job", lambda name: None)
+        assert exists
+
+    def test_check_if_resource_exists_returns_false_when_validation_exception_is_raised(self):
+        describe_func = MagicMock(side_effect=ClientError({"Error": {"Code": "ValidationException"}}, "op"))
+        exists = self.sagemaker._check_if_resource_exists("job_123", "job", describe_func)
+        assert not exists
+
+    def test_check_if_resource_exists_raises_when_it_is_not_validation_exception(self):
+        describe_func = MagicMock(side_effect=ValueError("different exception"))
+
+        with pytest.raises(ValueError) as context:
+            self.sagemaker._check_if_resource_exists("job_123", "job", describe_func)
+
+        assert str(context.value) == "different exception"
+
 
 @pytest.mark.db_test
 class TestSageMakerExperimentOperator:
-    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    @patch(
+        "airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn",
+        new_callable=mock.PropertyMock,
+    )
     def test_create_experiment(self, conn_mock):
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
@@ -106,5 +186,7 @@ class TestSageMakerExperimentOperator:
 
         assert ret == "abcdef"
         conn_mock().create_experiment.assert_called_once_with(
-            ExperimentName="the name", Description="the desc", Tags=[{"Key": "jinja", "Value": "tid"}]
+            ExperimentName="the name",
+            Description="the desc",
+            Tags=[{"Key": "jinja", "Value": "tid"}],
         )
