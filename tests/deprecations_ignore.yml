@@ -116,10 +116,6 @@
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_subdag_pools
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_subdag_pools_no_possible_conflict
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_subdag_with_propagate_skipped_state
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_false
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_true
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_true_with_execution_date
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_xcom_push_true_branch
 
 
 # Serialization
