@@ -542,7 +542,6 @@ class GlueDataQualityHook(AwsBaseHook):
         ColumnValues "INCOME" > 50000
         ]
         """
-
         result = self.conn.get_data_quality_rule_recommendation_run(RunId=run_id)
 
         if result.get("RecommendedRuleset"):
