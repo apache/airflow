@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-05-31T13:01:24.383316
+# This constraints file was automatically generated on 2024-06-02T05:35:38.122048
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -241,7 +241,7 @@ cachetools==5.3.3
 cassandra-driver==3.29.1
 cattrs==23.2.3
 celery==5.4.0
-certifi==2024.2.2
+certifi==2024.6.2
 cffi==1.16.0
 cfgv==3.4.0
 cfn-lint==0.87.4
@@ -350,7 +350,7 @@ google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
 google-cloud-secret-manager==2.20.0
-google-cloud-spanner==3.46.0
+google-cloud-spanner==3.47.0
 google-cloud-speech==2.26.0
 google-cloud-storage-transfer==1.11.3
 google-cloud-storage==2.16.0
@@ -361,7 +361,7 @@ google-cloud-videointelligence==2.13.3
 google-cloud-vision==3.7.2
 google-cloud-workflows==1.14.3
 google-crc32c==1.5.0
-google-re2==1.1.20240501
+google-re2==1.1.20240601
 google-resumable-media==2.7.0
 googleapis-common-protos==1.63.0
 graphql-core==3.2.3
@@ -522,7 +522,7 @@ pinecone-client==4.1.0
 pinotdb==5.2.0
 pipdeptree==2.21.0
 pipx==1.5.0
-pkginfo==1.10.0
+pkginfo==1.11.0
 platformdirs==4.2.2
 pluggy==1.5.0
 ply==3.11
@@ -548,7 +548,7 @@ pyarrow-hotfix==0.6
 pyarrow==14.0.2
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
-pycountry==23.12.11
+pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.20.0
 pydantic==2.7.2
@@ -611,7 +611,7 @@ responses==0.25.0
 restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
-rich-argparse==1.4.0
+rich-argparse==1.5.0
 rich-click==1.8.2
 rich==13.7.1
 rpds-py==0.18.1
@@ -713,7 +713,7 @@ types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
-typing_extensions==4.12.0
+typing_extensions==4.12.1
 tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
@@ -737,11 +737,11 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.288.0
+yandexcloud==0.291.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.49
-zipp==3.19.0
+zipp==3.19.1
 zope.event==5.0
 zope.interface==6.4.post2
 zstandard==0.22.0
