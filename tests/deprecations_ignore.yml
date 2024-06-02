@@ -132,10 +132,6 @@
 - tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_true
 - tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure
 - tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_false
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_true
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_follow_true_with_execution_date
-- tests/operators/test_weekday.py::TestBranchDayOfWeekOperator::test_branch_xcom_push_true_branch
 
 
 # Serialization
