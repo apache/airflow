@@ -136,9 +136,6 @@
 
 # Serialization
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_custom_dep_detector
-- tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_dag_params_roundtrip
-- tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_task_params_roundtrip
-- tests/serialization/test_pydantic_models.py::test_serializing_pydantic_dataset_event
 
 
 # WWW
