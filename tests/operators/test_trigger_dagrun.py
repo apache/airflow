@@ -25,7 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, DagRunAlreadyExists, RemovedInAirflow3Warning, TaskDeferred
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
