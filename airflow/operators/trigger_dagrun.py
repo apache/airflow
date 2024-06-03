@@ -199,7 +199,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_logical_date)
+                dag_run = e.dag_run
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.logical_date)
 
                 # Get target dag object and call clear()
                 dag_model = DagModel.get_current(self.trigger_dag_id)
@@ -208,7 +209,6 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag_run = e.dag_run
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
                 if self.skip_when_already_exists:
@@ -231,7 +231,7 @@ class TriggerDagRunOperator(BaseOperator):
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
                         states=self.allowed_states + self.failed_states,
-                        execution_dates=[parsed_logical_date],
+                        execution_dates=[dag_run.logical_date],
                         poll_interval=self.poke_interval,
                     ),
                     method_name="execute_complete",

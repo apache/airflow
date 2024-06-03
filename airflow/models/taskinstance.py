@@ -61,6 +61,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
@@ -164,13 +165,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
-
-    # This is a workaround because mypy doesn't work with hybrid_property
-    # TODO: remove this hack and move hybrid_property back to main import block
-    # See https://github.com/python/mypy/issues/4430
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -3709,7 +3703,7 @@ class TaskInstance(Base, LoggingMixin):
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().debug(
+            cls.logger().warning(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,

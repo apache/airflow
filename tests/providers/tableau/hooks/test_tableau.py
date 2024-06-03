@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import configuration, models
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.utils import db
 
@@ -114,7 +115,10 @@ class TestTableauHook:
         """
         Test get conn auth via token
         """
-        with TableauHook(site_id="test", tableau_conn_id="tableau_test_token") as tableau_hook:
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Authentication via personal access token is deprecated..*",
+        ), TableauHook(site_id="test", tableau_conn_id="tableau_test_token") as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_tableau_auth.assert_called_once_with(
                 token_name=tableau_hook.conn.extra_dejson["token_name"],
@@ -154,7 +158,10 @@ class TestTableauHook:
         """
         Test get conn with default SSL parameters
         """
-        with TableauHook(tableau_conn_id="tableau_test_ssl_connection_default") as tableau_hook:
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Authentication via personal access token is deprecated..*",
+        ), TableauHook(tableau_conn_id="tableau_test_ssl_connection_default") as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={"verify": True, "cert": None}

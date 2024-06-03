@@ -45,7 +45,7 @@ import airflow
 from airflow.datasets import Dataset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
-from airflow.exceptions import AirflowException, SerializationError
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -934,7 +934,14 @@ class TestStringifiedDAGs:
         """
         Test that params work both on Serialized DAGs & Tasks
         """
-        dag = DAG(dag_id="simple_dag", params=val)
+        if val and any([True for k, v in val.items() if isinstance(v, set)]):
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+            ):
+                dag = DAG(dag_id="simple_dag", params=val)
+        else:
+            dag = DAG(dag_id="simple_dag", params=val)
         BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag_json = SerializedDAG.to_json(dag)
@@ -943,7 +950,15 @@ class TestStringifiedDAGs:
 
         assert "params" in serialized_dag["dag"]
 
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        if val and any([True for k, v in val.items() if isinstance(v, set)]):
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+            ):
+                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        else:
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()
@@ -1011,15 +1026,24 @@ class TestStringifiedDAGs:
         Test that params work both on Serialized DAGs & Tasks
         """
         dag = DAG(dag_id="simple_dag")
-        BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+        if val and any([True for k, v in val.items() if isinstance(v, set)]):
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+            ):
+                BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+                serialized_dag = SerializedDAG.to_dict(dag)
+                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        else:
+            BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+            serialized_dag = SerializedDAG.to_dict(dag)
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
-        serialized_dag = SerializedDAG.to_dict(dag)
         if val:
             assert "params" in serialized_dag["dag"]["tasks"][0]["__var"]
         else:
             assert "params" not in serialized_dag["dag"]["tasks"][0]["__var"]
 
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_simple_task.params.dump()
 
