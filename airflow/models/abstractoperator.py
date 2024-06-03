@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import functools
 import inspect
 from abc import abstractproperty
 from functools import cached_property
@@ -696,6 +697,14 @@ class AbstractOperator(Templater, DAGNode):
             dag = self.get_dag()
         return super().get_template_env(dag=dag)
 
+    def render_value(self, context: Context, jinja_env: jinja2.Environment, value):
+        return self.render_template(
+            value,
+            context,
+            jinja_env,
+            set(),
+        )
+
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -705,6 +714,7 @@ class AbstractOperator(Templater, DAGNode):
         seen_oids: set[int],
     ) -> None:
         """Override the base to use custom error logging."""
+        render_fn = functools.partial(self.render_value, context, jinja_env)
         for attr_name in template_fields:
             try:
                 value = getattr(parent, attr_name)
@@ -730,12 +740,15 @@ class AbstractOperator(Templater, DAGNode):
                 pass
 
             try:
-                rendered_content = self.render_template(
-                    value,
-                    context,
-                    jinja_env,
-                    seen_oids,
-                )
+                if callable(value):
+                    rendered_content = value(render_fn)
+                else:
+                    rendered_content = self.render_template(
+                        value,
+                        context,
+                        jinja_env,
+                        seen_oids,
+                    )
             except Exception:
                 value_masked = redact(name=attr_name, value=value)
                 self.log.exception(
