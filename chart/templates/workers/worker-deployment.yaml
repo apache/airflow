@@ -220,7 +220,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
-          {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: worker

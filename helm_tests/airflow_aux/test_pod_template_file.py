@@ -702,6 +702,21 @@ class TestPodTemplateFile:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.initContainers[-1]", docs[0])
 
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "release-name-test-init-container",
+        } == jmespath.search("spec.initContainers[-1]", docs[0])
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -718,6 +733,21 @@ class TestPodTemplateFile:
         assert {
             "name": "test-container",
             "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.containers[-1]", docs[0])
+
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "release-name-test-container",
         } == jmespath.search("spec.containers[-1]", docs[0])
 
     def test_should_add_pod_labels(self):
