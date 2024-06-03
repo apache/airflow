@@ -939,6 +939,6 @@ It can also be useful to keep obsolete DAGs if they are still being used on the 
 
 However, as the scheduler will not have the DAGs of the version (n-1), it will automatically launch the purge of non-existing DAGs in the DAG file.
 
-To keep obsolete DAGs, we can set the value of the `AIRFLOW__CORE__PURGE_STALE_DAGS` variable to `False`.
+To keep obsolete DAGs, we can set the value of the ``AIRFLOW__CORE__PURGE_STALE_DAGS`` variable to ``False``.
 
-By default, it is set to `True` in `config.yml`.
+By default, it is set to ``True`` in ``config.yml``.
