@@ -163,7 +163,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraInitContainers }}
-          {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.webserver.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: webserver

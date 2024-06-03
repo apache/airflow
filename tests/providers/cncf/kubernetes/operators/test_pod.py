@@ -1621,29 +1621,35 @@ class TestKubernetesPodOperator:
             "pod": remote_pod_mock,
         }
 
+    @pytest.mark.parametrize("get_logs", [True, False])
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
     def test_await_container_completion_refreshes_properties_on_exception(
-        self, mock_await_container_completion
+        self, mock_await_container_completion, fetch_requested_container_logs, get_logs
     ):
-        container_name = "base"
-        k = KubernetesPodOperator(
-            task_id="task",
-        )
+        k = KubernetesPodOperator(task_id="task", get_logs=get_logs)
         pod = self.run_pod(k)
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
 
         # no exception doesn't update properties
-        k.await_container_completion(pod, container_name=container_name)
+        k.await_pod_completion(pod)
         assert client == k.client
         assert hook == k.hook
         assert pod_manager == k.pod_manager
 
         # exception refreshes properties
         mock_await_container_completion.side_effect = [ApiException(status=401), mock.DEFAULT]
-        k.await_container_completion(pod, container_name=container_name)
-        mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=container_name)] * 3
-        )
+        fetch_requested_container_logs.side_effect = [ApiException(status=401), mock.DEFAULT]
+        k.await_pod_completion(pod)
+
+        if get_logs:
+            fetch_requested_container_logs.assert_has_calls(
+                [mock.call(pod=pod, containers=k.container_logs, follow_logs=True)] * 3
+            )
+        else:
+            mock_await_container_completion.assert_has_calls(
+                [mock.call(pod=pod, container_name=k.base_container_name)] * 3
+            )
         assert client != k.client
         assert hook != k.hook
         assert pod_manager != k.pod_manager
@@ -1662,20 +1668,20 @@ class TestKubernetesPodOperator:
     def test_await_container_completion_retries_on_specific_exception(
         self, mock_await_container_completion, side_effect, exception_type, expect_exc
     ):
-        container_name = "base"
         k = KubernetesPodOperator(
             task_id="task",
+            get_logs=False,
         )
         pod = self.run_pod(k)
         mock_await_container_completion.side_effect = side_effect
         if expect_exc:
-            k.await_container_completion(pod, container_name=container_name)
+            k.await_pod_completion(pod)
         else:
             with pytest.raises(exception_type):
-                k.await_container_completion(pod, container_name=container_name)
+                k.await_pod_completion(pod)
         expected_call_count = min(len(side_effect), 3)  # retry max 3 times
         mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=container_name)] * expected_call_count
+            [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
         )
 
 

@@ -369,13 +369,15 @@ _orm_to_model = {
     DagRun: DagRunPydantic,
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
+    Dataset: DatasetPydantic,
 }
-_type_to_class = {
+_type_to_class: dict[DAT, list] = {
     DAT.BASE_JOB: [JobPydantic, Job],
     DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
+    DAT.DATA_SET: [DatasetPydantic, Dataset],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
 
@@ -747,18 +749,7 @@ class BaseSerialization:
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
-            if type_ == DAT.BASE_JOB:
-                return JobPydantic.model_validate(var)
-            elif type_ == DAT.TASK_INSTANCE:
-                return TaskInstancePydantic.model_validate(var)
-            elif type_ == DAT.DAG_RUN:
-                return DagRunPydantic.model_validate(var)
-            elif type_ == DAT.DAG_MODEL:
-                return DagModelPydantic.model_validate(var)
-            elif type_ == DAT.DATA_SET:
-                return DatasetPydantic.model_validate(var)
-            elif type_ == DAT.LOG_TEMPLATE:
-                return LogTemplatePydantic.model_validate(var)
+            return _type_to_class[type_][0].model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:

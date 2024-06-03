@@ -40,8 +40,8 @@ def clear_db():
 def add_log(execdate, session, dag_maker, timezone_override=None):
     with dag_maker(dag_id="logging", default_args={"start_date": execdate}):
         task = EmptyOperator(task_id="dummy")
-    dag_maker.create_dagrun()
-    task_instance = TaskInstance(task=task, execution_date=execdate, state="success")
+    dag_run = dag_maker.create_dagrun()
+    task_instance = TaskInstance(task=task, run_id=dag_run.run_id, state="success")
     session.merge(task_instance)
     log = Log(State.RUNNING, task_instance)
     if timezone_override:

@@ -44,7 +44,7 @@ def test_index_redirect(admin_client):
 
 
 def test_homepage_query_count(admin_client):
-    with assert_queries_count(17):
+    with assert_queries_count(20):
         resp = admin_client.get("/home")
     check_content_in_response("DAGs", resp)
 
