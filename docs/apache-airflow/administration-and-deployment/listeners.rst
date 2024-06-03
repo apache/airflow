@@ -147,26 +147,34 @@ For example if you want to implement a listener that uses the ``error`` field in
 ``on_task_instance_failed``, you should use code like this:
 
 .. code-block:: python
+
     from importlib.metadata import version
     from packaging.version import Version
     from airflow.listeners import hookimpl
+
     airflow_version = Version(version("apache-airflow"))
     if airflow_version >= Version("2.10.0"):
+
         class ClassBasedListener:
             ...
+
             @hookimpl
             def on_task_instance_failed(
                 self, previous_state, task_instance, error: None | str | BaseException, session
             ):
                 # Handle error case here
                 pass
+
     else:
         class ClassBasedListener:  # type: ignore[no-redef]
             ...
+
             @hookimpl
             def on_task_instance_failed(self, previous_state, task_instance, session):
                 # Handle no error case here
                 pass
+
+                
 List of changes in the listener interfaces since 2.8.0 when they were introduced:
 
 
