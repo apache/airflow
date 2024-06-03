@@ -16,24 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
+import ydb
 from sqlalchemy.engine import URL
 
+from airflow.exceptions import AirflowException
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.ydb.hooks._vendor.dbapi.connection import Connection as DbApiConnection
 from airflow.providers.ydb.hooks._vendor.dbapi.cursor import YdbQuery
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
 from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME
 
-import ydb
-from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-
 DEFAULT_YDB_GRPCS_PORT: int = 2135
 
 if TYPE_CHECKING:
-    from airflow.providers.ydb.hooks._vendor.dbapi.cursor import Cursor as DbApiCursor
     from airflow.models.connection import Connection
+    from airflow.providers.ydb.hooks._vendor.dbapi.cursor import Cursor as DbApiCursor
 
 
 class YDBCursor:
@@ -158,7 +157,7 @@ class YDBHook(DbApiHook):
         """Return connection widgets to add to YDB connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField, StringField, BooleanField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "database": StringField(

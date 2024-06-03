@@ -16,16 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timedelta
-from airflow.utils import timezone
 from unittest.mock import MagicMock, PropertyMock, patch
+
+import pytest
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
-
+from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
+from airflow.utils import timezone
 
 @pytest.mark.db_test
 def test_sql_templating(create_task_instance_of_operator):

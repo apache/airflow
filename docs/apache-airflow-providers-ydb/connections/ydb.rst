@@ -44,7 +44,7 @@ Service account auth JSON (optional)
     Service account auth JSON, e.g. {"id": "...", "service_account_id": "...", "private_key": "..."}.
 
 Service account auth JSON file path (optional)
-    Service account auth JSON file path. File content looks like: {"id": "...", "service_account_id": "...", "private_key": "..."}.    
+    Service account auth JSON file path. File content looks like: {"id": "...", "service_account_id": "...", "private_key": "..."}.
 
 Access Token (optional)
     User account IAM token.

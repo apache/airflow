@@ -1844,8 +1844,8 @@ Yandex
 yandex
 yandexcloud
 yarnpkg
-ydb
 YDB
+ydb
 Yieldr
 yml
 youtrack

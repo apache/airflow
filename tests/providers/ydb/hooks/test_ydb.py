@@ -16,19 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import re
-from datetime import datetime, timedelta
-from airflow.utils import timezone
-from unittest.mock import MagicMock, PropertyMock, call, patch
-
-import pytest
-import responses
-from responses import matchers
+from unittest.mock import PropertyMock, patch
 
 from airflow.models import Connection
-from airflow.models.dag import DAG
 from airflow.providers.ydb.hooks.ydb import YDBHook
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
 
 class FakeDriver:

@@ -25,17 +25,20 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2024, 1, 1)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def ydb_connections():
     """Create YDB connection which use for testing purpose."""
-    c = Connection(conn_id="ydb_default", conn_type="ydb", host="grpc://ydb", port=2136, extra={"database": "/local"})
+    c = Connection(
+        conn_id="ydb_default", conn_type="ydb", host="grpc://ydb", port=2136, extra={"database": "/local"}
+    )
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setenv(f"AIRFLOW_CONN_YDB_DEFAULT", c.as_json())
+        mp.setenv("AIRFLOW_CONN_YDB_DEFAULT", c.as_json())
         yield
 
 
@@ -48,12 +51,10 @@ class TestYDBExecuteQueryOperator:
 
         self.mock_context = MagicMock()
 
-
     def test_execute_hello(self):
         operator = YDBExecuteQueryOperator(
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_all_handler
         )
 
-        # breakpoint()
         results = operator.execute(self.mock_context)
-        assert results == [(987, )]
+        assert results == [(987,)]

@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from typing import Iterable, Mapping
 from airflow.exceptions import AirflowException
-from typing import Any, Iterable, Mapping
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
 class YDBExecuteQueryOperator(SQLExecuteQueryOperator):
