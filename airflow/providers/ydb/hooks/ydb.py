@@ -48,7 +48,7 @@ class YDBCursor:
         q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl)
         return self.delegatee.execute(q, parameters)
 
-    def executemany(self, sql: str, seq_of_parameters: Sequence[Mapping[str, Any]] | None):
+    def executemany(self, sql: str, seq_of_parameters: Sequence[Mapping[str, Any]]):
         for parameters in seq_of_parameters:
             self.execute(sql, parameters)
 
@@ -211,13 +211,15 @@ class YDBHook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        connection_extra: dict[str, Any] = conn.extra_dejson
+        database: str | None = connection_extra.get("database")
         return URL.create(
             drivername="ydb",
             username=conn.login,
             password=conn.password,
             host=conn.host,
             port=conn.port,
-            database=self.database,
+            database=database,
         )
 
     def get_conn(self) -> YDBConnection:
