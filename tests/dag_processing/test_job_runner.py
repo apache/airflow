@@ -1551,6 +1551,7 @@ class TestDagProcessorJobRunner:
             )
             assert serialized_dag_count == 0
 
+
 def _wait_for_processor_agent_to_complete_in_async_mode(processor_agent: DagFileProcessorAgent):
     start_timer = time.monotonic()
     while time.monotonic() - start_timer < 10:
