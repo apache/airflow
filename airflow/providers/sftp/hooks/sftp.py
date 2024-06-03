@@ -549,7 +549,7 @@ class SFTPHookAsync(BaseHook):
         matched_files = [file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)]
         return matched_files
 
-    async def get_mod_time(self, path: str) -> str:
+    async def get_mod_time(self, path: str) -> str:  # type: ignore[return]
         """
         Make SFTP async connection.
 
@@ -558,13 +558,13 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote file
         """
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            ftp_mdtm = await sftp_client.stat(path)
-            modified_time = ftp_mdtm.mtime
-            mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
-            self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
-            return mod_time
-        except asyncssh.SFTPNoSuchFile:
-            raise AirflowException("No files matching")
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                ftp_mdtm = await sftp_client.stat(path)
+                modified_time = ftp_mdtm.mtime
+                mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
+                self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
+                return mod_time
+            except asyncssh.SFTPNoSuchFile:
+                raise AirflowException("No files matching")
