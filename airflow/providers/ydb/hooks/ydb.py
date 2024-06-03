@@ -226,7 +226,7 @@ class YDBHook(DbApiHook):
             raise ValueError("YDB host must be specified")
         port: int = conn.port or DEFAULT_YDB_GRPCS_PORT
 
-        connection_extra: dict[str:Any] = conn.extra_dejson
+        connection_extra: dict[str, Any] = conn.extra_dejson
         database: str | None = connection_extra.get("database")
         if not database:
             raise ValueError("YDB database must be specified")

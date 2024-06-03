@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 def get_credentials_from_connection(
-    endpoint: str, database: str, connection: Connection, connection_extra: dict[str:Any] = {}
+    endpoint: str, database: str, connection: Connection, connection_extra: dict[str, Any] = {}
 ) -> Any:
     """
     Return YDB credentials object for YDB SDK based on connection settings.
