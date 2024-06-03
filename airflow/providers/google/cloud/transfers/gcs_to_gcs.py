@@ -552,7 +552,13 @@ class GCSToGCSOperator(BaseOperator):
         """
         from pathlib import Path
 
-        from openlineage.client.event_v2 import Dataset
+        if TYPE_CHECKING:
+            from openlineage.client.event_v2 import Dataset
+        else:
+            try:
+                from openlineage.client.event_v2 import Dataset
+            except ImportError:
+                from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 

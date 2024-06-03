@@ -18,10 +18,18 @@
 from __future__ import annotations
 
 import socket
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from openlineage.client.event_v2 import Dataset
+
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+    except ImportError:
+        from openlineage.client.run import Dataset
 
 from airflow.models import DAG, Connection
 from airflow.providers.ftp.operators.ftp import (

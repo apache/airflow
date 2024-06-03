@@ -17,10 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
-from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import schema_dataset, sql_job
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+    from openlineage.client.generated.sql_job import SQLJobFacet
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+        from openlineage.client.generated.sql_job import SQLJobFacet
+    except ImportError:
+        from openlineage.client.facet import (
+            SchemaDatasetFacet,
+            SchemaField as SchemaDatasetFacetFields,
+            SqlJobFacet as SQLJobFacet,
+        )
+        from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -91,14 +106,14 @@ def test_execute_openlineage_events():
             namespace="trino://trino:8080",
             name=f"{DB_NAME}.{DB_SCHEMA_NAME}.customer",
             facets={
-                "schema": schema_dataset.SchemaDatasetFacet(
+                "schema": SchemaDatasetFacet(
                     fields=[
-                        schema_dataset.SchemaDatasetFacetFields(name="custkey", type="bigint"),
-                        schema_dataset.SchemaDatasetFacetFields(name="name", type="varchar(25)"),
-                        schema_dataset.SchemaDatasetFacetFields(name="address", type="varchar(40)"),
-                        schema_dataset.SchemaDatasetFacetFields(name="nationkey", type="bigint"),
-                        schema_dataset.SchemaDatasetFacetFields(name="phone", type="varchar(15)"),
-                        schema_dataset.SchemaDatasetFacetFields(name="acctbal", type="double"),
+                        SchemaDatasetFacetFields(name="custkey", type="bigint"),
+                        SchemaDatasetFacetFields(name="name", type="varchar(25)"),
+                        SchemaDatasetFacetFields(name="address", type="varchar(40)"),
+                        SchemaDatasetFacetFields(name="nationkey", type="bigint"),
+                        SchemaDatasetFacetFields(name="phone", type="varchar(15)"),
+                        SchemaDatasetFacetFields(name="acctbal", type="double"),
                     ]
                 )
             },
@@ -107,4 +122,4 @@ def test_execute_openlineage_events():
 
     assert len(lineage.outputs) == 0
 
-    assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}

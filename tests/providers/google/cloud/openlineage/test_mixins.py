@@ -17,16 +17,34 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import (
-    ExternalQueryRunFacet,
-    OutputStatisticsOutputDatasetFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-)
-from openlineage.client.run import Dataset
+
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import InputDataset, OutputDataset
+    from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
+    from openlineage.client.generated.output_statistics_output_dataset import (
+        OutputStatisticsOutputDatasetFacet,
+    )
+    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+else:
+    try:
+        from openlineage.client.event_v2 import InputDataset, OutputDataset
+        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
+        from openlineage.client.generated.output_statistics_output_dataset import (
+            OutputStatisticsOutputDatasetFacet,
+        )
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+    except ImportError:
+        from openlineage.client.facet import (
+            ExternalQueryRunFacet,
+            OutputStatisticsOutputDatasetFacet,
+            SchemaDatasetFacet,
+            SchemaField as SchemaDatasetFacetFields,
+        )
+        from openlineage.client.run import InputDataset, OutputDataset
 
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryOpenLineageMixin
 from airflow.providers.google.cloud.openlineage.utils import (
@@ -89,27 +107,29 @@ class TestBigQueryOpenLineageMixin:
             "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
         }
         assert lineage.inputs == [
-            Dataset(
+            InputDataset(
                 namespace="bigquery",
                 name="airflow-openlineage.new_dataset.test_table",
                 facets={
                     "schema": SchemaDatasetFacet(
                         fields=[
-                            SchemaField("state", "STRING", "2-digit state code"),
-                            SchemaField("gender", "STRING", "Sex (M=male or F=female)"),
-                            SchemaField("year", "INTEGER", "4-digit year of birth"),
-                            SchemaField("name", "STRING", "Given name of a person at birth"),
-                            SchemaField("number", "INTEGER", "Number of occurrences of the name"),
+                            SchemaDatasetFacetFields("state", "STRING", "2-digit state code"),
+                            SchemaDatasetFacetFields("gender", "STRING", "Sex (M=male or F=female)"),
+                            SchemaDatasetFacetFields("year", "INTEGER", "4-digit year of birth"),
+                            SchemaDatasetFacetFields("name", "STRING", "Given name of a person at birth"),
+                            SchemaDatasetFacetFields(
+                                "number", "INTEGER", "Number of occurrences of the name"
+                            ),
                         ]
                     )
                 },
             )
         ]
         assert lineage.outputs == [
-            Dataset(
+            OutputDataset(
                 namespace="bigquery",
                 name="airflow-openlineage.new_dataset.output_table",
-                facets={
+                outputFacets={
                     "outputStatistics": OutputStatisticsOutputDatasetFacet(
                         rowCount=20, size=321, fileCount=None
                     )
@@ -137,27 +157,29 @@ class TestBigQueryOpenLineageMixin:
             "externalQuery": ExternalQueryRunFacet(externalQueryId="job_id", source="bigquery"),
         }
         assert lineage.inputs == [
-            Dataset(
+            InputDataset(
                 namespace="bigquery",
                 name="airflow-openlineage.new_dataset.test_table",
                 facets={
                     "schema": SchemaDatasetFacet(
                         fields=[
-                            SchemaField("state", "STRING", "2-digit state code"),
-                            SchemaField("gender", "STRING", "Sex (M=male or F=female)"),
-                            SchemaField("year", "INTEGER", "4-digit year of birth"),
-                            SchemaField("name", "STRING", "Given name of a person at birth"),
-                            SchemaField("number", "INTEGER", "Number of occurrences of the name"),
+                            SchemaDatasetFacetFields("state", "STRING", "2-digit state code"),
+                            SchemaDatasetFacetFields("gender", "STRING", "Sex (M=male or F=female)"),
+                            SchemaDatasetFacetFields("year", "INTEGER", "4-digit year of birth"),
+                            SchemaDatasetFacetFields("name", "STRING", "Given name of a person at birth"),
+                            SchemaDatasetFacetFields(
+                                "number", "INTEGER", "Number of occurrences of the name"
+                            ),
                         ]
                     )
                 },
             )
         ]
         assert lineage.outputs == [
-            Dataset(
+            OutputDataset(
                 namespace="bigquery",
                 name="airflow-openlineage.new_dataset.output_table",
-                facets={
+                outputFacets={
                     "outputStatistics": OutputStatisticsOutputDatasetFacet(
                         rowCount=20, size=321, fileCount=None
                     )
@@ -168,23 +190,28 @@ class TestBigQueryOpenLineageMixin:
     def test_deduplicate_outputs(self):
         outputs = [
             None,
-            Dataset(
-                name="d1", namespace="", facets={"outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)}
-            ),
-            Dataset(
+            OutputDataset(
                 name="d1",
                 namespace="",
-                facets={"outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4), "t1": "t1"},
+                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)},
             ),
-            Dataset(
+            OutputDataset(
+                name="d1",
+                namespace="",
+                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(3, 4)},
+                facets={"t1": "t1"},
+            ),
+            OutputDataset(
                 name="d2",
                 namespace="",
-                facets={"outputStatistics": OutputStatisticsOutputDatasetFacet(6, 7), "t2": "t2"},
+                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(6, 7)},
+                facets={"t2": "t2"},
             ),
-            Dataset(
+            OutputDataset(
                 name="d2",
                 namespace="",
-                facets={"outputStatistics": OutputStatisticsOutputDatasetFacet(60, 70), "t20": "t20"},
+                outputFacets={"outputStatistics": OutputStatisticsOutputDatasetFacet(60, 70)},
+                facets={"t20": "t20"},
             ),
         ]
         result = self.operator._deduplicate_outputs(outputs)

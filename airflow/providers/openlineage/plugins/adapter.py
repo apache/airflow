@@ -330,7 +330,7 @@ class OpenLineageAdapter(LoggingMixin):
         msg: str,
         nominal_start_time: str,
         nominal_end_time: str,
-        job_facets: dict[str, BaseFacet] | None = None,  # Custom job facets
+        job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
             owner = [x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None

@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 
-try:
+if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset
     from openlineage.client.generated.column_lineage_dataset import (
         ColumnLineageDatasetFacet,
@@ -30,16 +31,26 @@ try:
     )
     from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
     from openlineage.client.generated.sql_job import SQLJobFacet
-except ImportError:
-    from openlineage.client.facet import (
-        ColumnLineageDatasetFacet,
-        ColumnLineageDatasetFacetFieldsAdditional as Fields,
-        ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
-        SchemaDatasetFacet,
-        SchemaField as SchemaDatasetFacetFields,
-        SqlJobFacet as SQLJobFacet,
-    )
-    from openlineage.client.run import Dataset
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.generated.column_lineage_dataset import (
+            ColumnLineageDatasetFacet,
+            Fields,
+            InputField,
+        )
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+        from openlineage.client.generated.sql_job import SQLJobFacet
+    except ImportError:
+        from openlineage.client.facet import (
+            ColumnLineageDatasetFacet,
+            ColumnLineageDatasetFacetFieldsAdditional as Fields,
+            ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
+            SchemaDatasetFacet,
+            SchemaField as SchemaDatasetFacetFields,
+            SqlJobFacet as SQLJobFacet,
+        )
+        from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook as OriginalRedshiftSQLHook

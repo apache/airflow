@@ -26,6 +26,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
 
+from git import TYPE_CHECKING
+
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 
@@ -146,7 +148,13 @@ class FTPFileTransmitOperator(BaseOperator):
                 input: file://hostname/path
                 output file://<conn.host>:<conn.port>/path.
         """
-        from openlineage.client.event_v2 import Dataset
+        if TYPE_CHECKING:
+            from openlineage.client.event_v2 import Dataset
+        else:
+            try:
+                from openlineage.client.event_v2 import Dataset
+            except ImportError:
+                from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 

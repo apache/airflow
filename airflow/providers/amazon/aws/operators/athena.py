@@ -322,7 +322,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                     SchemaDatasetFacet,
                     SchemaField as SchemaDatasetFacetFields,
                     SymlinksDatasetFacet,
+                    SymlinksDatasetFacetIdentifiers as Identifier,
                 )
+                from openlineage.client.run import Dataset
 
         client = self.hook.get_conn()
         try:

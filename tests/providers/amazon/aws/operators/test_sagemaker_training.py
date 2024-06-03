@@ -17,11 +17,19 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
-from openlineage.client.event_v2 import Dataset
+
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+    except ImportError:
+        from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook

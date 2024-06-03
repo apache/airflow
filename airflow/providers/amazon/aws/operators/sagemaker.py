@@ -208,7 +208,11 @@ class SageMakerBaseOperator(BaseOperator):
 
     @staticmethod
     def path_to_s3_dataset(path) -> Dataset:
-        from openlineage.client.event_v2 import Dataset
+        if not TYPE_CHECKING:
+            try:
+                from openlineage.client.event_v2 import Dataset
+            except ImportError:
+                from openlineage.client.run import Dataset
 
         path = path.replace("s3://", "")
         split_path = path.split("/")

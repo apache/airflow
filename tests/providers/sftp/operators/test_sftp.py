@@ -21,11 +21,19 @@ import contextlib
 import os
 import socket
 from base64 import b64encode
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import paramiko
 import pytest
-from openlineage.client.event_v2 import Dataset
+
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+    except ImportError:
+        from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DAG, Connection

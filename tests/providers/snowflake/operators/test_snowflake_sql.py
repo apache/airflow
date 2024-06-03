@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -36,8 +37,31 @@ except ImportError:
         return MagicMock()
 
 
-from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import column_lineage_dataset, sql_job
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+    from openlineage.client.generated.column_lineage_dataset import (
+        ColumnLineageDatasetFacet,
+        Fields,
+        InputField,
+    )
+    from openlineage.client.generated.sql_job import SQLJobFacet
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.generated.column_lineage_dataset import (
+            ColumnLineageDatasetFacet,
+            Fields,
+            InputField,
+        )
+        from openlineage.client.generated.sql_job import SQLJobFacet
+    except ImportError:
+        from openlineage.client.facet import (
+            ColumnLineageDatasetFacet,
+            ColumnLineageDatasetFacetFieldsAdditional as Fields,
+            ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
+            SqlJobFacet as SQLJobFacet,
+        )
+        from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -247,11 +271,11 @@ def test_execute_openlineage_events(should_use_external_connection):
             namespace="snowflake://test_account.us-east.aws",
             name=f"{DB_NAME}.{DB_SCHEMA_NAME}.TEST_TABLE",
             facets={
-                "columnLineage": column_lineage_dataset.ColumnLineageDatasetFacet(
+                "columnLineage": ColumnLineageDatasetFacet(
                     fields={
-                        "additional_constant": column_lineage_dataset.Fields(
+                        "additional_constant": Fields(
                             inputFields=[
-                                column_lineage_dataset.InputField(
+                                InputField(
                                     namespace="snowflake://test_account.us-east.aws",
                                     name="DATABASE.PUBLIC.little_table",
                                     field="additional_constant",
@@ -266,6 +290,6 @@ def test_execute_openlineage_events(should_use_external_connection):
         )
     ]
 
-    assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
 
     assert lineage.run_facets["extractionError"].failedTasks == 1

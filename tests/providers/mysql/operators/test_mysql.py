@@ -19,11 +19,27 @@ from __future__ import annotations
 
 import os
 from contextlib import closing
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import schema_dataset, sql_job
+
+if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+    from openlineage.client.generated.sql_job import SQLJobFacet
+else:
+    try:
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+        from openlineage.client.generated.sql_job import SQLJobFacet
+    except ImportError:
+        from openlineage.client.facet import (
+            SchemaDatasetFacet,
+            SchemaField as SchemaDatasetFacetFields,
+            SqlJobFacet as SQLJobFacet,
+        )
+        from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -167,17 +183,17 @@ FORGOT TO COMMENT"""
             namespace=f"mysql://host:{connection_port or 3306}",
             name="PUBLIC.popular_orders_day_of_week",
             facets={
-                "schema": schema_dataset.SchemaDatasetFacet(
+                "schema": SchemaDatasetFacet(
                     fields=[
-                        schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
-                        schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
-                        schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                        SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                        SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                        SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                     ]
                 )
             },
         )
     ]
 
-    assert lineage.job_facets == {"sql": sql_job.SQLJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
 
     assert lineage.run_facets["extractionError"].failedTasks == 1

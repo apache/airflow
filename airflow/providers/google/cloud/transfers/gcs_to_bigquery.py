@@ -746,8 +746,22 @@ class GCSToBigQueryOperator(BaseOperator):
         """Implement on_complete as we will include final BQ job id."""
         from pathlib import Path
 
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.facet_v2 import external_query_run, symlinks_dataset
+        if TYPE_CHECKING:
+            from openlineage.client.event_v2 import Dataset
+            from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
+            from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
+        else:
+            try:
+                from openlineage.client.event_v2 import Dataset
+                from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
+                from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
+            except ImportError:
+                from openlineage.client.facet import (
+                    ExternalQueryRunFacet,
+                    SymlinksDatasetFacet,
+                    SymlinksDatasetFacetIdentifiers as Identifier,
+                )
+                from openlineage.client.run import Dataset
 
         from airflow.providers.google.cloud.openlineage.utils import (
             get_facets_from_bq_table,
@@ -781,12 +795,8 @@ class GCSToBigQueryOperator(BaseOperator):
                 # If wildcard ("*") is used in gcs path, we want the name of dataset to be directory name,
                 # but we create a symlink to the full object path with wildcard.
                 additional_facets = {
-                    "symlink": symlinks_dataset.SymlinksDatasetFacet(
-                        identifiers=[
-                            symlinks_dataset.Identifier(
-                                namespace=f"gs://{self.bucket}", name=blob, type="file"
-                            )
-                        ]
+                    "symlink": SymlinksDatasetFacet(
+                        identifiers=[Identifier(namespace=f"gs://{self.bucket}", name=blob, type="file")]
                     ),
                 }
                 blob = Path(blob).parent.as_posix()
@@ -814,9 +824,7 @@ class GCSToBigQueryOperator(BaseOperator):
         run_facets = {}
         if self.job_id:
             run_facets = {
-                "externalQuery": external_query_run.ExternalQueryRunFacet(
-                    externalQueryId=self.job_id, source="bigquery"
-                ),
+                "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery"),
             }
 
         return OperatorLineage(inputs=input_datasets, outputs=[output_dataset], run_facets=run_facets)
