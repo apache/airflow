@@ -166,6 +166,7 @@ For example if you want to implement a listener that uses the ``error`` field in
                 pass
 
     else:
+
         class ClassBasedListener:  # type: ignore[no-redef]
             ...
 
@@ -174,7 +175,6 @@ For example if you want to implement a listener that uses the ``error`` field in
                 # Handle no error case here
                 pass
 
-                
 List of changes in the listener interfaces since 2.8.0 when they were introduced:
 
 
