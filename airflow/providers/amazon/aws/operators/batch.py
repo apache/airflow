@@ -66,6 +66,7 @@ class BatchOperator(BaseOperator):
     :param overrides: DEPRECATED, use container_overrides instead with the same value.
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
     :param ecs_properties_override: the `ecsPropertiesOverride` parameter for boto3 (templated)
+        **NOTE** This requires `boto3` version 1.34.52+
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
     :param share_identifier: The share identifier for the job. Don't specify this parameter if the job queue
         doesn't have a scheduling policy.
