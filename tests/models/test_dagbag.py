@@ -770,8 +770,8 @@ class TestDagBag:
             match="This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.",
         ):
             test_dag = nested_subdag_cycle()
-            # coherence check to make sure DAG.subdag is still functioning properly
-            assert len(test_dag.subdags) == 6
+        # coherence check to make sure DAG.subdag is still functioning properly
+        assert len(test_dag.subdags) == 6
 
         # Perform processing dag
         dagbag, found_dags, file_path = self.process_dag(nested_subdag_cycle, tmp_path)
