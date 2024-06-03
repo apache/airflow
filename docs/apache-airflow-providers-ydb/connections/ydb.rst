@@ -26,10 +26,10 @@ The YDB connection type provides connection to a YDB database.
 Configuring the Connection
 --------------------------
 Host (required)
-    The host without port to connect to. Acceptable schemes: grpc/grpcs, e.g. grpc://my_host, ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net
+    The host without port to connect to. Acceptable schemes: ``grpc/grpcs``, e.g. ``grpc://my_host``, ``ydb.serverless.yandexcloud.net`` or ``lb.etn9txxxx.ydb.mdb.yandexcloud.net``
 
 Database (required)
-    Specify the database to connect to, e.g. /local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b.
+    Specify the database to connect to, e.g. ``/local`` or ``/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b``.
 
 Port (optional)
     The port or the YDB cluster to connect to. Default is 2135.
