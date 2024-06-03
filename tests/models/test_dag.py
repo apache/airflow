@@ -3554,7 +3554,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         state=TaskInstanceState.SUCCESS,
         session=session,
     )
-    # assert dr1 in session, "Check session is passed down all the way"
+    assert dr1 in session, "Check session is passed down all the way"
 
     assert ti_query.all() == [
         ("downstream", -1, dr1.run_id, None),
