@@ -352,16 +352,15 @@ class TestAwsConnectionWrapper:
     def test_get_endpoint_url_from_extra(self, extra, expected):
         mock_conn = mock_connection_factory(extra=extra)
         expected_deprecation_message = (
-            "extra['host'] is deprecated and will be removed in a future release."
-            " Please set extra['endpoint_url'] instead"
+            r"extra\['host'\] is deprecated and will be removed in a future release."
+            r" Please set extra\['endpoint_url'\] instead"
         )
 
-        with warnings.catch_warnings(record=True) as records:
-            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-
         if extra.get("host"):
-            assert len(records) == 1
-            assert str(records[0].message) == expected_deprecation_message
+            with pytest.warns(AirflowProviderDeprecationWarning, match=expected_deprecation_message):
+                wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        else:
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
 
         assert wrap_conn.endpoint_url == expected
 
