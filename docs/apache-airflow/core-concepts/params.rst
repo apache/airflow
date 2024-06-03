@@ -388,14 +388,10 @@ For examples, please take a look at the two example DAGs provided: :ref:`Params 
     The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
     ``webserver.show_trigger_form_if_no_params``.
 
-.. versionchanged:: 2.8.0
-    By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
-    you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
-    ``webserver.allow_raw_html_descriptions`` to ``True``. With the default setting all HTML will be displayed as plain text.
-    This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
-    with the attribute ``description_md``.
-    Custom form elements using the attribute ``custom_html_form`` allow a DAG author to specify raw HTML form templates. These
-    custom HTML form elements are deprecated as of version 2.8.0.
+.. versionchanged:: 2.10.0
+    By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. The previous field named
+    ``description_html`` which is now super-seeded with the attribute ``description_md`` and not supported anymore.
+    Custom form elements using the attribute ``custom_html_form`` was deprecated in version 2.8.0 and support was removed in 2.10.0.
 
 Disabling Runtime Param Modification
 ------------------------------------

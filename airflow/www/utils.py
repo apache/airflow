@@ -39,7 +39,6 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
@@ -639,7 +638,7 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class="rich_doc"):
     """Convert a Markdown string to HTML."""
-    md = MarkdownIt("gfm-like", {"html": conf.getboolean("webserver", "allow_raw_html_descriptions")})
+    md = MarkdownIt("gfm-like")
     if s is None:
         return None
     s = textwrap.dedent(s)
