@@ -48,6 +48,9 @@ from airflow.providers.databricks.operators.databricks import (
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_operator"
 
+QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@daily",
@@ -227,9 +230,9 @@ with DAG(
         task_config={
             "sql_task": {
                 "query": {
-                    "query_id": "c9cf6468-babe-41a6-abc3-10ac358c71ee",
+                    "query_id": QUERY_ID,
                 },
-                "warehouse_id": "cf414a2206dfb397",
+                "warehouse_id": WAREHOUSE_ID,
             }
         },
     )

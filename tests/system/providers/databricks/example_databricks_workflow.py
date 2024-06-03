@@ -38,6 +38,9 @@ DATABRICKS_NOTIFICATION_EMAIL = os.getenv("DATABRICKS_NOTIFICATION_EMAIL", "your
 GROUP_ID = os.getenv("DATABRICKS_GROUP_ID", "1234").replace(".", "_")
 USER = os.environ.get("USER")
 
+QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
+
 job_cluster_spec = [
     {
         "job_cluster_key": "Shared_job_cluster",
@@ -130,9 +133,9 @@ with dag:
             task_config={
                 "sql_task": {
                     "query": {
-                        "query_id": "c9cf6468-babe-41a6-abc3-10ac358c71ee",
+                        "query_id": QUERY_ID,
                     },
-                    "warehouse_id": "cf414a2206dfb397",
+                    "warehouse_id": WAREHOUSE_ID,
                 }
             },
         )

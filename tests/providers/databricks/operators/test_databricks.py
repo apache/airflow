@@ -1851,13 +1851,13 @@ class TestDatabricksNotebookOperator:
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        operator.launch_job = MagicMock(return_value=12345)
+        operator._launch_job = MagicMock(return_value=12345)
         operator.monitor_databricks_job = MagicMock()
 
         operator.execute({})
 
         assert operator.wait_for_termination is True
-        operator.launch_job.assert_called_once()
+        operator._launch_job.assert_called_once()
         operator.monitor_databricks_job.assert_called_once()
 
     def test_execute_without_wait_for_termination(self):
@@ -1868,13 +1868,13 @@ class TestDatabricksNotebookOperator:
             databricks_conn_id="test_conn_id",
             wait_for_termination=False,
         )
-        operator.launch_job = MagicMock(return_value=12345)
+        operator._launch_job = MagicMock(return_value=12345)
         operator.monitor_databricks_job = MagicMock()
 
         operator.execute({})
 
         assert operator.wait_for_termination is False
-        operator.launch_job.assert_called_once()
+        operator._launch_job.assert_called_once()
         operator.monitor_databricks_job.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -1988,7 +1988,7 @@ class TestDatabricksNotebookOperator:
         )
         operator._hook.submit_run.return_value = 12345
 
-        run_id = operator.launch_job()
+        run_id = operator._launch_job()
 
         assert run_id == 12345
 

@@ -918,6 +918,8 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
     :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
+        a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
     """
 
     def __init__(
@@ -933,7 +935,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         new_cluster: dict[str, Any] | None = None,
         polling_period_seconds: int = 5,
         wait_for_termination: bool = True,
-        workflow_run_metadata: dict | None = None,
+        workflow_run_metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ):
         self.caller = caller
@@ -941,17 +943,16 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.databricks_retry_args = databricks_retry_args
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_limit = databricks_retry_limit
-        self.databricks_run_id: int | None = None
         self.deferrable = deferrable
         self.existing_cluster_id = existing_cluster_id
         self.job_cluster_key = job_cluster_key
         self.new_cluster = new_cluster or {}
         self.polling_period_seconds = polling_period_seconds
         self.wait_for_termination = wait_for_termination
+        self.workflow_run_metadata = workflow_run_metadata
 
-        # This is used to store the metadata of the Databricks job run when the job is launched from within
-        # DatabricksWorkflowTaskGroup.
-        self.workflow_run_metadata: dict | None = workflow_run_metadata
+        self.databricks_run_id: int | None = None
+
         super().__init__(**kwargs)
 
     @cached_property
@@ -1012,7 +1013,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             raise ValueError("Must specify either existing_cluster_id or new_cluster.")
         return run_json
 
-    def launch_job(self) -> int:
+    def _launch_job(self) -> int:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
         self.databricks_run_id = self._hook.submit_run(run_json)
@@ -1032,7 +1033,10 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             )
         self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
-    def _get_current_databricks_task(self):
+    def _get_current_databricks_task(self) -> dict[str, Any]:
+        """Retrieve the Databricks task corresponding to the current Airflow task."""
+        if self.databricks_run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
         return {task["task_key"]: task for task in self._hook.get_run(self.databricks_run_id)["tasks"]}[
             self._get_databricks_task_id(self.task_id)
         ]
@@ -1118,7 +1122,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
         else:
-            self.launch_job()
+            self._launch_job()
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
@@ -1158,6 +1162,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
     :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
+        a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
     """
 
     template_fields = (
@@ -1187,36 +1193,22 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     ):
         self.notebook_path = notebook_path
         self.source = source
-        self.databricks_conn_id = databricks_conn_id
-        self.databricks_retry_args = databricks_retry_args
-        self.databricks_retry_delay = databricks_retry_delay
-        self.databricks_retry_limit = databricks_retry_limit
-        self.databricks_run_id: int | None = None
-        self.deferrable = deferrable
-        self.existing_cluster_id = existing_cluster_id
-        self.job_cluster_key = job_cluster_key
-        self.new_cluster = new_cluster or {}
         self.notebook_packages = notebook_packages or []
         self.notebook_params = notebook_params or {}
-        self.polling_period_seconds = polling_period_seconds
-        self.wait_for_termination = wait_for_termination
-
-        # This is used to store the metadata of the Databricks job run when the job is launched from within
-        # DatabricksWorkflowTaskGroup.
-        self.workflow_run_metadata: dict | None = workflow_run_metadata
 
         super().__init__(
             caller=self.CALLER,
-            databricks_conn_id=self.databricks_conn_id,
-            databricks_retry_args=self.databricks_retry_args,
-            databricks_retry_delay=self.databricks_retry_delay,
-            databricks_retry_limit=self.databricks_retry_limit,
-            deferrable=self.deferrable,
-            existing_cluster_id=self.existing_cluster_id,
-            job_cluster_key=self.job_cluster_key,
-            new_cluster=self.new_cluster,
-            polling_period_seconds=self.polling_period_seconds,
-            wait_for_termination=self.wait_for_termination,
+            databricks_conn_id=databricks_conn_id,
+            databricks_retry_args=databricks_retry_args,
+            databricks_retry_delay=databricks_retry_delay,
+            databricks_retry_limit=databricks_retry_limit,
+            deferrable=deferrable,
+            existing_cluster_id=existing_cluster_id,
+            job_cluster_key=job_cluster_key,
+            new_cluster=new_cluster,
+            polling_period_seconds=polling_period_seconds,
+            wait_for_termination=wait_for_termination,
+            workflow_run_metadata=workflow_run_metadata,
             **kwargs,
         )
 
@@ -1333,34 +1325,22 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         **kwargs,
     ):
         self.task_config = task_config
-        self.databricks_conn_id = databricks_conn_id
-        self.databricks_retry_args = databricks_retry_args
-        self.databricks_retry_delay = databricks_retry_delay
-        self.databricks_retry_limit = databricks_retry_limit
-        self.deferrable = deferrable
-        self.existing_cluster_id = existing_cluster_id
-        self.job_cluster_key = job_cluster_key
-        self.new_cluster = new_cluster or {}
-        self.polling_period_seconds = polling_period_seconds
-        self.wait_for_termination = wait_for_termination
+
         super().__init__(
             caller=self.CALLER,
-            databricks_conn_id=self.databricks_conn_id,
-            databricks_retry_args=self.databricks_retry_args,
-            databricks_retry_delay=self.databricks_retry_delay,
-            databricks_retry_limit=self.databricks_retry_limit,
-            deferrable=self.deferrable,
-            existing_cluster_id=self.existing_cluster_id,
-            job_cluster_key=self.job_cluster_key,
-            new_cluster=self.new_cluster,
-            polling_period_seconds=self.polling_period_seconds,
-            wait_for_termination=self.wait_for_termination,
+            databricks_conn_id=databricks_conn_id,
+            databricks_retry_args=databricks_retry_args,
+            databricks_retry_delay=databricks_retry_delay,
+            databricks_retry_limit=databricks_retry_limit,
+            deferrable=deferrable,
+            existing_cluster_id=existing_cluster_id,
+            job_cluster_key=job_cluster_key,
+            new_cluster=new_cluster,
+            polling_period_seconds=polling_period_seconds,
+            wait_for_termination=wait_for_termination,
+            workflow_run_metadata=workflow_run_metadata,
             **kwargs,
         )
-
-        # This is used to store the metadata of the Databricks job run when the job is launched from within
-        # DatabricksWorkflowTaskGroup.
-        self.workflow_run_metadata: dict | None = workflow_run_metadata
 
     def _get_task_base_json(self) -> dict[str, Any]:
         """Get task base json to be used for task submissions."""
