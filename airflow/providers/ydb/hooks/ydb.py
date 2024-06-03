@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import ydb
 from sqlalchemy.engine import URL
@@ -36,18 +36,19 @@ if TYPE_CHECKING:
 
 
 class YDBCursor:
+    """YDB cursor wrapper"""
     def __init__(self, delegatee: DbApiCursor, is_ddl: bool):
         self.delegatee: DbApiCursor = delegatee
         self.is_ddl: bool = is_ddl
 
-    def execute(self, sql: str, parameters: Optional[Mapping[str, Any]] = None):
+    def execute(self, sql: str, parameters: Mapping[str, Any] | None = None):
         if parameters is not None:
             raise AirflowException("parameters is not supported yet")
 
         q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl)
         return self.delegatee.execute(q, parameters)
 
-    def executemany(self, sql: str, seq_of_parameters: Optional[Sequence[Mapping[str, Any]]]):
+    def executemany(self, sql: str, seq_of_parameters: Sequence[Mapping[str, Any]] | None):
         for parameters in seq_of_parameters:
             self.execute(sql, parameters)
 
@@ -91,6 +92,7 @@ class YDBCursor:
 
 
 class YDBConnection:
+    """YDB connection wrapper"""
     def __init__(self, endpoint: str, database: str, credentials: Any, is_ddl: bool = False):
         self.is_ddl = is_ddl
         driver_config = ydb.DriverConfig(

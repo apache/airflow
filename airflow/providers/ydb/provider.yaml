@@ -38,7 +38,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-ydb/operators/ydb_operator_howto_guide.rst
     logo: /integration-logos/ydb/ydb.png
-    tags: [ software ]
+    tags: [software]
 
 operators:
   - integration-name: YDB

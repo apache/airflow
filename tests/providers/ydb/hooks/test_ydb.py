@@ -80,9 +80,9 @@ def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connecti
     hook = YDBHook()
     with hook.get_conn() as conn:
         with conn.cursor() as cur:
-            assert cur.execute("INSERT INTO table VALUES ('aaa'), ('bbbb')") == True
+            assert cur.execute("INSERT INTO table VALUES ('aaa'), ('bbbb')")
             conn.commit()
-            assert cur.execute("SELECT * FROM table") == True
+            assert cur.execute("SELECT * FROM table")
             assert cur.fetchone() == (1, 2)
             assert cur.fetchmany(2) == [(1, 2), (2, 3)]
             assert cur.fetchall() == [(1, 2), (2, 3), (3, 4)]

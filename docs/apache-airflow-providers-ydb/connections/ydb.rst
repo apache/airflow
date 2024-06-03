@@ -26,7 +26,7 @@ The YDB connection type provides connection to a YDB database.
 Configuring the Connection
 --------------------------
 Host (required)
-    The host without port to connect to. Acceptable schemes: ``grpc/grpcs``, e.g. ``grpc://my_host``, ``ydb.serverless.yandexcloud.net`` or ``lb.etn9txxxx.ydb.mdb.yandexcloud.net``
+    The host without port to connect to. Acceptable schemes: ``grpc/grpcs``, e.g. ``grpc://my_host``, ``ydb.serverless.yandexcloud.net`` or ``lb.etn9txxxx.ydb.mdb.yandexcloud.net``.
 
 Database (required)
     Specify the database to connect to, e.g. ``/local`` or ``/ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b``.
@@ -54,10 +54,11 @@ Use VM metadata (optional)
 
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
-    of the URI (note that all components of the URI should be URL-encoded).
+    of the URI (note that all components of the URI should be URL-encoded). The connection could be specified as JSON string as well.
 
     For example:
 
     .. code-block:: bash
 
-        export AIRFLOW_CONN_YDB_DEFAULT='ydb://ydb_user:XXXXXXXXXXXX@grpcs://example.com:2135/database=/local'
+        AIRFLOW_CONN_YDB_DEFAULT1='ydb://grpcs://my_name:my_password@example.com:2135/?database=%2Flocal'
+        AIRFLOW_CONN_YDB_DEFAULT2='{"conn_type": "ydb", "host": "grpcs://example.com", "login": "my_name", "password": "my_password", "port": 2135, "extra": {"database": "/local"}}'

@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 def get_credentials_from_connection(
-    endpoint: str, database: str, connection: Connection, connection_extra: dict[str, Any] = {}
+    endpoint: str, database: str, connection: Connection, connection_extra: dict[str, Any] | None = None
 ) -> Any:
     """
     Return YDB credentials object for YDB SDK based on connection settings.
@@ -56,6 +56,7 @@ def get_credentials_from_connection(
 
         return ydb.StaticCredentials(driver_config, user=connection.login, password=connection.password)
 
+    connection_extra = connection_extra or {}
     token = connection_extra.get("token")
     if token:
         return ydb.AccessTokenCredentials(token)
