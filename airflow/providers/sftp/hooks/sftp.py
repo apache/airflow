@@ -549,7 +549,7 @@ class SFTPHookAsync(BaseHook):
         matched_files = [file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)]
         return matched_files
 
-    async def get_mod_time(self, path: str) -> str | None:  # type: ignore[return]
+    async def get_mod_time(self, path: str) -> str:  # type: ignore[return]
         """
         Make SFTP async connection.
 
