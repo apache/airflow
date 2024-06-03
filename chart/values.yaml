@@ -2494,7 +2494,14 @@ dags:
     #
     # If you are using an ssh clone url, you can load
     # the ssh private key to a k8s secret like the one below
-    # gitSshKey: <base64_encoded_data>
+    #   ---
+    #   apiVersion: v1
+    #   kind: Secret
+    #   metadata:
+    #     name: airflow-ssh-secret
+    #   data:
+    #     # key needs to be gitSshKey
+    #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
     # sshKeySecret: airflow-ssh-secret
     #

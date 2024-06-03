@@ -188,7 +188,7 @@ If release name contains chart name it will be used as a full name.
 {{- define "git_sync_ssh_key_volume" }}
 - name: git-sync-ssh-key
   secret:
-    secretName: {{ .Values.dags.gitSync.sshKeySecret }}
+    secretName: {{ template "git_sync_ssh_key" . }}
     defaultMode: 288
 {{- end }}
 
@@ -199,7 +199,7 @@ If release name contains chart name it will be used as a full name.
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
   env:
-    {{- if .Values.dags.gitSync.sshKeySecret }}
+    {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.gitSshKey }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
     - name: GITSYNC_SSH_KEY_FILE
@@ -294,7 +294,7 @@ If release name contains chart name it will be used as a full name.
   volumeMounts:
   - name: dags
     mountPath: /git
-  {{- if .Values.dags.gitSync.sshKeySecret }}
+  {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.gitSshKey }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
     readOnly: true
@@ -425,6 +425,11 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "kerberos_ccache_path" -}}
   {{- printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
+{{- end }}
+
+{{/* Create the name of the git sync ssh secret to use */}}
+{{- define "git_sync_ssh_key" -}}
+  {{- default (printf "%s-ssh-secret" (include "airflow.fullname" .)) .Values.dags.gitSync.sshKeySecret }}
 {{- end }}
 
 {{- define "celery_executor_namespace" -}}
