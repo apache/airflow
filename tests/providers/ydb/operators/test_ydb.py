@@ -27,6 +27,7 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 from airflow.utils import timezone
 
+
 @pytest.mark.db_test
 def test_sql_templating(create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
