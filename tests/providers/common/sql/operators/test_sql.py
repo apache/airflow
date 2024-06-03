@@ -29,6 +29,7 @@ from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
+    BaseSQLOperator,
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -57,6 +58,28 @@ class MockHook:
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+class TestBaseSQLOperator:
+    def _construct_operator(self, **kwargs):
+        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1), render_template_as_native_obj=True)
+        return BaseSQLOperator(
+            task_id="test_task",
+            conn_id="{{ conn_id }}",
+            database="{{ database }}",
+            hook_params="{{ hook_params }}",
+            **kwargs,
+            dag=dag,
+        )
+
+    def test_templated_fields(self):
+        operator = self._construct_operator()
+        operator.render_template_fields(
+            {"conn_id": "my_conn_id", "database": "my_database", "hook_params": {"key": "value"}}
+        )
+        assert operator.conn_id == "my_conn_id"
+        assert operator.database == "my_database"
+        assert operator.hook_params == {"key": "value"}
 
 
 class TestSQLExecuteQueryOperator:

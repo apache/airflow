@@ -2281,6 +2281,10 @@
         "8.2.0": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-05-06T08:35:20Z"
+        },
+        "8.3.0": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-06-03T05:43:07Z"
         }
     },
     "cohere": {
@@ -7765,6 +7769,10 @@
         "2.1.1": {
             "associated_airflow_version": "2.9.0",
             "date_released": "2024-05-30T06:38:15Z"
+        },
+        "2.2.0": {
+            "associated_airflow_version": "2.9.0",
+            "date_released": "2024-06-03T05:43:07Z"
         }
     },
     "trino": {

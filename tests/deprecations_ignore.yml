@@ -116,22 +116,6 @@
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_subdag_pools
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_subdag_pools_no_possible_conflict
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_subdag_with_propagate_skipped_state
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_custom_run_id
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_operator_conf
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_operator_templated_conf
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_twice
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_execution_date
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_reset_dag_run_false
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_reset_dag_run_false_fail
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_reset_dag_run_true
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_scheduled_dag_run
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_templated_execution_date
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_false
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_true
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure
-- tests/operators/test_trigger_dagrun.py::TestDagRunOperator::test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2
 
 
 # Serialization
