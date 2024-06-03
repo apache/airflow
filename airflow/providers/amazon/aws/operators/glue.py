@@ -595,7 +595,6 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
                 **self.recommendation_run_kwargs,
             )
         except ClientError as error:
-            print(error)
             raise AirflowException(
                 f"AWS Glue data quality recommendation run failed: {error.response['Error']['Message']}"
             )
@@ -632,7 +631,7 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
                 self.hook.log_recommendation_results(run_id=recommendation_run_id)
 
         else:
-            self.log.info("AWS Glue data quality recommendation run runId: %s.", recommendation_run_id)
+            self.log.info(message_description)
 
         return recommendation_run_id
 

@@ -42,7 +42,7 @@ from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
-DAG_ID = "example_glue_data_quality_recommendation_run"
+DAG_ID = "example_glue_data_quality_with_recommendation"
 SAMPLE_DATA = """"Alice",20
     "Bob",25
     "Charlie",30
