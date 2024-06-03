@@ -261,12 +261,13 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     A workflow can "branch" or follow a path after the execution of this task.
 
     It derives the PythonOperator and expects a Python function that returns
-    a single task_id or list of task_ids to follow. The task_id(s) returned
-    should point to a task directly downstream from {self}. All other "branches"
-    or directly downstream tasks are marked with a state of ``skipped`` so that
-    these paths can't move forward. The ``skipped`` states are propagated
-    downstream to allow for the DAG state to fill up and the DAG run's state
-    to be inferred.
+    a single task_id, a single task_group_id, or a list of task_ids and/or
+    task_group_ids to follow. The task_id(s) and/or task_group_id(s) returned
+    should point to a task or task group directly downstream from {self}. All
+    other "branches" or directly downstream tasks are marked with a state of
+    ``skipped`` so that these paths can't move forward. The ``skipped`` states
+    are propagated downstream to allow for the DAG state to fill up and
+    the DAG run's state to be inferred.
     """
 
     def execute(self, context: Context) -> Any:
@@ -861,12 +862,13 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
     A workflow can "branch" or follow a path after the execution of this task in a virtual environment.
 
     It derives the PythonVirtualenvOperator and expects a Python function that returns
-    a single task_id or list of task_ids to follow. The task_id(s) returned
-    should point to a task directly downstream from {self}. All other "branches"
-    or directly downstream tasks are marked with a state of ``skipped`` so that
-    these paths can't move forward. The ``skipped`` states are propagated
-    downstream to allow for the DAG state to fill up and the DAG run's state
-    to be inferred.
+    a single task_id, a single task_group_id, or a list of task_ids and/or
+    task_group_ids to follow. The task_id(s) and/or task_group_id(s) returned
+    should point to a task or task group directly downstream from {self}. All
+    other "branches" or directly downstream tasks are marked with a state of
+    ``skipped`` so that these paths can't move forward. The ``skipped`` states
+    are propagated downstream to allow for the DAG state to fill up and
+    the DAG run's state to be inferred.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

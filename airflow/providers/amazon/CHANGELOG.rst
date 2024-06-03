@@ -26,6 +26,45 @@
 Changelog
 ---------
 
+8.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Overrides for AWS Batch submit_job (#39903)``
+* ``Add transfer operator S3ToDynamoDBOperator (#39654)``
+
+Misc
+~~~~
+
+* ``Resolving ECS fargate deprecated warnings (#39834)``
+
+8.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Amazon Bedrock - Retrieve and RetrieveAndGenerate (#39500)``
+* ``Introduce Amazon Comprehend Service (#39592)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: empty openlineage dataset name for AthenaExtractor (#39677)``
+* ``Fix default value for aws batch operator retry strategy (#39608)``
+* ``Sagemaker trigger: pass the job name as part of the event (#39671)``
+* ``Handle task adoption for batch executor (#39590)``
+* ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+* ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
+
+Misc
+~~~~
+
+* ``Resolving EMR deprecated warnings (#39743)``
+* ``misc: add comment about remove unused code (#39748)``
+
 8.22.0
 ......
 

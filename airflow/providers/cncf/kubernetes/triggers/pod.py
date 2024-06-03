@@ -219,15 +219,17 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def _wait_for_pod_start(self) -> ContainerState:
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
-        delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
-        while self.startup_timeout >= delta.total_seconds():
+        while True:
             pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
             if not pod.status.phase == "Pending":
                 return self.define_container_state(pod)
+
+            delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
+            if self.startup_timeout < delta.total_seconds():
+                raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
+
             self.log.info("Still waiting for pod to start. The pod state is %s", pod.status.phase)
             await asyncio.sleep(self.startup_check_interval)
-            delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
-        raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
         """

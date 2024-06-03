@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+4.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTPSensor.newer_than not working with jinja logical ds/ts expression (#39056)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 4.10.0
 ......
 

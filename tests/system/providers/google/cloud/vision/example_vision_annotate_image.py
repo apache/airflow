@@ -41,11 +41,12 @@ from google.api_core.retry import Retry  # isort:skip
 
 # [START howto_operator_vision_enums_import]
 from google.cloud.vision_v1 import Feature  # isort:skip
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [END howto_operator_vision_enums_import]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "example_gcp_vision_annotate_image"
 

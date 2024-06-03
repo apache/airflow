@@ -102,6 +102,7 @@ class BatchProtocol(Protocol):
         arrayProperties: dict,
         parameters: dict,
         containerOverrides: dict,
+        ecsPropertiesOverride: dict,
         tags: dict,
     ) -> dict:
         """
@@ -118,6 +119,8 @@ class BatchProtocol(Protocol):
         :param parameters: the same parameter that boto3 will receive
 
         :param containerOverrides: the same parameter that boto3 will receive
+
+        :param ecsPropertiesOverride: the same parameter that boto3 will receive
 
         :param tags: the same parameter that boto3 will receive
 

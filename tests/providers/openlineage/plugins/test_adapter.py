@@ -523,10 +523,10 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.uuid")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
+def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -538,7 +538,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
     dagrun_mock.start_date = event_time
     dagrun_mock.run_id = run_id
     dagrun_mock.dag_id = dag_id
-    uuid.uuid3.return_value = random_uuid
+    generate_static_uuid.return_value = random_uuid
 
     adapter.dag_started(
         dag_run=dagrun_mock,
@@ -582,10 +582,10 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.uuid")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
+def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -598,7 +598,7 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
     dagrun_mock.end_date = event_time
     dagrun_mock.run_id = run_id
     dagrun_mock.dag_id = dag_id
-    uuid.uuid3.return_value = random_uuid
+    generate_static_uuid.return_value = random_uuid
 
     adapter.dag_success(
         dag_run=dagrun_mock,
@@ -632,10 +632,10 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.uuid")
+@mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, uuid):
+def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -648,7 +648,7 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, uuid):
     dagrun_mock.end_date = event_time
     dagrun_mock.run_id = run_id
     dagrun_mock.dag_id = dag_id
-    uuid.uuid3.return_value = random_uuid
+    generate_static_uuid.return_value = random_uuid
 
     adapter.dag_failed(
         dag_run=dagrun_mock,
@@ -707,46 +707,82 @@ def test_openlineage_adapter_stats_emit_failed(
 
 def test_build_dag_run_id_is_valid_uuid():
     dag_id = "test_dag"
-    dag_run_id = "run_1"
-    result = OpenLineageAdapter.build_dag_run_id(dag_id, dag_run_id)
-    assert uuid.UUID(result)
+    execution_date = datetime.datetime.now()
+    result = OpenLineageAdapter.build_dag_run_id(
+        dag_id=dag_id,
+        execution_date=execution_date,
+    )
+    uuid_result = uuid.UUID(result)
+    assert uuid_result
+    assert uuid_result.version == 7
+
+
+def test_build_dag_run_id_same_input_give_same_result():
+    result1 = OpenLineageAdapter.build_dag_run_id(
+        dag_id="dag1",
+        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+    )
+    result2 = OpenLineageAdapter.build_dag_run_id(
+        dag_id="dag1",
+        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+    )
+    assert result1 == result2
 
 
 def test_build_dag_run_id_different_inputs_give_different_results():
-    result1 = OpenLineageAdapter.build_dag_run_id("dag1", "run1")
-    result2 = OpenLineageAdapter.build_dag_run_id("dag2", "run2")
+    result1 = OpenLineageAdapter.build_dag_run_id(
+        dag_id="dag1",
+        execution_date=datetime.datetime.now(),
+    )
+    result2 = OpenLineageAdapter.build_dag_run_id(
+        dag_id="dag2",
+        execution_date=datetime.datetime.now(),
+    )
     assert result1 != result2
-
-
-def test_build_dag_run_id_uses_correct_methods_underneath():
-    dag_id = "test_dag"
-    dag_run_id = "run_1"
-    expected = str(uuid.uuid3(uuid.NAMESPACE_URL, f"{namespace()}.{dag_id}.{dag_run_id}"))
-    actual = OpenLineageAdapter.build_dag_run_id(dag_id, dag_run_id)
-    assert actual == expected
 
 
 def test_build_task_instance_run_id_is_valid_uuid():
-    result = OpenLineageAdapter.build_task_instance_run_id("dag_1", "task_1", "2023-01-01", 1)
-    assert uuid.UUID(result)
+    result = OpenLineageAdapter.build_task_instance_run_id(
+        dag_id="dag_id",
+        task_id="task_id",
+        try_number=1,
+        execution_date=datetime.datetime.now(),
+    )
+    uuid_result = uuid.UUID(result)
+    assert uuid_result
+    assert uuid_result.version == 7
+
+
+def test_build_task_instance_run_id_same_input_gives_same_result():
+    result1 = OpenLineageAdapter.build_task_instance_run_id(
+        dag_id="dag1",
+        task_id="task1",
+        try_number=1,
+        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+    )
+    result2 = OpenLineageAdapter.build_task_instance_run_id(
+        dag_id="dag1",
+        task_id="task1",
+        try_number=1,
+        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+    )
+    assert result1 == result2
 
 
 def test_build_task_instance_run_id_different_inputs_gives_different_results():
-    result1 = OpenLineageAdapter.build_task_instance_run_id("dag_1", "task1", "2023-01-01", 1)
-    result2 = OpenLineageAdapter.build_task_instance_run_id("dag_1", "task2", "2023-01-02", 2)
-    assert result1 != result2
-
-
-def test_build_task_instance_run_id_uses_correct_methods_underneath():
-    dag_id = "dag_1"
-    task_id = "task_1"
-    execution_date = "2023-01-01"
-    try_number = 1
-    expected = str(
-        uuid.uuid3(uuid.NAMESPACE_URL, f"{namespace()}.{dag_id}.{task_id}.{execution_date}.{try_number}")
+    result1 = OpenLineageAdapter.build_task_instance_run_id(
+        dag_id="dag1",
+        task_id="task1",
+        try_number=1,
+        execution_date=datetime.datetime.now(),
     )
-    actual = OpenLineageAdapter.build_task_instance_run_id(dag_id, task_id, execution_date, try_number)
-    assert actual == expected
+    result2 = OpenLineageAdapter.build_task_instance_run_id(
+        dag_id="dag2",
+        task_id="task2",
+        try_number=2,
+        execution_date=datetime.datetime.now(),
+    )
+    assert result1 != result2
 
 
 def test_configuration_precedence_when_creating_ol_client():

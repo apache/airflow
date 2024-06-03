@@ -121,7 +121,7 @@ github:
     - vatsrahul1001
     - cmarteepants
     - romsharon98
-    - rawwar
+    - shahar1
 
 notifications:
   jobs: jobs@airflow.apache.org

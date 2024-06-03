@@ -31,15 +31,18 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
 from airflow.models.dag import DAG
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
-from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+    from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
+    from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+
 from airflow.security import permissions
 from airflow.security.permissions import ACTION_CAN_READ
 from airflow.www import app as application
@@ -125,14 +128,20 @@ def _delete_dag_model(dag_model, session, security_manager):
 
 
 def _can_read_dag(dag_id: str, user) -> bool:
+    from airflow.auth.managers.models.resource_details import DagDetails
+
     return get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_edit_dag(dag_id: str, user) -> bool:
+    from airflow.auth.managers.models.resource_details import DagDetails
+
     return get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_delete_dag(dag_id: str, user) -> bool:
+    from airflow.auth.managers.models.resource_details import DagDetails
+
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
 
@@ -229,6 +238,8 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
+        from airflow.auth.managers.models.resource_details import DagDetails
+
         root_dag_id = security_manager._get_root_dag_id(dag_id)
         return get_auth_manager().is_authorized_dag(
             method=perm, details=DagDetails(id=root_dag_id), user=user

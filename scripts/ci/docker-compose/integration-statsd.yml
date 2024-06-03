@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   statsd-exporter:
     image: quay.io/prometheus/statsd-exporter:v0.26.0

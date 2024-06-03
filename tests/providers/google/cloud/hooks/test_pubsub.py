@@ -25,7 +25,7 @@ import pytest
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.exceptions import NotFound
-from google.cloud.pubsub_v1.types import ReceivedMessage
+from google.cloud.pubsub_v1.types import PublisherOptions, ReceivedMessage
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook, PubSubException, PubSubHook
@@ -86,7 +86,12 @@ class TestPubSubHook:
     def test_publisher_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None
         result = self.pubsub_hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            publisher_options=PublisherOptions(enable_message_ordering=False),
+        )
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
 
