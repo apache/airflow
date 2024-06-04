@@ -24,7 +24,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -608,7 +608,14 @@ class TestSQLCheckOperatorDbHook:
         ) as mock_get_conn:
             if database:
                 self._operator.database = database
-            assert isinstance(self._operator._hook, PostgresHook)
+            if database:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning,
+                    match='The "schema" variable has been renamed to "database" as it contained the database name.Please use "database" to set the database name.',
+                ):
+                    assert isinstance(self._operator._hook, PostgresHook)
+            else:
+                assert isinstance(self._operator._hook, PostgresHook)
             mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self):
@@ -1120,6 +1127,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1160,6 +1168,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1201,6 +1210,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1243,6 +1253,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1282,6 +1293,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1312,6 +1324,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1351,6 +1364,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
