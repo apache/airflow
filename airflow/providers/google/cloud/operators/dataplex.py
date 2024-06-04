@@ -1067,7 +1067,7 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         is available.
     """
 
-    template_fields = ("project_id", "data_scan_id", "impersonation_chain")
+    template_fields = ("project_id", "data_scan_id", "impersonation_chain", "job_id")
 
     def __init__(
         self,
