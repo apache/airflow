@@ -218,6 +218,7 @@ class TestBranchOperator:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
