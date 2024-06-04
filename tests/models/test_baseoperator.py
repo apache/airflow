@@ -359,11 +359,11 @@ class TestBaseOperator:
         assert task.arg2 == "bartemplated"
 
     @pytest.mark.db_test
-    def test_render_template_fields_func(self):
+    def test_render_template_fields_func_using_context(self):
         """Verify if operator attributes are correctly templated."""
 
-        def fn_to_template(render_fn):
-            tmp = render_fn("{{ bar }}")
+        def fn_to_template(render_value_fn, context: Context, jinja_env):
+            tmp = render_value_fn(context, jinja_env, "{{ bar }}")
             return "foo_" + tmp
 
         task = MockOperator(task_id="op1", arg2=fn_to_template)
@@ -371,6 +371,18 @@ class TestBaseOperator:
         # Trigger templating and verify if attributes are templated correctly
         task.render_template_fields(context={"bar": "bartemplated"})
         assert task.arg2 == "foo_bartemplated"
+
+    @pytest.mark.db_test
+    def test_render_template_fields_simple_func(self):
+        """Verify if operator attributes are correctly templated."""
+
+        def fn_to_template(*args):
+            a = "foo_" + ("bar" * 3)
+            return a
+
+        task = MockOperator(task_id="op1", arg2=fn_to_template)
+        task.render_template_fields({})
+        assert task.arg2 == "foo_barbarbar"
 
     @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
     def test_render_template_fields_no_change(self, content):
