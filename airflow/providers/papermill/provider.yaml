@@ -58,6 +58,9 @@ dependencies:
   - papermill[all]>=2.4.0
   - scrapbook[all]
   - ipykernel
+  - pandas>=1.5.3,<2.2;python_version<"3.12"
+  - pandas>=2.1.1,<2.2;python_version>="3.12"
+
 
 integrations:
   - integration-name: Papermill

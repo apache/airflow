@@ -149,6 +149,7 @@ class ShellParams:
     extra_args: tuple = ()
     force_build: bool = False
     force_sa_warnings: bool = True
+    force_lowest_dependencies: bool = False
     forward_credentials: bool = False
     forward_ports: bool = True
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
@@ -509,6 +510,7 @@ class ShellParams:
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
