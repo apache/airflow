@@ -207,6 +207,9 @@ def _run_test(
         )
     )
     run_cmd.extend(list(extra_pytest_args))
+    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
+    # Which might be the case if we are ignoring some providers during compatibility checks
+    run_cmd = [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
