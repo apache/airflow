@@ -51,7 +51,7 @@ dependencies:
   - flask-appbuilder==4.5.0
   - flask-login>=0.6.2
   - google-re2>=1.0
-  - jmespath
+  - jmespath>=0.7.0
 
 config:
   fab:
