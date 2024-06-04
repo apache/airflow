@@ -95,6 +95,7 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/notebook.rst
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
+      - /docs/apache-airflow-providers-databricks/operators/task.rst
     logo: /integration-logos/databricks/Databricks.png
     tags: [service]
   - integration-name: Databricks SQL
