@@ -123,6 +123,12 @@ option_commit_sha = click.option(
     envvar="COMMIT_SHA",
     help="Commit SHA that is used to build the images.",
 )
+option_cross_providers_upstream_test = click.option(
+    "--cross-providers-upstream-test",
+    help="Run cross-providers upstream test.",
+    is_flag=True,
+    envvar="CROSS_PROVIDERS_UPSTREAM_TEST",
+)
 option_db_reset = click.option(
     "-d",
     "--db-reset",

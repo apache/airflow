@@ -720,7 +720,11 @@ class SelectiveChecks:
     def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
 
-    def _get_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
+    def _get_test_types_to_run(
+        self,
+        split_to_individual_providers: bool = False,
+        exclude_providers_without_upstream_dependency: bool = False,
+    ) -> list[str]:
         if self.full_tests_needed:
             return list(all_selective_test_types())
 
@@ -777,6 +781,14 @@ class SelectiveChecks:
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
                     candidate_test_types.discard("Providers")
+                    if exclude_providers_without_upstream_dependency:
+                        affected_providers = [
+                            provider
+                            for provider in affected_providers
+                            if get_related_providers(
+                                provider, upstream_dependencies=False, downstream_dependencies=True
+                            )
+                        ]
                     if split_to_individual_providers:
                         for provider in affected_providers:
                             candidate_test_types.add(f"Providers[{provider}]")
@@ -785,6 +797,10 @@ class SelectiveChecks:
                 elif split_to_individual_providers and "Providers" in candidate_test_types:
                     candidate_test_types.discard("Providers")
                     for provider in get_available_packages():
+                        if exclude_providers_without_upstream_dependency and not get_related_providers(
+                            provider, upstream_dependencies=False, downstream_dependencies=True
+                        ):
+                            continue
                         candidate_test_types.add(f"Providers[{provider}]")
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
@@ -866,6 +882,30 @@ class SelectiveChecks:
                 test_type for test_type in current_test_types if not test_type.startswith("Providers")
             }
         return " ".join(sorted(current_test_types))
+
+    @cached_property
+    def cross_providers_upstream_test_types_list_as_string(self) -> str | None:
+        if not self.run_tests:
+            return None
+        current_test_types = set(
+            self._get_test_types_to_run(
+                split_to_individual_providers=True, exclude_providers_without_upstream_dependency=True
+            )
+        )
+        if "Providers" in current_test_types:
+            current_test_types.remove("Providers")
+            current_test_types.update(
+                {
+                    f"Providers[{provider}]"
+                    for provider in get_available_packages()
+                    if get_related_providers(
+                        provider, upstream_dependencies=False, downstream_dependencies=True
+                    )
+                }
+            )
+        return " ".join(
+            test_type for test_type in sorted(current_test_types) if test_type.startswith("Providers")
+        )
 
     @cached_property
     def include_success_outputs(
