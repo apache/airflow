@@ -37,8 +37,8 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - asgiref
-  - confluent-kafka>=1.8.2
+  - asgiref>=2.3.0
+  - confluent-kafka>=2.3.0
 
 integrations:
   - integration-name: Apache Kafka

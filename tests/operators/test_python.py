@@ -463,7 +463,10 @@ class TestBranchOperator(BasePythonTest):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+        with pytest.raises(
+            AirflowException,
+            match="'branch_task_ids' expected all task IDs are strings.",
+        ):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):
@@ -1440,14 +1443,14 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             else:
                 raise RuntimeError
 
-        with pytest.raises(AirflowException, match="but got 'bool'"):
+        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\((True|False), 'bool'\)}"):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
     def test_return_false(self):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match="but got 'bool'"):
+        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
             self.run_as_task(f)
 
     def test_context(self):
@@ -1468,7 +1471,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match="but got 'bool'"):
+        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
             self.run_as_task(f, do_not_use_caching=True)
 
     def test_with_dag_run(self):
@@ -1581,7 +1584,10 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+        with pytest.raises(
+            AirflowException,
+            match="'branch_task_ids' expected all task IDs are strings.",
+        ):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):

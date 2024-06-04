@@ -60,7 +60,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - paramiko>=2.6.0
+  - paramiko>=2.9.0
   - sshtunnel>=0.3.2
 
 integrations:
