@@ -322,7 +322,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))
-            poke_count += 1
+                poke_count += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
@@ -349,8 +349,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             elapsed_time = run_duration()
 
             # Initialize variables for the simulation
-            cumulative_time = 0
-            estimated_poke_count = 0
+            cumulative_time: float = 0.0
+            estimated_poke_count: int = 0
 
             while cumulative_time < elapsed_time:
                 estimated_poke_count += 1
@@ -366,7 +366,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
                 modded_hash = min_backoff + run_hash % min_backoff
 
-                # Calculate the interval with jitter
+                # Calculate the jitter, which is used to prevent multiple sensors simultaneously poking
                 interval_with_jitter = min(modded_hash, timedelta.max.total_seconds() - 1)
 
                 # Add the interval to the cumulative time
