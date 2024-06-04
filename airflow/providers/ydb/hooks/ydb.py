@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 
 class YDBCursor:
-    """YDB cursor wrapper"""
+    """YDB cursor wrapper."""
+
     def __init__(self, delegatee: DbApiCursor, is_ddl: bool):
         self.delegatee: DbApiCursor = delegatee
         self.is_ddl: bool = is_ddl
@@ -92,7 +93,8 @@ class YDBCursor:
 
 
 class YDBConnection:
-    """YDB connection wrapper"""
+    """YDB connection wrapper."""
+
     def __init__(self, endpoint: str, database: str, credentials: Any, is_ddl: bool = False):
         self.is_ddl = is_ddl
         driver_config = ydb.DriverConfig(
@@ -171,14 +173,14 @@ class YDBHook(DbApiHook):
                 lazy_gettext("Service account auth JSON"),
                 widget=BS3PasswordFieldWidget(),
                 description="Service account auth JSON. Looks like "
-                '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
-                "Will be used instead of IAM token and SA JSON file path field if specified.",
+                            '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
+                            "Will be used instead of IAM token and SA JSON file path field if specified.",
             ),
             "service_account_json_path": StringField(
                 lazy_gettext("Service account auth JSON file path"),
                 widget=BS3TextFieldWidget(),
                 description="Service account auth JSON file path. File content looks like "
-                '{"id": "...", "service_account_id": "...", "private_key": "..."}. ',
+                            '{"id": "...", "service_account_id": "...", "private_key": "..."}. ',
             ),
             "token": PasswordField(
                 lazy_gettext("IAM token"),
@@ -219,7 +221,7 @@ class YDBHook(DbApiHook):
             password=conn.password,
             host=conn.host,
             port=conn.port,
-            database=database,
+            query={"database": database},
         )
 
     def get_conn(self) -> YDBConnection:
@@ -243,13 +245,6 @@ class YDBHook(DbApiHook):
         return YDBConnection(
             endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl
         )
-
-    def get_uri(self) -> str:
-        """Extract the URI from the connection.
-
-        :return: the extracted URI in Sqlalchemy URI format.
-        """
-        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     @staticmethod
     def _serialize_cell(cell: object, conn: YDBConnection | None = None) -> Any:

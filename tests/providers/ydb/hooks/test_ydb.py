@@ -69,7 +69,7 @@ class FakeYDBCursor:
 )
 def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connection):
     mock_get_connection.return_value = Connection(
-        conn_type="ydb", host="localhost", port=2135, extra={"database": "my_db"}
+        conn_type="ydb", host="grpc://localhost", port=2135, login="my_user", password="my_pwd", extra={"database": "/my_db"}
     )
     driver_instance = FakeDriver()
 
@@ -78,6 +78,7 @@ def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connecti
     mock_session_pool.return_value = FakeSessionPool(driver_instance)
 
     hook = YDBHook()
+    assert hook.get_uri() == "ydb://grpc://my_user:my_pwd@localhost:2135/?database=%2Fmy_db"
     with hook.get_conn() as conn:
         with conn.cursor() as cur:
             assert cur.execute("INSERT INTO table VALUES ('aaa'), ('bbbb')")
