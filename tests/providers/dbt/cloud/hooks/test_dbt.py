@@ -430,77 +430,56 @@ class TestDbtCloudHook:
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
+    @pytest.mark.parametrize(
+        argnames="get_job_runs_data, should_use_rerun",
+        argvalues=[
+            ([], False),
+            ([{"status": DbtCloudJobRunStatus.QUEUED.value}], False),
+            ([{"status": DbtCloudJobRunStatus.STARTING.value}], False),
+            ([{"status": DbtCloudJobRunStatus.RUNNING.value}], False),
+            ([{"status": DbtCloudJobRunStatus.SUCCESS.value}], False),
+            ([{"status": DbtCloudJobRunStatus.ERROR.value}], True),
+            ([{"status": DbtCloudJobRunStatus.CANCELLED.value}], False),
+        ],
+    )
     @patch.object(DbtCloudHook, "run")
     @patch.object(DbtCloudHook, "_paginate")
     def test_trigger_job_run_with_retry_from_failure(
         self,
         mock_http_run,
         mock_paginate,
+        get_job_runs_data,
+        should_use_rerun,
         conn_id,
         account_id,
     ):
         hook = DbtCloudHook(conn_id)
         cause = ""
         retry_from_failure = True
-        hook.trigger_job_run(
-            job_id=JOB_ID, cause=cause, account_id=account_id, retry_from_failure=retry_from_failure
-        )
 
-        assert hook.method == "POST"
-
-        _account_id = account_id or DEFAULT_ACCOUNT_ID
-        hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/rerun/", data=None
-        )
-        hook._paginate.assert_not_called()
-
-    @pytest.mark.parametrize(
-        argnames="conn_id, account_id",
-        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
-        ids=["default_account", "explicit_account"],
-    )
-    @pytest.mark.parametrize(
-        argnames="steps_override, schema_override, additional_run_config",
-        argvalues=[
-            (["dbt test", "dbt run"], None, None),
-            (None, ["other_schema"], None),
-            (None, None, {"threads_override": 8, "generate_docs_override": False}),
-        ],
-    )
-    @patch.object(DbtCloudHook, "run")
-    @patch.object(DbtCloudHook, "_paginate")
-    def test_failed_trigger_job_run_with_retry_from_failure(
-        self,
-        mock_http_run,
-        mock_paginate,
-        conn_id,
-        account_id,
-        steps_override,
-        schema_override,
-        additional_run_config,
-    ):
-        hook = DbtCloudHook(conn_id)
-        cause = ""
-        retry_from_failure = True
-        error_match = (
-            "steps_override, schema_override, or additional_run_config"
-            " cannot be used when retry_from_failure is True"
-        )
-
-        with pytest.raises(ValueError, match=error_match):
+        with patch.object(DbtCloudHook, "get_job_runs") as mock_get_job_run_status:
+            mock_get_job_run_status.return_value.json.return_value = {"data": get_job_runs_data}
             hook.trigger_job_run(
-                job_id=JOB_ID,
-                cause=cause,
-                account_id=account_id,
-                steps_override=steps_override,
-                schema_override=schema_override,
-                additional_run_config=additional_run_config,
-                retry_from_failure=retry_from_failure,
+                job_id=JOB_ID, cause=cause, account_id=account_id, retry_from_failure=retry_from_failure
             )
-
-        _account_id = account_id or DEFAULT_ACCOUNT_ID
-        hook.run.assert_not_called()
-        hook._paginate.assert_not_called()
+            assert hook.method == "POST"
+            _account_id = account_id or DEFAULT_ACCOUNT_ID
+            hook._paginate.assert_not_called()
+            if should_use_rerun:
+                hook.run.assert_called_once_with(
+                    endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/rerun/", data=None
+                )
+            else:
+                hook.run.assert_called_once_with(
+                    endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
+                    data=json.dumps(
+                        {
+                            "cause": cause,
+                            "steps_override": None,
+                            "schema_override": None,
+                        }
+                    ),
+                )
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",

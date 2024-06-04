@@ -417,9 +417,9 @@ class DbtCloudHook(HttpHook):
             instead of those configured in dbt Cloud.
         :param schema_override: Optional. Override the destination schema in the configured target for this
             job.
-        :param retry_from_failure: Optional. If set to True, the job will be triggered using the "rerun"
-            endpoint. This parameter cannot be used alongside steps_override, schema_override, or
-            additional_run_config.
+        :param retry_from_failure: Optional. If set to True and the previous job run has failed, the job
+            will be triggered using the "rerun" endpoint. This parameter cannot be used alongside
+            steps_override, schema_override, or additional_run_config.
         :param additional_run_config: Optional. Any additional parameters that should be included in the API
             request when triggering the job.
         :return: The request response.
@@ -444,13 +444,23 @@ class DbtCloudHook(HttpHook):
         payload.update(additional_run_config)
 
         if retry_from_failure:
-            if steps_override is not None or schema_override is not None or additional_run_config != {}:
-                raise ValueError(
-                    "steps_override, schema_override, or additional_run_config"
-                    " cannot be used when retry_from_failure is True."
-                )
-            return self.retry_failed_job_run(job_id, account_id)
-
+            latest_run = self.get_job_runs(
+                account_id=account_id,
+                payload={
+                    "job_definition_id": job_id,
+                    "order_by": "-created_at",
+                    "limit": 1,
+                },
+            ).json()["data"]
+            if latest_run and latest_run[0]["status"] == DbtCloudJobRunStatus.ERROR.value:
+                if steps_override is not None or schema_override is not None or additional_run_config != {}:
+                    warnings.warn(
+                        "steps_override, schema_override, or additional_run_config will be ignored when"
+                        " retry_from_failure is True and previous job run has failed.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                return self.retry_failed_job_run(job_id, account_id)
         return self._run_and_get_response(
             method="POST",
             endpoint=f"{account_id}/jobs/{job_id}/run/",

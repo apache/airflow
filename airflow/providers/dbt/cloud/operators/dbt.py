@@ -76,8 +76,8 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param reuse_existing_run: Flag to determine whether to reuse existing non terminal job run. If set to
         true and non terminal job runs found, it use the latest run without triggering a new job run.
     :param retry_from_failure: Flag to determine whether to retry the job run from failure. If set to true
-        and the task retry number is greater than 1, it will retry the job run from the failure point. For
-        more information on retry logic, see:
+        and the last job run has failed, it triggers a new job run with the same configuration as the failed
+        run. For more information on retry logic, see:
         https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
     :return: The ID of the triggered dbt Cloud job run.
@@ -156,7 +156,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 cause=self.trigger_reason,
                 steps_override=self.steps_override,
                 schema_override=self.schema_override,
-                retry_from_failure=self.retry_from_failure and context["ti"].try_number > 1,
+                retry_from_failure=self.retry_from_failure,
                 additional_run_config=self.additional_run_config,
             )
             self.run_id = trigger_job_response.json()["data"]["id"]
