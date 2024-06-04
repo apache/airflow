@@ -734,7 +734,7 @@ class AbstractOperator(Templater, DAGNode):
 
             try:
                 if callable(value):
-                    rendered_content = value(self.render_value, context, jinja_env)
+                    rendered_content = value(context=context, jinja_env=jinja_env)
                 else:
                     rendered_content = self.render_template(
                         value,
