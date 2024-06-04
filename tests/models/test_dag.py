@@ -28,6 +28,7 @@ import warnings
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
+from importlib import reload
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -52,7 +53,11 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     ParamValidationError,
     RemovedInAirflow3Warning,
+    UnknownExecutorException,
 )
+from airflow.executors import executor_loader
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
@@ -2771,7 +2776,8 @@ my_postgres_conn:
 
         EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
         with pytest.raises(
-            ValueError, match="The specified executor test.custom.executor for task t1 is not configured"
+            UnknownExecutorException,
+            match="The specified executor test.custom.executor for task t1 is not configured",
         ):
             dag.validate()
 
@@ -3170,6 +3176,17 @@ class TestDagModel:
                 {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
             ]
         }
+
+    @mock.patch("airflow.models.dag.run_job")
+    def test_dag_executors(self, run_job_mock):
+        dag = DAG(dag_id="test")
+        reload(executor_loader)
+        with conf_vars({("core", "executor"): "SequentialExecutor"}):
+            dag.run()
+            assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
+
+            dag.run(local=True)
+            assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
 
 
 class TestQueries:
