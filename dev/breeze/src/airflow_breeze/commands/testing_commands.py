@@ -28,6 +28,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     option_backend,
     option_database_isolation,
+    option_cross_providers_upstream_test,
     option_db_reset,
     option_debug_resources,
     option_downgrade_pendulum,
@@ -206,6 +207,7 @@ def _run_test(
             helm_test_package=None,
             keep_env_variables=shell_params.keep_env_variables,
             no_db_cleanup=shell_params.no_db_cleanup,
+            cross_providers_upstream_test=shell_params.cross_providers_upstream_test,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
@@ -506,6 +508,7 @@ option_force_sa_warnings = click.option(
 @option_backend
 @option_collect_only
 @option_database_isolation
+@option_cross_providers_upstream_test
 @option_db_reset
 @option_debug_resources
 @option_downgrade_pendulum
@@ -567,6 +570,7 @@ def command_for_tests(**kwargs):
 @option_backend
 @option_collect_only
 @option_database_isolation
+@option_cross_providers_upstream_test
 @option_debug_resources
 @option_downgrade_pendulum
 @option_downgrade_sqlalchemy
@@ -628,6 +632,7 @@ def command_for_db_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_collect_only
+@option_cross_providers_upstream_test
 @option_debug_resources
 @option_downgrade_sqlalchemy
 @option_downgrade_pendulum
@@ -682,6 +687,7 @@ def _run_test_command(
     airflow_constraints_reference: str,
     backend: str,
     collect_only: bool,
+    cross_providers_upstream_test: bool,
     db_reset: bool,
     database_isolation: bool,
     debug_resources: bool,
@@ -741,6 +747,7 @@ def _run_test_command(
         backend=backend,
         collect_only=collect_only,
         database_isolation=database_isolation,
+        cross_providers_upstream_test=cross_providers_upstream_test,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
@@ -968,6 +975,7 @@ def helm_tests(
         helm_test_package=helm_test_package,
         keep_env_variables=False,
         no_db_cleanup=False,
+        cross_providers_upstream_test=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

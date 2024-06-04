@@ -339,6 +339,7 @@ def test_folders_for_parallel_test_types(
             parallel_test_types_list=parallel_test_types.split(" "),
             skip_provider_tests=skip_provider_tests,
             python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+            cross_providers_upstream_test=False,
         )
         == folders
     )

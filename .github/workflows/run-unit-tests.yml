@@ -66,6 +66,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
+      run-cross-providers-tests:
+        description: "Whether to run cross providers backwards-compatibility tests or not (true/false)"
+        required: false
+        default: "false"
+        type: string
       run-coverage:
         description: "Whether to run coverage or not (true/false)"
         required: true
@@ -163,8 +168,19 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+        if: inputs.run-cross-providers-tests == 'true'
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Prepare provider packages: wheel"
+        run: >
+          breeze release-management prepare-provider-packages --include-not-ready-providers
+          --package-format wheel --skip-tag-check
+        if: inputs.run-cross-providers-tests == 'true'
+      - name: "Prepare airflow package: wheel"
+        run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
+        if: inputs.run-cross-providers-tests == 'true'
       - name: >
           Migration Tests:
           ${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string }}
@@ -189,6 +205,13 @@ jobs:
             breeze testing tests --collect-only --remove-arm-packages
           elif [[ "${{ inputs.test-scope }}" == "System" ]]; then
             breeze testing tests tests/system/example_empty.py --system core
+          elif [[ "${{ inputs.run-cross-providers-tests }}" == "true" ]]; then
+            breeze testing tests --run-in-parallel \
+              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}" \
+              --mount-sources tests \
+              --use-airflow-version wheel \
+              --use-packages-from-dist \
+              --cross-providers-upstream-test
           else
             echo "Unknown test scope: ${{ inputs.test-scope }}"
             exit 1

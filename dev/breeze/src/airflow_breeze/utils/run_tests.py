@@ -26,6 +26,7 @@ from airflow_breeze.global_constants import PIP_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.provider_dependencies import get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
@@ -237,6 +238,7 @@ def convert_test_type_to_pytest_args(
     skip_provider_tests: bool,
     python_version: str,
     helm_test_package: str | None = None,
+    cross_providers_upstream_test: bool = False,
 ) -> list[str]:
     if test_type == "None":
         return []
@@ -273,6 +275,17 @@ def convert_test_type_to_pytest_args(
         return providers_with_exclusions
     if test_type.startswith(PROVIDERS_LIST_PREFIX):
         provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
+        if cross_providers_upstream_test:
+            upstream_providers = set()
+            for provider in provider_list:
+                upstream_providers.update(
+                    get_related_providers(provider, upstream_dependencies=False, downstream_dependencies=True)
+                )
+            if not upstream_providers:
+                get_console().print(f"no upstream found for {provider_list}")
+                # TODO: not sure how to deal with this
+                sys.exit(0)
+            provider_list = list(upstream_providers)
         providers_to_test = []
         for provider in provider_list:
             provider_path = "tests/providers/" + provider.replace(".", "/")
@@ -311,12 +324,16 @@ def generate_args_for_pytest(
     helm_test_package: str | None,
     keep_env_variables: bool,
     no_db_cleanup: bool,
+    cross_providers_upstream_test: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
         if parallel_test_types_list:
             args = convert_parallel_types_to_folders(
-                parallel_test_types_list, skip_provider_tests, python_version=python_version
+                parallel_test_types_list,
+                skip_provider_tests,
+                python_version=python_version,
+                cross_providers_upstream_test=cross_providers_upstream_test,
             )
         else:
             args = ["tests"] if test_type != "None" else []
@@ -326,6 +343,7 @@ def generate_args_for_pytest(
             skip_provider_tests=skip_provider_tests,
             helm_test_package=helm_test_package,
             python_version=python_version,
+            cross_providers_upstream_test=cross_providers_upstream_test,
         )
     args.extend(
         [
@@ -405,7 +423,10 @@ def generate_args_for_pytest(
 
 
 def convert_parallel_types_to_folders(
-    parallel_test_types_list: list[str], skip_provider_tests: bool, python_version: str
+    parallel_test_types_list: list[str],
+    skip_provider_tests: bool,
+    python_version: str,
+    cross_providers_upstream_test: bool,
 ):
     args = []
     for _test_type in parallel_test_types_list:
@@ -415,6 +436,7 @@ def convert_parallel_types_to_folders(
                 skip_provider_tests=skip_provider_tests,
                 helm_test_package=None,
                 python_version=python_version,
+                cross_providers_upstream_test=cross_providers_upstream_test,
             )
         )
     # leave only folders, strip --pytest-args

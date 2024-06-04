@@ -82,6 +82,8 @@ jobs:
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
       separate-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
+      cross-providers-upstream-test-types-list-as-string: >-
+          ${{ steps.selective-checks.outputs.cross-providers-upstream-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
