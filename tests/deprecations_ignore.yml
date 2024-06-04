@@ -466,9 +466,6 @@
 - tests/providers/oracle/hooks/test_oracle.py::TestOracleHookConn::test_set_thick_mode_params
 - tests/providers/oracle/hooks/test_oracle.py::TestOracleHookConn::test_thick_mode_defaults_to_false
 - tests/providers/oracle/hooks/test_oracle.py::TestOracleHookConn::test_thick_mode_dirs_defaults
-- tests/providers/pagerduty/hooks/test_pagerduty.py::TestPagerdutyHook::test_create_event
-- tests/providers/pagerduty/hooks/test_pagerduty.py::TestPagerdutyHook::test_create_event_override
-- tests/providers/pagerduty/hooks/test_pagerduty_events.py::TestPagerdutyEventsHook::test_create_event
 - tests/providers/postgres/hooks/test_postgres.py::TestPostgresHookConn::test_schema_kwarg_database_kwarg_compatibility
 - tests/providers/postgres/operators/test_postgres.py::test_parameters_are_templatized
 - tests/providers/postgres/operators/test_postgres.py::TestPostgres::test_overwrite_database
