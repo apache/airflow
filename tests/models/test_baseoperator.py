@@ -363,7 +363,7 @@ class TestBaseOperator:
         """Verify if operator attributes are correctly templated."""
 
         def fn_to_template(context, jinja_env):
-            tmp = context["task"].render_value(context, jinja_env, "{{ bar }}")
+            tmp = context["task"].render_template("{{ bar }}", context, jinja_env)
             return "foo_" + tmp
 
         task = MockOperator(task_id="op1", arg2=fn_to_template)

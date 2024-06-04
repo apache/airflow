@@ -696,9 +696,6 @@ class AbstractOperator(Templater, DAGNode):
             dag = self.get_dag()
         return super().get_template_env(dag=dag)
 
-    def render_value(self, context: Context, jinja_env: jinja2.Environment, value):
-        return self.render_template(value, context, jinja_env)
-
     def _do_render_template_fields(
         self,
         parent: Any,
