@@ -69,7 +69,12 @@ class FakeYDBCursor:
 )
 def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connection):
     mock_get_connection.return_value = Connection(
-        conn_type="ydb", host="grpc://localhost", port=2135, login="my_user", password="my_pwd", extra={"database": "/my_db1"}
+        conn_type="ydb",
+        host="grpc://localhost",
+        port=2135,
+        login="my_user",
+        password="my_pwd",
+        extra={"database": "/my_db1"},
     )
     driver_instance = FakeDriver()
 
