@@ -374,7 +374,7 @@ class TestDbtCloudRunJobOperator:
             account_id=account_id,
             payload={
                 "job_definition_id": self.config["job_id"],
-                "status__in": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
+                "status__in": str(list(DbtCloudJobRunStatus.NON_TERMINAL_STATUSES.value)),
                 "order_by": "-created_at",
             },
         )
