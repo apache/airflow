@@ -175,13 +175,12 @@ class SkipMixin(LoggingMixin):
         branch_task_ids is stored to XCom so that NotPreviouslySkippedDep knows skipped tasks or
         newly added tasks should be skipped when they are cleared.
         """
-        self.log.info("Following branch %s", branch_task_ids)
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
             branch_task_id_set = set(branch_task_ids)
             invalid_task_ids_type = {
-                (bti, type(bti).__name__) for bti in branch_task_ids if not isinstance(bti, str)
+                (bti, type(bti).__name__) for bti in branch_task_id_set if not isinstance(bti, str)
             }
             if invalid_task_ids_type:
                 raise AirflowException(
@@ -195,6 +194,8 @@ class SkipMixin(LoggingMixin):
                 "'branch_task_ids' must be either None, a task ID, or an Iterable of IDs, "
                 f"but got {type(branch_task_ids).__name__!r}."
             )
+
+        self.log.info("Following branch %s", branch_task_id_set)
 
         dag_run = ti.get_dagrun()
         if TYPE_CHECKING:

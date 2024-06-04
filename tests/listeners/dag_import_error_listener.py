@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,27 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  mongo:
-    image: mongo:3
-    labels:
-      breeze.description: "Integration required for MongoDB hooks."
-    volumes:
-      - mongo-db-volume:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: "on-failure"
+from __future__ import annotations
 
-  airflow:
-    environment:
-      - INTEGRATION_MONGO=true
-    depends_on:
-      mongo:
-        condition: service_healthy
+from airflow.listeners import hookimpl
 
-volumes:
-  mongo-db-volume:
+new = {}
+existing = {}
+
+
+@hookimpl
+def on_new_dag_import_error(filename, stacktrace):
+    """Execute when new dag import error appears"""
+    new["filename"] = stacktrace
+    print("new error>> filename:" + str(filename))
+    print("new error>> stacktrace:" + str(stacktrace))
+
+
+@hookimpl
+def on_existing_dag_import_error(filename, stacktrace):
+    """Execute when existing dag import error appears"""
+    existing["filename"] = stacktrace
+    print("existing error>> filename:" + str(filename))
+    print("existing error>> stacktrace:" + str(stacktrace))
+
+
+def clear():
+    global new, existing
+    new, existing = {}, {}

@@ -678,11 +678,11 @@ workers:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into worker.
+  # Launch additional containers into worker (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
-  # Add additional init containers into workers.
+  # Add additional init containers into workers (templated).
   extraInitContainers: []
 
   # Mount additional volumes into worker. It can be templated like in the following example:
@@ -887,9 +887,9 @@ scheduler:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into scheduler.
+  # Launch additional containers into scheduler (templated).
   extraContainers: []
-  # Add additional init containers into scheduler.
+  # Add additional init containers into scheduler (templated).
   extraInitContainers: []
 
   # Mount additional volumes into scheduler. It can be templated like in the following example:
@@ -1270,9 +1270,9 @@ webserver:
     lastName: user
     password: admin
 
-  # Launch additional containers into webserver.
+  # Launch additional containers into webserver (templated).
   extraContainers: []
-  # Add additional init containers into webserver.
+  # Add additional init containers into webserver (templated).
   extraInitContainers: []
 
   # Mount additional volumes into webserver. It can be templated like in the following example:
@@ -1456,9 +1456,9 @@ triggerer:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into triggerer.
+  # Launch additional containers into triggerer (templated).
   extraContainers: []
-  # Add additional init containers into triggerers.
+  # Add additional init containers into triggerers (templated).
   extraInitContainers: []
 
   # Mount additional volumes into triggerer. It can be templated like in the following example:
@@ -1639,9 +1639,9 @@ dagProcessor:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into dag processor.
+  # Launch additional containers into dag processor (templated).
   extraContainers: []
-  # Add additional init containers into dag processors.
+  # Add additional init containers into dag processors (templated).
   extraInitContainers: []
 
   # Mount additional volumes into dag processor. It can be templated like in the following example:

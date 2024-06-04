@@ -1864,7 +1864,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into workers. Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
+                    "description": "Launch additional containers into workers (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -1872,7 +1872,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into workers.",
+                    "description": "Add additional init containers into workers (templated).",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     },
@@ -2442,7 +2442,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into scheduler.",
+                    "description": "Launch additional containers into scheduler (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2450,7 +2450,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into scheduler.",
+                    "description": "Add additional init containers into scheduler (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2908,7 +2908,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into triggerer.",
+                    "description": "Launch additional containers into triggerer (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2916,7 +2916,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into triggerer.",
+                    "description": "Add additional init containers into triggerer (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3399,7 +3399,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into dag processor.",
+                    "description": "Launch additional containers into dag processor (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3407,7 +3407,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into dag processor.",
+                    "description": "Add additional init containers into dag processor (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -4677,7 +4677,7 @@
                     }
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into webserver.",
+                    "description": "Launch additional containers into webserver (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -4685,7 +4685,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into webserver.",
+                    "description": "Add additional init containers into webserver (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
