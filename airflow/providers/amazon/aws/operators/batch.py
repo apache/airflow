@@ -335,7 +335,7 @@ class BatchOperator(BaseOperator):
                 'Unknown parameter in input: "ecsPropertiesOverride"' in str(error)
             ) and self.ecs_properties_override:
                 self.log.error(
-                    "You are attempting to use ecsPropertiesOverride and the Boto3 API returned an "
+                    "You are attempting to use ecsPropertiesOverride and the botocore API returned an "
                     "error message which may indicate the need to update botocore to do this.  \n"
                     "Support for using ecsPropertiesOverride was added in botocore 1.34.52 and you are using botocore %s",
                     ".".join(map(str, get_botocore_version())),
