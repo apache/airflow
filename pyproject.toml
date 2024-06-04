@@ -608,7 +608,7 @@ module="airflow.migrations.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module="airflow.*_vendor.*"
+module="airflow.*._vendor.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
