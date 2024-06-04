@@ -24,7 +24,7 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.operators.glue import (
-    GlueDataQualityOperator,
+    GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import (
@@ -32,48 +32,48 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
-from airflow.providers.amazon.aws.sensors.glue import GlueDataQualityRuleSetEvaluationRunSensor
+from airflow.providers.amazon.aws.sensors.glue import (
+    GlueDataQualityRuleRecommendationRunSensor,
+    GlueDataQualityRuleSetEvaluationRunSensor,
+)
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
-DAG_ID = "example_glue_data_quality"
+DAG_ID = "example_glue_data_quality_with_recommendation"
 SAMPLE_DATA = """"Alice",20
     "Bob",25
     "Charlie",30
     """
 SAMPLE_FILENAME = "airflow_sample.csv"
 
-RULE_SET = """
-Rules = [
-    RowCount between 2 and 8,
-    IsComplete "name",
-    Uniqueness "name" > 0.95,
-    ColumnLength "name" between 3 and 14,
-    ColumnValues "age" between 19 and 31
-]
-"""
-
 
 @task_group
-def glue_data_quality_workflow():
-    # [START howto_operator_glue_data_quality_operator]
-    create_rule_set = GlueDataQualityOperator(
-        task_id="create_rule_set",
-        name=rule_set_name,
-        ruleset=RULE_SET,
-        data_quality_ruleset_kwargs={
-            "TargetTable": {
+def glue_data_quality_recommendation_workflow():
+    # [START howto_operator_glue_data_quality_rule_recommendation_run]
+    recommendation_run = GlueDataQualityRuleRecommendationRunOperator(
+        task_id="recommendation_run",
+        datasource={
+            "GlueTable": {
                 "TableName": athena_table,
                 "DatabaseName": athena_database,
             }
         },
+        role=test_context[ROLE_ARN_KEY],
+        recommendation_run_kwargs={"CreatedRulesetName": rule_set_name},
     )
-    # [END howto_operator_glue_data_quality_operator]
+    # [END howto_operator_glue_data_quality_rule_recommendation_run]
+    recommendation_run.wait_for_completion = False
 
-    # [START howto_operator_glue_data_quality_ruleset_evaluation_run_operator]
+    # [START howto_sensor_glue_data_quality_rule_recommendation_run]
+    await_recommendation_run_sensor = GlueDataQualityRuleRecommendationRunSensor(
+        task_id="await_recommendation_run_sensor",
+        recommendation_run_id=recommendation_run.output,
+    )
+    # [END howto_sensor_glue_data_quality_rule_recommendation_run]
+
     start_evaluation_run = GlueDataQualityRuleSetEvaluationRunOperator(
         task_id="start_evaluation_run",
         datasource={
@@ -85,17 +85,16 @@ def glue_data_quality_workflow():
         role=test_context[ROLE_ARN_KEY],
         rule_set_names=[rule_set_name],
     )
-    # [END howto_operator_glue_data_quality_ruleset_evaluation_run_operator]
     start_evaluation_run.wait_for_completion = False
 
-    # [START howto_sensor_glue_data_quality_ruleset_evaluation_run]
     await_evaluation_run_sensor = GlueDataQualityRuleSetEvaluationRunSensor(
         task_id="await_evaluation_run_sensor",
         evaluation_run_id=start_evaluation_run.output,
     )
-    # [END howto_sensor_glue_data_quality_ruleset_evaluation_run]
 
-    chain(create_rule_set, start_evaluation_run, await_evaluation_run_sensor)
+    chain(
+        recommendation_run, await_recommendation_run_sensor, start_evaluation_run, await_evaluation_run_sensor
+    )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -114,7 +113,7 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
-    rule_set_name = f"{env_id}-system-test-ruleset"
+    rule_set_name = f"{env_id}-recommendation-ruleset"
     s3_bucket = f"{env_id}-glue-dq-athena-bucket"
     athena_table = f"{env_id}_test_glue_dq_table"
     athena_database = f"{env_id}_glue_dq_default"
@@ -190,7 +189,7 @@ with DAG(
         create_database,
         create_table,
         # TEST BODY
-        glue_data_quality_workflow(),
+        glue_data_quality_recommendation_workflow(),
         # TEST TEARDOWN
         delete_ruleset(rule_set_name),
         drop_table,

@@ -22,7 +22,10 @@ import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
-from airflow.providers.amazon.aws.sensors.glue import GlueDataQualityRuleSetEvaluationRunSensor
+from airflow.providers.amazon.aws.sensors.glue import (
+    GlueDataQualityRuleRecommendationRunSensor,
+    GlueDataQualityRuleSetEvaluationRunSensor,
+)
 
 SAMPLE_RESPONSE_GET_DATA_QUALITY_EVALUATION_RUN_SUCCEEDED = {
     "RunId": "12345",
@@ -64,6 +67,22 @@ SAMPLE_RESPONSE_GET_DATA_QUALITY_RESULT = {
         }
     ],
 }
+
+RULES = """
+        Rules = [
+                RowCount between 2 and 8,
+                IsComplete "name"
+             ]
+        """
+
+SAMPLE_RESPONSE_GET_DATA_RULE_RECOMMENDATION_RUN_SUCCEEDED = {
+    "RunId": "12345",
+    "Status": "SUCCEEDED",
+    "DataSource": {"GlueTable": {"DatabaseName": "TestDB", "TableName": "TestTable"}},
+    "RecommendedRuleset": RULES,
+}
+
+SAMPLE_RESPONSE_DATA_RULE_RECOMMENDATION_RUN_RUNNING = {"RunId": "12345", "Status": "RUNNING"}
 
 
 class TestGlueDataQualityRuleSetEvaluationRunSensor:
@@ -178,5 +197,122 @@ class TestGlueDataQualityRuleSetEvaluationRunSensor:
             deferrable=True,
         )
         event = {"status": "failure"}
+        with pytest.raises(AirflowException):
+            op.execute_complete(context={}, event=event)
+
+
+class TestGlueDataQualityRuleRecommendationRunSensor:
+    SENSOR = GlueDataQualityRuleRecommendationRunSensor
+
+    def setup_method(self):
+        self.default_args = dict(
+            task_id="test_data_quality_rule_recommendation_sensor",
+            recommendation_run_id="12345",
+            poke_interval=5,
+            max_retries=0,
+        )
+        self.sensor = self.SENSOR(**self.default_args, aws_conn_id=None)
+
+    def test_base_aws_op_attributes(self):
+        op = self.SENSOR(**self.default_args)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = self.SENSOR(
+            **self.default_args,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_poke_success_state(self, mock_conn):
+        mock_conn.get_data_quality_rule_recommendation_run.return_value = (
+            SAMPLE_RESPONSE_GET_DATA_RULE_RECOMMENDATION_RUN_SUCCEEDED
+        )
+        assert self.sensor.poke({}) is True
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_poke_intermediate_state(self, mock_conn):
+        mock_conn.get_data_quality_rule_recommendation_run.return_value = (
+            SAMPLE_RESPONSE_DATA_RULE_RECOMMENDATION_RUN_RUNNING
+        )
+        assert self.sensor.poke({}) is False
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        [
+            pytest.param(False, AirflowException, id="not-soft-fail"),
+            pytest.param(True, AirflowSkipException, id="soft-fail"),
+        ],
+    )
+    @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+        mock_conn.get_data_quality_rule_recommendation_run.return_value = {
+            "RunId": "12345",
+            "Status": state,
+            "ErrorString": "unknown error",
+        }
+
+        sensor = self.SENSOR(**self.default_args, aws_conn_id=None, soft_fail=soft_fail)
+
+        message = (
+            f"Error: AWS Glue data quality recommendation run RunId: 12345 Run Status: {state}: unknown error"
+        )
+
+        with pytest.raises(expected_exception, match=message):
+            sensor.poke({})
+
+        mock_conn.get_data_quality_rule_recommendation_run.assert_called_once_with(RunId="12345")
+
+    def test_sensor_defer(self):
+        """Test the execute method raise TaskDeferred if running sensor in deferrable mode"""
+        sensor = GlueDataQualityRuleRecommendationRunSensor(
+            task_id="test_task",
+            poke_interval=0,
+            recommendation_run_id="12345",
+            aws_conn_id="aws_default",
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            sensor.execute(context=None)
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_execute_complete_succeeds_if_status_in_succeeded_states(self, mock_conn, caplog):
+        mock_conn.get_data_quality_rule_recommendation_run.return_value = (
+            SAMPLE_RESPONSE_GET_DATA_RULE_RECOMMENDATION_RUN_SUCCEEDED
+        )
+
+        op = GlueDataQualityRuleRecommendationRunSensor(
+            task_id="test_data_quality_rule_recommendation_run_sensor",
+            recommendation_run_id="12345",
+            poke_interval=0,
+            aws_conn_id="aws_default",
+            deferrable=True,
+        )
+        event = {"status": "success", "recommendation_run_id": "12345"}
+        op.execute_complete(context={}, event=event)
+        assert "AWS Glue data quality recommendation run completed." in caplog.messages
+
+    def test_execute_complete_fails_if_status_in_failure_states(self):
+        op = GlueDataQualityRuleRecommendationRunSensor(
+            task_id="test_data_quality_rule_recommendation_run_sensor",
+            recommendation_run_id="12345",
+            poke_interval=0,
+            aws_conn_id="aws_default",
+            deferrable=True,
+        )
+        event = {"status": "failure"}
+
         with pytest.raises(AirflowException):
             op.execute_complete(context={}, event=event)

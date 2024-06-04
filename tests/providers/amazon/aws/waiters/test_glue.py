@@ -24,14 +24,17 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.sensors.glue import (
+    GlueDataQualityRuleRecommendationRunSensor,
     GlueDataQualityRuleSetEvaluationRunSensor,
 )
 
 
 class TestGlueDataQualityCustomWaiters:
-    def test_service_waiters(self):
-        print(GlueDataQualityHook().list_waiters())
+    def test_evaluation_run_waiters(self):
         assert "data_quality_ruleset_evaluation_run_complete" in GlueDataQualityHook().list_waiters()
+
+    def test_recommendation_run_waiters(self):
+        assert "data_quality_rule_recommendation_run_complete" in GlueDataQualityHook().list_waiters()
 
 
 class TestGlueDataQualityCustomWaitersBase:
@@ -63,6 +66,37 @@ class TestGlueDataQualityRuleSetEvaluationRunCompleteWaiter(TestGlueDataQualityC
             GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(RunId="run_id")
 
     def test_data_quality_ruleset_evaluation_run_wait(self, mock_get_job):
+        wait = {"Status": "RUNNING"}
+        success = {"Status": "SUCCEEDED"}
+        mock_get_job.side_effect = [wait, wait, success]
+
+        GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(
+            RunIc="run_id", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestGlueDataQualityRuleRecommendationRunCompleteWaiter(TestGlueDataQualityCustomWaitersBase):
+    WAITER_NAME = "data_quality_rule_recommendation_run_complete"
+
+    @pytest.fixture
+    def mock_get_job(self):
+        with mock.patch.object(self.client, "get_data_quality_rule_recommendation_run") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", GlueDataQualityRuleRecommendationRunSensor.SUCCESS_STATES)
+    def test_data_quality_rule_recommendation_run_complete(self, state, mock_get_job):
+        mock_get_job.return_value = {"Status": state}
+
+        GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(RunId="run_id")
+
+    @pytest.mark.parametrize("state", GlueDataQualityRuleRecommendationRunSensor.FAILURE_STATES)
+    def test_data_quality_rule_recommendation_run_failed(self, state, mock_get_job):
+        mock_get_job.return_value = {"Status": state}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            GlueDataQualityHook().get_waiter(self.WAITER_NAME).wait(RunId="run_id")
+
+    def test_data_quality_rule_recommendation_run_wait(self, mock_get_job):
         wait = {"Status": "RUNNING"}
         success = {"Status": "SUCCEEDED"}
         mock_get_job.side_effect = [wait, wait, success]
