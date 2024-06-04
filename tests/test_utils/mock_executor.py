@@ -71,7 +71,6 @@ class MockExecutor(BaseExecutor):
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
             for key, (_, _, _, ti) in sorted_queue[:open_slots]:
                 self.queued_tasks.pop(key)
-                ti._try_number += 1
                 state = self.mock_task_results[key]
                 ti.set_state(state, session=session)
                 self.change_state(key, state)

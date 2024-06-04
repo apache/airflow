@@ -172,7 +172,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         oss_remote_log_location = f"{self.base_folder}/{remote_log_location}"
         pos = 0
-        if append and self.oss_log_exists(oss_remote_log_location):
+        if append and self.oss_log_exists(remote_log_location):
             head = self.hook.head_key(self.bucket_name, oss_remote_log_location)
             pos = head.content_length
         self.log.info("log write pos is: %s", pos)

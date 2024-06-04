@@ -20,12 +20,13 @@ from __future__ import annotations
 import json
 import random
 import string
+from json import JSONDecodeError
 from os.path import dirname, join
 from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
-from httpx import Response
+from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
@@ -89,18 +90,21 @@ def mock_connection(schema: str | None = None, host: str | None = None) -> Conne
 def mock_json_response(status_code, *contents) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.headers = Headers({})
+    response.content = b""
     if contents:
-        contents = list(contents)
-        response.json.side_effect = lambda: contents.pop(0)
+        response.json.side_effect = list(contents)
     else:
         response.json.return_value = None
     return response
 
 
-def mock_response(status_code, content: Any = None) -> Response:
+def mock_response(status_code, content: Any = None, headers: dict | None = None) -> Response:
     response = MagicMock(spec=Response)
     response.status_code = status_code
+    response.headers = Headers(headers or {})
     response.content = content
+    response.json.side_effect = JSONDecodeError("", "", 0)
     return response
 
 
@@ -112,7 +116,7 @@ def mock_context(task) -> Context:
     from airflow.utils.state import TaskInstanceState
     from airflow.utils.xcom import XCOM_RETURN_KEY
 
-    values = {}
+    values: dict[str, Any] = {}
 
     class MockedTaskInstance(TaskInstance):
         def __init__(
@@ -126,7 +130,7 @@ def mock_context(task) -> Context:
             super().__init__(
                 task=task, execution_date=execution_date, run_id=run_id, state=state, map_index=map_index
             )
-            self.values = {}
+            self.values: dict[str, Any] = {}
 
         def xcom_pull(
             self,
@@ -152,16 +156,17 @@ def mock_context(task) -> Context:
 
     values["ti"] = MockedTaskInstance(task=task)
 
-    return Context(values)
+    # See https://github.com/python/mypy/issues/8890 - mypy does not support passing typed dict to TypedDict
+    return Context(values)  # type: ignore[misc]
 
 
-def load_json(*locations: Iterable[str]):
-    with open(join(dirname(__file__), "azure", join(*locations)), encoding="utf-8") as file:
+def load_json(*args: str):
+    with open(join(dirname(__file__), "azure", join(*args)), encoding="utf-8") as file:
         return json.load(file)
 
 
-def load_file(*locations: Iterable[str], mode="r", encoding="utf-8"):
-    with open(join(dirname(__file__), "azure", join(*locations)), mode=mode, encoding=encoding) as file:
+def load_file(*args: str, mode="r", encoding="utf-8"):
+    with open(join(dirname(__file__), "azure", join(*args)), mode=mode, encoding=encoding) as file:
         return file.read()
 
 
@@ -170,7 +175,7 @@ def get_airflow_connection(
     login: str = "client_id",
     password: str = "client_secret",
     tenant_id: str = "tenant-id",
-    proxies: (dict, None) = None,
+    proxies: dict | None = None,
     api_version: APIVersion = APIVersion.v1,
 ):
     from airflow.models import Connection
@@ -180,7 +185,7 @@ def get_airflow_connection(
         conn_id=conn_id,
         conn_type="http",
         host="graph.microsoft.com",
-        port="80",
+        port=80,
         login=login,
         password=password,
         extra={"tenant_id": tenant_id, "api_version": api_version.value, "proxies": proxies or {}},

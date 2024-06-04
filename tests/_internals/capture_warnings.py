@@ -60,6 +60,7 @@ class CapturedWarning:
     lineno: int
     when: WhenTypeDef
     node_id: str | None = None
+    param_id: str | None = None
 
     @classmethod
     def from_record(
@@ -68,13 +69,17 @@ class CapturedWarning:
         category = warning_message.category.__name__
         if (category_module := warning_message.category.__module__) != "builtins":
             category = f"{category_module}.{category}"
+        param_id = None
         if node_id:
             # Remove parametrized part from the test node
-            node_id, *_ = node_id.partition("[")
+            node_id, _, param_part = node_id.partition("[")
+            if param_part:
+                param_id = param_part[:-1] or None
         return cls(
             category=category,
             message=str(warning_message.message),
             node_id=node_id,
+            param_id=param_id,
             when=when,
             filename=_resolve_warning_filepath(warning_message.filename, os.fspath(root_path)),
             lineno=warning_message.lineno,

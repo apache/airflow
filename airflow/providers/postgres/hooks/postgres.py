@@ -28,6 +28,7 @@ import psycopg2.extensions
 import psycopg2.extras
 from deprecated import deprecated
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
+from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -113,6 +114,18 @@ class PostgresHook(DbApiHook):
     def schema(self, value):
         self.database = value
 
+    @property
+    def sqlalchemy_url(self) -> URL:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        return URL.create(
+            drivername="postgresql",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=self.database or conn.schema,
+        )
+
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
         cursor_types = {
@@ -186,12 +199,9 @@ class PostgresHook(DbApiHook):
     def get_uri(self) -> str:
         """Extract the URI from the connection.
 
-        :return: the extracted uri.
+        :return: the extracted URI in Sqlalchemy URI format.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        conn.schema = self.database or conn.schema
-        uri = conn.get_uri().replace("postgres://", "postgresql://")
-        return uri
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -208,7 +209,7 @@ class TestDbtCloudRunJobOperator:
         ids=["default_account", "explicit_account"],
     )
     def test_execute_wait_for_termination(
-        self, mock_run_job, conn_id, account_id, job_run_status, expected_output
+        self, mock_run_job, conn_id, account_id, job_run_status, expected_output, time_machine
     ):
         operator = DbtCloudRunJobOperator(
             task_id=TASK_ID, dbt_cloud_conn_id=conn_id, account_id=account_id, dag=self.dag, **self.config
@@ -224,7 +225,19 @@ class TestDbtCloudRunJobOperator:
         assert operator.schema_override == self.config["schema_override"]
         assert operator.additional_run_config == self.config["additional_run_config"]
 
-        with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
+        # Freeze time for avoid real clock side effects
+        time_machine.move_to(timezone.datetime(1970, 1, 1), tick=False)
+
+        def fake_sleep(seconds):
+            # Shift frozen time every time we call a ``time.sleep`` during this test case.
+            # Because we freeze a time, we also need to add a small shift
+            # which is emulating time which we spent in a loop
+            overall_delta = timedelta(seconds=seconds) + timedelta(microseconds=42)
+            time_machine.shift(overall_delta)
+
+        with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run, patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep
+        ):
             mock_get_job_run.return_value.json.return_value = {
                 "data": {"status": job_run_status, "id": RUN_ID}
             }
@@ -498,7 +511,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_json_artifact(self, mock_get_artifact, conn_id, account_id):
+    def test_get_json_artifact(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -509,7 +522,11 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
-        return_value = operator.execute(context={})
+        with monkeypatch.context() as ctx:
+            # Let's change current working directory to temp,
+            # otherwise the output file will be created in the current working directory
+            ctx.chdir(tmp_path)
+            return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -519,7 +536,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         assert operator.output_file_name == f"{RUN_ID}_path-to-my-manifest.json"
-        assert os.path.exists(operator.output_file_name)
+        assert os.path.exists(tmp_path / operator.output_file_name)
         assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
@@ -528,7 +545,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_json_artifact_with_step(self, mock_get_artifact, conn_id, account_id):
+    def test_get_json_artifact_with_step(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -540,7 +557,11 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
-        return_value = operator.execute(context={})
+        with monkeypatch.context() as ctx:
+            # Let's change current working directory to temp,
+            # otherwise the output file will be created in the current working directory
+            ctx.chdir(tmp_path)
+            return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -550,7 +571,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         assert operator.output_file_name == f"{RUN_ID}_path-to-my-manifest.json"
-        assert os.path.exists(operator.output_file_name)
+        assert os.path.exists(tmp_path / operator.output_file_name)
         assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
@@ -559,7 +580,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_text_artifact(self, mock_get_artifact, conn_id, account_id):
+    def test_get_text_artifact(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -570,7 +591,11 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.text = "file contents"
-        return_value = operator.execute(context={})
+        with monkeypatch.context() as ctx:
+            # Let's change current working directory to temp,
+            # otherwise the output file will be created in the current working directory
+            ctx.chdir(tmp_path)
+            return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -580,7 +605,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         assert operator.output_file_name == f"{RUN_ID}_path-to-my-model.sql"
-        assert os.path.exists(operator.output_file_name)
+        assert os.path.exists(tmp_path / operator.output_file_name)
         assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
@@ -589,7 +614,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_get_text_artifact_with_step(self, mock_get_artifact, conn_id, account_id):
+    def test_get_text_artifact_with_step(self, mock_get_artifact, conn_id, account_id, tmp_path, monkeypatch):
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -601,7 +626,11 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         mock_get_artifact.return_value.text = "file contents"
-        return_value = operator.execute(context={})
+        with monkeypatch.context() as ctx:
+            # Let's change current working directory to temp,
+            # otherwise the output file will be created in the current working directory
+            ctx.chdir(tmp_path)
+            return_value = operator.execute(context={})
 
         mock_get_artifact.assert_called_once_with(
             run_id=RUN_ID,
@@ -611,7 +640,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         )
 
         assert operator.output_file_name == f"{RUN_ID}_path-to-my-model.sql"
-        assert os.path.exists(operator.output_file_name)
+        assert os.path.exists(tmp_path / operator.output_file_name)
         assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
@@ -621,6 +650,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
         ids=["default_account", "explicit_account"],
     )
     def test_get_artifact_with_specified_output_file(self, mock_get_artifact, conn_id, account_id, tmp_path):
+        specified_output_file = (tmp_path / "run_results.json").as_posix()
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=conn_id,
@@ -628,7 +658,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
             account_id=account_id,
             path="run_results.json",
             dag=self.dag,
-            output_file_name=tmp_path / "run_results.json",
+            output_file_name=specified_output_file,
         )
 
         mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
@@ -641,7 +671,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
             step=None,
         )
 
-        assert operator.output_file_name == tmp_path / "run_results.json"
+        assert operator.output_file_name == specified_output_file
         assert os.path.exists(operator.output_file_name)
         assert return_value == operator.output_file_name
 

@@ -22,7 +22,10 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.providers.fab.auth_manager.cli_commands import sync_perm_command
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.cli_commands import sync_perm_command
 
 pytestmark = pytest.mark.db_test
 

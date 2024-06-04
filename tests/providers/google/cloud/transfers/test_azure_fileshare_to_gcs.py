@@ -22,7 +22,7 @@ from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import Azur
 
 TASK_ID = "test-azure-fileshare-to-gcs"
 AZURE_FILESHARE_SHARE = "test-share"
-AZURE_FILESHARE_DIRECTORY_NAME = "/path/to/dir"
+AZURE_FILESHARE_DIRECTORY_PATH = "/path/to/dir"
 GCS_PATH_PREFIX = "gs://gcs-bucket/data/"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 AZURE_FILESHARE_CONN_ID = "azure_fileshare_default"
@@ -37,7 +37,7 @@ class TestAzureFileShareToGCSOperator:
         operator = AzureFileShareToGCSOperator(
             task_id=TASK_ID,
             share_name=AZURE_FILESHARE_SHARE,
-            directory_name=AZURE_FILESHARE_DIRECTORY_NAME,
+            directory_path=AZURE_FILESHARE_DIRECTORY_PATH,
             azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,
@@ -46,7 +46,7 @@ class TestAzureFileShareToGCSOperator:
 
         assert operator.task_id == TASK_ID
         assert operator.share_name == AZURE_FILESHARE_SHARE
-        assert operator.directory_name == AZURE_FILESHARE_DIRECTORY_NAME
+        assert operator.directory_path == AZURE_FILESHARE_DIRECTORY_PATH
         assert operator.azure_fileshare_conn_id == AZURE_FILESHARE_CONN_ID
         assert operator.gcp_conn_id == GCS_CONN_ID
         assert operator.dest_gcs == GCS_PATH_PREFIX
@@ -60,7 +60,7 @@ class TestAzureFileShareToGCSOperator:
         operator = AzureFileShareToGCSOperator(
             task_id=TASK_ID,
             share_name=AZURE_FILESHARE_SHARE,
-            directory_name=AZURE_FILESHARE_DIRECTORY_NAME,
+            directory_path=AZURE_FILESHARE_DIRECTORY_PATH,
             azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,
@@ -97,7 +97,7 @@ class TestAzureFileShareToGCSOperator:
         operator = AzureFileShareToGCSOperator(
             task_id=TASK_ID,
             share_name=AZURE_FILESHARE_SHARE,
-            directory_name=AZURE_FILESHARE_DIRECTORY_NAME,
+            directory_path=AZURE_FILESHARE_DIRECTORY_PATH,
             azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,

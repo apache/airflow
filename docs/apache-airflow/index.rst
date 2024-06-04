@@ -175,3 +175,10 @@ so coding will always be required.
 
     Database Migrations <migrations-ref>
     Database ERD Schema <database-erd-ref>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/core/index>

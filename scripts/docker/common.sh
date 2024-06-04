@@ -55,6 +55,8 @@ function common::get_packaging_tool() {
         fi
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
+        UV_CONCURRENT_DOWNLOADS=$(nproc --all)
+        export UV_CONCURRENT_DOWNLOADS
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"

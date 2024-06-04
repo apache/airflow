@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from time import sleep
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -41,6 +42,8 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
 from tests.test_utils import db
+
+logger = logging.getLogger(__name__)
 
 
 def _prepare_test_bodies():
@@ -94,7 +97,7 @@ def _prepare_app(broker_url=None, execute=None):
 
 
 @pytest.mark.integration("celery")
-@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.backend("postgres")
 class TestCeleryExecutor:
     def setup_method(self) -> None:
         db.clear_db_runs()
@@ -145,7 +148,15 @@ class TestCeleryExecutor:
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
-
+                for _ in range(20):
+                    num_tasks = len(executor.tasks.keys())
+                    if num_tasks == 2:
+                        break
+                    logger.info(
+                        "Waiting 0.1 s for tasks to be processed asynchronously. Processed so far %d",
+                        num_tasks,
+                    )
+                    sleep(0.4)
                 assert list(executor.tasks.keys()) == [
                     ("success", "fake_simple_ti", execute_date, 0),
                     ("fail", "fake_simple_ti", execute_date, 0),
@@ -265,7 +276,7 @@ class ClassWithCustomAttributes:
 
 
 @pytest.mark.integration("celery")
-@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.backend("postgres")
 class TestBulkStateFetcher:
     bulk_state_fetcher_logger = "airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher"
 
