@@ -86,6 +86,24 @@ For example, say you want to pass the start of the data interval as an environme
 
 Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the data interval's start date will be available as an environment variable named ``DATA_INTERVAL_START`` in your Bash script.
 
+Same for the parameter ``bash_command`` that is also templated with Jinja.
+.. code-block:: python
+
+  t = BashOperator(task_id="simple_templated_echo", bash_command="echo {{ ds }}", dag=dag)
+
+You can also perform templating manually by giving a callable when the value is more complex and/or dynamic
+
+.. code-block:: python
+
+  def build_complex_command(context, jinja_env):
+      with open("file.csv") as f:
+          data = do_complex_things(f)
+          data.replace("THE_DATE", "{{ ds }}")
+      return context["task"].render_template(data, context, jinja_env)
+
+
+  t = BashOperator(task_id="complex_templated_echo", bash_command=build_complex_command, dag=dag)
+
 You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
 
 You can also use Jinja templating with nested fields, as long as these nested fields are marked as templated in the structure they belong to: fields registered in ``template_fields`` property will be submitted to template substitution, like the ``path`` field in the example below:
