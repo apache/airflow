@@ -30,6 +30,8 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+import botocore
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -45,7 +47,11 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils import (
+    get_botocore_version,
+    trim_none_values,
+    validate_execute_complete_event,
+)
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.types import NOTSET
 
@@ -66,6 +72,7 @@ class BatchOperator(BaseOperator):
     :param overrides: DEPRECATED, use container_overrides instead with the same value.
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
     :param ecs_properties_override: the `ecsPropertiesOverride` parameter for boto3 (templated)
+        **NOTE** This requires `boto3` version 1.34.52+
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
     :param share_identifier: The share identifier for the job. Don't specify this parameter if the job queue
         doesn't have a scheduling policy.
@@ -323,6 +330,17 @@ class BatchOperator(BaseOperator):
 
         try:
             response = self.hook.client.submit_job(**trim_none_values(args))
+        except botocore.exceptions.ParamValidationError as error:
+            if (
+                'Unknown parameter in input: "ecsPropertiesOverride"' in str(error)
+            ) and self.ecs_properties_override:
+                self.log.error(
+                    "You are attempting to use ecsPropertiesOverride and the botocore API returned an "
+                    "error message which may indicate the need to update botocore to do this.  \n"
+                    "Support for using ecsPropertiesOverride was added in botocore 1.34.52 and you are using botocore %s",
+                    ".".join(map(str, get_botocore_version())),
+                )
+            raise
         except Exception as e:
             self.log.error(
                 "AWS Batch job failed submission - job definition: %s - on queue %s",
