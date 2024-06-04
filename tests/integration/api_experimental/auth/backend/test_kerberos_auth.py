@@ -62,8 +62,9 @@ class TestApiKerberos:
     def test_trigger_dag(self):
         with self.app.test_client() as client:
             url_template = "/api/experimental/dags/{}/dag_runs"
+            url_path = url_template.format("example_bash_operator")
             response = client.post(
-                url_template.format("example_bash_operator"),
+                url_path,
                 data=json.dumps(dict(run_id="my_run" + datetime.now().isoformat())),
                 content_type="application/json",
             )
@@ -79,6 +80,8 @@ class TestApiKerberos:
             response.raw = mock.MagicMock()
             response.connection = mock.MagicMock()
             response.connection.send = mock.MagicMock()
+            response.connection.send.return_value = mock.MagicMock()
+            response.connection.send.return_value.url = url_path
 
             # disable mutual authentication for testing
             CLIENT_AUTH.mutual_authentication = 3
