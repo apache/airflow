@@ -156,8 +156,9 @@ class BaseSessionFactory(LoggingMixin):
 
         return async_get_session()
 
-    def create_session(self,
-                       deferrable: bool = False) -> boto3.session.Session | aiobotocore.session.AioSession:
+    def create_session(
+        self, deferrable: bool = False
+    ) -> boto3.session.Session | aiobotocore.session.AioSession:
         """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
