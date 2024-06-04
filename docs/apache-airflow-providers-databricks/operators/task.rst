@@ -22,7 +22,9 @@ DatabricksTaskOperator
 ======================
 
 Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksTaskOperator` to launch and monitor
-task runs on Databricks as Airflow tasks.
+task runs on Databricks as Airflow tasks. This can be used as a standalone operator in a DAG and as well as part of a
+Databricks Workflow by using it as an operator(task) within the
+:class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`.
 
 
 
