@@ -723,7 +723,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            ti_history = TaskInstanceHistory(ti, state=ti.state)
+            # If the task instance state is up for retry, we consider that as failed
+            ti_history_state = (
+                TaskInstanceState.FAILED if ti.state == TaskInstanceState.UP_FOR_RETRY else ti.state
+            )
+
+            ti_history = TaskInstanceHistory(ti, state=ti_history_state)
+            # We use merge here to avoid integrity error as sensors/deferrable operators update states
             session.merge(ti_history)
 
             msg = (
