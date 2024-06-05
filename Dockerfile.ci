@@ -985,6 +985,12 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/logs/
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
+        if [[ ${USE_AIRFLOW_VERSION} =~ 2\.[7-8].* && ${TEST_TYPE} == "Providers[fab]" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
+            echo
+            return
+        fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
