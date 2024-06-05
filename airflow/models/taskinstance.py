@@ -558,7 +558,7 @@ def clear_task_instances(
 
 def record_task_instance_history(ti, session):
     """Update the task instance history table."""
-    if ti.state in [TaskInstanceState.UP_FOR_RETRY]:
+    if ti.state in [TaskInstanceState.UP_FOR_RETRY, None, TaskInstanceState.RESTARTING]:
         return
     from airflow.models.taskinstancehistory import TaskInstanceHistory
 
@@ -3209,8 +3209,8 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(ti_history)
 
             if ti.state == TaskInstanceState.RUNNING:
-                # If the task instance is in running state, it means that it raised an exception and
-                # about to retry so record the task instance history. For other states, the task
+                # If the task instance is in the running state, it means it raised an exception and
+                # about to retry so we record the task instance history. For other states, the task
                 # instance was cleared and already recorded in the task instance history.
                 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
