@@ -44,7 +44,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - kylinpy>=2.6
+  - kylinpy>=2.7.0
 
 integrations:
   - integration-name: Apache Kylin

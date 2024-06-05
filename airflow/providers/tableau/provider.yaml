@@ -52,7 +52,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - tableauserverclient
+  - tableauserverclient>=0.25
 
 integrations:
   - integration-name: Tableau

@@ -52,7 +52,7 @@ dependencies:
   # https://github.com/googleapis/google-cloud-python/issues/10566
   - google-auth>=1.0.0, <3.0.0
   - google-auth-httplib2>=0.0.1
-  - grpcio>=1.15.0
+  - grpcio>=1.59.0
 
 integrations:
   - integration-name: gRPC

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
@@ -1683,6 +1684,74 @@ class TestKubernetesPodOperator:
         mock_await_container_completion.assert_has_calls(
             [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
         )
+
+    @pytest.mark.parametrize(
+        "on_finish_action", [OnFinishAction.KEEP_POD, OnFinishAction.DELETE_SUCCEEDED_POD]
+    )
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods__label_patched_if_action_is_not_delete_pod(
+        self,
+        process_pod_deletion_mock,
+        patch_already_checked_mock,
+        on_finish_action,
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=on_finish_action,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": now}
+        pod_2.status = {"start_time": now + datetime.timedelta(seconds=60)}
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_not_called()
+        assert result.metadata.name == pod_2.metadata.name
+
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods__pod_removed_if_delete_pod(
+        self, process_pod_deletion_mock, patch_already_checked_mock
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=OnFinishAction.DELETE_POD,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": now}
+        pod_2.status = {"start_time": now + datetime.timedelta(seconds=60)}
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_called_once_with(pod_1)
+        assert result.metadata.name == pod_2.metadata.name
 
 
 class TestSuppress:
