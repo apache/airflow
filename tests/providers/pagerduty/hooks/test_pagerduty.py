@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
@@ -84,11 +85,15 @@ class TestPagerdutyHook:
     def test_create_event(self, events_hook_create_event, events_hook_init):
         events_hook_init.return_value = None
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
-        hook.create_event(
-            summary="test",
-            source="airflow_test",
-            severity="error",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="This method will be deprecated. Please use the `airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API",
+        ):
+            hook.create_event(
+                summary="test",
+                source="airflow_test",
+                severity="error",
+            )
         events_hook_init.assert_called_with(integration_key="integration_key")
         events_hook_create_event.assert_called_with(
             summary="test",
@@ -109,10 +114,14 @@ class TestPagerdutyHook:
     def test_create_event_override(self, events_hook_init):
         events_hook_init.return_value = None
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
-        hook.create_event(
-            routing_key="different_key",
-            summary="test",
-            source="airflow_test",
-            severity="error",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="This method will be deprecated. Please use the `airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API",
+        ):
+            hook.create_event(
+                routing_key="different_key",
+                summary="test",
+                source="airflow_test",
+                severity="error",
+            )
         events_hook_init.assert_called_with(integration_key="different_key")

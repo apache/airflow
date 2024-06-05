@@ -511,6 +511,11 @@ with DAG(
     )
     # [END howto_operator_bedrock_create_data_source]
 
+    # In this demo, delete_data_source and delete_cluster are both trying to delete
+    # the data from the S3 bucket and occasionally hitting a conflict.  This ensures that
+    # delete_data_source doesn't attempt to delete the files, leaving that duty to delete_bucket.
+    create_data_source.create_data_source_kwargs["dataDeletionPolicy"] = "RETAIN"
+
     # [START howto_operator_bedrock_ingest_data]
     ingest_data = BedrockIngestDataOperator(
         task_id="ingest_data",

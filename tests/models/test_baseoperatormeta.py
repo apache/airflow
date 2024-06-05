@@ -24,9 +24,10 @@ from unittest.mock import patch
 import pytest
 
 from airflow.configuration import conf
+from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
-from airflow.operators.python import PythonOperator, task
+from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State
 

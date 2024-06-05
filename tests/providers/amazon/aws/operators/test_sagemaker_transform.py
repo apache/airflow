@@ -75,6 +75,7 @@ class TestSageMakerTransformOperator:
             config=copy.deepcopy(CONFIG),
             wait_for_completion=False,
             check_interval=5,
+            check_if_model_exists=False,
         )
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
@@ -127,7 +128,10 @@ class TestSageMakerTransformOperator:
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "create_transform_job")
     def test_execute_with_failure(self, mock_transform, _, mock_desc):
-        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            None,
+        ]
         mock_transform.return_value = {
             "TransformJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 404},
@@ -175,6 +179,113 @@ class TestSageMakerTransformOperator:
             check_interval=5,
             max_ingestion_time=None,
         )
+
+    @mock.patch(  # since it is divided by 1000000, the added timestamp should be 2.
+        "airflow.providers.amazon.aws.operators.sagemaker.time.time_ns", return_value=2000000
+    )
+    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name-2"})
+    @mock.patch.object(
+        SageMakerHook,
+        "create_transform_job",
+        return_value={
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
+    )
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_model",
+        side_effect=[
+            None,
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            "model_name-2",
+        ],
+    )
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_when_model_already_exists_it_should_add_timestamp_to_model_name(
+        self, _, mock_describe_model, mock_create_model, __, ___, timestamp_mock
+    ):
+        self.sagemaker.check_if_job_exists = False
+        self.sagemaker.check_if_model_exists = True
+        model_config = {"ModelName": "model_name"}
+        self.sagemaker.config["Model"] = model_config
+
+        self.sagemaker.execute(None)
+
+        mock_describe_model.assert_has_calls(
+            [mock.call("model_name"), mock.call("model_name-2"), mock.call("model_name-2")]
+        )
+        mock_create_model.assert_called_once_with({"ModelName": "model_name-2"})
+
+    @mock.patch.object(SageMakerHook, "describe_transform_job")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_when_model_already_exists_it_should_raise_airflow_exception(
+        self, _, mock_describe_model, mock_create_model, __, ___
+    ):
+        mock_describe_model.side_effect = [None]
+        self.sagemaker.check_if_job_exists = False
+        self.sagemaker.check_if_model_exists = True
+        self.sagemaker.action_if_model_exists = "fail"
+        model_config = {"ModelName": "model_name"}
+        self.sagemaker.config["Model"] = model_config
+
+        with pytest.raises(AirflowException) as context:
+            self.sagemaker.execute(None)
+
+        assert str(context.value) == "A SageMaker model with name model_name already exists."
+        mock_describe_model.assert_called_once_with("model_name")
+        mock_create_model.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "describe_transform_job", return_value={"ModelName": "model_name"})
+    @mock.patch.object(
+        SageMakerHook,
+        "create_transform_job",
+        return_value={
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
+    )
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_execute_without_check_if_model_exists(self, _, mock_describe_model, mock_create_model, __, ___):
+        self.sagemaker.check_if_job_exists = False
+        self.sagemaker.check_if_model_exists = False
+        model_config = {"ModelName": "model_name"}
+        self.sagemaker.config["Model"] = model_config
+        self.sagemaker._get_unique_model_name = mock.Mock()
+
+        self.sagemaker.execute(None)
+
+        mock_create_model.assert_called_once_with(model_config)
+        mock_describe_model.assert_called_once_with("model_name")
+        self.sagemaker._get_unique_model_name.assert_not_called()
+
+    @mock.patch.object(SageMakerTransformOperator, "_get_unique_name")
+    def test_get_unique_model_name_calls_get_unique_name_correctly(self, get_unique_name_mock):
+        def describe_func():
+            pass
+
+        self.sagemaker._get_unique_model_name("model_name", True, describe_func)
+
+        get_unique_name_mock.assert_called_once_with(
+            "model_name",
+            True,
+            describe_func,
+            self.sagemaker._check_if_model_exists,
+            "model",
+        )
+
+    @mock.patch.object(SageMakerTransformOperator, "_check_if_resource_exists")
+    def test_check_if_model_exists_calls_check_if_resource_exists_correctly(self, check_resource_exists_mock):
+        def describe_func():
+            pass
+
+        self.sagemaker._check_if_model_exists("model_name", describe_func)
+
+        check_resource_exists_mock.assert_called_once_with("model_name", "model", describe_func)
 
     @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator.defer")
     @mock.patch.object(
