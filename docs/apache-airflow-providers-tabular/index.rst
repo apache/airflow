@@ -39,13 +39,6 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: System tests
-
-    System Tests <_api/tests/system/providers/tabular/index>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-tabular/|version|/tests/system/providers/tabular>
@@ -71,7 +64,7 @@ apache-airflow-providers-tabular package
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.5.0
+Release: 1.5.1
 
 Provider package
 ----------------
@@ -91,8 +84,37 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.7.0``
-==================  ==================
+===========================================  ==================
+PIP package                                  Version required
+===========================================  ==================
+``apache-airflow``                           ``>=2.7.0``
+``apache-airflow-providers-apache-iceberg``
+===========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider packages in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-tabular[apache.iceberg]
+
+
+====================================================================================================================  ==================
+Dependent package                                                                                                     Extra
+====================================================================================================================  ==================
+`apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
+====================================================================================================================  ==================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-tabular 1.5.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_tabular-1.5.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_tabular-1.5.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_tabular-1.5.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-tabular 1.5.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_tabular-1.5.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_tabular-1.5.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_tabular-1.5.1-py3-none-any.whl.sha512>`__)

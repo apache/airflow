@@ -241,11 +241,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         started_at: datetime.datetime | float
 
         if self.reschedule:
-            # If reschedule, use the start date of the first try (first try can be either the very
-            # first execution of the task, or the first execution after the task was cleared.)
             ti = context["ti"]
             max_tries: int = ti.max_tries or 0
             retries: int = self.retries or 0
+            # If reschedule, use the start date of the first try (first try can be either the very
+            # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = max_tries - retries + 1
             start_date = _orig_start_date(
                 dag_id=ti.dag_id,

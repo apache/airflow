@@ -51,7 +51,7 @@ class TestSparkSqlOperator:
         # Given / When
         operator = SparkSqlOperator(task_id="spark_sql_job", dag=self.dag, **self._config)
 
-        assert self._config["sql"] == operator._sql
+        assert self._config["sql"] == operator.sql
         assert self._config["conn_id"] == operator._conn_id
         assert self._config["total_executor_cores"] == operator._total_executor_cores
         assert self._config["executor_cores"] == operator._executor_cores

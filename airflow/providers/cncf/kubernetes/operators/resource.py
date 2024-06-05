@@ -22,12 +22,14 @@ import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
+import tenacity
 import yaml
 from kubernetes.utils import create_from_yaml
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
 from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
 
@@ -126,7 +128,14 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
         else:
             self.custom_object_client.create_cluster_custom_object(group, version, plural, body)
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_random_exponential(),
+        reraise=True,
+        retry=tenacity.retry_if_exception(should_retry_creation),
+    )
     def _create_objects(self, objects):
+        self.log.info("Starting resource creation")
         if not self.custom_resource_definition:
             create_from_yaml(
                 k8s_client=self.client,
@@ -144,6 +153,7 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
                 self._create_objects(yaml.safe_load_all(stream))
         else:
             raise AirflowException("File %s not found", self.yaml_conf_file)
+        self.log.info("Resource was created")
 
 
 class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):

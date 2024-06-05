@@ -26,6 +26,8 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from tests.test_utils.config import conf_vars
 
+STATSD_CONFIG_BEGIN_WITH = "# `StatsD <https://github.com/statsd/statsd>`"
+
 
 class TestCliConfigList:
     @classmethod
@@ -90,7 +92,7 @@ class TestCliConfigList:
         lines = output.splitlines()
         # comes from metrics description
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert any(line.startswith("# StatsD") for line in lines if line)
+        assert any(line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
@@ -102,7 +104,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert any(line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
@@ -114,7 +116,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)
 
@@ -126,7 +128,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("# Source: ") for line in lines if line)
-        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
@@ -138,7 +140,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert any(line.startswith("# StatsD") for line in lines if line)
+        assert any(line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)

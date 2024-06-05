@@ -21,7 +21,7 @@ Advanced Breeze topics
 This document describes advanced topics related to Breeze. It is intended for people who already
 know how to use Breeze and want to learn more about it and understand how it works under the hood.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Debugging/developing Breeze
 ---------------------------

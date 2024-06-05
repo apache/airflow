@@ -25,14 +25,16 @@ import os
 import sys
 import traceback
 import warnings
+from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
+from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from airflow import policies
+from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
 from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
@@ -205,6 +207,31 @@ def configure_vars():
     # to get all the logs from the print & log statements in the DAG files before a task is run
     # The handlers are restored after the task completes execution.
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
+
+
+def _run_openlineage_runtime_check():
+    """
+    Ensure compatibility of OpenLineage provider package and Airflow version.
+
+    Airflow 2.10.0 introduced some core changes (#39336) that made versions <= 1.8.0 of OpenLineage
+    provider incompatible with future Airflow versions (>= 2.10.0).
+    """
+    ol_package = "apache-airflow-providers-openlineage"
+    try:
+        ol_version = metadata.version(ol_package)
+    except metadata.PackageNotFoundError:
+        return
+
+    if ol_version and Version(ol_version) < Version("1.8.0.dev0"):
+        raise RuntimeError(
+            f"You have installed `{ol_package}` == `{ol_version}` that is not compatible with "
+            f"`apache-airflow` == `{airflow_version}`. "
+            f"For `apache-airflow` >= `2.10.0` you must use `{ol_package}` >= `1.8.0`."
+        )
+
+
+def run_providers_custom_runtime_checks():
+    _run_openlineage_runtime_check()
 
 
 class SkipDBTestsSession:
@@ -572,8 +599,18 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    # Run any custom runtime checks that needs to be executed for providers
+    run_providers_custom_runtime_checks()
+
     # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
+
+
+def is_usage_data_collection_enabled() -> bool:
+    """Check if data collection is enabled."""
+    return conf.getboolean("usage_data_collection", "enabled", fallback=True) and (
+        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
+    )
 
 
 # Const stuff

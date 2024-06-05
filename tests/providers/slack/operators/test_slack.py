@@ -302,13 +302,18 @@ class TestSlackAPIFileOperator:
 
     def test_both_channel_and_channels_set(self):
         error_message = r"Cannot set both arguments: channel=.* and channels=.*\."
+        warning_message = (
+            r"Argument `channel` is deprecated and will removed in a future releases\. "
+            r"Please use `channels` instead\."
+        )
         with pytest.raises(ValueError, match=error_message):
-            SlackAPIFileOperator(
-                task_id="slack",
-                slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
-                channel="#random",
-                channels="#general",
-            )
+            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+                SlackAPIFileOperator(
+                    task_id="slack",
+                    slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+                    channel="#random",
+                    channels="#general",
+                )
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(

@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+import warnings
 from enum import Enum
 from functools import cached_property, wraps
 from inspect import signature
@@ -38,6 +39,8 @@ if TYPE_CHECKING:
     from requests.models import PreparedRequest, Response
 
     from airflow.models import Connection
+
+DBT_CAUSE_MAX_LENGTH = 255
 
 
 def fallback_to_default_account(func: Callable) -> Callable:
@@ -401,6 +404,7 @@ class DbtCloudHook(HttpHook):
         account_id: int | None = None,
         steps_override: list[str] | None = None,
         schema_override: str | None = None,
+        retry_from_failure: bool = False,
         additional_run_config: dict[str, Any] | None = None,
     ) -> Response:
         """
@@ -413,12 +417,24 @@ class DbtCloudHook(HttpHook):
             instead of those configured in dbt Cloud.
         :param schema_override: Optional. Override the destination schema in the configured target for this
             job.
+        :param retry_from_failure: Optional. If set to True and the previous job run has failed, the job
+            will be triggered using the "rerun" endpoint. This parameter cannot be used alongside
+            steps_override, schema_override, or additional_run_config.
         :param additional_run_config: Optional. Any additional parameters that should be included in the API
             request when triggering the job.
         :return: The request response.
         """
         if additional_run_config is None:
             additional_run_config = {}
+
+        if cause is not None and len(cause) > DBT_CAUSE_MAX_LENGTH:
+            warnings.warn(
+                f"Cause `{cause}` exceeds limit of {DBT_CAUSE_MAX_LENGTH}"
+                f" characters and will be truncated.",
+                UserWarning,
+                stacklevel=2,
+            )
+            cause = cause[:DBT_CAUSE_MAX_LENGTH]
 
         payload = {
             "cause": cause,
@@ -427,6 +443,24 @@ class DbtCloudHook(HttpHook):
         }
         payload.update(additional_run_config)
 
+        if retry_from_failure:
+            latest_run = self.get_job_runs(
+                account_id=account_id,
+                payload={
+                    "job_definition_id": job_id,
+                    "order_by": "-created_at",
+                    "limit": 1,
+                },
+            ).json()["data"]
+            if latest_run and latest_run[0]["status"] == DbtCloudJobRunStatus.ERROR.value:
+                if steps_override is not None or schema_override is not None or additional_run_config != {}:
+                    warnings.warn(
+                        "steps_override, schema_override, or additional_run_config will be ignored when"
+                        " retry_from_failure is True and previous job run has failed.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                return self.retry_failed_job_run(job_id, account_id)
         return self._run_and_get_response(
             method="POST",
             endpoint=f"{account_id}/jobs/{job_id}/run/",
@@ -649,6 +683,17 @@ class DbtCloudHook(HttpHook):
         }
         results = await asyncio.gather(*tasks.values())
         return {filename: result.json() for filename, result in zip(tasks.keys(), results)}
+
+    @fallback_to_default_account
+    def retry_failed_job_run(self, job_id: int, account_id: int | None = None) -> Response:
+        """
+        Retry a failed run for a job from the point of failure, if the run failed. Otherwise, trigger a new run.
+
+        :param job_id: The ID of a dbt Cloud job.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The request response.
+        """
+        return self._run_and_get_response(method="POST", endpoint=f"{account_id}/jobs/{job_id}/rerun/")
 
     def test_connection(self) -> tuple[bool, str]:
         """Test dbt Cloud connection."""

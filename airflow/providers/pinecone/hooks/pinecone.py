@@ -29,6 +29,7 @@ from pinecone import Pinecone, PodSpec, ServerlessSpec
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
+    from pinecone import Vector
     from pinecone.core.client.model.sparse_values import SparseValues
     from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
 
@@ -137,7 +138,7 @@ class PineconeHook(BaseHook):
     def upsert(
         self,
         index_name: str,
-        vectors: list[Any],
+        vectors: list[Vector] | list[tuple] | list[dict],
         namespace: str = "",
         batch_size: int | None = None,
         show_progress: bool = True,
@@ -226,7 +227,7 @@ class PineconeHook(BaseHook):
         :param dimension: The dimension of the vectors to be indexed.
         :param spec: Pass a `ServerlessSpec` object to create a serverless index or a `PodSpec` object to create a pod index.
             ``get_serverless_spec_obj`` and ``get_pod_spec_obj`` can be used to create the Spec objects.
-        :param metric: The metric to use.
+        :param metric: The metric to use. Defaults to cosine.
         :param timeout: The timeout to use.
         """
         self.pinecone_client.create_index(

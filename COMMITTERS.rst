@@ -22,7 +22,7 @@ Before reading this document, you should be familiar with `Contributors' guide <
 This document assumes that you are a bit familiar how Airflow's community work, but you would like to learn more
 about the rules by which we add new members.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Committers vs. Maintainers
 --------------------------

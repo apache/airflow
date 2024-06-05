@@ -61,7 +61,7 @@ MEMCACHED_INSTANCE = {
 }
 # [END howto_operator_memcached_instance]
 
-IP_RANGE_NAME = f"ip-range-{DAG_ID}-{ENV_ID}".replace("_", "-")
+IP_RANGE_NAME = f"ip-range-{DAG_ID}".replace("_", "-")
 NETWORK = "default"
 CREATE_PRIVATE_CONNECTION_CMD = f"""
 if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \

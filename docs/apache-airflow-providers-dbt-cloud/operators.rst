@@ -51,6 +51,10 @@ resource utilization while the job is running.
 When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
 track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
 
+When ``retry_from_failure`` is True, we retry the run for a job from the point of failure,
+if the run failed. Otherwise we trigger a new run.
+For more information on the retry logic, reference the
+`API documentation <https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job>`__.
 
 While ``schema_override`` and ``steps_override`` are explicit, optional parameters for the
 ``DbtCloudRunJobOperator``, custom run configurations can also be passed to the operator using the
@@ -97,27 +101,15 @@ the ``account_id`` for the task is referenced within the ``default_args`` of the
     :start-after: [START howto_operator_dbt_cloud_run_job_sensor]
     :end-before: [END howto_operator_dbt_cloud_run_job_sensor]
 
-Also you can use deferrable mode in this sensor if you would like to free up the worker slots while the sensor is running.
+Also, you can poll for status of the job run asynchronously using ``deferrable`` mode. In this mode, worker
+slots are freed up while the sensor is running.
 
 .. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_dbt_cloud_run_job_sensor_defered]
-    :end-before: [END howto_operator_dbt_cloud_run_job_sensor_defered]
+    :start-after: [START howto_operator_dbt_cloud_run_job_sensor_deferred]
+    :end-before: [END howto_operator_dbt_cloud_run_job_sensor_deferred]
 
-.. _howto/operator:DbtCloudJobRunAsyncSensor:
-
-Poll for status of a dbt Cloud Job run asynchronously
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. note::
-    :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. Please use :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor` and use the deferrable mode in that operator.
-
-.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_dbt_cloud_run_job_async_sensor]
-    :end-before: [END howto_operator_dbt_cloud_run_job_async_sensor]
 
 .. _howto/operator:DbtCloudGetJobRunArtifactOperator:
 

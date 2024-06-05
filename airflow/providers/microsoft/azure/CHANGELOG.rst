@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+10.1.1
+......
+
+Misc
+~~~~
+
+* ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
+* ``Update example AzureContainerInstancesOperator (#39466)``
+
 10.1.0
 ......
 
@@ -42,6 +51,7 @@ Features
 * ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
 * ``Make handling of connection by fs/adls.py closer to that of WasbHook and add unit tests. (#38747)``
 * ``Implement run-method on KiotaRequestAdapterHook and move logic away from triggerer to hook (#39237)``
+* ``Implemented MSGraphSensor as a deferrable sensor (#39304)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -52,6 +62,12 @@ Misc
 ~~~~
 
 * ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave May 2024 (#39328)``
 
 10.0.0
 ......

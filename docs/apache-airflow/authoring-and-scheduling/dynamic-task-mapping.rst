@@ -53,7 +53,7 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
 
-        LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+        LazySelectSequence([15 items])
 
     You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but since this would eagerly load values from *all* of the referenced upstream mapped tasks, you must be aware of the potential performance implications if the mapped number is large.
 
@@ -174,7 +174,7 @@ This would result in the add task being called 6 times. Please note, however, th
 Named mapping
 -------------
 
-By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
+By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This will typically look like ``map_index_template="{{ task.<property> }}"`` when the expansion looks like ``.expand(<property>=...)``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
 
 .. code-block:: python
 
