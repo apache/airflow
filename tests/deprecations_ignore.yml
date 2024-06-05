@@ -91,20 +91,6 @@
 
 
 # Operators
-- tests/operators/test_bash.py::TestBashOperator::test_echo_env_variables
-- tests/operators/test_branch_operator.py::TestBranchOperator::test_with_dag_run
-- tests/operators/test_branch_operator.py::TestBranchOperator::test_with_skip_in_branch_downstream_dependencies
-- tests/operators/test_branch_operator.py::TestBranchOperator::test_xcom_push
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_falls_outside_range
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_falls_within_range
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_lower_comparison_outside_range
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_lower_comparison_within_range
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_upper_comparison_outside_range
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_upper_comparison_within_range
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_branch_datetime_operator_use_task_logical_date
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_deprecation_warning
-- tests/operators/test_datetime.py::TestBranchDateTimeOperator::test_no_target_time
-- tests/operators/test_latest_only_operator.py::TestLatestOnlyOperator::test_not_skipping_external
 - tests/operators/test_latest_only_operator.py::TestLatestOnlyOperator::test_skipping_non_latest
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_execute_create_dagrun_wait_until_success
 - tests/operators/test_subdag_operator.py::TestSubDagOperator::test_execute_create_dagrun_with_conf

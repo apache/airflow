@@ -163,14 +163,17 @@ class TestLatestOnlyOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             external_trigger=True,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
+        execution_date = timezone.datetime(2016, 1, 1, 12)
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=timezone.datetime(2016, 1, 1, 12),
+            execution_date=execution_date,
             state=State.RUNNING,
             external_trigger=True,
+            data_interval=(execution_date, execution_date),
         )
 
         self.dag.create_dagrun(
@@ -179,6 +182,7 @@ class TestLatestOnlyOperator:
             execution_date=END_DATE,
             state=State.RUNNING,
             external_trigger=True,
+            data_interval=(END_DATE, END_DATE),
         )
 
         latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
