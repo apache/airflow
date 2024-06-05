@@ -38,7 +38,10 @@ from openlineage.client.run import Job, Run, RunEvent, RunState
 from openlineage.client.uuid import generate_static_uuid
 
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
-from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
+from airflow.providers.openlineage.utils.utils import (
+    OpenLineageRedactor,
+    get_airflow_state_run_facet,
+)
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -321,12 +324,19 @@ class OpenLineageAdapter(LoggingMixin):
         msg: str,
         nominal_start_time: str,
         nominal_end_time: str,
+        job_facets: dict[str, BaseFacet] | None = None,  # Custom job facets
     ):
         try:
             event = RunEvent(
                 eventType=RunState.START,
                 eventTime=dag_run.start_date.isoformat(),
-                job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
+                job=self._build_job(
+                    job_name=dag_run.dag_id,
+                    job_type=_JOB_TYPE_DAG,
+                    job_description=dag_run.dag.description if dag_run.dag else None,
+                    owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
+                    job_facets=job_facets,
+                ),
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
                         dag_id=dag_run.dag_id,
@@ -358,6 +368,7 @@ class OpenLineageAdapter(LoggingMixin):
                         dag_id=dag_run.dag_id,
                         execution_date=dag_run.execution_date,
                     ),
+                    facets={**get_airflow_state_run_facet(dag_run)},
                 ),
                 inputs=[],
                 outputs=[],
@@ -381,7 +392,10 @@ class OpenLineageAdapter(LoggingMixin):
                         dag_id=dag_run.dag_id,
                         execution_date=dag_run.execution_date,
                     ),
-                    facets={"errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python")},
+                    facets={
+                        "errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python"),
+                        **get_airflow_state_run_facet(dag_run),
+                    },
                 ),
                 inputs=[],
                 outputs=[],
