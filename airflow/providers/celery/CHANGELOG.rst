@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing exception types to include TypeError, which is what is raised in (#40012)``
+
 3.7.1
 .....
 

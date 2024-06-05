@@ -34,11 +34,28 @@ Features
 
 * ``ECS Overrides for AWS Batch submit_job (#39903)``
 * ``Add transfer operator S3ToDynamoDBOperator (#39654)``
+* ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
+ * ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+* ``Adding Amazon Glue Data Quality Service (#39923)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Deduplicate model name in SageMakerTransformOperator (#39956)``
+* ``Fix: remove process_func from templated_fields (#39948)``
 
 Misc
 ~~~~
 
 * ``Resolving ECS fargate deprecated warnings (#39834)``
+* ``Resolving EMR notebook deprecated warnings (#39829)``
+* ``Bump boto min versions (#40052)``
+* ``docs: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Implement per-provider tests with lowest-direct dependency resolution (#39946)``
+   * ``Resolve aws emr deprecations in tests (#40020)``
+   * ``Prepare docs 4th wave May 2024 (#39934)``
 
 8.23.0
 ......

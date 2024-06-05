@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.1
+.....
+
+Latest change: 2024-06-05
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`0f6e31f4b9 <https://github.com/apache/airflow/commit/0f6e31f4b95059421e581d2a2b29392aab215fa4>`_  2024-06-05   ``Fix reattach_on_restart parameter for the sync mode (#39329)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`a61e789b9b <https://github.com/apache/airflow/commit/a61e789b9bdbddeb72412915f54988510961b213>`_  2024-06-04   ``Resolve common providers deprecations in tests (#40036)``
+`981ba8f005 <https://github.com/apache/airflow/commit/981ba8f00544597863448f1b951cdd8c5bc6a023>`_  2024-06-03   ``Fixes KubernetesPodTrigger failing running pods with timeout (#40019)``
+`032d27640b <https://github.com/apache/airflow/commit/032d27640b5124e8fd85ba93042b50989881895a>`_  2024-05-30   ``Refresh properties on KubernetesPodOperator on token expiration also when logging (#39789)``
+=================================================================================================  ===========  ==============================================================================================
+
 8.3.0
 .....
 
-Latest change: 2024-05-28
+Latest change: 2024-05-30
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`11f219abff <https://github.com/apache/airflow/commit/11f219abffb49ef713bac3e60121fcbf737dc95b>`_  2024-05-30   ``Prepare docs 4th wave May 2024 (#39934)``
 `53970a8d1f <https://github.com/apache/airflow/commit/53970a8d1f4d8337a6e9b9aeac25fde030432f98>`_  2024-05-28   ``Handling exception getting logs when pods finish success (#39296)``
 `e190cff272 <https://github.com/apache/airflow/commit/e190cff27299256df75b56e46e27e9932174805a>`_  2024-05-28   ``fix wrong arguments in read_namespaced_pod_log call (#39874)``
 `98c5a3a2c6 <https://github.com/apache/airflow/commit/98c5a3a2c6d1df722d56bb3748dfbc810d5952aa>`_  2024-05-27   ``Add a warning message to KPO to warn of one second interval logs duplication (#39861)``
