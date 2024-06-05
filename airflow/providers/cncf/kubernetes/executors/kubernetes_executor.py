@@ -584,7 +584,7 @@ class KubernetesExecutor(BaseExecutor):
             # as all pods are already adopted in the first attempt.
             # and tis_to_flush_by_key will contain TIs that are already adopted.
             # therefore, we need to check if the TIs are already adopted by the first attempt and remove them.
-            def _iter_tis_to_flush() -> list[TaskInstance]:
+            def _iter_tis_to_flush():
                 for key, ti in tis_to_flush_by_key.items():
                     if key in self.running:
                         self.log.info("%s is already adopted, no need to flush.", ti)
