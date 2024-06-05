@@ -195,7 +195,6 @@ class HttpOperator(BaseOperator):
                 )
             else:
                 response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
-            response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
             all_responses.append(response)
         return all_responses
 
