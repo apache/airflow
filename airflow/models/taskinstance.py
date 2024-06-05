@@ -450,12 +450,6 @@ def clear_task_instances(
     )
     dag_bag = DagBag(read_dags_from_db=True)
     for ti in tis:
-        # stamp ti history record
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
-
-        # what about non terminal state
-        ti_history = TaskInstanceHistory(ti, state=ti.state)
-        session.merge(ti_history)
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
