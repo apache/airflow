@@ -75,6 +75,7 @@ class TestDatabricksPartitionSensor:
             partition_operator="=",
             timeout=30,
             poke_interval=15,
+            hook_params={"return_tupe": True},
         )
 
     def test_init(self):
