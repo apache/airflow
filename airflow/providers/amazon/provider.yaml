@@ -92,8 +92,8 @@ dependencies:
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
   # in the `devel-dependencies` section to be the same minimum version.
-  - boto3>=1.34.0
-  - botocore>=1.34.0
+  - boto3>=1.34.90
+  - botocore>=1.34.90
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users
   - watchtower>=3.0.0,<4
@@ -119,7 +119,7 @@ additional-extras:
   # boto3 have native async support and we move away from aio aiobotocore
   - name: aiobotocore
     dependencies:
-      - aiobotocore[boto3]>=2.10.0
+      - aiobotocore[boto3]>=2.13.0
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
@@ -131,13 +131,13 @@ additional-extras:
       - python3-saml>=1.16.0
 
 devel-dependencies:
-  - aiobotocore>=2.7.0
+  - aiobotocore>=2.13.0
   - aws_xray_sdk>=2.12.0
   - moto[cloudformation,glue]>=5.0.0
-  - mypy-boto3-appflow>=1.33.0
-  - mypy-boto3-rds>=1.33.0
-  - mypy-boto3-redshift-data>=1.33.0
-  - mypy-boto3-s3>=1.33.0
+  - mypy-boto3-appflow>=1.34.0
+  - mypy-boto3-rds>=1.34.90
+  - mypy-boto3-redshift-data>=1.34.0
+  - mypy-boto3-s3>=1.34.90
   - s3fs>=2023.10.0
   - openapi-schema-validator>=0.6.2
   - openapi-spec-validator>=0.7.1
