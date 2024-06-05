@@ -173,14 +173,14 @@ class YDBHook(DbApiHook):
                 lazy_gettext("Service account auth JSON"),
                 widget=BS3PasswordFieldWidget(),
                 description="Service account auth JSON. Looks like "
-                            '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
-                            "Will be used instead of IAM token and SA JSON file path field if specified.",
+                '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
+                "Will be used instead of IAM token and SA JSON file path field if specified.",
             ),
             "service_account_json_path": StringField(
                 lazy_gettext("Service account auth JSON file path"),
                 widget=BS3TextFieldWidget(),
                 description="Service account auth JSON file path. File content looks like "
-                            '{"id": "...", "service_account_id": "...", "private_key": "..."}. ',
+                '{"id": "...", "service_account_id": "...", "private_key": "..."}. ',
             ),
             "token": PasswordField(
                 lazy_gettext("IAM token"),

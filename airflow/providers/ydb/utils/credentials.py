@@ -42,8 +42,8 @@ def get_credentials_from_connection(
     * use_vm_metadata
     * anonymous
 
-    :param endpoint: address of YDB cluster, e.g. grpcs://my-server.com:2135
-    :param database: YDB database name, e.g. /local
+    :param endpoint: address of YDB cluster, e.g. ``grpcs://my-server.com:2135``
+    :param database: YDB database name, e.g. ``/local``
     :param connection: connection object
     :param connection_extra: connection extra settings
     :return: YDB credentials object
