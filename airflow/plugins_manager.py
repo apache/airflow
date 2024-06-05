@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 import types
-from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -47,6 +46,7 @@ if TYPE_CHECKING:
     except ImportError:
         from importlib import metadata  # type: ignore[no-redef]
     from types import ModuleType
+    from typing import Generator
 
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
@@ -264,38 +264,38 @@ def load_plugins_from_plugin_directory():
     """Load and register Airflow Plugins from plugins directory."""
     global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
-    plugin_files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
+    files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
+    plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if conf.getboolean("core", "LOAD_EXAMPLES"):
         log.debug("Note: Loading plugins from examples as well: %s", settings.PLUGINS_FOLDER)
-        from airflow.example_dags import plugins as example_plugins
+        from airflow.example_dags import plugins
 
-        example_dplugins_folder = next(iter(example_plugins.__path__))
-        plugin_files = chain(
-            plugin_files, find_path_from_directory(example_dplugins_folder, ".airflowignore")
-        )
+        example_plugins_folder = next(iter(plugins.__path__))
+        example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")
+        plugin_search_locations.append((plugins.__name__, example_files))
 
-    for file_path in plugin_files:
-        path = Path(file_path)
-        if not path.is_file() or path.suffix != ".py":
-            continue
-        mod_name = path.stem
+    for module_prefix, plugin_files in plugin_search_locations:
+        for file_path in plugin_files:
+            path = Path(file_path)
+            if not path.is_file() or path.suffix != ".py":
+                continue
+            mod_name = f"{module_prefix}.{path.stem}" if module_prefix else path.stem
 
-        try:
-            loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
-            spec = importlib.util.spec_from_loader(mod_name, loader)
-            mod = importlib.util.module_from_spec(spec)
-            sys.modules[spec.name] = mod
-            loader.exec_module(mod)
-            log.debug("Importing plugin module %s", file_path)
+            try:
+                loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
+                spec = importlib.util.spec_from_loader(mod_name, loader)
+                mod = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = mod
+                loader.exec_module(mod)
 
-            for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
-                plugin_instance = mod_attr_value()
-                plugin_instance.source = PluginsDirectorySource(file_path)
-                register_plugin(plugin_instance)
-        except Exception as e:
-            log.exception("Failed to import plugin %s", file_path)
-            import_errors[file_path] = str(e)
+                for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
+                    plugin_instance = mod_attr_value()
+                    plugin_instance.source = PluginsDirectorySource(file_path)
+                    register_plugin(plugin_instance)
+            except Exception as e:
+                log.exception("Failed to import plugin %s", file_path)
+                import_errors[file_path] = str(e)
 
 
 def load_providers_plugins():
