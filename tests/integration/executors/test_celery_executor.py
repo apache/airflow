@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from importlib import reload
 from time import sleep
 from unittest import mock
 
@@ -37,10 +38,12 @@ from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.executors import base_executor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils import db
 
 logger = logging.getLogger(__name__)
@@ -106,6 +109,27 @@ class TestCeleryExecutor:
     def teardown_method(self) -> None:
         db.clear_db_runs()
         db.clear_db_jobs()
+
+    def test_change_state_back_compat(self):
+        # This represents the old implementation that an Airflow package may have
+        def _change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
+            pass
+
+        # Replace change_state function on base executor with the old version to force the backcompat edge
+        # case we're looking for
+        base_executor.BaseExecutor.change_state = _change_state
+        # Create an instance of celery executor while the base executor is modified
+        from airflow.providers.celery.executors import celery_executor
+
+        executor = celery_executor.CeleryExecutor()
+
+        # This will throw an exception if the backcompat is not properly handled
+        executor.change_state(
+            key=TaskInstanceKey("foo", "bar", "baz"), state=TaskInstanceState.QUEUED, info="test"
+        )
+        # Restore the base executor and celery modules
+        reload(base_executor)
+        reload(celery_executor)
 
     @pytest.mark.flaky(reruns=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
