@@ -35,7 +35,7 @@ Features
 * ``ECS Overrides for AWS Batch submit_job (#39903)``
 * ``Add transfer operator S3ToDynamoDBOperator (#39654)``
 * ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
- * ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+* ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
 * ``Adding Amazon Glue Data Quality Service (#39923)``
 
 Bug Fixes
