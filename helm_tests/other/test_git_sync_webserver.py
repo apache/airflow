@@ -180,7 +180,7 @@ class TestGitSyncWebserver:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "gitSshKey": "dummy-ssh-key",
+                        "sshKey": "dummy-ssh-key",
                     },
                     "persistence": {"enabled": False},
                 },

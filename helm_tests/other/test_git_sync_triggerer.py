@@ -49,7 +49,7 @@ class TestGitSyncTriggerer:
                     "gitSync": {
                         "enabled": True,
                         "containerName": "git-sync-test",
-                        "gitSshKey": "dummy-ssh-key",
+                        "sshKey": "dummy-ssh-key",
                         "knownHosts": None,
                         "branch": "test-branch",
                     }

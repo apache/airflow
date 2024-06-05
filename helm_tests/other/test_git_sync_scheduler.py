@@ -217,8 +217,7 @@ class TestGitSyncSchedulerTest:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "containerName": "git-sync-test",
-                        "gitSshKey": "dummy-ssh-key",
+                        "sshKey": "dummy-ssh-key",
                         "knownHosts": None,
                         "branch": "test-branch",
                     }
@@ -237,12 +236,6 @@ class TestGitSyncSchedulerTest:
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {

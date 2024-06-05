@@ -30,7 +30,7 @@ class TestGitSSHKeySecret:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "gitSshKey": "cm9tIGlzIHRoZSBraW5n",
+                        "sshKey": "cm9tIGlzIHRoZSBraW5n",
                     },
                     "persistence": {"enabled": True},
                 }

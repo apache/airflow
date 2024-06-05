@@ -7409,7 +7409,7 @@
                             ],
                             "default": null
                         },
-                        "gitSshKey": {
+                        "sshKey": {
                             "description": "Base64 converted ssh private key",
                             "type": [
                                 "string",
