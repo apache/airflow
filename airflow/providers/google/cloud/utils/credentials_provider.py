@@ -461,7 +461,9 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
         )
 
 
-def _get_info_from_credential_configuration_file(credential_configuration_file: str | dict[str, str]) -> dict[str, str]:
+def _get_info_from_credential_configuration_file(
+    credential_configuration_file: str | dict[str, str],
+) -> dict[str, str]:
     """
     Extract the Credential Configuration File information, either from a json file, json string or dictionary.
 
@@ -472,20 +474,23 @@ def _get_info_from_credential_configuration_file(credential_configuration_file: 
     # if it's already a dict, just return it
     if isinstance(credential_configuration_file, dict):
         return credential_configuration_file
-    
-    if not isinstance(credential_configuration_file, str):
-        raise AirflowException("Invalid argument type, expected str or dict, got {}.".format(type(credential_configuration_file)))
 
-    if os.path.exists(credential_configuration_file): # attempts to load from json file 
+    if not isinstance(credential_configuration_file, str):
+        raise AirflowException(
+            f"Invalid argument type, expected str or dict, got {type(credential_configuration_file)}."
+        )
+
+    if os.path.exists(credential_configuration_file):  # attempts to load from json file
         with open(credential_configuration_file) as file_obj:
             try:
                 return json.load(file_obj)
             except ValueError:
-                raise AirflowException("Credential Configuration File '{}' is not a valid json file.".format(credential_configuration_file))
+                raise AirflowException(
+                    f"Credential Configuration File '{credential_configuration_file}' is not a valid json file."
+                )
 
-    # if not a file, attempt to load it from a json string 
+    # if not a file, attempt to load it from a json string
     try:
         return json.loads(credential_configuration_file)
     except ValueError:
         raise AirflowException("Credential Configuration File is not a valid json string.")
-    

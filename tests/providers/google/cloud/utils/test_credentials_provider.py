@@ -60,7 +60,7 @@ CLIENT_SECRET = "your-client-secret"
 TEST_AUDIENCE = "test-audience"
 TOKEN_TYPE = "urn:ietf:params:oauth:token-type:jwt"
 ACCOUNT_IMPERSONATION = "http://example.com/impersonate"
-CREDENTIAL_CONFIG_FILE = (
+CREDENTIAL_CONFIG_STRING_FILE = (
     '{"audience": "'
     + TEST_AUDIENCE
     + '", "subject_token_type": "'
@@ -69,6 +69,11 @@ CREDENTIAL_CONFIG_FILE = (
     + ACCOUNT_IMPERSONATION
     + '"}'
 )
+CREDENTIAL_CONFIG_DICT_FILE = {
+    "audience": TEST_AUDIENCE,
+    "subject_token_type": TOKEN_TYPE,
+    "service_account_impersonation_url": ACCOUNT_IMPERSONATION,
+}
 
 
 @pytest.fixture
@@ -431,7 +436,32 @@ class TestGetGcpCredentialsAndProjectId:
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id(
-                credential_config_file=CREDENTIAL_CONFIG_FILE,
+                credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+            mock_load_credentials_from_file.assert_called_once_with(
+                info={
+                    "audience": TEST_AUDIENCE,
+                    "subject_token_type": TOKEN_TYPE,
+                    "service_account_impersonation_url": ACCOUNT_IMPERSONATION,
+                    "subject_token_supplier": ANY,
+                },
+                scopes=ANY,
+            )
+            assert result == ("CREDENTIALS", "PROJECT_ID")
+            assert (
+                "Getting connection using credential configuration file and external Identity Provider."
+                in caplog.messages
+            )
+
+    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_idp_dict_config_file(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(
+                credential_config_file=CREDENTIAL_CONFIG_DICT_FILE,
                 idp_issuer_url=IDP_LINK,
                 client_id=CLIENT_ID,
                 client_secret=CLIENT_SECRET,
@@ -455,10 +485,34 @@ class TestGetGcpCredentialsAndProjectId:
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                "Credential configuration is needed to use authentication by External Identity Provider."
+                "Credential Configuration File is needed to use authentication by External Identity Provider."
             ),
         ):
             get_credentials_and_project_id(
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+
+    def test_get_credentials_using_idp_invalid_json_credential_config(self):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("Credential Configuration File is not a valid json string."),
+        ):
+            get_credentials_and_project_id(
+                credential_config_file="invalid json}}}}",
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+
+    def test_get_credentials_using_idp_invalid_format_credential_config(self):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(f"Invalid argument type, expected str or dict, got {bool}."),
+        ):
+            get_credentials_and_project_id(
+                credential_config_file=True,
                 idp_issuer_url=IDP_LINK,
                 client_id=CLIENT_ID,
                 client_secret=CLIENT_SECRET,
