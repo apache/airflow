@@ -450,6 +450,7 @@ def clear_task_instances(
     )
     dag_bag = DagBag(read_dags_from_db=True)
     for ti in tis:
+        record_task_instance_history(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
@@ -475,7 +476,6 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
@@ -554,6 +554,21 @@ def clear_task_instances(
                     dr.start_date = None
                     dr.clear_number += 1
     session.flush()
+
+
+def record_task_instance_history(ti, session):
+    """Update the task instance history table."""
+    if ti.state in [TaskInstanceState.UP_FOR_RETRY]:
+        return
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+    ti_history_state = (
+        ti.state
+        if ti.state in [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+        else TaskInstanceState.FAILED
+    )
+    ti_history = TaskInstanceHistory(ti, state=ti_history_state)
+    session.add(ti_history)
 
 
 @internal_api_call
@@ -3192,6 +3207,15 @@ class TaskInstance(Base, LoggingMixin):
 
             ti_history = TaskInstanceHistory(ti, state=TaskInstanceState.FAILED)
             session.merge(ti_history)
+
+            if ti.state == TaskInstanceState.RUNNING:
+                # If the task instance is in running state, it means that it raised an exception and
+                # about to retry so record the task instance history. For other states, the task
+                # instance was cleared and already recorded in the task instance history.
+                from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+                ti_history = TaskInstanceHistory(ti, state=TaskInstanceState.FAILED)
+                session.add(ti_history)
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")

@@ -56,7 +56,6 @@ from airflow.models.dataset import (
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -722,15 +721,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
-
-            # If the task instance state is up for retry, we consider that as failed
-            ti_history_state = (
-                TaskInstanceState.FAILED if ti.state == TaskInstanceState.UP_FOR_RETRY else ti.state
-            )
-
-            ti_history = TaskInstanceHistory(ti, state=ti_history_state)
-            # We use merge here to avoid integrity error as sensors/deferrable operators update states
-            session.merge(ti_history)
 
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
