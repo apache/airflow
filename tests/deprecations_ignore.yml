@@ -169,9 +169,6 @@
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_exception
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
-- tests/providers/databricks/hooks/test_databricks_sql.py::test_incorrect_column_names
-- tests/providers/databricks/hooks/test_databricks_sql.py::test_no_query
-- tests/providers/databricks/hooks/test_databricks_sql.py::test_query
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksRunNowDeferrableOperator::test_databricks_run_now_deferrable_operator_failed_before_defer
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksRunNowDeferrableOperator::test_databricks_run_now_deferrable_operator_success_before_defer
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksRunNowDeferrableOperator::test_execute_complete_failure
@@ -185,8 +182,6 @@
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_complete_incorrect_event_validation_failure
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_complete_success
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_task_deferred
-- tests/providers/databricks/sensors/test_databricks_partition.py::TestDatabricksPartitionSensor::test_unsupported_conn_type
-- tests/providers/databricks/sensors/test_databricks_sql.py::TestDatabricksSqlSensor::test_unsupported_conn_type
 - tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
 - tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
