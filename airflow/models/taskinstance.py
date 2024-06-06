@@ -3186,14 +3186,6 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state == TaskInstanceState.QUEUED:
-                from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-
-                if isinstance(ti, TaskInstancePydantic):
-                    # todo: (AIP-44) we should probably "coalesce" `ti` to TaskInstance before here
-                    #  e.g. we could make refresh_from_db return a TI and replace ti with that
-                    raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
-                # We increase the try_number to fail the task if it fails to start after sometime
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
