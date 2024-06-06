@@ -19,9 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-import yandexcloud
-import yandexcloud._auth_fabric as auth_fabric
-from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
+import yandexcloud.auth as yc_auth
 from yandex_query_client import YQHttpClient, YQHttpClientConfig
 
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
@@ -100,13 +98,4 @@ class YQHook(YandexCloudBaseHook):
         if iam_token is not None:
             return iam_token
 
-        service_account_key = self.credentials.get("service_account_key")
-        # if service_account_key is None metadata server will be used
-        token_requester = auth_fabric.get_auth_token_requester(service_account_key=service_account_key)
-
-        if service_account_key is None:
-            return token_requester.get_token()
-
-        sdk = yandexcloud.SDK()
-        client = sdk.client(IamTokenServiceStub)
-        return client.Create(token_requester.get_token_request()).iam_token
+        return yc_auth.get_auth_token(service_account_key=self.credentials.get("service_account_key"))

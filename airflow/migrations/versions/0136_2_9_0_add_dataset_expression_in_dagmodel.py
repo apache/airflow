@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add dataset_expression in DagModel
+"""add dataset_expression in DagModel.
 
 Revision ID: ab34f260b71c
 Revises: d75389605139
@@ -24,28 +24,31 @@ Create Date: 2024-03-07 19:54:38.316059
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
-from alembic import op
 import sqlalchemy_jsonfield
+from alembic import op
+
 from airflow.settings import json
 
-
 # revision identifiers, used by Alembic.
-revision = 'ab34f260b71c'
-down_revision = 'd75389605139'
+revision = "ab34f260b71c"
+down_revision = "d75389605139"
 branch_labels = None
 depends_on = None
-airflow_version = '2.9.0'
+airflow_version = "2.9.0"
 
 
 def upgrade():
     """Apply Add dataset_expression to DagModel."""
     with op.batch_alter_table("dag") as batch_op:
-        batch_op.add_column(sa.Column('dataset_expression', sqlalchemy_jsonfield.JSONField(json=json), nullable=True))
-
+        batch_op.add_column(
+            sa.Column("dataset_expression", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+        )
 
 
 def downgrade():
     """Unapply Add dataset_expression to DagModel."""
     with op.batch_alter_table("dag") as batch_op:
-        batch_op.drop_column('dataset_expression')
+        batch_op.drop_column("dataset_expression")

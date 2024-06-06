@@ -22,11 +22,13 @@ from __future__ import annotations
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.exceptions import AirflowException, DagCodeNotFound
+from airflow.exceptions import AirflowException, DagCodeNotFound, RemovedInAirflow3Warning
 from airflow.models.dagcode import DagCode
 
 
-@deprecated(reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.4")
+@deprecated(
+    reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.4", category=RemovedInAirflow3Warning
+)
 def get_code(dag_id: str) -> str:
     """Return python code of a given dag_id.
 

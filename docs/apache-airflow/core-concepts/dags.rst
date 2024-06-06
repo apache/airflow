@@ -34,8 +34,8 @@ The DAG itself doesn't care about *what* is happening inside the tasks; it is me
 Declaring a DAG
 ---------------
 
-There are three ways to declare a DAG - either you can use a context manager,
-which will add the DAG to anything inside it implicitly:
+There are three ways to declare a DAG - either you can use ``with`` statement (context manager),
+which will add anything inside it to the DAG implicitly:
 
 .. code-block:: python
    :emphasize-lines: 6-10
@@ -108,7 +108,7 @@ Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` m
     first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
-There are also shortcuts to declaring more complex dependencies. If you want to make two lists of tasks depend on all parts of each other, you can't use either of the approaches above, so you need to use ``cross_downstream``::
+There are also shortcuts to declaring more complex dependencies. If you want to make a list of tasks depend on another list of tasks, you can't use either of the approaches above, so you need to use ``cross_downstream``::
 
     from airflow.models.baseoperator import cross_downstream
 

@@ -34,7 +34,6 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData, Table
 from sqlalchemy.sql import Select
 
-from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
@@ -84,6 +83,7 @@ class TestDb:
             # Ignore flask-session table/index
             lambda t: (t[0] == "remove_table" and t[1].name == "session"),
             lambda t: (t[0] == "remove_index" and t[1].name == "session_id"),
+            lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
         ]
@@ -179,7 +179,7 @@ class TestDb:
     def test_sqlite_offline_upgrade_raises_with_revision(self):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
-            with pytest.raises(AirflowException, match="Offline migration not supported for SQLite"):
+            with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
                 upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
 
     def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
@@ -233,7 +233,7 @@ class TestDb:
         if skip_init:
             mock_init.assert_not_called()
         else:
-            mock_init.assert_called_once_with(session=session_mock)
+            mock_init.assert_called_once_with(session=session_mock, use_migration_files=False)
 
     def test_alembic_configuration(self):
         with mock.patch.dict(

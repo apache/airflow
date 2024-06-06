@@ -26,6 +26,49 @@
 Changelog
 ---------
 
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add deferrable support to 'DatabricksNotebookOperator' (#39295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``get all failed tasks errors in when exception raised in DatabricksCreateJobsOperator (#39354)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Better typing for BaseOperator 'defer' (#39742)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+6.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksNotebookOperator (#39178)``
+* ``Add notification settings parameters (#39175)``
+* ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
 6.3.0
 .....
 

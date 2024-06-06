@@ -16,7 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example use of Teradata related operators.
+Example Airflow DAG to show usage of TeradataOperator.
+
+This DAG assumes Airflow Connection with connection id `teradata_default` already exists in locally. It
+shows how to use create, update, delete and select teradata statements with TeradataOperator as tasks in
+airflow dags using TeradataStoredProcedureOperator.
 """
 
 from __future__ import annotations
@@ -38,13 +42,14 @@ except ImportError:
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_teradata"
+CONN_ID = "teradata_default"
 
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime.datetime(2020, 2, 2),
     schedule="@once",
     catchup=False,
-    default_args={"conn_id": "teradata_default"},
+    default_args={"teradata_conn_id": CONN_ID},
 ) as dag:
     # [START teradata_operator_howto_guide_create_table]
     create_table = TeradataOperator(
@@ -84,44 +89,34 @@ with DAG(
     # [START teradata_operator_howto_guide_get_all_countries]
     get_all_countries = TeradataOperator(
         task_id="get_all_countries",
-        sql=r"""
-        SELECT * FROM Country;
-        """,
+        sql=r"SELECT * FROM Country;",
     )
     # [END teradata_operator_howto_guide_get_all_countries]
     # [START teradata_operator_howto_guide_params_passing_get_query]
     get_countries_from_continent = TeradataOperator(
         task_id="get_countries_from_continent",
-        sql=r"""
-        SELECT * FROM Country WHERE {{ params.column }}='{{ params.value }}';
-        """,
+        sql=r"SELECT * FROM Country WHERE {{ params.column }}='{{ params.value }}';",
         params={"column": "continent", "value": "Asia"},
     )
     # [END teradata_operator_howto_guide_params_passing_get_query]
     # [START teradata_operator_howto_guide_drop_country_table]
     drop_country_table = TeradataOperator(
         task_id="drop_country_table",
-        sql=r"""
-        DROP TABLE Country;
-        """,
+        sql=r"DROP TABLE Country;",
         dag=dag,
     )
     # [END teradata_operator_howto_guide_drop_country_table]
     # [START teradata_operator_howto_guide_drop_users_table]
     drop_users_table = TeradataOperator(
         task_id="drop_users_table",
-        sql=r"""
-        DROP TABLE Users;
-        """,
+        sql=r"DROP TABLE Users;",
         dag=dag,
     )
     # [END teradata_operator_howto_guide_drop_users_table]
     # [START teradata_operator_howto_guide_create_schema]
     create_schema = TeradataOperator(
         task_id="create_schema",
-        sql=r"""
-        CREATE DATABASE airflow_temp AS PERM=10e6;
-        """,
+        sql=r"CREATE DATABASE airflow_temp AS PERM=10e6;",
     )
     # [END teradata_operator_howto_guide_create_schema]
     # [START teradata_operator_howto_guide_create_table_with_schema]
@@ -140,9 +135,7 @@ with DAG(
     # [START teradata_operator_howto_guide_drop_schema_table]
     drop_schema_table = TeradataOperator(
         task_id="drop_schema_table",
-        sql=r"""
-        DROP TABLE schema_table;
-        """,
+        sql=r"DROP TABLE schema_table;",
         dag=dag,
         schema="airflow_temp",
     )
@@ -150,9 +143,7 @@ with DAG(
     # [START teradata_operator_howto_guide_drop_schema]
     drop_schema = TeradataOperator(
         task_id="drop_schema",
-        sql=r"""
-        DROP DATABASE airflow_temp;
-        """,
+        sql=r"DROP DATABASE airflow_temp;",
         dag=dag,
     )
 

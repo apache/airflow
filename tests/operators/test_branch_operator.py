@@ -29,6 +29,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test
@@ -45,6 +46,11 @@ class ChooseBranchOne(BaseBranchOperator):
 class ChooseBranchOneTwo(BaseBranchOperator):
     def choose_branch(self, context):
         return ["branch_1", "branch_2"]
+
+
+class ChooseBranchThree(BaseBranchOperator):
+    def choose_branch(self, context):
+        return ["branch_3"]
 
 
 class TestBranchOperator:
@@ -132,6 +138,7 @@ class TestBranchOperator:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -158,6 +165,7 @@ class TestBranchOperator:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -183,6 +191,7 @@ class TestBranchOperator:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -191,3 +200,40 @@ class TestBranchOperator:
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
+
+    def test_with_dag_run_task_groups(self):
+        self.branch_op = ChooseBranchThree(task_id="make_choice", dag=self.dag)
+        self.branch_3 = TaskGroup("branch_3", dag=self.dag)
+        _ = EmptyOperator(task_id="task_1", dag=self.dag, task_group=self.branch_3)
+        _ = EmptyOperator(task_id="task_2", dag=self.dag, task_group=self.branch_3)
+
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.branch_3.set_upstream(self.branch_op)
+
+        self.dag.clear()
+
+        dagrun = self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dagrun.get_task_instances()
+        for ti in tis:
+            if ti.task_id == "make_choice":
+                assert ti.state == State.SUCCESS
+            elif ti.task_id == "branch_1":
+                assert ti.state == State.SKIPPED
+            elif ti.task_id == "branch_2":
+                assert ti.state == State.SKIPPED
+            elif ti.task_id == "branch_3.task_1":
+                assert ti.state == State.NONE
+            elif ti.task_id == "branch_3.task_2":
+                assert ti.state == State.NONE
+            else:
+                raise Exception

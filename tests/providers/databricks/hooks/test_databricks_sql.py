@@ -25,6 +25,7 @@ from unittest.mock import patch
 import pytest
 from databricks.sql.types import Row
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
@@ -52,7 +53,7 @@ def create_connection(session):
 
 @pytest.fixture
 def databricks_hook():
-    return DatabricksSqlHook(sql_endpoint_name="Test")
+    return DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=True)
 
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
@@ -273,7 +274,17 @@ def test_query(
             cursors.append(cur)
             connections.append(conn)
         mock_conn.side_effect = connections
-        databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
+
+        if not return_tuple:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="""Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
+                returned instead in a future release of the databricks provider. Set `return_tuple=True` to
+                enable this behavior.""",
+            ):
+                databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
+        else:
+            databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
         results = databricks_hook.run(
             sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
         )
@@ -316,5 +327,5 @@ def test_incorrect_column_names(row_objects, fields_names):
     namedtuple do not accept special characters and reserved python keywords
     as column name. This test ensure that such columns are renamed.
     """
-    result = DatabricksSqlHook()._make_common_data_structure(row_objects)
+    result = DatabricksSqlHook(return_tuple=True)._make_common_data_structure(row_objects)
     assert result._fields == fields_names

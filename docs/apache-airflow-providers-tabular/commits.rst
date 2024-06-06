@@ -35,14 +35,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.1
+.....
+
+Latest change: 2024-05-11
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`da79f6b206 <https://github.com/apache/airflow/commit/da79f6b206a3b8a411e951ede60986e40433ebb8>`_  2024-05-10   ``Add Iceberg provider (#39155)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================
+
 1.5.0
 .....
 
-Latest change: 2024-01-26
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`08036e5df5 <https://github.com/apache/airflow/commit/08036e5df5ae3ec9f600219361f86a1a3e8e9d19>`_  2024-02-08   ``D401 Support in Providers (simple) (#37258)``
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``

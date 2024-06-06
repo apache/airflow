@@ -54,12 +54,13 @@ from google.cloud.vision_v1.types import Product  # isort:skip
 # [END howto_operator_vision_product_import_2]
 # [START howto_operator_vision_reference_image_import_2]
 from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [END howto_operator_vision_reference_image_import_2]
 
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "example_gcp_vision_explicit_id"
 

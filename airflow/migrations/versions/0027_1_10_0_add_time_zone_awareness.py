@@ -14,19 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add time zone awareness
+"""Add time zone awareness.
 
 Revision ID: 0e2a74e0fc9f
 Revises: d2ae31099d61
 Create Date: 2017-11-10 22:22:31.326152
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import text
 from sqlalchemy.dialects import mysql
+
+from airflow.exceptions import AirflowException
 
 # revision identifiers, used by Alembic.
 revision = "0e2a74e0fc9f"
@@ -43,7 +46,9 @@ def upgrade():
         cur = conn.execute(text("SELECT @@explicit_defaults_for_timestamp"))
         res = cur.fetchall()
         if res[0][0] == 0:
-            raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
+            raise AirflowException(
+                "Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql"
+            )
 
         op.alter_column(
             table_name="chart",

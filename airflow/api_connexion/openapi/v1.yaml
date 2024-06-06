@@ -679,6 +679,71 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/MapIndex"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /dags/{dag_id}/updateTaskInstancesState:
     parameters:
       - $ref: "#/components/parameters/DAGID"
@@ -1084,6 +1149,27 @@ paths:
           description: Success.
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /parseDagFile/{file_token}:
+    parameters:
+      - $ref: "#/components/parameters/FileToken"
+
+    put:
+      summary: Request re-parsing of a DAG file
+      description: >
+        Request re-parsing of existing DAG files using a file token.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
+      operationId: reparse_dag_file
+      tags: [ DAG ]
+      responses:
+        "201":
+          description: Success.
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -3037,6 +3123,14 @@ components:
             Earliest time at which this ``next_dagrun`` can be created.
 
             *New in version 2.3.0*
+        max_consecutive_failed_dag_runs:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: |
+            (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+
+            *New in version 2.9.0*
 
     DAGCollection:
       description: |
@@ -3158,6 +3252,7 @@ components:
 
             *New in version 2.5.0*
           nullable: true
+
 
     UpdateDagRunState:
       type: object
@@ -3534,6 +3629,22 @@ components:
         triggerer_id:
           type: integer
           nullable: true
+
+    TaskFailedDependency:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+
+    TaskInstanceDependencyCollection:
+      type: object
+      properties:
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskFailedDependency"
 
     Job:
       type: object

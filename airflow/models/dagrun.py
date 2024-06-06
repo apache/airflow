@@ -45,13 +45,13 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import false, select, true
+from sqlalchemy.sql.expression import case, false, select, true
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
@@ -147,7 +147,7 @@ class DagRun(Base, LoggingMixin):
     # Keeps track of the number of times the dagrun had been cleared.
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
-    clear_number = Column(Integer, default=0, nullable=False)
+    clear_number = Column(Integer, default=0, nullable=False, server_default="0")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -159,7 +159,6 @@ class DagRun(Base, LoggingMixin):
         Index("dag_id_state", dag_id, _state),
         UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
-        Index("idx_last_scheduling_decision", last_scheduling_decision),
         Index("idx_dag_run_dag_id", dag_id),
         Index(
             "idx_dag_run_running_dags",
@@ -905,9 +904,11 @@ class DagRun(Base, LoggingMixin):
                 self.run_id,
                 self.start_date,
                 self.end_date,
-                (self.end_date - self.start_date).total_seconds()
-                if self.start_date and self.end_date
-                else None,
+                (
+                    (self.end_date - self.start_date).total_seconds()
+                    if self.start_date and self.end_date
+                    else None
+                ),
                 self._state,
                 self.external_trigger,
                 self.run_type,
@@ -1537,6 +1538,19 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
+            elif (
+                ti.task.start_trigger is not None
+                and ti.task.next_method is not None
+                and not ti.task.on_execute_callback
+                and not ti.task.on_success_callback
+                and not ti.task.outlets
+            ):
+                if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                    ti.try_number += 1
+                ti.defer_task(
+                    exception=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
+                    session=session,
+                )
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
@@ -1554,7 +1568,16 @@ class DagRun(Base, LoggingMixin):
                         TI.run_id == self.run_id,
                         tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
                     )
-                    .values(state=TaskInstanceState.SCHEDULED)
+                    .values(
+                        state=TaskInstanceState.SCHEDULED,
+                        try_number=case(
+                            (
+                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
+                                TI.try_number + 1,
+                            ),
+                            else_=TI.try_number,
+                        ),
+                    )
                     .execution_options(synchronize_session=False)
                 ).rowcount
 

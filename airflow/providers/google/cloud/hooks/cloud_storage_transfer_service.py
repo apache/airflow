@@ -88,6 +88,7 @@ ALREADY_EXISTING_IN_SINK = "overwriteObjectsAlreadyExistingInSink"
 AWS_ACCESS_KEY = "awsAccessKey"
 AWS_SECRET_ACCESS_KEY = "secretAccessKey"
 AWS_S3_DATA_SOURCE = "awsS3DataSource"
+AWS_ROLE_ARN = "roleArn"
 BODY = "body"
 BUCKET_NAME = "bucketName"
 COUNTERS = "counters"
@@ -338,6 +339,32 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                     PROJECT_ID: project_id,
                     TRANSFER_JOB: {STATUS1: GcpTransferJobsStatus.DELETED},
                     TRANSFER_JOB_FIELD_MASK: STATUS1,
+                },
+            )
+            .execute(num_retries=self.num_retries)
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_transfer_job(self, job_name: str, project_id: str) -> dict:
+        """Run Google Storage Transfer Service job.
+
+        :param job_name: (Required) Name of the job to be fetched
+        :param project_id: (Optional) the ID of the project that owns the Transfer
+            Job. If set to None or missing, the default project_id from the Google Cloud
+            connection is used.
+        :return: If successful, Operation. See:
+            https://cloud.google.com/storage-transfer/docs/reference/rest/v1/Operation
+
+        .. seealso:: https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run
+
+        """
+        return (
+            self.get_conn()
+            .transferJobs()
+            .run(
+                jobName=job_name,
+                body={
+                    PROJECT_ID: project_id,
                 },
             )
             .execute(num_retries=self.num_retries)

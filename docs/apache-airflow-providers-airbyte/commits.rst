@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.1
+.....
+
+Latest change: 2024-05-11
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================
+
+3.8.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`725c568e73 <https://github.com/apache/airflow/commit/725c568e732216bd59e85d5de93f8e541f0b08bb>`_  2024-04-11   ``fix(airbyte/hooks): add schema and port to prevent InvalidURL error (#38860)``
+=================================================================================================  ===========  ================================================================================
+
 3.7.0
 .....
 
-Latest change: 2024-04-07
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `153370310e <https://github.com/apache/airflow/commit/153370310ed2c4b0687cd350ca8014c802f20045>`_  2024-04-07   ``fix: try002 for provider airbyte (#38786)``
 `99166a94e9 <https://github.com/apache/airflow/commit/99166a94e9f6d51ab236bbb9727835d60c9fe5e8>`_  2024-03-22   ``fix(airbyte): add return statement to yield within a while loop in triggers (#38390)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``

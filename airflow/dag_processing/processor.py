@@ -39,6 +39,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import SlaMiss
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -629,6 +630,10 @@ class DagFileProcessor(LoggingMixin):
                     {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
                     synchronize_session="fetch",
                 )
+                # sending notification when an existing dag import error occurs
+                get_listener_manager().hook.on_existing_dag_import_error(
+                    filename=filename, stacktrace=stacktrace
+                )
             else:
                 session.add(
                     ParseImportError(
@@ -638,6 +643,8 @@ class DagFileProcessor(LoggingMixin):
                         processor_subdir=processor_subdir,
                     )
                 )
+                # sending notification when a new dag import error occurs
+                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
             (
                 session.query(DagModel)
                 .filter(DagModel.fileloc == filename)

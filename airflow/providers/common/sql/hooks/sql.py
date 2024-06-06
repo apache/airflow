@@ -185,14 +185,15 @@ class DbApiHook(BaseHook):
     def placeholder(self):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         placeholder = conn.extra_dejson.get("placeholder")
-        if placeholder in SQL_PLACEHOLDERS:
-            return placeholder
-        self.log.warning(
-            "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
-            "and got ignored. Falling back to the default placeholder '%s'.",
-            placeholder,
-            self._placeholder,
-        )
+        if placeholder:
+            if placeholder in SQL_PLACEHOLDERS:
+                return placeholder
+            self.log.warning(
+                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                "and got ignored. Falling back to the default placeholder '%s'.",
+                self.conn_name_attr,
+                self._placeholder,
+            )
         return self._placeholder
 
     def get_conn(self):
@@ -578,13 +579,6 @@ class DbApiHook(BaseHook):
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
         """
-        if executemany:
-            warnings.warn(
-                "executemany parameter is deprecated, override supports_executemany instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         nb_rows = 0
         with self._create_autocommit_connection() as conn:
             conn.commit()

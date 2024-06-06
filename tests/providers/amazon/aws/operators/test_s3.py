@@ -51,6 +51,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
+from airflow.utils.timezone import datetime, utcnow
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -531,6 +532,37 @@ class TestS3DeleteObjectsOperator:
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
 
+    def test_s3_delete_from_to_datetime(self):
+        bucket = "testbucket"
+        key_pattern = "path/data"
+        n_keys = 3
+        keys = [key_pattern + str(i) for i in range(n_keys)]
+
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=bucket)
+        for k in keys:
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
+
+        # The objects should be detected before the DELETE action is taken
+        objects_in_dest_bucket = conn.list_objects(Bucket=bucket)
+        assert len(objects_in_dest_bucket["Contents"]) == n_keys
+        assert sorted(x["Key"] for x in objects_in_dest_bucket["Contents"]) == sorted(keys)
+
+        now = utcnow()
+        from_datetime = now.replace(year=now.year - 1)
+        to_datetime = now.replace(year=now.year + 1)
+
+        op = S3DeleteObjectsOperator(
+            task_id="test_task_s3_delete_prefix",
+            bucket=bucket,
+            from_datetime=from_datetime,
+            to_datetime=to_datetime,
+        )
+        op.execute(None)
+
+        # There should be no object found in the bucket created earlier
+        assert "Contents" not in conn.list_objects(Bucket=bucket)
+
     def test_s3_delete_prefix(self):
         bucket = "testbucket"
         key_pattern = "path/data"
@@ -598,31 +630,64 @@ class TestS3DeleteObjectsOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
     @pytest.mark.parametrize(
-        "keys, prefix",
+        "keys, prefix, from_datetime, to_datetime",
         [
-            pytest.param("path/data.txt", "path/data", id="single-key-and-prefix"),
-            pytest.param(["path/data.txt"], "path/data", id="multiple-keys-and-prefix"),
-            pytest.param(None, None, id="both-none"),
+            pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
+            pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),
+            pytest.param(
+                ["path/data.txt"],
+                "path/data",
+                datetime(1992, 3, 8, 18, 52, 51),
+                None,
+                id="keys-prefix-and-from_datetime",
+            ),
+            pytest.param(
+                ["path/data.txt"],
+                "path/data",
+                datetime(1992, 3, 8, 18, 52, 51),
+                datetime(1993, 3, 8, 18, 52, 51),
+                id="keys-prefix-and-from-to_datetime",
+            ),
+            pytest.param(None, None, None, None, id="all-none"),
         ],
     )
-    def test_validate_keys_and_prefix_in_constructor(self, keys, prefix):
-        with pytest.raises(AirflowException, match=r"Either keys or prefix should be set\."):
+    def test_validate_keys_and_filters_in_constructor(self, keys, prefix, from_datetime, to_datetime):
+        with pytest.raises(
+            AirflowException,
+            match=r"Either keys or at least one of prefix, from_datetime, to_datetime should be set.",
+        ):
             S3DeleteObjectsOperator(
                 task_id="test_validate_keys_and_prefix_in_constructor",
                 bucket="foo-bar-bucket",
                 keys=keys,
                 prefix=prefix,
+                from_datetime=from_datetime,
+                to_datetime=to_datetime,
             )
 
     @pytest.mark.parametrize(
-        "keys, prefix",
+        "keys, prefix, from_datetime, to_datetime",
         [
-            pytest.param("path/data.txt", "path/data", id="single-key-and-prefix"),
-            pytest.param(["path/data.txt"], "path/data", id="multiple-keys-and-prefix"),
-            pytest.param(None, None, id="both-none"),
+            pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
+            pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),
+            pytest.param(
+                ["path/data.txt"],
+                "path/data",
+                datetime(1992, 3, 8, 18, 52, 51),
+                None,
+                id="keys-prefix-and-from_datetime",
+            ),
+            pytest.param(
+                ["path/data.txt"],
+                "path/data",
+                datetime(1992, 3, 8, 18, 52, 51),
+                datetime(1993, 3, 8, 18, 52, 51),
+                id="keys-prefix-and-from-to_datetime",
+            ),
+            pytest.param(None, None, None, None, id="all-none"),
         ],
     )
-    def test_validate_keys_and_prefix_in_execute(self, keys, prefix):
+    def test_validate_keys_and_prefix_in_execute(self, keys, prefix, from_datetime, to_datetime):
         bucket = "testbucket"
         key_of_test = "path/data.txt"
 
@@ -639,13 +704,18 @@ class TestS3DeleteObjectsOperator:
         )
         op.keys = keys
         op.prefix = prefix
+        op.from_datetime = from_datetime
+        op.to_datetime = to_datetime
 
         # The object should be detected before the DELETE action is tested
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_of_test)
         assert len(objects_in_dest_bucket["Contents"]) == 1
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
-        with pytest.raises(AirflowException, match=r"Either keys or prefix should be set\."):
+        with pytest.raises(
+            AirflowException,
+            match=r"Either keys or at least one of prefix, from_datetime, to_datetime should be set.",
+        ):
             op.execute(None)
 
         # The object found in the bucket created earlier should still be there

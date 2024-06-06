@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 from typing import Any, AsyncIterator
 
 import pytest
@@ -27,6 +28,7 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.operators.empty import EmptyOperator
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -378,3 +380,18 @@ def test_serialize_sensitive_kwargs():
     assert isinstance(trigger_row.encrypted_kwargs, str)
     assert "value1" not in trigger_row.encrypted_kwargs
     assert "value2" not in trigger_row.encrypted_kwargs
+
+
+def test_kwargs_not_encrypted():
+    """
+    Tests that we don't decrypt kwargs if they aren't encrypted.
+    We weren't able to encrypt the kwargs in all migration paths.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    # force the `encrypted_kwargs` to be unencrypted, like they would be after an offline upgrade
+    trigger.encrypted_kwargs = json.dumps(
+        BaseSerialization.serialize({"param1": "value1", "param2": "value2"})
+    )
+
+    assert trigger.kwargs["param1"] == "value1"
+    assert trigger.kwargs["param2"] == "value2"

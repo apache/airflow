@@ -41,6 +41,7 @@ from typing import (
     Callable,
     Collection,
     Iterable,
+    NoReturn,
     Sequence,
     TypeVar,
     Union,
@@ -91,7 +92,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context, context_get_dataset_events
+from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
@@ -818,6 +819,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    start_trigger: BaseTrigger | None = None
+    next_method: str | None = None
+
     def __init__(
         self,
         task_id: str,
@@ -1276,7 +1280,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return
         ExecutionCallableRunner(
             self._pre_execute_hook,
-            context_get_dataset_events(context),
+            context_get_outlet_events(context),
             logger=self.log,
         ).run(context)
 
@@ -1301,7 +1305,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return
         ExecutionCallableRunner(
             self._post_execute_hook,
-            context_get_dataset_events(context),
+            context_get_outlet_events(context),
             logger=self.log,
         ).run(context, result)
 
@@ -1675,6 +1679,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
+                    "start_trigger",
+                    "next_method",
+                    "_needs_expansion",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1700,7 +1707,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         method_name: str,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
-    ):
+    ) -> NoReturn:
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
