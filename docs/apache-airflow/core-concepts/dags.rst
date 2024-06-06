@@ -34,8 +34,8 @@ The DAG itself doesn't care about *what* is happening inside the tasks; it is me
 Declaring a DAG
 ---------------
 
-There are three ways to declare a DAG - either you can use a context manager,
-which will add the DAG to anything inside it implicitly:
+There are three ways to declare a DAG - either you can use ``with`` statement (context manager),
+which will add anything inside it to the DAG implicitly:
 
 .. code-block:: python
    :emphasize-lines: 6-10
