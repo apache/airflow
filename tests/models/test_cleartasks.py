@@ -21,6 +21,7 @@ import datetime
 import random
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow.models.dag import DAG
@@ -531,6 +532,50 @@ class TestClearTasks:
             clear_task_instances(qry, session, dag=dag)
             assert count_task_reschedule(ti0.task_id) == 0
             assert count_task_reschedule(ti1.task_id) == 1
+
+    @pytest.mark.parametrize(
+        ["state", "record_created"],
+        [
+            (TaskInstanceState.SUCCESS, 2),
+            (TaskInstanceState.FAILED, 2),
+            (TaskInstanceState.SKIPPED, 2),
+            (TaskInstanceState.UP_FOR_RETRY, 0),
+            (TaskInstanceState.UP_FOR_RESCHEDULE, 0),
+            (TaskInstanceState.RUNNING, 2),
+            (TaskInstanceState.QUEUED, 0),
+            (TaskInstanceState.SCHEDULED, 0),
+            (None, 0),
+            (TaskInstanceState.RESTARTING, 0),
+            (TaskInstanceState.SHUTDOWN, 0),
+        ],
+    )
+    def test_task_instance_history_record(self, state, record_created, dag_maker):
+        """Test that task instance history record is created with approapriate state"""
+
+        with dag_maker(
+            "test_clear_task_instances",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
+        dr = dag_maker.create_dagrun(
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.state = state
+        ti1.state = state
+        session = dag_maker.session
+        session.flush()
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session, dag=dag)
+        session.flush()
+
+        session.refresh(dr)
+        ti_history = session.scalar(select(func.count(TaskInstanceHistory.task_id)))
+
+        assert ti_history == record_created
 
     def test_dag_clear(self, dag_maker):
         with dag_maker(

@@ -558,7 +558,12 @@ def clear_task_instances(
 
 def record_task_instance_history(ti, session):
     """Update the task instance history table."""
-    if ti.state in [TaskInstanceState.UP_FOR_RETRY, None, TaskInstanceState.RESTARTING]:
+    if ti.state not in [
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SKIPPED,
+    ]:
         return
     from airflow.models.taskinstancehistory import TaskInstanceHistory
 
