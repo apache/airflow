@@ -352,10 +352,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             cumulative_time: float = 0.0
             estimated_poke_count: int = 0
 
-            while cumulative_time < elapsed_time:
+            while cumulative_time <= elapsed_time:
                 estimated_poke_count += 1
                 # Calculate min_backoff for the current try number
-                min_backoff = max(int(self.poke_interval * (2 ** (estimated_poke_count - 1))), 1)
+                min_backoff = max(int(self.poke_interval * (2 ** (estimated_poke_count - 2))), 1)
 
                 # Calculate the jitter
                 run_hash = int(
@@ -373,7 +373,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 cumulative_time += interval_with_jitter
 
             # Now we have an estimated_poke_count based on the elapsed time
-            poke_count = estimated_poke_count
+            poke_count = estimated_poke_count or poke_count
 
         # The value of min_backoff should always be greater than or equal to 1.
         min_backoff = max(int(self.poke_interval * (2 ** (poke_count - 2))), 1)
