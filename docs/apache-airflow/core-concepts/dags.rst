@@ -108,7 +108,7 @@ Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` m
     first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
-There are also shortcuts to declaring more complex dependencies. If you want to make a list of tasks depend on all tasks of another list, you can't use either of the approaches above, so you need to use ``cross_downstream``::
+There are also shortcuts to declaring more complex dependencies. If you want to make a list of tasks depend on another list of tasks, you can't use either of the approaches above, so you need to use ``cross_downstream``::
 
     from airflow.models.baseoperator import cross_downstream
 
