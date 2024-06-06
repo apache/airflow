@@ -19,11 +19,16 @@ from __future__ import annotations
 
 import datetime
 import time
+import warnings
 from typing import Union
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.typing_compat import Protocol
 
 DeltaType = Union[int, float, datetime.timedelta]
+
+metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=False)
 
 
 class TimerProtocol(Protocol):
@@ -116,6 +121,14 @@ class Timer(TimerProtocol):
     def stop(self, send: bool = True) -> None:
         """Stop the timer, and optionally send it to stats backend."""
         if self._start_time is not None:
-            self.duration = 1000.0 * (time.perf_counter() - self._start_time)  # Convert to milliseconds.
+            if metrics_consistency_on:
+                self.duration = 1000.0 * (time.perf_counter() - self._start_time)  # Convert to milliseconds.
+            else:
+                warnings.warn(
+                    "Timer and timing metrics publish in seconds were deprecated. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                self.duration = time.perf_counter() - self._start_time
         if send and self.real_timer:
             self.real_timer.stop()

@@ -1074,6 +1074,13 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
       or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    metrics_consistency_on:
+      description: |
+        Enables metrics onsistency across all metrics loggers (ex: timer and timing metrics).
+      version_added: 2.9.2
+      type: string
+      example: ~
+      default: "False"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
