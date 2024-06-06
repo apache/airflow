@@ -177,10 +177,10 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
     finally:
         try:
             Sentry.flush()
+            logging.shutdown()
         except Exception:
-            log.exception("Failed to flush Sentry")
+            log.exception("[%s] Failed to clean up.", celery_task_id)
             ret = 1
-        logging.shutdown()
         os._exit(ret)
 
 
