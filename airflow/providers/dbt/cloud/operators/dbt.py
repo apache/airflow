@@ -75,6 +75,10 @@ class DbtCloudRunJobOperator(BaseOperator):
         request when triggering the job.
     :param reuse_existing_run: Flag to determine whether to reuse existing non terminal job run. If set to
         true and non terminal job runs found, it use the latest run without triggering a new job run.
+    :param retry_from_failure: Flag to determine whether to retry the job run from failure. If set to true
+        and the last job run has failed, it triggers a new job run with the same configuration as the failed
+        run. For more information on retry logic, see:
+        https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
     :return: The ID of the triggered dbt Cloud job run.
     """
@@ -105,6 +109,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         check_interval: int = 60,
         additional_run_config: dict[str, Any] | None = None,
         reuse_existing_run: bool = False,
+        retry_from_failure: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -121,6 +126,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.additional_run_config = additional_run_config or {}
         self.run_id: int | None = None
         self.reuse_existing_run = reuse_existing_run
+        self.retry_from_failure = retry_from_failure
         self.deferrable = deferrable
 
     def execute(self, context: Context):
@@ -135,7 +141,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 account_id=self.account_id,
                 payload={
                     "job_definition_id": self.job_id,
-                    "status__in": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
+                    "status__in": str(list(DbtCloudJobRunStatus.NON_TERMINAL_STATUSES.value)),
                     "order_by": "-created_at",
                 },
             ).json()["data"]
@@ -150,6 +156,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 cause=self.trigger_reason,
                 steps_override=self.steps_override,
                 schema_override=self.schema_override,
+                retry_from_failure=self.retry_from_failure,
                 additional_run_config=self.additional_run_config,
             )
             self.run_id = trigger_job_response.json()["data"]["id"]

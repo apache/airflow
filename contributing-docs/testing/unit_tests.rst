@@ -1251,6 +1251,131 @@ Rebuilding single provider package can be done using this command:
   breeze release-management prepare-provider-packages \
     --version-suffix-for-pypi dev0 --package-format wheel <provider>
 
+Lowest direct dependency resolution tests
+-----------------------------------------
+
+We have special tests that run with the lowest direct resolution of dependencies for Airflow and providers.
+This is run in order to check whether we are not using a feature that is not available in an
+older version of some dependencies.
+
+Tests with lowest-direct dependency resolution for Airflow
+----------------------------------------------------------
+
+You can test minimum dependencies that are installed by Airflow by running (for example to run "Core" tests):
+
+.. code-block::bash
+
+    breeze testing tests --force-lowest-dependencies --test-type "Core"
+
+You can also iterate on the tests and versions of the dependencies by entering breeze shell and
+running the tests from there:
+
+.. code-block::bash
+
+    breeze shell --force-lowest-dependencies
+
+The way it works - when you run the breeze with ``--force-lowest-dependencies`` flag, breeze will use
+attempt (with the help of ``uv``) to downgrade the dependencies to the lowest version that is compatible
+with the dependencies specified in airflow dependencies. You will see it in the output of the breeze
+command as a sequence of downgrades like this:
+
+.. code-block:: diff
+
+   - aiohttp==3.9.5
+   + aiohttp==3.9.2
+   - anyio==4.4.0
+   + anyio==3.7.1
+
+
+Tests with lowest-direct dependency resolution for a Provider
+-------------------------------------------------------------
+
+Similarly we can test if the provider tests are working for lowest dependencies of specific provider.
+
+Those tests can be easily run locally with breeze (replace PROVIDER_ID with id of the provider):
+
+.. code-block::bash
+
+    breeze testing tests --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
+
+If you find that the tests are failing for some dependencies, make sure to add minimum version for
+the dependency in the provider.yaml file of the appropriate provider and re-run it.
+
+You can also iterate on the tests and versions of the dependencies by entering breeze shell and
+running the tests from there:
+
+.. code-block::bash
+
+    breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
+
+Similarly as in case of "Core" tests, the dependencies will be downgraded to the lowest version that is
+compatible with the dependencies specified in the provider dependencies and you will see the list of
+downgrades in the output of the breeze command. Note that this will be combined downgrades of both
+Airflow and selected provider dependencies, so the list will be longer than in case of "Core" tests
+and longer than **just** dependencies of the provider. For example for a ``google`` provider, part of the
+downgraded dependencies will contain both Airflow and Google Provider dependencies:
+
+.. code-block:: diff
+
+ - flask-login==0.6.3
+ + flask-login==0.6.2
+ - flask-session==0.5.0
+ + flask-session==0.4.0
+ - flask-wtf==1.2.1
+ + flask-wtf==1.1.0
+ - fsspec==2023.12.2
+ + fsspec==2023.10.0
+ - gcloud-aio-bigquery==7.1.0
+ + gcloud-aio-bigquery==6.1.2
+ - gcloud-aio-storage==9.2.0
+
+
+How to fix failing lowest-direct dependency resolution tests
+------------------------------------------------------------
+
+When your tests pass in regular test, but fail in "lowest-direct" dependency resolution tests, you need
+to figure out the lower-bindings missing in  ``hatch_build.py``  (for Airflow core dependencies) or
+in the corresponding provider's ``provider.yaml`` file. This is usually a very easy thing that takes a little
+bit of time to figure out especially if you just added new feature from a library that you use, just check in
+the release notes what is the minimum version of the library that you can use and set it as the
+``>=VERSION`` in the ``hatch_build.py`` or ``provider.yaml`` file. For ``hatch_build.py`` changes you do not
+need to do anything else, for ``provider.yaml`` file you need to regenerate generated dependencies
+by running ``pre-commit run`` in the provider directory after adding the file to git or just letting the
+pre-commit to do it's job if you already has pre-commit installed via ``pre-commit install`` - then just
+committing the change will regenerate the dependencies automatically.
+
+After that, re-run the ``breeze shell --force-lowest-dependencies`` command and see if the tests pass.
+
+.. code-block::bash
+
+   breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
+
+Sometimes it might get a bit tricky to know what is the minimum version of the library you should be using
+but in this case you can easily find it by looking at the error and list of downgraded packages and
+guessing which one is the one that is causing the problem. You can then look at the release notes of the
+library and find the minimum version but also you can revert to technique known as bisecting which allows
+you to quickly figure out the right version without knowing the root cause of the problem.
+
+Assume you suspect library "foo" that was downgraded from 1.0.0 to 0.1.0 is causing the problem. Bisecting
+technique looks like follows:
+
+* enter breeze with ``--force-lowest-dependencies`` flag (the ``foo`` library is downgraded to 0.1.0). Your
+  test should fail.
+* make sure that just upgrading the ``foo`` library to 1.0.0 -> re-run failing test (with ``pytest <test>``)
+  and see that it passes.
+* downgrade the ``foo`` library to 0.1.0 -> re-run failing test (with ``pytest <test>``) and see that it
+  fails.
+* look at the list of versions available for the library between 0.1.0 and 1.0.0 (for example via
+  `<https://pypi.org/project/foo/#history>`_ link - where ``foo`` is your library.
+* find a middle version between the 1.0.0 and 0.1.0 and upgrade the library to this version - see if the
+  test passes or fails - if it passes, continue with finding the middle version between the current version
+  and lower version, if it fails, continue with finding the middle version between the current version and
+  higher version.
+* continue that way until you find the version that is the lowest version that passes the test.
+* set this version in the ``hatch_build.py`` or ``provider.yaml`` file, regenerate the generated
+  dependencies file and re-start breeze with ``--force-lowest-dependencies`` flag and see that the
+  library has been downgraded to the version you set and the test passes.
+
 
 Other Settings
 --------------

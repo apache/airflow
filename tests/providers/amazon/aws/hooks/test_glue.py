@@ -617,3 +617,24 @@ class TestGlueDataQualityHook:
         assert caplog.messages == [
             "AWS Glue data quality ruleset evaluation run, total number of rules failed: 1"
         ]
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_log_recommendation_results(self, glue_data_quality_hook_mock_conn, caplog):
+        rules = """ Rules = [
+                                RowCount between 2 and 8,
+                                IsComplete "name"
+                                ]
+                    """
+        glue_data_quality_hook_mock_conn.get_data_quality_rule_recommendation_run.return_value = {
+            "RunId": self.RUN_ID,
+            "DataSource": {"GlueTable": {"DatabaseName": "TestDB", "TableName": "TestTable"}},
+            "RecommendedRuleset": rules,
+        }
+
+        with caplog.at_level(logging.INFO, logger=self.glue.log.name):
+            self.glue.log_recommendation_results(run_id=self.RUN_ID)
+
+        glue_data_quality_hook_mock_conn.get_data_quality_rule_recommendation_run.assert_called_once_with(
+            RunId=self.RUN_ID
+        )
+        assert rules in caplog.messages

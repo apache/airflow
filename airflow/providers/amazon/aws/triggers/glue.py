@@ -187,3 +187,38 @@ class GlueDataQualityRuleSetEvaluationRunCompleteTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return GlueDataQualityHook(aws_conn_id=self.aws_conn_id)
+
+
+class GlueDataQualityRuleRecommendationRunCompleteTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a AWS Glue data quality recommendation run complete.
+
+    :param recommendation_run_id: The AWS Glue data quality rule recommendation run identifier.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        recommendation_run_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = "aws_default",
+    ):
+        super().__init__(
+            serialized_fields={"recommendation_run_id": recommendation_run_id},
+            waiter_name="data_quality_rule_recommendation_run_complete",
+            waiter_args={"RunId": recommendation_run_id},
+            failure_message="AWS Glue data quality recommendation run failed.",
+            status_message="Status of AWS Glue data quality recommendation run is",
+            status_queries=["Status"],
+            return_key="recommendation_run_id",
+            return_value=recommendation_run_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return GlueDataQualityHook(aws_conn_id=self.aws_conn_id)

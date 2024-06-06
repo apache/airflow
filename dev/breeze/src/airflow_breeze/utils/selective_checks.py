@@ -54,6 +54,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
+from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
     AIRFLOW_SOURCES_ROOT,
@@ -699,7 +700,7 @@ class SelectiveChecks:
     def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
 
-    def _get_test_types_to_run(self) -> list[str]:
+    def _get_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self.full_tests_needed:
             return list(all_selective_test_types())
 
@@ -750,7 +751,7 @@ class SelectiveChecks:
             candidate_test_types.update(all_selective_test_types())
         else:
             if "Providers" in candidate_test_types or "API" in candidate_test_types:
-                affected_providers = self.find_all_providers_affected(
+                affected_providers = self._find_all_providers_affected(
                     include_docs=False,
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
@@ -760,7 +761,15 @@ class SelectiveChecks:
                         # In case of API tests Providers could not be in the list originally so we can ignore
                         # Providers missing in the list.
                         pass
-                    candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
+                    if split_to_individual_providers:
+                        for provider in affected_providers:
+                            candidate_test_types.add(f"Providers[{provider}]")
+                    else:
+                        candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
+                elif split_to_individual_providers:
+                    candidate_test_types.remove("Providers")
+                    for provider in get_available_packages():
+                        candidate_test_types.add(f"Providers[{provider}]")
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
@@ -827,6 +836,16 @@ class SelectiveChecks:
         return " ".join(
             test_type for test_type in all_test_types.split(" ") if test_type.startswith("Providers")
         )
+
+    @cached_property
+    def separate_test_types_list_as_string(self) -> str | None:
+        if not self.run_tests:
+            return None
+        current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
+        if "Providers" in current_test_types:
+            current_test_types.remove("Providers")
+            current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+        return " ".join(sorted(current_test_types))
 
     @cached_property
     def include_success_outputs(
@@ -949,7 +968,7 @@ class SelectiveChecks:
             return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
-        providers_affected = self.find_all_providers_affected(
+        providers_affected = self._find_all_providers_affected(
             include_docs=True,
         )
         if (
@@ -1059,7 +1078,7 @@ class SelectiveChecks:
             return _ALL_PROVIDERS_LIST
         if self._are_all_providers_affected():
             return _ALL_PROVIDERS_LIST
-        affected_providers = self.find_all_providers_affected(include_docs=True)
+        affected_providers = self._find_all_providers_affected(include_docs=True)
         if not affected_providers:
             return None
         if affected_providers == "ALL_PROVIDERS":
@@ -1216,7 +1235,7 @@ class SelectiveChecks:
             return False
         return self._github_actor in COMMITTERS
 
-    def find_all_providers_affected(self, include_docs: bool) -> list[str] | str | None:
+    def _find_all_providers_affected(self, include_docs: bool) -> list[str] | str | None:
         all_providers: set[str] = set()
 
         all_providers_affected = False
