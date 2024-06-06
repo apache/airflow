@@ -145,6 +145,8 @@ class InfoJsonEncodable(dict):
     def _cast_basic_types(value):
         if isinstance(value, datetime.datetime):
             return value.isoformat()
+        if isinstance(value, datetime.timedelta):
+            return f"{value.total_seconds()} seconds"
         if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
@@ -201,7 +203,7 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "try_number", "pool"]
+    includes = ["duration", "try_number", "pool", "queued_dttm"]
     casts = {
         "map_index": lambda ti: (
             ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
@@ -235,6 +237,7 @@ class TaskInfo(InfoJsonEncodable):
         "retries",
         "retry_exponential_backoff",
         "run_as_user",
+        "sla",
         "task_id",
         "trigger_rule",
         "upstream_task_ids",
