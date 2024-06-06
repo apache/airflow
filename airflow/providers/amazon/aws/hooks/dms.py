@@ -149,16 +149,20 @@ class DmsHook(AwsBaseHook):
         :param replication_config_arn: Replication config ARN
         :return: Current serverless task status
         """
-        replication = self.find_replication_configs_by_arn(
-            replication_task_arn=replication_config_arn
-        )
+        replication = self.find_replication_configs_by_arn(replication_task_arn=replication_config_arn)
 
         if len(replication) == 1:
             status = replication[0]["Status"]
-            self.log.info('Serverless replication task with config ARN(%s) has status "%s".', replication_config_arn, status)
+            self.log.info(
+                'Serverless replication task with config ARN(%s) has status "%s".',
+                replication_config_arn,
+                status,
+            )
             return status
         else:
-            self.log.info("Serverless replication task with config ARN(%s) is not found.", replication_config_arn)
+            self.log.info(
+                "Serverless replication task with config ARN(%s) is not found.", replication_config_arn
+            )
             return None
 
     def create_replication_task(

@@ -131,6 +131,7 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
         ]
         super().__init__(**kwargs)
 
+
 class DmsServerlessTaskCompletedSensor(DmsTaskBaseSensor):
     """
     Pokes DMS serverless task until it is completed.
@@ -154,9 +155,7 @@ class DmsServerlessTaskCompletedSensor(DmsTaskBaseSensor):
 
     template_fields: Sequence[str] = aws_template_fields("replication_config_arn")
 
-    def __init__(self,
-                 replication_config_arn: str,
-                 **kwargs):
+    def __init__(self, replication_config_arn: str, **kwargs):
         self.replication_config_arn = replication_config_arn
         kwargs["replication_task_arn"] = ""
         kwargs["target_statuses"] = ["stopped"]
@@ -180,7 +179,9 @@ class DmsServerlessTaskCompletedSensor(DmsTaskBaseSensor):
                 raise AirflowSkipException(message)
             raise AirflowException(message)
 
-        self.log.info("DMS Replication serverless task (%s) has status: %s", self.replication_config_arn, status)
+        self.log.info(
+            "DMS Replication serverless task (%s) has status: %s", self.replication_config_arn, status
+        )
 
         if status in self.target_statuses:
             return True

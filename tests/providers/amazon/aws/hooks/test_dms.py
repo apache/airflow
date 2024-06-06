@@ -24,7 +24,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.dms import DmsHook, DmsTaskWaiterStatus
 
-MOCK_DATA = {
+MOCK_TASK_DATA = {
     "replication_task_id": "test_task",
     "source_endpoint_arn": "source-endpoint-arn",
     "target_endpoint_arn": "target-endpoint-arn",
@@ -45,15 +45,50 @@ MOCK_DATA = {
         ]
     },
 }
+
+MOCK_SERVERLESS_CONFIG_DATA = {
+    "replication_config_id": "serverless_config",
+    "source_endpoint_arn": "source-endpoint-arn",
+    "target_endpoint_arn": "target-endpoint-arn",
+    "replication_type": "full-load",
+    "table_mappings": {
+        "rules": [
+            {
+                "rule-type": "selection",
+                "rule-id": "1",
+                "rule-name": "1",
+                "object-locator": {
+                    "schema-name": "test",
+                    "table-name": "%",
+                },
+                "rule-action": "include",
+            }
+        ]
+    },
+}
+
 MOCK_TASK_ARN = "task-arn"
+MOCK_SERVERLESS_CONFIG_ARN = "replication-arn"
+
 MOCK_TASK_RESPONSE_DATA = {
-    "ReplicationTaskIdentifier": MOCK_DATA["replication_task_id"],
-    "SourceEndpointArn": MOCK_DATA["source_endpoint_arn"],
-    "TargetEndpointArn": MOCK_DATA["target_endpoint_arn"],
-    "ReplicationInstanceArn": MOCK_DATA["replication_instance_arn"],
-    "MigrationType": MOCK_DATA["migration_type"],
-    "TableMappings": json.dumps(MOCK_DATA["table_mappings"]),
+    "ReplicationTaskIdentifier": MOCK_TASK_DATA["replication_task_id"],
+    "SourceEndpointArn": MOCK_TASK_DATA["source_endpoint_arn"],
+    "TargetEndpointArn": MOCK_TASK_DATA["target_endpoint_arn"],
+    "ReplicationInstanceArn": MOCK_TASK_DATA["replication_instance_arn"],
+    "MigrationType": MOCK_TASK_DATA["migration_type"],
+    "TableMappings": json.dumps(MOCK_TASK_DATA["table_mappings"]),
     "ReplicationTaskArn": MOCK_TASK_ARN,
+    "Status": "creating",
+}
+
+MOCK_SERVERLESS_CONFIG_RESPONSE_DATA = {
+    "ReplicationTaskIdentifier": MOCK_SERVERLESS_CONFIG_DATA["replication_task_id"],
+    "SourceEndpointArn": MOCK_SERVERLESS_CONFIG_DATA["source_endpoint_arn"],
+    "TargetEndpointArn": MOCK_SERVERLESS_CONFIG_DATA["target_endpoint_arn"],
+    "ReplicationInstanceArn": MOCK_SERVERLESS_CONFIG_DATA["replication_instance_arn"],
+    "MigrationType": MOCK_SERVERLESS_CONFIG_DATA["migration_type"],
+    "TableMappings": json.dumps(MOCK_SERVERLESS_CONFIG_DATA["table_mappings"]),
+    "ReplicationTaskArn": MOCK_SERVERLESS_CONFIG_ARN,
     "Status": "creating",
 }
 MOCK_DESCRIBE_RESPONSE: dict[str, Any] = {"ReplicationTasks": [MOCK_TASK_RESPONSE_DATA]}
@@ -85,10 +120,24 @@ class TestDmsHook:
         assert len(tasks) == 0
 
     @mock.patch.object(DmsHook, "get_conn")
+    def test_describe_serverless_replication(self, mock_conn):
+        mock_conn.return_value.describe_serverless_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
+        describe_tasks_kwargs = {
+            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_TASK_DATA["replication_task_id"]]}]
+        }
+
+        marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
+
+        mock_conn.return_value.describe_replication_tasks.assert_called_with(**describe_tasks_kwargs)
+        assert marker is None
+        assert len(tasks) == 1
+        assert tasks[0]["ReplicationTaskArn"] == MOCK_TASK_ARN
+
+    @mock.patch.object(DmsHook, "get_conn")
     def test_describe_replication_tasks(self, mock_conn):
         mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
         describe_tasks_kwargs = {
-            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_DATA["replication_task_id"]]}]
+            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_TASK_DATA["replication_task_id"]]}]
         }
 
         marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
@@ -102,7 +151,7 @@ class TestDmsHook:
     def test_describe_teplication_tasks_with_marker(self, mock_conn):
         mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE_WITH_MARKER
         describe_tasks_kwargs = {
-            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_DATA["replication_task_id"]]}]
+            "Filters": [{"Name": "replication-task-id", "Values": [MOCK_TASK_DATA["replication_task_id"]]}]
         }
 
         marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
@@ -152,14 +201,14 @@ class TestDmsHook:
     @mock.patch.object(DmsHook, "get_conn")
     def test_create_replication_task(self, mock_conn):
         mock_conn.return_value.create_replication_task.return_value = MOCK_CREATE_RESPONSE
-        result = self.dms.create_replication_task(**MOCK_DATA)
+        result = self.dms.create_replication_task(**MOCK_TASK_DATA)
         expected_call_params = {
-            "ReplicationTaskIdentifier": MOCK_DATA["replication_task_id"],
-            "SourceEndpointArn": MOCK_DATA["source_endpoint_arn"],
-            "TargetEndpointArn": MOCK_DATA["target_endpoint_arn"],
-            "ReplicationInstanceArn": MOCK_DATA["replication_instance_arn"],
-            "MigrationType": MOCK_DATA["migration_type"],
-            "TableMappings": json.dumps(MOCK_DATA["table_mappings"]),
+            "ReplicationTaskIdentifier": MOCK_TASK_DATA["replication_task_id"],
+            "SourceEndpointArn": MOCK_TASK_DATA["source_endpoint_arn"],
+            "TargetEndpointArn": MOCK_TASK_DATA["target_endpoint_arn"],
+            "ReplicationInstanceArn": MOCK_TASK_DATA["replication_instance_arn"],
+            "MigrationType": MOCK_TASK_DATA["migration_type"],
+            "TableMappings": json.dumps(MOCK_TASK_DATA["table_mappings"]),
         }
         mock_conn.return_value.create_replication_task.assert_called_with(**expected_call_params)
         assert result == MOCK_CREATE_RESPONSE["ReplicationTask"]["ReplicationTaskArn"]
