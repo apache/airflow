@@ -530,3 +530,26 @@ class GlueDataQualityHook(AwsBaseHook):
             raise AirflowException(
                 "AWS Glue data quality ruleset evaluation run failed for one or more rules"
             )
+
+    def log_recommendation_results(self, run_id: str) -> None:
+        """
+        Print the outcome of recommendation run, recommendation run generates multiple rules against a data source (Glue table) in Data Quality Definition Language (DQDL) format.
+
+        Rules = [
+        IsComplete "NAME",
+        ColumnLength "EMP_ID" between 1 and 12,
+        IsUnique "EMP_ID",
+        ColumnValues "INCOME" > 50000
+        ]
+        """
+        result = self.conn.get_data_quality_rule_recommendation_run(RunId=run_id)
+
+        if result.get("RecommendedRuleset"):
+            self.log.info(
+                "AWS Glue data quality recommended rules for DatabaseName: %s TableName: %s",
+                result["DataSource"]["GlueTable"]["DatabaseName"],
+                result["DataSource"]["GlueTable"]["TableName"],
+            )
+            self.log.info(result["RecommendedRuleset"])
+        else:
+            self.log.info("AWS Glue data quality, no recommended rules available for RunId: %s", run_id)

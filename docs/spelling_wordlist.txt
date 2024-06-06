@@ -362,6 +362,7 @@ dagrun
 DagRunPydantic
 dagruns
 DagRunState
+dagRunState
 DAGs
 Dask
 dask
@@ -1606,6 +1607,7 @@ taskflow
 TaskGroup
 taskgroup
 TaskGroups
+taskGroups
 TaskInstance
 taskinstance
 TaskInstanceKey
@@ -1613,6 +1615,8 @@ taskinstancekey
 taskmeta
 taskmixin
 tasksetmeta
+tasksState
+taskTree
 tblproperties
 TCP
 tcp

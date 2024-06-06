@@ -85,8 +85,8 @@ def glue_data_quality_workflow():
         role=test_context[ROLE_ARN_KEY],
         rule_set_names=[rule_set_name],
     )
-    start_evaluation_run.wait_for_completion = False
     # [END howto_operator_glue_data_quality_ruleset_evaluation_run_operator]
+    start_evaluation_run.wait_for_completion = False
 
     # [START howto_sensor_glue_data_quality_ruleset_evaluation_run]
     await_evaluation_run_sensor = GlueDataQualityRuleSetEvaluationRunSensor(

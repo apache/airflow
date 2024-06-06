@@ -79,6 +79,8 @@ jobs:
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
       providers-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
+      separate-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
@@ -455,8 +457,11 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      separate-test-types-list-as-string: >-
+        ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}

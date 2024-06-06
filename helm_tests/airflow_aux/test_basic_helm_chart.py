@@ -513,6 +513,26 @@ class TestBaseChartTest:
                 # Make sure that a command is not specified
                 assert "command" not in obj
 
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "LocalExecutor",
+            "LocalKubernetesExecutor",
+            "CeleryExecutor",
+            "KubernetesExecutor",
+            "CeleryKubernetesExecutor",
+            "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
+            "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor",
+        ],
+    )
+    def test_supported_executor(self, executor):
+        render_chart(
+            "test-basic",
+            {
+                "executor": executor,
+            },
+        )
+
     def test_unsupported_executor(self):
         with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(
@@ -524,7 +544,9 @@ class TestBaseChartTest:
         assert (
             'executor must be one of the following: "LocalExecutor", '
             '"LocalKubernetesExecutor", "CeleryExecutor", '
-            '"KubernetesExecutor", "CeleryKubernetesExecutor"' in ex_ctx.value.stderr.decode()
+            '"KubernetesExecutor", "CeleryKubernetesExecutor", '
+            '"airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor", '
+            '"airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"' in ex_ctx.value.stderr.decode()
         )
 
     @pytest.mark.parametrize(
