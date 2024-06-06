@@ -80,7 +80,24 @@ class TaskInstanceHistory(Base):
             self.state = state
 
 
+def copy_column(column):
+    return Column(
+        column.type,
+        nullable=column.nullable,
+        default=column.default,
+        autoincrement=column.autoincrement,
+        unique=column.unique,
+        index=column.index,
+        primary_key=column.primary_key,
+        server_default=column.server_default,
+        server_onupdate=column.server_onupdate,
+        doc=column.doc,
+        comment=column.comment,
+        info=column.info,
+    )
+
+
 # Add remaining columns from TaskInstance to TaskInstanceHistory, as we want to keep them in sync
 for column in TaskInstance.__table__.columns:
     if column.name not in TaskInstanceHistory.__table__.columns:
-        setattr(TaskInstanceHistory, column.name, column.copy())
+        setattr(TaskInstanceHistory, column.name, copy_column(column))
