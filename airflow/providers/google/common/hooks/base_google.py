@@ -731,7 +731,11 @@ class GoogleBaseAsyncHook(BaseHook):
 
     sync_hook_class: Any = None
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
+        # add default value to gcp_conn_id
+        if "gcp_conn_id" not in kwargs:
+            kwargs["gcp_conn_id"] = "google_cloud_default"
+
         self._hook_kwargs = kwargs
         self._sync_hook = None
 

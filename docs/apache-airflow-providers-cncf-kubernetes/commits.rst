@@ -38,11 +38,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.3.0
 .....
 
-Latest change: 2024-05-15
+Latest change: 2024-05-28
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`53970a8d1f <https://github.com/apache/airflow/commit/53970a8d1f4d8337a6e9b9aeac25fde030432f98>`_  2024-05-28   ``Handling exception getting logs when pods finish success (#39296)``
+`e190cff272 <https://github.com/apache/airflow/commit/e190cff27299256df75b56e46e27e9932174805a>`_  2024-05-28   ``fix wrong arguments in read_namespaced_pod_log call (#39874)``
+`98c5a3a2c6 <https://github.com/apache/airflow/commit/98c5a3a2c6d1df722d56bb3748dfbc810d5952aa>`_  2024-05-27   ``Add a warning message to KPO to warn of one second interval logs duplication (#39861)``
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `610747d25a <https://github.com/apache/airflow/commit/610747d25a6153574c07624afaadcbf575aa2960>`_  2024-05-15   ``Add timeout when watching pod events in k8s executor (#39551)``
 `f57de6c183 <https://github.com/apache/airflow/commit/f57de6c1836199190ab02419aa2b9d5caee33002>`_  2024-05-14   ``Move Kubernetes cli to provider package (#39587)``
 `e3897dcbed <https://github.com/apache/airflow/commit/e3897dcbed0262b0cab7a357f8d7fbbb6c4f4eeb>`_  2024-05-13   ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``

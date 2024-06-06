@@ -48,7 +48,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - facebook-business>=6.0.2
+  - facebook-business>=15.0.2
 
 integrations:
   - integration-name: Facebook Ads

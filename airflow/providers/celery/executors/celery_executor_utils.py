@@ -147,7 +147,7 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         if ret == 0:
             return
 
-        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}"
+        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id} (PID: {pid}, Return Code: {ret})"
         raise AirflowException(msg)
 
     from airflow.sentry import Sentry
