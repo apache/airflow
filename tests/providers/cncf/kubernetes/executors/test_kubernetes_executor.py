@@ -991,8 +991,39 @@ class TestKubernetesExecutor:
 
         tis_to_flush = executor.try_adopt_task_instances([mock_ti])
         assert tis_to_flush == [mock_ti]
+        assert executor.running == set()
         mock_adopt_launched_task.assert_not_called()
         mock_adopt_completed_pods.assert_called_once()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
+    )
+    def test_try_adopt_already_adopted_task_instances(self, mock_adopt_completed_pods, mock_adopt_launched_task, mock_kube_dynamic_client):
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.get.return_value.items = []
+        mock_kube_client = mock.MagicMock()
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        ti_key = annotations_to_key(
+            {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": "task",
+                "try_number": "1",
+            }
+        )
+        mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
+        executor.running = {ti_key}
+
+        tis_to_flush = executor.try_adopt_task_instances([mock_ti])
+        mock_adopt_launched_task.assert_not_called()
+        mock_adopt_completed_pods.assert_called_once()
+        assert tis_to_flush == []
+        assert executor.running == {ti_key}
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_adopt_launched_task(self, mock_kube_client):
