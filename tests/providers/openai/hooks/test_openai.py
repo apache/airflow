@@ -159,6 +159,7 @@ def mock_run():
         object="thread.run",
         created_at=1698107661,
         assistant_id=ASSISTANT_ID,
+        parallel_tool_calls=False,
         thread_id=THREAD_ID,
         status="completed",
         started_at=1699073476,
