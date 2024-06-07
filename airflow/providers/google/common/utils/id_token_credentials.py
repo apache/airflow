@@ -190,7 +190,7 @@ def _get_gce_credentials(
 
 
 def get_default_id_token_credentials(
-    target_audience: str | None, request: google.auth.transport.Request = None
+    target_audience: str | None, request: google.auth.transport.Request | None = None
 ) -> google_auth_credentials.Credentials:
     """Get the default ID Token credentials for the current environment.
 
