@@ -449,8 +449,10 @@ def clear_task_instances(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
     dag_bag = DagBag(read_dags_from_db=True)
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
     for ti in tis:
-        record_task_instance_history(ti, session)
+        TaskInstanceHistory.record_ti(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
@@ -554,26 +556,6 @@ def clear_task_instances(
                     dr.start_date = None
                     dr.clear_number += 1
     session.flush()
-
-
-def record_task_instance_history(ti, session):
-    """Update the task instance history table."""
-    if ti.state not in [
-        TaskInstanceState.RUNNING,
-        TaskInstanceState.SUCCESS,
-        TaskInstanceState.FAILED,
-        TaskInstanceState.SKIPPED,
-    ]:
-        return
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
-
-    ti_history_state = (
-        ti.state
-        if ti.state in [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
-        else TaskInstanceState.FAILED
-    )
-    ti_history = TaskInstanceHistory(ti, state=ti_history_state)
-    session.add(ti_history)
 
 
 @internal_api_call
@@ -3207,20 +3189,13 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            # stamp ti history record
-            from airflow.models.taskinstancehistory import TaskInstanceHistory
-
-            ti_history = TaskInstanceHistory(ti, state=TaskInstanceState.FAILED)
-            session.merge(ti_history)
-
             if ti.state == TaskInstanceState.RUNNING:
                 # If the task instance is in the running state, it means it raised an exception and
                 # about to retry so we record the task instance history. For other states, the task
                 # instance was cleared and already recorded in the task instance history.
                 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
-                ti_history = TaskInstanceHistory(ti, state=TaskInstanceState.FAILED)
-                session.add(ti_history)
+                TaskInstanceHistory.record_ti(ti, session=session)
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")

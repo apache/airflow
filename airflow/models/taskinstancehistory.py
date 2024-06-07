@@ -24,11 +24,15 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
     PrimaryKeyConstraint,
+    func,
+    select,
     text,
 )
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -79,8 +83,29 @@ class TaskInstanceHistory(Base):
         if state:
             self.state = state
 
+    @staticmethod
+    @provide_session
+    def record_ti(ti: TaskInstance, session: NEW_SESSION = None) -> None:
+        """Record a TaskInstance to TaskInstanceHistory."""
+        exists_q = session.scalar(
+            select(func.count(TaskInstanceHistory.task_id)).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == ti.try_number,
+            )
+        )
+        if exists_q:
+            return
+        ti_history_state = ti.state
+        if ti.state in State.finished:
+            ti_history_state = TaskInstanceState.FAILED
+        ti_history = TaskInstanceHistory(ti, state=ti_history_state)
+        session.add(ti_history)
 
-def copy_column(column):
+
+def _copy_column(column):
     return Column(
         column.type,
         nullable=column.nullable,
@@ -100,4 +125,4 @@ def copy_column(column):
 # Add remaining columns from TaskInstance to TaskInstanceHistory, as we want to keep them in sync
 for column in TaskInstance.__table__.columns:
     if column.name not in TaskInstanceHistory.__table__.columns:
-        setattr(TaskInstanceHistory, column.name, copy_column(column))
+        setattr(TaskInstanceHistory, column.name, _copy_column(column))
