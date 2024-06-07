@@ -1293,8 +1293,8 @@ api:
   options:
     enable_experimental_api:
       description: |
-        Enables the deprecated experimental API. Please note that these APIs do not have access control.
-        The authenticated user has full access.
+        Enables the deprecated experimental API. Please note that these API endpoints do not have
+        access control. An authenticated user has full access.
 
         .. warning::
 
