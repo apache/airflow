@@ -21,7 +21,7 @@ import datetime
 import random
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models.dag import DAG
@@ -534,22 +534,22 @@ class TestClearTasks:
             assert count_task_reschedule(ti1.task_id) == 1
 
     @pytest.mark.parametrize(
-        ["state", "record_created"],
+        ["state", "state_recorded"],
         [
-            (TaskInstanceState.SUCCESS, 2),
-            (TaskInstanceState.FAILED, 2),
-            (TaskInstanceState.SKIPPED, 2),
-            (TaskInstanceState.UP_FOR_RETRY, 0),
-            (TaskInstanceState.UP_FOR_RESCHEDULE, 0),
-            (TaskInstanceState.RUNNING, 2),
-            (TaskInstanceState.QUEUED, 0),
-            (TaskInstanceState.SCHEDULED, 0),
-            (None, 0),
-            (TaskInstanceState.RESTARTING, 0),
-            (TaskInstanceState.SHUTDOWN, 0),
+            (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
+            (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
+            (TaskInstanceState.SKIPPED, TaskInstanceState.SKIPPED),
+            (TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.FAILED),
+            (TaskInstanceState.UP_FOR_RESCHEDULE, TaskInstanceState.FAILED),
+            (TaskInstanceState.RUNNING, TaskInstanceState.FAILED),
+            (TaskInstanceState.QUEUED, TaskInstanceState.FAILED),
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.FAILED),
+            (None, TaskInstanceState.FAILED),
+            (TaskInstanceState.RESTARTING, TaskInstanceState.FAILED),
+            (TaskInstanceState.SHUTDOWN, TaskInstanceState.FAILED),
         ],
     )
-    def test_task_instance_history_record(self, state, record_created, dag_maker):
+    def test_task_instance_history_record(self, state, state_recorded, dag_maker):
         """Test that task instance history record is created with approapriate state"""
 
         with dag_maker(
@@ -573,9 +573,9 @@ class TestClearTasks:
         session.flush()
 
         session.refresh(dr)
-        ti_history = session.scalar(select(func.count(TaskInstanceHistory.task_id)))
+        ti_history = session.scalars(select(TaskInstanceHistory.state)).all()
 
-        assert ti_history == record_created
+        assert [ti_history[0], ti_history[1]] == [str(state_recorded), str(state_recorded)]
 
     def test_dag_clear(self, dag_maker):
         with dag_maker(
