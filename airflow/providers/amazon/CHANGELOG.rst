@@ -43,6 +43,7 @@ Bug Fixes
 
 * ``Deduplicate model name in SageMakerTransformOperator (#39956)``
 * ``Fix: remove process_func from templated_fields (#39948)``
+* ``Fix aws assume role session creation when deferrable (#40051)``
 
 Misc
 ~~~~

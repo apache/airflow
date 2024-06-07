@@ -36,6 +36,12 @@ Bug Fixes
 * ``Fixes KubernetesPodTrigger failing running pods with timeout (#40019)``
 * ``Refresh properties on KubernetesPodOperator on token expiration also when logging (#39789)``
 * ``Fix reattach_on_restart parameter for the sync mode (#39329)``
+* ``Avoid resetting adopted task instances when retrying for kubernetes executor (#39406)``
+
+Misc
+~~~~
+
+* ``Include fatal reason for pod pending events (#39924)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

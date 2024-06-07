@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.24.0
 ......
 
-Latest change: 2024-06-05
+Latest change: 2024-06-06
 
 =================================================================================================  ===========  ================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================
+`42a2b1a3bb <https://github.com/apache/airflow/commit/42a2b1a3bb6d39e29deead92d261b840854f3fb4>`_  2024-06-06   ``Fix aws assume role session creation when deferrable (#40051)``
 `06a200d5fa <https://github.com/apache/airflow/commit/06a200d5fad3d80219d1d545929ebec3cc1afb55>`_  2024-06-05   ``Bump boto min versions (#40052)``
 `99dd24b436 <https://github.com/apache/airflow/commit/99dd24b436c1a8c5f736e9784c60d469a5b2bed7>`_  2024-06-04   ``Doc-only: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
 `ea682382bc <https://github.com/apache/airflow/commit/ea682382bc3570a820d400994114e8b0060add66>`_  2024-06-04   ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
