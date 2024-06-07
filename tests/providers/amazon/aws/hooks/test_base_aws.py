@@ -28,7 +28,6 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
 
-import aiobotocore.session
 import boto3
 import botocore
 import jinja2
@@ -247,6 +246,8 @@ class TestSessionFactory:
 
         session_profile = async_session.get_config_variable("profile")
 
+        import aiobotocore.session
+
         assert session_profile == profile_name
         assert isinstance(async_session, aiobotocore.session.AioSession)
 
@@ -265,6 +266,8 @@ class TestSessionFactory:
         sf = BaseSessionFactory(conn=mock_conn_config, config=None)
         async_session = sf.create_session(deferrable=True)
         cred = await async_session.get_credentials()
+        import aiobotocore.session
+
         assert cred.access_key == "test_aws_access_key_id"
         assert cred.secret_key == "test_aws_secret_access_key"
         assert cred.token is None
@@ -338,9 +341,9 @@ class TestSessionFactory:
             # Validate method of botocore credentials provider.
             # It shouldn't be 'explicit' which refers in this case to initial credentials.
             credentials = await session.get_credentials()
+            import aiobotocore.session
 
             assert inspect.iscoroutinefunction(credentials.get_frozen_credentials)
-
             assert credentials.method == "sts-assume-role"
             assert isinstance(session, aiobotocore.session.AioSession)
 
