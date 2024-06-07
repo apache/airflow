@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
+from airflow.providers.amazon.aws.executors.batch.batch_executor import AwsBatchExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
@@ -333,4 +334,30 @@ class TestExecutorLoader:
                 )
                 assert isinstance(
                     ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
+                )
+
+    def test_load_custom_executor_with_classname(self):
+        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "my_alias:airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor",
+                    ("aws_batch_executor", "job_queue"): "test-queue",
+                    ("aws_batch_executor", "job_name"): "test-name",
+                    ("aws_batch_executor", "job_definition"): "test-definition",
+                }
+            ):
+                ExecutorLoader.init_executors()
+                assert isinstance(ExecutorLoader.load_executor("my_alias"), AwsBatchExecutor)
+                assert isinstance(ExecutorLoader.load_executor("AwsBatchExecutor"), AwsBatchExecutor)
+                assert isinstance(
+                    ExecutorLoader.load_executor(
+                        "airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor"
+                    ),
+                    AwsBatchExecutor,
+                )
+                assert isinstance(
+                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), AwsBatchExecutor
                 )
