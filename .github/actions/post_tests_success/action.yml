@@ -35,7 +35,7 @@ runs:
         mkdir ./files/coverage-reposts
         mv ./files/coverage*.xml ./files/coverage-reposts/ || true
     - name: "Upload all coverage reports to codecov"
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       with:
         name: coverage-${{env.JOB_ID}}
