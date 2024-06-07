@@ -393,7 +393,6 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         self.service = service
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        super().__init__(**kwargs)
 
     def execute(self, context: Context):
         hook: CloudRunServiceHook = CloudRunServiceHook(
