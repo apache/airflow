@@ -1002,20 +1002,16 @@ class TestKubernetesExecutor:
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
     )
-    def test_try_adopt_already_adopted_task_instances(self, mock_adopt_completed_pods, mock_adopt_launched_task, mock_kube_dynamic_client):
+    def test_try_adopt_already_adopted_task_instances(
+        self, mock_adopt_completed_pods, mock_adopt_launched_task, mock_kube_dynamic_client
+    ):
+        """For TIs that are already adopted, we should not flush them"""
         mock_kube_dynamic_client.return_value = mock.MagicMock()
         mock_kube_dynamic_client.return_value.get.return_value.items = []
         mock_kube_client = mock.MagicMock()
         executor = self.kubernetes_executor
         executor.kube_client = mock_kube_client
-        ti_key = annotations_to_key(
-            {
-                "dag_id": "dag",
-                "run_id": "run_id",
-                "task_id": "task",
-                "try_number": "1",
-            }
-        )
+        ti_key = TaskInstanceKey("dag", "task", "run_id", 1)
         mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
         executor.running = {ti_key}
 
