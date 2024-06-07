@@ -20,7 +20,6 @@ import json
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
-import botocore
 from botocore.exceptions import ClientError
 
 from airflow.configuration import conf
@@ -38,7 +37,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
-from airflow.providers.amazon.aws.utils import get_botocore_version, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.helpers import prune_dict
 from airflow.utils.timezone import utcnow
@@ -799,24 +798,11 @@ class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
     def execute(self, context: Context) -> Any:
         self.validate_inputs()
 
-        try:
-            result = self.hook.conn.retrieve_and_generate(
-                input={"text": self.input},
-                retrieveAndGenerateConfiguration=self.build_rag_config(),
-                **self.rag_kwargs,
-            )
-        except botocore.exceptions.ParamValidationError as error:
-            if (
-                'Unknown parameter in retrieveAndGenerateConfiguration: "externalSourcesConfiguration"'
-                in str(error)
-            ) and (self.source_type == "EXTERNAL_SOURCES"):
-                self.log.error(
-                    "You are attempting to use External Sources and the BOTO API returned an "
-                    "error message which may indicate the need to update botocore to do this.  \n"
-                    "Support for External Sources was added in botocore 1.34.90 and you are using botocore %s",
-                    ".".join(map(str, get_botocore_version())),
-                )
-            raise
+        result = self.hook.conn.retrieve_and_generate(
+            input={"text": self.input},
+            retrieveAndGenerateConfiguration=self.build_rag_config(),
+            **self.rag_kwargs,
+        )
 
         self.log.info(
             "\nPrompt: %s\nResponse: %s\nCitations: %s",

@@ -94,6 +94,16 @@ Dataset Events
 
 Dataset events occur when Dataset management operations are run.
 
+
+Dag Import Error Events
+-----------------------
+
+- ``on_new_dag_import_error``
+- ``on_existing_dag_import_error``
+
+Dag import error events occur when dag processor finds import error in the Dag code and update the metadata database table.
+
+
 |experimental|
 
 
@@ -164,7 +174,6 @@ For example if you want to implement a listener that uses the ``error`` field in
             def on_task_instance_failed(self, previous_state, task_instance, session):
                 # Handle no error case here
                 pass
-
 
 List of changes in the listener interfaces since 2.8.0 when they were introduced:
 

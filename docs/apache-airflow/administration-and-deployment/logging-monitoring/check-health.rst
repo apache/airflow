@@ -116,7 +116,7 @@ To check if the local scheduler is still working properly, run:
 
 .. code-block:: bash
 
-    airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
+    airflow jobs check --job-type SchedulerJob --local
 
 To check if any scheduler is running when you are using high availability, run:
 

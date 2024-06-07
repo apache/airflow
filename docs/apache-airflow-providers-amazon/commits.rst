@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.24.0
+......
+
+Latest change: 2024-06-06
+
+=================================================================================================  ===========  ================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================
+`42a2b1a3bb <https://github.com/apache/airflow/commit/42a2b1a3bb6d39e29deead92d261b840854f3fb4>`_  2024-06-06   ``Fix aws assume role session creation when deferrable (#40051)``
+`06a200d5fa <https://github.com/apache/airflow/commit/06a200d5fad3d80219d1d545929ebec3cc1afb55>`_  2024-06-05   ``Bump boto min versions (#40052)``
+`99dd24b436 <https://github.com/apache/airflow/commit/99dd24b436c1a8c5f736e9784c60d469a5b2bed7>`_  2024-06-04   ``Doc-only: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
+`ea682382bc <https://github.com/apache/airflow/commit/ea682382bc3570a820d400994114e8b0060add66>`_  2024-06-04   ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`19c145c9ef <https://github.com/apache/airflow/commit/19c145c9ef692a902cc0a2efd31fd7ec23d818f0>`_  2024-06-03   ``Resolve aws emr deprecations in tests (#40020)``
+`357988831a <https://github.com/apache/airflow/commit/357988831ad1fd0a5db8cdabdc875528e9346cc3>`_  2024-06-02   ``Deduplicate model name in SageMakerTransformOperator (#39956)``
+`78523fdbf1 <https://github.com/apache/airflow/commit/78523fdbf1b80a7fbc7ec5e7b0b20f6934917898>`_  2024-05-31   ``Adding Amazon Glue Data Quality Service (#39923)``
+`fcd1a26a9a <https://github.com/apache/airflow/commit/fcd1a26a9a006ee8ee3ac023abb247f565d36e67>`_  2024-05-31   ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+`fa0aaf694e <https://github.com/apache/airflow/commit/fa0aaf694ecf71364c7e8032b803ecc5cef7ac3d>`_  2024-05-31   ``Resolving EMR notebook deprecated warnings (#39829)``
+`ddcc1b3a00 <https://github.com/apache/airflow/commit/ddcc1b3a00c14a727c0237d61d2df43e480e303d>`_  2024-05-30   ``Fix: remove process_func from templated_fields (#39948)``
+`11f219abff <https://github.com/apache/airflow/commit/11f219abffb49ef713bac3e60121fcbf737dc95b>`_  2024-05-30   ``Prepare docs 4th wave May 2024 (#39934)``
+`5f2ebb312b <https://github.com/apache/airflow/commit/5f2ebb312b08769b454a777280ddf5c43c38bb87>`_  2024-05-29   ``ECS Overrides for AWS Batch submit_job (#39903)``
+`53081cd342 <https://github.com/apache/airflow/commit/53081cd342098a2ab7be18a62f7b87e7c0b9e2e3>`_  2024-05-27   ``Implement amazon s3 to dynamodb transfer operator (#39654)``
+`8a35a6abdc <https://github.com/apache/airflow/commit/8a35a6abdcdcc2558048701adce82f2132e05884>`_  2024-05-26   ``Resolving ECS fargate deprecated warnings (#39834)``
+=================================================================================================  ===========  ================================================================================================================
+
 8.23.0
 ......
 
-Latest change: 2024-05-23
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ==============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `e565cea65c <https://github.com/apache/airflow/commit/e565cea65cb42e43387aa7fd135ac46e8ac25f65>`_  2024-05-23   ``Resolving EMR deprecated warnings (#39743)``
 `7b588b4dd9 <https://github.com/apache/airflow/commit/7b588b4dd97ee719b9574c2f9b948b7a5a837968>`_  2024-05-22   ``misc: add comment about remove unused code (#39748)``
 `a78ee74b6a <https://github.com/apache/airflow/commit/a78ee74b6a6d1774f7f248b14100eda8f87d9952>`_  2024-05-22   ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``

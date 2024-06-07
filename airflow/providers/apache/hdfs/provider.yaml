@@ -53,7 +53,11 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - hdfs[avro,dataframe,kerberos]>=2.0.4
+  - hdfs[avro,dataframe,kerberos]>=2.5.4;python_version<"3.12"
+  - hdfs[avro,dataframe,kerberos]>=2.7.3;python_version>="3.12"
+  - pandas>=1.5.3,<2.2;python_version<"3.12"
+  - pandas>=2.1.1,<2.2;python_version>="3.12"
+
 
 integrations:
   - integration-name: Hadoop Distributed File System (HDFS)
