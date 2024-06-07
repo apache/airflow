@@ -171,10 +171,10 @@ class PythonOperator(BaseOperator):
 
 
     :param python_callable: A reference to an object that is callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
+    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
+        in your function
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
