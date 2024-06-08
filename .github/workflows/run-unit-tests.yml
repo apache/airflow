@@ -195,6 +195,8 @@ jobs:
           fi
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
         if: success()
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure

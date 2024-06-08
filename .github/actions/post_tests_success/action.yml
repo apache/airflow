@@ -18,6 +18,11 @@
 ---
 name: 'Post tests on success'
 description: 'Run post tests actions on success'
+inputs:
+  codecov-token:
+    description: 'Codecov token'
+    required: true
+    default: ''
 runs:
   using: "composite"
   steps:
@@ -37,7 +42,7 @@ runs:
     - name: "Upload all coverage reports to codecov"
       uses: codecov/codecov-action@v4
       env:
-        CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
+        CODECOV_TOKEN: ${{ inputs.codecov-token }}
       if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       with:
         name: coverage-${{env.JOB_ID}}
