@@ -774,9 +774,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
                 msg = (
-                    "Executor reports task instance %s finished (%s) although the "
-                    "task says it's %s. (Info: %s) Was the task killed externally?"
+                    f"The executor reported that the task instance {ti} finished with state {state}, "
+                    f"but the task instance's state attribute is {ti.state}."
                 )
+                if info is not None:
+                    msg += f" Extra info: {info}"
                 self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
 
                 # Get task from the Serialized DAG
