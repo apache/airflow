@@ -811,9 +811,11 @@ class DAG(LoggingMixin):
             if task.executor:
                 try:
                     ExecutorLoader.lookup_executor_name_by_str(task.executor)
-                except AirflowException:
+                except ValueError:
                     raise ValueError(
-                        f"The specified executor {task.executor} for task {task.task_id} is not configured"
+                        f"The specified executor {task.executor} for task {task.task_id} is not "
+                        "configured. Review the core.executors Airflow configuration to add it or "
+                        "update the executor configuration for this task."
                     )
 
     def validate_setup_teardown(self):

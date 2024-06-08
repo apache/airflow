@@ -2637,13 +2637,12 @@ my_postgres_conn:
             dag.validate()
 
     def test_validate_executor_field(self):
-        with patch.object(ExecutorLoader, "lookup_executor_name_by_str") as mock_get_executor_names:
+        with patch.object(ExecutorLoader, "lookup_executor_name_by_str"):
             dag = DAG(
                 "test-dag",
                 schedule=None,
             )
 
-            mock_get_executor_names.return_value = None
             EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
             dag.validate()
 
