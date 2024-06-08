@@ -216,7 +216,8 @@ class ExecutorLoader:
         This supports the following formats:
         * by executor name for core executor
         * by ``{plugin_name}.{class_name}`` for executor from plugins
-        * by import path.
+        * by import path
+        * by class name of the Executor
         * by ExecutorName object specification
 
         :return: an instance of executor class via executor_name
