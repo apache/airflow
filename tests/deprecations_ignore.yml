@@ -314,9 +314,6 @@
 - tests/providers/google/cloud/sensors/test_cloud_composer.py::TestCloudComposerEnvironmentSensor::test_cloud_composer_existence_sensor_async_execute_failure
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_cron
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_datetime
-- tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_execute
-- tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_execute_with_gzip
-- tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_init
 - tests/providers/google/cloud/transfers/test_bigquery_to_postgres.py::TestBigQueryToPostgresOperator::test_execute_good_request_to_bq
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_copy_files_into_a_folder
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_last_modified_time
@@ -357,7 +354,6 @@
 - tests/providers/google/marketing_platform/operators/test_analytics.py::TestGoogleAnalyticsRetrieveAdsLinksListOperator::test_execute
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_do_push
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_dont_push
-- tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
 - tests/providers/microsoft/mssql/operators/test_mssql.py::TestMsSqlOperator::test_get_hook_default
 - tests/providers/microsoft/mssql/operators/test_mssql.py::TestMsSqlOperator::test_get_hook_from_conn
 - tests/providers/microsoft/psrp/hooks/test_psrp.py::TestPsrpHook::test_invoke_cmdlet_deprecated_kwargs
