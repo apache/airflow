@@ -334,6 +334,9 @@ def _run_raw_task(
             ti.handle_failure(e, test_mode, context, session=session)
             raise
         finally:
+            # Print a marker post execution for internals of post task processing
+            log.info("::group::Post task execution logs")
+
             Stats.incr(
                 f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
                 tags=ti.stats_tags,
@@ -730,9 +733,6 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             if e.code is not None and e.code != 0:
                 raise
             return None
-        finally:
-            # Print a marker post execution for internals of post task processing
-            log.info("::group::Post task execution logs")
 
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
