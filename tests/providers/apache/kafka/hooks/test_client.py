@@ -97,3 +97,4 @@ class TestKafkaAdminClientHook:
         ):
             self.hook.create_topic(topics=[("topic_name", 0, 1)])
             assert "The topic topic_name already exists" in caplog.text
+

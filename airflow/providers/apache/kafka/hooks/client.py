@@ -61,3 +61,19 @@ class KafkaAdminClientHook(KafkaBaseHook):
                     self.log.warning("The topic %s already exists.", t)
                 else:
                     raise
+
+    def delete_topic(
+        self,
+        topics: Sequence[str],
+    ) -> None:
+        """
+        Delete a topic.
+
+        :param topics: a list of topics to delete.
+        """
+        admin_client = self.get_conn
+        futures = admin_client.delete_topics(topics)
+
+        for t, f in futures.items():
+            f.result()
+            self.log.info("The topic %s has been deleted.", t)
