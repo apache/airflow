@@ -182,7 +182,17 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -191,6 +201,14 @@ class TestWorker:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
