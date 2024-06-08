@@ -95,12 +95,9 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { queryAllByTestId, getByText, queryByText } = render(
-      <DagRuns selectedTaskInstances={[]} />,
-      {
-        wrapper: TableWrapper,
-      }
-    );
+    const { queryAllByTestId, getByText, queryByText } = render(<DagRuns />, {
+      wrapper: TableWrapper,
+    });
 
     expect(queryAllByTestId("run")).toHaveLength(2);
     expect(queryAllByTestId("manual-run")).toHaveLength(1);
@@ -125,7 +122,7 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { getByText } = render(<DagRuns selectedTaskInstances={[]} />, {
+    const { getByText } = render(<DagRuns />, {
       wrapper: TableWrapper,
     });
     expect(
@@ -146,7 +143,7 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { queryAllByText } = render(<DagRuns selectedTaskInstances={[]} />, {
+    const { queryAllByText } = render(<DagRuns />, {
       wrapper: TableWrapper,
     });
     expect(
@@ -167,7 +164,7 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { queryAllByText } = render(<DagRuns selectedTaskInstances={[]} />, {
+    const { queryAllByText } = render(<DagRuns />, {
       wrapper: TableWrapper,
     });
     expect(
@@ -185,7 +182,7 @@ describe("Test DagRuns", () => {
         } as any)
     );
 
-    const { queryByTestId } = render(<DagRuns selectedTaskInstances={[]} />, {
+    const { queryByTestId } = render(<DagRuns />, {
       wrapper: TableWrapper,
     });
     expect(queryByTestId("run")).toBeNull();

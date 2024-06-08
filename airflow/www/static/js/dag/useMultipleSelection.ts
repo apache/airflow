@@ -18,17 +18,12 @@
  */
 import { useState, useCallback } from "react";
 import type { Task } from "../types";
-
-interface SelectionProps {
-  runId?: string | null;
-  taskId?: string | null;
-  mapIndex?: number;
-}
+import type { SelectionProps } from "./useSelection";
 
 const useMultipleSelection = (
-  groups: Task,
-  dagRunIds: string[],
-  openGroupIds: string[]
+  groups?: Task,
+  dagRunIds?: string[],
+  openGroupIds?: string[]
 ) => {
   const [selectedTaskInstances, setSelectedTaskInstances] = useState<
     SelectionProps[]
@@ -54,13 +49,13 @@ const useMultipleSelection = (
   );
 
   const selectedRunIds = useCallback(
-    (topRunId?: string | null, botRunId?: string | null) => {
+    (topRunId: string, botRunId: string) => {
       if (topRunId === botRunId) return [topRunId];
 
       const selectedRunIdsArr: string[] = [];
       let isInRunBlock = false;
 
-      dagRunIds.forEach((runId: string) => {
+      (dagRunIds || []).forEach((runId: string) => {
         const isBlockLimit = topRunId === runId || botRunId === runId;
         if (!isInRunBlock && isBlockLimit) {
           isInRunBlock = true;
@@ -83,11 +78,12 @@ const useMultipleSelection = (
       tasks: Task[],
       topTask: SelectionProps,
       bottomTask: SelectionProps,
-      selectedRunIdsArr: (string | null | undefined)[],
+      selectedRunIdsArr: string[],
       isInTaskBlock = false
     ) => {
       tasks.forEach((task) => {
-        const isOpen = openGroupIds.some((g) => g === task.id);
+        const isOpen =
+          !!openGroupIds && openGroupIds.some((g) => g === task.id);
         const isBlockLimit =
           task.id === topTask.taskId || task.id === bottomTask.taskId;
         if (isBlockLimit) isInTaskBlock = !isInTaskBlock;
@@ -96,7 +92,7 @@ const useMultipleSelection = (
             const isInRunBlock = selectedRunIdsArr.some(
               (runId) => runId === ti.runId
             );
-            if (isInRunBlock) {
+            if (isInRunBlock && task.id) {
               onAddSelectedTask({ runId: ti.runId, taskId: task.id });
             }
           });
@@ -126,7 +122,8 @@ const useMultipleSelection = (
       } else {
         const lastTask =
           selectedTaskInstances[selectedTaskInstances.length - 1];
-        const selectedRunIdsArr = selectedRunIds(lastTask.runId, runId);
+        const selectedRunIdsArr =
+          lastTask.runId && runId ? selectedRunIds(lastTask.runId, runId) : [];
         addTaskBlock(
           groups?.children || [],
           lastTask,

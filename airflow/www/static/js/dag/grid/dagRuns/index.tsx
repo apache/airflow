@@ -82,7 +82,7 @@ interface Props {
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
   isGridCollapsed?: boolean;
-  selectedTaskInstances: SelectionProps[];
+  selectedTaskInstances?: SelectionProps[];
 }
 
 const DagRuns = ({
@@ -174,6 +174,7 @@ const DagRuns = ({
               max={max}
               isSelected={
                 !isGridCollapsed &&
+                !!selectedTaskInstances &&
                 selectedTaskInstances.some((ti) => ti && ti.runId === run.runId)
               }
               onSelect={onSelect}

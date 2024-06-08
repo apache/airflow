@@ -29,139 +29,137 @@ import useMultipleSelection from "./useMultipleSelection";
 const Wrapper = ({ children }: PropsWithChildren) => (
   <MemoryRouter>{children}</MemoryRouter>
 );
-
-const mockGridData = {
+const mockGridData: GridData = {
   groups: {
-    id: null,
-    label: null,
     children: [
       {
-        id: "group_1",
-        label: "group_1",
+        id: "task_a",
         instances: [
           {
-            endDate: "2021-10-26T15:42:03.391939+00:00",
-            runId: "run1",
-            startDate: "2021-10-26T15:42:03.391917+00:00",
+            endDate: "2024-06-08T22:55:20.749988+00:00",
+            note: null,
+            queuedDttm: "2024-06-08T22:55:20.016931+00:00",
+            runId: "run2",
+            startDate: "2024-06-08T22:55:20.476427+00:00",
             state: "success",
-            taskId: "group_1",
+            taskId: "task_a",
             tryNumber: 1,
-            note: "abc",
           },
-        ],
-        children: [
           {
-            id: "group_1.task_1",
-            operator: "DummyOperator",
-            label: "task_1",
-            instances: [
-              {
-                endDate: "2021-10-26T15:42:03.391939+00:00",
-                runId: "run1",
-                startDate: "2021-10-26T15:42:03.391917+00:00",
-                state: "success",
-                taskId: "group_1.task_1",
-                tryNumber: 1,
-                note: "abc",
-              },
-            ],
-            children: [
-              {
-                id: "group_1.task_1.sub_task_1",
-                label: "sub_task_1",
-                extraLinks: [],
-                operator: "DummyOperator",
-                instances: [
-                  {
-                    endDate: "2021-10-26T15:42:03.391939+00:00",
-                    runId: "run1",
-                    startDate: "2021-10-26T15:42:03.391917+00:00",
-                    state: "success",
-                    taskId: "group_1.task_1.sub_task_1",
-                    tryNumber: 1,
-                    note: "abc",
-                  },
-                ],
-              },
-            ],
+            endDate: "2024-06-08T22:55:20.749826+00:00",
+            note: null,
+            queuedDttm: "2024-06-08T22:55:20.016931+00:00",
+            runId: "run1",
+            startDate: "2024-06-08T22:55:20.481613+00:00",
+            state: "success",
+            taskId: "task_a",
+            tryNumber: 1,
           },
         ],
+        isMapped: false,
+        label: "task_a",
+        operator: "PythonOperator",
       },
       {
-        id: "group_2",
-        label: "group_2",
+        id: "task_b",
         instances: [
           {
-            endDate: "2021-10-26T15:42:03.391939+00:00",
-            runId: "run1",
-            startDate: "2021-10-26T15:42:03.391917+00:00",
+            endDate: "2024-06-08T22:55:21.259311+00:00",
+            note: null,
+            queuedDttm: "2024-06-08T22:55:20.785072+00:00",
+            runId: "run2",
+            startDate: "2024-06-08T22:55:21.025994+00:00",
             state: "success",
-            taskId: "group_1",
+            taskId: "task_b",
+            tryNumber: 1,
+          },
+          {
+            endDate: "2024-06-08T22:55:21.325288+00:00",
+            note: null,
+            queuedDttm: "2024-06-08T22:55:20.868299+00:00",
+            runId: "run1",
+            startDate: "2024-06-08T22:55:21.091137+00:00",
+            state: "success",
+            taskId: "task_b",
             tryNumber: 1,
           },
         ],
-        children: [
+        isMapped: false,
+        label: "task_b",
+        operator: "PythonOperator",
+      },
+      {
+        id: "task_c",
+        instances: [
           {
-            id: "group_2.task_1",
-            operator: "DummyOperator",
-            label: "task_1",
-            instances: [
-              {
-                endDate: "2021-10-26T15:42:03.391939+00:00",
-                runId: "run1",
-                startDate: "2021-10-26T15:42:03.391917+00:00",
-                state: "success",
-                taskId: "group_1.task_1",
-                tryNumber: 1,
-              },
-            ],
-            children: [
-              {
-                id: "group_2.task_1.sub_task_1",
-                label: "sub_task_1",
-                extraLinks: [],
-                operator: "DummyOperator",
-                instances: [
-                  {
-                    endDate: "2021-10-26T15:42:03.391939+00:00",
-                    runId: "run1",
-                    startDate: "2021-10-26T15:42:03.391917+00:00",
-                    state: "success",
-                    taskId: "group_2.task_1.sub_task_1",
-                    tryNumber: 1,
-                  },
-                ],
-              },
-            ],
+            endDate: "2024-06-08T22:55:22.490842+00:00",
+            note: null,
+            queuedDttm: "2024-06-08T22:55:22.007508+00:00",
+            runId: "run2",
+            startDate: "2024-06-08T22:55:22.256614+00:00",
+            state: "success",
+            taskId: "task_c",
+            tryNumber: 1,
+          },
+          {
+            endDate: "2024-06-08T22:55:22.490833+00:00",
+            note: null,
+            queuedDttm: "2024-06-08T22:55:22.007508+00:00",
+            runId: "run1",
+            startDate: "2024-06-08T22:55:22.257144+00:00",
+            state: "success",
+            taskId: "task_c",
+            tryNumber: 1,
           },
         ],
+        isMapped: false,
+        label: "task_c",
+        operator: "PythonOperator",
       },
     ],
+    id: null,
     instances: [],
+    label: null,
   },
   dagRuns: [
     {
-      runId: "run1",
-      dataIntervalStart: "2021-11-08T21:14:19.704433+00:00",
-      dataIntervalEnd: "2021-11-08T21:17:13.206426+00:00",
-      queuedAt: "2021-11-08T21:14:19.604433+00:00",
-      startDate: "2021-11-08T21:14:19.704433+00:00",
-      endDate: "2021-11-08T21:17:13.206426+00:00",
-      state: "failed",
-      runType: "scheduled",
-      executionDate: "2021-11-08T21:14:19.704433+00:00",
-      lastSchedulingDecision: "2021-11-08T21:14:19.704433+00:00",
-      note: "myCoolDagRun",
-      externalTrigger: false,
       conf: null,
       confIsJson: false,
+      dataIntervalEnd: "2024-06-08T00:00:00+00:00",
+      dataIntervalStart: "2024-06-07T00:00:00+00:00",
+      endDate: "2024-06-08T22:55:23.156380+00:00",
+      executionDate: "2024-06-07T00:00:00+00:00",
+      externalTrigger: false,
+      lastSchedulingDecision: "2024-06-08T22:55:23.151503+00:00",
+      note: null,
+      queuedAt: "2024-06-08T22:55:19.887507+00:00",
+      runId: "run1",
+      runType: "scheduled",
+      startDate: "2024-06-08T22:55:19.928411+00:00",
+      state: "success",
+    },
+    {
+      conf: null,
+      confIsJson: false,
+      dataIntervalEnd: "2024-06-08T00:00:00+00:00",
+      dataIntervalStart: "2024-06-07T00:00:00+00:00",
+      endDate: "2024-06-08T22:55:23.134110+00:00",
+      executionDate: "2024-06-08T22:55:19.315019+00:00",
+      externalTrigger: true,
+      lastSchedulingDecision: "2024-06-08T22:55:23.128811+00:00",
+      note: null,
+      queuedAt: "2024-06-08T22:55:19.368711+00:00",
+      runId: "run2",
+      runType: "manual",
+      startDate: "2024-06-08T22:55:19.928888+00:00",
+      state: "success",
     },
   ],
   ordering: ["dataIntervalStart"],
 } as GridData;
 
-const task1 = { taskId: "group_1.task_1.sub_task_1", runId: "run1" };
-const task2 = { taskId: "group_2.task_1.sub_task_1", runId: "run1" };
+const task1 = { taskId: "task_a", runId: "run1" };
+const task2 = { taskId: "task_c", runId: "run2" };
 
 const dagRunIds = mockGridData.dagRuns.map((dr) => dr.runId);
 
@@ -183,10 +181,14 @@ describe("Test useMultipleSelection hook", () => {
 
     await act(async () => {
       result.current.onAddSelectedTask(task1);
+      result.current.onAddSelectedTask(task2);
     });
 
+    expect(result.current.selectedTaskInstances.length).toBe(2);
     expect(result.current.selectedTaskInstances[0].taskId).toBe(task1.taskId);
     expect(result.current.selectedTaskInstances[0].runId).toBe(task1.runId);
+    expect(result.current.selectedTaskInstances[1].taskId).toBe(task2.taskId);
+    expect(result.current.selectedTaskInstances[1].runId).toBe(task2.runId);
   });
 
   test("Adding block of tasks", async () => {
@@ -196,13 +198,13 @@ describe("Test useMultipleSelection hook", () => {
     );
 
     await act(async () => {
-      result.current.onAddSelectedTask(task1);
+      result.current.onAddSelectedTaskBlock(task1);
     });
 
     await act(async () => {
       result.current.onAddSelectedTaskBlock(task2);
     });
 
-    expect(result.current.selectedTaskInstances.length).toBe(3);
+    expect(result.current.selectedTaskInstances.length).toBe(6);
   });
 });

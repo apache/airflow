@@ -33,8 +33,8 @@ import useSelection from "../useSelection";
 
 interface Props {
   hoveredTaskState?: string | null;
-  openGroupIds: string[];
-  onToggleGroups: (groupIds: string[]) => void;
+  openGroupIds?: string[];
+  onToggleGroups?: (groupIds: string[]) => void;
   isGridCollapsed?: boolean;
   gridScrollRef?: React.RefObject<HTMLDivElement>;
   ganttScrollRef?: React.RefObject<HTMLDivElement>;
