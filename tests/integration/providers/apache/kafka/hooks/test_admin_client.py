@@ -49,3 +49,4 @@ class TestKafkaAdminClientHook:
         kadmin = hook.get_conn
         t = kadmin.list_topics(timeout=10).topics
         assert t.get("test_2")
+        hook.delete_topic(topics=["test_1", "test_2"])
