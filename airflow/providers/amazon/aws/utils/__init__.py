@@ -18,11 +18,10 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
-
-import sys
 
 if sys.version_info >= (3, 10):
     from importlib import metadata
