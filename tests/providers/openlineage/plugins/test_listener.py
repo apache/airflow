@@ -26,6 +26,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
@@ -67,12 +68,16 @@ def render_df():
 def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
     render_mock.return_value = render_df()
 
-    dag = DAG(
-        "test",
-        start_date=dt.datetime(2022, 1, 1),
-        user_defined_macros={"render_df": render_df},
-        params={"df": render_df()},
-    )
+    with pytest.warns(
+        RemovedInAirflow3Warning,
+        match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+    ):
+        dag = DAG(
+            "test",
+            start_date=dt.datetime(2022, 1, 1),
+            user_defined_macros={"render_df": render_df},
+            params={"df": render_df()},
+        )
     t = TemplateOperator(task_id="template_op", dag=dag, do_xcom_push=True, df=dag.param("df"))
     run_id = str(uuid.uuid1())
     dag.create_dagrun(state=State.NONE, run_id=run_id)
