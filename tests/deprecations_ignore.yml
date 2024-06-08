@@ -367,9 +367,6 @@
 - tests/providers/mysql/operators/test_mysql.py::TestMySql::test_mysql_operator_test_multi
 - tests/providers/mysql/operators/test_mysql.py::TestMySql::test_overwrite_schema
 - tests/providers/mysql/operators/test_mysql.py::test_execute_openlineage_events
-- tests/providers/openlineage/plugins/test_listener.py::test_listener_does_not_change_task_instance
-- tests/providers/openlineage/plugins/test_utils.py::test_get_dagrun_start_end
-- tests/providers/openlineage/utils/test_utils.py::test_get_custom_facets
 - tests/providers/oracle/hooks/test_oracle.py::TestOracleHookConn::test_get_conn_events
 - tests/providers/oracle/hooks/test_oracle.py::TestOracleHookConn::test_get_conn_host
 - tests/providers/oracle/hooks/test_oracle.py::TestOracleHookConn::test_get_conn_host_alternative_port
