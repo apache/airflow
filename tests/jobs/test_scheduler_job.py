@@ -402,7 +402,7 @@ class TestSchedulerJob:
             processor_subdir=None,
             msg="The executor reported that the task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
-            "finished with state failedbut the task instance's state attribute is queued."
+            "finished with state failed, but the task instance's state attribute is queued.",
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         scheduler_job.executor.callback_sink.reset_mock()
