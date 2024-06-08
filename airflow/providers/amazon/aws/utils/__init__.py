@@ -18,15 +18,10 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 from datetime import datetime, timezone
 from enum import Enum
+from importlib import metadata
 from typing import Any
-
-if sys.version_info >= (3, 10):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata  # type: ignore[no-redef]
 
 from airflow.exceptions import AirflowException
 from airflow.utils.helpers import prune_dict
