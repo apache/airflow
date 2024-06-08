@@ -1159,7 +1159,6 @@ migrateDatabaseJob:
 # rpcServer support is experimental / dev purpose only and will later be renamed
 _rpcServer:
   enabled: false
-  baseUrl: ""
 
   # Labels specific to workers objects and pods
   labels: {}

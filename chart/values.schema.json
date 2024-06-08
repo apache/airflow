@@ -4247,11 +4247,6 @@
                     "type": "boolean",
                     "default": false
                 },
-                "baseUrl": {
-                    "description": "RPC server base URL",
-                    "type": "string",
-                    "default": ""
-                },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the RPC server configmap.",
                     "type": "object",

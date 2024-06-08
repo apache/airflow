@@ -40,7 +40,10 @@ class TestRPCServerDeployment:
 
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True, "baseUrl": "https://example.com:21222/mypath/path"}},
+            values={
+                "_rpcServer": {"enabled": True},
+                "config": {"core": {"internal_api_url": "https://example.com:21222/mypath/path"}},
+            },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -56,7 +59,12 @@ class TestRPCServerDeployment:
 
     def test_should_add_path_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True, "baseUrl": "https://example.com:21222/mypath/path"}},
+            values={
+                "_rpcServer": {
+                    "enabled": True,
+                },
+                "config": {"core": {"internal_api_url": "https://example.com:21222/mypath/path"}},
+            },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
         )
 
@@ -97,8 +105,11 @@ class TestRPCServerDeployment:
     @pytest.mark.parametrize(
         "values",
         [
-            {"_rpcServer": {"enabled": True, "baseUrl": ""}},
             {"_rpcServer": {"enabled": True}},
+            {
+                "_rpcServer": {"enabled": True},
+                "config": {"core": {"internal_api_url": ""}},
+            },
         ],
     )
     def test_should_not_contain_host_header(self, values):
@@ -122,7 +133,11 @@ class TestRPCServerDeployment:
             values={
                 "_rpcServer": {
                     "enabled": True,
-                    "baseUrl": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path",
+                },
+                "config": {
+                    "core": {
+                        "internal_api_url": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path"
+                    }
                 },
             },
             show_only=["templates/rpc-server/rpc-server-deployment.yaml"],

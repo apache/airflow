@@ -189,12 +189,12 @@ spec:
               containerPort: {{ .Values.ports._rpcServer }}
           livenessProbe:
             httpGet:
-              path: {{ if .Values._rpcServer.baseUrl }}{{- with urlParse (tpl .Values._rpcServer.baseUrl .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
               port: {{ .Values.ports._rpcServer }}
-              {{- if .Values._rpcServer.baseUrl}}
+              {{- if .Values.config.core.internal_api_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values._rpcServer.baseUrl .)).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values._rpcServer.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values._rpcServer.livenessProbe.initialDelaySeconds }}
@@ -203,12 +203,12 @@ spec:
             periodSeconds: {{ .Values._rpcServer.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: {{ if .Values._rpcServer.baseUrl }}{{- with urlParse (tpl .Values._rpcServer.baseUrl .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
               port: {{ .Values.ports._rpcServer }}
-              {{- if .Values._rpcServer.baseUrl }}
+              {{- if .Values.config.core.internal_api_url }}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values._rpcServer.baseUrl .)).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values._rpcServer.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values._rpcServer.readinessProbe.initialDelaySeconds }}
@@ -217,12 +217,12 @@ spec:
             periodSeconds: {{ .Values._rpcServer.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: {{ if .Values._rpcServer.baseUrl }}{{- with urlParse (tpl .Values._rpcServer.baseUrl .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
               port: {{ .Values.ports._rpcServer }}
-              {{- if .Values._rpcServer.baseUrl}}
+              {{- if .Values.config.core.internal_api_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values._rpcServer.baseUrl .)).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values._rpcServer.startupProbe.scheme | default "http" }}
             timeoutSeconds: {{ .Values._rpcServer.startupProbe.timeoutSeconds }}
