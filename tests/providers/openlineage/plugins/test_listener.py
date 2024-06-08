@@ -80,7 +80,7 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
     ti.check_and_change_state_before_execution()  # make listener hook on running event
     ti._run_raw_task()
 
-    # check if task returns the same DataFrameg
+    # check if task returns the same DataFrame
     pd.testing.assert_frame_equal(xcom_push_mock.call_args.kwargs["value"], render_df())
 
     # check if render_template method always get the same unrendered field
