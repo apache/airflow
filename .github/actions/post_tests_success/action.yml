@@ -36,6 +36,8 @@ runs:
         mv ./files/coverage*.xml ./files/coverage-reposts/ || true
     - name: "Upload all coverage reports to codecov"
       uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{secrets.CODECOV_TOKEN}}
       if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       with:
         name: coverage-${{env.JOB_ID}}
