@@ -98,3 +98,12 @@ class TestKafkaAdminClientHook:
             self.hook.create_topic(topics=[("topic_name", 0, 1)])
             assert "The topic topic_name already exists" in caplog.text
 
+    @patch(
+        "airflow.providers.apache.kafka.hooks.client.AdminClient",
+    )
+    def test_delete_topic(self, admin_client):
+        mock_f = MagicMock()
+        admin_client.return_value.delete_topics.return_value = {"topic_name": mock_f}
+        self.hook.delete_topic(topics=["topic_name"])
+        admin_client.return_value.delete_topics.assert_called_with(["topic_name"])
+        mock_f.result.assert_called_once()
