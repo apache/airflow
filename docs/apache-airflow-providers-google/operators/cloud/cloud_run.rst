@@ -70,7 +70,7 @@ A simple service configuration can look as follows:
 
 
 With this configuration we can create the service:
-:class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceCreateJobOperator`
+:class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunCreateServiceOperator`
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
