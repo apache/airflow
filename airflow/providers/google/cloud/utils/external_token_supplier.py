@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import abc
 import time
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -46,7 +47,7 @@ def cache_token_decorator(get_subject_token_method):
     cache = {}
 
     @wraps(get_subject_token_method)
-    def wrapper(supplier_instance: SubjectTokenSupplier, *args, **kwargs) -> str:
+    def wrapper(supplier_instance: CacheTokenSupplier, *args, **kwargs) -> str:
         """Obeys the interface set by ``SubjectTokenSupplier`` for ``get_subject_token`` methods.
 
         :param supplier_instance: the SubjectTokenSupplier instance whose get_subject_token method is being decorated
@@ -54,12 +55,7 @@ def cache_token_decorator(get_subject_token_method):
         """
         nonlocal cache
 
-        cache_key = (
-            supplier_instance.oidc_issuer_url
-            + supplier_instance.client_id
-            + supplier_instance.client_secret
-            + ",".join(sorted(supplier_instance.extra_params_kwargs))
-        )
+        cache_key = supplier_instance.get_subject_key()
         token: dict[str, str | float] = {}
 
         if cache_key not in cache or cache[cache_key]["expiration_time"] < time.monotonic():
@@ -85,7 +81,26 @@ def cache_token_decorator(get_subject_token_method):
     return wrapper
 
 
-class ClientCredentialsGrantFlowTokenSupplier(LoggingMixin, SubjectTokenSupplier):
+class CacheTokenSupplier(LoggingMixin, SubjectTokenSupplier):
+    """
+    A superclass for all Subject Token Supplier classes that wish to implement a caching mechanism.
+
+    Child classes must implement the ``get_subject_key`` method to generate a string that serves as the cache key,
+    ensuring that tokens are shared appropriately among instances.
+
+    Methods:
+        get_subject_key: Abstract method to be implemented by child classes. It should return a string that serves as the cache key.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    @abc.abstractmethod
+    def get_subject_key(self) -> str:
+        raise NotImplementedError("")
+
+
+class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
     """
     Class that retrieves an OIDC token from an external IdP using OAuth2.0 Client Credentials Grant flow.
 
@@ -144,3 +159,17 @@ class ClientCredentialsGrantFlowTokenSupplier(LoggingMixin, SubjectTokenSupplier
             raise RefreshError(f"No access token returned from {self.oidc_issuer_url}")
 
         return response_dict["access_token"], response_dict["expires_in"]
+
+    def get_subject_key(self) -> str:
+        """
+        Create a cache key using the OIDC issuer URL, client ID, client secret and additional parameters.
+
+        Instances with the same credentials will share tokens.
+        """
+        cache_key = (
+            self.oidc_issuer_url
+            + self.client_id
+            + self.client_secret
+            + ",".join(sorted(self.extra_params_kwargs))
+        )
+        return cache_key
