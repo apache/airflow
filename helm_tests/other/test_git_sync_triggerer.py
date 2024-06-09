@@ -48,10 +48,7 @@ class TestGitSyncTriggerer:
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "containerName": "git-sync-test",
                         "sshKey": "dummy-ssh-key",
-                        "knownHosts": None,
-                        "branch": "test-branch",
                     }
                 }
             },

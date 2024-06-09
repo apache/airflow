@@ -218,8 +218,6 @@ class TestGitSyncSchedulerTest:
                     "gitSync": {
                         "enabled": True,
                         "sshKey": "dummy-ssh-key",
-                        "knownHosts": None,
-                        "branch": "test-branch",
                     }
                 }
             },
