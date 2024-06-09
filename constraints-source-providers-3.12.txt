@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-08T17:58:59.127483
+# This constraints file was automatically generated on 2024-06-09T11:31:23.955171
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -295,7 +295,7 @@ json-merge-patch==0.2
 jsondiff==2.0.0
 jsonpatch==1.33
 jsonpath-ng==1.6.1
-jsonpickle==3.0.4
+jsonpickle==3.2.1
 jsonpointer==2.4
 jsonschema-path==0.3.2
 jsonschema-specifications==2023.12.1
