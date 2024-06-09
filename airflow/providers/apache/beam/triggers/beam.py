@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Sequence
+import contextlib
+from typing import IO, Any, AsyncIterator, Sequence
 
 from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import ListJobsRequest
@@ -25,6 +26,7 @@ from google.cloud.dataflow_v1beta3 import ListJobsRequest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamAsyncHook
 from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -166,7 +168,7 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         project_id: str | None = None,
         location: str | None = None,
         job_name: str | None = None,
-        gcp_conn_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_sleep: int = 10,
         cancel_timeout: int | None = None,
@@ -233,6 +235,22 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
                 if is_running:
                     await asyncio.sleep(self.poll_sleep)
         try:
+            # Get the current running event loop to manage I/O operations asynchronously
+            loop = asyncio.get_running_loop()
+            if self.jar.lower().startswith("gs://"):
+                gcs_hook = GCSHook(self.gcp_conn_id)
+                # Running synchronous `enter_context()` method in a separate
+                # thread using the default executor `None`. The `run_in_executor()` function returns the
+                # file object, which is created using gcs function `provide_file()`, asynchronously.
+                # This means we can perform asynchronous operations with this file.
+                create_tmp_file_call = gcs_hook.provide_file(object_url=self.jar)
+                tmp_gcs_file: IO[str] = await loop.run_in_executor(
+                    None,
+                    contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                    create_tmp_file_call,
+                )
+                self.jar = tmp_gcs_file.name
+
             return_code = await hook.start_java_pipeline_async(
                 variables=self.variables, jar=self.jar, job_class=self.job_class
             )

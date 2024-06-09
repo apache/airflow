@@ -20,10 +20,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.api_connexion.exceptions import PermissionDenied
-from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab, _requires_access_fab
 from airflow.security.permissions import ACTION_CAN_READ, RESOURCE_DAG
-from airflow.www import app as application
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+permissions = [(ACTION_CAN_READ, RESOURCE_DAG)]
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.api_connexion.exceptions import PermissionDenied
+    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab, _requires_access_fab
+
+from airflow.www import app as application  # noqa: E402
 
 
 @pytest.fixture(scope="module")

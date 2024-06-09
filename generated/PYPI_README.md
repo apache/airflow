@@ -54,14 +54,14 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)         | Stable version (2.9.1)      |
-|-------------|----------------------------|-----------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11, 3.12 | 3.8, 3.9, 3.10, 3.11, 3.12  |
-| Platform    | AMD64/ARM64(\*)            | AMD64/ARM64(\*)             |
-| Kubernetes  | 1.26, 1.27, 1.28, 1.29     | 1.26, 1.27, 1.28, 1.29      |
-| PostgreSQL  | 12, 13, 14, 15, 16         | 12, 13, 14, 15, 16          |
-| MySQL       | 8.0, 8.4, Innovation       | 8.0, Innovation             |
-| SQLite      | 3.15.0+                    | 3.15.0+                     |
+|             | Main version (dev)           | Stable version (2.9.1)      |
+|-------------|------------------------------|-----------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11, 3.12   | 3.8, 3.9, 3.10, 3.11, 3.12  |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)             |
+| Kubernetes  | 1.26, 1.27, 1.28, 1.29, 1.30 | 1.26, 1.27, 1.28, 1.29      |
+| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16          |
+| MySQL       | 8.0, 8.4, Innovation         | 8.0, Innovation             |
+| SQLite      | 3.15.0+                      | 3.15.0+                     |
 
 \* Experimental
 

@@ -678,6 +678,20 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.failed_triggers.append((new_id, e))
                 continue
 
+            # If new_trigger_orm.task_instance is None, this means the TaskInstance
+            # row was updated by either Trigger.submit_event or Trigger.submit_failure
+            # and can happen when a single trigger Job is being run on multiple TriggerRunners
+            # in a High-Availability setup.
+            if new_trigger_orm.task_instance is None:
+                self.log.info(
+                    (
+                        "TaskInstance for Trigger ID %s is None. It was likely updated by another trigger job. "
+                        "Skipping trigger instantiation."
+                    ),
+                    new_id,
+                )
+                continue
+
             try:
                 new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
             except TypeError as err:

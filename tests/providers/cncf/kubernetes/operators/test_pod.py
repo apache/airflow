@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
@@ -25,7 +26,7 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
-from kubernetes.client.rest import ApiException
+from kubernetes.client.exceptions import ApiException
 from urllib3 import HTTPResponse
 
 from airflow.exceptions import (
@@ -358,7 +359,8 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            # Try number behaves differently on different versions of Airflow
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "run_id": "test",
             "airflow_kpo_in_cluster": str(in_cluster),
@@ -374,7 +376,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "run_id": "test",
             "map_index": "10",
@@ -884,7 +886,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -920,7 +922,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -991,7 +993,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1061,7 +1063,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1112,7 +1114,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "0",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1620,29 +1622,35 @@ class TestKubernetesPodOperator:
             "pod": remote_pod_mock,
         }
 
+    @pytest.mark.parametrize("get_logs", [True, False])
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
     def test_await_container_completion_refreshes_properties_on_exception(
-        self, mock_await_container_completion
+        self, mock_await_container_completion, fetch_requested_container_logs, get_logs
     ):
-        container_name = "base"
-        k = KubernetesPodOperator(
-            task_id="task",
-        )
+        k = KubernetesPodOperator(task_id="task", get_logs=get_logs)
         pod = self.run_pod(k)
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
 
         # no exception doesn't update properties
-        k.await_container_completion(pod, container_name=container_name)
+        k.await_pod_completion(pod)
         assert client == k.client
         assert hook == k.hook
         assert pod_manager == k.pod_manager
 
         # exception refreshes properties
         mock_await_container_completion.side_effect = [ApiException(status=401), mock.DEFAULT]
-        k.await_container_completion(pod, container_name=container_name)
-        mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=container_name)] * 3
-        )
+        fetch_requested_container_logs.side_effect = [ApiException(status=401), mock.DEFAULT]
+        k.await_pod_completion(pod)
+
+        if get_logs:
+            fetch_requested_container_logs.assert_has_calls(
+                [mock.call(pod=pod, containers=k.container_logs, follow_logs=True)] * 3
+            )
+        else:
+            mock_await_container_completion.assert_has_calls(
+                [mock.call(pod=pod, container_name=k.base_container_name)] * 3
+            )
         assert client != k.client
         assert hook != k.hook
         assert pod_manager != k.pod_manager
@@ -1661,21 +1669,89 @@ class TestKubernetesPodOperator:
     def test_await_container_completion_retries_on_specific_exception(
         self, mock_await_container_completion, side_effect, exception_type, expect_exc
     ):
-        container_name = "base"
         k = KubernetesPodOperator(
             task_id="task",
+            get_logs=False,
         )
         pod = self.run_pod(k)
         mock_await_container_completion.side_effect = side_effect
         if expect_exc:
-            k.await_container_completion(pod, container_name=container_name)
+            k.await_pod_completion(pod)
         else:
             with pytest.raises(exception_type):
-                k.await_container_completion(pod, container_name=container_name)
+                k.await_pod_completion(pod)
         expected_call_count = min(len(side_effect), 3)  # retry max 3 times
         mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=container_name)] * expected_call_count
+            [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
         )
+
+    @pytest.mark.parametrize(
+        "on_finish_action", [OnFinishAction.KEEP_POD, OnFinishAction.DELETE_SUCCEEDED_POD]
+    )
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods__label_patched_if_action_is_not_delete_pod(
+        self,
+        process_pod_deletion_mock,
+        patch_already_checked_mock,
+        on_finish_action,
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=on_finish_action,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": now}
+        pod_2.status = {"start_time": now + datetime.timedelta(seconds=60)}
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_not_called()
+        assert result.metadata.name == pod_2.metadata.name
+
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods__pod_removed_if_delete_pod(
+        self, process_pod_deletion_mock, patch_already_checked_mock
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=OnFinishAction.DELETE_POD,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": now}
+        pod_2.status = {"start_time": now + datetime.timedelta(seconds=60)}
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_called_once_with(pod_1)
+        assert result.metadata.name == pod_2.metadata.name
 
 
 class TestSuppress:
@@ -2060,6 +2136,28 @@ class TestKubernetesPodOperatorAsync:
             post_complete_action.assert_called_once()
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
+
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(KUB_OP_PATH.format("extract_xcom"))
+    @patch(HOOK_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    def test_async_write_logs_handler_api_exception(
+        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, mocked_client
+    ):
+        mocked_client.read_namespaced_pod_log.side_effect = ApiException(status=404)
+        mock_manager.await_pod_completion.side_effect = ApiException(status=404)
+        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        mock_extract_xcom.return_value = "{}"
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=True,
+            deferrable=True,
+        )
+        self.run_pod_async(k)
+        post_complete_action.assert_not_called()
 
     @pytest.mark.parametrize(
         "log_pod_spec_on_failure,expect_match",

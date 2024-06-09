@@ -22,7 +22,7 @@ The regular Breeze development tasks are available as top-level commands. Those 
 used during the development, that's why they are available without any sub-command. More advanced
 commands are separated to sub-commands.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Entering Breeze shell
 ---------------------
@@ -589,6 +589,24 @@ This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the
 `Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
+
+Auto-generating migration files
+-------------------------------
+After making changes in the ORM models, you need to generate migration files. You can do this by running
+the following command:
+
+.. code-block:: bash
+
+    breeze generate-migration-file -m "Your migration message"
+
+This command will generate a migration file in the ``airflow/migrations/versions`` directory.
+
+These are all available flags of ``generate-migration-file`` command:
+
+.. image:: ./images/output_generate-migration-file.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_generate-migration-file.svg
+  :width: 100%
+  :alt: Breeze generate-migration-file
 
 ------
 

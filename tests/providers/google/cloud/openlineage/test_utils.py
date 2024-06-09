@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from unittest.mock import MagicMock
+
 import pytest
 from google.cloud.bigquery.table import Table
 from openlineage.client.facet import (
@@ -28,7 +31,10 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Dataset
 
-from airflow.providers.google.cloud.utils import openlineage
+from airflow.providers.google.cloud.openlineage.utils import (
+    get_facets_from_bq_table,
+    get_identity_column_lineage_facet,
+)
 
 TEST_DATASET = "test-dataset"
 TEST_TABLE_ID = "test-table-id"
@@ -50,6 +56,24 @@ TEST_EMPTY_TABLE_API_REPR = {
 TEST_EMPTY_TABLE: Table = Table.from_api_repr(TEST_EMPTY_TABLE_API_REPR)
 
 
+def read_file_json(file):
+    with open(file=file) as f:
+        return json.loads(f.read())
+
+
+class TableMock(MagicMock):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.inputs = [
+            read_file_json("tests/providers/google/cloud/utils/table_details.json"),
+            read_file_json("tests/providers/google/cloud/utils/out_table_details.json"),
+        ]
+
+    @property
+    def _properties(self):
+        return self.inputs.pop()
+
+
 def test_get_facets_from_bq_table():
     expected_facets = {
         "schema": SchemaDatasetFacet(
@@ -60,7 +84,7 @@ def test_get_facets_from_bq_table():
         ),
         "documentation": DocumentationDatasetFacet(description="Table description."),
     }
-    result = openlineage.get_facets_from_bq_table(TEST_TABLE)
+    result = get_facets_from_bq_table(TEST_TABLE)
     assert result == expected_facets
 
 
@@ -69,7 +93,7 @@ def test_get_facets_from_empty_bq_table():
         "schema": SchemaDatasetFacet(fields=[]),
         "documentation": DocumentationDatasetFacet(description=""),
     }
-    result = openlineage.get_facets_from_bq_table(TEST_EMPTY_TABLE)
+    result = get_facets_from_bq_table(TEST_EMPTY_TABLE)
     assert result == expected_facets
 
 
@@ -115,9 +139,7 @@ def test_get_identity_column_lineage_facet_multiple_input_datasets():
             ),
         }
     )
-    result = openlineage.get_identity_column_lineage_facet(
-        field_names=field_names, input_datasets=input_datasets
-    )
+    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
     assert result == expected_facet
 
 
@@ -128,9 +150,7 @@ def test_get_identity_column_lineage_facet_no_field_names():
         Dataset(namespace="gs://second_bucket", name="dir2"),
     ]
     expected_facet = ColumnLineageDatasetFacet(fields={})
-    result = openlineage.get_identity_column_lineage_facet(
-        field_names=field_names, input_datasets=input_datasets
-    )
+    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
     assert result == expected_facet
 
 
@@ -139,4 +159,4 @@ def test_get_identity_column_lineage_facet_no_input_datasets():
     input_datasets = []
 
     with pytest.raises(ValueError):
-        openlineage.get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+        get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)

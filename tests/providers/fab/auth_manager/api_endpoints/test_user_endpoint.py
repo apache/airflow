@@ -22,14 +22,19 @@ import pytest
 from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.providers.fab.auth_manager.models import User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.models import User
+
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_role, delete_user
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
 
 DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 

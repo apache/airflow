@@ -32,6 +32,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
     option_image_name,
@@ -206,6 +207,9 @@ def _run_test(
         )
     )
     run_cmd.extend(list(extra_pytest_args))
+    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
+    # Which might be the case if we are ignoring some providers during compatibility checks
+    run_cmd = [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
@@ -284,13 +288,13 @@ def _run_tests_in_pool(
     sorting_order = [
         "Providers",
         "Providers[-amazon,google]",
+        "Other",
         "Core",
+        "PythonVenv",
         "WWW",
         "CLI",
-        "Other",
         "Serialization",
         "Always",
-        "PythonVenv",
     ]
     sort_key = {item: i for i, item in enumerate(sorting_order)}
     # Put the test types in the order we want them to run
@@ -430,7 +434,7 @@ option_skip_provider_tests = click.option(
 )
 option_skip_providers = click.option(
     "--skip-providers",
-    help="Coma separated list of providers to skip when running tests",
+    help="Space-separated list of provider ids to skip when running tests",
     type=str,
     default="",
     envvar="SKIP_PROVIDERS",
@@ -496,6 +500,7 @@ option_force_sa_warnings = click.option(
 @option_enable_coverage
 @option_excluded_parallel_test_types
 @option_force_sa_warnings
+@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_image_tag_for_running
@@ -552,6 +557,7 @@ def command_for_tests(**kwargs):
 @option_enable_coverage
 @option_excluded_parallel_test_types
 @option_forward_credentials
+@option_force_lowest_dependencies
 @option_github_repository
 @option_image_tag_for_running
 @option_include_success_outputs
@@ -610,6 +616,7 @@ def command_for_db_tests(**kwargs):
 @option_enable_coverage
 @option_excluded_parallel_test_types
 @option_forward_credentials
+@option_force_lowest_dependencies
 @option_github_repository
 @option_image_tag_for_running
 @option_include_success_outputs
@@ -662,6 +669,7 @@ def _run_test_command(
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
     forward_credentials: bool,
+    force_lowest_dependencies: bool,
     github_repository: str,
     image_tag: str | None,
     include_success_outputs: bool,
@@ -711,6 +719,7 @@ def _run_test_command(
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
         force_sa_warnings=force_sa_warnings,
+        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
@@ -749,7 +758,7 @@ def _run_test_command(
     if skip_providers:
         ignored_path_list = [
             f"--ignore=tests/providers/{provider_id.replace('.','/')}"
-            for provider_id in skip_providers.split(",")
+            for provider_id in skip_providers.split(" ")
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:

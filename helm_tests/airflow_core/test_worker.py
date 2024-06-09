@@ -82,6 +82,21 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
@@ -112,6 +127,20 @@ class TestWorker:
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "release-name-test-init-container"} == jmespath.search(
+            "spec.template.spec.initContainers[-1]", docs[0]
+        )
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -1000,6 +1029,22 @@ class TestWorkerKedaAutoScaler:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+    def test_mysql_db_backend_keda(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql"}},
+                "workers": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert "1" == jmespath.search("spec.triggers[0].metadata.queryValue", docs[0])
+        assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
+
+        assert "KEDA_DB_CONN" == jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0])
+        assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
 
 
 class TestWorkerHPAAutoScaler:

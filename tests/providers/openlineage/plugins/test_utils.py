@@ -58,7 +58,7 @@ class SafeStrDict(dict):
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
-    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule_interval="@once")
+    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule="@once")
     AIRFLOW_DAG.bulk_write_to_db([dag])
     dag_model = DagModel.get_dagmodel(dag.dag_id)
     run_id = str(uuid.uuid1())

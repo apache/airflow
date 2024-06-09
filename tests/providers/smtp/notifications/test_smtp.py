@@ -31,11 +31,15 @@ from airflow.providers.smtp.notifications.smtp import (
     send_smtp_notification,
 )
 from airflow.utils import timezone
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
 SMTP_API_DEFAULT_CONN_ID = SmtpHook.default_conn_name
+
+
+NUM_TRY = 0 if AIRFLOW_V_2_10_PLUS else 1
 
 
 class TestSmtpNotifier:
@@ -129,7 +133,7 @@ class TestSmtpNotifier:
             from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
             subject="DAG dag - Task op - Run ID test in State None",
-            html_content="""<!DOCTYPE html>\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n        <meta name="viewport" content="width=device-width">\n    </head>\n<body>\n    <table role="presentation">\n        \n        <tr>\n            <td>Run ID:</td>\n            <td>test</td>\n        </tr>\n        <tr>\n            <td>Try:</td>\n            <td>0 of 1</td>\n        </tr>\n        <tr>\n            <td>Task State:</td>\n            <td>None</td>\n        </tr>\n        <tr>\n            <td>Host:</td>\n            <td></td>\n        </tr>\n        <tr>\n            <td>Log Link:</td>\n            <td><a href="http://localhost:8080/dags/dag/grid?dag_run_id=test&task_id=op&map_index=-1&tab=logs" style="text-decoration:underline;">http://localhost:8080/dags/dag/grid?dag_run_id=test&task_id=op&map_index=-1&tab=logs</a></td>\n        </tr>\n        <tr>\n            <td>Mark Success Link:</td>\n            <td><a href="http://localhost:8080/confirm?task_id=op&dag_id=dag&dag_run_id=test&upstream=false&downstream=false&state=success" style="text-decoration:underline;">http://localhost:8080/confirm?task_id=op&dag_id=dag&dag_run_id=test&upstream=false&downstream=false&state=success</a></td>\n        </tr>\n        \n    </table>\n</body>\n</html>""",
+            html_content=mock.ANY,
             smtp_conn_id="smtp_default",
             files=None,
             cc=None,
@@ -138,6 +142,8 @@ class TestSmtpNotifier:
             mime_charset="utf-8",
             custom_headers=None,
         )
+        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        assert f"{NUM_TRY} of 1" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_defaults_sla(self, mock_smtphook_hook, dag_maker):
@@ -159,7 +165,7 @@ class TestSmtpNotifier:
             from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
             subject="SLA Missed for DAG test_notifier - Task op",
-            html_content="""<!DOCTYPE html>\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n        <meta name="viewport" content="width=device-width">\n    </head>\n<body>\n    <table role="presentation">\n        \n        <tr>\n            <td>Dag:</td>\n            <td>test_notifier</td>\n        </tr>\n        <tr>\n            <td>Task List:</td>\n            <td>[]</td>\n        </tr>\n        <tr>\n            <td>Blocking Task List:</td>\n            <td>[]</td>\n        </tr>\n        <tr>\n            <td>SLAs:</td>\n            <td>[(\'test_notifier\', \'op\', \'2018-01-01T00:00:00+00:00\')]</td>\n        </tr>\n        <tr>\n            <td>Blocking TI\'s</td>\n            <td>[]</td>\n        </tr>\n        \n    </table>\n</body>\n</html>""",
+            html_content=mock.ANY,
             smtp_conn_id="smtp_default",
             files=None,
             cc=None,
@@ -168,6 +174,8 @@ class TestSmtpNotifier:
             mime_charset="utf-8",
             custom_headers=None,
         )
+        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        assert "Task List:" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):

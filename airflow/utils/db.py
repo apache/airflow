@@ -118,7 +118,7 @@ _REVISION_HEADS_MAP = {
     "2.8.1": "88344c1d9134",
     "2.9.0": "1949afb29106",
     "2.9.2": "686269002441",
-    "2.10.0": "677fdbb7fc54",
+    "2.10.0": "c4602ba06b4b",
 }
 
 
@@ -424,7 +424,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="kafka_default",
             conn_type="kafka",
-            extra=json.dumps({"bootstrap.servers": "broker:29092"}),
+            extra=json.dumps({"bootstrap.servers": "broker:29092", "group.id": "my-group"}),
         ),
         session,
     )

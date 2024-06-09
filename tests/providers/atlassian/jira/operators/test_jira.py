@@ -24,6 +24,7 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.operators.jira import JiraOperator
 from airflow.utils import timezone
+from tests.test_utils.compat import connection_as_json
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MINIMAL_TEST_TICKET = {
@@ -49,13 +50,15 @@ class TestJiraOperator:
     def setup_test_cases(self, monkeypatch):
         monkeypatch.setenv(
             "AIRFLOW_CONN_JIRA_DEFAULT",
-            Connection(
-                conn_id="jira_default",
-                conn_type="jira",
-                host="https://localhost/jira/",
-                port=443,
-                extra='{"verify": false, "project": "AIRFLOW"}',
-            ).as_json(),
+            connection_as_json(
+                Connection(
+                    conn_id="jira_default",
+                    conn_type="jira",
+                    host="https://localhost/jira/",
+                    port=443,
+                    extra='{"verify": false, "project": "AIRFLOW"}',
+                )
+            ),
         )
         with mock.patch("airflow.models.baseoperator.BaseOperator.xcom_push", return_value=None) as m:
             self.mocked_xcom_push = m

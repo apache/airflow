@@ -40,7 +40,6 @@ class KafkaBaseHook(BaseHook):
         """Initialize our Base."""
         super().__init__()
         self.kafka_config_id = kafka_config_id
-        self.get_conn
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -49,7 +48,7 @@ class KafkaBaseHook(BaseHook):
             "hidden_fields": ["schema", "login", "password", "port", "host"],
             "relabeling": {"extra": "Config Dict"},
             "placeholders": {
-                "extra": '{"bootstrap.servers": "localhost:9092"}',
+                "extra": '{"bootstrap.servers": "localhost:9092", "group.id": "my-group"}',
             },
         }
 
@@ -74,6 +73,6 @@ class KafkaBaseHook(BaseHook):
             if t:
                 return True, "Connection successful."
         except Exception as e:
-            False, str(e)
+            return False, str(e)
 
         return False, "Failed to establish connection."

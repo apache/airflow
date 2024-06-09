@@ -23,7 +23,7 @@ from uuid import UUID
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
     EmrServerlessCloudWatchLogsLink,
@@ -41,6 +41,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
 )
 from airflow.utils.types import NOTSET
+from tests.test_utils.compat import deserialize_operator
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -335,28 +336,51 @@ class TestEmrServerlessCreateApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected",
+        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected, warning",
         [
-            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25]),
-            (30, 10, NOTSET, NOTSET, [30, 10]),
-            (NOTSET, NOTSET, 30 * 15, 15, [15, 30]),
-            (10, 20, 30, 40, [10, 20]),
+            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25], False),
+            (30, 10, NOTSET, NOTSET, [30, 10], False),
+            (NOTSET, NOTSET, 30 * 15, 15, [15, 30], True),
+            (10, 20, 30, 40, [10, 20], True),
         ],
     )
     def test_create_application_waiter_params(
-        self, waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected
+        self,
+        waiter_delay,
+        waiter_max_attempts,
+        waiter_countdown,
+        waiter_check_interval_seconds,
+        expected,
+        warning,
     ):
-        operator = EmrServerlessCreateApplicationOperator(
-            task_id=task_id,
-            release_label=release_label,
-            job_type=job_type,
-            client_request_token=client_request_token,
-            config=config,
-            waiter_delay=waiter_delay,
-            waiter_max_attempts=waiter_max_attempts,
-            waiter_countdown=waiter_countdown,
-            waiter_check_interval_seconds=waiter_check_interval_seconds,
-        )
+        if warning:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="The parameter waiter_.* has been deprecated to standardize naming conventions.  Please use waiter_.* instead. .*In the future this will default to None and defer to the waiter's default value.",
+            ):
+                operator = EmrServerlessCreateApplicationOperator(
+                    task_id=task_id,
+                    release_label=release_label,
+                    job_type=job_type,
+                    client_request_token=client_request_token,
+                    config=config,
+                    waiter_delay=waiter_delay,
+                    waiter_max_attempts=waiter_max_attempts,
+                    waiter_countdown=waiter_countdown,
+                    waiter_check_interval_seconds=waiter_check_interval_seconds,
+                )
+        else:
+            operator = EmrServerlessCreateApplicationOperator(
+                task_id=task_id,
+                release_label=release_label,
+                job_type=job_type,
+                client_request_token=client_request_token,
+                config=config,
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+                waiter_countdown=waiter_countdown,
+                waiter_check_interval_seconds=waiter_check_interval_seconds,
+            )
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
@@ -754,28 +778,51 @@ class TestEmrServerlessStartJobOperator:
         )
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected",
+        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected, warning",
         [
-            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25]),
-            (30, 10, NOTSET, NOTSET, [30, 10]),
-            (NOTSET, NOTSET, 30 * 15, 15, [15, 30]),
-            (10, 20, 30, 40, [10, 20]),
+            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25], False),
+            (30, 10, NOTSET, NOTSET, [30, 10], False),
+            (NOTSET, NOTSET, 30 * 15, 15, [15, 30], True),
+            (10, 20, 30, 40, [10, 20], True),
         ],
     )
     def test_start_job_waiter_params(
-        self, waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected
+        self,
+        waiter_delay,
+        waiter_max_attempts,
+        waiter_countdown,
+        waiter_check_interval_seconds,
+        expected,
+        warning,
     ):
-        operator = EmrServerlessStartJobOperator(
-            task_id=task_id,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=job_driver,
-            configuration_overrides=configuration_overrides,
-            waiter_delay=waiter_delay,
-            waiter_max_attempts=waiter_max_attempts,
-            waiter_countdown=waiter_countdown,
-            waiter_check_interval_seconds=waiter_check_interval_seconds,
-        )
+        if warning:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="The parameter waiter_.* has been deprecated to standardize naming conventions.  Please use waiter_.* instead. .*In the future this will default to None and defer to the waiter's default value.",
+            ):
+                operator = EmrServerlessStartJobOperator(
+                    task_id=task_id,
+                    application_id=application_id,
+                    execution_role_arn=execution_role_arn,
+                    job_driver=job_driver,
+                    configuration_overrides=configuration_overrides,
+                    waiter_delay=waiter_delay,
+                    waiter_max_attempts=waiter_max_attempts,
+                    waiter_countdown=waiter_countdown,
+                    waiter_check_interval_seconds=waiter_check_interval_seconds,
+                )
+        else:
+            operator = EmrServerlessStartJobOperator(
+                task_id=task_id,
+                application_id=application_id,
+                execution_role_arn=execution_role_arn,
+                job_driver=job_driver,
+                configuration_overrides=configuration_overrides,
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+                waiter_countdown=waiter_countdown,
+                waiter_check_interval_seconds=waiter_check_interval_seconds,
+            )
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
@@ -1119,7 +1166,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
         ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = BaseSerialization.deserialize(ser_operator)
+        deser_operator = deserialize_operator(ser_operator)
 
         assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
@@ -1140,7 +1187,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
         ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = BaseSerialization.deserialize(ser_operator)
+        deser_operator = deserialize_operator(ser_operator)
 
         assert deser_operator.operator_extra_links == [
             EmrServerlessS3LogsLink(),
@@ -1208,25 +1255,45 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected",
+        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected, warning",
         [
-            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25]),
-            (30, 10, NOTSET, NOTSET, [30, 10]),
-            (NOTSET, NOTSET, 30 * 15, 15, [15, 30]),
-            (10, 20, 30, 40, [10, 20]),
+            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25], False),
+            (30, 10, NOTSET, NOTSET, [30, 10], False),
+            (NOTSET, NOTSET, 30 * 15, 15, [15, 30], True),
+            (10, 20, 30, 40, [10, 20], True),
         ],
     )
     def test_delete_application_waiter_params(
-        self, waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected
+        self,
+        waiter_delay,
+        waiter_max_attempts,
+        waiter_countdown,
+        waiter_check_interval_seconds,
+        expected,
+        warning,
     ):
-        operator = EmrServerlessDeleteApplicationOperator(
-            task_id=task_id,
-            application_id=application_id,
-            waiter_delay=waiter_delay,
-            waiter_max_attempts=waiter_max_attempts,
-            waiter_countdown=waiter_countdown,
-            waiter_check_interval_seconds=waiter_check_interval_seconds,
-        )
+        if warning:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="The parameter waiter_.* has been deprecated to standardize naming conventions.  Please use waiter_.* instead. .*In the future this will default to None and defer to the waiter's default value.",
+            ):
+                operator = EmrServerlessDeleteApplicationOperator(
+                    task_id=task_id,
+                    application_id=application_id,
+                    waiter_delay=waiter_delay,
+                    waiter_max_attempts=waiter_max_attempts,
+                    waiter_countdown=waiter_countdown,
+                    waiter_check_interval_seconds=waiter_check_interval_seconds,
+                )
+        else:
+            operator = EmrServerlessDeleteApplicationOperator(
+                task_id=task_id,
+                application_id=application_id,
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+                waiter_countdown=waiter_countdown,
+                waiter_check_interval_seconds=waiter_check_interval_seconds,
+            )
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]

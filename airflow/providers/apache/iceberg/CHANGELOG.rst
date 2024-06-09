@@ -29,4 +29,4 @@ Changelog
 1.0.0
 .....
 
-Initial version of the provider.
+* ``Add Apache Iceberg provider (#39155)``
