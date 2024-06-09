@@ -49,7 +49,7 @@ def _assert_created_services_xcom(ti):
     assert service1_name in service1_dicts[0]["name"]
 
 
-# [START howto_operator_cloud_run_service_creation]
+# [START howto_create_service_instance]
 def _create_service():
     service = Service()
     container = k8s_min.Container()
@@ -58,7 +58,7 @@ def _create_service():
     return service
 
 
-# [END howto_operator_cloud_run_job_creation]
+# [END howto_create_service_instance]
 
 
 with DAG(

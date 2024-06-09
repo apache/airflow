@@ -62,21 +62,21 @@ For more information about the Service object fields, visit `Google Cloud Run Se
 
 A simple service configuration can look as follows:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
     :dedent: 0
-    :start-after: [START howto_operator_cloud_run_job_creation]
-    :end-before: [END howto_operator_cloud_run_job_creation]
+    :start-after: [START howto_create_service_instance]
+    :end-before: [END howto_create_service_instance]
 
 
 With this configuration we can create the service:
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceCreateJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_cloud_run_create_job]
-    :end-before: [END howto_operator_cloud_run_create_job]
+    :start-after: [START howto_operator_cloud_run_create_service]
+    :end-before: [END howto_operator_cloud_run_create_service]
 
 
 Note that this operator only creates the service without executing it. The Service's dictionary representation is pushed to XCom.
