@@ -289,7 +289,7 @@ with DAG(
     )
 
     (
-        (create1, create2)
+        (create1, create2, create3)
         >> assert_created_jobs
         >> (execute1, execute2, execute3)
         >> assert_executed_jobs
