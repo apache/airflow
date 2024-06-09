@@ -773,7 +773,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
-                msg = f"The executor reported that the task instance {ti} finished with state {state}, but the task instance's state attribute is {ti.state}."
+                msg = f"The executor reported that the task instance {ti} finished with state {state}, but the task instance's state attribute is {ti.state}. This indicates that the task was marked failed by something other than the scheduler. The task might have been marked failed by a user, by the task_queued_timeout configuration, or it might have been killed by something else."
                 if info is not None:
                     msg += f" Extra info: {info}"
                 self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)

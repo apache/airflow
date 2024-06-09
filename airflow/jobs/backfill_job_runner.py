@@ -315,6 +315,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 msg = (
                     f"The executor reported that the task instance {ti} finished with state {state}, "
                     f"but the task instance's state attribute is {ti.state}."
+                    "This indicates that the task was marked failed by something other than the scheduler. "
+                    "The task might have been marked failed by a user, by the task_queued_timeout configuration, "
+                    "or it might have been killed by something else."
                 )
                 if info is not None:
                     msg += f" Extra info: {info}"
