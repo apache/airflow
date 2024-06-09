@@ -550,7 +550,7 @@ Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tas
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
 .. code-block:: python
-   :emphasize-lines: 10
+   :emphasize-lines: 4,12
 
     from airflow.decorators import task_group
 

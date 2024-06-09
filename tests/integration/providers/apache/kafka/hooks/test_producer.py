@@ -22,6 +22,7 @@ import logging
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
 from airflow.utils import db
 
@@ -61,7 +62,8 @@ class TestProducerHook:
         p_hook = KafkaProducerHook(kafka_config_id="kafka_default")
 
         producer = p_hook.get_producer()
-
         producer.produce(topic, key="p1", value="p2", on_delivery=acked)
         producer.poll(0)
         producer.flush()
+        hook = KafkaAdminClientHook(kafka_config_id="kafka_default")
+        hook.delete_topic(topics=[topic])
