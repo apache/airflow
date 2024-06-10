@@ -37,6 +37,11 @@ class InitializationAction:
     timeout: int  # Execution timeout
 
 
+# These two functions are needed, since when render_as_native_obj=True, Jinja can deduce wrong types.
+# So we force elements to be string in API parameters
+# see https://github.com/apache/airflow/discussions/26336
+
+
 def force_dict_values_as_strings(dct: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
     if dct is None:
         return None
