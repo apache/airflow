@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import sys
+from ast import literal_eval
 from datetime import datetime
 from importlib import reload
 from time import sleep
@@ -50,9 +51,7 @@ logger = logging.getLogger(__name__)
 
 
 def _prepare_test_bodies():
-    if "CELERY_BROKER_URLS" in os.environ:
-        return os.environ["CELERY_BROKER_URLS"].split(",")
-    return [conf.get("celery", "BROKER_URL")]
+    return literal_eval(os.environ["CELERY_BROKER_URLS_MAP"]).values()
 
 
 class FakeCeleryResult:
