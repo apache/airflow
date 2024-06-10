@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
@@ -45,7 +44,7 @@ def upgrade():
     """Add task_instance_history table."""
     op.create_table(
         "task_instance_history",
-        sa.Column("id", UUIDType(), primary_key=True),
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("task_id", StringID(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("run_id", StringID(), nullable=False),
@@ -88,6 +87,14 @@ def upgrade():
             ],
             name="task_instance_history_ti_fkey",
             ondelete="CASCADE",
+        ),
+        sa.UniqueConstraint(
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            "try_number",
+            name="task_instance_history_dtrt_uq",
         ),
     )
 

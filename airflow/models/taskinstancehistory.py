@@ -17,18 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import (
-    Column,
-    ForeignKeyConstraint,
-    Integer,
-    func,
-    select,
-    text,
-)
-from sqlalchemy_utils import UUIDType
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, text
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
@@ -48,7 +39,7 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    id = Column(UUIDType(), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer(), primary_key=True, autoincrement=True)
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
@@ -81,6 +72,14 @@ class TaskInstanceHistory(Base):
             ],
             name="task_instance_history_ti_fkey",
             ondelete="CASCADE",
+        ),
+        UniqueConstraint(
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            "try_number",
+            name="task_instance_history_dtrt_uq",
         ),
     )
 

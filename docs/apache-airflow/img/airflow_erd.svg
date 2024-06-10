@@ -1734,8 +1734,8 @@
 <polygon fill="none" stroke="black" points="1293,-803.5 1293,-828.5 1601,-828.5 1601,-803.5 1293,-803.5"/>
 <text text-anchor="start" x="1298" y="-813.3" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
 <text text-anchor="start" x="1311" y="-813.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1316" y="-813.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1368" y="-813.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<text text-anchor="start" x="1316" y="-813.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1393" y="-813.3" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="1293,-778.5 1293,-803.5 1601,-803.5 1601,-778.5 1293,-778.5"/>
 <text text-anchor="start" x="1298" y="-788.3" font-family="Helvetica,sans-Serif" font-size="14.00">custom_operator_name</text>
 <text text-anchor="start" x="1461" y="-788.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
