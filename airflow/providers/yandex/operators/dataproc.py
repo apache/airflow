@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -35,6 +35,20 @@ class InitializationAction:
     uri: str  # Uri of the executable file
     args: Iterable[str]  # Arguments to the initialization action
     timeout: int  # Execution timeout
+
+
+def force_dict_values_as_strings(dct: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+    if dct is None:
+        return None
+
+    return {k: str(v) for k, v in dct.items()}
+
+
+def force_list_values_as_string(lst: Optional[Iterable[Any]]) -> List[str]:
+    if lst is None:
+        return None
+
+    return list(map(str, lst))
 
 
 class DataprocCreateClusterOperator(BaseOperator):
@@ -100,6 +114,45 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param labels: Cluster labels as key:value pairs. No more than 64 per resource.
                         Docs: https://cloud.yandex.com/docs/resource-manager/concepts/labels
     """
+
+    template_fields = (
+        "folder_id",
+        "cluster_name",
+        "cluster_description",
+        "cluster_image_version",
+        "ssh_public_keys",
+        "subnet_id",
+        "services",
+        "s3_bucket",
+        "zone",
+        "service_account_id",
+        "masternode_resource_preset",
+        "masternode_disk_size",
+        "masternode_disk_type",
+        "datanode_resource_preset",
+        "datanode_disk_size",
+        "datanode_disk_type",
+        "datanode_count",
+        "computenode_resource_preset",
+        "computenode_disk_size",
+        "computenode_disk_type",
+        "computenode_count",
+        "computenode_max_hosts_count",
+        "computenode_measurement_duration",
+        "computenode_warmup_duration",
+        "computenode_stabilization_duration",
+        "computenode_preemptible",
+        "computenode_cpu_utilization_target",
+        "computenode_decommission_timeout",
+        "connection_id",
+        "properties",
+        "enable_ui_proxy",
+        "host_group_ids",
+        "security_group_ids",
+        "log_group_id",
+        "initialization_actions",
+        "labels",
+    )
 
     def __init__(
         self,
@@ -189,6 +242,11 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.hook: DataprocHook | None = None
 
     def execute(self, context: Context) -> dict:
+        self.labels = force_dict_values_as_strings(self.labels)
+        self.properties = force_dict_values_as_strings(self.properties)
+        self.host_group_ids = force_list_values_as_string(self.host_group_ids)
+        self.services = force_list_values_as_string(self.services)
+
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
         )
@@ -258,7 +316,7 @@ class DataprocBaseOperator(BaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    template_fields: Sequence[str] = ("cluster_id",)
+    template_fields: Sequence[str] = ("cluster_id", "yandex_conn_id")
 
     def __init__(self, *, yandex_conn_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -315,6 +373,14 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     """
 
+    template_fields = (
+        "query",
+        "query_file_uri",
+        "script_variables",
+        "properties",
+        "name",
+    ) + DataprocBaseOperator.template_fields
+
     def __init__(
         self,
         *,
@@ -337,6 +403,8 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
         self.name = name
 
     def execute(self, context: Context) -> None:
+        self.script_variables = force_dict_values_as_strings(self.script_variables)
+        self.properties = force_dict_values_as_strings(self.properties)
         hook = self._setup(context)
         hook.dataproc_client.create_hive_job(
             query=self.query,
@@ -367,6 +435,16 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     """
 
+    template_fields = (
+        "main_class",
+        "main_jar_file_uri",
+        "jar_file_uris",
+        "archive_uris",
+        "file_uris",
+        "args",
+        "properties"
+    ) + DataprocBaseOperator.template_fields
+
     def __init__(
         self,
         *,
@@ -393,6 +471,12 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
         self.name = name
 
     def execute(self, context: Context) -> None:
+        self.jar_file_uris = force_list_values_as_string(self.jar_file_uris)
+        self.archive_uris = force_list_values_as_string(self.archive_uris)
+        self.file_uris = force_list_values_as_string(self.file_uris)
+        self.args = force_list_values_as_string(self.args)
+        self.properties = force_dict_values_as_strings(self.properties)
+
         hook = self._setup(context)
         hook.dataproc_client.create_mapreduce_job(
             main_class=self.main_class,
@@ -500,6 +584,20 @@ class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
                          provided in --packages to avoid dependency conflicts.
     """
 
+    template_fields = (
+        "main_python_file_uri",
+        "python_file_uris",
+        "jar_file_uris",
+        "archive_uris",
+        "file_uris",
+        "args",
+        "properties",
+        "name",
+        "packages",
+        "repositories",
+        "exclude_packages",
+    ) + DataprocBaseOperator.template_fields
+
     def __init__(
         self,
         *,
@@ -532,6 +630,15 @@ class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
         self.exclude_packages = exclude_packages
 
     def execute(self, context: Context) -> None:
+        self.python_file_uris = force_list_values_as_string(self.python_file_uris)
+        self.jar_file_uris = force_list_values_as_string(self.jar_file_uris)
+        self.archive_uris = force_list_values_as_string(self.archive_uris)
+        self.args = force_list_values_as_string(self.args)
+        self.properties = force_dict_values_as_strings(self.properties)
+        self.packages = force_list_values_as_string(self.packages)
+        self.repositories = force_list_values_as_string(self.repositories)
+        self.exclude_packages = force_list_values_as_string(self.exclude_packages)
+
         hook = self._setup(context)
         hook.dataproc_client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,
