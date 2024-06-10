@@ -65,6 +65,9 @@ class TestDbApiHook:
             def get_conn(self):
                 return conn
 
+            def get_db_log_messages(self, conn) -> None:
+                return conn.get_messages()
+
         self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
         self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
@@ -530,6 +533,11 @@ class TestDbApiHook:
         with pytest.raises(ValueError) as err:
             self.db_hook.run(sql=[])
         assert err.value.args[0] == "List of SQL statements is empty"
+
+    def test_run_and_log_db_messages(self):
+        statement = "SQL"
+        self.db_hook.run(statement)
+        self.conn.get_messages.assert_called()
 
     def test_instance_check_works_for_provider_derived_hook(self):
         assert isinstance(DbApiHookInProvider(), DbApiHook)
