@@ -582,6 +582,16 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+
+{{/* Create the name of the RPC server service account to use */}}
+{{- define "rpcServer.serviceAccountName" -}}
+  {{- if .Values._rpcServer.serviceAccount.create }}
+    {{- default (printf "%s-rpc-server" (include "airflow.serviceAccountName" .)) .Values._rpcServer.serviceAccount.name }}
+  {{- else }}
+    {{- default "default" .Values._rpcServer.serviceAccount.name }}
+  {{- end }}
+{{- end }}
+
 {{/* Create the name of the redis service account to use */}}
 {{- define "redis.serviceAccountName" -}}
   {{- if .Values.redis.serviceAccount.create }}

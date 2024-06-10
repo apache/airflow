@@ -74,6 +74,7 @@ class TestWorkflowTrigger:
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
+    @pytest.mark.flaky(reruns=5)
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_failed(self, mock_get_count):

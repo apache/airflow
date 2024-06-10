@@ -509,6 +509,7 @@ class ShellParams:
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
+        _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)

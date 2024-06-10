@@ -407,6 +407,10 @@
         "8.23.0": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-05-30T06:38:15Z"
+        },
+        "8.24.0": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-06-09T09:58:36Z"
         }
     },
     "apache.beam": {
@@ -1989,6 +1993,10 @@
         "3.7.1": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-05-30T06:38:15Z"
+        },
+        "3.7.2": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-06-09T09:58:36Z"
         }
     },
     "cloudant": {
@@ -2285,6 +2293,10 @@
         "8.3.0": {
             "associated_airflow_version": "2.9.1",
             "date_released": "2024-06-03T05:43:07Z"
+        },
+        "8.3.1": {
+            "associated_airflow_version": "2.9.1",
+            "date_released": "2024-06-09T09:58:36Z"
         }
     },
     "cohere": {
