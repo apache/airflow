@@ -17,20 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
     Integer,
-    PrimaryKeyConstraint,
     func,
     select,
     text,
 )
+from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
@@ -46,17 +48,29 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    try_number = Column(Integer, primary_key=True, default=0)
+    id = Column(UUIDType(), primary_key=True, default=uuid.uuid4)
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    try_number = Column(Integer, nullable=False)
     # The rest of the columns are kept in sync with TaskInstance, added below
 
+    def __init__(
+        self,
+        ti: TaskInstance | TaskInstancePydantic,
+        state: str | None = None,
+    ):
+        super().__init__()
+        for column in self.__table__.columns:
+            if column.name == "id":
+                continue
+            setattr(self, column.name, getattr(ti, column.name))
+
+        if state:
+            self.state = state
+
     __table_args__ = (
-        PrimaryKeyConstraint(
-            "dag_id", "task_id", "run_id", "map_index", "try_number", name="task_instance_history_pkey"
-        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -67,21 +81,8 @@ class TaskInstanceHistory(Base):
             ],
             name="task_instance_history_ti_fkey",
             ondelete="CASCADE",
-            onupdate="CASCADE",
         ),
     )
-
-    def __init__(
-        self,
-        ti: TaskInstance | TaskInstancePydantic,
-        state: str | None = None,
-    ):
-        super().__init__()
-        for column in self.__table__.columns:
-            setattr(self, column.name, getattr(ti, column.name))
-
-        if state:
-            self.state = state
 
     @staticmethod
     @provide_session
@@ -101,6 +102,8 @@ class TaskInstanceHistory(Base):
         ti_history_state = ti.state
         if ti.state not in State.finished:
             ti_history_state = TaskInstanceState.FAILED
+            ti.end_date = timezone.utcnow()
+            ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
 
@@ -113,7 +116,7 @@ def _copy_column(column):
         autoincrement=column.autoincrement,
         unique=column.unique,
         index=column.index,
-        primary_key=column.primary_key,
+        primary_key=None,
         server_default=column.server_default,
         server_onupdate=column.server_onupdate,
         doc=column.doc,
