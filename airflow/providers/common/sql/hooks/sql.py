@@ -467,6 +467,8 @@ class DbApiHook(BaseHook):
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+            # Logs all database messages or errors sent to the client
+            self.get_db_log_messages(conn)
 
         if handler is None:
             return None
@@ -741,3 +743,10 @@ class DbApiHook(BaseHook):
         else:
             authority = parsed.hostname
         return authority
+
+    def get_db_log_messages(self, conn) -> None:
+        """
+        Log all database messages sent to the client during the session.
+
+        :param conn: Connection object
+        """
