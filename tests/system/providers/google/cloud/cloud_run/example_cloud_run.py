@@ -208,7 +208,6 @@ with DAG(
                 "name": "job",
                 "args": ["python", "main.py"],
                 "env": [{"name": "ENV_VAR", "value": "value"}],
-                "clearArgs": False,
             }
         ],
         "task_count": 1,
