@@ -157,6 +157,23 @@ class.
       params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
   )
 
+
+Enable logging of database messages sent to the client
+-------------------------------------------------------------
+
+SQLExecuteQueryOperator provides ``hook_params`` attribute that allows you to pass add parameters to DbApiHook.
+You can use ``enable_log_db_messages`` to log database messages or errors emitted by the ``RAISE`` statement.
+
+.. code-block:: python
+
+  call_proc = SQLExecuteQueryOperator(
+      task_id="call_proc",
+      conn_id="postgres_default",
+      sql="call proc();",
+      hook_params={"enable_log_db_messages": True},
+  )
+
+
 Passing Server Configuration Parameters into PostgresOperator
 -------------------------------------------------------------
 
