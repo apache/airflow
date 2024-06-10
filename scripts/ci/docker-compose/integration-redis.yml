@@ -16,36 +16,25 @@
 # under the License.
 ---
 services:
-  rabbitmq:
-    container_name: rabbitmq
-    image: rabbitmq:3.7
+  redis:
+    image: redis:5.0.1
     labels:
-      breeze.description: "Integration required for Celery executor tests."
+      breeze.description: "Integration required for Redis tests."
     volumes:
-      - rabbitmq-db-volume:/var/lib/rabbitmq
+      - redis-db-volume:/data/redis
     ports:
-      - "${RABBITMQ_HOST_PORT}:5672"
+      - "${REDIS_HOST_PORT}:6379"
     healthcheck:
-      test: rabbitmq-diagnostics -q ping
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 30s
       retries: 50
     restart: "on-failure"
-  redis:
-    extends:
-      file: integration-redis.yml
-      service: redis
   airflow:
     environment:
-      - INTEGRATION_CELERY=true
-      - CELERY_FLOWER=${CELERY_FLOWER}
-      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
+      - INTEGRATION_REDIS=true
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-
 volumes:
-  rabbitmq-db-volume:
   redis-db-volume:
