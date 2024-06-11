@@ -100,4 +100,4 @@ related test file.
 
 ## Dashboard
 
-To check the status of the system tests against the head revision of Apache Airflow, please refer to this [dashboard](https://storage.mtls.cloud.google.com/providers-dashboard-html/dashboard.html).
+To check the status of the system tests against the head revision of Apache Airflow, please refer to this [dashboard](https://storage.googleapis.com/providers-dashboard-html/dashboard.html).
