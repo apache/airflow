@@ -45,7 +45,7 @@ class TaskInstanceHistory(Base):
     run_id = Column(StringID(), nullable=False)
     map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
-    # The rest of the columns are kept in sync with TaskInstance, added below
+    # The rest of the columns are kept in sync with TaskInstance, added at the bottom of this file
 
     def __init__(
         self,
