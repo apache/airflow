@@ -847,10 +847,16 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: list) -> ParamsDict:
+    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
         """Deserialize a DAG's Params dict."""
+        if isinstance(encoded_params, collections.abc.Mapping):
+            # in 2.9.2 or earlier params were serialized as JSON objects
+            encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
+        else:
+            encoded_param_pairs = encoded_params
+
         op_params = {}
-        for k, v in dict(encoded_params).items():
+        for k, v in encoded_param_pairs:
             if isinstance(v, dict) and "__class" in v:
                 op_params[k] = cls._deserialize_param(v)
             else:
