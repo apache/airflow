@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -42,14 +42,14 @@ class InitializationAction:
 # see https://github.com/apache/airflow/discussions/26336
 
 
-def force_dict_values_as_strings(dct: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+def force_dict_values_as_strings(dct: dict[str, Any] | None) -> dict[str, str] | None:
     if dct is None:
         return None
 
     return {k: str(v) for k, v in dct.items()}
 
 
-def force_list_values_as_string(lst: Optional[Iterable[Any]]) -> List[str]:
+def force_list_values_as_string(lst: Iterable[Any] | None) -> list[str] | None:
     if lst is None:
         return None
 
@@ -149,7 +149,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         "computenode_preemptible",
         "computenode_cpu_utilization_target",
         "computenode_decommission_timeout",
-        "connection_id",
         "properties",
         "enable_ui_proxy",
         "host_group_ids",
@@ -321,7 +320,7 @@ class DataprocBaseOperator(BaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    template_fields: Sequence[str] = ("cluster_id", "yandex_conn_id")
+    template_fields: tuple[str] = ("cluster_id", "yandex_conn_id")
 
     def __init__(self, *, yandex_conn_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -447,7 +446,7 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
         "archive_uris",
         "file_uris",
         "args",
-        "properties"
+        "properties",
     ) + DataprocBaseOperator.template_fields
 
     def __init__(
