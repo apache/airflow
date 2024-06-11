@@ -912,7 +912,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "page_token": "", "expand_tasks": False},
+            params={"limit": 25, "page_token": "", "expand_tasks": False, "include_user_names": False},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
