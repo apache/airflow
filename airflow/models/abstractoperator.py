@@ -731,12 +731,15 @@ class AbstractOperator(Templater, DAGNode):
                 pass
 
             try:
-                rendered_content = self.render_template(
-                    value,
-                    context,
-                    jinja_env,
-                    seen_oids,
-                )
+                if callable(value):
+                    rendered_content = value(context=context, jinja_env=jinja_env)
+                else:
+                    rendered_content = self.render_template(
+                        value,
+                        context,
+                        jinja_env,
+                        seen_oids,
+                    )
             except Exception:
                 value_masked = redact(name=attr_name, value=value)
                 self.log.exception(
