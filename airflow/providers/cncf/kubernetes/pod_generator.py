@@ -56,6 +56,16 @@ from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
 
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+        POD_EXECUTOR_DONE_KEY,
+    )
+except ImportError:
+    # avoid failing import when Airflow pre 2.7 is installed
+    from airflow.kubernetes.kubernetes_executor_types import (  # type: ignore[no-redef]
+        POD_EXECUTOR_DONE_KEY,
+    )
+
 if TYPE_CHECKING:
     import datetime
 
@@ -521,6 +531,7 @@ class PodGenerator:
             "try_number": str(try_number),
             "kubernetes_executor": "True",
             "airflow_version": airflow_version.replace("+", "-"),
+            POD_EXECUTOR_DONE_KEY: "False",
         }
         if airflow_worker is not None:
             labels["airflow-worker"] = make_safe_label_value(str(airflow_worker))
