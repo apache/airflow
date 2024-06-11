@@ -3024,7 +3024,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta: private
         """
-        _defer_task(ti=self, session=session, exception=exception)
+        _defer_task(ti=self, exception=exception, session=session)
 
     def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""

@@ -499,7 +499,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
     def defer_task(self, exception: TaskDeferred, session: Session | None = None):
         """Defer task."""
-        updated_ti = _defer_task(ti=self, session=session, exception=exception)
+        updated_ti = _defer_task(ti=self, exception=exception, session=session)
         _set_ti_attrs(self, updated_ti)
 
     def _handle_reschedule(
