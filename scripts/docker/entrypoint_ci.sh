@@ -208,7 +208,7 @@ function determine_airflow_to_use() {
             echo
             echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
             echo
-            return
+            exit 0
         fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         # Some packages might leave legacy typing module which causes test issues

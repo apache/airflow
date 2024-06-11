@@ -307,16 +307,32 @@ class TestBatchOperator:
         in the API call (which would create a validation error from boto)
         """
         override_arg = {override: {"a": "a"}}
-        batch = BatchOperator(
-            task_id="task",
-            job_name=JOB_NAME,
-            job_queue="queue",
-            job_definition="hello-world",
-            **override_arg,
-            # setting those to bypass code that is not relevant here
-            do_xcom_push=False,
-            wait_for_completion=False,
-        )
+        if override == "overrides":
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
+            ):
+                batch = BatchOperator(
+                    task_id="task",
+                    job_name=JOB_NAME,
+                    job_queue="queue",
+                    job_definition="hello-world",
+                    **override_arg,
+                    # setting those to bypass code that is not relevant here
+                    do_xcom_push=False,
+                    wait_for_completion=False,
+                )
+        else:
+            batch = BatchOperator(
+                task_id="task",
+                job_name=JOB_NAME,
+                job_queue="queue",
+                job_definition="hello-world",
+                **override_arg,
+                # setting those to bypass code that is not relevant here
+                do_xcom_push=False,
+                wait_for_completion=False,
+            )
 
         batch.execute(None)
 

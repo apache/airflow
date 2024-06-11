@@ -239,7 +239,8 @@ class _CredentialProvider(LoggingMixin):
         :return: Google Auth Credentials
         """
         if self.is_anonymous:
-            credentials, project_id = AnonymousCredentials(), ""
+            credentials: Credentials = AnonymousCredentials()
+            project_id = ""
         else:
             if self.key_path:
                 credentials, project_id = self._get_credentials_using_key_path()
@@ -273,10 +274,12 @@ class _CredentialProvider(LoggingMixin):
 
         return credentials, project_id
 
-    def _get_credentials_using_keyfile_dict(self):
+    def _get_credentials_using_keyfile_dict(self) -> tuple[Credentials, str]:
         self._log_debug("Getting connection using JSON Dict")
         # Depending on how the JSON was formatted, it may contain
         # escaped newlines. Convert those to actual newlines.
+        if self.keyfile_dict is None:
+            raise ValueError("The keyfile_dict field is None, and we need it for keyfile_dict auth.")
         self.keyfile_dict["private_key"] = self.keyfile_dict["private_key"].replace("\\n", "\n")
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             self.keyfile_dict, scopes=self.scopes
@@ -284,7 +287,9 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
-    def _get_credentials_using_key_path(self):
+    def _get_credentials_using_key_path(self) -> tuple[Credentials, str]:
+        if self.key_path is None:
+            raise ValueError("The ky_path field is None, and we need it for keyfile_dict auth.")
         if self.key_path.endswith(".p12"):
             raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
 
@@ -298,13 +303,15 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
-    def _get_credentials_using_key_secret_name(self):
+    def _get_credentials_using_key_secret_name(self) -> tuple[Credentials, str]:
         self._log_debug("Getting connection using JSON key data from GCP secret: %s", self.key_secret_name)
 
         # Use ADC to access GCP Secret Manager.
         adc_credentials, adc_project_id = google.auth.default(scopes=self.scopes)
         secret_manager_client = _SecretManagerClient(credentials=adc_credentials)
 
+        if self.key_secret_name is None:
+            raise ValueError("The key_secret_name field is None, and we need it for keyfile_dict auth.")
         if not secret_manager_client.is_valid_secret_name(self.key_secret_name):
             raise AirflowException("Invalid secret name specified for fetching JSON key data.")
 
@@ -326,7 +333,7 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
-    def _get_credentials_using_credential_config_file(self):
+    def _get_credentials_using_credential_config_file(self) -> tuple[Credentials, str]:
         if isinstance(self.credential_config_file, str) and os.path.exists(self.credential_config_file):
             self._log_info(
                 f"Getting connection using credential configuration file: `{self.credential_config_file}`"
@@ -350,7 +357,7 @@ class _CredentialProvider(LoggingMixin):
 
         return credentials, project_id
 
-    def _get_credentials_using_adc(self):
+    def _get_credentials_using_adc(self) -> tuple[Credentials, str]:
         self._log_info(
             "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         )

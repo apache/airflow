@@ -17,12 +17,16 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerAirflowCLICommandTrigger
+from airflow.providers.google.cloud.triggers.cloud_composer import (
+    CloudComposerAirflowCLICommandTrigger,
+    CloudComposerDAGRunTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 TEST_PROJECT_ID = "test-project-id"
@@ -34,6 +38,10 @@ TEST_EXEC_CMD_INFO = {
     "pod_namespace": "test_namespace",
     "error": "test_error",
 }
+TEST_COMPOSER_DAG_ID = "test_dag_id"
+TEST_START_DATE = datetime(2024, 3, 22, 11, 0, 0)
+TEST_END_DATE = datetime(2024, 3, 22, 12, 0, 0)
+TEST_STATES = ["success"]
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_POLL_INTERVAL = 10
 TEST_IMPERSONATION_CHAIN = "test_impersonation_chain"
@@ -49,7 +57,7 @@ TEST_EXEC_RESULT = {
     "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
     return_value=Connection(conn_id="test_conn"),
 )
-def trigger(mock_conn):
+def cli_command_trigger(mock_conn):
     return CloudComposerAirflowCLICommandTrigger(
         project_id=TEST_PROJECT_ID,
         region=TEST_LOCATION,
@@ -61,9 +69,29 @@ def trigger(mock_conn):
     )
 
 
+@pytest.fixture
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+    return_value=Connection(conn_id="test_conn"),
+)
+def dag_run_trigger(mock_conn):
+    return CloudComposerDAGRunTrigger(
+        project_id=TEST_PROJECT_ID,
+        region=TEST_LOCATION,
+        environment_id=TEST_ENVIRONMENT_ID,
+        composer_dag_id=TEST_COMPOSER_DAG_ID,
+        start_date=TEST_START_DATE,
+        end_date=TEST_END_DATE,
+        allowed_states=TEST_STATES,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        poll_interval=TEST_POLL_INTERVAL,
+    )
+
+
 class TestCloudComposerAirflowCLICommandTrigger:
-    def test_serialize(self, trigger):
-        actual_data = trigger.serialize()
+    def test_serialize(self, cli_command_trigger):
+        actual_data = cli_command_trigger.serialize()
         expected_data = (
             "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerAirflowCLICommandTrigger",
             {
@@ -82,7 +110,7 @@ class TestCloudComposerAirflowCLICommandTrigger:
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_composer.CloudComposerAsyncHook.wait_command_execution_result"
     )
-    async def test_run(self, mock_exec_result, trigger):
+    async def test_run(self, mock_exec_result, cli_command_trigger):
         mock_exec_result.return_value = TEST_EXEC_RESULT
 
         expected_event = TriggerEvent(
@@ -91,6 +119,27 @@ class TestCloudComposerAirflowCLICommandTrigger:
                 "result": TEST_EXEC_RESULT,
             }
         )
-        actual_event = await trigger.run().asend(None)
+        actual_event = await cli_command_trigger.run().asend(None)
 
         assert actual_event == expected_event
+
+
+class TestCloudComposerDAGRunTrigger:
+    def test_serialize(self, dag_run_trigger):
+        actual_data = dag_run_trigger.serialize()
+        expected_data = (
+            "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerDAGRunTrigger",
+            {
+                "project_id": TEST_PROJECT_ID,
+                "region": TEST_LOCATION,
+                "environment_id": TEST_ENVIRONMENT_ID,
+                "composer_dag_id": TEST_COMPOSER_DAG_ID,
+                "start_date": TEST_START_DATE,
+                "end_date": TEST_END_DATE,
+                "allowed_states": TEST_STATES,
+                "gcp_conn_id": TEST_GCP_CONN_ID,
+                "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+                "poll_interval": TEST_POLL_INTERVAL,
+            },
+        )
+        assert actual_data == expected_data

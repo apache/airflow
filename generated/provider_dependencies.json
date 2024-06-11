@@ -635,8 +635,8 @@
       "json-merge-patch>=0.2",
       "looker-sdk>=22.4.0",
       "pandas-gbq>=0.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "pandas>=1.5.3,<2.2.0;python_version<\"3.12\"",
+      "pandas>=2.1.1,<2.2.0;python_version>=\"3.12\"",
       "proto-plus>=1.19.6",
       "python-slugify>=7.0.0",
       "sqlalchemy-bigquery>=1.2.1",
@@ -890,7 +890,7 @@
   "openai": {
     "deps": [
       "apache-airflow>=2.7.0",
-      "openai[datalib]>=1.23"
+      "openai[datalib]>=1.32.0"
     ],
     "devel-deps": [],
     "plugins": [],
