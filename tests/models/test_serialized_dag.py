@@ -208,7 +208,6 @@ class TestSerializedDagModel:
 
     def test_order_of_dag_params_is_stable(self):
         """
-        https://github.com/apache/airflow/issues/40154
         This asserts that we have logic in place which guarantees the order
         of the params is maintained - even if the backend (e.g. MySQL) mutates
         the serialized DAG JSON.
