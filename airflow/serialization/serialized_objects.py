@@ -828,20 +828,17 @@ class BaseSerialization:
         return class_(**kwargs)
 
     @classmethod
-    def _serialize_params_dict(cls, params: ParamsDict | dict):
-        """Serialize Params dict for a DAG or task."""
-        serialized_params = {}
-        for idx, item in enumerate(params.items()):
-            k, v = item
+    def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
+        """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
+        serialized_params = []
+        for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only.
             try:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
                 class_identity = ""
             if class_identity == "airflow.models.param.Param":
-                serialized_param = cls._serialize_param(v)
-                serialized_param["__position"] = idx
-                serialized_params[k] = serialized_param
+                serialized_params.append((k, cls._serialize_param(v)))
             else:
                 raise ValueError(
                     f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
@@ -850,14 +847,10 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: dict) -> ParamsDict:
+    def _deserialize_params_dict(cls, encoded_params: list) -> ParamsDict:
         """Deserialize a DAG's Params dict."""
         op_params = {}
-        sorted_params = sorted(
-            encoded_params.items(),
-            key=lambda item: item[1].get("__position", 0) if isinstance(item[1], dict) else 0,
-        )
-        for k, v in sorted_params:
+        for k, v in dict(encoded_params).items():
             if isinstance(v, dict) and "__class" in v:
                 op_params[k] = cls._deserialize_param(v)
             else:
