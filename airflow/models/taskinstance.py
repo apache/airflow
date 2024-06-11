@@ -3019,7 +3019,7 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def defer_task(self, exception: TaskDeferred | None = None, session: Session = NEW_SESSION) -> None:
+    def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
