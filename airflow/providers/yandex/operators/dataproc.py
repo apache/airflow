@@ -42,18 +42,18 @@ class InitializationAction:
 # see https://github.com/apache/airflow/discussions/26336
 
 
-def force_dict_values_as_strings(dct: dict[str, Any] | None) -> dict[str, str] | None:
-    if dct is None:
+def force_dict_values_as_strings(paramaters: dict[str, Any] | None) -> dict[str, str] | None:
+    if paramaters is None:
         return None
 
-    return {k: str(v) for k, v in dct.items()}
+    return {k: str(v) for k, v in paramaters.items()}
 
 
-def force_list_values_as_string(lst: Iterable[Any] | None) -> list[str] | None:
-    if lst is None:
+def force_list_values_as_string(items: Iterable[Any] | None) -> list[str] | None:
+    if items is None:
         return None
 
-    return list(map(str, lst))
+    return list(map(str, items))
 
 
 class DataprocCreateClusterOperator(BaseOperator):
