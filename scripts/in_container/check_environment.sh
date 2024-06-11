@@ -156,6 +156,9 @@ fi
 if [[ ${INTEGRATION_MONGO} == "true" ]]; then
     check_service "MongoDB" "run_nc mongo 27017" 50
 fi
+if [[ ${INTEGRATION_REDIS} == "true" ]]; then
+    check_service "Redis" "run_nc redis 6379" 50
+fi
 if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     check_service "Redis" "run_nc redis 6379" 50
     check_service "RabbitMQ" "run_nc rabbitmq 5672" 50

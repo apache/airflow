@@ -1272,7 +1272,7 @@ running the tests from there:
 
 .. code-block::bash
 
-    breeze shell --force-lowest-dependencies
+
 
 The way it works - when you run the breeze with ``--force-lowest-dependencies`` flag, breeze will use
 attempt (with the help of ``uv``) to downgrade the dependencies to the lowest version that is compatible

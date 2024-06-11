@@ -230,7 +230,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.kube_config.worker_pod_pending_fatal_container_state_reasons
                 and "status" in event["raw_object"]
             ):
-                self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
                 # Init containers and base container statuses to check.
                 # Skipping the other containers statuses check.
                 container_statuses_to_check = []
@@ -250,10 +249,18 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 and container_status_state["waiting"]["message"] == "pull QPS exceeded"
                             ):
                                 continue
+                            self.log.error(
+                                "Event: %s has container %s with fatal reason %s",
+                                pod_name,
+                                container_status["name"],
+                                container_status_state["waiting"]["reason"],
+                            )
                             self.watcher_queue.put(
                                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
                             )
                             break
+                else:
+                    self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":

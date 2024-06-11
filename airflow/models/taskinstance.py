@@ -334,6 +334,9 @@ def _run_raw_task(
             ti.handle_failure(e, test_mode, context, session=session)
             raise
         finally:
+            # Print a marker post execution for internals of post task processing
+            log.info("::group::Post task execution logs")
+
             Stats.incr(
                 f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
                 tags=ti.stats_tags,
@@ -730,9 +733,6 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             if e.code is not None and e.code != 0:
                 raise
             return None
-        finally:
-            # Print a marker post execution for internals of post task processing
-            log.info("::group::Post task execution logs")
 
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
@@ -3186,14 +3186,6 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state == TaskInstanceState.QUEUED:
-                from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-
-                if isinstance(ti, TaskInstancePydantic):
-                    # todo: (AIP-44) we should probably "coalesce" `ti` to TaskInstance before here
-                    #  e.g. we could make refresh_from_db return a TI and replace ti with that
-                    raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
-                # We increase the try_number to fail the task if it fails to start after sometime
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None

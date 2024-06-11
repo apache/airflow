@@ -137,6 +137,7 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "doc_md": None,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
@@ -172,6 +173,7 @@ class TestGetTask(TestTaskEndpoint):
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
             "weight_rule": "downstream",
+            "doc_md": None,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.mapped_dag_id}/tasks/{self.mapped_task_id}",
@@ -225,6 +227,7 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "doc_md": None,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
@@ -301,6 +304,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "doc_md": None,
                 },
                 {
                     "class_ref": {
@@ -332,6 +336,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "doc_md": None,
                 },
             ],
             "total_entries": 2,
@@ -372,6 +377,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
+                    "doc_md": None,
                 },
                 {
                     "class_ref": {
@@ -403,6 +409,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "doc_md": None,
                 },
             ],
             "total_entries": 2,

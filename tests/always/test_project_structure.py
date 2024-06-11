@@ -83,7 +83,6 @@ class TestProjectStructure:
             "tests/providers/apache/hdfs/log/test_hdfs_task_handler.py",
             "tests/providers/apache/hdfs/sensors/test_hdfs.py",
             "tests/providers/apache/hive/plugins/test_hive.py",
-            "tests/providers/apache/kafka/hooks/test_base.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
             "tests/providers/celery/executors/test_default_celery.py",
             "tests/providers/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",

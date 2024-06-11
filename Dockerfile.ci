@@ -989,7 +989,7 @@ function determine_airflow_to_use() {
             echo
             echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
             echo
-            return
+            exit 0
         fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         # Some packages might leave legacy typing module which causes test issues
@@ -1268,7 +1268,8 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.2.3
+# until https://github.com/astral-sh/uv/issues/4136 is solved we limit UV to version 0.2.5
+ARG AIRFLOW_UV_VERSION=0.2.5
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1292,7 +1293,8 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.2.3
+# until https://github.com/astral-sh/uv/issues/4136 is solved we limit UV to version 0.2.5
+ARG AIRFLOW_UV_VERSION=0.2.5
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
