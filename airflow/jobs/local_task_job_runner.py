@@ -114,7 +114,11 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self._overtime = 0.0
 
     def _execute(self) -> int | None:
+        from http.client import HTTPConnection
+
         from airflow.task.task_runner import get_task_runner
+
+        print("Local Task Job Runner HTTPConnection.debuglevel", HTTPConnection.debuglevel)
 
         self.task_runner = get_task_runner(self)
 

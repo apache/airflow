@@ -251,7 +251,7 @@ def _run_task_by_selected_method(
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
-        return _run_raw_task(args, ti)
+        return _run_raw_task(args)
     _run_task_by_executor(args, dag, ti)
     return None
 
@@ -331,8 +331,26 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 ]
 
 
-def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
+def _get_dag_and_ti(
+    args, dag: DAG | None = None, read_from_db: bool = True
+) -> tuple[DAG, TaskInstance | TaskInstancePydantic]:
+    """Get the DAG and TaskInstance from the args."""
+    if args.pickle:
+        print(f"Loading pickle id: {args.pickle}")
+        _dag = get_dag_by_pickle(args.pickle)
+    elif not dag:
+        _dag = get_dag(args.subdir, args.dag_id, read_from_db)
+    else:
+        _dag = dag
+    task = _dag.get_task(task_id=args.task_id)
+    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
+    ti.init_run_context(raw=args.raw)
+    return _dag, ti
+
+
+def _run_raw_task(args) -> None | TaskReturnCode:
     """Run the main task handling code."""
+    _, ti = _get_dag_and_ti(args, read_from_db=args.read_from_db)
     return ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -446,16 +464,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
-    if args.pickle:
-        print(f"Loading pickle id: {args.pickle}")
-        _dag = get_dag_by_pickle(args.pickle)
-    elif not dag:
-        _dag = get_dag(args.subdir, args.dag_id, args.read_from_db)
-    else:
-        _dag = dag
-    task = _dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
-    ti.init_run_context(raw=args.raw)
+    _dag, ti = _get_dag_and_ti(args, dag=dag)
 
     hostname = get_hostname()
 
