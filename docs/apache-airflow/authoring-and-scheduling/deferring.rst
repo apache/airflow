@@ -145,7 +145,7 @@ Triggering Deferral from Start
 
  .. versionadded:: 2.10.0
 
-If you want to defer your task directly to the triggerer without going into the worker, you can set class level attribute ``start_with_trigger`` to ``True`` add add class level attribute ``start_trigger_args`` with the following 4 attributes to your deferrable operator.
+If you want to defer your task directly to the triggerer without going into the worker, you can set class level attribute ``start_with_trigger`` to ``True`` and add a class level attribute ``start_trigger_args`` with an ``StartTriggerArgs`` object with the following 4 attributes to your deferrable operator:
 
 * ``trigger_cls``: An importable path to your trigger class.
 * ``trigger_kwargs``: Additional keyword arguments to pass to the method when it is called.
