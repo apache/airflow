@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add index on ``log`` table
+"""Add index on ``log`` table.
 
 Revision ID: dd25f486b8ea
 Revises: 9635ae0956e7
 Create Date: 2018-08-07 06:41:41.028249
 
 """
+
 from __future__ import annotations
 
 from alembic import op

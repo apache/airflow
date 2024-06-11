@@ -361,3 +361,9 @@ class ObjectStoragePath(CloudPath):
         conn_id = data.pop("conn_id", None)
 
         return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
+
+    def __str__(self):
+        conn_id = self.storage_options.get("conn_id")
+        if self._protocol and conn_id:
+            return f"{self._protocol}://{conn_id}@{self.path}"
+        return super().__str__()

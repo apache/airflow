@@ -41,6 +41,7 @@ from typing import (
     Callable,
     Collection,
     Iterable,
+    NoReturn,
     Sequence,
     TypeVar,
     Union,
@@ -91,7 +92,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context, context_get_dataset_events
+from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
@@ -115,7 +116,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.types import ArgNotSet
 
@@ -818,6 +819,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
+
     def __init__(
         self,
         task_id: str,
@@ -936,7 +940,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if executor:
             warnings.warn(
                 "Specifying executors for operators is not yet"
-                f"supported, the value {executor!r} will have no effect"
+                f"supported, the value {executor!r} will have no effect",
+                category=UserWarning,
+                stacklevel=2,
             )
         self.executor = executor
         self.executor_config = executor_config or {}
@@ -1274,7 +1280,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return
         ExecutionCallableRunner(
             self._pre_execute_hook,
-            context_get_dataset_events(context),
+            context_get_outlet_events(context),
             logger=self.log,
         ).run(context)
 
@@ -1299,7 +1305,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return
         ExecutionCallableRunner(
             self._post_execute_hook,
-            context_get_dataset_events(context),
+            context_get_outlet_events(context),
             logger=self.log,
         ).run(context, result)
 
@@ -1673,6 +1679,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
+                    "start_trigger_args",
+                    "_needs_expansion",
+                    "start_from_trigger",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1698,7 +1707,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         method_name: str,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
-    ):
+    ) -> NoReturn:
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 

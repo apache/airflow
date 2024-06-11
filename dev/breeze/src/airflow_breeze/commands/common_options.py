@@ -173,6 +173,13 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_force_lowest_dependencies = click.option(
+    "--force-lowest-dependencies",
+    help="Run tests for the lowest direct dependencies of Airflow or selected provider if "
+    "`Provider[PROVIDER_ID]` is used as test type.",
+    is_flag=True,
+    envvar="FORCE_LOWEST_DEPENDENCIES",
+)
 option_github_token = click.option(
     "--github-token",
     help="The token used to authenticate to GitHub.",

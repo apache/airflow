@@ -46,7 +46,14 @@ from google.cloud.bigquery import (
     UnknownJob,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
+from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
+from google.cloud.bigquery.table import (
+    EncryptionConfiguration,
+    Row,
+    RowIterator,
+    Table,
+    TableReference,
+)
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas_gbq import read_gbq
@@ -59,13 +66,13 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
-
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    # Remove when Airflow providers min Airflow version is "2.7.0"
-    from hashlib import md5
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+    get_field,
+)
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -198,7 +205,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         http_authorized = self._authorize()
         return build("bigquery", "v2", http=http_authorized, cache_discovery=False)
 
-    def get_client(self, project_id: str | None = None, location: str | None = None) -> Client:
+    def get_client(self, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None) -> Client:
         """Get an authenticated BigQuery Client.
 
         :param project_id: Project ID for the project which the client acts on behalf of.
@@ -250,7 +257,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @staticmethod
     def _resolve_table_reference(
         table_resource: dict[str, Any],
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         dataset_id: str | None = None,
         table_id: str | None = None,
     ) -> dict[str, Any]:
@@ -360,7 +367,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(
         self,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         dataset_id: str | None = None,
         table_id: str | None = None,
         table_resource: dict[str, Any] | None = None,
@@ -474,7 +481,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def create_empty_dataset(
         self,
         dataset_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         dataset_reference: dict[str, Any] | None = None,
         exists_ok: bool = True,
@@ -536,7 +543,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_dataset_tables(
         self,
         dataset_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         max_results: int | None = None,
         retry: Retry = DEFAULT_RETRY,
     ) -> list[dict[str, Any]]:
@@ -565,7 +572,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def delete_dataset(
         self,
         dataset_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         delete_contents: bool = False,
         retry: Retry = DEFAULT_RETRY,
     ) -> None:
@@ -614,7 +621,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         description: str | None = None,
         encryption_configuration: dict | None = None,
         location: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Table:
         """Create an external table in the dataset with data from Google Cloud Storage.
 
@@ -750,7 +757,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         fields: list[str] | None = None,
         dataset_id: str | None = None,
         table_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict[str, Any]:
         """Change some fields of a table.
 
@@ -796,7 +803,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self,
         dataset_id: str,
         table_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         description: str | None = None,
         expiration_time: int | None = None,
         external_data_configuration: dict | None = None,
@@ -953,7 +960,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         fields: Sequence[str],
         dataset_resource: dict[str, Any],
         dataset_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry = DEFAULT_RETRY,
     ) -> Dataset:
         """Change some fields of a dataset.
@@ -999,7 +1006,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         ),
         category=AirflowProviderDeprecationWarning,
     )
-    def patch_dataset(self, dataset_id: str, dataset_resource: dict, project_id: str | None = None) -> dict:
+    def patch_dataset(
+        self, dataset_id: str, dataset_resource: dict, project_id: str = PROVIDE_PROJECT_ID
+    ) -> dict:
         """Patches information in an existing dataset.
 
         It only replaces fields that are provided in the submitted dataset resource.
@@ -1047,7 +1056,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_dataset_tables_list(
         self,
         dataset_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         table_prefix: str | None = None,
         max_results: int | None = None,
     ) -> list[dict[str, Any]]:
@@ -1084,7 +1093,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_datasets_list(
         self,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         include_all: bool = False,
         filter_: str | None = None,
         max_results: int | None = None,
@@ -1134,7 +1143,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return datasets_list
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_dataset(self, dataset_id: str, project_id: str | None = None) -> Dataset:
+    def get_dataset(self, dataset_id: str, project_id: str = PROVIDE_PROJECT_ID) -> Dataset:
         """Fetch the dataset referenced by *dataset_id*.
 
         :param dataset_id: The BigQuery Dataset ID
@@ -1158,7 +1167,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         view_dataset: str,
         view_table: str,
         view_project: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict[str, Any]:
         """Grant authorized view access of a dataset to a view table.
 
@@ -1210,7 +1219,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_table_upsert(
-        self, dataset_id: str, table_resource: dict[str, Any], project_id: str | None = None
+        self, dataset_id: str, table_resource: dict[str, Any], project_id: str = PROVIDE_PROJECT_ID
     ) -> dict[str, Any]:
         """Update a table if it exists, otherwise create a new one.
 
@@ -1267,7 +1276,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self,
         table_id: str,
         not_found_ok: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """Delete an existing table from the dataset.
 
@@ -1334,7 +1343,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         selected_fields: list[str] | str | None = None,
         page_token: str | None = None,
         start_index: int | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         retry: Retry = DEFAULT_RETRY,
         return_iterator: bool = False,
@@ -1387,7 +1396,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return list(iterator)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_schema(self, dataset_id: str, table_id: str, project_id: str | None = None) -> dict:
+    def get_schema(self, dataset_id: str, table_id: str, project_id: str = PROVIDE_PROJECT_ID) -> dict:
         """Get the schema for a given dataset and table.
 
         .. seealso:: https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
@@ -1409,7 +1418,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         include_policy_tags: bool,
         dataset_id: str,
         table_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict[str, Any]:
         """Update fields within a schema for a given dataset and table.
 
@@ -1502,7 +1511,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def poll_job_complete(
         self,
         job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         retry: Retry = DEFAULT_RETRY,
     ) -> bool:
@@ -1532,7 +1541,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def cancel_job(
         self,
         job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
     ) -> None:
         """Cancel a job and wait for cancellation to complete.
@@ -1573,12 +1582,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @GoogleBaseHook.refresh_credentials_retry()
     def get_job(
         self,
         job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
-    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
+    ) -> BigQueryJob | UnknownJob:
         """Retrieve a BigQuery job.
 
         .. seealso:: https://cloud.google.com/bigquery/docs/reference/v2/jobs
@@ -1586,8 +1596,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
             numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
             characters.
-        :param project_id: Google Cloud Project where the job is running
-        :param location: location the job is running
+        :param project_id: Google Cloud Project where the job is running.
+        :param location: Location where the job is running.
         """
         client = self.get_client(project_id=project_id, location=location)
         job = client.get_job(job_id=job_id, project=project_id, location=location)
@@ -1607,7 +1617,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self,
         configuration: dict,
         job_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         nowait: bool = False,
         retry: Retry = DEFAULT_RETRY,
@@ -2382,6 +2392,48 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         return project_id, dataset_id, table_id
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_query_results(
+        self,
+        job_id: str,
+        location: str,
+        max_results: int | None = None,
+        selected_fields: list[str] | str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry = DEFAULT_RETRY,
+        job_retry: Retry = DEFAULT_JOB_RETRY,
+    ) -> list[dict[str, Any]]:
+        """
+        Get query results given a job_id.
+
+        :param job_id: The ID of the job.
+            The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
+            dashes (-). The maximum length is 1,024 characters.
+        :param location: The location used for the operation.
+        :param selected_fields: List of fields to return (comma-separated). If
+            unspecified, all fields are returned.
+        :param max_results: The maximum number of records (rows) to be fetched
+            from the table.
+        :param project_id: Google Cloud Project where the job ran.
+        :param retry: How to retry the RPC.
+        :param job_retry: How to retry failed jobs.
+
+        :return: List of rows where columns are filtered by selected fields, when given
+
+        :raises: AirflowException
+        """
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
+        job = self.get_job(job_id=job_id, project_id=project_id, location=location)
+        if not isinstance(job, QueryJob):
+            raise AirflowException(f"Job '{job_id}' is not a query job")
+
+        if job.state != "DONE":
+            raise AirflowException(f"Job '{job_id}' is not in DONE state")
+
+        rows = [dict(row) for row in job.result(max_results=max_results, retry=retry, job_retry=job_retry)]
+        return [{k: row[k] for k in row if k in selected_fields} for row in rows] if selected_fields else rows
+
     @property
     def scopes(self) -> Sequence[str]:
         """
@@ -2797,15 +2849,16 @@ class BigQueryCursor(BigQueryBaseCursor):
         return -1
 
     def execute(self, operation: str, parameters: dict | None = None) -> None:
-        """Execute a BigQuery query, and return the job ID.
+        """Execute a BigQuery query, and update the BigQueryCursor description.
 
         :param operation: The query to execute.
         :param parameters: Parameters to substitute into the query.
         """
         sql = _bind_parameters(operation, parameters) if parameters else operation
         self.flush_results()
-        self.job_id = self._run_query(sql)
-
+        job = self._run_query(sql)
+        self.job_id = job.job_id
+        self.location = self.location or job.location
         query_results = self._get_query_result()
         if "schema" in query_results:
             self.description = _format_schema_for_description(query_results["schema"])
@@ -2945,15 +2998,15 @@ class BigQueryCursor(BigQueryBaseCursor):
         self,
         sql,
         location: str | None = None,
-    ) -> str:
-        """Run job query."""
+    ) -> BigQueryJob:
+        """Run a job query and return the job instance."""
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
         configuration = self._prepare_query_configuration(sql)
         job = self.hook.insert_job(configuration=configuration, project_id=self.project_id, location=location)
 
-        return job.job_id
+        return job
 
     def _prepare_query_configuration(
         self,
@@ -3304,8 +3357,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         )
 
     async def _get_job(
-        self, job_id: str | None, project_id: str | None = None, location: str | None = None
-    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
+        self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
+    ) -> BigQueryJob | UnknownJob:
         """
         Get BigQuery job by its ID, project ID and location.
 
@@ -3347,7 +3400,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         return hook.get_job(job_id=job_id, project_id=project_id, location=location)
 
     async def get_job_status(
-        self, job_id: str | None, project_id: str | None = None, location: str | None = None
+        self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
     ) -> dict[str, str]:
         job = await self._get_job(job_id=job_id, project_id=project_id, location=location)
         if job.state == "DONE":
@@ -3359,7 +3412,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     async def get_job_output(
         self,
         job_id: str | None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict[str, Any]:
         """Get the BigQuery job output for a given job ID asynchronously."""
         async with ClientSession() as session:
@@ -3372,7 +3425,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         self,
         dataset_id: str | None,
         table_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ):
         """Create a new job and get the job_id using gcloud-aio."""
         async with ClientSession() as session:
@@ -3413,15 +3466,25 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
                 raise
 
-    def get_records(self, query_results: dict[str, Any], as_dict: bool = False) -> list[Any]:
+    # TODO: Convert get_records into an async method
+    def get_records(
+        self,
+        query_results: dict[str, Any],
+        as_dict: bool = False,
+        selected_fields: str | list[str] | None = None,
+    ) -> list[Any]:
         """Convert a response from BigQuery to records.
 
         :param query_results: the results from a SQL query
         :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
+        :param selected_fields:
         """
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
         buffer: list[Any] = []
         if rows := query_results.get("rows"):
             fields = query_results["schema"]["fields"]
+            fields = [field for field in fields if not selected_fields or field["name"] in selected_fields]
             fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:

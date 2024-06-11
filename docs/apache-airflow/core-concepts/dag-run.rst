@@ -255,7 +255,7 @@ Using UI
 In the UI the parameters to trigger a DAG can be better represented via ``params`` definition as described in
 :ref:`concepts:params` documentation. Via defined params a proper form for value entry is rendered.
 
-If the DAG does not define ``params``the form is usually skipped, via the configuration option ``show_trigger_form_if_no_params``
+If the DAG does not define ``params`` the form is usually skipped, via the configuration option ``show_trigger_form_if_no_params``
 it is possible to force the display the classic form of a dict-only entry to pass configuration options.
 
 .. image:: ../img/example_passing_conf.png

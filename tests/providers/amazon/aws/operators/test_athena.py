@@ -279,7 +279,7 @@ class TestAthenaOperator:
             task_id="test_athena_openlineage",
             query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
             database="TEST_DATABASE",
-            output_location="s3://test_s3_bucket/",
+            output_location="s3://test_s3_bucket",
             client_request_token="eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
             sleep_time=0,
             max_polling_attempts=3,

@@ -144,8 +144,13 @@ def init_plugins(app):
     for view in plugins_manager.flask_appbuilder_views:
         name = view.get("name")
         if name:
+            filtered_view_kwargs = {k: v for k, v in view.items() if k not in ["view"]}
             log.debug("Adding view %s with menu", name)
-            appbuilder.add_view(view["view"], name, category=view["category"])
+            baseview = view.get("view")
+            if baseview:
+                appbuilder.add_view(baseview, **filtered_view_kwargs)
+            else:
+                log.error("'view' key is missing for the named view: %s", name)
         else:
             # if 'name' key is missing, intent is to add view without menu
             log.debug("Adding view %s without menu", str(type(view["view"])))
@@ -317,6 +322,7 @@ def init_api_experimental(app):
         "Please note that the experimental API do not have access control. "
         "The authenticated user has full access.",
         RemovedInAirflow3Warning,
+        stacklevel=2,
     )
     base_paths.append("/api/experimental")
     app.register_blueprint(endpoints.api_experimental, url_prefix="/api/experimental")

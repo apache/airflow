@@ -273,7 +273,7 @@ class ParallelMonitor(Thread):
         self,
         outputs: list[Output],
         initial_time_in_seconds: int = 2,
-        time_in_seconds: int = 10,
+        time_in_seconds: int = int(os.environ.get("AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS", "20")),
         debug_resources: bool = False,
         progress_matcher: AbstractProgressInfoMatcher | None = None,
     ):

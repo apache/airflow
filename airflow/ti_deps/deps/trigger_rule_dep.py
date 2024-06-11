@@ -125,7 +125,6 @@ class TriggerRuleDep(BaseTIDep):
         """
         from airflow.models.abstractoperator import NotMapped
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
         @functools.lru_cache
@@ -260,7 +259,7 @@ class TriggerRuleDep(BaseTIDep):
 
             # Optimization: Don't need to hit the database if all upstreams are
             # "simple" tasks (no task or task group mapping involved).
-            if not any(needs_expansion(t) for t in indirect_setups.values()):
+            if not any(t.get_needs_expansion() for t in indirect_setups.values()):
                 upstream = len(indirect_setups)
             else:
                 task_id_counts = session.execute(
@@ -353,7 +352,7 @@ class TriggerRuleDep(BaseTIDep):
 
             # Optimization: Don't need to hit the database if all upstreams are
             # "simple" tasks (no task or task group mapping involved).
-            if not any(needs_expansion(t) for t in upstream_tasks.values()):
+            if not any(t.get_needs_expansion() for t in upstream_tasks.values()):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:

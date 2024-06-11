@@ -39,10 +39,10 @@ The steps below should be sufficient, but see the quick-start documentation for 
   echo -e "AIRFLOW_UID=$(id -u)" > .env
 
   # Initialize the database
-  docker-compose up airflow-init
+  docker compose up airflow-init
 
   # Start up all services
-  docker-compose up
+  docker compose up
 
 After all services have started up, the web UI will be available at: ``http://localhost:8080``. The default account has the username ``airflow`` and the password ``airflow``.
 

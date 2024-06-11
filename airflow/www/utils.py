@@ -40,9 +40,9 @@ from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models import errors
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -96,12 +96,6 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_try_count(try_number: int, state: State):
-    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-        return try_number + 1
-    return try_number
-
-
 priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
@@ -147,7 +141,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "try_number": parent_instance.try_number,
         "execution_date": parent_instance.execution_date,
     }
 
@@ -196,7 +190,7 @@ def encode_dag_run(
 def check_import_errors(fileloc, session):
     # Check dag import errors
     import_errors = session.scalars(
-        select(errors.ImportError).where(errors.ImportError.filename == fileloc)
+        select(ParseImportError).where(ParseImportError.filename == fileloc)
     ).all()
     if import_errors:
         for import_error in import_errors:

@@ -39,12 +39,17 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
+    DatabricksNotebookOperator,
     DatabricksRunNowOperator,
     DatabricksSubmitRunOperator,
+    DatabricksTaskOperator,
 )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_operator"
+
+QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
 
 with DAG(
     dag_id=DAG_ID,
@@ -146,6 +151,92 @@ with DAG(
     )
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
+
+    # [START howto_operator_databricks_notebook_new_cluster]
+    new_cluster_spec = {
+        "cluster_name": "",
+        "spark_version": "11.3.x-scala2.12",
+        "aws_attributes": {
+            "first_on_demand": 1,
+            "availability": "SPOT_WITH_FALLBACK",
+            "zone_id": "us-east-2b",
+            "spot_bid_price_percent": 100,
+            "ebs_volume_count": 0,
+        },
+        "node_type_id": "i3.xlarge",
+        "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
+        "enable_elastic_disk": False,
+        "data_security_mode": "LEGACY_SINGLE_USER_STANDARD",
+        "runtime_engine": "STANDARD",
+        "num_workers": 8,
+    }
+
+    notebook_1 = DatabricksNotebookOperator(
+        task_id="notebook_1",
+        notebook_path="/Shared/Notebook_1",
+        notebook_packages=[
+            {
+                "pypi": {
+                    "package": "simplejson==3.18.0",
+                    "repo": "https://pypi.org/simple",
+                }
+            },
+            {"pypi": {"package": "Faker"}},
+        ],
+        source="WORKSPACE",
+        new_cluster=new_cluster_spec,
+    )
+    # [END howto_operator_databricks_notebook_new_cluster]
+
+    # [START howto_operator_databricks_notebook_existing_cluster]
+    notebook_2 = DatabricksNotebookOperator(
+        task_id="notebook_2",
+        notebook_path="/Shared/Notebook_2",
+        notebook_packages=[
+            {
+                "pypi": {
+                    "package": "simplejson==3.18.0",
+                    "repo": "https://pypi.org/simple",
+                }
+            },
+        ],
+        source="WORKSPACE",
+        existing_cluster_id="existing_cluster_id",
+    )
+    # [END howto_operator_databricks_notebook_existing_cluster]
+
+    # [START howto_operator_databricks_task_notebook]
+    task_operator_nb_1 = DatabricksTaskOperator(
+        task_id="nb_1",
+        databricks_conn_id="databricks_conn",
+        job_cluster_key="Shared_job_cluster",
+        task_config={
+            "notebook_task": {
+                "notebook_path": "/Shared/Notebook_1",
+                "source": "WORKSPACE",
+            },
+            "libraries": [
+                {"pypi": {"package": "Faker"}},
+                {"pypi": {"package": "simplejson"}},
+            ],
+        },
+    )
+    # [END howto_operator_databricks_task_notebook]
+
+    # [START howto_operator_databricks_task_sql]
+    task_operator_sql_query = DatabricksTaskOperator(
+        task_id="sql_query",
+        databricks_conn_id="databricks_conn",
+        task_config={
+            "sql_task": {
+                "query": {
+                    "query_id": QUERY_ID,
+                },
+                "warehouse_id": WAREHOUSE_ID,
+            }
+        },
+    )
+    # [END howto_operator_databricks_task_sql]
 
     from tests.system.utils.watcher import watcher
 

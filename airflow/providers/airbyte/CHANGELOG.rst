@@ -26,6 +26,36 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Faster 'airflow_version' imports (#39552)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(airbyte/hooks): add schema and port to prevent InvalidURL error (#38860)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
 3.7.0
 .....
 

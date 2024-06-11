@@ -48,7 +48,7 @@ from airflow_breeze.utils.publish_docs_helpers import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.6.0"
+MIN_AIRFLOW_VERSION = "2.7.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -249,7 +249,6 @@ def get_available_packages(
     """
     Return provider ids for all packages that are available currently (not suspended).
 
-    :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
     :param include_not_ready: whether the not-ready packages should be included
@@ -398,7 +397,7 @@ def get_pip_package_name(provider_id: str) -> str:
     return "apache-airflow-providers-" + provider_id.replace(".", "-")
 
 
-def get_wheel_package_name(provider_id: str) -> str:
+def get_dist_package_name_prefix(provider_id: str) -> str:
     """
     Returns Wheel package name prefix for the package id.
 
@@ -443,7 +442,9 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
         dependencies = get_provider_requirements(provider_id)
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
-    install_requires = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
+    install_requires = [
+        apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
+    ]
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 
@@ -585,7 +586,7 @@ def get_provider_jinja_context(
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
-        "PACKAGE_WHEEL_NAME": get_wheel_package_name(provider_details.provider_id),
+        "PACKAGE_DIST_PREFIX": get_dist_package_name_prefix(provider_details.provider_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,

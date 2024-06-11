@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 import apprise
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from apprise import AppriseAttachment
 
 
 class AppriseHook(BaseHook):
@@ -72,7 +75,7 @@ class AppriseHook(BaseHook):
         notify_type: NotifyType = NotifyType.INFO,
         body_format: NotifyFormat = NotifyFormat.TEXT,
         tag: str | Iterable[str] | None = None,
-        attach: str | Iterable[str] | None = None,
+        attach: AppriseAttachment | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
     ):

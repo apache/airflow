@@ -74,6 +74,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, joinedload, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
@@ -81,7 +82,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
+from airflow.datasets import BaseDataset, Dataset, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -93,6 +94,7 @@ from airflow.exceptions import (
     TaskDeferred,
     TaskNotFound,
 )
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.base import Base, StringID
@@ -156,13 +158,6 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
-    # This is a workaround because mypy doesn't work with hybrid_property
-    # TODO: remove this hack and move hybrid_property back to main import block
-    # See https://github.com/python/mypy/issues/4430
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
-
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -177,7 +172,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDatasetEventInput, Collection["Dataset"]]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -633,8 +628,8 @@ class DAG(LoggingMixin):
 
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: BaseDatasetEventInput | None = None
-        if isinstance(schedule, BaseDatasetEventInput):
+        self.dataset_triggers: BaseDataset | None = None
+        if isinstance(schedule, BaseDataset):
             self.dataset_triggers = schedule
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
@@ -642,7 +637,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = DatasetAll(*schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        elif schedule is not NOTSET and not isinstance(schedule, BaseDatasetEventInput):
+        elif schedule is not NOTSET and not isinstance(schedule, BaseDataset):
             schedule_interval = schedule
 
         if isinstance(schedule, DatasetOrTimeSchedule):
@@ -806,9 +801,22 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
+        self.validate_executor_field()
         self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
+
+    def validate_executor_field(self):
+        for task in self.tasks:
+            if task.executor:
+                try:
+                    ExecutorLoader.lookup_executor_name_by_str(task.executor)
+                except ValueError:
+                    raise ValueError(
+                        f"The specified executor {task.executor} for task {task.task_id} is not "
+                        "configured. Review the core.executors Airflow configuration to add it or "
+                        "update the executor configuration for this task."
+                    )
 
     def validate_setup_teardown(self):
         """
@@ -2948,6 +2956,8 @@ class DAG(LoggingMixin):
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
+                    if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
@@ -3553,6 +3563,8 @@ class DagTag(Base):
         primary_key=True,
     )
 
+    __table_args__ = (Index("idx_dag_tag_dag_id", dag_id),)
+
     def __repr__(self):
         return self.name
 
@@ -3668,6 +3680,7 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
+        back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
@@ -3864,7 +3877,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseDatasetEventInput, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseDataset, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.

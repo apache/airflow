@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
+    from airflow.serialization.serialized_objects import _ExpandInputRef
     from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
 
@@ -281,7 +282,11 @@ _EXPAND_INPUT_TYPES = {
 }
 
 
-def get_map_type_key(expand_input: ExpandInput) -> str:
+def get_map_type_key(expand_input: ExpandInput | _ExpandInputRef) -> str:
+    from airflow.serialization.serialized_objects import _ExpandInputRef
+
+    if isinstance(expand_input, _ExpandInputRef):
+        return expand_input.key
     return next(k for k, v in _EXPAND_INPUT_TYPES.items() if v == type(expand_input))
 
 

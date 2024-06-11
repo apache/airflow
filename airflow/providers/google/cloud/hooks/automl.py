@@ -529,7 +529,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         self,
         dataset_id: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         filter_: str | None = None,
         page_size: int | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -640,3 +640,37 @@ class CloudAutoMLHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_dataset(
+        self,
+        dataset_id: str,
+        location: str,
+        project_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Dataset:
+        """
+        Retrieve the dataset for the given dataset_id.
+
+        :param dataset_id: ID of dataset to be retrieved.
+        :param location: The location of the project.
+        :param project_id: ID of the Google Cloud project where dataset is located if None then
+            default project_id is used.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `google.cloud.automl_v1beta1.types.dataset.Dataset` instance.
+        """
+        client = self.get_conn()
+        name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
+        return client.get_dataset(
+            request={"name": name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )

@@ -217,7 +217,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
@@ -232,7 +231,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
     ]
@@ -259,6 +257,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
@@ -269,6 +268,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
@@ -2229,13 +2229,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             me = self.oauth_remotes[provider].get("userinfo")
             data = me.json()
             log.debug("User info from Okta: %s", data)
-            return {
-                "username": f"{provider}_{data['sub']}",
-                "first_name": data.get("given_name", ""),
-                "last_name": data.get("family_name", ""),
-                "email": data["email"],
-                "role_keys": data.get("groups", []),
-            }
+            if "error" not in data:
+                return {
+                    "username": f"{provider}_{data['sub']}",
+                    "first_name": data.get("given_name", ""),
+                    "last_name": data.get("family_name", ""),
+                    "email": data["email"],
+                    "role_keys": data.get("groups", []),
+                }
+            else:
+                log.error(data.get("error_description"))
+            return {}
         # for Auth0
         if provider == "auth0":
             data = self.appbuilder.sm.oauth_remotes[provider].userinfo()
@@ -2258,8 +2262,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "first_name": data.get("given_name", ""),
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
+                "role_keys": data.get("groups", []),
             }
-
         # for Authentik
         if provider == "authentik":
             id_token = resp["id_token"]

@@ -17,16 +17,24 @@
 from __future__ import annotations
 
 import json
+from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from botocore.exceptions import ClientError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook, BedrockRuntimeHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentHook,
+    BedrockAgentRuntimeHook,
+    BedrockHook,
+    BedrockRuntimeHook,
+)
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockCustomizeModelCompletedTrigger,
+    BedrockIngestionJobTrigger,
+    BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
@@ -351,3 +359,510 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
 
         self.log.info("Bedrock provisioned throughput job `%s` complete.", event["provisioned_model_id"])
         return event["provisioned_model_id"]
+
+
+class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Create a knowledge base that contains data sources used by Amazon Bedrock LLMs and Agents.
+
+    To create a knowledge base, you must first set up your data sources and configure a supported vector store.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateKnowledgeBaseOperator`
+
+    :param name: The name of the knowledge base. (templated)
+    :param embedding_model_arn: ARN of the model used to create vector embeddings for the knowledge base. (templated)
+    :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
+    :param storage_config: Configuration details of the vector database used for the knowledge base. (templated)
+    :param wait_for_indexing: Vector indexing can take some time and there is no apparent way to check the state
+        before trying to create the Knowledge Base.  If this is True, and creation fails due to the index not
+        being available, the operator will wait and retry.  (default: True) (templated)
+    :param indexing_error_retry_delay: Seconds between retries if an index error is encountered. (default 5) (templated)
+    :param indexing_error_max_attempts: Maximum number of times to retry when encountering an index error. (default 20) (templated)
+    :param create_knowledge_base_kwargs: Any additional optional parameters to pass to the API call. (templated)
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "name",
+        "embedding_model_arn",
+        "role_arn",
+        "storage_config",
+        "wait_for_indexing",
+        "indexing_error_retry_delay",
+        "indexing_error_max_attempts",
+        "create_knowledge_base_kwargs",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        embedding_model_arn: str,
+        role_arn: str,
+        storage_config: dict[str, Any],
+        create_knowledge_base_kwargs: dict[str, Any] | None = None,
+        wait_for_indexing: bool = True,
+        indexing_error_retry_delay: int = 5,  # seconds
+        indexing_error_max_attempts: int = 20,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.role_arn = role_arn
+        self.storage_config = storage_config
+        self.create_knowledge_base_kwargs = create_knowledge_base_kwargs or {}
+        self.embedding_model_arn = embedding_model_arn
+        self.knowledge_base_config = {
+            "type": "VECTOR",
+            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+        }
+        self.wait_for_indexing = wait_for_indexing
+        self.indexing_error_retry_delay = indexing_error_retry_delay
+        self.indexing_error_max_attempts = indexing_error_max_attempts
+
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+
+        self.log.info("Bedrock knowledge base creation job `%s` complete.", self.name)
+        return event["knowledge_base_id"]
+
+    def execute(self, context: Context) -> str:
+        def _create_kb():
+            # This API call will return the following if the index has not completed, but there is no apparent
+            # way to check the state of the index beforehand, so retry on index failure if set to do so.
+            #       botocore.errorfactory.ValidationException: An error occurred (ValidationException)
+            #       when calling the CreateKnowledgeBase operation: The knowledge base storage configuration
+            #       provided is invalid... no such index [bedrock-sample-rag-index-abc108]
+            try:
+                return self.hook.conn.create_knowledge_base(
+                    name=self.name,
+                    roleArn=self.role_arn,
+                    knowledgeBaseConfiguration=self.knowledge_base_config,
+                    storageConfiguration=self.storage_config,
+                    **self.create_knowledge_base_kwargs,
+                )["knowledgeBase"]["knowledgeBaseId"]
+            except ClientError as error:
+                if all(
+                    [
+                        error.response["Error"]["Code"] == "ValidationException",
+                        "no such index" in error.response["Error"]["Message"],
+                        self.wait_for_indexing,
+                        self.indexing_error_max_attempts > 0,
+                    ]
+                ):
+                    self.indexing_error_max_attempts -= 1
+                    self.log.warning(
+                        "Vector index not ready, retrying in %s seconds.", self.indexing_error_retry_delay
+                    )
+                    self.log.debug("%s retries remaining.", self.indexing_error_max_attempts)
+                    sleep(self.indexing_error_retry_delay)
+                    return _create_kb()
+                raise
+
+        self.log.info("Creating Amazon Bedrock Knowledge Base %s", self.name)
+        knowledge_base_id = _create_kb()
+
+        if self.deferrable:
+            self.log.info("Deferring for Knowledge base creation.")
+            self.defer(
+                trigger=BedrockKnowledgeBaseActiveTrigger(
+                    knowledge_base_id=knowledge_base_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            self.log.info("Waiting for Knowledge Base creation.")
+            self.hook.get_waiter("knowledge_base_active").wait(
+                knowledgeBaseId=knowledge_base_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return knowledge_base_id
+
+
+class BedrockCreateDataSourceOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Set up an Amazon Bedrock Data Source to be added to an Amazon Bedrock Knowledge Base.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockCreateDataSourceOperator`
+
+    :param name: name for the Amazon Bedrock Data Source being created. (templated).
+    :param bucket_name: The name of the Amazon S3 bucket to use for data source storage. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+    :param create_data_source_kwargs: Any additional optional parameters to pass to the API call. (templated)
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "name",
+        "bucket_name",
+        "knowledge_base_id",
+        "create_data_source_kwargs",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        knowledge_base_id: str,
+        bucket_name: str | None = None,
+        create_data_source_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.knowledge_base_id = knowledge_base_id
+        self.bucket_name = bucket_name
+        self.create_data_source_kwargs = create_data_source_kwargs or {}
+
+    def execute(self, context: Context) -> str:
+        create_ds_response = self.hook.conn.create_data_source(
+            name=self.name,
+            knowledgeBaseId=self.knowledge_base_id,
+            dataSourceConfiguration={
+                "type": "S3",
+                "s3Configuration": {"bucketArn": f"arn:aws:s3:::{self.bucket_name}"},
+            },
+            **self.create_data_source_kwargs,
+        )
+
+        return create_ds_response["dataSource"]["dataSourceId"]
+
+
+class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
+    """
+    Begin an ingestion job, in which an Amazon Bedrock data source is added to an Amazon Bedrock knowledge base.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockIngestDataOperator`
+
+    :param knowledge_base_id: The unique identifier of the knowledge base to which to add the data source. (templated)
+    :param data_source_id: The unique identifier of the data source to ingest. (templated)
+    :param ingest_data_kwargs: Any additional optional parameters to pass to the API call. (templated)
+
+    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = BedrockAgentHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "knowledge_base_id",
+        "data_source_id",
+        "ingest_data_kwargs",
+    )
+
+    def __init__(
+        self,
+        knowledge_base_id: str,
+        data_source_id: str,
+        ingest_data_kwargs: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.knowledge_base_id = knowledge_base_id
+        self.data_source_id = data_source_id
+        self.ingest_data_kwargs = ingest_data_kwargs or {}
+
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running ingestion job: {event}")
+
+        self.log.info("Bedrock ingestion job `%s` complete.", event["ingestion_job_id"])
+
+        return event["ingestion_job_id"]
+
+    def execute(self, context: Context) -> str:
+        ingestion_job_id = self.hook.conn.start_ingestion_job(
+            knowledgeBaseId=self.knowledge_base_id, dataSourceId=self.data_source_id
+        )["ingestionJob"]["ingestionJobId"]
+
+        if self.deferrable:
+            self.log.info("Deferring for ingestion job.")
+            self.defer(
+                trigger=BedrockIngestionJobTrigger(
+                    knowledge_base_id=self.knowledge_base_id,
+                    data_source_id=self.data_source_id,
+                    ingestion_job_id=ingestion_job_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            self.log.info("Waiting for ingestion job %s", ingestion_job_id)
+            self.hook.get_waiter(waiter_name="ingestion_job_complete").wait(
+                knowledgeBaseId=self.knowledge_base_id,
+                dataSourceId=self.data_source_id,
+                ingestionJobId=ingestion_job_id,
+            )
+
+        return ingestion_job_id
+
+
+class BedrockRaGOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
+    """
+    Query a knowledge base and generate responses based on the retrieved results with sources citations.
+
+    NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockRaGOperator`
+
+    :param input: The query to be made to the knowledge base. (templated)
+    :param source_type: The type of resource that is queried by the request. (templated)
+        Must be one of 'KNOWLEDGE_BASE' or 'EXTERNAL_SOURCES', and the appropriate config values must also be provided.
+        If set to 'KNOWLEDGE_BASE' then `knowledge_base_id` must be provided, and `vector_search_config` may be.
+        If set to `EXTERNAL_SOURCES` then `sources` must also be provided.
+        NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+    :param model_arn: The ARN of the foundation model used to generate a response. (templated)
+    :param prompt_template: The template for the prompt that's sent to the model for response generation.
+        You can include prompt placeholders, which are replaced before the prompt is sent to the model
+        to provide instructions and context to the model. In addition, you can include XML tags to delineate
+        meaningful sections of the prompt template. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
+            Can only be specified if source_type='KNOWLEDGE_BASE'.
+    :param vector_search_config: How the results from the vector search should be returned. (templated)
+        Can only be specified if source_type='KNOWLEDGE_BASE'.
+        For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
+    :param sources: The documents used as reference for the response. (templated)
+        Can only be specified if source_type='EXTERNAL_SOURCES'
+        NOTE:  Support for EXTERNAL SOURCES was added in botocore 1.34.90
+    :param rag_kwargs: Additional keyword arguments to pass to the  API call. (templated)
+    """
+
+    aws_hook_class = BedrockAgentRuntimeHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "input",
+        "source_type",
+        "model_arn",
+        "prompt_template",
+        "knowledge_base_id",
+        "vector_search_config",
+        "sources",
+        "rag_kwargs",
+    )
+
+    def __init__(
+        self,
+        input: str,
+        source_type: str,
+        model_arn: str,
+        prompt_template: str | None = None,
+        knowledge_base_id: str | None = None,
+        vector_search_config: dict[str, Any] | None = None,
+        sources: list[dict[str, Any]] | None = None,
+        rag_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.input = input
+        self.prompt_template = prompt_template
+        self.source_type = source_type.upper()
+        self.knowledge_base_id = knowledge_base_id
+        self.model_arn = model_arn
+        self.vector_search_config = vector_search_config
+        self.sources = sources
+        self.rag_kwargs = rag_kwargs or {}
+
+    def validate_inputs(self):
+        if self.source_type == "KNOWLEDGE_BASE":
+            if self.knowledge_base_id is None:
+                raise AttributeError(
+                    "If `source_type` is set to 'KNOWLEDGE_BASE' then `knowledge_base_id` must be provided."
+                )
+            if self.sources is not None:
+                raise AttributeError(
+                    "`sources` can not be used when `source_type` is set to 'KNOWLEDGE_BASE'."
+                )
+        elif self.source_type == "EXTERNAL_SOURCES":
+            if not self.sources is not None:
+                raise AttributeError(
+                    "If `source_type` is set to `EXTERNAL_SOURCES` then `sources` must also be provided."
+                )
+            if self.vector_search_config or self.knowledge_base_id:
+                raise AttributeError(
+                    "`vector_search_config` and `knowledge_base_id` can not be used "
+                    "when `source_type` is set to `EXTERNAL_SOURCES`"
+                )
+        else:
+            raise AttributeError(
+                "`source_type` must be one of 'KNOWLEDGE_BASE' or 'EXTERNAL_SOURCES', "
+                "and the appropriate config values must also be provided."
+            )
+
+    def build_rag_config(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        base_config: dict[str, Any] = {
+            "modelArn": self.model_arn,
+        }
+
+        if self.prompt_template:
+            base_config["generationConfiguration"] = {
+                "promptTemplate": {"textPromptTemplate": self.prompt_template}
+            }
+
+        if self.source_type == "KNOWLEDGE_BASE":
+            if self.vector_search_config:
+                base_config["retrievalConfiguration"] = {
+                    "vectorSearchConfiguration": self.vector_search_config
+                }
+
+            result = {
+                "type": self.source_type,
+                "knowledgeBaseConfiguration": {
+                    **base_config,
+                    "knowledgeBaseId": self.knowledge_base_id,
+                },
+            }
+
+        if self.source_type == "EXTERNAL_SOURCES":
+            result = {
+                "type": self.source_type,
+                "externalSourcesConfiguration": {**base_config, "sources": self.sources},
+            }
+        return result
+
+    def execute(self, context: Context) -> Any:
+        self.validate_inputs()
+
+        result = self.hook.conn.retrieve_and_generate(
+            input={"text": self.input},
+            retrieveAndGenerateConfiguration=self.build_rag_config(),
+            **self.rag_kwargs,
+        )
+
+        self.log.info(
+            "\nPrompt: %s\nResponse: %s\nCitations: %s",
+            self.input,
+            result["output"]["text"],
+            result["citations"],
+        )
+        return result
+
+
+class BedrockRetrieveOperator(AwsBaseOperator[BedrockAgentRuntimeHook]):
+    """
+    Query a knowledge base and retrieve results with source citations.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BedrockRetrieveOperator`
+
+    :param retrieval_query: The query to be made to the knowledge base. (templated)
+    :param knowledge_base_id: The unique identifier of the knowledge base that is queried. (templated)
+    :param vector_search_config: How the results from the vector search should be returned. (templated)
+        For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html.
+    :param retrieve_kwargs: Additional keyword arguments to pass to the  API call. (templated)
+    """
+
+    aws_hook_class = BedrockAgentRuntimeHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "retrieval_query",
+        "knowledge_base_id",
+        "vector_search_config",
+        "retrieve_kwargs",
+    )
+
+    def __init__(
+        self,
+        retrieval_query: str,
+        knowledge_base_id: str,
+        vector_search_config: dict[str, Any] | None = None,
+        retrieve_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.retrieval_query = retrieval_query
+        self.knowledge_base_id = knowledge_base_id
+        self.vector_search_config = vector_search_config
+        self.retrieve_kwargs = retrieve_kwargs or {}
+
+    def execute(self, context: Context) -> Any:
+        retrieval_configuration = (
+            {"retrievalConfiguration": {"vectorSearchConfiguration": self.vector_search_config}}
+            if self.vector_search_config
+            else {}
+        )
+
+        result = self.hook.conn.retrieve(
+            retrievalQuery={"text": self.retrieval_query},
+            knowledgeBaseId=self.knowledge_base_id,
+            **retrieval_configuration,
+            **self.retrieve_kwargs,
+        )
+
+        self.log.info("\nQuery: %s\nRetrieved: %s", self.retrieval_query, result["retrievalResults"])
+        return result

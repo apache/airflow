@@ -284,15 +284,15 @@ class TestStopEmrNotebookExecutionOperator:
     @mock.patch.object(EmrHook, "conn")
     def test_stop_notebook_execution_waiter_config(self, mock_conn, mock_waiter, _):
         test_execution_id = "test-execution-id"
-        countdown = 400
+        waiter_max_attempts = 35
         delay = 12
 
         op = EmrStopNotebookExecutionOperator(
             task_id="test-id",
             notebook_execution_id=test_execution_id,
             wait_for_completion=True,
-            waiter_countdown=countdown,
-            waiter_check_interval_seconds=delay,
+            waiter_max_attempts=waiter_max_attempts,
+            waiter_delay=delay,
         )
 
         op.execute(None)
@@ -300,6 +300,6 @@ class TestStopEmrNotebookExecutionOperator:
         mock_waiter.assert_called_once_with(
             mock.ANY,
             NotebookExecutionId=test_execution_id,
-            WaiterConfig={"Delay": delay, "MaxAttempts": countdown // delay},
+            WaiterConfig={"Delay": delay, "MaxAttempts": waiter_max_attempts},
         )
         assert_expected_waiter_type(mock_waiter, "notebook_stopped")

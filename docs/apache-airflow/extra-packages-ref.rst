@@ -87,6 +87,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| cloudpickle         | pip install apache-airflow[cloudpickle]             | Cloudpickle hooks and operators                                            |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 
 
 Providers extras
@@ -140,6 +142,8 @@ custom bash/python providers).
 | apache-hdfs         | ``pip install 'apache-airflow[apache-hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-hive         | ``pip install 'apache-airflow[apache-hive]'``       | All Hive related operators                     |
++---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-iceberg      | ``pip install 'apache-airflow[apache-iceberg]'``    | Apache Iceberg hooks                           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-impala       | ``pip install 'apache-airflow[apache-impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+

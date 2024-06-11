@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Fix description field in ``connection`` to be ``text``
+"""Fix description field in ``connection`` to be ``text``.
 
 Revision ID: 64a7d6477aae
-Revises: f5b5ec089444
+Revises: 61ec73d9401f
 Create Date: 2020-11-25 08:56:11.866607
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,7 +37,7 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-    """Apply Fix description field in ``connection`` to be ``text``"""
+    """Apply Fix description field in ``connection`` to be ``text``."""
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         # in sqlite TEXT and STRING column types are the same
@@ -55,7 +56,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Fix description field in ``connection`` to be ``text``"""
+    """Unapply Fix description field in ``connection`` to be ``text``."""
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         # in sqlite TEXT and STRING column types are the same
