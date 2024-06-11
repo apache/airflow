@@ -87,6 +87,7 @@ def upgrade():
             ],
             name="task_instance_history_ti_fkey",
             ondelete="CASCADE",
+            onupdate="CASCADE",
         ),
         sa.UniqueConstraint(
             "dag_id",

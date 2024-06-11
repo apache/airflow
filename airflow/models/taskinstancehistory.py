@@ -72,6 +72,7 @@ class TaskInstanceHistory(Base):
             ],
             name="task_instance_history_ti_fkey",
             ondelete="CASCADE",
+            onupdate="CASCADE",
         ),
         UniqueConstraint(
             "dag_id",
