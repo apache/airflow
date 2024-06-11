@@ -3968,8 +3968,7 @@ class TestSchedulerJob:
         created_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one()
         assert created_run.state == State.QUEUED
 
-        # we don't have __eq__ defined on DatasetEvent because... given the fact that in the future
-        # we may register events from other systems, dataset_id + timestamp might not be enough PK
+        # __eq__ isn't defined on DatasetEvent
         assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == [dict_from_obj(event3)]
 
         # dag DDRQ record should be deleted since the dag run was triggered
