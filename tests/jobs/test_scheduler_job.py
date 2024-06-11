@@ -3928,7 +3928,7 @@ class TestSchedulerJob:
         # Create DAG after dataset events.
         with dag_maker(dag_id="datasets-consumer", schedule=[dataset]):
             pass
-        dag = dag_maker.dag
+        consumer_dag = dag_maker.dag
 
         with dag_maker(dag_id="datasets-1-new", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset])
@@ -3949,7 +3949,7 @@ class TestSchedulerJob:
         session.add(event3)
 
         session = dag_maker.session
-        session.add(DatasetDagRunQueue(dataset_id=ds_id, target_dag_id=dag.dag_id))
+        session.add(DatasetDagRunQueue(dataset_id=ds_id, target_dag_id=consumer_dag.dag_id))
         session.flush()
 
         scheduler_job = Job(executor=self.null_exec)
@@ -3965,16 +3965,16 @@ class TestSchedulerJob:
             return {k.key: getattr(obj, k) for k in obj.__mapper__.column_attrs}
 
         # dag should be triggered since it only depends on dataset1, it's been queued and dataset events landed after DAG was created.
-        created_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one()
+        created_run = session.query(DagRun).filter(DagRun.dag_id == consumer_dag.dag_id).one()
         assert created_run.state == State.QUEUED
 
         # __eq__ isn't defined on DatasetEvent
         assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == [dict_from_obj(event3)]
 
         # dag DDRQ record should be deleted since the dag run was triggered
-        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag.dag_id).one_or_none() is None
+        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=consumer_dag.dag_id).one_or_none() is None
 
-        assert dag.get_last_dagrun().creating_job_id == scheduler_job.id
+        assert consumer_dag.get_last_dagrun().creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
