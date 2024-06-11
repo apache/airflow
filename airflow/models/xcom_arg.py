@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import itertools
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
 from sqlalchemy import func, or_, select
@@ -158,7 +159,7 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def _serialize(self) -> dict[str, Any]:
         """
-        Serialize a DAG.
+        Serialize an XComArg.
 
         The implementation should be the inverse function to ``deserialize``,
         returning a data dict converted from this XComArg derivative. DAG
@@ -171,7 +172,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         """
-        Deserialize a DAG.
+        Deserialize an XComArg.
 
         The implementation should be the inverse function to ``serialize``,
         implementing given a data dict converted from this XComArg derivative,
@@ -187,6 +188,9 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     def zip(self, *others: XComArg, fillvalue: Any = NOTSET) -> ZipXComArg:
         return ZipXComArg([self, *others], fillvalue=fillvalue)
+
+    def chain(self, *others: XComArg) -> ChainXComArg:
+        return ChainXComArg([self, *others])
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
         """Inspect length of pushed value for task-mapping.
@@ -362,6 +366,11 @@ class PlainXComArg(XComArg):
         if self.key != XCOM_RETURN_KEY:
             raise ValueError("cannot map against non-return XCom")
         return super().zip(*others, fillvalue=fillvalue)
+
+    def chain(self, *others: XComArg) -> ChainXComArg:
+        if self.key != XCOM_RETURN_KEY:
+            raise ValueError("cannot chain against non-return XCom")
+        return super().chain(*others)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
         from airflow.models.taskinstance import TaskInstance
@@ -606,8 +615,76 @@ class ZipXComArg(XComArg):
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
+class _ChainResult(Sequence):
+    def __init__(self, values: Sequence[Sequence | dict]) -> None:
+        self.values = values
+
+    def __getitem__(self, index: Any) -> Any:
+        i = index
+        for value in self.values:
+            if i >= (curlen := len(value)):
+                i -= curlen
+            elif isinstance(value, Sequence):
+                return value[i]
+            else:
+                return next(itertools.islice(iter(value), i, None))
+        raise IndexError(index)
+
+    def __len__(self) -> int:
+        return sum(len(v) for v in self.values)
+
+
+class ChainXComArg(XComArg):
+    """Chaining multiple XCom references into one.
+
+    This is done by calling ``chain()`` on an XComArg to combine it with others.
+    """
+
+    def __init__(self, args: Sequence[XComArg]) -> None:
+        if not args:
+            raise ValueError("At least one input is required")
+        self.args = args
+
+    def __repr__(self) -> str:
+        args_iter = iter(self.args)
+        first = repr(next(args_iter))
+        rest = ", ".join(repr(arg) for arg in args_iter)
+        return f"{first}.chain({rest})"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {"args": [serialize_xcom_arg(arg) for arg in self.args]}
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+        return cls([deserialize_xcom_arg(arg, dag) for arg in data["args"]])
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        for arg in self.args:
+            yield from arg.iter_references()
+
+    def chain(self, *others: XComArg) -> ChainXComArg:
+        # Flattern foo.chain(x).chain(y) into one call.
+        return ChainXComArg([*self.args, *others])
+
+    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
+        ready_lengths = [length for length in all_lengths if length is not None]
+        if len(ready_lengths) != len(self.args):
+            return None  # If any of the referenced XComs is not ready, we are not ready either.
+        return sum(ready_lengths)
+
+    @provide_session
+    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        values = [arg.resolve(context, session=session) for arg in self.args]
+        for value in values:
+            if not isinstance(value, (Sequence, dict)):
+                raise ValueError(f"XCom chain expects sequence or dict, not {type(value).__name__}")
+        return _ChainResult(values)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
+    "chain": ChainXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
