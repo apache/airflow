@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import Mock
 
@@ -135,3 +136,33 @@ class TestAirflowSecurityManagerV2:
         if len(auth_manager_methods) > 1 and not expected:
             for method_name in auth_manager_methods:
                 getattr(auth_manager, method_name).assert_called()
+
+    @mock.patch("airflow.utils.session.create_session")
+    @mock.patch("airflow.www.security_manager.get_auth_manager")
+    def test_manager_does_not_create_extra_db_sessions(
+        self,
+        _,
+        mock_create_session,
+        security_manager,
+    ):
+        """
+        Test that the Security Manager doesn't create extra DB sessions and
+        instead uses the session already available through the appbuilder
+        object that is attached to it.
+        """
+        with mock.patch.object(security_manager.appbuilder, "session") as mock_appbuilder_session:
+            action_name = ACTION_CAN_READ
+            resource_pk = "PK"
+            user = Mock()
+            for func in security_manager._auth_manager_is_authorized_map.values():
+                try:
+                    func(action_name, resource_pk, user)
+                except json.JSONDecodeError:
+                    # The resource-retrieving function expects a "composite"
+                    # PK as a JSON string. Provide a mocked one.
+                    func(action_name, "[1, 1, 1, 1]", user)
+                mock_create_session.assert_not_called()
+
+        # The Security Manager's `appbuilder.session` object should have been
+        # put to use by many of the functions tested above.
+        assert len(mock_appbuilder_session.method_calls) > 0

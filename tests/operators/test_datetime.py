@@ -76,7 +76,11 @@ class TestBranchDateTimeOperator:
         self.dag.clear()
 
         self.dr = self.dag.create_dagrun(
-            run_id="manual__", start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
+            run_id="manual__",
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
     def teardown_method(self):
@@ -236,6 +240,7 @@ class TestBranchDateTimeOperator:
             start_date=in_between_date,
             execution_date=in_between_date,
             state=State.RUNNING,
+            data_interval=(in_between_date, in_between_date),
         )
 
         self.branch_op.target_lower = target_lower

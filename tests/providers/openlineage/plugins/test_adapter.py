@@ -38,6 +38,11 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Dataset, Job, Run, RunEvent, RunState
 
+from airflow import DAG
+from airflow.models.dagrun import DagRun, DagRunState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.conf import (
     config_path,
     custom_extractors,
@@ -49,6 +54,11 @@ from airflow.providers.openlineage.conf import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
+from airflow.providers.openlineage.plugins.facets import (
+    AirflowStateRunFacet,
+)
+from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
+from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -534,19 +544,33 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    dagrun_mock = MagicMock()
-    dagrun_mock.start_date = event_time
-    dagrun_mock.run_id = run_id
-    dagrun_mock.dag_id = dag_id
+    with DAG(dag_id=dag_id, description="dag desc", start_date=datetime.datetime(2024, 6, 1)) as dag:
+        tg = TaskGroup(group_id="tg1")
+        tg2 = TaskGroup(group_id="tg2", parent_group=tg)
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")  # noqa: F841
+        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;", task_group=tg)  # noqa: F841
+        task_2 = EmptyOperator(task_id="task_2.test.dot", task_group=tg2)  # noqa: F841
+
+    dag_run = DagRun(
+        dag_id=dag_id,
+        run_id=run_id,
+        start_date=event_time,
+        execution_date=event_time,
+    )
+    dag_run.dag = dag
     generate_static_uuid.return_value = random_uuid
 
+    job_facets = {**get_airflow_job_facet(dag_run)}
+
     adapter.dag_started(
-        dag_run=dagrun_mock,
+        dag_run=dag_run,
         msg="",
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
+        job_facets=job_facets,
     )
 
+    assert len(client.emit.mock_calls) == 1
     assert (
         call(
             RunEvent(
@@ -565,9 +589,16 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                     namespace=namespace(),
                     name="dag_id",
                     facets={
+                        "documentation": DocumentationJobFacet(description="dag desc"),
+                        "ownership": OwnershipJobFacet(
+                            owners=[
+                                OwnershipJobFacetOwners(name="airflow", type=None),
+                            ]
+                        ),
+                        **job_facets,
                         "jobType": JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                        )
+                        ),
                     },
                 ),
                 producer=_PRODUCER,
@@ -582,10 +613,11 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
+@mock.patch.object(DagRun, "get_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
+def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -593,15 +625,30 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    dagrun_mock = MagicMock()
-    dagrun_mock.start_date = event_time
-    dagrun_mock.end_date = event_time
-    dagrun_mock.run_id = run_id
-    dagrun_mock.dag_id = dag_id
+    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
+        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
+        task_2 = EmptyOperator(
+            task_id="task_2.test",
+        )
+
+    dag_run = DagRun(
+        dag_id=dag_id,
+        run_id=run_id,
+        start_date=event_time,
+        execution_date=event_time,
+    )
+    dag_run._state = DagRunState.SUCCESS
+    dag_run.end_date = event_time
+    mocked_get_tasks.return_value = [
+        TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
+        TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
+        TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
+    ]
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_success(
-        dag_run=dagrun_mock,
+        dag_run=dag_run,
         msg="",
     )
 
@@ -610,10 +657,22 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
             RunEvent(
                 eventType=RunState.COMPLETE,
                 eventTime=event_time.isoformat(),
-                run=Run(runId=random_uuid, facets={}),
+                run=Run(
+                    runId=random_uuid,
+                    facets={
+                        "airflowState": AirflowStateRunFacet(
+                            dagRunState=DagRunState.SUCCESS,
+                            tasksState={
+                                task_0.task_id: TaskInstanceState.SUCCESS,
+                                task_1.task_id: TaskInstanceState.SKIPPED,
+                                task_2.task_id: TaskInstanceState.FAILED,
+                            },
+                        )
+                    },
+                ),
                 job=Job(
                     namespace=namespace(),
-                    name="dag_id",
+                    name=dag_id,
                     facets={
                         "jobType": JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="DAG"
@@ -632,10 +691,11 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
+@mock.patch.object(DagRun, "get_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
+def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -643,15 +703,28 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_stati
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    dagrun_mock = MagicMock()
-    dagrun_mock.start_date = event_time
-    dagrun_mock.end_date = event_time
-    dagrun_mock.run_id = run_id
-    dagrun_mock.dag_id = dag_id
+    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
+        task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
+        task_2 = EmptyOperator(task_id="task_2.test")
+
+    dag_run = DagRun(
+        dag_id=dag_id,
+        run_id=run_id,
+        start_date=event_time,
+        execution_date=event_time,
+    )
+    dag_run._state = DagRunState.SUCCESS
+    dag_run.end_date = event_time
+    mocked_get_tasks.return_value = [
+        TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
+        TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
+        TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
+    ]
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_failed(
-        dag_run=dagrun_mock,
+        dag_run=dag_run,
         msg="error msg",
     )
 
@@ -665,12 +738,20 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_stati
                     facets={
                         "errorMessage": ErrorMessageRunFacet(
                             message="error msg", programmingLanguage="python"
-                        )
+                        ),
+                        "airflowState": AirflowStateRunFacet(
+                            dagRunState=DagRunState.SUCCESS,
+                            tasksState={
+                                task_0.task_id: TaskInstanceState.SUCCESS,
+                                task_1.task_id: TaskInstanceState.SKIPPED,
+                                task_2.task_id: TaskInstanceState.FAILED,
+                            },
+                        ),
                     },
                 ),
                 job=Job(
                     namespace=namespace(),
-                    name="dag_id",
+                    name=dag_id,
                     facets={
                         "jobType": JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="DAG"

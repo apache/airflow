@@ -51,10 +51,10 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - dnspython>=1.13.0
-  - pymongo>=3.6.0
+  - pymongo>=4.0.0
 
 devel-dependencies:
-  - mongomock
+  - mongomock>=4.0.0
 
 integrations:
   - integration-name: MongoDB

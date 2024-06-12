@@ -71,7 +71,7 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
         "test",
         start_date=dt.datetime(2022, 1, 1),
         user_defined_macros={"render_df": render_df},
-        params={"df": render_df()},
+        params={"df": {"col": [1, 2]}},
     )
     t = TemplateOperator(task_id="template_op", dag=dag, do_xcom_push=True, df=dag.param("df"))
     run_id = str(uuid.uuid1())
