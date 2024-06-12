@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-11T16:55:20.895794
+# This constraints file was automatically generated on 2024-06-12T09:31:06.473467
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -59,7 +59,7 @@ alabaster==0.7.16
 alembic==1.13.1
 alibabacloud-adb20211201==1.3.5
 alibabacloud-tea==0.3.6
-alibabacloud_credentials==0.3.3
+alibabacloud_credentials==0.3.4
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.1
 alibabacloud_openapi_util==0.2.2
@@ -132,7 +132,7 @@ celery==5.4.0
 certifi==2024.6.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.87.5
+cfn-lint==0.87.6
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -213,7 +213,7 @@ google-cloud-automl==2.13.3
 google-cloud-batch==0.17.21
 google-cloud-bigquery-datatransfer==3.15.3
 google-cloud-bigquery==3.20.1
-google-cloud-bigtable==2.23.1
+google-cloud-bigtable==2.24.0
 google-cloud-build==3.24.0
 google-cloud-compute==1.19.0
 google-cloud-container==2.47.0
@@ -456,7 +456,7 @@ pyodbc==5.1.0
 pyparsing==3.1.2
 pypsrp==0.8.1
 pyspark==3.5.1
-pyspnego==0.10.2
+pyspnego==0.11.0
 pytest-asyncio==0.23.7
 pytest-cov==5.0.0
 pytest-custom-exit-code==0.3.0
