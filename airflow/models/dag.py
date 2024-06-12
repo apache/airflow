@@ -2986,11 +2986,11 @@ class DAG(LoggingMixin):
                 if is_local_executor:
                     triggerer_running = _triggerer_is_healthy()
                 for ti in scheduled_tis:
-                    add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
 
                     if is_local_executor:
                         try:
+                            add_logger_if_needed(ti)
                             _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
                         except Exception:
                             self.log.exception("Task failed; ti=%s", ti)
