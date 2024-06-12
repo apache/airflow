@@ -178,7 +178,7 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
         },
     )
 
-See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
+See the `Jinja documentation <https://jinja.palletsprojects.com/api/#jinja2.Environment>`_ to find all available options.
 
 Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into DAG code.
 
