@@ -96,6 +96,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--skip-docker-compose-down",
                 "--skip-providers",
+                "--keep-env-variables",
             ],
         },
     ],

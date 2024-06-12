@@ -204,6 +204,7 @@ def _run_test(
             python_version=python_version,
             parallel_test_types_list=shell_params.parallel_test_types_list,
             helm_test_package=None,
+            keep_env_variables=shell_params.keep_env_variables,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
@@ -412,6 +413,12 @@ option_excluded_parallel_test_types = click.option(
     envvar="EXCLUDED_PARALLEL_TEST_TYPES",
     type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
 )
+option_keep_env_variables = click.option(
+    "--keep-env-variables",
+    help="Do not clear environment variables that might have side effect while running tests",
+    envvar="KEEP_ENV_VARIABLES",
+    is_flag=True,
+)
 option_parallel_test_types = click.option(
     "--parallel-test-types",
     help="Space separated list of test types used for testing in parallel",
@@ -507,6 +514,7 @@ option_force_sa_warnings = click.option(
 @option_include_success_outputs
 @option_integration
 @option_install_airflow_with_constraints
+@option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_package_format
@@ -675,6 +683,7 @@ def _run_test_command(
     include_success_outputs: bool,
     install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
+    keep_env_variables: bool,
     mount_sources: str,
     parallel_test_types: str,
     parallelism: int,
@@ -726,6 +735,7 @@ def _run_test_command(
         image_tag=image_tag,
         integration=integration,
         install_airflow_with_constraints=install_airflow_with_constraints,
+        keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         package_format=package_format,
@@ -936,6 +946,7 @@ def helm_tests(
         parallel_test_types_list=[],
         python_version=shell_params.python,
         helm_test_package=helm_test_package,
+        keep_env_variables=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

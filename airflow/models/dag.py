@@ -2952,6 +2952,21 @@ class DAG(LoggingMixin):
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management. This is notably faster
             # than creating a BackfillJob and allows us to surface logs to the user
+
+            from airflow.executors.local_executor import LocalExecutor
+
+            # Fetch the executor from config
+            # ``Dag.test()`` works in two different modes depending on the executor:
+            # - if the executor ``LocalExecutor``, runs the task locally using ``_run_task``
+            # - if the executor is not ``LocalExecutor``, sends the task instances to the executor with
+            #   ``BaseExecutor.queue_task_instance``
+            executor = ExecutorLoader.get_default_executor()
+            is_local_executor = type(executor) is LocalExecutor
+
+            if not is_local_executor:
+                executor.job_id = None
+                executor.start()
+
             while dr.state == DagRunState.RUNNING:
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
@@ -2967,14 +2982,28 @@ class DAG(LoggingMixin):
                 if not scheduled_tis and ids_unrunnable:
                     self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
-                triggerer_running = _triggerer_is_healthy()
+
+                if is_local_executor:
+                    triggerer_running = _triggerer_is_healthy()
                 for ti in scheduled_tis:
-                    try:
-                        add_logger_if_needed(ti)
-                        ti.task = tasks[ti.task_id]
-                        _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
-                    except Exception:
-                        self.log.exception("Task failed; ti=%s", ti)
+                    add_logger_if_needed(ti)
+                    ti.task = tasks[ti.task_id]
+
+                    if is_local_executor:
+                        try:
+                            _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
+                        except Exception:
+                            self.log.exception("Task failed; ti=%s", ti)
+                    else:
+                        if executor.has_task(ti):
+                            continue
+
+                        executor.queue_task_instance(ti, ignore_ti_state=True)
+
+                if not is_local_executor:
+                    executor.heartbeat()
+            if not is_local_executor:
+                executor.end()
         return dr
 
     @provide_session
