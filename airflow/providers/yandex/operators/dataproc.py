@@ -320,7 +320,7 @@ class DataprocBaseOperator(BaseOperator):
     :param cluster_id: ID of the cluster to remove. (templated)
     """
 
-    template_fields: tuple[str] = ("cluster_id", "yandex_conn_id")
+    template_fields: tuple[str, ...] = ("cluster_id", "yandex_conn_id")
 
     def __init__(self, *, yandex_conn_id: str | None = None, cluster_id: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
