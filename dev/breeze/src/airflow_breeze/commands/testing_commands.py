@@ -601,6 +601,7 @@ def command_for_db_tests(**kwargs):
         test_type="Default",
         db_reset=True,
         extra_pytest_args=(),
+        keep_env_variables=False,
         **kwargs,
     )
 
@@ -659,6 +660,7 @@ def command_for_non_db_tests(**kwargs):
         db_reset=False,
         backend="none",
         extra_pytest_args=(),
+        keep_env_variables=False,
         **kwargs,
     )
 
