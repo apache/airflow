@@ -61,6 +61,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
@@ -164,13 +165,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
-
-    # This is a workaround because mypy doesn't work with hybrid_property
-    # TODO: remove this hack and move hybrid_property back to main import block
-    # See https://github.com/python/mypy/issues/4430
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -340,6 +334,9 @@ def _run_raw_task(
             ti.handle_failure(e, test_mode, context, session=session)
             raise
         finally:
+            # Print a marker post execution for internals of post task processing
+            log.info("::group::Post task execution logs")
+
             Stats.incr(
                 f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
                 tags=ti.stats_tags,
@@ -736,9 +733,6 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             if e.code is not None and e.code != 0:
                 raise
             return None
-        finally:
-            # Print a marker post execution for internals of post task processing
-            log.info("::group::Post task execution logs")
 
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
@@ -1581,12 +1575,29 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 @internal_api_call
 @provide_session
 def _defer_task(
-    ti: TaskInstance | TaskInstancePydantic, exception: TaskDeferred, session: Session = NEW_SESSION
+    ti: TaskInstance | TaskInstancePydantic,
+    exception: TaskDeferred | None = None,
+    session: Session = NEW_SESSION,
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
 
+    if exception is not None:
+        trigger_row = Trigger.from_object(exception.trigger)
+        trigger_kwargs = exception.kwargs
+        next_method = exception.method_name
+        timeout = exception.timeout
+    elif ti.task is not None and ti.task.start_trigger_args is not None:
+        trigger_row = Trigger(
+            classpath=ti.task.start_trigger_args.trigger_cls,
+            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
+        )
+        trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
+        next_method = ti.task.start_trigger_args.next_method
+        timeout = ti.task.start_trigger_args.timeout
+    else:
+        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
+
     # First, make the trigger entry
-    trigger_row = Trigger.from_object(exception.trigger)
     session.add(trigger_row)
     session.flush()
 
@@ -1600,12 +1611,12 @@ def _defer_task(
     # depending on self.next_method semantics
     ti.state = TaskInstanceState.DEFERRED
     ti.trigger_id = trigger_row.id
-    ti.next_method = exception.method_name
-    ti.next_kwargs = exception.kwargs or {}
+    ti.next_method = next_method
+    ti.next_kwargs = trigger_kwargs or {}
 
     # Calculate timeout too if it was passed
-    if exception.timeout is not None:
-        ti.trigger_timeout = timezone.utcnow() + exception.timeout
+    if timeout is not None:
+        ti.trigger_timeout = timezone.utcnow() + timeout
     else:
         ti.trigger_timeout = None
 
@@ -1621,8 +1632,10 @@ def _defer_task(
             ti.trigger_timeout = ti.start_date + execution_timeout
     if ti.test_mode:
         _add_log(event=ti.state, task_instance=ti, session=session)
-    session.merge(ti)
-    session.commit()
+
+    if exception is not None:
+        session.merge(ti)
+        session.commit()
     return ti
 
 
@@ -3006,8 +3019,8 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def defer_task(self, exception: TaskDeferred, session: Session) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it.
+    def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
+        """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
@@ -3192,14 +3205,6 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state == TaskInstanceState.QUEUED:
-                from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-
-                if isinstance(ti, TaskInstancePydantic):
-                    # todo: (AIP-44) we should probably "coalesce" `ti` to TaskInstance before here
-                    #  e.g. we could make refresh_from_db return a TI and replace ti with that
-                    raise RuntimeError("Expected TaskInstance here. Further AIP-44 work required.")
-                # We increase the try_number to fail the task if it fails to start after sometime
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
@@ -3709,7 +3714,7 @@ class TaskInstance(Base, LoggingMixin):
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().debug(
+            cls.logger().warning(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,

@@ -78,8 +78,8 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
         "_needs_expansion": True,
         "_task_type": "_PythonDecoratedOperator",
         "downstream_task_ids": [],
-        "next_method": None,
-        "start_trigger": None,
+        "start_from_trigger": False,
+        "start_trigger_args": None,
         "_operator_name": "@task",
         "ui_fgcolor": "#000",
         "ui_color": "#ffefeb",
@@ -215,12 +215,14 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
+    execution_date = timezone.utcnow()
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=timezone.utcnow(),
+        execution_date=execution_date,
         state=None,
         session=session,
+        data_interval=(execution_date, execution_date),
     )
     ds1_event = DatasetEvent(dataset_id=1)
     ds2_event_1 = DatasetEvent(dataset_id=2)

@@ -65,6 +65,7 @@ class BatchOperator(BaseOperator):
     :param job_queue: the queue name on AWS Batch
     :param overrides: DEPRECATED, use container_overrides instead with the same value.
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
+    :param ecs_properties_override: the `ecsPropertiesOverride` parameter for boto3 (templated)
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
     :param share_identifier: The share identifier for the job. Don't specify this parameter if the job queue
         doesn't have a scheduling policy.
@@ -112,6 +113,7 @@ class BatchOperator(BaseOperator):
         "job_queue",
         "container_overrides",
         "array_properties",
+        "ecs_properties_override",
         "node_overrides",
         "parameters",
         "retry_strategy",
@@ -124,6 +126,7 @@ class BatchOperator(BaseOperator):
     template_fields_renderers = {
         "container_overrides": "json",
         "parameters": "json",
+        "ecs_properties_override": "json",
         "node_overrides": "json",
         "retry_strategy": "json",
     }
@@ -160,6 +163,7 @@ class BatchOperator(BaseOperator):
         overrides: dict | None = None,  # deprecated
         container_overrides: dict | None = None,
         array_properties: dict | None = None,
+        ecs_properties_override: dict | None = None,
         node_overrides: dict | None = None,
         share_identifier: str | None = None,
         scheduling_priority_override: int | None = None,
@@ -201,6 +205,7 @@ class BatchOperator(BaseOperator):
                 stacklevel=2,
             )
 
+        self.ecs_properties_override = ecs_properties_override
         self.node_overrides = node_overrides
         self.share_identifier = share_identifier
         self.scheduling_priority_override = scheduling_priority_override
@@ -296,6 +301,8 @@ class BatchOperator(BaseOperator):
             self.log.info("AWS Batch job - container overrides: %s", self.container_overrides)
         if self.array_properties:
             self.log.info("AWS Batch job - array properties: %s", self.array_properties)
+        if self.ecs_properties_override:
+            self.log.info("AWS Batch job - ECS properties: %s", self.ecs_properties_override)
         if self.node_overrides:
             self.log.info("AWS Batch job - node properties: %s", self.node_overrides)
 
@@ -307,6 +314,7 @@ class BatchOperator(BaseOperator):
             "parameters": self.parameters,
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
+            "ecsPropertiesOverride": self.ecs_properties_override,
             "nodeOverrides": self.node_overrides,
             "retryStrategy": self.retry_strategy,
             "shareIdentifier": self.share_identifier,

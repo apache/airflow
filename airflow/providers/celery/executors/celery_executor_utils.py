@@ -147,7 +147,7 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         if ret == 0:
             return
 
-        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}"
+        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id} (PID: {pid}, Return Code: {ret})"
         raise AirflowException(msg)
 
     from airflow.sentry import Sentry
@@ -175,8 +175,12 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         log.exception("[%s] Failed to execute task.", celery_task_id)
         ret = 1
     finally:
-        Sentry.flush()
-        logging.shutdown()
+        try:
+            Sentry.flush()
+            logging.shutdown()
+        except Exception:
+            log.exception("[%s] Failed to clean up.", celery_task_id)
+            ret = 1
         os._exit(ret)
 
 

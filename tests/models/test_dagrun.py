@@ -40,7 +40,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
-from airflow.triggers.testing import SuccessTrigger
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -1989,16 +1989,21 @@ def test_schedule_tis_map_index(dag_maker, session):
 
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
-    Test that an operator with _start_trigger and _next_method set can be directly
-    deferred during scheduling.
+    Test that an operator with start_trigger_args set can be directly deferred during scheduling.
     """
-    trigger = SuccessTrigger()
 
     class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs=None,
+            next_method="execute_complete",
+            timeout=None,
+        )
+        start_from_trigger = True
+
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.start_trigger = trigger
-            self.next_method = "execute_complete"
+            self.start_trigger_args.trigger_kwargs = {}
 
         def execute_complete(self):
             pass

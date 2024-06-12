@@ -59,20 +59,18 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-integration:
     timeout-minutes: 130
-    name: Integration Tests ${{ matrix.backend }}-${{ matrix.integration }}
+    name: "Integration Tests: ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     strategy:
       fail-fast: false
       matrix:
-        backend: ["postgres", "mysql"]
         integration: ${{ fromJSON(inputs.testable-integrations) }}
     env:
       IMAGE_TAG: "${{ inputs.image-tag }}"
-      BACKEND: "${{ matrix.backend }}"
-      # yamllint disable-line rule:line-length
-      BACKEND_VERSION: ${{ matrix.backend == 'postgres' && inputs.default-postgres-version || inputs.default-mysql-version }}"
+      BACKEND: "postgres"
+      BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      JOB_ID: "integration-${{ matrix.backend }}-${{ matrix.integration }}"
+      JOB_ID: "integration-${{ matrix.integration }}"
       SKIP_PROVIDER_TESTS: "${{ inputs.skip-provider-tests }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage}}"
       DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
@@ -92,13 +90,13 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Integration Tests  ${{ matrix.backend }}:${{ matrix.integration }}"
-        run: |
-          breeze down
-          breeze testing integration-tests --integration ${{ matrix.integration }}
-          breeze down
-      - name: "Post Tests success: Integration Tests ${{ matrix.backend }}-${{ matrix.integration }}"
+      - name: "Integration Tests: ${{ matrix.integration }}"
+        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh ${{ matrix.integration }}
+      - name: "Post Tests success: Integration Tests ${{ matrix.integration }}"
         uses: ./.github/actions/post_tests_success
-      - name: "Post Tests failure: Integration Tests ${{ matrix.backend }}-${{ matrix.integration }}"
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          python-version: ${{ inputs.default-python-version }}
+      - name: "Post Tests failure: Integration Tests ${{ matrix.integration }}"
         uses: ./.github/actions/post_tests_failure
         if: failure()

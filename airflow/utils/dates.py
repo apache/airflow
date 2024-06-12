@@ -272,3 +272,8 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
 def parse_execution_date(execution_date_str):
     """Parse execution date string to datetime object."""
     return timezone.parse(execution_date_str)
+
+
+def datetime_to_nano(datetime) -> int:
+    """Convert datetime to nanoseconds."""
+    return int(datetime.timestamp() * 1000000000)

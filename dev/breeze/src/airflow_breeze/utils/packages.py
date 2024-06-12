@@ -249,7 +249,6 @@ def get_available_packages(
     """
     Return provider ids for all packages that are available currently (not suspended).
 
-    :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
     :param include_not_ready: whether the not-ready packages should be included
@@ -443,7 +442,9 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
         dependencies = get_provider_requirements(provider_id)
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
-    install_requires = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
+    install_requires = [
+        apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
+    ]
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 

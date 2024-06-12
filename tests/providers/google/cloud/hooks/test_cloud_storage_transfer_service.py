@@ -288,6 +288,25 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service."
+        "CloudDataTransferServiceHook.get_conn"
+    )
+    def test_run_transfer_job(self, get_conn):
+        run_method = get_conn.return_value.transferJobs.return_value.run
+        execute_method = run_method.return_value.execute
+        execute_method.return_value = TEST_TRANSFER_OPERATION
+
+        res = self.gct_hook.run_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
+        assert res == TEST_TRANSFER_OPERATION
+        run_method.assert_called_once_with(
+            jobName=TEST_TRANSFER_JOB_NAME,
+            body={
+                PROJECT_ID: TEST_PROJECT_ID,
+            },
+        )
+        execute_method.assert_called_once_with(num_retries=5)
+
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service"
         ".CloudDataTransferServiceHook.get_conn"
     )
