@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from opensearchpy import OpenSearch, RequestsHttpConnection
 
@@ -29,6 +29,16 @@ if TYPE_CHECKING:
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.strings import to_boolean
+
+
+class OpenSearchClientArguments(TypedDict, total=False):
+    """Typed arguments to the open search client."""
+
+    hosts: str | list[dict] | None
+    use_ssl: bool
+    verify_certs: bool
+    connection_class: type[OpenSearchConnectionClass] | None
+    http_auth: tuple[str, str]
 
 
 class OpenSearchHook(BaseHook):
@@ -67,7 +77,7 @@ class OpenSearchHook(BaseHook):
     @cached_property
     def client(self) -> OpenSearch:
         """This function is intended for Operators that forward high level client objects."""
-        client_args = dict(
+        client_args: OpenSearchClientArguments = dict(
             hosts=[{"host": self.conn.host, "port": self.conn.port}],
             use_ssl=self.use_ssl,
             verify_certs=self.verify_certs,
