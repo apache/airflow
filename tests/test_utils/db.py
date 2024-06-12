@@ -58,6 +58,12 @@ def clear_db_runs():
         session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
+        try:
+            from airflow.models import TaskInstanceHistory
+
+            session.query(TaskInstanceHistory).delete()
+        except ImportError:
+            pass
 
 
 def clear_db_datasets():

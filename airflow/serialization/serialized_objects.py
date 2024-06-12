@@ -66,11 +66,10 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
 )
-from airflow.triggers.base import BaseTrigger
+from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.docs import get_docs_url
-from airflow.utils.helpers import exactly_one
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
@@ -1018,11 +1017,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
-        if exactly_one(op.start_trigger is not None, op.next_method is not None):
-            raise AirflowException("start_trigger and next_method should both be set.")
-
-        serialize_op["start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
-        serialize_op["next_method"] = op.next_method
+        serialize_op["start_trigger_args"] = (
+            op.start_trigger_args.serialize() if op.start_trigger_args else None
+        )
+        serialize_op["start_from_trigger"] = op.start_from_trigger
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1206,16 +1204,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
-        # Deserialize start_trigger
-        serialized_start_trigger = encoded_op.get("start_trigger")
-        if serialized_start_trigger:
-            trigger_cls_name, trigger_kwargs = serialized_start_trigger
-            trigger_cls = import_string(trigger_cls_name)
-            start_trigger = trigger_cls(**trigger_kwargs)
-            setattr(op, "start_trigger", start_trigger)
-        else:
-            setattr(op, "start_trigger", None)
-        setattr(op, "next_method", encoded_op.get("next_method", None))
+        start_trigger_args = None
+        if encoded_op.get("start_trigger_args", None):
+            start_trigger_args = StartTriggerArgs(**encoded_op.get("start_trigger_args", None))
+        setattr(op, "start_trigger_args", start_trigger_args)
+        setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
@@ -1278,8 +1271,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
-                start_trigger=None,
-                next_method=None,
+                start_trigger_args=encoded_op.get("start_trigger_args", None),
+                start_from_trigger=encoded_op.get("start_from_trigger", False),
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])

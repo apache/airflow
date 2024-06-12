@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -237,8 +237,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            start_trigger=self.operator_class.start_trigger,
-            next_method=self.operator_class.next_method,
+            start_trigger_args=self.operator_class.start_trigger_args,
+            start_from_trigger=self.operator_class.start_from_trigger,
         )
         return op
 
@@ -281,8 +281,8 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
-    start_trigger: BaseTrigger | None
-    next_method: str | None
+    start_trigger_args: StartTriggerArgs | None
+    start_from_trigger: bool
     _needs_expansion: bool = True
 
     dag: DAG | None
@@ -309,12 +309,7 @@ class MappedOperator(AbstractOperator):
     supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        (
-            "parse_time_mapped_ti_count",
-            "operator_class",
-            "start_trigger",
-            "next_method",
-        )
+        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
 
     def __hash__(self):
