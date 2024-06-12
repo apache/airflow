@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ClauseElement
 
     from airflow.hooks.base import BaseHook
+
+
+log = logging.getLogger(__name__)
 
 
 class ColumnIndex(IntEnum):
@@ -90,6 +94,7 @@ def get_table_schemas(
     if not in_query and not out_query:
         return [], []
 
+    log.debug("Starting to query database for table schemas")
     with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
         if in_query:
             cursor.execute(in_query)
@@ -101,6 +106,7 @@ def get_table_schemas(
             out_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
         else:
             out_datasets = []
+    log.debug("Got table schema query result from database.")
     return in_datasets, out_datasets
 
 
