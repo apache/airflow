@@ -26,8 +26,8 @@ import requests
 import weaviate.exceptions
 from deprecated import deprecated
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
-from weaviate import Client as WeaviateClient
-from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
+from weaviate import WeaviateClient
+from weaviate.auth import Auth
 from weaviate.data.replication import ConsistencyLevel
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
@@ -39,7 +39,10 @@ if TYPE_CHECKING:
     from typing import Callable, Collection, Literal
 
     import pandas as pd
+    from weaviate.auth import AuthCredentials
     from weaviate.types import UUID
+
+    from airflow.models.connection import Connection
 
     ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
 
@@ -86,19 +89,20 @@ class WeaviateHook(BaseHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField
+        from wtforms import PasswordField, StringField
 
         return {
             "token": PasswordField(lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()),
+            "grpc_host": StringField(lazy_gettext("gRPC host"), widget=BS3TextFieldWidget()),
+            "grpc_port": StringField(lazy_gettext("gRPC port"), widget=BS3TextFieldWidget()),
         }
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["port", "schema"],
             "relabeling": {
                 "login": "OIDC Username",
                 "password": "OIDC Password",
@@ -107,34 +111,47 @@ class WeaviateHook(BaseHook):
 
     def get_conn(self) -> WeaviateClient:
         conn = self.get_connection(self.conn_id)
-        url = conn.host
-        username = conn.login or ""
-        password = conn.password or ""
+        http_host = conn.host
+        http_port = conn.port or 8080
         extras = conn.extra_dejson
-        access_token = extras.get("access_token", None)
-        refresh_token = extras.get("refresh_token", None)
-        expires_in = extras.get("expires_in", 60)
+        additional_headers = extras.pop("additional_headers", {})
+        grpc_host = extras.pop("grpc_host", http_host)
+        grpc_port = extras.pop("grpc_port", 50051)
+
+        return weaviate.connect_to_custom(
+            http_host=http_host,
+            http_port=http_port,
+            http_secure=False,
+            grpc_host=grpc_host,
+            grpc_port=grpc_port,
+            grpc_secure=False,
+            headers=additional_headers,
+            auth_credentials=self._extract_auth_credentials(conn),
+        )
+
+    def _extract_auth_credentials(self, conn: Connection) -> AuthCredentials:
+        extras = conn.extra_dejson
         # previously token was used as api_key(backwards compatibility)
         api_key = extras.get("api_key", None) or extras.get("token", None)
-        client_secret = extras.get("client_secret", None)
-        additional_headers = extras.pop("additional_headers", {})
-        scope = extras.get("scope", None) or extras.get("oidc_scope", None)
         if api_key:
-            auth_client_secret: AuthApiKey | AuthBearerToken | AuthClientCredentials | AuthClientPassword = (
-                AuthApiKey(api_key)
-            )
-        elif access_token:
-            auth_client_secret = AuthBearerToken(
-                access_token, expires_in=expires_in, refresh_token=refresh_token
-            )
-        elif client_secret:
-            auth_client_secret = AuthClientCredentials(client_secret=client_secret, scope=scope)
-        else:
-            auth_client_secret = AuthClientPassword(username=username, password=password, scope=scope)
+            return Auth.api_key(api_key=api_key)
 
-        return WeaviateClient(
-            url=url, auth_client_secret=auth_client_secret, additional_headers=additional_headers
-        )
+        access_token = extras.get("access_token", None)
+        if access_token:
+            refresh_token = extras.get("refresh_token", None)
+            expires_in = extras.get("expires_in", 60)
+            return Auth.bearer_token(
+                access_token=access_token, expires_in=expires_in, refresh_token=refresh_token
+            )
+
+        client_secret = extras.get("client_secret", None)
+        if client_secret:
+            scope = extras.get("scope", None) or extras.get("oidc_scope", None)
+            return Auth.client_credentials(client_secret=client_secret, scope=scope)
+
+        username = conn.login or ""
+        password = conn.password or ""
+        return Auth.client_password(username=username, password=password, scope=scope)
 
     @cached_property
     def conn(self) -> WeaviateClient:
