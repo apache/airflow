@@ -2770,8 +2770,7 @@ tbody.collapse.in {
 }
 
 .dropdown-menu > li > a,
-.dropdown-menu > li > form > button
-{
+.dropdown-menu > li > form > button {
   display: block;
   padding: 3px 20px;
   clear: both;
