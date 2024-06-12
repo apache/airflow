@@ -592,7 +592,7 @@
       "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
       "google-api-python-client>=2.0.2",
       "google-auth-httplib2>=0.0.1",
-      "google-auth>=1.0.0",
+      "google-auth>=2.29.0",
       "google-cloud-aiplatform>=1.42.1",
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
