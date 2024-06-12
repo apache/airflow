@@ -166,14 +166,27 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "execution_date": datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "execution_date": datetime.now()}
+                )
+            )
+
+            html_map_index_none = str(
+                utils.task_instance_link(
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "execution_date": datetime.now()}
                 )
             )
 
         assert "%3Ca%261%3E" in html
         assert "%3Cb2%3E" in html
+        assert "map_index" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html
+
+        assert "%3Ca%261%3E" in html_map_index_none
+        assert "%3Cb2%3E" in html_map_index_none
+        assert "map_index" not in html_map_index_none
+        assert "<a&1>" not in html_map_index_none
+        assert "<b2>" not in html_map_index_none
 
     @pytest.mark.db_test
     def test_dag_link(self):
