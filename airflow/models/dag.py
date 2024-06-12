@@ -2957,7 +2957,7 @@ class DAG(LoggingMixin):
 
             # Fetch the executor from config
             # ``Dag.test()`` works in two different modes depending on the executor:
-            # - if the executor ``LocalExecutor``, runs the task locally using ``_run_task``
+            # - if the executor is ``LocalExecutor``, runs the task locally using ``_run_task``
             # - if the executor is not ``LocalExecutor``, sends the task instances to the executor with
             #   ``BaseExecutor.queue_task_instance``
             executor = ExecutorLoader.get_default_executor()
