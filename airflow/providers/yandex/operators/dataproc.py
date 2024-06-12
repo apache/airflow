@@ -42,11 +42,11 @@ class InitializationAction:
 # see https://github.com/apache/airflow/discussions/26336
 
 
-def force_dict_values_as_strings(paramaters: dict[str, Any] | None) -> dict[str, str] | None:
-    if paramaters is None:
+def force_dict_values_as_strings(parameters: dict[str, Any] | None) -> dict[str, str] | None:
+    if parameters is None:
         return None
 
-    return {k: str(v) for k, v in paramaters.items()}
+    return {k: str(v) for k, v in parameters.items()}
 
 
 def force_list_values_as_string(items: Iterable[Any] | None) -> list[str] | None:
