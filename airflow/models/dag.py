@@ -2983,8 +2983,7 @@ class DAG(LoggingMixin):
                     self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 
-                if is_local_executor:
-                    triggerer_running = _triggerer_is_healthy()
+                triggerer_running = _triggerer_is_healthy()
                 for ti in scheduled_tis:
                     ti.task = tasks[ti.task_id]
 

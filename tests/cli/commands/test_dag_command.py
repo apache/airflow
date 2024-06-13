@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import importlib
 import json
 import os
 from datetime import datetime, timedelta
@@ -36,6 +37,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.decorators import task
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.executors import executor_loader
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
@@ -66,9 +68,12 @@ class TestCliDags:
 
     @classmethod
     def setup_class(cls):
-        cls.dagbag = DagBag(include_examples=True)
-        cls.dagbag.sync_to_db()
-        cls.parser = cli_parser.get_parser()
+        with conf_vars({("core", "executor"): "LocalExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.dagbag = DagBag(include_examples=True)
+            cls.dagbag.sync_to_db()
+            cls.parser = cli_parser.get_parser()
 
     @classmethod
     def teardown_class(cls) -> None:
