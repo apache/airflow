@@ -449,7 +449,10 @@ def clear_task_instances(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
     dag_bag = DagBag(read_dags_from_db=True)
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
     for ti in tis:
+        TaskInstanceHistory.record_ti(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
@@ -475,7 +478,6 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
@@ -2322,6 +2324,7 @@ class TaskInstance(Base, LoggingMixin):
         if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
             ti.end_date = ti.end_date or current_time
             ti.duration = (ti.end_date - ti.start_date).total_seconds()
+
         session.merge(ti)
         return True
 
@@ -3205,6 +3208,14 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
+            if ti.state == TaskInstanceState.RUNNING:
+                # If the task instance is in the running state, it means it raised an exception and
+                # about to retry so we record the task instance history. For other states, the task
+                # instance was cleared and already recorded in the task instance history.
+                from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+                TaskInstanceHistory.record_ti(ti, session=session)
+
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
