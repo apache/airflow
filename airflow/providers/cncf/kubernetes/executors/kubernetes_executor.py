@@ -569,7 +569,7 @@ class KubernetesExecutor(BaseExecutor):
                     "field_selector": "status.phase!=Succeeded",
                     "label_selector": (
                         "kubernetes_executor=True,"
-                        f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}=False"
+                        f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True"
                     ),
                 }
                 pod_list = self._list_pods(query_kwargs)
@@ -687,7 +687,7 @@ class KubernetesExecutor(BaseExecutor):
             "field_selector": "status.phase=Succeeded",
             "label_selector": (
                 "kubernetes_executor=True,"
-                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}=False"
+                f"airflow-worker!={new_worker_id_label},{POD_EXECUTOR_DONE_KEY}!=True"
             ),
         }
         pod_list = self._list_pods(query_kwargs)

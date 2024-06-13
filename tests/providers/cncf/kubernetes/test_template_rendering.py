@@ -58,7 +58,6 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
                 "kubernetes_executor": "True",
                 "task_id": "op1",
                 "try_number": mock.ANY,
-                "airflow_executor_done": "False",
             },
             "name": mock.ANY,
             "namespace": "default",

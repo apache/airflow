@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
-    POD_EXECUTOR_DONE_KEY,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
     AirflowKubernetesScheduler,
@@ -650,7 +649,6 @@ class TestKubernetesExecutor:
                                 "release": "stable",
                                 "task_id": "task",
                                 "try_number": "1",
-                                "airflow_executor_done": "False",
                             },
                         ),
                         spec=k8s.V1PodSpec(
@@ -895,7 +893,7 @@ class TestKubernetesExecutor:
             resource=mock_pod_resource,
             namespace="default",
             field_selector="status.phase!=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done=False",
+            label_selector="kubernetes_executor=True,airflow-worker=1,airflow_executor_done!=True",
             header_params={"Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"},
         )
         mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
@@ -919,7 +917,7 @@ class TestKubernetesExecutor:
             resource=mock_pod_resource,
             namespace="default",
             field_selector="status.phase!=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done=False",
+            label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
             header_params={"Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"},
         )
         mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
@@ -955,7 +953,7 @@ class TestKubernetesExecutor:
                     resource=mock_pod_resource,
                     namespace="default",
                     field_selector="status.phase!=Succeeded",
-                    label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done=False",
+                    label_selector="kubernetes_executor=True,airflow-worker=10,airflow_executor_done!=True",
                     header_params={
                         "Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"
                     },
@@ -964,7 +962,7 @@ class TestKubernetesExecutor:
                     resource=mock_pod_resource,
                     namespace="default",
                     field_selector="status.phase!=Succeeded",
-                    label_selector="kubernetes_executor=True,airflow-worker=40,airflow_executor_done=False",
+                    label_selector="kubernetes_executor=True,airflow-worker=40,airflow_executor_done!=True",
                     header_params={
                         "Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"
                     },
@@ -1112,7 +1110,7 @@ class TestKubernetesExecutor:
             resource=mock_pod_resource,
             namespace="somens",
             field_selector="status.phase=Succeeded",
-            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done=False",
+            label_selector="kubernetes_executor=True,airflow-worker!=modified,airflow_executor_done!=True",
             header_params={"Accept": "application/json;as=PartialObjectMetadataList;v=v1;g=meta.k8s.io"},
         )
         assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
@@ -1531,7 +1529,7 @@ class TestKubernetesJobWatcher:
                 annotations={"airflow-worker": "bar", **self.core_annotations},
                 namespace="airflow",
                 resource_version="456",
-                labels={POD_EXECUTOR_DONE_KEY: "False"},
+                labels={},
             ),
             status=k8s.V1PodStatus(phase="Pending"),
         )
@@ -1556,7 +1554,7 @@ class TestKubernetesJobWatcher:
             mock_pod_events.assert_called_once_with(
                 kube_client=self.kube_client,
                 query_kwargs={
-                    "label_selector": "airflow-worker=123,airflow_executor_done=False",
+                    "label_selector": "airflow-worker=123,airflow_executor_done!=True",
                     "resource_version": "0",
                     "_request_timeout": 30,
                     "timeout_seconds": 3600,
@@ -1776,14 +1774,6 @@ class TestKubernetesJobWatcher:
         self._run()
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
-
-    def test_process_status_succeeded_dedup_label(self):
-        self.pod.status.phase = "Succeeded"
-        self.pod.metadata.labels[POD_EXECUTOR_DONE_KEY] = "True"
-        self.events.append({"type": "MODIFIED", "object": self.pod})
-
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_succeeded_dedup_timestamp(self):
         self.pod.status.phase = "Succeeded"

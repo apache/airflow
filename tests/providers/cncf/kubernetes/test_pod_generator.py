@@ -83,7 +83,6 @@ class TestPodGenerator:
             "try_number": str(self.try_number),
             "airflow_version": __version__.replace("+", "-"),
             "kubernetes_executor": "True",
-            "airflow_executor_done": "False",
         }
         self.annotations = {
             "dag_id": self.dag_id,
@@ -819,7 +818,6 @@ class TestPodGenerator:
             try_number="1",
             airflow_version=airflow_version,
             kubernetes_executor="True",
-            airflow_executor_done="False",
         )
         labels = PodGenerator.build_labels_for_k8s_executor_pod(**kwargs, **extra)
         assert labels == {**expected, **extra_expected}
