@@ -45,10 +45,6 @@
 - tests/ti_deps/deps/test_prev_dagrun_dep.py::TestPrevDagrunDep::test_first_task_run_of_new_task
 
 
-# Operators
-- tests/operators/test_latest_only_operator.py::TestLatestOnlyOperator::test_skipping_non_latest
-
-
 # Serialization
 - tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_custom_dep_detector
 
