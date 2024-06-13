@@ -169,7 +169,7 @@ class WeaviateHook(BaseHook):
     def test_connection(self) -> tuple[bool, str]:
         try:
             client = self.conn
-            client.schema.get()
+            client.collections.list_all()
             return True, "Connection established!"
         except Exception as e:
             self.log.error("Error testing Weaviate connection: %s", e)
