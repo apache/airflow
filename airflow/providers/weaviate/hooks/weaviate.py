@@ -232,21 +232,24 @@ class WeaviateHook(BaseHook):
         client = self.get_client()
         return client.collections.get(collection_name).config.get()
 
-    def delete_classes(self, class_names: list[str] | str, if_error: str = "stop") -> list[str] | None:
-        """Delete all or specific classes if class_names are provided.
+    def delete_collections(
+        self, collection_names: list[str] | str, if_error: str = "stop"
+    ) -> list[str] | None:
+        """Delete all or specific collections if collection_names are provided.
 
-        :param class_names: list of class names to be deleted.
-        :param if_error: define the actions to be taken if there is an error while deleting a class, possible
+        :param collection_names: list of collection names to be deleted.
+        :param if_error: define the actions to be taken if there is an error while deleting a collection, possible
          options are `stop` and `continue`
-        :return: if `if_error=continue` return list of classes which we failed to delete.
+        :return: if `if_error=continue` return list of collections which we failed to delete.
             if `if_error=stop` returns None.
         """
-        # TODO: migrate to v4 API
         client = self.get_client()
-        class_names = [class_names] if class_names and isinstance(class_names, str) else class_names
+        collection_names = (
+            [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
+        )
 
-        failed_class_list = []
-        for class_name in class_names:
+        failed_collection_list = []
+        for collection_name in collection_names:
             try:
                 for attempt in Retrying(
                     stop=stop_after_attempt(3),
@@ -256,17 +259,17 @@ class WeaviateHook(BaseHook):
                     ),
                 ):
                     with attempt:
-                        print(attempt)
-                        client.schema.delete_class(class_name)
+                        self.log.info(attempt)
+                        client.collections.delete(collection_name)
             except Exception as e:
                 if if_error == "continue":
                     self.log.error(e)
-                    failed_class_list.append(class_name)
+                    failed_collection_list.append(collection_name)
                 elif if_error == "stop":
                     raise e
 
         if if_error == "continue":
-            return failed_class_list
+            return failed_collection_list
         return None
 
     def delete_all_schema(self):
