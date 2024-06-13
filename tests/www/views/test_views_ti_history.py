@@ -21,6 +21,8 @@ import pytest
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from tests.test_utils.db import clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 class TestTIHistoryEndpoint:
     @pytest.fixture(autouse=True)
