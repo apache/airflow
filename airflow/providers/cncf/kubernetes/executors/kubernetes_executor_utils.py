@@ -271,6 +271,21 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
             )
         elif status == "Succeeded":
+            # We get multiple events once the pod hits a terminal state, and we only want to
+            # send it along to the scheduler once.
+            # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
+            # a deletion timestamp, we've already seen the initial Succeeded event and sent it
+            # along to the scheduler.
+            if (
+                event["type"] == "DELETED"
+                or pod.metadata.labels[POD_EXECUTOR_DONE_KEY] == "True"
+                or pod.metadata.deletion_timestamp
+            ):
+                self.log.info(
+                    "Skipping event for Succeeded pod %s - event for this pod already sent to executor",
+                    pod_name,
+                )
+                return
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":

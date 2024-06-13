@@ -1777,6 +1777,22 @@ class TestKubernetesJobWatcher:
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
 
+    def test_process_status_succeeded_dedup_label(self):
+        self.pod.status.phase = "Succeeded"
+        self.pod.metadata.labels[POD_EXECUTOR_DONE_KEY] = "True"
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.watcher.watcher_queue.put.assert_not_called()
+
+    def test_process_status_succeeded_dedup_timestamp(self):
+        self.pod.status.phase = "Succeeded"
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.watcher.watcher_queue.put.assert_not_called()
+
     @pytest.mark.parametrize(
         "ti_state",
         [
