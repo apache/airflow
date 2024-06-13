@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# yaml-language-server: $schema=../../provider.yaml.schema.json
+---
+package-name: apache-airflow-providers-remote
+name: Remote Executor
+description: |
+  Handle remote workers via HTTP(s) connection and distribute work over distributed sites
+
+state: not-ready
+source-date-epoch: 0
+# note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 0.1.0
+
+dependencies:
+  - apache-airflow>=2.7.0
+
+executors:
+  - airflow.providers.remote.executors.RemoteExecutor
+
+plugins:
+  - name: remote_executor
+    plugin-class: airflow.providers.remote.plugins.RemoteExecutorPlugin
+
+config:
+  remote_executor:
+    description: |
+      This section only applies if you are using the RemoteExecutor in
+      ``[core]`` section above
+    options:
+      identity_secret:
+        description: |
+          Secret that need to be passed to remote worker in order to accept calls.
+        version_added: ~
+        type: string
+        example: ~
+        default: ~
