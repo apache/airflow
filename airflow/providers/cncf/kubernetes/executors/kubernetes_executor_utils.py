@@ -273,7 +273,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
             # send it along to the scheduler once.
-            # If our event type is DELETED,  the pod has a deletion timestamp, we've already
+            # If our event type is DELETED, or the pod has a deletion timestamp, we've already
             # seen the initial Succeeded event and sent it along to the scheduler.
             if event["type"] == "DELETED" or pod.metadata.deletion_timestamp:
                 self.log.info(
