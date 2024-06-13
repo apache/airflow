@@ -82,7 +82,6 @@ class WeaviateHook(BaseHook):
     def __init__(
         self,
         conn_id: str = default_conn_name,
-        retry_status_codes: list[int] | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
