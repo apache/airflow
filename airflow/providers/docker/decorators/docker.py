@@ -16,14 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import ast
 import base64
-import inspect
 import os
 import pickle
-from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
 
@@ -104,7 +101,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                 if self.op_args or self.op_kwargs:
                     self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
             py_source = self.get_python_source()
-            import_annotations = _check_source_import_future_annotations(self.python_callable)
             write_python_script(
                 jinja_context={
                     "op_args": self.op_args,
@@ -114,7 +110,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                     "python_callable_source": py_source,
                     "expect_airflow": self.expect_airflow,
                     "string_args_global": False,
-                    "import_annotations": import_annotations,
                 },
                 filename=script_filename,
             )
@@ -158,34 +153,3 @@ def docker_task(
         decorated_operator_class=_DockerDecoratedOperator,
         **kwargs,
     )
-
-
-def _check_import_future_annotations(py_source: str) -> bool:
-    module = ast.parse(py_source)
-    for node in module.body:
-        if not isinstance(node, ast.ImportFrom):
-            continue
-
-        if node.module != "__future__":
-            continue
-
-        if any(name.name == "annotations" for name in node.names):
-            return True
-
-    return False
-
-
-def _check_source_import_future_annotations(obj: Any) -> bool:
-    file = inspect.getsourcefile(obj)
-
-    if file is None:
-        return False
-
-    path = Path(file)
-    if not path.exists():
-        return False
-
-    with path.open("r") as f:
-        py_source = f.read()
-
-    return _check_import_future_annotations(py_source)
