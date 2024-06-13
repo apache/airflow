@@ -40,6 +40,8 @@ if TYPE_CHECKING:
 
     import pandas as pd
     from weaviate.auth import AuthCredentials
+    from weaviate.collections.classes.internal import References
+    from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
 
     from airflow.models.connection import Connection
@@ -175,10 +177,10 @@ class WeaviateHook(BaseHook):
             self.log.error("Error testing Weaviate connection: %s", e)
             return False, str(e)
 
-    def create_class(self, class_json: dict[str, Any]) -> None:
-        """Create a new class."""
+    def create_collection(self, name: str, **kwargs) -> Collection[Properties, References]:
+        """Create a new collection."""
         client = self.conn
-        client.schema.create_class(class_json)
+        return client.collections.create(name=name, **kwargs)
 
     @retry(
         reraise=True,
