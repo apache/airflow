@@ -101,12 +101,12 @@ of prefixes to send or block only the metrics that start with the elements of th
 .. code-block:: ini
 
     [metrics]
-    metrics_allow_list = scheduler,executor,dagrun
+    metrics_allow_list = scheduler,executor,dagrun,pool,triggerer,celery
 
 .. code-block:: ini
 
     [metrics]
-    metrics_block_list = scheduler,executor,dagrun
+    metrics_block_list = scheduler,executor,dagrun,pool,triggerer,celery
 
 
 Rename Metrics

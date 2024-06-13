@@ -245,7 +245,7 @@ serialized_simple_dag_ground_truth = {
         },
         "edge_info": {},
         "dag_dependencies": [],
-        "params": {},
+        "params": [],
     },
 }
 
@@ -2082,6 +2082,25 @@ class TestStringifiedDAGs:
         assert isinstance(dag.params.get_param("none"), Param)
         assert dag.params["str"] == "str"
 
+    def test_params_serialization_from_dict_upgrade(self):
+        """In <=2.9.2 params were serialized as a JSON object instead of a list of key-value pairs.
+        This test asserts that the params are still deserialized properly."""
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "_dag_id": "simple_dag",
+                "fileloc": "/path/to/file.py",
+                "tasks": [],
+                "timezone": "UTC",
+                "params": {"my_param": {"__class": "airflow.models.param.Param", "default": "str"}},
+            },
+        }
+        dag = SerializedDAG.from_dict(serialized)
+
+        param = dag.params.get_param("my_param")
+        assert isinstance(param, Param)
+        assert param.value == "str"
+
     def test_params_serialize_default_2_2_0(self):
         """In 2.0.0, param ``default`` was assumed to be json-serializable objects and were not run though
         the standard serializer function.  In 2.2.2 we serialize param ``default``.  We keep this
@@ -2093,7 +2112,7 @@ class TestStringifiedDAGs:
                 "fileloc": "/path/to/file.py",
                 "tasks": [],
                 "timezone": "UTC",
-                "params": {"str": {"__class": "airflow.models.param.Param", "default": "str"}},
+                "params": [["str", {"__class": "airflow.models.param.Param", "default": "str"}]],
             },
         }
         SerializedDAG.validate_schema(serialized)
@@ -2110,14 +2129,17 @@ class TestStringifiedDAGs:
                 "fileloc": "/path/to/file.py",
                 "tasks": [],
                 "timezone": "UTC",
-                "params": {
-                    "my_param": {
-                        "default": "a string value",
-                        "description": "hello",
-                        "schema": {"__var": {"type": "string"}, "__type": "dict"},
-                        "__class": "airflow.models.param.Param",
-                    }
-                },
+                "params": [
+                    [
+                        "my_param",
+                        {
+                            "default": "a string value",
+                            "description": "hello",
+                            "schema": {"__var": {"type": "string"}, "__type": "dict"},
+                            "__class": "airflow.models.param.Param",
+                        },
+                    ]
+                ],
             },
         }
         SerializedDAG.validate_schema(serialized)
