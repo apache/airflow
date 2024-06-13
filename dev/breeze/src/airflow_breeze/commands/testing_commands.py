@@ -39,6 +39,7 @@ from airflow_breeze.commands.common_options import (
     option_image_tag_for_running,
     option_include_success_outputs,
     option_integration,
+    option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
     option_parallelism,
@@ -413,12 +414,6 @@ option_excluded_parallel_test_types = click.option(
     envvar="EXCLUDED_PARALLEL_TEST_TYPES",
     type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
 )
-option_keep_env_variables = click.option(
-    "--keep-env-variables",
-    help="Do not clear environment variables that might have side effect while running tests",
-    envvar="KEEP_ENV_VARIABLES",
-    is_flag=True,
-)
 option_parallel_test_types = click.option(
     "--parallel-test-types",
     help="Space separated list of test types used for testing in parallel",
@@ -570,6 +565,7 @@ def command_for_tests(**kwargs):
 @option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
+@option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_package_format
@@ -601,7 +597,6 @@ def command_for_db_tests(**kwargs):
         test_type="Default",
         db_reset=True,
         extra_pytest_args=(),
-        keep_env_variables=False,
         **kwargs,
     )
 
@@ -630,6 +625,7 @@ def command_for_db_tests(**kwargs):
 @option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
+@option_keep_env_variables
 @option_mount_sources
 @option_package_format
 @option_parallel_test_types
@@ -660,7 +656,6 @@ def command_for_non_db_tests(**kwargs):
         db_reset=False,
         backend="none",
         extra_pytest_args=(),
-        keep_env_variables=False,
         **kwargs,
     )
 
