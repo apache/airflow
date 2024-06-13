@@ -57,8 +57,10 @@ from flask_appbuilder.security.views import (
     AuthOAuthView,
     AuthOIDView,
     AuthRemoteUserView,
+    AuthView,
     RegisterUserModelView,
 )
+from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
@@ -121,6 +123,21 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
+
+
+# The following class patches the logout method within AuthView, so it only supports POST method
+# to make CSRF protection effective. You could remove the patch and configure it when it is supported
+# natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
+
+
+class _ModifiedAuthView(AuthView):
+    @expose("/logout/", methods=["POST"])
+    def logout(self):
+        return super().logout()
+
+
+for auth_view in [AuthDBView, AuthLDAPView, AuthOAuthView, AuthOIDView, AuthRemoteUserView]:
+    auth_view.__bases__ = (_ModifiedAuthView,)
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):

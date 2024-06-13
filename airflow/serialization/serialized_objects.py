@@ -827,9 +827,9 @@ class BaseSerialization:
         return class_(**kwargs)
 
     @classmethod
-    def _serialize_params_dict(cls, params: ParamsDict | dict):
-        """Serialize Params dict for a DAG or task."""
-        serialized_params = {}
+    def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
+        """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
+        serialized_params = []
         for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only.
             try:
@@ -837,7 +837,7 @@ class BaseSerialization:
             except AttributeError:
                 class_identity = ""
             if class_identity == "airflow.models.param.Param":
-                serialized_params[k] = cls._serialize_param(v)
+                serialized_params.append((k, cls._serialize_param(v)))
             else:
                 raise ValueError(
                     f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
@@ -846,10 +846,16 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: dict) -> ParamsDict:
+    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
         """Deserialize a DAG's Params dict."""
+        if isinstance(encoded_params, collections.abc.Mapping):
+            # in 2.9.2 or earlier params were serialized as JSON objects
+            encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
+        else:
+            encoded_param_pairs = encoded_params
+
         op_params = {}
-        for k, v in encoded_params.items():
+        for k, v in encoded_param_pairs:
             if isinstance(v, dict) and "__class" in v:
                 op_params[k] = cls._deserialize_param(v)
             else:

@@ -135,6 +135,7 @@ Currently, **officially** using Airflow:
 1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat) & [@amoghrajesh](https://github.com/amoghrajesh) & [@vedantlodha](https://github.com/vedantlodha) & [@shubhamraj-git](https://github.com/shubhamraj-git) & [@Samit-Maharjan](https://github.com/Samit-Maharjan)] & [@anukrati1507](https://github.com/anukrati1507)
 1. [Clover Health](https://www.cloverhealth.com) [[@ryansiu1995](https://github.com/ryansiu1995)]
 1. [Coinbase](https://www.coinbase.com) [[@mingshi-wang](https://github.com/mingshi-wang)]
+1. [Coinone](https://www.coinonecorp.com) [[@jx2lee](https://github.com/jx2lee)]
 1. [Colgate-Palmolive](https://www.colgatepalmolive.com/) [[@fhoda](https://github.com/fhoda)]
 1. [Collectivehealth Inc.](https://www.collectivehealth.com) [[@retornam](https://github.com/retornam)]
 1. [Compass](https://www.compass.com) [[@wdhorton](https://github.com/wdhorton)]
