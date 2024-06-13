@@ -91,18 +91,23 @@ class WeaviateHook(BaseHook):
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
+            "http_secure": BooleanField(lazy_gettext("Use https"), default=False),
             "token": PasswordField(lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()),
             "grpc_host": StringField(lazy_gettext("gRPC host"), widget=BS3TextFieldWidget()),
             "grpc_port": StringField(lazy_gettext("gRPC port"), widget=BS3TextFieldWidget()),
+            "grcp_secure": BooleanField(
+                lazy_gettext("Use a secure channel for the underlying gRPC API"), default=False
+            ),
         }
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
+            "hidden_fields": ["schema"],
             "relabeling": {
                 "login": "OIDC Username",
                 "password": "OIDC Password",
@@ -111,21 +116,15 @@ class WeaviateHook(BaseHook):
 
     def get_conn(self) -> WeaviateClient:
         conn = self.get_connection(self.conn_id)
-        http_host = conn.host
-        http_port = conn.port or 8080
         extras = conn.extra_dejson
-        additional_headers = extras.pop("additional_headers", {})
-        grpc_host = extras.pop("grpc_host", http_host)
-        grpc_port = extras.pop("grpc_port", 50051)
-
         return weaviate.connect_to_custom(
-            http_host=http_host,
-            http_port=http_port,
-            http_secure=False,
-            grpc_host=grpc_host,
-            grpc_port=grpc_port,
-            grpc_secure=False,
-            headers=additional_headers,
+            http_host=conn.host,
+            http_port=conn.port or 8080,
+            http_secure=extras.pop("http_secure", False),
+            grpc_host=extras.pop("grpc_host", conn.host),
+            grpc_port=extras.pop("grpc_port", 50051),
+            grpc_secure=extras.pop("grcp_secure", False),
+            headers=extras.pop("additional_headers", {}),
             auth_credentials=self._extract_auth_credentials(conn),
         )
 
