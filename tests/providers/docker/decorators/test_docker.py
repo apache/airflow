@@ -284,3 +284,25 @@ class TestDockerDecorator:
             ret = f()
 
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
+
+    def test_import_annotations(self, dag_maker):
+        from typing import Any
+
+        from airflow.models.dagrun import DagRun  # noqa: TCH001
+        from airflow.utils.state import DagRunState
+
+        from ._with_annotations import create_task_factory  # noqa: TID252
+
+        task_factory = create_task_factory("python:3.9-slim")
+
+        with dag_maker():
+
+            @task.python(multiple_outputs=False)
+            def create_dummy_value() -> dict[str, Any]:
+                return {}
+
+            value = create_dummy_value()
+            _ = task_factory(value)
+
+        dagrun: DagRun = dag_maker.create_dagrun()
+        assert DagRunState(dagrun.state) == DagRunState.SUCCESS
