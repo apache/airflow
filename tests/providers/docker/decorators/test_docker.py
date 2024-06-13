@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from airflow.decorators import setup, task, teardown
@@ -284,3 +286,40 @@ class TestDockerDecorator:
             ret = f()
 
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
+
+    def test_invalid_annotation(self, dag_maker):
+        @task.python(multiple_outputs=True, do_xcom_push=True)
+        def create_dummy() -> dict[str, Any]:
+            import uuid
+
+            return {"unique_id": uuid.uuid4().hex}
+
+        # Functions that throw an error
+        # if `from __future__ import annotations` is missing
+        @task.docker(image="python:3.9-slim", auto_remove="force", multiple_outputs=False, do_xcom_push=True)
+        def in_docker(value: dict[str, Invalid]) -> Invalid:  # type: ignore[name-defined] # noqa: F821
+            assert isinstance(value, dict)
+            return value["unique_id"]
+
+        with dag_maker():
+            value = create_dummy()
+            ret = in_docker(value)
+
+        dr = dag_maker.create_dagrun()
+        value.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        tis = dr.get_task_instances()
+
+        assert len(tis) == 2
+        value_ti = next(x for x in tis if x.task_id == value.operator.task_id)
+        ret_ti = next(x for x in tis if x.task_id == ret.operator.task_id)
+        assert value_ti.state == TaskInstanceState.SUCCESS
+        assert ret_ti.state == TaskInstanceState.SUCCESS
+
+        ti = tis[0]
+        value_xcom = ti.xcom_pull(task_ids=value_ti.task_id, key="return_value")
+        ret_xcom = ti.xcom_pull(task_ids=ret_ti.task_id, key="return_value")
+        assert isinstance(value_xcom, dict)
+        assert "unique_id" in value_xcom
+        assert isinstance(ret_xcom, str)
+        assert value_xcom["unique_id"] == ret_xcom
