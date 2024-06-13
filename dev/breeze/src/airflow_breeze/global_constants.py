@@ -93,11 +93,12 @@ ALLOWED_EXECUTORS = [
     "KubernetesExecutor",
     "CeleryExecutor",
     "CeleryKubernetesExecutor",
+    "RemoteExecutor",
     "SequentialExecutor",
 ]
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
-START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
+START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "RemoteExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 
 SEQUENTIAL_EXECUTOR = "SequentialExecutor"
