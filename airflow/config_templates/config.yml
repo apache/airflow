@@ -1077,7 +1077,11 @@ metrics:
     metrics_consistency_on:
       description: |
         Enables metrics onsistency across all metrics loggers (ex: timer and timing metrics).
-      version_added: 2.9.2
+
+        .. warning::
+
+          It is enabled by default from Airflow 3 onwards.
+      version_added: 2.10.0
       type: string
       example: ~
       default: "False"

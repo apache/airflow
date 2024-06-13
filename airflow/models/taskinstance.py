@@ -2867,7 +2867,7 @@ class TaskInstance(Base, LoggingMixin):
                 timing = timezone.utcnow() - self.queued_dttm
             else:
                 warnings.warn(
-                    "Timer and timing metrics publish in seconds were deprecated. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+                    "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
@@ -2888,7 +2888,7 @@ class TaskInstance(Base, LoggingMixin):
                 timing = timezone.utcnow() - self.start_date
             else:
                 warnings.warn(
-                    "Timer and timing metrics publish in seconds were deprecated. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+                    "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
