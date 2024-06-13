@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
     from weaviate.auth import AuthCredentials
+    from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
     from weaviate.collections.classes.internal import References
     from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
@@ -223,14 +224,13 @@ class WeaviateHook(BaseHook):
             | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
         ),
     )
-    def get_schema(self, class_name: str | None = None):
-        """Get the schema from Weaviate.
+    def get_collection_configuraiton(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
+        """Get the collection configuration from Weaviate.
 
-        :param class_name: The class for which to return the schema. If NOT provided the whole schema is
-            returned, otherwise only the schema of this class is returned. By default None.
+        :param collection_name: The collection for which to return the collection configuration.
         """
         client = self.get_client()
-        return client.schema.get(class_name)
+        return client.collections.get(collection_name).config.get()
 
     def delete_classes(self, class_names: list[str] | str, if_error: str = "stop") -> list[str] | None:
         """Delete all or specific classes if class_names are provided.
@@ -241,6 +241,7 @@ class WeaviateHook(BaseHook):
         :return: if `if_error=continue` return list of classes which we failed to delete.
             if `if_error=stop` returns None.
         """
+        # TODO: migrate to v4 API
         client = self.get_client()
         class_names = [class_names] if class_names and isinstance(class_names, str) else class_names
 
