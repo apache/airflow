@@ -1033,7 +1033,8 @@ metrics:
         If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+      or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
@@ -1046,7 +1047,8 @@ metrics:
         If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+      or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     statsd_on:
       description: |
