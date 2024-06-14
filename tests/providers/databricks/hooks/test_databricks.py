@@ -940,7 +940,7 @@ class TestDatabricksHook:
             "limit": 25,
             "page_token": "",
             "expand_tasks": False,
-            "include_user_names": False
+            "include_user_names": False,
         }
 
         second_call_args = mock_requests.method_calls[1]
@@ -949,7 +949,7 @@ class TestDatabricksHook:
             "limit": 25,
             "page_token": "PAGETOKEN",
             "expand_tasks": False,
-            "include_user_names": False
+            "include_user_names": False,
         }
 
         assert len(jobs) == 2
@@ -970,7 +970,7 @@ class TestDatabricksHook:
                 "page_token": "",
                 "expand_tasks": False,
                 "include_user_names": False,
-                "name": JOB_NAME
+                "name": JOB_NAME,
             },
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
@@ -995,7 +995,7 @@ class TestDatabricksHook:
                 "page_token": "",
                 "expand_tasks": False,
                 "include_user_names": False,
-                "name": job_name
+                "name": job_name,
             },
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
@@ -1024,7 +1024,7 @@ class TestDatabricksHook:
                 "page_token": "",
                 "expand_tasks": False,
                 "include_user_names": False,
-                "name": JOB_NAME
+                "name": JOB_NAME,
             },
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
