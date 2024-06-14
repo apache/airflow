@@ -291,6 +291,11 @@ class TestDockerDecorator:
     def test_invalid_annotation(self, dag_maker):
         import uuid
 
+        from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+        if not AIRFLOW_V_2_10_PLUS:
+            pytest.skip("This test is only for Airflow 2.10+")
+
         unique_id = uuid.uuid4().hex
         value = {"unique_id": unique_id}
 
