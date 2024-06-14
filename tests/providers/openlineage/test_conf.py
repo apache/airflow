@@ -69,31 +69,6 @@ _BOOL_PARAMS = (
 )
 
 
-@pytest.fixture(autouse=True)
-def clear_cache():
-    config_path.cache_clear()
-    is_source_enabled.cache_clear()
-    disabled_operators.cache_clear()
-    custom_extractors.cache_clear()
-    namespace.cache_clear()
-    transport.cache_clear()
-    is_disabled.cache_clear()
-    selective_enable.cache_clear()
-    dag_state_change_process_pool_size.cache_clear()
-    try:
-        yield
-    finally:
-        config_path.cache_clear()
-        is_source_enabled.cache_clear()
-        disabled_operators.cache_clear()
-        custom_extractors.cache_clear()
-        namespace.cache_clear()
-        transport.cache_clear()
-        is_disabled.cache_clear()
-        selective_enable.cache_clear()
-        dag_state_change_process_pool_size.cache_clear()
-
-
 @pytest.mark.parametrize(
     ("var_string", "expected"),
     (
