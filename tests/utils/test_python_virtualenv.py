@@ -19,12 +19,17 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
 
+from airflow.decorators import task
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
+from airflow.utils.state import TaskInstanceState
+
+_Invalid = Any
 
 
 class TestPrepareVirtualenv:
@@ -138,3 +143,29 @@ class TestPrepareVirtualenv:
         py_source = "@foo\n@task.virtualenv()\n@bar\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
+
+    def test_invalid_annotation(self, dag_maker):
+        import uuid
+
+        unique_id = uuid.uuid4().hex
+        value = {"unique_id": unique_id}
+
+        # Functions that throw an error
+        # if `from __future__ import annotations` is missing
+        @task.docker(image="python:3.9-slim", auto_remove="force", multiple_outputs=False, do_xcom_push=True)
+        def in_docker(value: dict[str, _Invalid]) -> _Invalid:
+            assert isinstance(value, dict)
+            return value["unique_id"]
+
+        with dag_maker():
+            ret = in_docker(value)
+
+        dr = dag_maker.create_dagrun()
+        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ti = dr.get_task_instances()[0]
+
+        assert ti.state == TaskInstanceState.SUCCESS
+
+        xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
+        assert isinstance(xcom, str)
+        assert xcom == unique_id

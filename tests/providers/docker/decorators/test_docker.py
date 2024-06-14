@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from airflow.decorators import setup, task, teardown
@@ -31,7 +29,6 @@ pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
-_Invalid = Any
 
 
 class TestDockerDecorator:
@@ -287,34 +284,3 @@ class TestDockerDecorator:
             ret = f()
 
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
-
-    def test_invalid_annotation(self, dag_maker):
-        import uuid
-
-        from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
-
-        if not AIRFLOW_V_2_10_PLUS:
-            pytest.skip("This test is only for Airflow 2.10+")
-
-        unique_id = uuid.uuid4().hex
-        value = {"unique_id": unique_id}
-
-        # Functions that throw an error
-        # if `from __future__ import annotations` is missing
-        @task.docker(image="python:3.9-slim", auto_remove="force", multiple_outputs=False, do_xcom_push=True)
-        def in_docker(value: dict[str, _Invalid]) -> _Invalid:
-            assert isinstance(value, dict)
-            return value["unique_id"]
-
-        with dag_maker():
-            ret = in_docker(value)
-
-        dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
-
-        assert ti.state == TaskInstanceState.SUCCESS
-
-        xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
-        assert isinstance(xcom, str)
-        assert xcom == unique_id
