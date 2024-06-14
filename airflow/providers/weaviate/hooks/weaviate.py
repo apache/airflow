@@ -183,6 +183,14 @@ class WeaviateHook(BaseHook):
         client = self.conn
         return client.collections.create(name=name, **kwargs)
 
+    def get_collection(self, name: str) -> Collection[Properties, References]:
+        """Get a collection by name.
+
+        :param name: The name of the collection to get.
+        """
+        client = self.conn
+        return client.collections.get(name)
+
     @retry(
         reraise=True,
         stop=stop_after_attempt(3),
@@ -554,8 +562,7 @@ class WeaviateHook(BaseHook):
         :param collection_name: Collection name associated with the object given.
         :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create()
         """
-        client = self.conn
-        collection = client.collections.get(collection_name)
+        collection = self.get_collection(collection_name)
         # generate deterministic uuid if not provided
         uuid = kwargs.pop("uuid", generate_uuid5(data_object))
         try:
@@ -611,8 +618,7 @@ class WeaviateHook(BaseHook):
         :param kwargs: parameters to be passed to collection.data.fetch_object_by_id() or
             collection.data.fetch_objects()
         """
-        client = self.conn
-        collection = client.collections.get(collection_name)
+        collection = self.get_collection(collection_name)
         return collection.query.fetch_objects(**kwargs)
 
     def get_all_objects(
@@ -646,8 +652,7 @@ class WeaviateHook(BaseHook):
         :param collection_name: Collection name associated with the object given.
         :param uuid: uuid of the object to be deleted
         """
-        client = self.conn
-        collection = client.collections.get(collection_name)
+        collection = self.get_collection(collection_name)
         return collection.data.delete_by_id(uuid=uuid)
 
     def update_object(
@@ -660,8 +665,7 @@ class WeaviateHook(BaseHook):
         :param properties: The properties of the object.
         :param kwargs: Optional parameters to be passed to collection.data.update()
         """
-        client = self.conn
-        collection = client.collections.get(collection_name)
+        collection = self.get_collection(collection_name)
         collection.data.update(uuid=uuid, properties=properties, **kwargs)
 
     def replace_object(
@@ -699,8 +703,7 @@ class WeaviateHook(BaseHook):
         :param collection_name: Collection name associated with the object given.
         :param uuid: The UUID of the object that may or may not exist within Weaviate.
         """
-        client = self.conn
-        collection = client.collections.get(collection_name)
+        collection = self.get_collection(collection_name)
         return collection.data.exists(uuid=uuid)
 
     def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
