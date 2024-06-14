@@ -640,14 +640,15 @@ class WeaviateHook(BaseHook):
             return pandas.DataFrame(all_objects)
         return all_objects
 
-    def delete_object(self, uuid: UUID | str, **kwargs) -> None:
+    def delete_object(self, collection_name: str, uuid: UUID | str) -> bool:
         """Delete an object from weaviate.
 
+        :param collection_name: Collection name associated with the object given.
         :param uuid: uuid of the object to be deleted
-        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.delete()
         """
         client = self.conn
-        client.data_object.delete(uuid, **kwargs)
+        collection = client.collections.get(collection_name)
+        return collection.data.delete_by_id(uuid=uuid)
 
     def update_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
         """Update an object in weaviate.
