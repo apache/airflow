@@ -637,13 +637,13 @@ class WeaviateHook(BaseHook):
         collection = self.get_collection(collection_name)
         return collection.data.exists(uuid=uuid)
 
-    def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
+    def _delete_objects(self, uuids: Collection, collection_name: str, retry_attempts_per_object: int = 5):
         """Delete multiple objects.
 
         Helper function for `create_or_replace_objects()` to delete multiple objects.
 
         :param uuids: Collection of uuids.
-        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param collection_name: Name of the collection in Weaviate schema where data is to be ingested.
         :param retry_attempts_per_object: number of times to try in case of failure before giving up.
         """
         for uuid in uuids:
@@ -656,7 +656,7 @@ class WeaviateHook(BaseHook):
             ):
                 with attempt:
                     try:
-                        self.delete_object(uuid=uuid, class_name=class_name)
+                        self.delete_object(uuid=uuid, collection_name=collection_name)
                         self.log.debug("Deleted object with uuid %s", uuid)
                     except weaviate.exceptions.UnexpectedStatusCodeException as e:
                         if e.status_code == 404:
