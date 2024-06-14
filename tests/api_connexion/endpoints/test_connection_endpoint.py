@@ -139,7 +139,7 @@ class TestGetConnection(TestConnectionEndpoint):
             login="login",
             schema="testschema",
             port=80,
-            extra="{'param': 'value'}",
+            extra='{"param": "value"}',
         )
         session.add(connection_model)
         session.commit()
@@ -157,7 +157,7 @@ class TestGetConnection(TestConnectionEndpoint):
             "login": "login",
             "schema": "testschema",
             "port": 80,
-            "extra": "{'param': 'value'}",
+            "extra": '{"param": "value"}',
         }
 
     @pytest.mark.enable_redact
@@ -415,8 +415,8 @@ class TestPatchConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
         "payload",
         [
-            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{'key': 'var'}"},
-            {"extra": "{'key': 'var'}"},
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": '{"key": "var"}'},
+            {"extra": '{"key": "var"}'},
         ],
     )
     @provide_session
