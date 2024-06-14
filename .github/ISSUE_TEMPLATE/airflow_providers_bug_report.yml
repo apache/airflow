@@ -95,6 +95,7 @@ body:
         - presto
         - qdrant
         - redis
+        - remote
         - salesforce
         - samba
         - segment
