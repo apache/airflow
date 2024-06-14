@@ -173,6 +173,7 @@ def get_mapped_task_instances(
     state: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
+    executor: list[str] | None = None,
     limit: int | None = None,
     offset: int | None = None,
     order_by: str | None = None,
@@ -221,6 +222,7 @@ def get_mapped_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=executor)
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -323,6 +325,7 @@ def get_task_instances(
     state: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
+    executor: list[str] | None = None,
     offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -354,6 +357,7 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=executor)
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -428,6 +432,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=data["pool"])
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=data["executor"])
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)

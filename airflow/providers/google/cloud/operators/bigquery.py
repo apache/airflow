@@ -2719,6 +2719,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        location: str | None = None,
         **kwargs,
     ) -> None:
         self.schema_fields_updates = schema_fields_updates
@@ -2728,12 +2729,12 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.location = location
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
         bq_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain, location=self.location
         )
 
         table = bq_hook.update_table_schema(

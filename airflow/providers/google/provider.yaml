@@ -113,7 +113,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.42.1
+  - google-cloud-aiplatform>=1.54.0
   - google-cloud-automl>=2.12.0
   # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
   # which has led to backward compatibility issues
@@ -1225,6 +1225,7 @@ extra-links:
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
+  - airflow.providers.google.cloud.links.dataflow.DataflowPipelineLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreImportExportLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreEntitiesLink
   - airflow.providers.google.cloud.links.bigtable.BigtableInstanceLink
