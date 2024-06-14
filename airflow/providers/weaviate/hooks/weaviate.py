@@ -618,16 +618,6 @@ class WeaviateHook(BaseHook):
         collection = self.get_collection(collection_name)
         collection.data.replace(uuid=uuid, properties=properties, references=references, **kwargs)
 
-    def validate_object(self, data_object: dict | str, class_name: str, **kwargs):
-        """Validate an object in weaviate.
-
-        :param data_object: The object to be validated. If type is str it should be either an URL or a file.
-        :param class_name: Class name associated with the object given.
-        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.validate()
-        """
-        client = self.conn
-        client.data_object.validate(data_object, class_name, **kwargs)
-
     def object_exists(self, collection_name: str, uuid: str | UUID) -> bool:
         """Check if an object exists in weaviate.
 
