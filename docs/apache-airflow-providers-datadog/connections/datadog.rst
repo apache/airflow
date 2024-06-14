@@ -66,4 +66,3 @@ The following json is an example of what the secret contents should look like::
     },
     "host": "environment-region-application.domain.com"
   }
-
