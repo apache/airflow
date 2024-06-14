@@ -57,11 +57,15 @@ when you choose to upgrade airflow via their UI.
 How to upgrade
 ==============
 
-Reinstall Apache Airflow™, specifying the desired new version. For example, in the case of a bootstrapped
-local instance, you can upgrade easily by setting the ``AIRFLOW_VERSION`` environment variable
-to the intended version prior to rerunning the installation command. Upgrade incrementally by patch version:
-e.g., if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For detailed installation guidance,
-see :doc:`/start` and :doc:`/installation/index`.
+Reinstall Apache Airflow™, specifying the desired new version.
+
+To upgrade a bootstrapped local instance, you can set the ``AIRFLOW_VERSION`` environment variable to the
+intended version prior to rerunning the installation command. Upgrade incrementally by patch version: e.g.,
+if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For detailed installation guidance, see
+:doc:`/start`.
+
+To upgrade a PyPI package, rerun the ``pip install`` command in your environment using the desired version
+as a constraint. For more detailed guidance, see :doc:`/installation/installing-from-pypi`.
 
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
