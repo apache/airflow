@@ -515,40 +515,29 @@ class WeaviateHook(BaseHook):
 
     def get_or_create_object(
         self,
+        collection_name,
         data_object: dict | str | None = None,
-        class_name: str | None = None,
         vector: Sequence | None = None,
-        consistency_level: ConsistencyLevel | None = None,
-        tenant: str | None = None,
         **kwargs,
-    ) -> str | dict[str, Any] | None:
+    ) -> QueryReturnType[Properties, References, TProperties, TReferences] | None | UUID:
         """Get or Create a new object.
 
-        Returns the object if already exists
+        Returns the object if already exists, return UUID if not
 
+        :param collection_name: Collection name associated with the object given..
         :param data_object: Object to be added. If type is str it should be either a URL or a file. This is required
             to create a new object.
-        :param class_name: Class name associated with the object given. This is required to create a new object.
         :param vector: Vector associated with the object given. This argument is only used when creating object.
-        :param consistency_level: Consistency level to be used. Applies to both create and get operations.
-        :param tenant: Tenant to be used. Applies to both create and get operations.
-        :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create() and
-            weaviate_client.data_object.get()
+        :param kwargs: parameters to be passed to collection.data.fetch_object_by_id() or
+            collection.data.fetch_objects()
         """
-        obj = self.get_object(
-            class_name=class_name, consistency_level=consistency_level, tenant=tenant, **kwargs
-        )
+        obj = self.get_object(collection_name=collection_name, **kwargs)
         if not obj:
-            if not (data_object and class_name):
-                raise ValueError("data_object and class_name are required to create a new object")
+            if not (data_object and collection_name):
+                raise ValueError("data_object and collection are required to create a new object")
             uuid = kwargs.pop("uuid", generate_uuid5(data_object))
             return self.create_object(
-                data_object,
-                class_name,
-                vector=vector,
-                uuid=uuid,
-                consistency_level=consistency_level,
-                tenant=tenant,
+                data_object=data_object, collection_name=collection_name, uuid=uuid, vector=vector, **kwargs
             )
         return obj
 
