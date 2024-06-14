@@ -72,7 +72,6 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Jenki
         raise jenkins.TimeoutException(f"Error in request: {e}")
     except URLError as e:
         raise JenkinsException(f"Error in request: {e.reason}")
-    return None
 
 
 class JenkinsJobTriggerOperator(BaseOperator):
