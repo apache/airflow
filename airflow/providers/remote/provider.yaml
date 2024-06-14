@@ -29,7 +29,7 @@ versions:
   - 0.1.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.10.0
 
 executors:
   - airflow.providers.remote.executors.RemoteExecutor
