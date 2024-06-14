@@ -363,6 +363,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+        "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
+        "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
