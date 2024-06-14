@@ -21,6 +21,67 @@
 
 .. towncrier release notes start
 
+Airflow 2.9.2 (2024-06-10)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Fix bug that makes ``AirflowSecurityManagerV2`` leave transactions in the ``idle in transaction`` state (#39935)
+- Fix alembic auto-generation and rename mismatching constraints (#39032)
+- Add the existing_nullable to the downgrade side of the migration (#39374)
+- Fix Mark Instance state buttons stay disabled if user lacks permission (#37451). (#38732)
+- Use SKIP LOCKED instead of NOWAIT in mini scheduler (#39745)
+- Remove DAG Run Add option from FAB view (#39881)
+- Add max_consecutive_failed_dag_runs in API spec (#39830)
+- Fix example_branch_operator failing in python 3.12 (#39783)
+- Fetch served logs also when task attempt is up for retry and no remote logs available (#39496)
+- Change dataset URI validation to raise warning instead of error in Airflow 2.9 (#39670)
+- Visible DAG RUN doesn't point to the same dag run id (#38365)
+- Refactor ``SafeDogStatsdLogger`` to use ``get_validator`` to enable pattern matching (#39370)
+- Fix custom actions in security manager ``has_access`` (#39421)
+- Fix HTTP 500 Internal Server Error if DAG is triggered with bad params (#39409)
+- Fix static file caching is disabled in Airflow Webserver. (#39345)
+- Fix TaskHandlerWithCustomFormatter now adds prefix only once (#38502)
+- Do not provide deprecated ``execution_date`` in ``@apply_lineage`` (#39327)
+- Add missing conn_id to string representation of ObjectStoragePath (#39313)
+- Fix ``sql_alchemy_engine_args`` config example (#38971)
+- Add Cache-Control "no-store" to all dynamically generated content (#39550)
+
+Miscellaneous
+"""""""""""""
+- Limit ``yandex`` provider to avoid ``mypy`` errors (#39990)
+- Warn on mini scheduler failures instead of debug (#39760)
+- Change type definition for ``provider_info_cache`` decorator (#39750)
+- Better typing for BaseOperator ``defer`` (#39742)
+- More typing in TimeSensor and TimeSensorAsync (#39696)
+- Re-raise exception from strict dataset URI checks (#39719)
+- Fix stacklevel for _log_state helper (#39596)
+- Resolve SA warnings in migrations scripts (#39418)
+- Remove unused index ``idx_last_scheduling_decision`` on ``dag_run`` table (#39275)
+
+Doc Only Changes
+""""""""""""""""
+- Provide extra tip on labeling DynamicTaskMapping (#39977)
+- Improve visibility of links / variables / other configs in Configuration Reference (#39916)
+- Remove 'legacy' definition for ``CronDataIntervalTimetable`` (#39780)
+- Update plugins.rst examples to use pyproject.toml over setup.py (#39665)
+- Fix nit in pg set-up doc (#39628)
+- Add Matomo to Tracking User Activity docs (#39611)
+- Fix Connection.get -> Connection. get_connection_from_secrets (#39560)
+- Adding note for provider dependencies (#39512)
+- Update docker-compose command (#39504)
+- Update note about restarting triggerer process (#39436)
+- Updating S3LogLink with an invalid bucket link (#39424)
+- Update testing_packages.rst (#38996)
+- Add multi-team diagrams (#38861)
+
+
+
 Airflow 2.9.1 (2024-05-03)
 --------------------------
 

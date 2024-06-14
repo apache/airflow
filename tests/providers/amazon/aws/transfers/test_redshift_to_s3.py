@@ -245,6 +245,12 @@ class TestRedshiftToS3Transfer:
                 "SELECT 'Single Quotes Break this Operator'",
             ],
             [False, "key", "SELECT ''", "SELECT ''"],
+            [
+                False,
+                "key",
+                "SELECT ''Single Quotes '' || ''Break this Operator''",
+                "SELECT 'Single Quotes ' || 'Break this Operator'",
+            ],
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")

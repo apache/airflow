@@ -146,14 +146,14 @@ with DAG(
             type="string",
             format="date-time",
             title="Date-Time Picker",
-            description="Please select a date and time, use the button on the left for a pup-up calendar.",
+            description="Please select a date and time, use the button on the left for a pop-up calendar.",
         ),
         "date": Param(
             f"{datetime.date.today()}",
             type="string",
             format="date",
             title="Date Picker",
-            description="Please select a date, use the button on the left for a pup-up calendar. "
+            description="Please select a date, use the button on the left for a pop-up calendar. "
             "See that here are no times!",
         ),
         "time": Param(
@@ -161,7 +161,7 @@ with DAG(
             type=["string", "null"],
             format="time",
             title="Time Picker",
-            description="Please select a time, use the button on the left for a pup-up tool.",
+            description="Please select a time, use the button on the left for a pop-up tool.",
         ),
         # Fields can be required or not. If the defined fields are typed they are getting required by default
         # (else they would not pass JSON schema validation) - to make typed fields optional you must

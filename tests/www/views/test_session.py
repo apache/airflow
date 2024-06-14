@@ -40,7 +40,7 @@ def test_session_inaccessible_after_logout(user_client):
     session_cookie = get_session_cookie(user_client)
     assert session_cookie is not None
 
-    resp = user_client.get("/logout/")
+    resp = user_client.post("/logout/")
     assert resp.status_code == 302
 
     # Try to access /home with the session cookie from earlier
@@ -78,7 +78,7 @@ def test_session_id_rotates(app, user_client):
     old_session_cookie = get_session_cookie(user_client)
     assert old_session_cookie is not None
 
-    resp = user_client.get("/logout/")
+    resp = user_client.post("/logout/")
     assert resp.status_code == 302
 
     patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"

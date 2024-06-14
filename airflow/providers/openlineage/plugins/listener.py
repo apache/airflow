@@ -30,6 +30,7 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
+    get_airflow_job_facet,
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
@@ -133,7 +134,6 @@ class OpenLineageListener:
                 dagrun.data_interval_start.isoformat() if dagrun.data_interval_start else None
             )
             data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
-
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
@@ -367,6 +367,9 @@ class OpenLineageListener:
             msg=msg,
             nominal_start_time=data_interval_start,
             nominal_end_time=data_interval_end,
+            # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
+            # as it causes lack of some TaskGroup attributes and crashes event emission.
+            job_facets={**get_airflow_job_facet(dag_run=dag_run)},
         )
 
     @hookimpl

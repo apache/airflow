@@ -830,8 +830,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 trigger=EmrCreateJobFlowTrigger(
                     job_flow_id=self._job_flow_id,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.waiter_delay,
-                    max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart

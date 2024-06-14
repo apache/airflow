@@ -52,7 +52,7 @@ A minimal Airflow installation consists of the following components:
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
   DAGs and tasks.
 
-* A folder of *DAG files* is read by the *scheduler* to figure out what tasks to run and when and to
+* A folder of *DAG files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
 
 * A *metadata database*, which airflow components use to store state of workflows and tasks.
@@ -163,7 +163,7 @@ DAGs and tasks, but cannot author DAGs.
 
 The *DAG files* need to be synchronized between all the components that use them - *scheduler*,
 *triggerer* and *workers*. The *DAG files* can be synchronized by various mechanisms - typical
-ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` ot our
+ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` of our
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
 .. image:: ../img/diagram_distributed_airflow_architecture.png
