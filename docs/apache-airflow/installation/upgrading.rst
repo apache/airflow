@@ -59,8 +59,9 @@ How to upgrade
 
 Reinstall Apache Airflow™, specifying the desired new version. For example, in the case of a bootstrapped
 local instance, you can upgrade easily by setting the ``AIRFLOW_VERSION`` environment variable
-to the intended version prior to rerunning the installation command. For more details, see :doc:`/start`
-and :doc:`/installation/index`.
+to the intended version prior to rerunning the installation command. Upgrade incrementally by patch version:
+e.g., if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For detailed installation guidance,
+see :doc:`/start` and :doc:`/installation/index`.
 
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
