@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from weaviate.auth import AuthCredentials
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
-    from weaviate.collections.classes.internal import QuerySearchReturnType
+    from weaviate.collections.classes.internal import QueryReturnType, QuerySearchReturnType
     from weaviate.collections.classes.types import Properties, References, TProperties, TReferences
     from weaviate.types import UUID
 
@@ -551,7 +551,7 @@ class WeaviateHook(BaseHook):
         """Create a new object.
 
         :param data_object: Object to be added. If type is str it should be either a URL or a file.
-        :param collection_name: Colletion name associated with the object given.
+        :param collection_name: Collection name associated with the object given.
         :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create()
         """
         client = self.conn
@@ -603,14 +603,17 @@ class WeaviateHook(BaseHook):
             )
         return obj
 
-    def get_object(self, **kwargs) -> dict[str, Any] | None:
+    def get_object(
+        self, collection_name: str, **kwargs
+    ) -> QueryReturnType[Properties, References, TProperties, TReferences] | None:
         """Get objects or an object from weaviate.
 
-        :param kwargs: parameters to be passed to weaviate_client.data_object.get() or
-            weaviate_client.data_object.get_by_id()
+        :param kwargs: parameters to be passed to collection.data.fetch_object_by_id() or
+            collection.data.fetch_objects()
         """
         client = self.conn
-        return client.data_object.get(**kwargs)
+        collection = client.collections.get(collection_name)
+        return collection.query.fetch_objects(**kwargs)
 
     def get_all_objects(
         self, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
