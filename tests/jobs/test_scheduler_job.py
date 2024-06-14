@@ -3972,7 +3972,10 @@ class TestSchedulerJob:
         assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == [dict_from_obj(event3)]
 
         # dag DDRQ record should be deleted since the dag run was triggered
-        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=consumer_dag.dag_id).one_or_none() is None
+        assert (
+            session.query(DatasetDagRunQueue).filter_by(target_dag_id=consumer_dag.dag_id).one_or_none()
+            is None
+        )
 
         assert consumer_dag.get_last_dagrun().creating_job_id == scheduler_job.id
 
