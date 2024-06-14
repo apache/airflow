@@ -1,0 +1,6 @@
+``workers.safeToEvict`` default changed to False
+
+The default for ``workers.safeToEvict`` now defaults to False. This is a safer default
+as it prevents the nodes workers are running on from being scaled down by the
+[K8s Cluster Autoscaler](https://kubernetes.io/docs/concepts/cluster-administration/cluster-autoscaling/#cluster-autoscaler).
+If you would like to retain the previous behavior, you can set this config to True.
