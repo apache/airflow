@@ -1454,13 +1454,13 @@ pytest CLI argument.
 
 .. code-block:: bash
 
-    pytest tests/core/ --disable-capture-warnings
+    pytest tests/core/ --keep-env-variables
 
 This parameter is also available in Breeze.
 
 .. code-block:: bash
 
-    breeze testing db-tests --disable-capture-warnings
+    breeze testing db-tests --keep-env-variables
 
 
 Code Coverage

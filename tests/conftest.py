@@ -39,9 +39,7 @@ if TYPE_CHECKING:
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
-keep_env_variables = (
-    "--keep-env-variables" in sys.argv or os.environ.get("_AIRFLOW_KEEP_ENV_VARIABLES") == "true"
-)
+keep_env_variables = "--keep-env-variables" in sys.argv
 
 if not keep_env_variables:
     # Clear all Environment Variables that might have side effect,

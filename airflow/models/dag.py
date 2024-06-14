@@ -2885,6 +2885,7 @@ class DAG(LoggingMixin):
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
+        use_executor: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -2894,6 +2895,7 @@ class DAG(LoggingMixin):
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
+        :param use_executor: if set, uses an executor to test the DAG
         :param session: database connection (optional)
         """
 
@@ -2953,18 +2955,12 @@ class DAG(LoggingMixin):
             # for task readiness and dependency management. This is notably faster
             # than creating a BackfillJob and allows us to surface logs to the user
 
-            from airflow.executors.local_executor import LocalExecutor
-
-            # Fetch the executor from config
-            # ``Dag.test()`` works in two different modes depending on the executor:
-            # - if the executor is ``LocalExecutor``, runs the task locally using ``_run_task``
-            # - if the executor is not ``LocalExecutor``, sends the task instances to the executor with
+            # ``Dag.test()`` works in two different modes depending on ``use_executor``:
+            # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
+            # - if ``use_executor`` is True, sends the task instances to the executor with
             #   ``BaseExecutor.queue_task_instance``
-            executor = ExecutorLoader.get_default_executor()
-            is_local_executor = type(executor) is LocalExecutor
-
-            if not is_local_executor:
-                executor.job_id = None
+            if use_executor:
+                executor = ExecutorLoader.get_default_executor()
                 executor.start()
 
             while dr.state == DagRunState.RUNNING:
@@ -2987,21 +2983,21 @@ class DAG(LoggingMixin):
                 for ti in scheduled_tis:
                     ti.task = tasks[ti.task_id]
 
-                    if is_local_executor:
+                    if use_executor:
+                        if executor.has_task(ti):
+                            continue
+                        # Send the task to the executor
+                        executor.queue_task_instance(ti, ignore_ti_state=True)
+                    else:
+                        # Run the task locally
                         try:
                             add_logger_if_needed(ti)
                             _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
                         except Exception:
                             self.log.exception("Task failed; ti=%s", ti)
-                    else:
-                        if executor.has_task(ti):
-                            continue
-
-                        executor.queue_task_instance(ti, ignore_ti_state=True)
-
-                if not is_local_executor:
+                if use_executor:
                     executor.heartbeat()
-            if not is_local_executor:
+            if use_executor:
                 executor.end()
         return dr
 

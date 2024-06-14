@@ -571,7 +571,6 @@ class ShellParams:
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
-        _set_var(_env, "_AIRFLOW_KEEP_ENV_VARIABLES", self.keep_env_variables)
         self._generate_env_for_docker_compose_file_if_needed(_env)
 
         _target_env: dict[str, str] = os.environ.copy()
