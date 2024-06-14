@@ -417,6 +417,12 @@ ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
     help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
+ARG_USE_EXECUTOR = Arg(
+    ("--use-executor",),
+    help="Use an executor to test the DAG. By default it runs the DAG without an executor. "
+    "If set, it uses the executor configured in the environment.",
+    action="store_true",
+)
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
@@ -1280,6 +1286,7 @@ DAGS_COMMANDS = (
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
+            ARG_USE_EXECUTOR,
             ARG_VERBOSE,
         ),
     ),

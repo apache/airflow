@@ -2885,6 +2885,7 @@ class DAG(LoggingMixin):
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
+        use_executor: bool = False,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -2894,6 +2895,7 @@ class DAG(LoggingMixin):
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
+        :param use_executor: if set, uses an executor to test the DAG
         :param session: database connection (optional)
         """
 
@@ -2952,6 +2954,15 @@ class DAG(LoggingMixin):
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management. This is notably faster
             # than creating a BackfillJob and allows us to surface logs to the user
+
+            # ``Dag.test()`` works in two different modes depending on ``use_executor``:
+            # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
+            # - if ``use_executor`` is True, sends the task instances to the executor with
+            #   ``BaseExecutor.queue_task_instance``
+            if use_executor:
+                executor = ExecutorLoader.get_default_executor()
+                executor.start()
+
             while dr.state == DagRunState.RUNNING:
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
@@ -2967,14 +2978,27 @@ class DAG(LoggingMixin):
                 if not scheduled_tis and ids_unrunnable:
                     self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
+
                 triggerer_running = _triggerer_is_healthy()
                 for ti in scheduled_tis:
-                    try:
-                        add_logger_if_needed(ti)
-                        ti.task = tasks[ti.task_id]
-                        _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
-                    except Exception:
-                        self.log.exception("Task failed; ti=%s", ti)
+                    ti.task = tasks[ti.task_id]
+
+                    if use_executor:
+                        if executor.has_task(ti):
+                            continue
+                        # Send the task to the executor
+                        executor.queue_task_instance(ti, ignore_ti_state=True)
+                    else:
+                        # Run the task locally
+                        try:
+                            add_logger_if_needed(ti)
+                            _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
+                        except Exception:
+                            self.log.exception("Task failed; ti=%s", ti)
+                if use_executor:
+                    executor.heartbeat()
+            if use_executor:
+                executor.end()
         return dr
 
     @provide_session
