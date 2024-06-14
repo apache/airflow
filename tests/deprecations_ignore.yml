@@ -197,6 +197,8 @@
 - tests/providers/google/cloud/operators/test_dataflow.py::TestDataflowCreateJavaJobOperatorWithLocal::test_init
 - tests/providers/google/cloud/operators/test_dataflow.py::TestDataflowCreatePythonJobOperator::test_exec
 - tests/providers/google/cloud/operators/test_dataflow.py::TestDataflowCreatePythonJobOperator::test_init
+- tests/providers/google/cloud/operators/test_datapipeline.py::TestCreateDataPipelineOperator::test_execute
+- tests/providers/google/cloud/operators/test_datapipeline.py::TestRunDataPipelineOperator::test_execute
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHadoopOperator::test_execute
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_builder
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_execute

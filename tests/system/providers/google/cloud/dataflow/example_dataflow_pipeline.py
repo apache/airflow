@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG for testing Google DataPipelines Create Data Pipeline Operator.
+Example Airflow DAG for testing Google Dataflow to create pipelines.
 """
 
 from __future__ import annotations
@@ -26,10 +26,10 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.dataflow import DataflowDeletePipelineOperator
-from airflow.providers.google.cloud.operators.datapipeline import (
-    CreateDataPipelineOperator,
-    RunDataPipelineOperator,
+from airflow.providers.google.cloud.operators.dataflow import (
+    DataflowCreatePipelineOperator,
+    DataflowDeletePipelineOperator,
+    DataflowRunPipelineOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -37,11 +37,10 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSSynchronizeBucketsOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "datapipeline"
+DAG_ID = "dataflow_pipeline"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 GCP_LOCATION = "us-central1"
 
 PIPELINE_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
@@ -53,6 +52,7 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
 FILE_NAME = "kinglear.txt"
 TEMPLATE_FILE = "word-count.json"
+
 TEMP_LOCATION = f"gs://{BUCKET_NAME}/temp"
 
 GCS_PATH = f"gs://{BUCKET_NAME}/dataflow/{TEMPLATE_FILE}"
@@ -64,7 +64,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "datapipeline"],
+    tags=["example", "dataflow", "pipelines"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
@@ -77,9 +77,9 @@ with DAG(
         recursive=True,
     )
 
-    # [START howto_operator_create_data_pipeline]
-    create_data_pipeline = CreateDataPipelineOperator(
-        task_id="create_data_pipeline",
+    # [START howto_operator_create_dataflow_pipeline]
+    create_pipeline = DataflowCreatePipelineOperator(
+        task_id="create_pipeline",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         body={
@@ -102,19 +102,19 @@ with DAG(
             },
         },
     )
-    # [END howto_operator_create_data_pipeline]
+    # [END howto_operator_create_dataflow_pipeline]
 
-    # [START howto_operator_run_data_pipeline]
-    run_data_pipeline = RunDataPipelineOperator(
-        task_id="run_data_pipeline",
-        data_pipeline_name=PIPELINE_NAME,
+    # [START howto_operator_run_dataflow_pipeline]
+    run_pipeline = DataflowRunPipelineOperator(
+        task_id="run_pipeline",
+        pipeline_name=PIPELINE_NAME,
         project_id=GCP_PROJECT_ID,
     )
-    # [END howto_operator_run_data_pipeline]
+    # [END howto_operator_run_dataflow_pipeline]
 
     # [START howto_operator_delete_dataflow_pipeline]
     delete_pipeline = DataflowDeletePipelineOperator(
-        task_id="delete_data_pipeline",
+        task_id="delete_pipeline",
         pipeline_name=PIPELINE_NAME,
         project_id=GCP_PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -130,8 +130,8 @@ with DAG(
         create_bucket
         >> move_files_to_bucket
         # TEST BODY
-        >> create_data_pipeline
-        >> run_data_pipeline
+        >> create_pipeline
+        >> run_pipeline
         # TEST TEARDOWN
         >> delete_pipeline
         >> delete_bucket
