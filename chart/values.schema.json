@@ -1864,7 +1864,7 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into workers (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
