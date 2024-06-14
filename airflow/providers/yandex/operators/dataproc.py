@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
+from typing import TYPE_CHECKING, Any, Iterable, List, Sequence, cast
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -249,7 +249,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.labels = force_dict_values_as_strings(self.labels)
         self.properties = force_dict_values_as_strings(self.properties)
         self.host_group_ids = force_list_values_as_string(self.host_group_ids)
-        self.services = cast(list[str], force_list_values_as_string(self.services))
+        self.services = cast(List[str], force_list_values_as_string(self.services))
 
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
