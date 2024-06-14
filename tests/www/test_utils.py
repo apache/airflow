@@ -31,8 +31,7 @@ from markupsafe import Markup
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
 from airflow.www import utils
-from airflow.www.utils import CustomSQLAInterface
-from airflow.www.utils import DagRunCustomSQLAInterface, json_f, wrapped_markdown
+from airflow.www.utils import CustomSQLAInterface, DagRunCustomSQLAInterface, json_f, wrapped_markdown
 from tests.test_utils.config import conf_vars
 
 
@@ -449,9 +448,10 @@ class TestWrappedMarkdown:
                 assert escape(HTML) in rendered
 
 
+@pytest.mark.db_test
 def test_get_col_default_not_existing(session):
     interface = CustomSQLAInterface(obj=DagRun, session=session)
-    default_value = interface.get_col_default('column_not_existing')
+    default_value = interface.get_col_default("column_not_existing")
     assert default_value is None
 
 
