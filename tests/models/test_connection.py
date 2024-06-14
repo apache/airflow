@@ -250,3 +250,26 @@ class TestConnection:
     # string works as expected.
     def test_sanitize_conn_id(self, connection, expected_conn_id):
         assert connection.conn_id == expected_conn_id
+
+    def test_extra_dejson(self):
+        extra = (
+            '{"trust_env": false, "verify": false, "stream": true, "headers":'
+            '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}}'
+        )
+        connection = Connection(
+            conn_id="pokeapi",
+            conn_type="http",
+            login="user",
+            password="pass",
+            host="https://pokeapi.co/",
+            port=100,
+            schema="https",
+            extra=extra,
+        )
+
+        assert connection.extra_dejson == {
+            "trust_env": False,
+            "verify": False,
+            "stream": True,
+            "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
+        }
