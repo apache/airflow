@@ -650,18 +650,19 @@ class WeaviateHook(BaseHook):
         collection = client.collections.get(collection_name)
         return collection.data.delete_by_id(uuid=uuid)
 
-    def update_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
+    def update_object(
+        self, collection_name: str, uuid: UUID | str, properties: Properties | None = None, **kwargs
+    ) -> None:
         """Update an object in weaviate.
 
-        :param data_object: The object states the fields that should be updated. Fields not specified in the
-            'data_object' remain unchanged. Fields that are None will not be changed.
-            If type is str it should be either an URL or a file.
-        :param class_name: Class name associated with the object given.
+        :param collection_name: Collection name associated with the object given.
         :param uuid: uuid of the object to be updated
-        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.update()
+        :param properties: The properties of the object.
+        :param kwargs: Optional parameters to be passed to collection.data.update()
         """
         client = self.conn
-        client.data_object.update(data_object, class_name, uuid, **kwargs)
+        collection = client.collections.get(collection_name)
+        collection.data.update(uuid=uuid, properties=properties, **kwargs)
 
     def replace_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
         """Replace an object in weaviate.
