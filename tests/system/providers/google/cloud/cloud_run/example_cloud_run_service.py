@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_cloud_run_serivce"
 
 region = "us-central1"
