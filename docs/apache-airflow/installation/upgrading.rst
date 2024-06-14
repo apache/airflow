@@ -61,7 +61,7 @@ Reinstall Apache Airflow™, specifying the desired new version.
 
 To upgrade a bootstrapped local instance, you can set the ``AIRFLOW_VERSION`` environment variable to the
 intended version prior to rerunning the installation command. Upgrade incrementally by patch version: e.g.,
-if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For detailed installation guidance, see
+if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For more detailed guidance, see
 :doc:`/start`.
 
 To upgrade a PyPI package, rerun the ``pip install`` command in your environment using the desired version
