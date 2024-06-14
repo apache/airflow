@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from airflow.decorators import setup, task, teardown
@@ -29,6 +31,7 @@ pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
+_Invalid = Any
 
 
 class TestDockerDecorator:
@@ -294,7 +297,7 @@ class TestDockerDecorator:
         # Functions that throw an error
         # if `from __future__ import annotations` is missing
         @task.docker(image="python:3.9-slim", auto_remove="force", multiple_outputs=False, do_xcom_push=True)
-        def in_docker(value: dict[str, Invalid]) -> Invalid:  # type: ignore[name-defined] # noqa: F821
+        def in_docker(value: dict[str, _Invalid]) -> _Invalid:
             assert isinstance(value, dict)
             return value["unique_id"]
 
