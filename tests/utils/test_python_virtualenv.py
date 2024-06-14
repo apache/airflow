@@ -152,13 +152,13 @@ class TestPrepareVirtualenv:
 
         # Functions that throw an error
         # if `from __future__ import annotations` is missing
-        @task.docker(image="python:3.9-slim", auto_remove="force", multiple_outputs=False, do_xcom_push=True)
-        def in_docker(value: dict[str, _Invalid]) -> _Invalid:
+        @task.virtualenv(multiple_outputs=False, do_xcom_push=True)
+        def in_venv(value: dict[str, _Invalid]) -> _Invalid:
             assert isinstance(value, dict)
             return value["unique_id"]
 
         with dag_maker():
-            ret = in_docker(value)
+            ret = in_venv(value)
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
