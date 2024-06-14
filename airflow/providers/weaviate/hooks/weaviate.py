@@ -533,8 +533,8 @@ class WeaviateHook(BaseHook):
         return response
 
     def query_without_vector(
-        self, search_text: str, class_name: str, *properties: list[str], limit: int = 1
-    ) -> dict[str, dict[Any, Any]]:
+        self, search_text: str, collection_name: str, *properties: list[str], limit: int = 1
+    ):
         """
         Query using near text.
 
@@ -543,13 +543,9 @@ class WeaviateHook(BaseHook):
         API (OpenAI in this particular example) and uses that vector as the basis for a vector search.
         """
         client = self.conn
-        results: dict[str, dict[Any, Any]] = (
-            client.query.get(class_name, properties[0])
-            .with_near_text({"concepts": [search_text]})
-            .with_limit(limit)
-            .do()
-        )
-        return results
+        collection = client.collections.get(collection_name)
+        response = collection.query.near_text(query=search_text, limit=limit, return_properties=properties)
+        return response
 
     def create_object(
         self, data_object: dict | str, class_name: str, **kwargs
