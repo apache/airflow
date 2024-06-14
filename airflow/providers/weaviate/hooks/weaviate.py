@@ -547,20 +547,19 @@ class WeaviateHook(BaseHook):
         response = collection.query.near_text(query=search_text, limit=limit, return_properties=properties)
         return response
 
-    def create_object(
-        self, data_object: dict | str, class_name: str, **kwargs
-    ) -> str | dict[str, Any] | None:
+    def create_object(self, data_object: dict | str, collection_name: str, **kwargs) -> UUID | None:
         """Create a new object.
 
         :param data_object: Object to be added. If type is str it should be either a URL or a file.
-        :param class_name: Class name associated with the object given.
+        :param collection_name: Colletion name associated with the object given.
         :param kwargs: Additional parameters to be passed to weaviate_client.data_object.create()
         """
         client = self.conn
+        collection = client.collections.get(collection_name)
         # generate deterministic uuid if not provided
         uuid = kwargs.pop("uuid", generate_uuid5(data_object))
         try:
-            return client.data_object.create(data_object, class_name, uuid=uuid, **kwargs)
+            return collection.data.insert(properties=data_object, uuid=uuid, **kwargs)
         except ObjectAlreadyExistsException:
             self.log.warning("Object with the UUID %s already exists", uuid)
             return None
