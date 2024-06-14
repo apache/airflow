@@ -2391,7 +2391,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+            timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2404,7 +2404,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = (timezone.utcnow() - self.start_date).total_seconds()
+            timing = timezone.utcnow() - self.start_date
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
