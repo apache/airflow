@@ -29,7 +29,9 @@ from typing import TYPE_CHECKING, Any, Iterable
 import attrs
 from deprecated import deprecated
 from openlineage.client.utils import RedactMixin
+from packaging.version import Version
 
+from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
@@ -57,6 +59,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def try_import_from_string(string: str) -> Any:
@@ -145,6 +148,8 @@ class InfoJsonEncodable(dict):
     def _cast_basic_types(value):
         if isinstance(value, datetime.datetime):
             return value.isoformat()
+        if isinstance(value, datetime.timedelta):
+            return f"{value.total_seconds()} seconds"
         if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
@@ -201,7 +206,7 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "try_number", "pool"]
+    includes = ["duration", "try_number", "pool", "queued_dttm"]
     casts = {
         "map_index": lambda ti: (
             ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
@@ -235,6 +240,7 @@ class TaskInfo(InfoJsonEncodable):
         "retries",
         "retry_exponential_backoff",
         "run_as_user",
+        "sla",
         "task_id",
         "trigger_rule",
         "upstream_task_ids",
@@ -555,5 +561,7 @@ def normalize_sql(sql: str | Iterable[str]):
 
 
 def should_use_external_connection(hook) -> bool:
-    # TODO: Add checking overrides
-    return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook"]
+    # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
+    if not _IS_AIRFLOW_2_10_OR_HIGHER:
+        return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
+    return True

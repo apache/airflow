@@ -94,6 +94,7 @@ from airflow.exceptions import (
     TaskDeferred,
     TaskNotFound,
 )
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.base import Base, StringID
@@ -800,9 +801,22 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
+        self.validate_executor_field()
         self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
+
+    def validate_executor_field(self):
+        for task in self.tasks:
+            if task.executor:
+                try:
+                    ExecutorLoader.lookup_executor_name_by_str(task.executor)
+                except ValueError:
+                    raise ValueError(
+                        f"The specified executor {task.executor} for task {task.task_id} is not "
+                        "configured. Review the core.executors Airflow configuration to add it or "
+                        "update the executor configuration for this task."
+                    )
 
     def validate_setup_teardown(self):
         """

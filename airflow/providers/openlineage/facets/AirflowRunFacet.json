@@ -97,6 +97,9 @@
         "run_as_user": {
           "type": "string"
         },
+        "sla": {
+          "type": "number"
+        },
         "task_id": {
           "type": "string"
         },
@@ -198,6 +201,10 @@
         },
         "try_number": {
           "type": "integer"
+        },
+        "queued_dttm": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "additionalProperties": true,

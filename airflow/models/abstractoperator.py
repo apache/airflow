@@ -122,8 +122,9 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
-            "start_trigger",
-            "next_method",
+            # Decide whether to start task execution from triggerer
+            "start_trigger_args",
+            "start_from_trigger",
             # For compatibility with TG, for operators these are just the current task, no point showing
             "roots",
             "leaves",
@@ -730,12 +731,15 @@ class AbstractOperator(Templater, DAGNode):
                 pass
 
             try:
-                rendered_content = self.render_template(
-                    value,
-                    context,
-                    jinja_env,
-                    seen_oids,
-                )
+                if callable(value):
+                    rendered_content = value(context=context, jinja_env=jinja_env)
+                else:
+                    rendered_content = self.render_template(
+                        value,
+                        context,
+                        jinja_env,
+                        seen_oids,
+                    )
             except Exception:
                 value_masked = redact(name=attr_name, value=value)
                 self.log.exception(

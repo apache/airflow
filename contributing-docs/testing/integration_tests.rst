@@ -74,6 +74,8 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | qdrant       | Integration required for Qdrant tests.             |
 +--------------+----------------------------------------------------+
+| redis        | Integration required for Redis tests.              |
++--------------+----------------------------------------------------+
 | statsd       | Integration required for Statsd hooks.             |
 +--------------+----------------------------------------------------+
 | trino        | Integration required for Trino hooks.              |

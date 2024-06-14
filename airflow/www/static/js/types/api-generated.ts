@@ -1709,6 +1709,12 @@ export interface components {
       template_fields?: string[];
       sub_dag?: components["schemas"]["DAG"];
       downstream_task_ids?: string[];
+      /**
+       * @description Task documentation in markdown.
+       *
+       * *New in version 2.10.0*
+       */
+      doc_md?: string | null;
     };
     /** @description Collection of tasks. */
     TaskCollection: {

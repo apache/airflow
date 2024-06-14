@@ -55,6 +55,7 @@ import useEventLogs from "./useEventLogs";
 import useCalendarData from "./useCalendarData";
 import useCreateDatasetEvent from "./useCreateDatasetEvent";
 import useRenderedK8s from "./useRenderedK8s";
+import useTaskDetail from "./useTaskDetail";
 
 axios.interceptors.request.use((config) => {
   config.paramsSerializer = {
@@ -106,4 +107,5 @@ export {
   useCalendarData,
   useCreateDatasetEvent,
   useRenderedK8s,
+  useTaskDetail,
 };

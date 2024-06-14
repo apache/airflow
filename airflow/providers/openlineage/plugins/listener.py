@@ -134,7 +134,6 @@ class OpenLineageListener:
                 dagrun.data_interval_start.isoformat() if dagrun.data_interval_start else None
             )
             data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
-
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),

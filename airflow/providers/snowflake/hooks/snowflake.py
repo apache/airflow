@@ -473,10 +473,10 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
-        connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
-
         if self.query_ids:
+            self.log.debug("openlineage: getting connection to get database info")
+            connection = self.get_connection(getattr(self, self.conn_name_attr))
+            namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
             return OperatorLineage(
                 run_facets={
                     "externalQuery": ExternalQueryRunFacet(

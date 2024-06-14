@@ -111,6 +111,19 @@ class SFTPSensor(BaseSensorOperator):
                 _newer_than = convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
                     files_found.append(actual_file_to_check)
+                    self.log.info(
+                        "File %s has modification time: '%s', which is newer than: '%s'",
+                        actual_file_to_check,
+                        str(_mod_time),
+                        str(_newer_than),
+                    )
+                else:
+                    self.log.info(
+                        "File %s has modification time: '%s', which is older than: '%s'",
+                        actual_file_to_check,
+                        str(_mod_time),
+                        str(_newer_than),
+                    )
             else:
                 files_found.append(actual_file_to_check)
 

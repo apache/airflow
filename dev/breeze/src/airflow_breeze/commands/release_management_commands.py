@@ -770,7 +770,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1541,7 +1541,7 @@ def run_publish_docs_in_parallel(
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
