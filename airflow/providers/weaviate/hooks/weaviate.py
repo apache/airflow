@@ -41,8 +41,8 @@ if TYPE_CHECKING:
     import pandas as pd
     from weaviate.auth import AuthCredentials
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
-    from weaviate.collections.classes.internal import References
-    from weaviate.collections.classes.types import Properties
+    from weaviate.collections.classes.internal import QuerySearchReturnType
+    from weaviate.collections.classes.types import Properties, References, TProperties, TReferences
     from weaviate.types import UUID
 
     from airflow.models.connection import Connection
@@ -512,27 +512,25 @@ class WeaviateHook(BaseHook):
     def query_with_vector(
         self,
         embeddings: list[float],
-        class_name: str,
+        collection_name: str,
         *properties: list[str],
         certainty: float = 0.7,
         limit: int = 1,
-    ) -> dict[str, dict[Any, Any]]:
+    ) -> QuerySearchReturnType[Properties, References, TProperties, TReferences]:
         """
         Query weaviate database with near vectors.
 
         This method uses a vector search using a Get query. we are using a with_near_vector to provide
-        weaviate with a query with vector itself. This is needed for query a  Weaviate class with a custom,
+        weaviate with a query with vector itself. This is needed for query a Weaviate class with a custom,
         external vectorizer. Weaviate then converts this into a vector through the inference API
         (OpenAI in this particular example) and uses that vector as the basis for a vector search.
         """
         client = self.conn
-        results: dict[str, dict[Any, Any]] = (
-            client.query.get(class_name, properties[0])
-            .with_near_vector({"vector": embeddings, "certainty": certainty})
-            .with_limit(limit)
-            .do()
+        collection = client.collections.get(collection_name)
+        response = collection.query.near_vector(
+            near_vector=embeddings, certainty=certainty, limit=limit, return_properties=properties
         )
-        return results
+        return response
 
     def query_without_vector(
         self, search_text: str, class_name: str, *properties: list[str], limit: int = 1
