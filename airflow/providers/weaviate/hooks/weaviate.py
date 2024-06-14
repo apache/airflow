@@ -736,7 +736,7 @@ class WeaviateHook(BaseHook):
     def _generate_uuids(
         self,
         df: pd.DataFrame,
-        class_name: str,
+        collection_name: str,
         unique_columns: list[str],
         vector_column: str | None = None,
         uuid_column: str | None = None,
@@ -748,7 +748,7 @@ class WeaviateHook(BaseHook):
         The function can potentially ingest the same data multiple times with different UUIDs.
 
         :param df: A dataframe with data to generate a UUID from.
-        :param class_name: The name of the class use as part of the uuid namespace.
+        :param collection_name: The name of the collection use as part of the uuid namespace.
         :param uuid_column: Name of the column to create. Default is 'id'.
         :param unique_columns: A list of columns to use for UUID generation. By default, all columns except
             vector_column will be used.
@@ -779,7 +779,7 @@ class WeaviateHook(BaseHook):
         df[uuid_column] = (
             df[unique_columns]
             .drop(columns=[vector_column], inplace=False, errors="ignore")
-            .apply(lambda row: generate_uuid5(identifier=row.to_dict(), namespace=class_name), axis=1)
+            .apply(lambda row: generate_uuid5(identifier=row.to_dict(), namespace=collection_name), axis=1)
         )
 
         return df, uuid_column
