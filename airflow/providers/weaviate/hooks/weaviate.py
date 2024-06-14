@@ -412,84 +412,27 @@ class WeaviateHook(BaseHook):
 
     def batch_data(
         self,
-        class_name: str,
+        collection_name: str,
         data: list[dict[str, Any]] | pd.DataFrame | None,
-        batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         uuid_col: str = "id",
         retry_attempts_per_object: int = 5,
         tenant: str | None = None,
-    ) -> list:
+    ) -> None:
         """
         Add multiple objects or object references at once into weaviate.
 
-        :param class_name: The name of the class that objects belongs to.
+        :param collection_name: The name of the collection that objects belongs to.
         :param data: list or dataframe of objects we want to add.
-        :param batch_config_params: dict of batch configuration option.
-            .. seealso:: `batch_config_params options <https://weaviate-python-client.readthedocs.io/en/v3.25.3/weaviate.batch.html#weaviate.batch.Batch.configure>`__
         :param vector_col: name of the column containing the vector.
         :param uuid_col: Name of the column containing the UUID.
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         :param tenant: The tenant to which the object will be added.
         """
         converted_data = self._convert_dataframe_to_list(data)
-        total_results = 0
-        error_results = 0
-        insertion_errors: list = []
 
-        def _process_batch_errors(
-            results: list,
-            verbose: bool = True,
-        ) -> None:
-            """
-            Process the results from insert or delete batch operation and collects any errors.
-
-            :param results: Results from the batch operation.
-            :param verbose: Flag to enable verbose logging.
-            """
-            nonlocal total_results
-            nonlocal error_results
-            total_batch_results = len(results)
-            error_batch_results = 0
-            for item in results:
-                if "errors" in item["result"]:
-                    error_batch_results = error_batch_results + 1
-                    item_error = {"uuid": item["id"], "errors": item["result"]["errors"]}
-                    if verbose:
-                        self.log.info(
-                            "Error occurred in batch process for %s with error %s",
-                            item["id"],
-                            item["result"]["errors"],
-                        )
-                    insertion_errors.append(item_error)
-            if verbose:
-                total_results = total_results + (total_batch_results - error_batch_results)
-                error_results = error_results + error_batch_results
-
-                self.log.info(
-                    "Total Objects %s / Objects %s successfully inserted and Objects %s had errors.",
-                    len(converted_data),
-                    total_results,
-                    error_results,
-                )
-
-        client = self.conn
-        if not batch_config_params:
-            batch_config_params = {}
-
-        # configuration for context manager for __exit__ method to callback on errors for weaviate
-        # batch ingestion.
-        if not batch_config_params.get("callback"):
-            batch_config_params["callback"] = _process_batch_errors
-
-        if not batch_config_params.get("timeout_retries"):
-            batch_config_params["timeout_retries"] = 5
-
-        if not batch_config_params.get("connection_error_retries"):
-            batch_config_params["connection_error_retries"] = 5
-
-        client.batch.configure(**batch_config_params)
-        with client.batch as batch:
+        collection = self.get_collection(collection_name)
+        with collection.batch.dynamic() as batch:
             # Batch import all data
             for data_obj in converted_data:
                 for attempt in Retrying(
@@ -507,15 +450,14 @@ class WeaviateHook(BaseHook):
                             attempt.retry_state.attempt_number,
                             uuid,
                         )
-                        batch.add_data_object(
-                            data_object=data_obj,
-                            class_name=class_name,
-                            vector=vector,
+                        batch.add_object(
+                            collection=collection_name,
+                            properties=data_obj,
                             uuid=uuid,
+                            vector=vector,
                             tenant=tenant,
                         )
                         self.log.debug("Inserted object with uuid: %s into batch", uuid)
-        return insertion_errors
 
     def query_with_vector(
         self,
