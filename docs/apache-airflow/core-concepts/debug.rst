@@ -36,8 +36,13 @@ To set up ``dag.test``, add these two lines to the bottom of your dag file:
   if __name__ == "__main__":
       dag.test()
 
-and that's it! You can add argument such as ``execution_date`` if you want to test argument-specific DAG runs, but otherwise
-you can run or debug DAGs as needed.
+and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug DAGs as
+needed. Here are some examples of arguments:
+
+* ``execution_date`` if you want to test argument-specific DAG runs
+* ``use_executor`` if you want to test the DAG using an executor. By default ``dag.test`` runs the DAG without an
+  executor, it just runs all the tasks locally.
+  By providing this argument, the DAG is executed using the executor configured in the Airflow environment.
 
 Comparison with DebugExecutor
 -----------------------------
