@@ -28,6 +28,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
+from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -38,7 +39,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink, DataflowPipelineLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
@@ -1356,5 +1357,238 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
             )
         else:
             self.log.info("No jobs to stop")
+
+        return None
+
+
+class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
+    """
+    Creates a new Dataflow Data Pipeline instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowCreatePipelineOperator`
+
+    :param body: The request body (contains instance of Pipeline). See:
+        https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud
+        Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+
+        .. warning::
+            This option requires Apache Beam 2.39.0 or newer.
+
+    Returns the created Dataflow Data Pipeline instance in JSON representation.
+    """
+
+    operator_extra_links = (DataflowPipelineLink(),)
+
+    def __init__(
+        self,
+        *,
+        body: dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.body = body
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.dataflow_hook: DataflowHook | None = None
+
+        self.pipeline_name = self.body["name"].split("/")[-1] if self.body else None
+
+    def execute(self, context: Context):
+        if self.body is None:
+            raise AirflowException(
+                "Request Body not given; cannot create a Data Pipeline without the Request Body."
+            )
+        if self.project_id is None:
+            raise AirflowException(
+                "Project ID not given; cannot create a Data Pipeline without the Project ID."
+            )
+        if self.location is None:
+            raise AirflowException("location not given; cannot create a Data Pipeline without the location.")
+
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.body["pipelineSources"] = {"airflow": "airflow"}
+        try:
+            self.pipeline = self.dataflow_hook.create_data_pipeline(
+                project_id=self.project_id,
+                body=self.body,
+                location=self.location,
+            )
+        except HttpError as e:
+            if e.resp.status == 409:
+                # If the pipeline already exists, retrieve it
+                self.log.info("Pipeline with given name already exists.")
+                self.pipeline = self.dataflow_hook.get_data_pipeline(
+                    project_id=self.project_id,
+                    pipeline_name=self.pipeline_name,
+                    location=self.location,
+                )
+        DataflowPipelineLink.persist(self, context, self.project_id, self.location, self.pipeline_name)
+        self.xcom_push(context, key="pipeline_name", value=self.pipeline_name)
+        if self.pipeline:
+            if "error" in self.pipeline:
+                raise AirflowException(self.pipeline.get("error").get("message"))
+
+        return self.pipeline
+
+
+class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
+    """
+    Runs a Dataflow Data Pipeline.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowRunPipelineOperator`
+
+    :param pipeline_name:  The display name of the pipeline. In example
+        projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+
+    Returns the created Job in JSON representation.
+    """
+
+    operator_extra_links = (DataflowJobLink(),)
+
+    def __init__(
+        self,
+        pipeline_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.pipeline_name = pipeline_name
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.dataflow_hook: DataflowHook | None = None
+
+    def execute(self, context: Context):
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+
+        if self.pipeline_name is None:
+            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+        if self.project_id is None:
+            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+        if self.location is None:
+            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+        try:
+            self.job = self.dataflow_hook.run_data_pipeline(
+                pipeline_name=self.pipeline_name,
+                project_id=self.project_id,
+                location=self.location,
+            )["job"]
+            job_id = self.dataflow_hook.extract_job_id(self.job)
+            self.xcom_push(context, key="job_id", value=job_id)
+            DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+        except HttpError as e:
+            if e.resp.status == 404:
+                raise AirflowException("Pipeline with given name was not found.")
+        except Exception as exc:
+            raise AirflowException("Error occurred when running Pipeline: %s", exc)
+
+        return self.job
+
+
+class DataflowDeletePipelineOperator(GoogleCloudBaseOperator):
+    """
+    Deletes a Dataflow Data Pipeline.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowDeletePipelineOperator`
+
+    :param pipeline_name: The display name of the pipeline. In example
+        projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    def __init__(
+        self,
+        pipeline_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.pipeline_name = pipeline_name
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.dataflow_hook: DataflowHook | None = None
+        self.response: dict | None = None
+
+    def execute(self, context: Context):
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+
+        if self.pipeline_name is None:
+            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+        if self.project_id is None:
+            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+        if self.location is None:
+            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+
+        self.response = self.dataflow_hook.delete_data_pipeline(
+            pipeline_name=self.pipeline_name,
+            project_id=self.project_id,
+            location=self.location,
+        )
+
+        if self.response:
+            raise AirflowException(self.response)
 
         return None

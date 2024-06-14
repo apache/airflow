@@ -229,6 +229,21 @@ class TestPythonOperator(BasePythonTest):
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
         assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
 
+    def test_python_callable_keyword_arguments_callable_not_templatized(self):
+        """Test PythonOperator op_kwargs are not templatized if it's a callable"""
+
+        def a_fn():
+            return 4
+
+        task = self.render_templates(
+            lambda: 0,
+            op_kwargs={
+                "a_callable": a_fn,
+            },
+        )
+        rendered_op_kwargs = task.op_kwargs
+        assert rendered_op_kwargs["a_callable"] == a_fn
+
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
             raise RuntimeError("Should not be triggered")
