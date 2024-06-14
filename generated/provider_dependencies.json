@@ -1132,7 +1132,7 @@
   },
   "remote": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.10.0"
     ],
     "devel-deps": [],
     "plugins": [
