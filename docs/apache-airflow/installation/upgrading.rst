@@ -57,6 +57,10 @@ when you choose to upgrade airflow via their UI.
 How to upgrade
 ==============
 
+Reinstall Apache Airflow™, specifying the desired new version. For example, in the case of a bootstrapped
+local instance, this can be accomplished easily with the ``AIRFLOW_VERSION`` environment variable. For more
+details, see :doc:`/installation/index`.
+
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
 you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
