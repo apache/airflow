@@ -139,17 +139,10 @@ const DagNode = ({
           isOpen={isOpen}
           isGroup={!!childCount}
           onClick={(e) => {
-<<<<<<< HEAD
-              if (!!childCount) {
-                  e.stopPropagation();
-                  onToggleCollapse();
-              }
-=======
             if (childCount) {
               e.stopPropagation();
               onToggleCollapse();
             }
->>>>>>> ed7479e036 (Added missing changes)
           }}
           setupTeardownType={setupTeardownType}
           isZoomedOut={isZoomedOut}
