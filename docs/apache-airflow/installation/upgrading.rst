@@ -58,7 +58,7 @@ How to upgrade
 ==============
 
 Reinstall Apache Airflow™, specifying the desired new version. For example, in the case of a bootstrapped
-local instance, you can upgrade easily by setting the ``AIRFLOW_VERSION`` environment variable 
+local instance, you can upgrade easily by setting the ``AIRFLOW_VERSION`` environment variable
 to the intended version prior to rerunning the installation command. For more details, see :doc:`/start`
 and :doc:`/installation/index`.
 
