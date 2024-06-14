@@ -28,7 +28,7 @@ from deprecated import deprecated
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
-from weaviate.data.replication import ConsistencyLevel
+from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
@@ -822,66 +822,39 @@ class WeaviateHook(BaseHook):
         self,
         document_keys: list[str],
         document_column: str,
-        class_name: str,
+        collection_name: str,
         total_objects_count: int = 1,
         batch_delete_error: list | None = None,
-        tenant: str | None = None,
-        batch_config_params: dict[str, Any] | None = None,
         verbose: bool = False,
-    ):
+    ) -> list:
         """Delete all object that belong to list of documents.
 
         :param document_keys: list of unique documents identifiers.
         :param document_column: Column in DataFrame that identifying source document.
-        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param collection_name: Name of the collection in Weaviate schema where data is to be ingested.
         :param total_objects_count: total number of objects to delete, needed as max limit on one delete
             query is 10,000, if we have more objects to delete we need to run query multiple times.
         :param batch_delete_error: list to hold errors while inserting.
-        :param tenant: The tenant to which the object will be added.
-        :param batch_config_params: Additional parameters for Weaviate batch configuration.
         :param verbose: Flag to enable verbose output during the ingestion process.
         """
         batch_delete_error = batch_delete_error or []
 
-        if not batch_config_params:
-            batch_config_params = {}
-
         # This limit is imposed by Weavaite database
         MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS = 10000
 
-        self.conn.batch.configure(**batch_config_params)
-        with self.conn.batch as batch:
-            # ConsistencyLevel.ALL is essential here to guarantee complete deletion of objects
-            # across all nodes. Maintaining this level ensures data integrity, preventing
-            # irrelevant objects from providing misleading context for LLM models.
-            batch.consistency_level = ConsistencyLevel.ALL
-            while total_objects_count > 0:
-                document_objects = batch.delete_objects(
-                    class_name=class_name,
-                    where={
-                        "operator": "Or",
-                        "operands": [
-                            {
-                                "path": [document_column],
-                                "operator": "Equal",
-                                "valueText": key,
-                            }
-                            for key in document_keys
-                        ],
-                    },
-                    output="verbose",
-                    dry_run=False,
-                    tenant=tenant,
-                )
-                total_objects_count = total_objects_count - MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS
-                matched_objects = document_objects["results"]["matches"]
-                batch_delete_error = [
-                    {"uuid": obj["id"]}
-                    for obj in document_objects["results"]["objects"]
-                    if "error" in obj["status"]
-                ]
-                if verbose:
-                    self.log.info("Deleted %s Objects", matched_objects)
+        collection = self.get_collection(collection_name)
+        document_objects = collection.data.delete_many(
+            where=Filter.any_of([Filter.by_property(document_column).equal(key) for key in document_keys]),
+            verbase=verbose,
+            dru_run=False,
+        )
+        total_objects_count = total_objects_count - MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS
+        matched_objects = document_objects["results"]["matches"]
+        batch_delete_error = [
+            {"uuid": obj["id"]} for obj in document_objects["results"]["objects"] if "error" in obj["status"]
+        ]
+        if verbose:
+            self.log.info("Deleted %s Objects", matched_objects)
 
         return batch_delete_error
 
