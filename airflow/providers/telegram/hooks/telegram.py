@@ -142,7 +142,7 @@ class TelegramHook(BaseHook):
 
         :param api_params: params for telegram_instance.send_message. It can also be used to override chat_id
         """
-        kwargs: dict[str, int | str | bool] = {
+        kwargs: dict[str, Any] = {
             "parse_mode": telegram.constants.ParseMode.HTML,
             "disable_web_page_preview": True,
         }
