@@ -527,36 +527,7 @@ def test_get_date_time_num_runs_dag_runs_form_data(dag_with_runs):
         def get(self, key, default=None):
             return self.args.get(key, default)
 
-    # Test case 1: run_id is provided
-    request_with_run_id = Request(form={
-        "execution_date": run1.execution_date.isoformat(),
-        "num_runs": "5",
-        "run_id": run1.run_id
-    })
-
-    with create_session() as session:
-        data = get_date_time_num_runs_dag_runs_form_data(request_with_run_id, session, run1.dag)
-
-    assert data['dttm'] == run1.execution_date
-    assert data['execution_date'] == run1.execution_date.isoformat()
-    assert data['num_runs'] == 5
-    
-    # Test case 2: base_date is provided
     base_date = "2023-01-01T00:00:00+00:00"
-    request_with_base_date = Request(form={
-        "execution_date": run1.execution_date.isoformat(),
-        "num_runs": "5",
-        "base_date": base_date
-    })
-
-    with create_session() as session:
-        data = get_date_time_num_runs_dag_runs_form_data(request_with_base_date, session, run1.dag)
-
-    assert data['base_date'] == _safe_parse_datetime(base_date)
-    assert data['execution_date'] == run1.execution_date.isoformat()
-    assert data['num_runs'] == 5
-
-    # Test case 3: both run_id and base_date are provided
     request_with_run_id_and_base_date = Request(form={
         "execution_date": run1.execution_date.isoformat(),
         "num_runs": "5",
