@@ -2886,7 +2886,7 @@ class DAG(LoggingMixin):
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
         use_executor: bool = False,
-        mark_success_pattern: Pattern | None = None,
+        mark_success_pattern: Pattern | str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -2986,7 +2986,7 @@ class DAG(LoggingMixin):
                     ti.task = tasks[ti.task_id]
 
                     mark_success = (
-                        mark_success_pattern.search(ti.task_id) is not None
+                        re2.compile(mark_success_pattern).search(ti.task_id) is not None
                         if mark_success_pattern is not None
                         else False
                     )
