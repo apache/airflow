@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from airflow.utils.session import create_session
 import pendulum
 import pytest
 from dateutil.tz import UTC
@@ -34,13 +35,13 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
-from airflow.www.views import dag_to_grid
+from airflow.www.views import _safe_parse_datetime, dag_to_grid, get_date_time_num_runs_dag_runs_form_data
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
-
+        
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
@@ -514,3 +515,59 @@ def test_next_run_datasets_404(admin_client):
     resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}
+
+def test_get_date_time_num_runs_dag_runs_form_data(dag_with_runs):
+    run1, _ = dag_with_runs
+
+    class Request:
+        def __init__(self, form):
+            self.form = form
+            self.args = form
+        
+        def get(self, key, default=None):
+            return self.args.get(key, default)
+
+    # Test case 1: run_id is provided
+    request_with_run_id = Request(form={
+        "execution_date": run1.execution_date.isoformat(),
+        "num_runs": "5",
+        "run_id": run1.run_id
+    })
+
+    with create_session() as session:
+        data = get_date_time_num_runs_dag_runs_form_data(request_with_run_id, session, run1.dag)
+
+    assert data['dttm'] == run1.execution_date
+    assert data['execution_date'] == run1.execution_date.isoformat()
+    assert data['num_runs'] == 5
+    
+    # Test case 2: base_date is provided
+    base_date = "2023-01-01T00:00:00+00:00"
+    request_with_base_date = Request(form={
+        "execution_date": run1.execution_date.isoformat(),
+        "num_runs": "5",
+        "base_date": base_date
+    })
+
+    with create_session() as session:
+        data = get_date_time_num_runs_dag_runs_form_data(request_with_base_date, session, run1.dag)
+
+    assert data['base_date'] == _safe_parse_datetime(base_date)
+    assert data['execution_date'] == run1.execution_date.isoformat()
+    assert data['num_runs'] == 5
+
+    # Test case 3: both run_id and base_date are provided
+    request_with_run_id_and_base_date = Request(form={
+        "execution_date": run1.execution_date.isoformat(),
+        "num_runs": "5",
+        "run_id": run1.run_id,
+        "base_date": base_date
+    })
+
+    with create_session() as session:
+        data = get_date_time_num_runs_dag_runs_form_data(request_with_run_id_and_base_date, session, run1.dag)
+
+    assert data['dttm'] == run1.execution_date
+    assert data['base_date'] == _safe_parse_datetime(base_date)
+    assert data['execution_date'] == run1.execution_date.isoformat()
+    assert data['num_runs'] == 5
