@@ -631,7 +631,7 @@
       "google-cloud-vision>=3.4.0",
       "google-cloud-workflows>=1.10.0",
       "grpcio-gcp>=0.2.2",
-      "httpx>=0.18.0",
+      "httpx>=0.25.0",
       "json-merge-patch>=0.2",
       "looker-sdk>=22.4.0",
       "pandas-gbq>=0.7.0",
@@ -1304,6 +1304,7 @@
   "weaviate": {
     "deps": [
       "apache-airflow>=2.7.0",
+      "httpx>=0.25.0",
       "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
       "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
       "weaviate-client>=3.24.2"
