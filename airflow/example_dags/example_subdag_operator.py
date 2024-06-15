@@ -21,14 +21,6 @@ from __future__ import annotations
 
 import warnings
 
-from airflow.exceptions import AirflowClusterPolicySkipDag
-from airflow.settings import _ENABLE_AIP_44
-
-if _ENABLE_AIP_44:
-    raise AirflowClusterPolicySkipDag(
-        "DAG example_subdag_operator is not compatible with Database Isolation mode (AIP-44)."
-    )
-
 with warnings.catch_warnings():
     warnings.filterwarnings(
         "ignore",
