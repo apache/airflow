@@ -443,7 +443,7 @@ DEPENDENCIES = [
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
-    "httpx>=0.18.0",
+    "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299

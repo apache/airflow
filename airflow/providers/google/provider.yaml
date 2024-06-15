@@ -154,7 +154,7 @@ dependencies:
   - google-cloud-run>=0.10.0
   - google-cloud-batch>=0.13.0
   - grpcio-gcp>=0.2.2
-  - httpx>=0.18.0
+  - httpx>=0.25.0
   - json-merge-patch>=0.2
   - looker-sdk>=22.4.0
   - pandas-gbq>=0.7.0
