@@ -1039,7 +1039,7 @@ function check_pydantic() {
         echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
         echo
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg weaviate-client
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo
