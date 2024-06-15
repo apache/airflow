@@ -26,6 +26,8 @@ from uuid import uuid4
 from flask import Response
 
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.taskinstance import _record_task_map_for_downstreams
+from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
@@ -68,12 +70,14 @@ def _initialize_map() -> dict[str, Callable]:
         _defer_task,
         _get_template_context,
         _get_ti_db_access,
+        _get_task_map_length,
         _update_rtif,
         _orig_start_date,
         _handle_failure,
         _handle_reschedule,
         _add_log,
         _xcom_pull,
+        _record_task_map_for_downstreams,
         DagFileProcessor.update_import_errors,
         DagFileProcessor.manage_slas,
         DagFileProcessorManager.deactivate_stale_dags,
