@@ -466,6 +466,11 @@ on macOS, install via
 
 2. Installing required Python packages
 
+.. note::
+  If pyenv and pyenv-virtualenv are not installed, install them first.
+  `Install pyenv <https://github.com/pyenv/pyenv?tab=readme-ov-file#installation>`_
+  `Install pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv?tab=readme-ov-file#installation>`_
+
 .. code-block:: bash
 
   pyenv activate airflow-env
