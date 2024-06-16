@@ -2886,6 +2886,7 @@ class DAG(LoggingMixin):
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
         use_executor: bool = False,
+        mark_success_pattern: Pattern | str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -2896,6 +2897,7 @@ class DAG(LoggingMixin):
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
         :param use_executor: if set, uses an executor to test the DAG
+        :param mark_success_pattern: regex of task_ids to mark as success instead of running
         :param session: database connection (optional)
         """
 
@@ -2983,6 +2985,12 @@ class DAG(LoggingMixin):
                 for ti in scheduled_tis:
                     ti.task = tasks[ti.task_id]
 
+                    mark_success = (
+                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        if mark_success_pattern is not None
+                        else False
+                    )
+
                     if use_executor:
                         if executor.has_task(ti):
                             continue
@@ -2992,7 +3000,12 @@ class DAG(LoggingMixin):
                         # Run the task locally
                         try:
                             add_logger_if_needed(ti)
-                            _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
+                            _run_task(
+                                ti=ti,
+                                inline_trigger=not triggerer_running,
+                                session=session,
+                                mark_success=mark_success,
+                            )
                         except Exception:
                             self.log.exception("Task failed; ti=%s", ti)
                 if use_executor:
@@ -4209,7 +4222,9 @@ def _run_inline_trigger(trigger):
     return asyncio.run(_run_inline_trigger_main())
 
 
-def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Session):
+def _run_task(
+    *, ti: TaskInstance, inline_trigger: bool = False, mark_success: bool = False, session: Session
+):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -4223,7 +4238,7 @@ def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Sessio
     while True:
         try:
             log.info("[DAG TEST] running task %s", ti)
-            ti._run_raw_task(session=session, raise_on_defer=inline_trigger)
+            ti._run_raw_task(session=session, raise_on_defer=inline_trigger, mark_success=mark_success)
             break
         except TaskDeferred as e:
             log.info("[DAG TEST] running trigger in line")

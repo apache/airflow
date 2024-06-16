@@ -423,6 +423,13 @@ ARG_USE_EXECUTOR = Arg(
     "If set, it uses the executor configured in the environment.",
     action="store_true",
 )
+ARG_MARK_SUCCESS_PATTERN = Arg(
+    ("--mark-success-pattern",),
+    help=(
+        "Don't run task_ids matching the regex <MARK_SUCCESS_PATTERN>, mark them as successful instead.\n"
+        "Can be used to skip e.g. dependency check sensors or cleanup steps in local testing.\n"
+    ),
+)
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
@@ -1288,6 +1295,7 @@ DAGS_COMMANDS = (
             ARG_SAVE_DAGRUN,
             ARG_USE_EXECUTOR,
             ARG_VERBOSE,
+            ARG_MARK_SUCCESS_PATTERN,
         ),
     ),
     ActionCommand(
