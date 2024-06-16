@@ -160,6 +160,8 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
     if task_group:
+        if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
         dag_args.update(task_group.default_args)
     return dag_args, dag_params
 
@@ -176,6 +178,8 @@ def get_merged_defaults(
             raise TypeError("params must be a mapping")
         params.update(task_params)
     if task_default_args:
+        if not isinstance(task_default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
         args.update(task_default_args)
         with contextlib.suppress(KeyError):
             params.update(task_default_args["params"] or {})
