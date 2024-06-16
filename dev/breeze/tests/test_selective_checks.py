@@ -1550,7 +1550,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
-                "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica",
+                "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
         ),
