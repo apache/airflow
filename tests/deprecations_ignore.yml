@@ -37,12 +37,9 @@
 
 
 # Core
-- tests/models/test_cleartasks.py::TestClearTasks::test_dags_clear
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
-- tests/models/test_skipmixin.py::TestSkipMixin::test_skip_none_dagrun
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
-- tests/ti_deps/deps/test_prev_dagrun_dep.py::TestPrevDagrunDep::test_first_task_run_of_new_task
 
 
 # Serialization
