@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-15T17:37:48.928345
+# This constraints file was automatically generated on 2024-06-16T08:02:00.981027
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -77,7 +77,7 @@ anyio==4.4.0
 apache-beam==2.56.0
 apispec==6.6.1
 apprise==1.8.0
-argcomplete==3.3.0
+argcomplete==3.4.0
 asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -317,8 +317,8 @@ jupyter_core==5.7.2
 keyring==25.2.1
 kombu==5.3.7
 krb5==0.5.1
-kubernetes==29.0.0
-kubernetes_asyncio==29.0.0
+kubernetes==30.1.0
+kubernetes_asyncio==30.1.0
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
