@@ -51,7 +51,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred, TaskNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
@@ -1538,19 +1538,11 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
-            elif (
-                ti.task.start_trigger is not None
-                and ti.task.next_method is not None
-                and not ti.task.on_execute_callback
-                and not ti.task.on_success_callback
-                and not ti.task.outlets
-            ):
+            elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
+                ti.start_date = timezone.utcnow()
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
-                ti.defer_task(
-                    exception=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
-                    session=session,
-                )
+                ti.defer_task(exception=None, session=session)
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 

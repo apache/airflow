@@ -22,7 +22,7 @@ import pytest
 from airflow.providers.redis.hooks.redis import RedisHook
 
 
-@pytest.mark.integration("celery")
+@pytest.mark.integration("redis")
 class TestRedisHook:
     def test_real_ping(self):
         hook = RedisHook(redis_conn_id="redis_default")

@@ -112,16 +112,16 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.7.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``apache-airflow-providers-http``
-``boto3``                                ``>=1.33.0``
-``botocore``                             ``>=1.33.0``
+``boto3``                                ``>=1.34.90``
+``botocore``                             ``>=1.34.90``
 ``inflection``                           ``>=0.5.1``
-``watchtower``                           ``>=2.0.1,<4``
+``watchtower``                           ``>=3.0.0,<4``
 ``jsonpath_ng``                          ``>=1.5.3``
 ``redshift_connector``                   ``>=2.0.918``
 ``sqlalchemy_redshift``                  ``>=0.8.6``
-``asgiref``
+``asgiref``                              ``>=2.3.0``
 ``PyAthena``                             ``>=3.0.10``
-``jmespath``
+``jmespath``                             ``>=0.7.0``
 =======================================  ==================
 
 Cross provider package dependencies

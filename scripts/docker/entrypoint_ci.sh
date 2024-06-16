@@ -208,7 +208,7 @@ function determine_airflow_to_use() {
             echo
             echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
             echo
-            return
+            exit 0
         fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         # Some packages might leave legacy typing module which causes test issues
@@ -270,7 +270,7 @@ function check_pydantic() {
         echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
         echo
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg weaviate-client
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo

@@ -33,7 +33,15 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from airflow.compat.functools import cache
+# Disable caching if we're inside tests - this makes config easier to mock.
+if os.getenv("PYTEST_VERSION"):
+
+    def decorator(func):
+        return func
+
+    cache = decorator
+else:
+    from airflow.compat.functools import cache
 from airflow.configuration import conf
 
 _CONFIG_SECTION = "openlineage"
@@ -130,3 +138,10 @@ def dag_state_change_process_pool_size() -> int:
     """[openlineage] dag_state_change_process_pool_size."""
     option = conf.get(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback="")
     return _safe_int_convert(str(option).strip(), default=1)
+
+
+@cache
+def execution_timeout() -> int:
+    """[openlineage] execution_timeout."""
+    option = conf.get(_CONFIG_SECTION, "execution_timeout", fallback="")
+    return _safe_int_convert(str(option).strip(), default=10)
