@@ -128,7 +128,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.helpers import at_most_one, exactly_one, validate_key
+from airflow.utils.helpers import at_most_one, exactly_one, validate_instance_args, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import (
@@ -468,6 +468,25 @@ class DAG(LoggingMixin):
         "last_loaded",
     }
 
+    _expected_args_types = {
+        "dag_id": str,
+        "description": str,
+        "max_active_tasks": int,
+        "max_active_runs": int,
+        "max_consecutive_failed_dag_runs": int,
+        "dagrun_timeout": timedelta,
+        "default_view": str,
+        "orientation": str,
+        "catchup": bool,
+        "doc_md": str,
+        "is_paused_upon_creation": bool,
+        "render_template_as_native_obj": bool,
+        "tags": list,
+        "auto_register": bool,
+        "fail_stop": bool,
+        "dag_display_name": str,
+    }
+
     __serialized_fields: frozenset[str] | None = None
 
     fileloc: str
@@ -743,6 +762,8 @@ class DAG(LoggingMixin):
         # it's only use is for determining the relative
         # fileloc based only on the serialize dag
         self._processor_dags_folder = None
+
+        validate_instance_args(self, self._expected_args_types)
 
     def get_doc_md(self, doc_md: str | None) -> str | None:
         if doc_md is None:

@@ -36,7 +36,7 @@ from airflow.exceptions import (
 )
 from airflow.models.taskmixin import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.utils.helpers import validate_group_key
+from airflow.utils.helpers import validate_group_key, validate_instance_args
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -81,6 +81,15 @@ class TaskGroup(DAGNode):
     """
 
     used_group_ids: set[str | None]
+
+    _expected_args_types = {
+        "group_id": str,
+        "prefix_group_id": bool,
+        "tooltip": str,
+        "ui_color": str,
+        "ui_fgcolor": str,
+        "add_suffix_on_collision": bool,
+    }
 
     def __init__(
         self,
@@ -159,6 +168,8 @@ class TaskGroup(DAGNode):
         self.downstream_group_ids: set[str | None] = set()
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
+
+        validate_instance_args(self, self._expected_args_types)
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
