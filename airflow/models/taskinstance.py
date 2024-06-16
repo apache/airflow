@@ -449,7 +449,10 @@ def clear_task_instances(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
     )
     dag_bag = DagBag(read_dags_from_db=True)
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
     for ti in tis:
+        TaskInstanceHistory.record_ti(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
             if ti.job_id:
                 # If a task is cleared when running, set its state to RESTARTING so that
@@ -475,7 +478,6 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
@@ -779,8 +781,14 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 for key, value in xcom_value.items():
                     task_instance.xcom_push(key=key, value=value, session=session_or_null)
             task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session_or_null)
+        if TYPE_CHECKING:
+            assert task_orig.dag
         _record_task_map_for_downstreams(
-            task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
+            task_instance=task_instance,
+            task=task_orig,
+            dag=task_orig.dag,
+            value=xcom_value,
+            session=session_or_null,
         )
     return result
 
@@ -1247,25 +1255,40 @@ def _refresh_from_task(
     task_instance_mutation_hook(task_instance)
 
 
+@internal_api_call
+@provide_session
 def _record_task_map_for_downstreams(
-    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, value: Any, session: Session
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    task: Operator,
+    dag: DAG,
+    value: Any,
+    session: Session,
 ) -> None:
     """
     Record the task map for downstream tasks.
 
     :param task_instance: the task instance
     :param task: The task object
+    :param dag: the dag associated with the task
     :param value: The value
     :param session: SQLAlchemy ORM Session
 
     :meta private:
     """
+    # when taking task over RPC, we need to add the dag back
+    if isinstance(task, MappedOperator):
+        if not task.dag:
+            task.dag = dag
+    elif not task._dag:
+        task._dag = dag
+
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
     # TODO: We don't push TaskMap for mapped task instances because it's not
-    # currently possible for a downstream to depend on one individual mapped
-    # task instance. This will change when we implement task mapping inside
-    # a mapped task group, and we'll need to further analyze the case.
+    #  currently possible for a downstream to depend on one individual mapped
+    #  task instance. This will change when we implement task mapping inside
+    #  a mapped task group, and we'll need to further analyze the case.
     if isinstance(task, MappedOperator):
         return
     if value is None:
@@ -1575,12 +1598,29 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 @internal_api_call
 @provide_session
 def _defer_task(
-    ti: TaskInstance | TaskInstancePydantic, exception: TaskDeferred, session: Session = NEW_SESSION
+    ti: TaskInstance | TaskInstancePydantic,
+    exception: TaskDeferred | None = None,
+    session: Session = NEW_SESSION,
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
 
+    if exception is not None:
+        trigger_row = Trigger.from_object(exception.trigger)
+        trigger_kwargs = exception.kwargs
+        next_method = exception.method_name
+        timeout = exception.timeout
+    elif ti.task is not None and ti.task.start_trigger_args is not None:
+        trigger_row = Trigger(
+            classpath=ti.task.start_trigger_args.trigger_cls,
+            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
+        )
+        trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
+        next_method = ti.task.start_trigger_args.next_method
+        timeout = ti.task.start_trigger_args.timeout
+    else:
+        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
+
     # First, make the trigger entry
-    trigger_row = Trigger.from_object(exception.trigger)
     session.add(trigger_row)
     session.flush()
 
@@ -1594,12 +1634,12 @@ def _defer_task(
     # depending on self.next_method semantics
     ti.state = TaskInstanceState.DEFERRED
     ti.trigger_id = trigger_row.id
-    ti.next_method = exception.method_name
-    ti.next_kwargs = exception.kwargs or {}
+    ti.next_method = next_method
+    ti.next_kwargs = trigger_kwargs or {}
 
     # Calculate timeout too if it was passed
-    if exception.timeout is not None:
-        ti.trigger_timeout = timezone.utcnow() + exception.timeout
+    if timeout is not None:
+        ti.trigger_timeout = timezone.utcnow() + timeout
     else:
         ti.trigger_timeout = None
 
@@ -1615,8 +1655,10 @@ def _defer_task(
             ti.trigger_timeout = ti.start_date + execution_timeout
     if ti.test_mode:
         _add_log(event=ti.state, task_instance=ti, session=session)
-    session.merge(ti)
-    session.commit()
+
+    if exception is not None:
+        session.merge(ti)
+        session.commit()
     return ti
 
 
@@ -2303,6 +2345,7 @@ class TaskInstance(Base, LoggingMixin):
         if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
             ti.end_date = ti.end_date or current_time
             ti.duration = (ti.end_date - ti.start_date).total_seconds()
+
         session.merge(ti)
         return True
 
@@ -2813,7 +2856,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+            timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2826,7 +2869,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = (timezone.utcnow() - self.start_date).total_seconds()
+            timing = timezone.utcnow() - self.start_date
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
@@ -3000,8 +3043,8 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def defer_task(self, exception: TaskDeferred, session: Session) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it.
+    def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
+        """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
@@ -3186,6 +3229,14 @@ class TaskInstance(Base, LoggingMixin):
             if task and fail_stop:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
+            if ti.state == TaskInstanceState.RUNNING:
+                # If the task instance is in the running state, it means it raised an exception and
+                # about to retry so we record the task instance history. For other states, the task
+                # instance was cleared and already recorded in the task instance history.
+                from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+                TaskInstanceHistory.record_ti(ti, session=session)
+
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
@@ -3325,6 +3376,8 @@ class TaskInstance(Base, LoggingMixin):
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
+        if isinstance(self.task, MappedOperator):
+            self.task = context["ti"].task
 
         return original_task
 

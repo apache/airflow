@@ -163,6 +163,7 @@ class ShellParams:
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
+    keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED

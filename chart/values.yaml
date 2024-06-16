@@ -676,7 +676,7 @@ workers:
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
-  safeToEvict: true
+  safeToEvict: false
 
   # Launch additional containers into worker (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main

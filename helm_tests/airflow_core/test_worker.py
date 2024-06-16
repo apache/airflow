@@ -755,7 +755,7 @@ class TestWorker:
     @pytest.mark.parametrize(
         "globalScope, localScope, precedence",
         [
-            ({}, {}, "true"),
+            ({}, {}, "false"),
             ({}, {"safeToEvict": True}, "true"),
             ({}, {"safeToEvict": False}, "false"),
             (

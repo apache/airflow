@@ -1843,6 +1843,8 @@ Yandex
 yandex
 yandexcloud
 yarnpkg
+YDB
+ydb
 Yieldr
 yml
 youtrack

@@ -206,6 +206,22 @@ class TestSerializedDagModel:
         expected_dependencies = {dag_id: [] for dag_id in example_dags}
         assert SDM.get_dag_dependencies() == expected_dependencies
 
+    def test_order_of_dag_params_is_stable(self):
+        """
+        This asserts that we have logic in place which guarantees the order
+        of the params is maintained - even if the backend (e.g. MySQL) mutates
+        the serialized DAG JSON.
+        """
+        example_dags = make_example_dags(example_dags_module)
+        example_params_trigger_ui = example_dags.get("example_params_trigger_ui")
+        before = list(example_params_trigger_ui.params.keys())
+
+        SDM.write_dag(example_params_trigger_ui)
+        retrieved_dag = SDM.get_dag("example_params_trigger_ui")
+        after = list(retrieved_dag.params.keys())
+
+        assert before == after
+
     def test_order_of_deps_is_consistent(self):
         """
         Previously the 'dag_dependencies' node in serialized dag was converted to list from set.

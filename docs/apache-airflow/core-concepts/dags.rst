@@ -816,7 +816,7 @@ doesn't support many advanced features, please check its
 
 With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
 
-* The ``*`` character will any number of characters, except ``/``
+* The ``*`` character will match any number of characters, except ``/``
 * The ``?`` character will match any single character, except ``/``
 * The range notation, e.g. ``[a-zA-Z]``, can be used to match one of the characters in a range
 * A pattern can be negated by prefixing with ``!``. Patterns are evaluated in order so

@@ -104,16 +104,16 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
-  - google-ads>=23.1.0
+  - google-ads>=24.1.0
   - google-analytics-admin>=0.9.0
   # Google-api-core 2.16.0 back-compat issue:
   # - https://github.com/googleapis/python-api-core/issues/576
   # - https://github.com/apache/airflow/issues/39394
   - google-api-core>=2.11.0,!=2.16.0,!=2.18.0
   - google-api-python-client>=2.0.2
-  - google-auth>=1.0.0
+  - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.42.1
+  - google-cloud-aiplatform>=1.54.0
   - google-cloud-automl>=2.12.0
   # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
   # which has led to backward compatibility issues
@@ -154,7 +154,7 @@ dependencies:
   - google-cloud-run>=0.10.0
   - google-cloud-batch>=0.13.0
   - grpcio-gcp>=0.2.2
-  - httpx>=0.18.0
+  - httpx>=0.25.0
   - json-merge-patch>=0.2
   - looker-sdk>=22.4.0
   - pandas-gbq>=0.7.0
@@ -1225,6 +1225,7 @@ extra-links:
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
+  - airflow.providers.google.cloud.links.dataflow.DataflowPipelineLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreImportExportLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreEntitiesLink
   - airflow.providers.google.cloud.links.bigtable.BigtableInstanceLink

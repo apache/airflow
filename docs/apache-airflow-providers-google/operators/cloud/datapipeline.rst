@@ -33,6 +33,8 @@ Prerequisite Tasks
 Creating a Data Pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
+This operator is deprecated. Please use :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePipelineOperator`.
+
 To create a new Data Pipelines instance using a request body and parent name, use :class:`~airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator`.
 The operator accesses Google Cloud's Data Pipelines API and calls upon the
 `create method <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create>`__
@@ -57,6 +59,8 @@ Here is an example of how you can create a Data Pipelines instance by running th
 
 Running a Data Pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^
+
+This operator is deprecated. Please use :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowRunPipelineOperator`.
 
 To run a Data Pipelines instance, use :class:`~airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator`.
 The operator accesses Google Cloud's Data Pipelines API and calls upon the
