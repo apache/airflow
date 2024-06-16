@@ -2986,7 +2986,7 @@ class DAG(LoggingMixin):
                     ti.task = tasks[ti.task_id]
 
                     mark_success = (
-                        re2.compile(mark_success_pattern).search(ti.task_id) is not None
+                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
                         if mark_success_pattern is not None
                         else False
                     )
