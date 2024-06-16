@@ -3928,6 +3928,30 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     )
 
 
+def test_invalid_type_for_args():
+    with pytest.raises(TypeError):
+        DAG("invalid-default-args", max_consecutive_failed_dag_runs="not_an_int")
+
+
+def test_dag_defines_expected_args():
+    dag = DAG("dag_with_expected_args")
+
+    assert dag._expected_args_types is not None
+    assert isinstance(dag._expected_args_types, dict)
+
+    expected_args_types_subset = {
+        "dag_id": str,
+        "description": str,
+        "max_active_tasks": int,
+        "max_active_runs": int,
+        "max_consecutive_failed_dag_runs": int,
+    }
+
+    assert set(dag._expected_args_types.items()).intersection(set(expected_args_types_subset.items())) == set(
+        expected_args_types_subset.items()
+    )
+
+
 class TestTaskClearingSetupTeardownBehavior:
     """
     Task clearing behavior is mainly controlled by dag.partial_subset.

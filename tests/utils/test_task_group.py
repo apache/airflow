@@ -1630,3 +1630,31 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
     assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
     assert set(t1.operator.downstream_task_ids) == set()
     assert set(t2.operator.downstream_task_ids) == set()
+
+
+def test_task_group_with_invalid_arg_type_raises_error():
+    error_msg = "'ui_color' has an invalid type <class 'int'> with value 123, expected type is <class 'str'>"
+    with DAG(dag_id="dag_with_tg_invalid_arg_type"):
+        with pytest.raises(TypeError, match=error_msg):
+            with TaskGroup("group_1", ui_color=123):
+                EmptyOperator(task_id="task1")
+
+
+def test_task_group_defines_expected_arg_types():
+    with DAG(dag_id="dag_with_tg_valid_arg_types"):
+        with TaskGroup("group_1", ui_color="red") as tg:
+            EmptyOperator(task_id="task1")
+
+    assert tg._expected_args_types is not None
+    assert isinstance(tg._expected_args_types, dict)
+
+    expected_args_types_subset = {
+        "group_id": str,
+        "prefix_group_id": bool,
+        "tooltip": str,
+        "ui_color": str,
+    }
+
+    assert set(tg._expected_args_types.items()).intersection(set(expected_args_types_subset.items())) == set(
+        expected_args_types_subset.items()
+    )
