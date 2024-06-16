@@ -619,9 +619,9 @@ workers:
   persistence:
     # Enable persistent volumes
     enabled: true
-    # persistentVolumeClaimRetentionPolicy if statefulset is used, to determine delete when scaled\removed
+    # persistentVolumeClaimRetentionPolicy if statefulset is used, to determine delete when scaled/removed
     persistentVolumeClaimRetentionPolicy: ~
-    # persistentVolumeClaimRetentionPolicy: 
+    # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
     # Volume size for worker StatefulSet
@@ -1537,7 +1537,7 @@ triggerer:
   persistence:
     # Enable persistent volumes
     enabled: true
-    # persistentVolumeClaimRetentionPolicy if statefulset is used, to determine delete when scaled\removed
+    # persistentVolumeClaimRetentionPolicy if statefulset is used, to determine delete when scaled/removed
     persistentVolumeClaimRetentionPolicy: ~
     # Volume size for triggerer StatefulSet
     size: 100Gi

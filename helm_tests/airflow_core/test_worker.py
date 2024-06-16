@@ -82,6 +82,24 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_persistent_volume_claim_retention_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "persistence": {
+                        "enabled": True,
+                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {
+            "whenDeleted": "Delete",
+        } == jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0])
+
     def test_should_template_extra_containers(self):
         docs = render_chart(
             values={
