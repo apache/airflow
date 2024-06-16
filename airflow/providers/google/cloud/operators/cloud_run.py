@@ -393,6 +393,15 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         self.service = service
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self._validate_inputs()
+
+    def _validate_inputs(self):
+        missing_fields = [k for k in ["project_id", "region", "service_name", "service"] if not getattr(self, k)]
+        if not self.project_id or not self.region or not self.project_id or self.service:
+            raise AirflowException(
+                f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
+                "keyword parameter or as extra field in Airflow connection definition. Both are not set!"
+            )
 
     def execute(self, context: Context):
         hook: CloudRunServiceHook = CloudRunServiceHook(
