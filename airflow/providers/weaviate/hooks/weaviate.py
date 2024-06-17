@@ -857,12 +857,11 @@ class WeaviateHook(BaseHook):
     def create_or_replace_document_objects(
         self,
         data: pd.DataFrame | list[dict[str, Any]] | list[pd.DataFrame],
-        class_name: str,
+        collection_name: str,
         document_column: str,
         existing: str = "skip",
         uuid_column: str | None = None,
         vector_column: str = "Vector",
-        batch_config_params: dict | None = None,
         tenant: str | None = None,
         verbose: bool = False,
     ):
@@ -887,20 +886,19 @@ class WeaviateHook(BaseHook):
         error: raise an error if an object belonging to a existing document is tried to be created.
 
         :param data: A single pandas DataFrame or a list of dicts to be ingested.
-        :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+        :param colleciton_name: Name of the collection in Weaviate schema where data is to be ingested.
         :param existing: Strategy for handling existing data: 'skip', or 'replace'. Default is 'skip'.
         :param document_column: Column in DataFrame that identifying source document.
         :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
         :param vector_column: Column with embedding vectors for pre-embedded data.
-        :param batch_config_params: Additional parameters for Weaviate batch configuration.
         :param tenant: The tenant to which the object will be added.
         :param verbose: Flag to enable verbose output during the ingestion process.
         :return: list of UUID which failed to create
         """
-        import pandas as pd
-
         if existing not in ["skip", "replace", "error"]:
             raise ValueError("Invalid parameter for 'existing'. Choices are 'skip', 'replace', 'error'.")
+
+        import pandas as pd
 
         if len(data) == 0:
             return []
@@ -925,7 +923,7 @@ class WeaviateHook(BaseHook):
                 uuid_column,
             ) = self._generate_uuids(
                 df=data,
-                class_name=class_name,
+                collection_name=collection_name,
                 unique_columns=unique_columns,
                 vector_column=vector_column,
                 uuid_column=uuid_column,
@@ -947,7 +945,7 @@ class WeaviateHook(BaseHook):
             data=data,
             document_column=document_column,
             uuid_column=uuid_column,
-            class_name=class_name,
+            collection_name=collection_name,
         )
         if verbose:
             self.log.info(
@@ -984,12 +982,10 @@ class WeaviateHook(BaseHook):
                 )
             batch_delete_error = self._delete_all_documents_objects(
                 document_keys=list(changed_documents),
-                total_objects_count=total_objects_count,
                 document_column=document_column,
-                class_name=class_name,
+                collection_name=collection_name,
+                total_objects_count=total_objects_count,
                 batch_delete_error=batch_delete_error,
-                tenant=tenant,
-                batch_config_params=batch_config_params,
                 verbose=verbose,
             )
             data = data[data[document_column].isin(new_documents.union(changed_documents))]
@@ -998,9 +994,8 @@ class WeaviateHook(BaseHook):
         insertion_errors: list = []
         if data.shape[0]:
             insertion_errors = self.batch_data(
-                class_name=class_name,
+                collection_name=collection_name,
                 data=data,
-                batch_config_params=batch_config_params,
                 vector_col=vector_column,
                 uuid_col=uuid_column,
                 tenant=tenant,
@@ -1012,13 +1007,15 @@ class WeaviateHook(BaseHook):
                     self.log.info("Failed to delete %s objects.", len(insertion_errors))
                 # Rollback object that were not created properly
                 self._delete_objects(
-                    [item["uuid"] for item in insertion_errors + batch_delete_error], class_name=class_name
+                    [item["uuid"] for item in insertion_errors + batch_delete_error],
+                    collection_name=collection_name,
                 )
 
         if verbose:
+            collection = self.get_collection(collection_name)
             self.log.info(
-                "Total objects in class %s : %s ",
-                class_name,
-                self.conn.query.aggregate(class_name).with_meta_count().do(),
+                "Total objects in collection %s : %s ",
+                collection_name,
+                collection.aggregate.over_all(total_count=True),
             )
         return insertion_errors, batch_delete_error
