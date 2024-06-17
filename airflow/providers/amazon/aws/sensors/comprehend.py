@@ -159,7 +159,8 @@ class ComprehendCreateDocumentClassifierCompletedSensor(AwsBaseSensor[Comprehend
         :ref:`howto/sensor:ComprehendCreateDocumentClassifierCompletedSensor`
 
     :param document_classifier_arn: The arn of the Comprehend document classifier.
-    :param fail_on_warnings: If set to True, the document classifier training job will throw an error when the status is TRAINED_WITH_WARNING. (default False)
+    :param fail_on_warnings: If set to True, the document classifier training job will throw an error when the
+        status is TRAINED_WITH_WARNING. (default False)
 
     :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
         module to be installed.

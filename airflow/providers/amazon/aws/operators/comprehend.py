@@ -212,7 +212,8 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         read access to your input data. (templated)
     :param language_code: The language of the input documents. You can specify any of the languages supported by
         Amazon Comprehend. All documents must be in the same language. (templated)
-    :param fail_on_warnings: If set to True, the document classifier training job will throw an error when the status is TRAINED_WITH_WARNING. (default False)
+    :param fail_on_warnings: If set to True, the document classifier training job will throw an error when the
+        status is TRAINED_WITH_WARNING. (default False)
     :param output_data_config: Specifies the location for the output files from a custom classifier job.
         This parameter is required for a request that creates a native document model. (templated)
     :param document_classifier_kwargs: Any optional parameters to pass to the document classifier. (templated)
