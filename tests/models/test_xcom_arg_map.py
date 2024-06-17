@@ -311,8 +311,8 @@ def test_xcom_map_zip_nest(dag_maker, session):
     assert results == {"aa", "bbbb", "cccccc", "dddddddd"}
 
 
-def test_xcom_chain(dag_maker, session):
-    from airflow.models.xcom_arg import _ChainResult
+def test_xcom_concat(dag_maker, session):
+    from airflow.models.xcom_arg import _ConcatResult
 
     agg_results = set()
     all_results = None
@@ -334,10 +334,10 @@ def test_xcom_chain(dag_maker, session):
         @dag.task
         def pull_all(value):
             nonlocal all_results
-            assert isinstance(value, _ChainResult)
+            assert isinstance(value, _ConcatResult)
             all_results = list(value)
 
-        pushed_values = push_letters().chain(push_numbers())
+        pushed_values = push_letters().concat(push_numbers())
 
         pull_one.expand(value=pushed_values)
         pull_all(pushed_values)

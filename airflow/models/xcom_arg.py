@@ -189,8 +189,8 @@ class XComArg(ResolveMixin, DependencyMixin):
     def zip(self, *others: XComArg, fillvalue: Any = NOTSET) -> ZipXComArg:
         return ZipXComArg([self, *others], fillvalue=fillvalue)
 
-    def chain(self, *others: XComArg) -> ChainXComArg:
-        return ChainXComArg([self, *others])
+    def concat(self, *others: XComArg) -> ConcatXComArg:
+        return ConcatXComArg([self, *others])
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
         """Inspect length of pushed value for task-mapping.
@@ -367,10 +367,10 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot map against non-return XCom")
         return super().zip(*others, fillvalue=fillvalue)
 
-    def chain(self, *others: XComArg) -> ChainXComArg:
+    def concat(self, *others: XComArg) -> ConcatXComArg:
         if self.key != XCOM_RETURN_KEY:
-            raise ValueError("cannot chain against non-return XCom")
-        return super().chain(*others)
+            raise ValueError("cannot concatenate non-return XCom")
+        return super().concat(*others)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
         from airflow.models.taskinstance import TaskInstance
@@ -615,7 +615,7 @@ class ZipXComArg(XComArg):
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
-class _ChainResult(Sequence):
+class _ConcatResult(Sequence):
     def __init__(self, values: Sequence[Sequence | dict]) -> None:
         self.values = values
 
@@ -634,10 +634,12 @@ class _ChainResult(Sequence):
         return sum(len(v) for v in self.values)
 
 
-class ChainXComArg(XComArg):
-    """Chaining multiple XCom references into one.
+class ConcatXComArg(XComArg):
+    """Concatenating multiple XCom references into one.
 
-    This is done by calling ``chain()`` on an XComArg to combine it with others.
+    This is done by calling ``concat()`` on an XComArg to combine it with
+    others. The effect is similar to Python's :func:`itertools.chain`, but the
+    return value also supports index access.
     """
 
     def __init__(self, args: Sequence[XComArg]) -> None:
@@ -649,7 +651,7 @@ class ChainXComArg(XComArg):
         args_iter = iter(self.args)
         first = repr(next(args_iter))
         rest = ", ".join(repr(arg) for arg in args_iter)
-        return f"{first}.chain({rest})"
+        return f"{first}.concat({rest})"
 
     def _serialize(self) -> dict[str, Any]:
         return {"args": [serialize_xcom_arg(arg) for arg in self.args]}
@@ -662,9 +664,9 @@ class ChainXComArg(XComArg):
         for arg in self.args:
             yield from arg.iter_references()
 
-    def chain(self, *others: XComArg) -> ChainXComArg:
-        # Flattern foo.chain(x).chain(y) into one call.
-        return ChainXComArg([*self.args, *others])
+    def concat(self, *others: XComArg) -> ConcatXComArg:
+        # Flattern foo.concat(x).concat(y) into one call.
+        return ConcatXComArg([*self.args, *others])
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
         all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
@@ -678,13 +680,13 @@ class ChainXComArg(XComArg):
         values = [arg.resolve(context, session=session) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
-                raise ValueError(f"XCom chain expects sequence or dict, not {type(value).__name__}")
-        return _ChainResult(values)
+                raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
+        return _ConcatResult(values)
 
 
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
-    "chain": ChainXComArg,
+    "concat": ConcatXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
