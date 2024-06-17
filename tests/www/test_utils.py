@@ -159,6 +159,36 @@ class TestUtils:
         assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
         assert "<script>alert(1)</script>" not in html
 
+    def test_nobr_f(self):
+        attr = {"attr_name": "attribute"}
+        f = attr.get("attr_name")
+        expected_markup = Markup("<nobr>{}</nobr>").format(f)
+
+        nobr = utils.nobr_f("attr_name")
+        result_markup = nobr(attr)
+
+        assert result_markup == expected_markup
+
+    def test_nobr_f_empty_attr(self):
+        attr = {"attr_name": ""}
+        f = attr.get("attr_name")
+        expected_markup = Markup("<nobr>{}</nobr>").format(f)
+
+        nobr = utils.nobr_f("attr_name")
+        result_markup = nobr(attr)
+
+        assert result_markup == expected_markup
+
+    def test_nobr_f_missing_attr(self):
+        attr = {}
+        f = None
+        expected_markup = Markup("<nobr>{}</nobr>").format(f)
+
+        nobr = utils.nobr_f("attr_name")
+        result_markup = nobr(attr)
+
+        assert result_markup == expected_markup
+
     @pytest.mark.db_test
     def test_make_cache_key(self):
         from airflow.www.app import cached_app
