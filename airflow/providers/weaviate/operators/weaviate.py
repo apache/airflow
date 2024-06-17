@@ -43,11 +43,10 @@ class WeaviateIngestOperator(BaseOperator):
     custom vectors and store them in the Weaviate class.
 
     :param conn_id: The Weaviate connection.
-    :param class_name: The Weaviate class to be used for storing the data objects into.
+    :param collection: The Weaviate collection to be used for storing the data objects into.
     :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
         embeddings on (or provides custom vectors) and store them in the Weaviate class.
     :param vector_col: key/column name in which the vectors are stored.
-    :param batch_params: Additional parameters for Weaviate batch configuration.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
     :param input_json: (Deprecated) The JSON representing Weaviate data objects to generate embeddings on
@@ -59,25 +58,23 @@ class WeaviateIngestOperator(BaseOperator):
     def __init__(
         self,
         conn_id: str,
-        class_name: str,
+        collection_name: str,
         input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
         vector_col: str = "Vector",
         uuid_column: str = "id",
         tenant: str | None = None,
-        batch_params: dict | None = None,
         hook_params: dict | None = None,
         input_json: list[dict[str, Any]] | pd.DataFrame | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.class_name = class_name
+        self.collection_name = collection_name
         self.conn_id = conn_id
         self.vector_col = vector_col
         self.input_json = input_json
         self.uuid_column = uuid_column
         self.tenant = tenant
         self.input_data = input_data
-        self.batch_params = batch_params or {}
         self.hook_params = hook_params or {}
 
         if (self.input_data is None) and (input_json is not None):
@@ -100,9 +97,8 @@ class WeaviateIngestOperator(BaseOperator):
         self.log.debug("Input data: %s", self.input_data)
         insertion_errors: list = []
         self.hook.batch_data(
-            class_name=self.class_name,
+            collection_name=self.collection_name,
             data=self.input_data,
-            batch_config_params=self.batch_params,
             vector_col=self.vector_col,
             uuid_col=self.uuid_column,
             tenant=self.tenant,
