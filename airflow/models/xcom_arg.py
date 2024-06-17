@@ -620,15 +620,20 @@ class _ConcatResult(Sequence):
         self.values = values
 
     def __getitem__(self, index: Any) -> Any:
-        i = index
+        if index >= 0:
+            i = index
+        else:
+            i = len(self) + index
         for value in self.values:
-            if i >= (curlen := len(value)):
+            if i < 0:
+                break
+            elif i >= (curlen := len(value)):
                 i -= curlen
             elif isinstance(value, Sequence):
                 return value[i]
             else:
                 return next(itertools.islice(iter(value), i, None))
-        raise IndexError(index)
+        raise IndexError("list index out of range")
 
     def __len__(self) -> int:
         return sum(len(v) for v in self.values)

@@ -333,8 +333,22 @@ def test_xcom_concat(dag_maker, session):
 
         @dag.task
         def pull_all(value):
-            nonlocal all_results
             assert isinstance(value, _ConcatResult)
+            assert value[0] == "a"
+            assert value[1] == "b"
+            assert value[2] == "c"
+            assert value[3] == 1
+            assert value[4] == 2
+            with pytest.raises(IndexError):
+                value[5]
+            assert value[-5] == "a"
+            assert value[-4] == "b"
+            assert value[-3] == "c"
+            assert value[-2] == 1
+            assert value[-1] == 2
+            with pytest.raises(IndexError):
+                value[-6]
+            nonlocal all_results
             all_results = list(value)
 
         pushed_values = push_letters().concat(push_numbers())
