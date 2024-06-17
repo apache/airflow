@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
 
 import requests
 import weaviate.exceptions
-from deprecated import deprecated
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
@@ -32,7 +31,6 @@ from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -159,15 +157,6 @@ class WeaviateHook(BaseHook):
         """Returns a Weaviate client."""
         return self.get_conn()
 
-    @deprecated(
-        reason="The `get_client` method has been renamed to `get_conn`",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_client(self) -> WeaviateClient:
-        """Return a Weaviate client."""
-        # Keeping this for backwards compatibility
-        return self.conn
-
     def test_connection(self) -> tuple[bool, str]:
         try:
             client = self.conn
@@ -236,7 +225,7 @@ class WeaviateHook(BaseHook):
 
         :param collection_name: The collection for which to return the collection configuration.
         """
-        client = self.get_client()
+        client = self.get_conn()
         return client.collections.get(collection_name).config.get()
 
     def delete_collections(
@@ -250,7 +239,7 @@ class WeaviateHook(BaseHook):
         :return: if `if_error=continue` return list of collections which we failed to delete.
             if `if_error=stop` returns None.
         """
-        client = self.get_client()
+        client = self.get_conn()
         collection_names = (
             [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
         )
