@@ -160,6 +160,18 @@ class TestUtils:
         assert "<script>alert(1)</script>" not in html
 
     @pytest.mark.db_test
+    def test_make_cache_key(self):
+        from airflow.www.app import cached_app
+
+        with cached_app(testing=True).test_request_context(
+            "/test/path", query_string={"key1": "value1", "key2": "value2"}
+        ):
+            expected_args = str(hash(frozenset({"key1": "value1", "key2": "value2"}.items())))
+            expected_cache_key = ("/test/path" + expected_args).encode("ascii", "ignore")
+            result_cache_key = utils.make_cache_key()
+            assert result_cache_key == expected_cache_key
+
+    @pytest.mark.db_test
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
 
