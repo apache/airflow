@@ -144,7 +144,10 @@ class TestAwsBaseOperator:
 
     def test_conflicting_region_name(self):
         error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(ValueError, match=error_match):
+        with pytest.raises(ValueError, match=error_match), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
+        ):
             FakeS3Operator(
                 task_id="fake-task-id",
                 aws_conn_id=TEST_CONN,

@@ -141,6 +141,8 @@ class GenerativeModelHook(GoogleBaseHook):
         self,
         prompt: str,
         location: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro",
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
@@ -149,17 +151,21 @@ class GenerativeModelHook(GoogleBaseHook):
 
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Multi-modal model, in order to elicit a specific response.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param generation_config: Optional. Generation configuration settings.
+        :param safety_settings: Optional. Per request settings for blocking unsafe content.
         :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         model = self.get_generative_model(pretrained_model)
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            contents=[prompt], generation_config=generation_config, safety_settings=safety_settings
+        )
 
         return response.text
 
@@ -170,6 +176,8 @@ class GenerativeModelHook(GoogleBaseHook):
         location: str,
         media_gcs_path: str,
         mime_type: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro-vision",
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
@@ -178,6 +186,8 @@ class GenerativeModelHook(GoogleBaseHook):
 
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Multi-modal model, in order to elicit a specific response.
+        :param generation_config: Optional. Generation configuration settings.
+        :param safety_settings: Optional. Per request settings for blocking unsafe content.
         :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
@@ -192,6 +202,8 @@ class GenerativeModelHook(GoogleBaseHook):
 
         model = self.get_generative_model(pretrained_model)
         part = self.get_generative_model_part(media_gcs_path, mime_type)
-        response = model.generate_content([prompt, part])
+        response = model.generate_content(
+            contents=[prompt, part], generation_config=generation_config, safety_settings=safety_settings
+        )
 
         return response.text

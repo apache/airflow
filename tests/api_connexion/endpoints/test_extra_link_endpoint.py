@@ -22,7 +22,6 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
@@ -34,6 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
+from tests.test_utils.compat import BaseOperatorLink
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.mock_plugins import mock_plugin_manager
 

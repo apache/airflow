@@ -160,7 +160,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.extraInitContainers }}
-          {{- toYaml .Values.triggerer.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.triggerer.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: triggerer

@@ -73,7 +73,6 @@ def trigger():
         poll_interval=POLL_INTERVAL,
         cluster_context=CLUSTER_CONTEXT,
         in_cluster=IN_CLUSTER,
-        should_delete_pod=SHOULD_DELETE_POD,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
@@ -82,6 +81,7 @@ def trigger():
         base_container_name=BASE_CONTAINER_NAME,
         gcp_conn_id=GCP_CONN_ID,
         impersonation_chain=IMPERSONATION_CHAIN,
+        on_finish_action=ON_FINISH_ACTION,
     )
 
 
@@ -125,6 +125,8 @@ class TestGKEStartPodTrigger:
             "should_delete_pod": SHOULD_DELETE_POD,
             "gcp_conn_id": GCP_CONN_ID,
             "impersonation_chain": IMPERSONATION_CHAIN,
+            "last_log_time": None,
+            "logging_interval": None,
         }
 
     @pytest.mark.asyncio

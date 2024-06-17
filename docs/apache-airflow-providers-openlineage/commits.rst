@@ -35,14 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.8.0
+.....
+
+Latest change: 2024-05-21
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`9532cc7a6c <https://github.com/apache/airflow/commit/9532cc7a6c12097a1b50c0cb2c6aa410901d5181>`_  2024-05-21   ``fix: Prevent error when extractor can't be imported (#39736)``
+`b7671ef5ab <https://github.com/apache/airflow/commit/b7671ef5ab2946c68a4f2011a587fb30f3510f94>`_  2024-05-21   ``Re-configure ORM in spawned OpenLineage process in scheduler. (#39735)``
+`a81504e316 <https://github.com/apache/airflow/commit/a81504e316ad6dc6884df1855670e2c40dbfef1b>`_  2024-05-21   ``chore: Update conf retrieval docstring and adjust pool_size (#39721)``
+`4ee46b984d <https://github.com/apache/airflow/commit/4ee46b984da73974f0a30bcf361ac36e995993c3>`_  2024-05-20   ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+`0b698a852b <https://github.com/apache/airflow/commit/0b698a852b5cca4ac7571865c24b5c5494be14b8>`_  2024-05-17   ``Add missing 'dag_state_change_process_pool_size' in 'provider.yaml'. (#39674)``
+`4de79a0f6b <https://github.com/apache/airflow/commit/4de79a0f6b18211875aa421e7d2f82c36d31f18b>`_  2024-05-17   ``feat: Add custom provider runtime checks (#39609)``
+`81a82d8481 <https://github.com/apache/airflow/commit/81a82d848100acf95fc4764030f02bbdde9832fd>`_  2024-05-15   ``Run unit tests for Providers with airflow installed as package. (#39513)``
+`d529ec8d45 <https://github.com/apache/airflow/commit/d529ec8d4572b4b9e97344974b2aa960c8a90ae6>`_  2024-05-15   ``Use 'ProcessPoolExecutor' over 'ThreadPoolExecutor'. (#39235)``
+`8bc6c32366 <https://github.com/apache/airflow/commit/8bc6c32366e723c897c0c4be3b3026c61314b519>`_  2024-05-13   ``chore: Add more OpenLineage logs to facilitate debugging (#39136)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`3938f71dfa <https://github.com/apache/airflow/commit/3938f71dfae21c84a3518625543a28ad02edf641>`_  2024-05-08   ``Scheduler to handle incrementing of try_number (#39336)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`02ce7f1f58 <https://github.com/apache/airflow/commit/02ce7f1f58f63d6f828ef49a07d3cd911f8e553c>`_  2024-05-08   ``openlineage: notify that logged exception was caught (#39493)``
+=================================================================================================  ===========  ========================================================================================
+
 1.7.1
 .....
 
-Latest change: 2024-04-22
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ecc5af70eb <https://github.com/apache/airflow/commit/ecc5af70ebd845c873f30fa7ef85790edbf3351c>`_  2024-04-22   ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
 =================================================================================================  ===========  ==============================================================================
 

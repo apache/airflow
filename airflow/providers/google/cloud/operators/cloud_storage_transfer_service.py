@@ -443,6 +443,82 @@ class CloudDataTransferServiceDeleteJobOperator(GoogleCloudBaseOperator):
         hook.delete_transfer_job(job_name=self.job_name, project_id=self.project_id)
 
 
+class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
+    """
+    Runs a transfer job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDataTransferServiceRunJobOperator`
+
+    :param job_name: (Required) Name of the job to be run
+    :param project_id: (Optional) the ID of the project that owns the Transfer
+        Job. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param api_version: API version used (e.g. v1).
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    # [START gcp_transfer_job_run_template_fields]
+    template_fields: Sequence[str] = (
+        "job_name",
+        "project_id",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
+    )
+    # [END gcp_transfer_job_run_template_fields]
+    operator_extra_links = (CloudStorageTransferJobLink(),)
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        project_id: str = PROVIDE_PROJECT_ID,
+        google_impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.api_version = api_version
+        self.google_impersonation_chain = google_impersonation_chain
+
+    def _validate_inputs(self) -> None:
+        if not self.job_name:
+            raise AirflowException("The required parameter 'job_name' is empty or None")
+
+    def execute(self, context: Context) -> dict:
+        self._validate_inputs()
+        hook = CloudDataTransferServiceHook(
+            api_version=self.api_version,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.google_impersonation_chain,
+        )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferJobLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.job_name,
+            )
+
+        return hook.run_transfer_job(job_name=self.job_name, project_id=project_id)
+
+
 class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
     """
     Gets the latest state of a long-running operation in Google Storage Transfer Service.

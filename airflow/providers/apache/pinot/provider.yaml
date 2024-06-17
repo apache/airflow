@@ -22,9 +22,10 @@ description: |
     `Apache Pinot <https://pinot.apache.org/>`__
 
 state: ready
-source-date-epoch: 1715384408
+source-date-epoch: 1716286759
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.4.1
   - 4.4.0
   - 4.3.1
   - 4.3.0

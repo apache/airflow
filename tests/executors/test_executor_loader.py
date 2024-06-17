@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
@@ -333,4 +334,28 @@ class TestExecutorLoader:
                 )
                 assert isinstance(
                     ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
+                )
+
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor", autospec=True)
+    def test_load_custom_executor_with_classname(self, mock_executor):
+        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "my_alias:airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                }
+            ):
+                ExecutorLoader.init_executors()
+                assert isinstance(ExecutorLoader.load_executor("my_alias"), AwsEcsExecutor)
+                assert isinstance(ExecutorLoader.load_executor("AwsEcsExecutor"), AwsEcsExecutor)
+                assert isinstance(
+                    ExecutorLoader.load_executor(
+                        "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                    ),
+                    AwsEcsExecutor,
+                )
+                assert isinstance(
+                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), AwsEcsExecutor
                 )

@@ -296,7 +296,7 @@ class BigQueryToGCSOperator(BaseOperator):
         from openlineage.client.run import Dataset
 
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
-        from airflow.providers.google.cloud.utils.openlineage import (
+        from airflow.providers.google.cloud.openlineage.utils import (
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
         )

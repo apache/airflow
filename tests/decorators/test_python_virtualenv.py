@@ -21,12 +21,14 @@ import datetime
 import sys
 from importlib.util import find_spec
 from subprocess import CalledProcessError
+from typing import Any
 
 import pytest
 
 from airflow.decorators import setup, task, teardown
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 
@@ -37,7 +39,10 @@ DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not insta
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
+_Invalid = Any
 
+
+@pytest.mark.execution_timeout(120)
 class TestPythonVirtualenvDecorator:
     @CLOUDPICKLE_MARKER
     def test_add_cloudpickle(self, dag_maker):
@@ -350,3 +355,29 @@ class TestPythonVirtualenvDecorator:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_invalid_annotation(self, dag_maker):
+        import uuid
+
+        unique_id = uuid.uuid4().hex
+        value = {"unique_id": unique_id}
+
+        # Functions that throw an error
+        # if `from __future__ import annotations` is missing
+        @task.virtualenv(multiple_outputs=False, do_xcom_push=True)
+        def in_venv(value: dict[str, _Invalid]) -> _Invalid:
+            assert isinstance(value, dict)
+            return value["unique_id"]
+
+        with dag_maker():
+            ret = in_venv(value)
+
+        dr = dag_maker.create_dagrun()
+        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ti = dr.get_task_instances()[0]
+
+        assert ti.state == TaskInstanceState.SUCCESS
+
+        xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
+        assert isinstance(xcom, str)
+        assert xcom == unique_id

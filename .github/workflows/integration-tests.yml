@@ -20,16 +20,16 @@ name: Integration tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      runs-on-as-json-public:
+        description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
       image-tag:
         description: "Tag to set for the image"
         required: true
         type: string
-      parallel-test-types-list-as-string:
-        description: "The list of parallel test types to run separated by spaces"
+      testable-integrations:
+        description: "The list of testable integrations as JSON array."
         required: true
         type: string
       default-postgres-version:
@@ -42,10 +42,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
       skip-provider-tests:
         description: "Skip provider tests (true/false)"
-        required: true
-        type: string
-      is-airflow-runner:
-        description: "Is this an Airflow self-hosted runner (true/false)"
         required: true
         type: string
       run-coverage:
@@ -63,23 +59,18 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-integration:
     timeout-minutes: 130
-    name: Integration Tests ${{ matrix.backend }}:${{ matrix.backend-version}}
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    name: "Integration Tests: ${{ matrix.integration }}"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - backend: postgres
-            backend-version: ${{ inputs.default-postgres-version }}
-          - backend: mysql
-            backend-version: ${{ inputs.default-mysql-version }}
+        integration: ${{ fromJSON(inputs.testable-integrations) }}
     env:
       IMAGE_TAG: "${{ inputs.image-tag }}"
-      PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
-      BACKEND: "${{ matrix.backend }}"
-      BACKEND_VERSION: "${{ matrix.backend-version}}"
+      BACKEND: "postgres"
+      BACKEND_VERSION: ${{ inputs.default-postgres-version }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      JOB_ID: "integration-${{ matrix.backend }}-${{ matrix.backend-version }}"
+      JOB_ID: "integration-${{ matrix.integration }}"
       SKIP_PROVIDER_TESTS: "${{ inputs.skip-provider-tests }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage}}"
       DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
@@ -91,66 +82,21 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-        if: inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-        if: inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
-        if: inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres'
-      # For public runners only run Integration tests one-by-one to avoid too much resource use
-      # and skip MySQL tests for Public Runners altogether as they are too flaky with mysql resource use
-      - name: "Integration Tests Postgres: cassandra"
-        run: |
-          breeze testing integration-tests --integration cassandra
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      - name: "Integration Tests Postgres: mongo"
-        run: |
-          breeze testing integration-tests --integration mongo
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      - name: "Integration Tests Postgres: pinot"
-        run: |
-          breeze testing integration-tests --integration pinot
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      - name: "Integration Tests Postgres: celery"
-        run: |
-          breeze testing integration-tests --integration celery
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      - name: "Integration Tests Postgres: trino, kerberos"
-        run: |
-          breeze testing integration-tests --integration trino --integration kerberos
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      - name: "Integration Tests Postgres: Kafka"
-        run: |
-          breeze testing integration-tests --integration kafka
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      - name: "Integration Tests Postgres: Qdrant"
-        run: |
-          breeze testing integration-tests --integration qdrant
-          breeze down
-        if: inputs.is-airflow-runner != 'true' && matrix.backend == 'postgres'
-      # For Self Hosted runners we run complete set of integration tests
-      # in one big test - as we have enough resources to start all integrations
-      # and we do that for both - postgres and mysql
-      - name: "Integration Tests Postgres: all-testable"
-        run: |
-          breeze testing integration-tests --integration all-testable
-          breeze down
-        if: inputs.is-airflow-runner == 'true'
-      - name: "Post Tests success: Integration"
+      - name: "Integration Tests: ${{ matrix.integration }}"
+        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh ${{ matrix.integration }}
+      - name: "Post Tests success: Integration Tests ${{ matrix.integration }}"
         uses: ./.github/actions/post_tests_success
-        if: success() && (inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres')
-      - name: "Post Tests failure: Integration"
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          python-version: ${{ inputs.default-python-version }}
+      - name: "Post Tests failure: Integration Tests ${{ matrix.integration }}"
         uses: ./.github/actions/post_tests_failure
-        if: failure() && (inputs.is-airflow-runner == 'true' || matrix.backend == 'postgres')
+        if: failure()

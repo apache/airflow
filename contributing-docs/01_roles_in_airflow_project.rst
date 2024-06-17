@@ -22,7 +22,7 @@ There are several roles within the Airflow Open-Source community.
 
 For detailed information for each role, see: `Committers and PMC members <../COMMITTERS.rst>`__.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 PMC Member
 ----------

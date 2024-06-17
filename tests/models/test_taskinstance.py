@@ -47,6 +47,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
+    RemovedInAirflow3Warning,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
@@ -68,6 +69,7 @@ from airflow.models.taskinstance import (
     TaskInstanceNote,
     _run_finished_callback,
 )
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -1580,13 +1582,7 @@ class TestTaskInstance:
         ti1.xcom_push(key="foo", value="bar")
 
         # Push another value with the same key (but by a different task)
-        XCom.set(
-            key="foo",
-            value="baz",
-            task_id=task_2.task_id,
-            dag_id=dag.dag_id,
-            execution_date=dagrun.execution_date,
-        )
+        XCom.set(key="foo", value="baz", task_id=task_2.task_id, dag_id=dag.dag_id, run_id=dagrun.run_id)
 
         # Pull with no arguments
         result = ti1.xcom_pull()
@@ -1706,7 +1702,7 @@ class TestTaskInstance:
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         ti.run()
         exec_date += datetime.timedelta(days=1)
-        dr = ti.task.dag.create_dagrun(run_id="test2", execution_date=exec_date, state=None)
+        dr = ti.task.dag.create_dagrun(run_id="test2", data_interval=(exec_date, exec_date), state=None)
         ti = TI(task=ti.task, run_id=dr.run_id)
         ti.run()
         # We have set a new execution date (and did not pass in
@@ -1939,11 +1935,13 @@ class TestTaskInstance:
             dag_id="test_get_num_running_task_instances", task_id="task1", session=session
         )
 
+        execution_date = DEFAULT_DATE + datetime.timedelta(days=1)
         dr = ti1.task.dag.create_dagrun(
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            execution_date=execution_date,
             state=None,
             run_id="2",
             session=session,
+            data_interval=(execution_date, execution_date),
         )
         assert ti1 in session
         ti2 = dr.task_instances[0]
@@ -2717,6 +2715,7 @@ class TestTaskInstance:
             execution_date=day_2,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
+            data_interval=(day_1, day_2),
         )
 
         ti_1 = dagrun_1.get_task_instance(task.task_id)
@@ -2742,6 +2741,7 @@ class TestTaskInstance:
         session.add_all([ds1, ds2])
         session.commit()
 
+        execution_date = timezone.utcnow()
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
             dag_id="test_triggering_dataset_events",
@@ -2754,9 +2754,10 @@ class TestTaskInstance:
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.DATASET_TRIGGERED,
-            execution_date=timezone.utcnow(),
+            execution_date=execution_date,
             state=None,
             session=session,
+            data_interval=(execution_date, execution_date),
         )
         ds1_event = DatasetEvent(dataset_id=1)
         ds2_event_1 = DatasetEvent(dataset_id=2)
@@ -2939,13 +2940,17 @@ class TestTaskInstance:
         assert recorded_message[0].startswith(message_beginning)
 
     def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
-        ti = create_task_instance(
-            start_date=DEFAULT_DATE,
-            timetable=AfterWorkdayTimetable(),
-            run_type=DagRunType.SCHEDULED,
-            execution_date=timezone.datetime(2021, 9, 6),
-            data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
-        )
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
+        ):
+            ti = create_task_instance(
+                start_date=DEFAULT_DATE,
+                timetable=AfterWorkdayTimetable(),
+                run_type=DagRunType.SCHEDULED,
+                execution_date=timezone.datetime(2021, 9, 6),
+                data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
+            )
         context = ti.get_template_context()
         with pytest.deprecated_call():
             assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
@@ -3030,12 +3035,14 @@ class TestTaskInstance:
             on_retry_callback=mock_on_retry_1,
             session=session,
         )
+        execution_date = timezone.utcnow()
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.utcnow(),
+            execution_date=execution_date,
             state=None,
             session=session,
+            data_interval=(execution_date, execution_date),
         )
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
@@ -3173,12 +3180,14 @@ class TestTaskInstance:
             session=session,
             fail_stop=True,
         )
+        execution_date = timezone.utcnow()
         dr = dag.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.utcnow(),
+            execution_date=execution_date,
             state=None,
             session=session,
+            data_interval=(execution_date, execution_date),
         )
 
         ti1 = dr.get_task_instance(task1.task_id, session=session)
@@ -3607,6 +3616,25 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
         assert callback_function.called
+
+    def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="test_history_tab",
+                bash_command="ech",
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=2),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+        with pytest.raises(AirflowException):
+            ti.run()
+        ti.refresh_from_db()
+        assert ti.state == State.UP_FOR_RETRY
+        assert session.query(TaskInstance).count() == 1
+        assert session.query(TaskInstanceHistory).count() == 1
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

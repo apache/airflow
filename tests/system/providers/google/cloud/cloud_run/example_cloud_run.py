@@ -49,6 +49,7 @@ job3_name = f"{job_name_prefix}3"
 
 create1_task_name = "create-job1"
 create2_task_name = "create-job2"
+create3_task_name = "create-job3"
 
 execute1_task_name = "execute-job1"
 execute2_task_name = "execute-job2"
@@ -83,6 +84,9 @@ def _assert_created_jobs_xcom(ti):
 
     job2_dicts = ti.xcom_pull(task_ids=[create2_task_name], key="return_value")
     assert job2_name in job2_dicts[0]["name"]
+
+    job3_dicts = ti.xcom_pull(task_ids=[create3_task_name], key="return_value")
+    assert job3_name in job3_dicts[0]["name"]
 
 
 def _assert_updated_job(ti):
@@ -162,6 +166,15 @@ with DAG(
         dag=dag,
     )
 
+    create3 = CloudRunCreateJobOperator(
+        task_id=create3_task_name,
+        project_id=PROJECT_ID,
+        region=region,
+        job_name=job3_name,
+        job=Job.to_dict(_create_job()),
+        dag=dag,
+    )
+
     assert_created_jobs = PythonOperator(
         task_id="assert-created-jobs", python_callable=_assert_created_jobs_xcom, dag=dag
     )
@@ -195,7 +208,6 @@ with DAG(
                 "name": "job",
                 "args": ["python", "main.py"],
                 "env": [{"name": "ENV_VAR", "value": "value"}],
-                "clearArgs": False,
             }
         ],
         "task_count": 1,
@@ -266,8 +278,17 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_job3 = CloudRunDeleteJobOperator(
+        task_id="delete-job3",
+        project_id=PROJECT_ID,
+        region=region,
+        job_name=job3_name,
+        dag=dag,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     (
-        (create1, create2)
+        (create1, create2, create3)
         >> assert_created_jobs
         >> (execute1, execute2, execute3)
         >> assert_executed_jobs
@@ -277,7 +298,7 @@ with DAG(
         >> assert_jobs
         >> update_job1
         >> assert_job_updated
-        >> (delete_job1, delete_job2)
+        >> (delete_job1, delete_job2, delete_job3)
     )
 
     from tests.system.utils.watcher import watcher

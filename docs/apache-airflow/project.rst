@@ -92,6 +92,7 @@ Committers
 - Tao Feng (@feng-tao)
 - Tomasz Urbaszek (@turbaszek)
 - Tzu-ping Chung (@uranusjr)
+- Utkarsh Sharma (@utkarsharma2)
 - Vikram Koka (@vikramkoka)
 - Vincent Beck (@vincbeck)
 - Wei Lee (@Lee-W)

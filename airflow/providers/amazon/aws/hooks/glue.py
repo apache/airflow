@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 from functools import cached_property
+from typing import Any
 
 from botocore.exceptions import ClientError
 
@@ -430,3 +431,125 @@ class GlueJobHook(AwsBaseHook):
             self.conn.create_job(**config)
 
         return self.job_name
+
+
+class GlueDataQualityHook(AwsBaseHook):
+    """
+    Interact with AWS Glue Data Quality.
+
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        kwargs["client_type"] = "glue"
+        super().__init__(*args, **kwargs)
+
+    def has_data_quality_ruleset(self, name: str) -> bool:
+        try:
+            self.conn.get_data_quality_ruleset(Name=name)
+            return True
+        except self.conn.exceptions.EntityNotFoundException:
+            return False
+
+    def _log_results(self, result: dict[str, Any]) -> None:
+        """
+        Print the outcome of evaluation run, An evaluation run can involve multiple rulesets evaluated against a data source (Glue table).
+
+        Name    Description                                     Result        EvaluatedMetrics                                                                    EvaluationMessage
+        Rule_1    RowCount between 150000 and 600000             PASS        {'Dataset.*.RowCount': 300000.0}                                                       NaN
+        Rule_2    IsComplete "marketplace"                       PASS        {'Column.marketplace.Completeness': 1.0}                                               NaN
+        Rule_3    ColumnLength "marketplace" between 1 and 2     FAIL        {'Column.marketplace.MaximumLength': 9.0, 'Column.marketplace.MinimumLength': 3.0}     Value: 9.0 does not meet the constraint requirement!
+
+        """
+        import pandas as pd
+
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.width", None)
+        pd.set_option("display.max_colwidth", None)
+
+        self.log.info(
+            "AWS Glue data quality ruleset evaluation result for RulesetName: %s RulesetEvaluationRunId: %s Score: %s",
+            result.get("RulesetName"),
+            result.get("RulesetEvaluationRunId"),
+            result.get("Score"),
+        )
+
+        rule_results = result["RuleResults"]
+        rule_results_df = pd.DataFrame(rule_results)
+        self.log.info(rule_results_df)
+
+    def get_evaluation_run_results(self, run_id: str) -> dict[str, Any]:
+        response = self.conn.get_data_quality_ruleset_evaluation_run(RunId=run_id)
+
+        return self.conn.batch_get_data_quality_result(ResultIds=response["ResultIds"])
+
+    def validate_evaluation_run_results(
+        self, evaluation_run_id: str, show_results: bool = True, verify_result_status: bool = True
+    ) -> None:
+        results = self.get_evaluation_run_results(evaluation_run_id)
+        total_failed_rules = 0
+
+        if results.get("ResultsNotFound"):
+            self.log.info(
+                "AWS Glue data quality ruleset evaluation run, results not found for %s",
+                results["ResultsNotFound"],
+            )
+
+        for result in results["Results"]:
+            rule_results = result["RuleResults"]
+
+            total_failed_rules += len(
+                list(
+                    filter(
+                        lambda result: result.get("Result") == "FAIL" or result.get("Result") == "ERROR",
+                        rule_results,
+                    )
+                )
+            )
+
+            if show_results:
+                self._log_results(result)
+
+        self.log.info(
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: %s",
+            total_failed_rules,
+        )
+
+        if verify_result_status and total_failed_rules > 0:
+            raise AirflowException(
+                "AWS Glue data quality ruleset evaluation run failed for one or more rules"
+            )
+
+    def log_recommendation_results(self, run_id: str) -> None:
+        """
+        Print the outcome of recommendation run, recommendation run generates multiple rules against a data source (Glue table) in Data Quality Definition Language (DQDL) format.
+
+        Rules = [
+        IsComplete "NAME",
+        ColumnLength "EMP_ID" between 1 and 12,
+        IsUnique "EMP_ID",
+        ColumnValues "INCOME" > 50000
+        ]
+        """
+        result = self.conn.get_data_quality_rule_recommendation_run(RunId=run_id)
+
+        if result.get("RecommendedRuleset"):
+            self.log.info(
+                "AWS Glue data quality recommended rules for DatabaseName: %s TableName: %s",
+                result["DataSource"]["GlueTable"]["DatabaseName"],
+                result["DataSource"]["GlueTable"]["TableName"],
+            )
+            self.log.info(result["RecommendedRuleset"])
+        else:
+            self.log.info("AWS Glue data quality, no recommended rules available for RunId: %s", run_id)

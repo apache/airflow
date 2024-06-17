@@ -65,6 +65,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     operator = auto_field()
     queued_dttm = auto_field(data_key="queued_when")
     pid = auto_field()
+    executor = auto_field()
     executor_config = auto_field()
     note = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
@@ -118,6 +119,7 @@ class TaskInstanceBatchFormSchema(Schema):
     state = fields.List(fields.Str(allow_none=True), load_default=None)
     pool = fields.List(fields.Str(), load_default=None)
     queue = fields.List(fields.Str(), load_default=None)
+    executor = fields.List(fields.Str(), load_default=None)
 
 
 class ClearTaskInstanceFormSchema(Schema):
@@ -220,8 +222,22 @@ class SetTaskInstanceNoteFormSchema(Schema):
     note = fields.String(allow_none=True, validate=validate.Length(max=1000))
 
 
+class TaskDependencySchema(Schema):
+    """Schema for task scheduling dependencies."""
+
+    name = fields.String()
+    reason = fields.String()
+
+
+class TaskDependencyCollectionSchema(Schema):
+    """Task scheduling dependencies collection schema."""
+
+    dependencies = fields.List(fields.Nested(TaskDependencySchema))
+
+
 task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
+task_dependencies_collection_schema = TaskDependencyCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()
