@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 from confluent_kafka import KafkaException
-from confluent_kafka.admin import AdminClient, NewTopic
+from confluent_kafka.admin import NewTopic
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
