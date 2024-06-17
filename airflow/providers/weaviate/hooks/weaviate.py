@@ -693,14 +693,15 @@ class WeaviateHook(BaseHook):
         client = self.conn
         client.data_object.validate(data_object, class_name, **kwargs)
 
-    def object_exists(self, uuid: str | UUID, **kwargs) -> bool:
+    def object_exists(self, collection_name: str, uuid: str | UUID) -> bool:
         """Check if an object exists in weaviate.
 
+        :param collection_name: Collection name associated with the object given.
         :param uuid: The UUID of the object that may or may not exist within Weaviate.
-        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.exists()
         """
         client = self.conn
-        return client.data_object.exists(uuid, **kwargs)
+        collection = client.collections.get(collection_name)
+        return collection.data.exists(uuid=uuid)
 
     def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
         """Delete multiple objects.
