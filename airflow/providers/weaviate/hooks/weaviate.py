@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from weaviate.auth import AuthCredentials
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
-    from weaviate.collections.classes.internal import QueryReturnType, QuerySearchReturnType
+    from weaviate.collections.classes.internal import QueryReturnType, QuerySearchReturnType, ReferenceInputs
     from weaviate.collections.classes.types import Properties, References, TProperties, TReferences
     from weaviate.types import UUID
 
@@ -664,17 +664,24 @@ class WeaviateHook(BaseHook):
         collection = client.collections.get(collection_name)
         collection.data.update(uuid=uuid, properties=properties, **kwargs)
 
-    def replace_object(self, data_object: dict | str, class_name: str, uuid: UUID | str, **kwargs) -> None:
+    def replace_object(
+        self,
+        collection_name: str,
+        uuid: UUID | str,
+        properties: Properties,
+        references: ReferenceInputs | None = None,
+        **kwargs,
+    ) -> None:
         """Replace an object in weaviate.
 
-        :param data_object: The object states the fields that should be updated. Fields not specified in the
-            'data_object' will be set to None. If type is str it should be either an URL or a file.
-        :param class_name: Class name associated with the object given.
-        :param uuid: uuid of the object to be replaced
-        :param kwargs: Optional parameters to be passed to weaviate_client.data_object.replace()
+        :param collection_name: Collection name associated with the object given.
+        :param uuid: uuid of the object to be updated
+        :param properties: The properties of the object.
+        :param references: Any references to other objects in Weaviate.
+        :param kwargs: Optional parameters to be passed to collection.data.replace()
         """
-        client = self.conn
-        client.data_object.replace(data_object, class_name, uuid, **kwargs)
+        collection = self.get_collection(collection_name)
+        collection.data.replace(uuid=uuid, properties=properties, references=references, **kwargs)
 
     def validate_object(self, data_object: dict | str, class_name: str, **kwargs):
         """Validate an object in weaviate.
