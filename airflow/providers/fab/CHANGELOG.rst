@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add CSRF protection to "/logout" (#40145)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Upgrade to FAB 4.5.0 (#39851)``
+
 1.1.1
 .....
 

@@ -20,6 +20,16 @@
 Changelog
 ---------
 
+1.4.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
+
 1.4.1
 .....
 

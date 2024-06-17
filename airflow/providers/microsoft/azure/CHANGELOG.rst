@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+10.1.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
 10.1.1
 ......
 

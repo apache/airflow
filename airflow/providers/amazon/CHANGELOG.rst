@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+8.24.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'importlib_metadata' import in aws utils (#40134)``
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+* ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
 8.24.0
 ......
 
