@@ -32,6 +32,7 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
+    BASEOPERATOR_ARGS_EXPECTED_TYPES,
     BaseOperator,
     BaseOperatorMeta,
     chain,
@@ -821,23 +822,11 @@ class TestBaseOperator:
         with pytest.raises(TypeError, match=error_msg):
             BaseOperator(task_id="test", max_active_tis_per_dag="not_an_int")
 
-    def test_baseoperator_defines_expected_arg_types(self):
+    @mock.patch("airflow.models.baseoperator.validate_instance_args")
+    def test_baseoperator_init_validates_arg_types(self, mock_validate_instance_args):
         operator = BaseOperator(task_id="test")
 
-        assert operator._expected_args_types is not None
-        assert isinstance(operator._expected_args_types, dict)
-
-        expected_args_types_subset = {
-            "task_id": str,
-            "email_on_retry": bool,
-            "email_on_failure": bool,
-            "retries": int,
-            "retry_exponential_backoff": bool,
-            "depends_on_past": bool,
-        }
-        assert set(operator._expected_args_types.items()).intersection(
-            set(expected_args_types_subset.items())
-        ) == set(expected_args_types_subset.items())
+        mock_validate_instance_args.assert_called_once_with(operator, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
 
 def test_init_subclass_args():

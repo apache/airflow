@@ -56,6 +56,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
+    DAG_ARGS_EXPECTED_TYPES,
     DagModel,
     DagOwnerAttributes,
     DagTag,
@@ -3933,23 +3934,11 @@ def test_invalid_type_for_args():
         DAG("invalid-default-args", max_consecutive_failed_dag_runs="not_an_int")
 
 
-def test_dag_defines_expected_args():
+@mock.patch("airflow.models.dag.validate_instance_args")
+def test_dag_init_validates_arg_types(mock_validate_instance_args):
     dag = DAG("dag_with_expected_args")
 
-    assert dag._expected_args_types is not None
-    assert isinstance(dag._expected_args_types, dict)
-
-    expected_args_types_subset = {
-        "dag_id": str,
-        "description": str,
-        "max_active_tasks": int,
-        "max_active_runs": int,
-        "max_consecutive_failed_dag_runs": int,
-    }
-
-    assert set(dag._expected_args_types.items()).intersection(set(expected_args_types_subset.items())) == set(
-        expected_args_types_subset.items()
-    )
+    mock_validate_instance_args.assert_called_once_with(dag, DAG_ARGS_EXPECTED_TYPES)
 
 
 class TestTaskClearingSetupTeardownBehavior:

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pendulum
 import pytest
@@ -37,7 +38,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import TaskGroup, task_group_to_dict
+from airflow.utils.task_group import TASKGROUP_ARGS_EXPECTED_TYPES, TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
 
 
@@ -1640,21 +1641,10 @@ def test_task_group_with_invalid_arg_type_raises_error():
                 EmptyOperator(task_id="task1")
 
 
-def test_task_group_defines_expected_arg_types():
+@mock.patch("airflow.utils.task_group.validate_instance_args")
+def test_task_group_init_validates_arg_types(mock_validate_instance_args):
     with DAG(dag_id="dag_with_tg_valid_arg_types"):
         with TaskGroup("group_1", ui_color="red") as tg:
             EmptyOperator(task_id="task1")
 
-    assert tg._expected_args_types is not None
-    assert isinstance(tg._expected_args_types, dict)
-
-    expected_args_types_subset = {
-        "group_id": str,
-        "prefix_group_id": bool,
-        "tooltip": str,
-        "ui_color": str,
-    }
-
-    assert set(tg._expected_args_types.items()).intersection(set(expected_args_types_subset.items())) == set(
-        expected_args_types_subset.items()
-    )
+    mock_validate_instance_args.assert_called_with(tg, TASKGROUP_ARGS_EXPECTED_TYPES)

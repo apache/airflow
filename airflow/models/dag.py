@@ -341,6 +341,32 @@ def _create_orm_dagrun(
     return run
 
 
+# TODO: The following mapping is used to validate that the arguments passed to the DAG are of the correct
+#  type. This is a temporary solution until we find a more sophisticated method for argument validation.
+#  One potential method is to use `get_type_hints` from the typing module. However, this is not fully
+#  compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
+#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
+#  manual type-checking method.
+DAG_ARGS_EXPECTED_TYPES = {
+    "dag_id": str,
+    "description": str,
+    "max_active_tasks": int,
+    "max_active_runs": int,
+    "max_consecutive_failed_dag_runs": int,
+    "dagrun_timeout": timedelta,
+    "default_view": str,
+    "orientation": str,
+    "catchup": bool,
+    "doc_md": str,
+    "is_paused_upon_creation": bool,
+    "render_template_as_native_obj": bool,
+    "tags": list,
+    "auto_register": bool,
+    "fail_stop": bool,
+    "dag_display_name": str,
+}
+
+
 @functools.total_ordering
 class DAG(LoggingMixin):
     """
@@ -466,25 +492,6 @@ class DAG(LoggingMixin):
         "fileloc",
         "template_searchpath",
         "last_loaded",
-    }
-
-    _expected_args_types = {
-        "dag_id": str,
-        "description": str,
-        "max_active_tasks": int,
-        "max_active_runs": int,
-        "max_consecutive_failed_dag_runs": int,
-        "dagrun_timeout": timedelta,
-        "default_view": str,
-        "orientation": str,
-        "catchup": bool,
-        "doc_md": str,
-        "is_paused_upon_creation": bool,
-        "render_template_as_native_obj": bool,
-        "tags": list,
-        "auto_register": bool,
-        "fail_stop": bool,
-        "dag_display_name": str,
     }
 
     __serialized_fields: frozenset[str] | None = None
@@ -763,7 +770,7 @@ class DAG(LoggingMixin):
         # fileloc based only on the serialize dag
         self._processor_dags_folder = None
 
-        validate_instance_args(self, self._expected_args_types)
+        validate_instance_args(self, DAG_ARGS_EXPECTED_TYPES)
 
     def get_doc_md(self, doc_md: str | None) -> str | None:
         if doc_md is None:

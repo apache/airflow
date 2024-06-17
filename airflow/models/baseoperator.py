@@ -521,6 +521,47 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
 
+# TODO: The following mapping is used to validate that the arguments passed to the BaseOperator are of the
+#  correct type. This is a temporary solution until we find a more sophisticated method for argument
+#  validation. One potential method is to use `get_type_hints` from the typing module. However, this is not
+#  fully compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
+#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
+#  manual type-checking method.
+BASEOPERATOR_ARGS_EXPECTED_TYPES = {
+    "task_id": str,
+    "email": (str, Iterable),
+    "email_on_retry": bool,
+    "email_on_failure": bool,
+    "retries": int,
+    "retry_exponential_backoff": bool,
+    "depends_on_past": bool,
+    "ignore_first_depends_on_past": bool,
+    "wait_for_past_depends_before_skipping": bool,
+    "wait_for_downstream": bool,
+    "priority_weight": int,
+    "queue": str,
+    "pool": str,
+    "pool_slots": int,
+    "trigger_rule": str,
+    "run_as_user": str,
+    "task_concurrency": int,
+    "map_index_template": str,
+    "max_active_tis_per_dag": int,
+    "max_active_tis_per_dagrun": int,
+    "executor": str,
+    "do_xcom_push": bool,
+    "multiple_outputs": bool,
+    "doc": str,
+    "doc_md": str,
+    "doc_json": str,
+    "doc_yaml": str,
+    "doc_rst": str,
+    "task_display_name": str,
+    "logger_name": str,
+    "allow_nested_operators": bool,
+}
+
+
 @total_ordering
 class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     r"""
@@ -792,40 +833,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "multiple_outputs",
         "allow_nested_operators",
         "executor",
-    }
-
-    _expected_args_types = {
-        "task_id": str,
-        "email": (str, Iterable),
-        "email_on_retry": bool,
-        "email_on_failure": bool,
-        "retries": int,
-        "retry_exponential_backoff": bool,
-        "depends_on_past": bool,
-        "ignore_first_depends_on_past": bool,
-        "wait_for_past_depends_before_skipping": bool,
-        "wait_for_downstream": bool,
-        "priority_weight": int,
-        "queue": str,
-        "pool": str,
-        "pool_slots": int,
-        "trigger_rule": str,
-        "run_as_user": str,
-        "task_concurrency": int,
-        "map_index_template": str,
-        "max_active_tis_per_dag": int,
-        "max_active_tis_per_dagrun": int,
-        "executor": str,
-        "do_xcom_push": bool,
-        "multiple_outputs": bool,
-        "doc": str,
-        "doc_md": str,
-        "doc_json": str,
-        "doc_yaml": str,
-        "doc_rst": str,
-        "task_display_name": str,
-        "logger_name": str,
-        "allow_nested_operators": bool,
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -1112,7 +1119,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
-        validate_instance_args(self, self._expected_args_types)
+        validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
     def __eq__(self, other):
         if type(self) is type(other):
