@@ -23,8 +23,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.comprehend import \
-    ComprehendPiiEntitiesDetectionJobCompletedTrigger, ComprehendCreateDocumentClassifierCompletedTrigger
+from airflow.providers.amazon.aws.triggers.comprehend import (
+    ComprehendCreateDocumentClassifierCompletedTrigger,
+    ComprehendPiiEntitiesDetectionJobCompletedTrigger,
+)
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.utils.timezone import utcnow

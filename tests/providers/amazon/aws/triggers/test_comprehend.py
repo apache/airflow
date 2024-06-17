@@ -22,8 +22,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
-from airflow.providers.amazon.aws.triggers.comprehend import \
-    ComprehendPiiEntitiesDetectionJobCompletedTrigger, ComprehendCreateDocumentClassifierCompletedTrigger
+from airflow.providers.amazon.aws.triggers.comprehend import (
+    ComprehendCreateDocumentClassifierCompletedTrigger,
+    ComprehendPiiEntitiesDetectionJobCompletedTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 

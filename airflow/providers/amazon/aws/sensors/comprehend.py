@@ -23,8 +23,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
-from airflow.providers.amazon.aws.triggers.comprehend import \
-    ComprehendPiiEntitiesDetectionJobCompletedTrigger, ComprehendCreateDocumentClassifierCompletedTrigger
+from airflow.providers.amazon.aws.triggers.comprehend import (
+    ComprehendCreateDocumentClassifierCompletedTrigger,
+    ComprehendPiiEntitiesDetectionJobCompletedTrigger,
+)
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:

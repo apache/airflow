@@ -24,7 +24,8 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.comprehend import (
-    ComprehendStartPiiEntitiesDetectionJobCompletedSensor, ComprehendCreateDocumentClassifierCompletedSensor,
+    ComprehendCreateDocumentClassifierCompletedSensor,
+    ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
 
 

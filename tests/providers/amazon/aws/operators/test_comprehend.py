@@ -25,7 +25,8 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendBaseOperator,
-    ComprehendStartPiiEntitiesDetectionJobOperator, ComprehendCreateDocumentClassifierOperator,
+    ComprehendCreateDocumentClassifierOperator,
+    ComprehendStartPiiEntitiesDetectionJobOperator,
 )
 from airflow.utils.types import NOTSET
 
