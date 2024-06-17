@@ -273,10 +273,10 @@ class WeaviateHook(BaseHook):
         client = self.get_client()
         return client.schema.delete_all()
 
-    def update_config(self, class_name: str, config: dict):
-        """Update a schema configuration for a specific class."""
-        client = self.get_client()
-        client.schema.update_config(class_name=class_name, config=config)
+    def update_config(self, collection_name: str, **kwargs) -> None:
+        """Update the collection definition."""
+        collection = self.get_collection(collection_name)
+        collection.config.update(**kwargs)
 
     def create_or_replace_classes(
         self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"
