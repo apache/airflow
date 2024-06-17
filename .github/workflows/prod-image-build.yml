@@ -125,8 +125,7 @@ jobs:
       VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
         if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Checkout target branch"
         uses: actions/checkout@v4
@@ -220,8 +219,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
         if: inputs.do-build == 'true'
       - name: "Checkout target branch"
         uses: actions/checkout@v4
