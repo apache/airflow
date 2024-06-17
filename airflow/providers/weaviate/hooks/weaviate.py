@@ -179,25 +179,6 @@ class WeaviateHook(BaseHook):
         client = self.conn
         return client.collections.get(name)
 
-    @retry(
-        reraise=True,
-        stop=stop_after_attempt(3),
-        retry=(
-            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-        ),
-    )
-    def create_schema(self, schema_json: dict[str, Any] | str) -> None:
-        """
-        Create a new Schema.
-
-        Instead of adding classes one by one , you can upload a full schema in JSON format at once.
-
-        :param schema_json: Schema as a Python dict or the path to a JSON file, or the URL of a JSON file.
-        """
-        client = self.conn
-        client.schema.create(schema_json)
-
     @staticmethod
     def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
         """Convert dataframe to list of dicts.
@@ -267,11 +248,6 @@ class WeaviateHook(BaseHook):
         if if_error == "continue":
             return failed_collection_list
         return None
-
-    def delete_all_schema(self):
-        """Remove the entire schema from the Weaviate instance and all data associated with it."""
-        client = self.get_client()
-        return client.schema.delete_all()
 
     def update_config(self, collection_name: str, **kwargs) -> None:
         """Update the collection definition."""
