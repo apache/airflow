@@ -723,7 +723,7 @@ class WeaviateHook(BaseHook):
         data: pd.DataFrame,
         document_column: str,
         uuid_column: str,
-        class_name: str,
+        collection_name: str,
         offset: int = 0,
         limit: int = 2000,
     ) -> dict[str, set]:
@@ -731,7 +731,7 @@ class WeaviateHook(BaseHook):
 
         :param data: A single pandas DataFrame.
         :param document_column: The name of the property to query.
-        :param class_name: The name of the class to query.
+        :param collection_name: The name of the collection to query.
         :param uuid_column: The name of the column containing the UUID.
         :param offset: pagination parameter to indicate the which object to start fetching data.
         :param limit: pagination param to indicate the number of records to fetch from start object.
@@ -739,22 +739,15 @@ class WeaviateHook(BaseHook):
         documents_to_uuid: dict = {}
         document_keys = set(data[document_column])
         while True:
-            data_objects = (
-                self.conn.query.get(properties=[document_column], class_name=class_name)
-                .with_additional([uuid_column])
-                .with_where(
-                    {
-                        "operator": "Or",
-                        "operands": [
-                            {"valueText": key, "path": document_column, "operator": "Equal"}
-                            for key in document_keys
-                        ],
-                    }
-                )
-                .with_offset(offset)
-                .with_limit(limit)
-                .do()["data"]["Get"][class_name]
-            )
+            collection = self.get_collection(collection_name)
+            data_objects = collection.query.fetech_objects(
+                filters=Filter.any_of(
+                    [Filter.by_property(document_column).equal(key) for key in document_keys]
+                ),
+                return_properties=[document_column],
+                limit=limit,
+                offset=offset,
+            )["data"]["Get"][collection]
             if len(data_objects) == 0:
                 break
             offset = offset + limit
