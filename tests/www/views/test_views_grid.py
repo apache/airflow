@@ -518,7 +518,6 @@ def test_next_run_datasets_404(admin_client):
 
 def test_get_date_time_num_runs_dag_runs_form_data(dag_with_runs):
     run1, _ = dag_with_runs
-
     class Request:
         def __init__(self, form):
             self.form = form

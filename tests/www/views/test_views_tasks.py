@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from airflow.www.views import TaskInstanceModelView
+from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
@@ -1049,6 +1049,28 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         resp = admin_client.get(url, follow_redirects=True)
         assert resp.status_code == 200
 
+
+def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
+    """Test the get_date_time_num_runs_dag_runs_form_data function."""
+    from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
+    
+    with dag_maker("test_get_date_time_num_runs_dag_runs_form_data") as dag:
+        BashOperator(task_id="task_1", bash_command="echo test")
+    
+    # May delete later as it's repetitive and unused in this test case
+    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        url = f"/dags/{dag.dag_id}/graph"
+        resp = admin_client.get(url, follow_redirects=True)
+        assert resp.status_code == 200
+        
+    with create_session() as session:
+        data =  get_date_time_num_runs_dag_runs_form_data(resp, session, dag) 
+        
+        assert data["dttm"] == dag.execution_date
+        assert data["base_date"] == _safe_parse_datetime(dag.base_date)
+        assert data["execution_date"] == dag.execution_date.isoformat()
+        assert data["num_runs"] == 1
 
 def test_task_instances(admin_client):
     """Test task_instances view."""
