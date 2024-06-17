@@ -41,6 +41,7 @@ Misc
 ~~~~
 
 * ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
 8.24.0
 ......
 
