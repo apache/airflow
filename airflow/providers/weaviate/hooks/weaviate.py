@@ -776,21 +776,24 @@ class WeaviateHook(BaseHook):
         return grouped_key_to_set
 
     def _get_segregated_documents(
-        self, data: pd.DataFrame, document_column: str, class_name: str, uuid_column: str
+        self, data: pd.DataFrame, document_column: str, collection_name: str, uuid_column: str
     ) -> tuple[dict[str, set], set, set, set]:
         """
         Segregate documents into changed, unchanged and new document, when compared to Weaviate db.
 
         :param data: A single pandas DataFrame.
         :param document_column: The name of the property to query.
-        :param class_name: The name of the class to query.
+        :param collection_name: The name of the collection to query.
         :param uuid_column: The name of the column containing the UUID.
         """
         changed_documents = set()
         unchanged_docs = set()
         new_documents = set()
         existing_documents_to_uuid = self._get_documents_to_uuid_map(
-            data=data, uuid_column=uuid_column, document_column=document_column, class_name=class_name
+            data=data,
+            uuid_column=uuid_column,
+            document_column=document_column,
+            collection_name=collection_name,
         )
 
         input_documents_to_uuid = self._prepare_document_to_uuid_map(
