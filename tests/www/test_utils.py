@@ -265,6 +265,10 @@ class TestAttrRenderer:
         )
         assert expected_encoded_dag_run_conf == encoded_dag_run_conf
 
+    def test_encode_dag_run_none(self):
+        no_dag_run_result = utils.encode_dag_run(None)
+        assert no_dag_run_result is None
+
     def test_json_f_webencoder(self):
         dag_run_conf = {
             "1": "string",
