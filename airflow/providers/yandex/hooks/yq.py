@@ -80,7 +80,7 @@ class YQHook(YandexCloudBaseHook):
         return self.client.get_query(query_id)
 
     def get_query_status(self, query_id: str) -> str:
-        """Get status fo the query.
+        """Get status of the query.
 
         :param query_id: ID of query.
         """
