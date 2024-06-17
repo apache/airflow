@@ -128,12 +128,11 @@ class WeaviateDocumentIngestOperator(BaseOperator):
     error: raise an error if an object belonging to a existing document is tried to be created.
 
     :param data: A single pandas DataFrame or a list of dicts to be ingested.
-    :param class_name: Name of the class in Weaviate schema where data is to be ingested.
+    :param collection_name: Name of the collection in Weaviate schema where data is to be ingested.
     :param existing: Strategy for handling existing data: 'skip', or 'replace'. Default is 'skip'.
     :param document_column: Column in DataFrame that identifying source document.
     :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
     :param vector_column: Column with embedding vectors for pre-embedded data.
-    :param batch_config_params: Additional parameters for Weaviate batch configuration.
     :param tenant: The tenant to which the object will be added.
     :param verbose: Flag to enable verbose output during the ingestion process.
     :param hook_params: Optional config params to be passed to the underlying hook.
@@ -146,12 +145,11 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         self,
         conn_id: str,
         input_data: pd.DataFrame | list[dict[str, Any]] | list[pd.DataFrame],
-        class_name: str,
+        collection: str,
         document_column: str,
         existing: str = "skip",
         uuid_column: str = "id",
         vector_col: str = "Vector",
-        batch_config_params: dict | None = None,
         tenant: str | None = None,
         verbose: bool = False,
         hook_params: dict | None = None,
@@ -160,12 +158,11 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.input_data = input_data
-        self.class_name = class_name
+        self.collection = collection
         self.document_column = document_column
         self.existing = existing
         self.uuid_column = uuid_column
         self.vector_col = vector_col
-        self.batch_config_params = batch_config_params
         self.tenant = tenant
         self.verbose = verbose
         self.hook_params = hook_params or {}
@@ -184,12 +181,11 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         self.log.debug("Total input objects : %s", len(self.input_data))
         insertion_errors = self.hook.create_or_replace_document_objects(
             data=self.input_data,
-            class_name=self.class_name,
+            collection_name=self.collection_name,
             document_column=self.document_column,
             existing=self.existing,
             uuid_column=self.uuid_column,
             vector_column=self.vector_col,
-            batch_config_params=self.batch_config_params,
             tenant=self.tenant,
             verbose=self.verbose,
         )
