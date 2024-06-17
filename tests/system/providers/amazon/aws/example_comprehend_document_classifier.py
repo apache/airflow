@@ -174,7 +174,7 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
-    classifier_name = f"{env_id}-custom-insurance-doc-classifier"
+    classifier_name = f"{env_id}-custom-document-classifier"
     bucket_name = f"{env_id}-comprehend-document-classifier"
 
     input_data_configurations = {

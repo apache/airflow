@@ -199,7 +199,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
     """
     Create a comprehend document classifier that can categorize documents.
 
-    To create a classifier, provide a set of training documents that are labeled with the categories.
+    Provide a set of training documents that are labeled with the categories.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -267,6 +267,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -282,6 +283,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> str:
         if self.output_data_config:
