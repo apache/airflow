@@ -34,9 +34,6 @@ class KafkaAdminClientHook(KafkaBaseHook):
     def __init__(self, kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
         super().__init__(kafka_config_id=kafka_config_id)
 
-    def _get_client(self, config) -> AdminClient:
-        return AdminClient(config)
-
     def create_topic(
         self,
         topics: Sequence[Sequence[Any]],
