@@ -254,38 +254,6 @@ class WeaviateHook(BaseHook):
         collection = self.get_collection(collection_name)
         collection.config.update(**kwargs)
 
-    def create_or_replace_classes(
-        self, schema_json: dict[str, Any] | str, existing: ExitingSchemaOptions = "ignore"
-    ):
-        """
-        Create or replace the classes in schema of Weaviate database.
-
-        :param schema_json: Json containing the schema. Format {"class_name": "class_dict"}
-            .. seealso:: `example of class_dict <https://weaviate-python-client.readthedocs.io/en/v3.25.2/weaviate.schema.html#weaviate.schema.Schema.create>`_.
-        :param existing: Options to handle the case when the classes exist, possible options
-            'replace', 'fail', 'ignore'.
-        """
-        existing_schema_options = ["replace", "fail", "ignore"]
-        if existing not in existing_schema_options:
-            raise ValueError(f"Param 'existing' should be one of the {existing_schema_options} values.")
-        if isinstance(schema_json, str):
-            schema_json = cast(dict, json.load(open(schema_json)))
-        set__exiting_classes = {class_object["class"] for class_object in self.get_schema()["classes"]}
-        set__to_be_added_classes = {key for key, _ in schema_json.items()}
-        intersection_classes = set__exiting_classes.intersection(set__to_be_added_classes)
-        classes_to_create = set()
-        if existing == "fail" and intersection_classes:
-            raise ValueError(f"Trying to create class {intersection_classes} but this class already exists.")
-        elif existing == "ignore":
-            classes_to_create = set__to_be_added_classes - set__exiting_classes
-        elif existing == "replace":
-            error_list = self.delete_classes(class_names=list(intersection_classes))
-            if error_list:
-                raise ValueError(error_list)
-            classes_to_create = intersection_classes.union(set__to_be_added_classes)
-        classes_to_create_list = [schema_json[item] for item in sorted(list(classes_to_create))]
-        self.create_schema({"classes": classes_to_create_list})
-
     def _compare_schema_subset(self, subset_object: Any, superset_object: Any) -> bool:
         """
         Recursively check if requested subset_object is a subset of the superset_object.
