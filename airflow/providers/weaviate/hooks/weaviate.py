@@ -264,7 +264,7 @@ class WeaviateHook(BaseHook):
         vector_col: str = "Vector",
         uuid_col: str = "id",
         retry_attempts_per_object: int = 5,
-        tenant: str | None = None,
+        references: ReferenceInputs | None = None,
     ) -> None:
         """
         Add multiple objects or object references at once into weaviate.
@@ -274,7 +274,7 @@ class WeaviateHook(BaseHook):
         :param vector_col: name of the column containing the vector.
         :param uuid_col: Name of the column containing the UUID.
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
-        :param tenant: The tenant to which the object will be added.
+        :param references: The references of the object to be added as a dictionary. Use `wvc.Reference.to` to create the correct values in the dict.
         """
         converted_data = self._convert_dataframe_to_list(data)
 
@@ -298,11 +298,10 @@ class WeaviateHook(BaseHook):
                             uuid,
                         )
                         batch.add_object(
-                            collection=collection_name,
                             properties=data_obj,
+                            references=references,
                             uuid=uuid,
                             vector=vector,
-                            tenant=tenant,
                         )
                         self.log.debug("Inserted object with uuid: %s into batch", uuid)
 
@@ -699,7 +698,6 @@ class WeaviateHook(BaseHook):
         existing: str = "skip",
         uuid_column: str | None = None,
         vector_column: str = "Vector",
-        tenant: str | None = None,
         verbose: bool = False,
     ):
         """
@@ -728,7 +726,6 @@ class WeaviateHook(BaseHook):
         :param document_column: Column in DataFrame that identifying source document.
         :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
         :param vector_column: Column with embedding vectors for pre-embedded data.
-        :param tenant: The tenant to which the object will be added.
         :param verbose: Flag to enable verbose output during the ingestion process.
         :return: list of UUID which failed to create
         """
@@ -835,7 +832,6 @@ class WeaviateHook(BaseHook):
                 data=data,
                 vector_col=vector_column,
                 uuid_col=uuid_column,
-                tenant=tenant,
             )
             if insertion_errors or batch_delete_error:
                 if insertion_errors:
