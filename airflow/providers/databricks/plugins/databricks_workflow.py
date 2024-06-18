@@ -438,7 +438,7 @@ repair_databricks_package = {
 class DatabricksWorkflowPlugin(AirflowPlugin):
     """Databricks Workflows plugin for Airflow."""
 
-    name = "databricks_workflow_plugin"
+    name = "databricks_workflow"
     operator_extra_links = [
         WorkflowJobRepairAllFailedLink(),
         WorkflowJobRepairSingleFailedLink(),
