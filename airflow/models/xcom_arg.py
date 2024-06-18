@@ -670,7 +670,7 @@ class ConcatXComArg(XComArg):
             yield from arg.iter_references()
 
     def concat(self, *others: XComArg) -> ConcatXComArg:
-        # Flattern foo.concat(x).concat(y) into one call.
+        # Flatten foo.concat(x).concat(y) into one call.
         return ConcatXComArg([*self.args, *others])
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
