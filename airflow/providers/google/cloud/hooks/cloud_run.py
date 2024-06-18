@@ -24,6 +24,7 @@ from google.cloud.run_v2 import (
     CreateJobRequest,
     CreateServiceRequest,
     DeleteJobRequest,
+    DeleteServiceRequest,
     GetJobRequest,
     Job,
     JobsAsyncClient,
@@ -234,6 +235,16 @@ class CloudRunServiceHook(GoogleBaseHook):
         operation = self.get_conn().create_service(create_request)
         return operation.result()
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_service(
+        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Service:
+        delete_request = DeleteServiceRequest()
+        delete_request.name = f"projects/{project_id}/locations/{region}/services/{service_name}"
+
+        operation = self.get_conn().delete_service(delete_request)
+        return operation.result()
+
 
 class CloudRunServiceAsyncHook(GoogleBaseHook):
     """
@@ -277,3 +288,17 @@ class CloudRunServiceAsyncHook(GoogleBaseHook):
         create_request.parent = f"projects/{project_id}/locations/{region}"
 
         return await self.get_conn().create_service(create_request)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def delete_service(
+        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> AsyncOperation:
+        if isinstance(service, dict):
+            service = Service(service)
+
+        delete_request = DeleteServiceRequest()
+        delete_request.service = service
+        delete_request.service_id = service_name
+        delete_request.parent = f"projects/{project_id}/locations/{region}"
+
+        return await self.get_conn().delete_service(delete_request)
