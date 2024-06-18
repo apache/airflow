@@ -122,3 +122,21 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
                 self.bucket_name,
             )
         return f"gs://{self.bucket_name}/{self.object_name}"
+
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
+        connection = wasb_hook.get_connection(wasb_hook.conn_id)
+        account_name = connection.to_dict().get("login")
+        if account_name is None or account_name == "":
+            account_name = connection.to_dict().get("extra").get("connection_string").split(";")[1].split("=")[1]
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(namespace=f"wasbs://{self.container_name}@{account_name}/{self.blob_name}", name=self.blob_name)
+            ],
+            outputs=[
+                Dataset(namespace=f"gs://{self.bucket_name}/{self.object_name}", name=self.object_name)
+            ],
+        )
