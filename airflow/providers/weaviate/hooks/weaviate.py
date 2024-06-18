@@ -399,7 +399,7 @@ class WeaviateHook(BaseHook):
         return collection.query.fetch_objects(**kwargs)
 
     def get_all_objects(
-        self, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
+        self, collection_name: str, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
     ) -> list[dict[str, Any]] | pd.DataFrame:
         """Get all objects from weaviate.
 
@@ -412,11 +412,11 @@ class WeaviateHook(BaseHook):
         all_objects = []
         after = kwargs.pop("after", after)
         while True:
-            results = self.get_object(after=after, **kwargs) or {}
-            if not results.get("objects"):
+            results = self.get_object(collection_name=collection_name, after=after, **kwargs)
+            if not results or not results.objects:
                 break
-            all_objects.extend(results["objects"])
-            after = results["objects"][-1]["id"]
+            all_objects.extend(results.objects)
+            after = results.objects[-1].uuid
         if as_dataframe:
             import pandas
 
