@@ -309,3 +309,72 @@ def test_xcom_map_zip_nest(dag_maker, session):
         ti.run(session=session)
 
     assert results == {"aa", "bbbb", "cccccc", "dddddddd"}
+
+
+def test_xcom_concat(dag_maker, session):
+    from airflow.models.xcom_arg import _ConcatResult
+
+    agg_results = set()
+    all_results = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2]
+
+        @dag.task
+        def pull_one(value):
+            agg_results.add(value)
+
+        @dag.task
+        def pull_all(value):
+            assert isinstance(value, _ConcatResult)
+            assert value[0] == "a"
+            assert value[1] == "b"
+            assert value[2] == "c"
+            assert value[3] == 1
+            assert value[4] == 2
+            with pytest.raises(IndexError):
+                value[5]
+            assert value[-5] == "a"
+            assert value[-4] == "b"
+            assert value[-3] == "c"
+            assert value[-2] == 1
+            assert value[-1] == 2
+            with pytest.raises(IndexError):
+                value[-6]
+            nonlocal all_results
+            all_results = list(value)
+
+        pushed_values = push_letters().concat(push_numbers())
+
+        pull_one.expand(value=pushed_values)
+        pull_all(pushed_values)
+
+    dr = dag_maker.create_dagrun(session=session)
+
+    # Run "push_letters" and "push_numbers".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    assert all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+    session.commit()
+
+    # Run "pull_one" and "pull_all".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 6
+    assert all(ti.task_id.startswith("pull_") for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    assert agg_results == {"a", "b", "c", 1, 2}
+    assert all_results == ["a", "b", "c", 1, 2]
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert not decision.schedulable_tis

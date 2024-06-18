@@ -89,6 +89,7 @@ const FilterTasks = ({ taskId }: Props) => {
         title={label}
         aria-label={label}
         mt={2}
+        ml={2}
       >
         <Flex>
           {root
