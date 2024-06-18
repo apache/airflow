@@ -7410,7 +7410,7 @@
                             "default": null
                         },
                         "sshKey": {
-                            "description": "Base64 converted ssh private key",
+                            "description": "SSH private key",
                             "type": [
                                 "string",
                                 "null"

@@ -2506,7 +2506,7 @@ dags:
     # sshKeySecret: airflow-ssh-secret
     #
     # Or set sshKeySecret with your key
-    # sshKey: <base64-converted-ssh-private-key>
+    # sshKey: <converted-ssh-private-key>
     #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
