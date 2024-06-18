@@ -252,8 +252,8 @@ class WeaviateHook(BaseHook):
             return failed_collection_list
         return None
 
-    def update_config(self, collection_name: str, **kwargs) -> None:
-        """Update the collection definition."""
+    def update_collection_configuration(self, collection_name: str, **kwargs) -> None:
+        """Update the collection configuration."""
         collection = self.get_collection(collection_name)
         collection.config.update(**kwargs)
 
