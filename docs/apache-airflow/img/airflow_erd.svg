@@ -1105,13 +1105,13 @@
 <text text-anchor="start" x="624" y="-1859.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="629" y="-1859.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
 <polygon fill="none" stroke="black" points="508,-1824.5 508,-1849.5 800,-1849.5 800,-1824.5 508,-1824.5"/>
-<text text-anchor="start" x="513" y="-1834.3" font-family="Helvetica,sans-Serif" font-size="14.00">last_scheduling_decision</text>
-<text text-anchor="start" x="685" y="-1834.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="690" y="-1834.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="513" y="-1834.3" font-family="Helvetica,sans-Serif" font-size="14.00">log_template_id</text>
+<text text-anchor="start" x="622" y="-1834.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="627" y="-1834.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <polygon fill="none" stroke="black" points="508,-1799.5 508,-1824.5 800,-1824.5 800,-1799.5 508,-1799.5"/>
-<text text-anchor="start" x="513" y="-1809.3" font-family="Helvetica,sans-Serif" font-size="14.00">log_template_id</text>
-<text text-anchor="start" x="622" y="-1809.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="627" y="-1809.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="513" y="-1809.3" font-family="Helvetica,sans-Serif" font-size="14.00">next_schedulable</text>
+<text text-anchor="start" x="634" y="-1809.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="639" y="-1809.3" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
 <polygon fill="none" stroke="black" points="508,-1774.5 508,-1799.5 800,-1799.5 800,-1774.5 508,-1774.5"/>
 <text text-anchor="start" x="513" y="-1784.3" font-family="Helvetica,sans-Serif" font-size="14.00">queued_at</text>
 <text text-anchor="start" x="586" y="-1784.3" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>

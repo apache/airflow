@@ -49,7 +49,7 @@ class DagRunPydantic(BaseModelPydantic):
     conf: dict
     data_interval_start: Optional[datetime]
     data_interval_end: Optional[datetime]
-    last_scheduling_decision: Optional[datetime]
+    next_schedulable: Optional[datetime]
     dag_hash: Optional[str]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
