@@ -552,7 +552,7 @@ This is especially useful for conditional logic in task mapping. For example, if
 
     download_filea_from_a_rename.expand(filenames_a_b=filenames_a_b)
 
-The ``zip`` function takes arbitrary positional arguments, and returns an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's :func:`itertools.zip_longest`—the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
+Similar to the built-in :func:`zip`, you can zip an arbitrary number of iterables together to get an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's :func:`itertools.zip_longest`—the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
 
 Concatenating multiple upstreams
 ================================
@@ -591,7 +591,7 @@ The DAG, however, would be both more scalable and easier to inspect if the tasks
     list_filenames_concat = list_filenames_a.concat(list_filenames_b)
     download_file.expand(filename=list_filenames_concat)
 
-This creates one single task to expand against both lists instead. The ``concat`` function takes arbitrary positional arguments, and returns one single iterable that concatenates all of them in order—similar to Python's :func:`itertools.chain`.
+This creates one single task to expand against both lists instead. You can ``concat`` an arbitrary number of iterables together (e.g. ``foo.concat(bar, rex)``); alternatively, since the return value is also an XCom reference, the ``concat`` calls can be chained (e.g. ``foo.concat(bar).concat(rex)``) to achieve the same result: one single iterable that concatenates all of them in order, similar to Python's :func:`itertools.chain`.
 
 What data types can be expanded?
 ================================
