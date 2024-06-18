@@ -21,8 +21,9 @@ import tempfile
 from datetime import datetime
 from urllib.request import urlretrieve
 
-from airflow import DAG
+from airflow import DAG, settings
 from airflow.decorators import task, task_group
+from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -37,6 +38,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
 )
+from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
@@ -52,11 +54,11 @@ TRAINING_DATA_PREFIX = "training-docs"
 PUBLIC_DATA_SOURCES = [
     {
         "fileName": "discharge-summary.pdf",
-        "url": "https://github.com/aws-samples/amazon-comprehend-examples/blob/master/building-custom-classifier/sample-docs/discharge-summary.pdf?raw=true",
+        "endpoint": "aws-samples/amazon-comprehend-examples/blob/master/building-custom-classifier/sample-docs/discharge-summary.pdf?raw=true",
     },
     {
         "fileName": "doctors-notes.pdf",
-        "url": "https://github.com/aws-samples/amazon-comprehend-examples/blob/master/building-custom-classifier/sample-docs/doctors-notes.pdf?raw=true",
+        "endpoint": "aws-samples/amazon-comprehend-examples/blob/master/building-custom-classifier/sample-docs/doctors-notes.pdf?raw=true",
     },
 ]
 
@@ -107,7 +109,7 @@ def document_classifier_workflow():
     )
     # [END howto_sensor_create_document_classifier]
 
-    @task
+    @task(trigger_rule=TriggerRule.ALL_DONE)
     def delete_classifier(document_classifier_arn: str):
         ComprehendHook().conn.delete_document_classifier(DocumentClassifierArn=document_classifier_arn)
 
@@ -118,51 +120,59 @@ def document_classifier_workflow():
     )
 
 
-@task
+@task_group
 def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_copies=1):
     """
 
-    Download some sample data and upload it to S3.
+    Copy some sample data to S3 using HttpToS3Operator.
 
     :param bucket: Name of the Amazon S3 bucket to send the data.
     :param prefix: Folder to store the files
     :param number_of_copies: Number of files to create for a document from the sources
     :param sources: Public available data locations
     """
-    file_names = [source["fileName"] for source in sources]
-
-    # Monkey patch the list of names available for NamedTempFile so we can pick the names of the downloaded files.
-    backup_get_candidate_names = tempfile._get_candidate_names  # type: ignore[attr-defined]
-    destinations = iter(file_names)
-    tempfile._get_candidate_names = lambda: destinations  # type: ignore[attr-defined]
 
     """
-    Download the sample data files, save them as named temp files using the names above.
-    EX: If number_of_copies is 2, named temp file is 'file.pdf', and prefix is 'training-docs'.
+    EX: If number_of_copies is 2, sources has file name 'file.pdf', and prefix is 'training-docs'.
     Will generate two copies and upload to s3:
         - training-docs/file-0.pdf
         - training-docs/file-1.pdf
     """
 
-    for source in sources:
-        with tempfile.NamedTemporaryFile(mode="w", prefix="") as data_file:
-            urlretrieve(source["url"], data_file.name)
-            file_name, file_type = os.path.splitext(os.path.basename(data_file.name))
+    http_to_s3_configs = [{"endpoint": source["endpoint"],
+                           "s3_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-{counter}{os.path.splitext(os.path.basename(source['fileName']))[1]}"}
+                          for counter in range(number_of_copies)
+                          for source in sources]
 
-            [
-                S3Hook().conn.upload_file(
-                    Filename=data_file.name, Bucket=bucket, Key=f"{prefix}/{file_name}-{counter}{file_type}"
-                )
-                for counter in range(number_of_copies)
-            ]
+    @task
+    def create_connection(conn_id):
+        conn = Connection(
+            conn_id=conn_id,
+            conn_type="http",
+            host="https://github.com/",
+        )
+        session = settings.Session()
+        session.add(conn)
+        session.commit()
 
-    # Revert the monkey patch.
-    tempfile._get_candidate_names = backup_get_candidate_names  # type: ignore[attr-defined]
-    # Verify the path reversion worked.
-    with tempfile.NamedTemporaryFile(mode="w", prefix=""):
-        # If the reversion above did not apply correctly, this will fail with
-        # a StopIteration error because the iterator will run out of names.
-        ...
+    @task(trigger_rule=TriggerRule.ALL_DONE)
+    def delete_connection(conn_id):
+        session = settings.Session()
+        conn_to_details = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        session.delete(conn_to_details)
+        session.commit()
+
+    http_to_s3 = HttpToS3Operator.partial(
+        task_id="http_to_s3",
+        http_conn_id=http_conn_id,
+        s3_bucket=bucket,
+    ).expand_kwargs(http_to_s3_configs)
+
+    chain(
+        create_connection(http_conn_id),
+        http_to_s3,
+        delete_connection(http_conn_id)
+    )
 
 
 with DAG(
@@ -176,6 +186,7 @@ with DAG(
     env_id = test_context["ENV_ID"]
     classifier_name = f"{env_id}-custom-document-classifier"
     bucket_name = f"{env_id}-comprehend-document-classifier"
+    http_conn_id = f"{env_id}-git"
 
     input_data_configurations = {
         "S3Uri": f"s3://{bucket_name}/{ANNOTATION_BUCKET_KEY}",
