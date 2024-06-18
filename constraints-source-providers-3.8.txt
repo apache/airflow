@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-18T03:46:27.293779
+# This constraints file was automatically generated on 2024-06-18T06:13:37.356624
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -97,7 +97,7 @@ azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
 azure-identity==1.16.1
 azure-keyvault-secrets==4.8.0
-azure-kusto-data==4.4.1
+azure-kusto-data==4.5.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
@@ -210,7 +210,7 @@ google-api-python-client==2.133.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.30.0
-google-cloud-aiplatform==1.55.0
+google-cloud-aiplatform==1.56.0
 google-cloud-appengine-logging==1.4.3
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
