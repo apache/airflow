@@ -34,7 +34,9 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
     exists to move data from Microsoft Azure Blob Storage to an AWS S3 Bucket, and lives in the
     airflow/providers/amazon/aws/transfers/azure_blob_to_s3.py file
 
-    TODO: Complete doc-string
+    Either an explicit S3 key can be provided, or a prefix containing the files that are to be transferred to
+    Azure blob storage. The same holds for a Blob name; an explicit name can be passed, or a Blob prefix can
+    be provided for the file to be stored to
     """
 
     template_fields: Sequence[str] = (
@@ -169,3 +171,15 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
 
         # Return a list of the files that were moved
         return files_to_move
+
+    def move_file(self) -> None:
+        """
+        move_files
+
+        Description:
+            This "helper" method will take a file name, and move it from S3 to Azure Blob storage
+
+        Params: None
+        Returns None
+        """
+        pass
