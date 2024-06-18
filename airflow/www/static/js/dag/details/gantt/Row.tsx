@@ -72,7 +72,7 @@ const Row = ({
       >
         {!!instance && (
           <InstanceBar
-            instance={instance}
+            instance={{ ...instance, queuedWhen: instance.queuedDttm }}
             task={task}
             ganttWidth={ganttWidth}
             ganttStartDate={ganttStartDate}
