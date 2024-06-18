@@ -180,7 +180,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 try:
                     self.trigger_next_link(response=response, method_name=self.execute_complete.__name__)
                 except TaskDeferred as exception:
-                    results = self.pull_xcom(context=context)
+                    self.results = self.pull_xcom(context=context)
                     self.log.debug("result: %s", result)
                     self.append_result(
                         result=result,
