@@ -162,15 +162,15 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
         session.delete(conn_to_details)
         session.commit()
 
-    http_to_s3 = HttpToS3Operator.partial(
-        task_id="http_to_s3",
+    http_to_s3_task = HttpToS3Operator.partial(
+        task_id="http_to_s3_task",
         http_conn_id=http_conn_id,
         s3_bucket=bucket,
     ).expand_kwargs(http_to_s3_configs)
 
     chain(
         create_connection(http_conn_id),
-        http_to_s3,
+        http_to_s3_task,
         delete_connection(http_conn_id)
     )
 
