@@ -66,7 +66,7 @@ def reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app, reset_dagruns):
+def init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
@@ -1054,12 +1054,20 @@ def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, ad
     """Test the get_date_time_num_runs_dag_runs_form_data function."""
     from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
 
-    execution_date = pendulum.now(tz="UTC")
+    execution_date = pendulum.DateTime(2024, 1, 1, 0, 0, 0, tzinfo=pendulum.UTC)
     with dag_maker(
         dag_id="test_get_date_time_num_runs_dag_runs_form_data",
         start_date=execution_date,
     ) as dag:
         BashOperator(task_id="task_1", bash_command="echo test")
+
+    dag_run = dag_maker.create_dagrun(
+        run_id="test_dagrun_id",
+        run_type=DagRunType.SCHEDULED,
+        execution_date=execution_date,
+        start_date=execution_date,
+        state=DagRunState.RUNNING,
+    )
 
     with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
         mocked_dag_bag.get_dag.return_value = dag
@@ -1074,9 +1082,9 @@ def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, ad
         base_date = pendulum.parse(data["base_date"].isoformat())
 
         assert dttm.date() == execution_date.date()
-        assert dttm.time().hour == _safe_parse_datetime(execution_date.time().isoformat()).time().hour
-        assert dttm.time().minute == _safe_parse_datetime(execution_date.time().isoformat()).time().minute
+        assert dttm.time() == _safe_parse_datetime(execution_date.time().isoformat()).time()
         assert base_date.date() == execution_date.date()
+        assert data["execution_date"] == execution_date.isoformat()
 
 
 def test_task_instances(admin_client):
