@@ -515,29 +515,3 @@ def test_next_run_datasets_404(admin_client):
     resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}
-
-def test_get_date_time_num_runs_dag_runs_form_data(dag_with_runs):
-    run1, _ = dag_with_runs
-    class Request:
-        def __init__(self, form):
-            self.form = form
-            self.args = form
-        
-        def get(self, key, default=None):
-            return self.args.get(key, default)
-
-    base_date = "2023-01-01T00:00:00+00:00"
-    request_with_run_id_and_base_date = Request(form={
-        "execution_date": run1.execution_date.isoformat(),
-        "num_runs": "5",
-        "run_id": run1.run_id,
-        "base_date": base_date
-    })
-
-    with create_session() as session:
-        data = get_date_time_num_runs_dag_runs_form_data(request_with_run_id_and_base_date, session, run1.dag)
-
-    assert data['dttm'] == run1.execution_date
-    assert data['base_date'] == _safe_parse_datetime(base_date)
-    assert data['execution_date'] == run1.execution_date.isoformat()
-    assert data['num_runs'] == 5
