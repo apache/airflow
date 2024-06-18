@@ -180,8 +180,8 @@ class MSGraphAsyncOperator(BaseOperator):
                 try:
                     self.trigger_next_link(response=response, method_name=self.execute_complete.__name__)
                 except TaskDeferred as exception:
-                    self.results = self.pull_xcom(context=context)
-                    self.log.debug("value: %s", result)
+                    results = self.pull_xcom(context=context)
+                    self.log.debug("result: %s", result)
                     self.append_result(
                         result=result,
                         append_result_as_list_if_absent=True,
@@ -216,7 +216,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def xcom_key(self, context: Context) -> str:
         map_index = context["ti"].map_index
-        return f"{self.key}_{map_index}" if map_index else self.key
+        return f"{self.key}_{map_index}" if map_index is not None else self.key
 
     def pull_xcom(self, context: Context) -> list:
         key = self.xcom_key(context=context)
@@ -227,7 +227,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 dag_id=self.dag_id,
                 key=key,
             )
-            or []
+            or []  # noqa: W503
         )
 
         self.log.info(
