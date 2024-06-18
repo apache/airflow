@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-17T14:32:08.048973
+# This constraints file was automatically generated on 2024-06-18T03:46:31.439889
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -103,7 +103,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.1.1
-azure-mgmt-storage==21.1.0
+azure-mgmt-storage==21.2.0
 azure-nspkg==3.0.2
 azure-servicebus==7.12.2
 azure-storage-blob==12.20.0
@@ -391,7 +391,7 @@ pgvector==0.2.5
 pinecone-client==4.1.1
 pinecone-plugin-interface==0.0.7
 pinotdb==5.3.0
-pipdeptree==2.22.0
+pipdeptree==2.23.0
 pipx==1.6.0
 pkginfo==1.11.1
 platformdirs==4.2.2
