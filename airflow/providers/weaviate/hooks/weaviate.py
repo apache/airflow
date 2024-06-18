@@ -23,6 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
 
 import requests
+import weaviate
 import weaviate.exceptions
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import WeaviateClient
@@ -117,13 +118,15 @@ class WeaviateHook(BaseHook):
     def get_conn(self) -> WeaviateClient:
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
+        http_secure = extras.pop("http_secure", False)
+        grpc_secure = extras.pop("grcp_secure", False)
         return weaviate.connect_to_custom(
             http_host=conn.host,
-            http_port=conn.port or 8080,
-            http_secure=extras.pop("http_secure", False),
+            http_port=conn.port or 443 if http_secure else 80,
+            http_secure=http_secure,
             grpc_host=extras.pop("grpc_host", conn.host),
-            grpc_port=extras.pop("grpc_port", 50051),
-            grpc_secure=extras.pop("grcp_secure", False),
+            grpc_port=extras.pop("grpc_port", 443 if grpc_secure else 80),
+            grpc_secure=grpc_secure,
             headers=extras.pop("additional_headers", {}),
             auth_credentials=self._extract_auth_credentials(conn),
         )
@@ -143,9 +146,9 @@ class WeaviateHook(BaseHook):
                 access_token=access_token, expires_in=expires_in, refresh_token=refresh_token
             )
 
+        scope = extras.get("scope", None) or extras.get("oidc_scope", None)
         client_secret = extras.get("client_secret", None)
         if client_secret:
-            scope = extras.get("scope", None) or extras.get("oidc_scope", None)
             return Auth.client_credentials(client_secret=client_secret, scope=scope)
 
         username = conn.login or ""
