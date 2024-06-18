@@ -17,16 +17,13 @@
 from __future__ import annotations
 
 import os
-import tempfile
 from datetime import datetime
-from urllib.request import urlretrieve
 
 from airflow import DAG, settings
 from airflow.decorators import task, task_group
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendCreateDocumentClassifierOperator,
 )
@@ -139,10 +136,14 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
         - training-docs/file-1.pdf
     """
 
-    http_to_s3_configs = [{"endpoint": source["endpoint"],
-                           "s3_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-{counter}{os.path.splitext(os.path.basename(source['fileName']))[1]}"}
-                          for counter in range(number_of_copies)
-                          for source in sources]
+    http_to_s3_configs = [
+        {
+            "endpoint": source["endpoint"],
+            "s3_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-{counter}{os.path.splitext(os.path.basename(source['fileName']))[1]}",
+        }
+        for counter in range(number_of_copies)
+        for source in sources
+    ]
 
     @task
     def create_connection(conn_id):
@@ -168,11 +169,7 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
         s3_bucket=bucket,
     ).expand_kwargs(http_to_s3_configs)
 
-    chain(
-        create_connection(http_conn_id),
-        http_to_s3_task,
-        delete_connection(http_conn_id)
-    )
+    chain(create_connection(http_conn_id), http_to_s3_task, delete_connection(http_conn_id))
 
 
 with DAG(
