@@ -4184,6 +4184,10 @@ class TestSchedulerJob:
 
         with create_session() as session:
             self.job_runner._create_dag_runs([dag_model], session)
+            dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).first()
+            dr.next_schedulable = timezone.utcnow()
+            session.merge(dr)
+            session.flush()
             self.job_runner._start_queued_dagruns(session)
 
         dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).first()
@@ -5592,14 +5596,14 @@ class TestSchedulerJob:
         # TI still running, DagRun left in running
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.RUNNING
-        prior_last_scheduling_decision = scheduled_run.last_scheduling_decision
+        prior_next_schedulable = scheduled_run.next_schedulable
 
         # Make sure we don't constantly try dagruns over and over
         self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.RUNNING
-        # last_scheduling_decision is bumped by update_state, so check that to determine if we tried again
-        assert prior_last_scheduling_decision == scheduled_run.last_scheduling_decision
+        # next_schedulable is bumped by task_instances_scheduling_decision, so check that to determine if we tried again
+        assert prior_next_schedulable == scheduled_run.next_schedulable
 
         # Once the TI is in a terminal state though, DagRun goes to success
         ti.set_state(TaskInstanceState.SUCCESS)

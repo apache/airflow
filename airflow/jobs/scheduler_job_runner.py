@@ -783,6 +783,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
+            if ti.state in State.finished:
+                ti.dag_run.next_schedulable = timezone.utcnow()
+
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
@@ -963,7 +966,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
+                .having(DagRun.next_schedulable <= func.max(TI.updated_at))
                 .group_by(DagRun)
             )
             for dag_run in paused_runs:

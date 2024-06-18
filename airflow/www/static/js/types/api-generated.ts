@@ -1193,7 +1193,7 @@ export interface components {
        */
       data_interval_end?: string | null;
       /** Format: date-time */
-      last_scheduling_decision?: string | null;
+      next_schedulable?: string | null;
       /** @enum {string} */
       run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
       state?: components["schemas"]["DagState"];

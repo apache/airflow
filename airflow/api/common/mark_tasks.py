@@ -164,6 +164,7 @@ def set_state(
             tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         for task_instance in tis_altered:
             task_instance.set_state(state, session=session)
+            task_instance.dag_run.next_schedulable = timezone.utcnow()
         session.flush()
     else:
         tis_altered = session.scalars(qry_dag).all()
