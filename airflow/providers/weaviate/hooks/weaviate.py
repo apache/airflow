@@ -420,6 +420,9 @@ class WeaviateHook(BaseHook):
         if as_dataframe:
             import pandas
 
+            # '_WeaviateUUIDInt' object has no attribute 'is_safe' which causes error
+            for obj in all_objects:
+                obj.uuid = str(obj.uuid)
             return pandas.DataFrame(all_objects)
         return all_objects
 
