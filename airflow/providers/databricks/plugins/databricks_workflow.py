@@ -34,13 +34,11 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.security import permissions
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.www.auth import has_access
 from airflow.www.views import AirflowBaseView
 
 if TYPE_CHECKING:
@@ -388,11 +386,6 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
     default_view = "repair"
 
     @expose("/repair_databricks_job", methods=("GET",))
-    @has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        ]
-    )
     def repair(self):
         databricks_conn_id, databricks_run_id, dag_id, tasks_to_repair = itemgetter(
             "databricks_conn_id", "databricks_run_id", "dag_id", "tasks_to_repair"
