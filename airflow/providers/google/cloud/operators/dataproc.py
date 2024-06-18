@@ -2921,6 +2921,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
+    :param tags: Optional. Network tags for traffic control. 
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param result_retry: Result retry object used to retry requests. Is used to decrease delay between
@@ -2961,6 +2962,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         batch: dict | Batch,
         batch_id: str,
         request_id: str | None = None,
+        tags: list[str] | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -2980,6 +2982,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self.batch = batch
         self.batch_id = batch_id
         self.request_id = request_id
+        self.tags = tags
         self.retry = retry
         self.result_retry = result_retry
         self.timeout = timeout
@@ -3011,6 +3014,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 batch=self.batch,
                 batch_id=self.batch_id,
                 request_id=self.request_id,
+                tags=self.tags,
                 retry=self.retry,
                 timeout=self.timeout,
                 metadata=self.metadata,
@@ -3036,6 +3040,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                         project_id=self.project_id,
                         region=self.region,
                         gcp_conn_id=self.gcp_conn_id,
+                        tags=self.tags,
                         impersonation_chain=self.impersonation_chain,
                         polling_interval_seconds=self.polling_interval_seconds,
                     ),
@@ -3058,6 +3063,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                         project_id=self.project_id,
                         region=self.region,
                         gcp_conn_id=self.gcp_conn_id,
+                        tags=self.tags,
                         impersonation_chain=self.impersonation_chain,
                         polling_interval_seconds=self.polling_interval_seconds,
                     ),
@@ -3069,6 +3075,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 batch_id=self.batch_id,
                 region=self.region,
                 project_id=self.project_id,
+                tags=self.tags,
                 retry=self.retry,
                 timeout=self.timeout,
                 metadata=self.metadata,
@@ -3085,6 +3092,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
                 region=self.region,
                 batch_id=batch_id,
+                tags=tags,
             )
         return Batch.to_dict(result)
 
