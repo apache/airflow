@@ -80,8 +80,6 @@
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_pause_cluster
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster_exception
-- tests/providers/amazon/aws/operators/test_appflow.py::test_base_aws_op_attributes
-- tests/providers/amazon/aws/operators/test_appflow.py::test_run
 - tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_conn_value_broken_field_mode
 - tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_conn_value_broken_field_mode_extra_words_added
 - tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_connection_broken_field_mode_extra_allows_nested_json
@@ -102,7 +100,6 @@
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_complete_incorrect_event_validation_failure
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_complete_success
 - tests/providers/databricks/operators/test_databricks.py::TestDatabricksSubmitRunDeferrableOperator::test_execute_task_deferred
-- tests/providers/elasticsearch/log/test_es_task_handler.py::test_retrieve_retry_on_timeout
 - tests/providers/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs_duplication_warning
