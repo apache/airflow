@@ -2041,24 +2041,6 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    auth_rate_limited:
-      description: |
-        Boolean for enabling rate limiting on authentication endpoints.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
-    auth_rate_limit:
-      description: |
-        Rate limit for authentication endpoints.
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: "5 per 40 second"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
