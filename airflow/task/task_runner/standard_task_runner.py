@@ -183,10 +183,11 @@ class StandardTaskRunner(BaseTaskRunner):
             self._rc = -9
 
         if self._rc == -9:
-            # If either we or psutil gives out a -9 return code, it likely means
-            # an OOM happened
             self.log.error(
-                "Job %s was killed before it finished (likely due to running out of memory)",
+                (
+                    "Job %s was killed before it finished (likely due to running out of memory)",
+                    "For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#LocalTaskJob-killed",
+                ),
                 self._task_instance.job_id,
             )
 

@@ -774,9 +774,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
                 msg = (
-                    "Executor reports task instance %s finished (%s) although the "
-                    "task says it's %s. (Info: %s) Was the task killed externally?"
+                    f"The executor reported that the task instance {ti} finished with state {state}, but the task instance's state attribute is {ti.state}."
+                    "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally"
                 )
+                if info is not None:
+                    msg += f" Extra info: {info}"
                 self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
 
                 # Get task from the Serialized DAG
@@ -792,12 +794,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                        msg=msg % (ti, state, ti.state, info),
+                        msg=msg,
                         processor_subdir=ti.dag_model.processor_subdir,
                     )
                     self.job.executor.send_callback(request)
                 else:
-                    ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
+                    ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
 
