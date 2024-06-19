@@ -92,15 +92,13 @@ class TestAzureBlobStorageToGCSTransferOperator:
             filename=mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name,
         )
 
-    @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
-    def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb, mock_hook_gcs):
+    def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb):
         from openlineage.client.run import Dataset
 
         MOCK_AZURE_ACCOUNT_NAME = "mock_account_name"
         mock_hook_wasb.return_value.get_conn.return_value.account_name = MOCK_AZURE_ACCOUNT_NAME
 
-        mock_hook_gcs.return_value.upload.side_effect = None  # Prevent actual upload
         operator = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -114,7 +112,6 @@ class TestAzureBlobStorageToGCSTransferOperator:
             task_id=TASK_ID,
         )
 
-        operator.execute(context=None)
         lineage = operator.get_openlineage_facets_on_start()
 
         assert len(lineage.inputs) == 1
