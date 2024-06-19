@@ -1962,16 +1962,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    update_fab_perms:
-      description: |
-        Update FAB permissions and sync security manager roles
-        on webserver startup
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
