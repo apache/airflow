@@ -774,7 +774,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
                 msg = (
-                    f"The executor reported that the task instance {ti} finished with state {state}, but the task instance's state attribute is {ti.state}."
+                    f"The executor reported that the task instance {ti} finished with state {state}, but the task instance's state attribute is {ti.state}. "
                     "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally"
                 )
                 if info is not None:
