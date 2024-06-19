@@ -128,7 +128,7 @@ class HiveCliHook(BaseHook):
             "principal": StringField(
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
-            "high_availability": BooleanField(lazy_gettext("High Availability"), default=False),
+            "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
         }
 
     @classmethod
@@ -160,10 +160,10 @@ class HiveCliHook(BaseHook):
             self._validate_beeline_parameters(conn)
             if self.high_availability:
                 jdbc_url = f"jdbc:hive2://{conn.host}/{conn.schema}"
-                self.log.info("High Availability set, setting JDBC url as %s", jdbc_url)
+                self.log.info("High Availability selected, setting JDBC url as %s", jdbc_url)
             else:
                 jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
-                self.log.info("High Availability not set, setting JDBC url as %s", jdbc_url)
+                self.log.info("High Availability not selected, setting JDBC url as %s", jdbc_url)
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:

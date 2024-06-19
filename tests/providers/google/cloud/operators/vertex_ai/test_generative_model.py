@@ -22,6 +22,8 @@ import pytest
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
+vertexai = pytest.importorskip("vertexai.generative_models")
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     GenerateTextEmbeddingsOperator,
@@ -112,12 +114,21 @@ class TestVertexAIPromptMultimodalModelOperator:
     def test_execute(self, mock_hook):
         prompt = "In 10 words or less, what is Apache Airflow?"
         pretrained_model = "gemini-pro"
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+        generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
 
         op = PromptMultimodalModelOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
             pretrained_model=pretrained_model,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -131,6 +142,8 @@ class TestVertexAIPromptMultimodalModelOperator:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
             pretrained_model=pretrained_model,
         )
 
@@ -142,12 +155,21 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
         vision_prompt = "In 10 words or less, describe this content."
         media_gcs_path = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
         mime_type = "image/jpeg"
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+        generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
 
         op = PromptMultimodalModelWithMediaOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=vision_prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
             pretrained_model=pretrained_model,
             media_gcs_path=media_gcs_path,
             mime_type=mime_type,
@@ -163,6 +185,8 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=vision_prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
             pretrained_model=pretrained_model,
             media_gcs_path=media_gcs_path,
             mime_type=mime_type,

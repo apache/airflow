@@ -129,6 +129,28 @@ GROUP BY sales_region;
 """
 TEST_SQL_JOB_ID = "test-job-id"
 
+TEST_PIPELINE_PARENT = f"projects/{TEST_PROJECT}/locations/{TEST_LOCATION}"
+TEST_PIPELINE_NAME = "test-data-pipeline-name"
+TEST_PIPELINE_BODY = {
+    "name": f"{TEST_PIPELINE_PARENT}/pipelines/{TEST_PIPELINE_NAME}",
+    "type": "PIPELINE_TYPE_BATCH",
+    "workload": {
+        "dataflowFlexTemplateRequest": {
+            "launchParameter": {
+                "containerSpecGcsPath": "gs://dataflow-templates-us-central1/latest/Word_Count_metadata",
+                "jobName": "test-job",
+                "environment": {"tempLocation": "test-temp-location"},
+                "parameters": {
+                    "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
+                    "output": "gs://test/output/my_output",
+                },
+            },
+            "projectId": f"{TEST_PROJECT}",
+            "location": f"{TEST_LOCATION}",
+        }
+    },
+}
+
 DEFAULT_CANCEL_TIMEOUT = 5 * 60
 
 
@@ -1854,6 +1876,126 @@ class TestDataflowJob:
         assert result == ["event_1", "event_2"]
 
 
+@pytest.mark.db_test
+class TestDataflowPipelineHook:
+    def setup_method(self):
+        self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
+    def test_get_conn(self, mock_build, mock_authorize):
+        """
+        Test that get_conn is called with the correct params and
+        returns the correct API address
+        """
+        connection = self.dataflow_hook.get_pipelines_conn()
+        mock_build.assert_called_once_with(
+            "datapipelines", "v1", http=mock_authorize.return_value, cache_discovery=False
+        )
+        assert mock_build.return_value == connection
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.build_parent_name")
+    def test_build_parent_name(self, mock_build_parent_name):
+        """
+        Test that build_parent_name is called with the correct params and
+        returns the correct parent string
+        """
+        result = self.dataflow_hook.build_parent_name(
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+        mock_build_parent_name.assert_called_with(
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+        assert mock_build_parent_name.return_value == result
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
+    def test_create_data_pipeline(self, mock_connection):
+        """
+        Test that request are called with the correct params
+        Test that request returns the correct value
+        """
+        mock_locations = mock_connection.return_value.projects.return_value.locations
+        mock_request = mock_locations.return_value.pipelines.return_value.create
+        mock_request.return_value.execute.return_value = TEST_PIPELINE_BODY
+
+        result = self.dataflow_hook.create_data_pipeline(
+            body=TEST_PIPELINE_BODY,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        mock_request.assert_called_once_with(
+            parent=TEST_PIPELINE_PARENT,
+            body=TEST_PIPELINE_BODY,
+        )
+        assert result == TEST_PIPELINE_BODY
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
+    def test_run_data_pipeline(self, mock_connection):
+        """
+        Test that run_data_pipeline is called with correct parameters and
+        calls Google Data Pipelines API
+        """
+        mock_request = mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
+        mock_request.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+
+        result = self.dataflow_hook.run_data_pipeline(
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        mock_request.assert_called_once_with(
+            name=f"{TEST_PIPELINE_PARENT}/pipelines/{TEST_PIPELINE_NAME}",
+            body={},
+        )
+        assert result == {"job": {"id": TEST_JOB_ID}}
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
+    def test_get_data_pipeline(self, mock_connection):
+        """
+        Test that get_data_pipeline is called with correct parameters and
+        calls Google Data Pipelines API
+        """
+        mock_locations = mock_connection.return_value.projects.return_value.locations
+        mock_request = mock_locations.return_value.pipelines.return_value.get
+        mock_request.return_value.execute.return_value = TEST_PIPELINE_BODY
+
+        result = self.dataflow_hook.get_data_pipeline(
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        mock_request.assert_called_once_with(
+            name=f"{TEST_PIPELINE_PARENT}/pipelines/{TEST_PIPELINE_NAME}",
+        )
+        assert result == TEST_PIPELINE_BODY
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
+    def test_delete_data_pipeline(self, mock_connection):
+        """
+        Test that delete_data_pipeline is called with correct parameters and
+        calls Google Data Pipelines API
+        """
+        mock_locations = mock_connection.return_value.projects.return_value.locations
+        mock_request = mock_locations.return_value.pipelines.return_value.delete
+        mock_request.return_value.execute.return_value = None
+
+        result = self.dataflow_hook.delete_data_pipeline(
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+        mock_request.assert_called_once_with(
+            name=f"{TEST_PIPELINE_PARENT}/pipelines/{TEST_PIPELINE_NAME}",
+        )
+        assert result is None
+
+
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\
 Dataflow SDK version: 2.14.0
 Jun 15, 2020 2:57:28 PM org.apache.beam.runners.dataflow.DataflowRunner run
@@ -1875,6 +2017,19 @@ INFO: Submitted job: {TEST_JOB_ID}
 Jun 15, 2020 3:09:03 PM org.apache.beam.runners.dataflow.DataflowRunner run
 INFO: To cancel the job using the 'gcloud' tool, run:
 > gcloud dataflow jobs --project=XXX cancel --region=europe-west3 {TEST_JOB_ID}
+"""
+
+CLOUD_COMPOSER_CLOUD_LOGGING_APACHE_BEAM_V_2_56_0_JAVA_SDK_LOG = f"""\
+WARNING - {{"message":"org.apache.beam.runners.dataflow.DataflowRunner - Dataflow SDK version: 2.56.0",\
+"severity":"INFO"}}
+WARNING - {{"message":"org.apache.beam.runners.dataflow.DataflowRunner - To access the Dataflow monitoring\\
+console, please navigate to https://console.cloud.google.com/dataflow/jobs/europe-west3/{TEST_JOB_ID}?project
+\u003dXXXX","severity":"INFO"}}
+WARNING - {{"message":"org.apache.beam.runners.dataflow.DataflowRunner - Submitted job: {TEST_JOB_ID}",\
+"severity":"INFO"}}
+WARNING - {{"message":"org.apache.beam.runners.dataflow.DataflowRunner - To cancel the job using the \
+\u0027gcloud\u0027 tool, run:\n\u003e gcloud dataflow jobs --project\u003dXXX cancel --region\u003deurope-\
+west3 {TEST_JOB_ID}","severity":"INFO"}}
 """
 
 APACHE_BEAM_V_2_14_0_PYTHON_SDK_LOG = f""""\
@@ -1926,6 +2081,10 @@ class TestDataflow:
         [
             pytest.param(APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG, id="apache-beam-2.14.0-JDK"),
             pytest.param(APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG, id="apache-beam-2.22.0-JDK"),
+            pytest.param(
+                CLOUD_COMPOSER_CLOUD_LOGGING_APACHE_BEAM_V_2_56_0_JAVA_SDK_LOG,
+                id="cloud-composer-cloud-logging-apache-beam-2.56.0-JDK",
+            ),
             pytest.param(APACHE_BEAM_V_2_14_0_PYTHON_SDK_LOG, id="apache-beam-2.14.0-Python"),
             pytest.param(APACHE_BEAM_V_2_22_0_PYTHON_SDK_LOG, id="apache-beam-2.22.0-Python"),
         ],

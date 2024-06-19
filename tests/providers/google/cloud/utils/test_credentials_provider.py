@@ -54,6 +54,26 @@ ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
 ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
 ANOTHER_PROJECT_ID = "another_project_id"
 CRED_PROVIDER_LOGGER_NAME = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+IDP_LINK = "http://example.com/idp"
+CLIENT_ID = "your-client-id"
+CLIENT_SECRET = "your-client-secret"
+TEST_AUDIENCE = "test-audience"
+TOKEN_TYPE = "urn:ietf:params:oauth:token-type:jwt"
+ACCOUNT_IMPERSONATION = "http://example.com/impersonate"
+CREDENTIAL_CONFIG_STRING_FILE = (
+    '{"audience": "'
+    + TEST_AUDIENCE
+    + '", "subject_token_type": "'
+    + TOKEN_TYPE
+    + '", "service_account_impersonation_url": "'
+    + ACCOUNT_IMPERSONATION
+    + '"}'
+)
+CREDENTIAL_CONFIG_DICT_FILE = {
+    "audience": TEST_AUDIENCE,
+    "subject_token_type": TOKEN_TYPE,
+    "service_account_impersonation_url": ACCOUNT_IMPERSONATION,
+}
 
 
 @pytest.fixture
@@ -375,13 +395,13 @@ class TestGetGcpCredentialsAndProjectId:
             get_credentials_and_project_id(key_secret_name="secret name")
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
-        with pytest.raises(
-            AirflowException,
-            match=re.escape(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive."
-            ),
-        ):
+        with pytest.raises(AirflowException, match="mutually exclusive."):
             get_credentials_and_project_id(key_path="KEY.json", keyfile_dict={"private_key": "PRIVATE_KEY"})
+
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.AnonymousCredentials")
+    def test_get_credentials_using_anonymous_credentials(self, mock_anonymous_credentials):
+        result = get_credentials_and_project_id(is_anonymous=True)
+        assert result == (mock_anonymous_credentials.return_value, "")
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch(
@@ -409,6 +429,93 @@ class TestGetGcpCredentialsAndProjectId:
             get_credentials_and_project_id(
                 key_path="KEY.json",
                 disable_logging=True,
+            )
+
+    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_identity_provider(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(
+                credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+            mock_load_credentials_from_file.assert_called_once_with(
+                info={
+                    "audience": TEST_AUDIENCE,
+                    "subject_token_type": TOKEN_TYPE,
+                    "service_account_impersonation_url": ACCOUNT_IMPERSONATION,
+                    "subject_token_supplier": ANY,
+                },
+                scopes=ANY,
+            )
+            assert result == ("CREDENTIALS", "PROJECT_ID")
+            assert (
+                "Getting connection using credential configuration file and external Identity Provider."
+                in caplog.messages
+            )
+
+    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_idp_dict_config_file(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(
+                credential_config_file=CREDENTIAL_CONFIG_DICT_FILE,
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+            mock_load_credentials_from_file.assert_called_once_with(
+                info={
+                    "audience": TEST_AUDIENCE,
+                    "subject_token_type": TOKEN_TYPE,
+                    "service_account_impersonation_url": ACCOUNT_IMPERSONATION,
+                    "subject_token_supplier": ANY,
+                },
+                scopes=ANY,
+            )
+            assert result == ("CREDENTIALS", "PROJECT_ID")
+            assert (
+                "Getting connection using credential configuration file and external Identity Provider."
+                in caplog.messages
+            )
+
+    def test_get_credentials_using_idp_no_credential_config(self):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(
+                "Credential Configuration File is needed to use authentication by External Identity Provider."
+            ),
+        ):
+            get_credentials_and_project_id(
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+
+    def test_get_credentials_using_idp_invalid_json_credential_config(self):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("Credential Configuration File is not a valid json string."),
+        ):
+            get_credentials_and_project_id(
+                credential_config_file="invalid json}}}}",
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+            )
+
+    def test_get_credentials_using_idp_invalid_format_credential_config(self):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(f"Invalid argument type, expected str or dict, got {bool}."),
+        ):
+            get_credentials_and_project_id(
+                credential_config_file=True,
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
             )
 
 

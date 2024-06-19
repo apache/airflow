@@ -144,7 +144,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraInitContainers }}
-          {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: dag-processor

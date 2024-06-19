@@ -40,7 +40,6 @@ class KafkaBaseHook(BaseHook):
         """Initialize our Base."""
         super().__init__()
         self.kafka_config_id = kafka_config_id
-        self.get_conn
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -53,8 +52,8 @@ class KafkaBaseHook(BaseHook):
             },
         }
 
-    def _get_client(self, config):
-        raise NotImplementedError
+    def _get_client(self, config) -> Any:
+        return AdminClient(config)
 
     @cached_property
     def get_conn(self) -> Any:
@@ -74,6 +73,6 @@ class KafkaBaseHook(BaseHook):
             if t:
                 return True, "Connection successful."
         except Exception as e:
-            False, str(e)
+            return False, str(e)
 
         return False, "Failed to establish connection."

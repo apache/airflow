@@ -31,6 +31,8 @@ class MockExecutor(BaseExecutor):
     TestExecutor is used for unit testing purposes.
     """
 
+    supports_pickling = False
+
     def __init__(self, do_update=True, *args, **kwargs):
         self.do_update = do_update
         self._running = []

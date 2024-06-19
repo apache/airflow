@@ -28,13 +28,16 @@ from typing import Collection, Generator, Sequence
 from urllib.parse import urlencode
 
 import google.auth
-import google.auth.credentials
 import google.oauth2.service_account
 from google.auth import impersonated_credentials  # type: ignore[attr-defined]
+from google.auth.credentials import AnonymousCredentials, Credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
+from airflow.providers.google.cloud.utils.external_token_supplier import (
+    ClientCredentialsGrantFlowTokenSupplier,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
 
@@ -178,6 +181,7 @@ class _CredentialProvider(LoggingMixin):
     :param key_secret_name: Keyfile Secret Name in GCP Secret Manager.
     :param key_secret_project_id: Project ID to read the secrets from. If not passed, the project ID from
         default credentials will be used.
+    :param credential_config_file: File path to or content of a GCP credential configuration file.
     :param scopes:  OAuth scopes for the connection
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
@@ -192,6 +196,8 @@ class _CredentialProvider(LoggingMixin):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account and target_principal
         granting the role to the last account from the list.
+    :param is_anonymous: Provides an anonymous set of credentials,
+        which is useful for APIs which do not require authentication.
     """
 
     def __init__(
@@ -206,13 +212,18 @@ class _CredentialProvider(LoggingMixin):
         disable_logging: bool = False,
         target_principal: str | None = None,
         delegates: Sequence[str] | None = None,
+        is_anonymous: bool | None = None,
+        idp_issuer_url: str | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        idp_extra_params_dict: dict[str, str] | None = None,
     ) -> None:
         super().__init__()
-        key_options = [key_path, key_secret_name, keyfile_dict]
+        key_options = [key_path, keyfile_dict, credential_config_file, key_secret_name, is_anonymous]
         if len([x for x in key_options if x]) > 1:
             raise AirflowException(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields "
-                "are all mutually exclusive. Please provide only one value."
+                "The `keyfile_dict`, `key_path`, `credential_config_file`, `is_anonymous` and"
+                " `key_secret_name` fields are all mutually exclusive. Please provide only one value."
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
@@ -224,50 +235,66 @@ class _CredentialProvider(LoggingMixin):
         self.disable_logging = disable_logging
         self.target_principal = target_principal
         self.delegates = delegates
+        self.is_anonymous = is_anonymous
+        self.idp_issuer_url = idp_issuer_url
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.idp_extra_params_dict = idp_extra_params_dict
 
-    def get_credentials_and_project(self) -> tuple[google.auth.credentials.Credentials, str]:
+    def get_credentials_and_project(self) -> tuple[Credentials, str]:
         """
         Get current credentials and project ID.
 
+        Project ID is an empty string when using anonymous credentials.
+
         :return: Google Auth Credentials
         """
-        if self.key_path:
-            credentials, project_id = self._get_credentials_using_key_path()
-        elif self.key_secret_name:
-            credentials, project_id = self._get_credentials_using_key_secret_name()
-        elif self.keyfile_dict:
-            credentials, project_id = self._get_credentials_using_keyfile_dict()
-        elif self.credential_config_file:
-            credentials, project_id = self._get_credentials_using_credential_config_file()
+        if self.is_anonymous:
+            credentials: Credentials = AnonymousCredentials()
+            project_id = ""
         else:
-            credentials, project_id = self._get_credentials_using_adc()
-
-        if self.delegate_to:
-            if hasattr(credentials, "with_subject"):
-                credentials = credentials.with_subject(self.delegate_to)
+            if self.key_path:
+                credentials, project_id = self._get_credentials_using_key_path()
+            elif self.key_secret_name:
+                credentials, project_id = self._get_credentials_using_key_secret_name()
+            elif self.keyfile_dict:
+                credentials, project_id = self._get_credentials_using_keyfile_dict()
+            elif self.idp_issuer_url:
+                credentials, project_id = (
+                    self._get_credentials_using_credential_config_file_and_token_supplier()
+                )
+            elif self.credential_config_file:
+                credentials, project_id = self._get_credentials_using_credential_config_file()
             else:
-                raise AirflowException(
-                    "The `delegate_to` parameter cannot be used here as the current "
-                    "authentication method does not support account impersonate. "
-                    "Please use service-account for authorization."
+                credentials, project_id = self._get_credentials_using_adc()
+            if self.delegate_to:
+                if hasattr(credentials, "with_subject"):
+                    credentials = credentials.with_subject(self.delegate_to)
+                else:
+                    raise AirflowException(
+                        "The `delegate_to` parameter cannot be used here as the current "
+                        "authentication method does not support account impersonate. "
+                        "Please use service-account for authorization."
+                    )
+
+            if self.target_principal:
+                credentials = impersonated_credentials.Credentials(
+                    source_credentials=credentials,
+                    target_principal=self.target_principal,
+                    delegates=self.delegates,
+                    target_scopes=self.scopes,
                 )
 
-        if self.target_principal:
-            credentials = impersonated_credentials.Credentials(
-                source_credentials=credentials,
-                target_principal=self.target_principal,
-                delegates=self.delegates,
-                target_scopes=self.scopes,
-            )
-
-            project_id = _get_project_id_from_service_account_email(self.target_principal)
+                project_id = _get_project_id_from_service_account_email(self.target_principal)
 
         return credentials, project_id
 
-    def _get_credentials_using_keyfile_dict(self):
+    def _get_credentials_using_keyfile_dict(self) -> tuple[Credentials, str]:
         self._log_debug("Getting connection using JSON Dict")
         # Depending on how the JSON was formatted, it may contain
         # escaped newlines. Convert those to actual newlines.
+        if self.keyfile_dict is None:
+            raise ValueError("The keyfile_dict field is None, and we need it for keyfile_dict auth.")
         self.keyfile_dict["private_key"] = self.keyfile_dict["private_key"].replace("\\n", "\n")
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             self.keyfile_dict, scopes=self.scopes
@@ -275,7 +302,9 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
-    def _get_credentials_using_key_path(self):
+    def _get_credentials_using_key_path(self) -> tuple[Credentials, str]:
+        if self.key_path is None:
+            raise ValueError("The ky_path field is None, and we need it for keyfile_dict auth.")
         if self.key_path.endswith(".p12"):
             raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
 
@@ -289,13 +318,15 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
-    def _get_credentials_using_key_secret_name(self):
+    def _get_credentials_using_key_secret_name(self) -> tuple[Credentials, str]:
         self._log_debug("Getting connection using JSON key data from GCP secret: %s", self.key_secret_name)
 
         # Use ADC to access GCP Secret Manager.
         adc_credentials, adc_project_id = google.auth.default(scopes=self.scopes)
         secret_manager_client = _SecretManagerClient(credentials=adc_credentials)
 
+        if self.key_secret_name is None:
+            raise ValueError("The key_secret_name field is None, and we need it for keyfile_dict auth.")
         if not secret_manager_client.is_valid_secret_name(self.key_secret_name):
             raise AirflowException("Invalid secret name specified for fetching JSON key data.")
 
@@ -317,7 +348,7 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
-    def _get_credentials_using_credential_config_file(self):
+    def _get_credentials_using_credential_config_file(self) -> tuple[Credentials, str]:
         if isinstance(self.credential_config_file, str) and os.path.exists(self.credential_config_file):
             self._log_info(
                 f"Getting connection using credential configuration file: `{self.credential_config_file}`"
@@ -341,7 +372,25 @@ class _CredentialProvider(LoggingMixin):
 
         return credentials, project_id
 
-    def _get_credentials_using_adc(self):
+    def _get_credentials_using_credential_config_file_and_token_supplier(self):
+        self._log_info(
+            "Getting connection using credential configuration file and external Identity Provider."
+        )
+
+        if not self.credential_config_file:
+            raise AirflowException(
+                "Credential Configuration File is needed to use authentication by External Identity Provider."
+            )
+
+        info = _get_info_from_credential_configuration_file(self.credential_config_file)
+        info["subject_token_supplier"] = ClientCredentialsGrantFlowTokenSupplier(
+            oidc_issuer_url=self.idp_issuer_url, client_id=self.client_id, client_secret=self.client_secret
+        )
+
+        credentials, project_id = google.auth.load_credentials_from_dict(info=info, scopes=self.scopes)
+        return credentials, project_id
+
+    def _get_credentials_using_adc(self) -> tuple[Credentials, str]:
         self._log_info(
             "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         )
@@ -357,7 +406,7 @@ class _CredentialProvider(LoggingMixin):
             self.log.debug(*args, **kwargs)
 
 
-def get_credentials_and_project_id(*args, **kwargs) -> tuple[google.auth.credentials.Credentials, str]:
+def get_credentials_and_project_id(*args, **kwargs) -> tuple[Credentials, str]:
     """Return the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 
@@ -410,3 +459,38 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
         raise AirflowException(
             f"Could not extract project_id from service account's email: {service_account_email}."
         )
+
+
+def _get_info_from_credential_configuration_file(
+    credential_configuration_file: str | dict[str, str],
+) -> dict[str, str]:
+    """
+    Extract the Credential Configuration File information, either from a json file, json string or dictionary.
+
+    :param credential_configuration_file: File path or content (as json string or dictionary) of a GCP credential configuration file.
+
+    :return: Returns a dictionary containing the Credential Configuration File information.
+    """
+    # if it's already a dict, just return it
+    if isinstance(credential_configuration_file, dict):
+        return credential_configuration_file
+
+    if not isinstance(credential_configuration_file, str):
+        raise AirflowException(
+            f"Invalid argument type, expected str or dict, got {type(credential_configuration_file)}."
+        )
+
+    if os.path.exists(credential_configuration_file):  # attempts to load from json file
+        with open(credential_configuration_file) as file_obj:
+            try:
+                return json.load(file_obj)
+            except ValueError:
+                raise AirflowException(
+                    f"Credential Configuration File '{credential_configuration_file}' is not a valid json file."
+                )
+
+    # if not a file, attempt to load it from a json string
+    try:
+        return json.loads(credential_configuration_file)
+    except ValueError:
+        raise AirflowException("Credential Configuration File is not a valid json string.")

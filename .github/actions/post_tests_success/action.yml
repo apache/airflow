@@ -18,6 +18,15 @@
 ---
 name: 'Post tests on success'
 description: 'Run post tests actions on success'
+inputs:
+  codecov-token:
+    description: 'Codecov token'
+    required: true
+    default: ''
+  python-version:
+    description: 'Python version'
+    required: true
+    default: ''
 runs:
   using: "composite"
   steps:
@@ -32,12 +41,14 @@ runs:
       if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       shell: bash
       run: |
-        mkdir ./files/coverage-reposts
-        mv ./files/coverage*.xml ./files/coverage-reposts/ || true
+        mkdir ./files/coverage-reports
+        mv ./files/coverage*.xml ./files/coverage-reports/ || true
     - name: "Upload all coverage reports to codecov"
-      uses: codecov/codecov-action@v3
-      if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ inputs.codecov-token }}
+      if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm' && inputs.python-version != '3.12'
       with:
         name: coverage-${{env.JOB_ID}}
         flags: python-${{env.PYTHON_MAJOR_MINOR_VERSION}},${{env.BACKEND}}-${{env.BACKEND_VERSION}}
-        directory: "./files/coverage-reposts/"
+        directory: "./files/coverage-reports/"

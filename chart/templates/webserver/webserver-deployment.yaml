@@ -163,7 +163,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraInitContainers }}
-          {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.webserver.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: webserver
@@ -276,7 +276,7 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if  .Values.dags.gitSync.sshKeySecret }}
+        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}

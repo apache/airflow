@@ -85,12 +85,14 @@ class TestBashOperator:
             dagrun_timeout=timedelta(minutes=60),
         )
 
+        execution_date = utc_now
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=utc_now,
+            execution_date=execution_date,
             start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
+            data_interval=(execution_date, execution_date),
         )
 
         tmp_file = tmp_path / "testfile"

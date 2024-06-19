@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+2.6.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Bump minimum version of atlassian-python-api>3.41.10 (#39714)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+   * ``Fix Jira CHANGELOG.rst (#39347)``
+
 2.6.0
 .....
 

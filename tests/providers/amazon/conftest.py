@@ -19,11 +19,7 @@ from __future__ import annotations
 
 import os
 import warnings
-
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+from importlib import metadata
 
 import pytest
 
@@ -31,8 +27,8 @@ import pytest
 @pytest.fixture(scope="session")
 def botocore_version():
     try:
-        version = importlib_metadata.version("botocore")
-    except importlib_metadata.PackageNotFoundError:
+        version = metadata.version("botocore")
+    except ModuleNotFoundError:
         warnings.warn("'botocore' package not found'", UserWarning, stacklevel=2)
         return None
 

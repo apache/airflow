@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import datetime
 
+import pytest
+
 from airflow.providers.amazon.aws.utils import (
     _StringCompareEnum,
     datetime_to_epoch,
     datetime_to_epoch_ms,
     datetime_to_epoch_us,
     get_airflow_version,
+    get_botocore_version,
 )
 
 DT = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
@@ -53,3 +56,13 @@ def test_get_airflow_version():
 def test_str_enum():
     assert EnumTest.FOO == "FOO"
     assert EnumTest.FOO.value == "FOO"
+
+
+def test_botocore_version():
+    pytest.importorskip("botocore", reason="`botocore` not installed")
+
+    botocore_version = get_botocore_version()
+    assert len(botocore_version) == 3
+    assert isinstance(botocore_version[0], int), "botocore major version expected to be an integer"
+    assert isinstance(botocore_version[1], int), "botocore minor version expected to be an integer"
+    assert isinstance(botocore_version[2], int), "botocore patch version expected to be an integer"

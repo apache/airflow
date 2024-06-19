@@ -53,6 +53,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const endDate = gridInstance?.endDate || taskInstance?.endDate;
   const taskId = gridInstance?.taskId || taskInstance?.taskId;
   const mapIndex = gridInstance?.mapIndex || taskInstance?.mapIndex;
+  const executor = taskInstance?.executor || "<default>";
 
   const operator = group?.operator || taskInstance?.operator;
 
@@ -241,6 +242,12 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
             <Tr>
               <Td>Pool Slots</Td>
               <Td>{taskInstance.poolSlots}</Td>
+            </Tr>
+          )}
+          {executor && (
+            <Tr>
+              <Td>Executor</Td>
+              <Td>{executor}</Td>
             </Tr>
           )}
           {!!taskInstance?.executorConfig && (
