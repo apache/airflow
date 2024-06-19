@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-18T14:29:03.766529
+# This constraints file was automatically generated on 2024-06-19T09:49:50.305359
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -94,13 +94,13 @@ azure-common==1.1.28
 azure-core==1.30.2
 azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
-azure-identity==1.16.1
+azure-identity==1.17.0
 azure-keyvault-secrets==4.8.0
-azure-kusto-data==4.5.0
+azure-kusto-data==4.5.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
-azure-mgmt-cosmosdb==9.5.0
+azure-mgmt-cosmosdb==9.5.1
 azure-mgmt-datafactory==8.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -232,7 +232,7 @@ google-cloud-memcache==1.9.3
 google-cloud-monitoring==2.21.0
 google-cloud-orchestration-airflow==1.12.1
 google-cloud-os-login==2.14.3
-google-cloud-pubsub==2.21.3
+google-cloud-pubsub==2.21.4
 google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
@@ -274,7 +274,7 @@ httpcore==1.0.5
 httplib2==0.22.0
 httpx==0.27.0
 humanize==4.9.0
-hvac==2.2.0
+hvac==2.3.0
 hyperframe==6.0.1
 hyperlink==21.0.0
 icdiff==2.0.7
@@ -425,7 +425,7 @@ prometheus_client==0.20.0
 prompt_toolkit==3.0.47
 proto-plus==1.23.0
 protobuf==4.25.3
-psutil==5.9.8
+psutil==6.0.0
 psycopg2-binary==2.9.9
 ptyprocess==0.7.0
 pure-eval==0.2.2
