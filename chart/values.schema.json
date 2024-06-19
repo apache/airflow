@@ -1602,10 +1602,12 @@
                             "default": true
                         },
                         "persistentVolumeClaimRetentionPolicy": {
+                            "description": "How PVCs are deleted during the lifecycle of a StatefulSet",
                             "type": [
                                 "object",
                                 "null"
                             ],
+                            "default": null,
                             "additionalProperties": false,
                             "properties": {
                                 "whenDeleted": {
