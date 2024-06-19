@@ -182,36 +182,6 @@ class WeaviateHook(BaseHook):
         client = self.conn
         return client.collections.get(name)
 
-    @staticmethod
-    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
-        """Convert dataframe to list of dicts.
-
-        In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
-        Pandas will fail, which is invalid. This function handles this scenario.
-        """
-        with contextlib.suppress(ImportError):
-            import pandas
-
-            if isinstance(data, pandas.DataFrame):
-                data = json.loads(data.to_json(orient="records"))
-        return cast(List[Dict[str, Any]], data)
-
-    @retry(
-        reraise=True,
-        stop=stop_after_attempt(3),
-        retry=(
-            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-        ),
-    )
-    def get_collection_configuraiton(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
-        """Get the collection configuration from Weaviate.
-
-        :param collection_name: The collection for which to return the collection configuration.
-        """
-        client = self.get_conn()
-        return client.collections.get(collection_name).config.get()
-
     def delete_collections(
         self, collection_names: list[str] | str, if_error: str = "stop"
     ) -> list[str] | None:
@@ -252,10 +222,40 @@ class WeaviateHook(BaseHook):
             return failed_collection_list
         return None
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        retry=(
+            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+        ),
+    )
+    def get_collection_configuraiton(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
+        """Get the collection configuration from Weaviate.
+
+        :param collection_name: The collection for which to return the collection configuration.
+        """
+        client = self.get_conn()
+        return client.collections.get(collection_name).config.get()
+
     def update_collection_configuration(self, collection_name: str, **kwargs) -> None:
         """Update the collection configuration."""
         collection = self.get_collection(collection_name)
         collection.config.update(**kwargs)
+
+    @staticmethod
+    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
+        """Convert dataframe to list of dicts.
+
+        In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
+        Pandas will fail, which is invalid. This function handles this scenario.
+        """
+        with contextlib.suppress(ImportError):
+            import pandas
+
+            if isinstance(data, pandas.DataFrame):
+                data = json.loads(data.to_json(orient="records"))
+        return cast(List[Dict[str, Any]], data)
 
     def batch_data(
         self,
