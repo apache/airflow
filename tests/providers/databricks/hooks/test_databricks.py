@@ -39,10 +39,8 @@ from airflow.providers.databricks.hooks.databricks import (
     RunState,
 )
 from airflow.providers.databricks.hooks.databricks_base import (
-    AZURE_DEFAULT_AD_ENDPOINT,
     AZURE_MANAGEMENT_ENDPOINT,
     AZURE_METADATA_SERVICE_INSTANCE_URL,
-    AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     OIDC_TOKEN_SERVICE_URL,
     TOKEN_REFRESH_LEAD_TIME,
@@ -71,6 +69,8 @@ HOST_WITH_SCHEME = "https://xx.cloud.databricks.com"
 LOGIN = "login"
 PASSWORD = "password"
 TOKEN = "token"
+AZURE_DEFAULT_AD_ENDPOINT = "https://login.microsoftonline.com"
+AZURE_TOKEN_SERVICE_URL = "{}/{}/oauth2/token"
 RUN_PAGE_URL = "https://XX.cloud.databricks.com/#jobs/1/runs/1"
 LIFE_CYCLE_STATE = "PENDING"
 STATE_MESSAGE = "Waiting for cluster"

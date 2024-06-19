@@ -34,6 +34,11 @@ from urllib.parse import urlsplit
 
 import aiohttp
 import requests
+from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AsyncClientSecretCredential,
+    ManagedIdentityCredential as AsyncManagedIdentityCredential,
+)
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -54,10 +59,6 @@ from airflow.providers_manager import ProvidersManager
 if TYPE_CHECKING:
     from airflow.models import Connection
 
-# https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
-# https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
-AZURE_DEFAULT_AD_ENDPOINT = "https://login.microsoftonline.com"
-AZURE_TOKEN_SERVICE_URL = "{}/{}/oauth2/token"
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
 AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
@@ -304,40 +305,19 @@ class BaseDatabricksHook(BaseHook):
             for attempt in self._get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        params = {
-                            "api-version": "2018-02-01",
-                            "resource": resource,
-                        }
-                        resp = requests.get(
-                            AZURE_METADATA_SERVICE_TOKEN_URL,
-                            params=params,
-                            headers={**self.user_agent_header, "Metadata": "true"},
-                            timeout=self.token_timeout_seconds,
-                        )
+                        token = ManagedIdentityCredential().get_token(f"{resource}/.default")
                     else:
-                        tenant_id = self.databricks_conn.extra_dejson["azure_tenant_id"]
-                        data = {
-                            "grant_type": "client_credentials",
-                            "client_id": self.databricks_conn.login,
-                            "resource": resource,
-                            "client_secret": self.databricks_conn.password,
-                        }
-                        azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
-                            "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
+                        credential = ClientSecretCredential(
+                            client_id=self.databricks_conn.login,
+                            client_secret=self.databricks_conn.password,
+                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         )
-                        resp = requests.post(
-                            AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
-                            data=data,
-                            headers={
-                                **self.user_agent_header,
-                                "Content-Type": "application/x-www-form-urlencoded",
-                            },
-                            timeout=self.token_timeout_seconds,
-                        )
-
-                    resp.raise_for_status()
-                    jsn = resp.json()
-
+                        token = credential.get_token(f"{resource}/.default")
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
@@ -365,41 +345,19 @@ class BaseDatabricksHook(BaseHook):
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        params = {
-                            "api-version": "2018-02-01",
-                            "resource": resource,
-                        }
-                        async with self._session.get(
-                            url=AZURE_METADATA_SERVICE_TOKEN_URL,
-                            params=params,
-                            headers={**self.user_agent_header, "Metadata": "true"},
-                            timeout=self.token_timeout_seconds,
-                        ) as resp:
-                            resp.raise_for_status()
-                            jsn = await resp.json()
+                        token = await AsyncManagedIdentityCredential().get_token(f"{resource}/.default")
                     else:
-                        tenant_id = self.databricks_conn.extra_dejson["azure_tenant_id"]
-                        data = {
-                            "grant_type": "client_credentials",
-                            "client_id": self.databricks_conn.login,
-                            "resource": resource,
-                            "client_secret": self.databricks_conn.password,
-                        }
-                        azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
-                            "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
+                        credential = AsyncClientSecretCredential(
+                            client_id=self.databricks_conn.login,
+                            client_secret=self.databricks_conn.password,
+                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         )
-                        async with self._session.post(
-                            url=AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
-                            data=data,
-                            headers={
-                                **self.user_agent_header,
-                                "Content-Type": "application/x-www-form-urlencoded",
-                            },
-                            timeout=self.token_timeout_seconds,
-                        ) as resp:
-                            resp.raise_for_status()
-                            jsn = await resp.json()
-
+                        token = await credential.get_token(f"{resource}/.default")
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
