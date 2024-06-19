@@ -161,19 +161,9 @@ class AirflowAppBuilder:
         self.static_folder = static_folder
         self.static_url_path = static_url_path
         self.app = app
-        self.update_perms = conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        )
-        self.auth_rate_limited = conf.getboolean(
-            "fab",
-            "AUTH_RATE_LIMITED",
-            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        )
-        self.auth_rate_limit = conf.get(
-            "fab",
-            "AUTH_RATE_LIMIT",
-            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
-        )
+        self.update_perms = conf.getboolean("fab", "UPDATE_FAB_PERMS")
+        self.auth_rate_limited = conf.getboolean("fab", "AUTH_RATE_LIMITED")
+        self.auth_rate_limit = conf.get("fab", "AUTH_RATE_LIMIT")
         if app is not None:
             self.init_app(app, session)
 
