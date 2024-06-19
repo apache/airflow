@@ -22,12 +22,12 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Sequence
 
+from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.metastore_v1 import MetadataExport, MetadataManagementActivity
 from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
 from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
-from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -242,9 +242,7 @@ class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
             )
             backup = hook.wait_for_operation(self.timeout, operation)
             self.log.info("Backup %s created successfully", self.backup_id)
-        except HttpError as err:
-            if err.resp.status not in (409, "409"):
-                raise
+        except AlreadyExists:
             self.log.info("Backup %s already exists", self.backup_id)
             backup = hook.get_backup(
                 project_id=self.project_id,
@@ -448,9 +446,7 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
             )
             service = hook.wait_for_operation(self.timeout, operation)
             self.log.info("Service %s created successfully", self.service_id)
-        except HttpError as err:
-            if err.resp.status not in (409, "409"):
-                raise
+        except AlreadyExists:
             self.log.info("Instance %s already exists", self.service_id)
             service = hook.get_service(
                 region=self.region,
