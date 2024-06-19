@@ -328,9 +328,7 @@ class WeaviateHook(BaseHook):
         )
         return response
 
-    def query_without_vector(
-        self, search_text: str, collection_name: str, *properties: list[str], limit: int = 1
-    ):
+    def query_with_text(self, search_text: str, collection_name: str, *properties: list[str], limit: int = 1):
         """
         Query using near text.
 
