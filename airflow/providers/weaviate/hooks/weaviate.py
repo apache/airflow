@@ -120,7 +120,9 @@ class WeaviateHook(BaseHook):
         additional_headers = extras.pop("additional_headers", {})
         scope = extras.get("scope", None) or extras.get("oidc_scope", None)
         if api_key:
-            auth_client_secret = AuthApiKey(api_key)
+            auth_client_secret: AuthApiKey | AuthBearerToken | AuthClientCredentials | AuthClientPassword = (
+                AuthApiKey(api_key)
+            )
         elif access_token:
             auth_client_secret = AuthBearerToken(
                 access_token, expires_in=expires_in, refresh_token=refresh_token
