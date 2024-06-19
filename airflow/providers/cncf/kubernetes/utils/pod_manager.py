@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import enum
-import itertools
 import json
 import math
 import time
@@ -37,6 +36,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
+from tenacity import RetryError
 from typing_extensions import Literal
 from urllib3.exceptions import HTTPError, TimeoutError
 
@@ -63,6 +63,10 @@ Sentinel for no xcom result.
 
 class PodLaunchFailedException(AirflowException):
     """When pod launching fails in KubernetesPodOperator."""
+
+
+class ResourceNotReadyException(AirflowException):
+    """When pod or cluster has not reached a ready state."""
 
 
 def should_retry_start_pod(exception: BaseException) -> bool:
@@ -370,19 +374,26 @@ class PodManager(LoggingMixin):
         :param startup_check_interval: Interval (in seconds) between checks
         :return:
         """
-        curr_time = time.time()
-        while True:
+
+        @tenacity.retry(
+            retry=tenacity.retry_if_exception_type(ResourceNotReadyException),
+            wait=tenacity.wait_fixed(startup_check_interval),
+            stop=tenacity.stop_after_delay(startup_timeout),
+        )
+        def _check_pod():
             remote_pod = self.read_pod(pod)
-            if remote_pod.status.phase != PodPhase.PENDING:
-                break
-            self.log.warning("Pod not yet started: %s", pod.metadata.name)
-            if time.time() - curr_time >= startup_timeout:
-                msg = (
-                    f"Pod took longer than {startup_timeout} seconds to start. "
-                    "Check the pod events in kubernetes to determine why."
-                )
-                raise PodLaunchFailedException(msg)
-            time.sleep(startup_check_interval)
+            if remote_pod.status.phase == PodPhase.PENDING:
+                self.log.warning("Pod not yet started: %s", pod.metadata.name)
+                raise ResourceNotReadyException
+
+        try:
+            _check_pod()
+        except RetryError:
+            msg = (
+                f"Pod took longer than {startup_timeout} seconds to start. "
+                "Check the pod events in kubernetes to determine why."
+            )
+            raise PodLaunchFailedException(msg)
 
     @deprecated(
         reason=(
@@ -588,6 +599,10 @@ class PodManager(LoggingMixin):
             pod_logging_statuses.append(status)
         return pod_logging_statuses
 
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(ResourceNotReadyException),
+        wait=tenacity.wait_exponential(max=15),
+    )
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
         """
         Wait for the given container in the given pod to be completed.
@@ -595,14 +610,16 @@ class PodManager(LoggingMixin):
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
         """
-        while True:
-            remote_pod = self.read_pod(pod)
-            terminated = container_is_completed(remote_pod, container_name)
-            if terminated:
-                break
+        remote_pod = self.read_pod(pod)
+        terminated = container_is_completed(remote_pod, container_name)
+        if not terminated:
             self.log.info("Waiting for container '%s' state to be completed", container_name)
-            time.sleep(1)
+            raise ResourceNotReadyException
 
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(ResourceNotReadyException),
+        wait=tenacity.wait_exponential(min=2, max=15),
+    )
     def await_pod_completion(
         self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
     ) -> V1Pod:
@@ -614,15 +631,18 @@ class PodManager(LoggingMixin):
         :param container_name: name of the container within the pod
         :return: tuple[State, str | None]
         """
-        while True:
-            remote_pod = self.read_pod(pod)
-            if remote_pod.status.phase in PodPhase.terminal_states:
-                break
-            if istio_enabled and container_is_completed(remote_pod, container_name):
-                break
-            self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
-            time.sleep(2)
-        return remote_pod
+        remote_pod = self.read_pod(pod)
+        self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
+
+        if any(
+            [
+                remote_pod.status.phase in PodPhase.terminal_states,
+                istio_enabled and container_is_completed(remote_pod, container_name),
+            ]
+        ):
+            return remote_pod
+
+        raise ResourceNotReadyException
 
     def parse_log_line(self, line: str) -> tuple[DateTime | None, str]:
         """
@@ -722,14 +742,20 @@ class PodManager(LoggingMixin):
             raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
     def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
+        @tenacity.retry(
+            retry=tenacity.retry_if_exception_type(ResourceNotReadyException),
+            wait=tenacity.wait_exponential(max=15),
+        )
+        def _check():
+            if not self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+                raise ResourceNotReadyException
+            self.log.info("The xcom sidecar container is started.")
+
         self.log.info("Checking if xcom sidecar container is started.")
-        for attempt in itertools.count():
-            if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
-                self.log.info("The xcom sidecar container is started.")
-                break
-            if not attempt:
-                self.log.warning("The xcom sidecar container is not yet started.")
-            time.sleep(1)
+        try:
+            _check()
+        except RetryError:
+            self.log.warning("The xcom sidecar container is not yet started.")
 
     def extract_xcom(self, pod: V1Pod) -> str:
         """Retrieve XCom value and kill xcom sidecar container."""
