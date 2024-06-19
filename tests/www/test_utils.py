@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import itertools
 import re
+import time
 from datetime import datetime
 from unittest.mock import Mock
 from urllib.parse import parse_qs
@@ -188,6 +189,15 @@ class TestUtils:
         result_markup = nobr(attr)
 
         assert result_markup == expected_markup
+
+    def test_epoch(self):
+        test_datetime = datetime(2024, 6, 19, 12, 0, 0)
+        result = utils.epoch(test_datetime)
+        epoch_time = result[0]
+
+        expected_epoch_time = int(time.mktime(test_datetime.timetuple())) * 1000
+
+        assert epoch_time == expected_epoch_time
 
     @pytest.mark.db_test
     def test_make_cache_key(self):
