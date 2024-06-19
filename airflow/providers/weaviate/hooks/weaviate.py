@@ -579,22 +579,32 @@ class WeaviateHook(BaseHook):
         document_keys = set(data[document_column])
         while True:
             collection = self.get_collection(collection_name)
-            data_objects = collection.query.fetech_objects(
+            data_objects = collection.query.fetch_objects(
                 filters=Filter.any_of(
                     [Filter.by_property(document_column).equal(key) for key in document_keys]
                 ),
                 return_properties=[document_column],
                 limit=limit,
                 offset=offset,
-            )["data"]["Get"][collection]
-            if len(data_objects) == 0:
+            )
+            if len(data_objects.objects) == 0:
                 break
             offset = offset + limit
+
+            if uuid_column in data_objects.objects[0].properties:
+                data = [obj.properties for obj in data_objects.objects]
+            else:
+                data = []
+                for obj in data_objects.objects:
+                    row = obj.properties
+                    row[uuid_column] = str(obj.uuid)
+                    data.append(row)
+
             documents_to_uuid.update(
                 self._prepare_document_to_uuid_map(
-                    data=data_objects,
+                    data=data,
                     group_key=document_column,
-                    get_value=lambda x: x["_additional"][uuid_column],
+                    get_value=lambda x: x[uuid_column],
                 )
             )
         return documents_to_uuid
@@ -640,16 +650,15 @@ class WeaviateHook(BaseHook):
             group_key=document_column,
             get_value=lambda x: x[uuid_column],
         )
-
         # segregate documents into changed, unchanged and non-existing documents.
         for doc_url, doc_set in input_documents_to_uuid.items():
             if doc_url in existing_documents_to_uuid:
                 if existing_documents_to_uuid[doc_url] != doc_set:
-                    changed_documents.add(doc_url)
+                    changed_documents.add(str(doc_url))
                 else:
-                    unchanged_docs.add(doc_url)
+                    unchanged_docs.add(str(doc_url))
             else:
-                new_documents.add(doc_url)
+                new_documents.add(str(doc_url))
 
         return existing_documents_to_uuid, changed_documents, unchanged_docs, new_documents
 
@@ -661,7 +670,7 @@ class WeaviateHook(BaseHook):
         total_objects_count: int = 1,
         batch_delete_error: list | None = None,
         verbose: bool = False,
-    ) -> list:
+    ) -> list[dict[str, UUID | str]]:
         """Delete all object that belong to list of documents.
 
         :param document_keys: list of unique documents identifiers.
@@ -678,16 +687,19 @@ class WeaviateHook(BaseHook):
         MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS = 10000
 
         collection = self.get_collection(collection_name)
-        document_objects = collection.data.delete_many(
+        delete_many_return = collection.data.delete_many(
             where=Filter.any_of([Filter.by_property(document_column).equal(key) for key in document_keys]),
-            verbase=verbose,
-            dru_run=False,
+            verbose=verbose,
+            dry_run=False,
         )
         total_objects_count = total_objects_count - MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS
-        matched_objects = document_objects["results"]["matches"]
-        batch_delete_error = [
-            {"uuid": obj["id"]} for obj in document_objects["results"]["objects"] if "error" in obj["status"]
-        ]
+        matched_objects = delete_many_return.matches
+        if delete_many_return.failed > 0:
+            batch_delete_error = [
+                {"uuid": obj.uuid, "error": obj.error}
+                for obj in delete_many_return.objects
+                if obj.error is not None
+            ]
         if verbose:
             self.log.info("Deleted %s Objects", matched_objects)
 
@@ -702,7 +714,7 @@ class WeaviateHook(BaseHook):
         uuid_column: str | None = None,
         vector_column: str = "Vector",
         verbose: bool = False,
-    ):
+    ) -> list[dict[str, UUID | str] | None]:
         """
         create or replace objects belonging to documents.
 
@@ -795,7 +807,6 @@ class WeaviateHook(BaseHook):
                 self.log.info(
                     "Changed document: %s has %s objects.", document, len(documents_to_uuid_map[document])
                 )
-
             self.log.info("Non-existing document: %s", ", ".join(new_documents))
 
         if existing == "error" and len(changed_documents):
@@ -817,33 +828,31 @@ class WeaviateHook(BaseHook):
                     total_objects_count,
                     changed_documents,
                 )
-            batch_delete_error = self._delete_all_documents_objects(
-                document_keys=list(changed_documents),
-                document_column=document_column,
-                collection_name=collection_name,
-                total_objects_count=total_objects_count,
-                batch_delete_error=batch_delete_error,
-                verbose=verbose,
-            )
+            if list(changed_documents):
+                batch_delete_error = self._delete_all_documents_objects(
+                    document_keys=list(changed_documents),
+                    document_column=document_column,
+                    collection_name=collection_name,
+                    total_objects_count=total_objects_count,
+                    batch_delete_error=batch_delete_error,
+                    verbose=verbose,
+                )
             data = data[data[document_column].isin(new_documents.union(changed_documents))]
             self.log.info("Batch inserting %s objects for non-existing and changed documents.", data.shape[0])
 
-        insertion_errors: list = []
         if data.shape[0]:
-            insertion_errors = self.batch_data(
+            self.batch_data(
                 collection_name=collection_name,
                 data=data,
                 vector_col=vector_column,
                 uuid_col=uuid_column,
             )
-            if insertion_errors or batch_delete_error:
-                if insertion_errors:
-                    self.log.info("Failed to insert %s objects.", len(insertion_errors))
+            if batch_delete_error:
                 if batch_delete_error:
-                    self.log.info("Failed to delete %s objects.", len(insertion_errors))
+                    self.log.info("Failed to delete %s objects.", len(batch_delete_error))
                 # Rollback object that were not created properly
                 self._delete_objects(
-                    [item["uuid"] for item in insertion_errors + batch_delete_error],
+                    [item["uuid"] for item in batch_delete_error],
                     collection_name=collection_name,
                 )
 
@@ -854,4 +863,4 @@ class WeaviateHook(BaseHook):
                 collection_name,
                 collection.aggregate.over_all(total_count=True),
             )
-        return insertion_errors, batch_delete_error
+        return batch_delete_error
