@@ -705,4 +705,4 @@ class TestWidgets:
         html_output = field()
 
         assert 'readonly="true"' in html_output
-        assert "form-control" in html_output
+        assert 'form-control' in html_output
