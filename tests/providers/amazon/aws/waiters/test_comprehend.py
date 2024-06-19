@@ -24,6 +24,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.comprehend import (
+    ComprehendCreateDocumentClassifierCompletedSensor,
     ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
 
@@ -31,6 +32,7 @@ from airflow.providers.amazon.aws.sensors.comprehend import (
 class TestComprehendCustomWaiters:
     def test_service_waiters(self):
         assert "pii_entities_detection_job_complete" in ComprehendHook().list_waiters()
+        assert "create_document_classifier_complete" in ComprehendHook().list_waiters()
 
 
 class TestComprehendCustomWaitersBase:
@@ -68,4 +70,35 @@ class TestComprehendStartPiiEntitiesDetectionJobCompleteWaiter(TestComprehendCus
 
         ComprehendHook().get_waiter(self.WAITER_NAME).wait(
             JobId="job_id", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestComprehendDocumentClassifierCompleteWaiter(TestComprehendCustomWaitersBase):
+    WAITER_NAME = "create_document_classifier_complete"
+
+    @pytest.fixture
+    def mock_describe_document_classifier(self):
+        with mock.patch.object(self.client, "describe_document_classifier") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", ComprehendCreateDocumentClassifierCompletedSensor.SUCCESS_STATES)
+    def test_create_document_classifier_complete(self, state, mock_describe_document_classifier):
+        mock_describe_document_classifier.return_value = {"DocumentClassifierProperties": {"Status": state}}
+
+        ComprehendHook().get_waiter(self.WAITER_NAME).wait(DocumentClassifierArn="arn")
+
+    @pytest.mark.parametrize("state", ComprehendCreateDocumentClassifierCompletedSensor.FAILURE_STATES)
+    def test_create_document_classifier_failed(self, state, mock_describe_document_classifier):
+        mock_describe_document_classifier.return_value = {"DocumentClassifierProperties": {"Status": state}}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            ComprehendHook().get_waiter(self.WAITER_NAME).wait(DocumentClassifierArn="arn")
+
+    def test_create_document_classifier_wait(self, mock_describe_document_classifier):
+        wait = {"DocumentClassifierProperties": {"Status": "TRAINING"}}
+        success = {"DocumentClassifierProperties": {"Status": "TRAINED"}}
+        mock_describe_document_classifier.side_effect = [wait, wait, success]
+
+        ComprehendHook().get_waiter(self.WAITER_NAME).wait(
+            DocumentClassifierArn="arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
         )
