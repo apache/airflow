@@ -37,7 +37,5 @@ def on_starting(server):
     from airflow.providers_manager import ProvidersManager
 
     providers_manager = ProvidersManager()
-    # Load providers configuration before forking workers
-    providers_manager.initialize_providers_configuration()
     # Load providers before forking workers
     providers_manager.connection_form_widgets
