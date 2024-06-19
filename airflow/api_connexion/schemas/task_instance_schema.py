@@ -75,8 +75,22 @@ class TaskInstanceSchema(SQLAlchemySchema):
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_map_index = auto_field()
     rendered_fields = JsonObjectField(dump_default={})
+    template_fields_renderers = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
+
+    def _get_task(self, task_instance):
+        session = inspect(task_instance).session
+        dag = get_airflow_app().dag_bag.get_dag(task_instance.dag_id, session=session)
+        task = None
+
+        if dag:
+            try:
+                task = dag.get_task(task_instance.task_id)
+            except Exception:
+                pass
+
+        return task
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -85,48 +99,35 @@ class TaskInstanceSchema(SQLAlchemySchema):
             # corresponding to the attr.
             slamiss_instance = {"sla_miss": obj[1]}
             return get_value(slamiss_instance, attr, default)
+        elif attr == "template_fields_renderers":
+            task = self._get_task(obj[0])
+            template_fields_renderers = {}
+
+            if task and isinstance(getattr(task, "template_fields_renderers", None), dict):
+                template_fields_renderers = task.template_fields_renderers
+
+            return template_fields_renderers
         elif attr == "rendered_fields":
             task_instance = obj[0]
-            task = None
-            session = inspect(task_instance).session
-            rendered_value = get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
-            dag = get_airflow_app().dag_bag.get_dag(task_instance.dag_id, session=session)
+            rendered_value = get_value(
+                task_instance, "rendered_task_instance_fields.rendered_fields", default
+            )
+            task = self._get_task(task_instance)
 
-            if dag:
-                try:
-                    task = dag.get_task(task_instance.task_id)
-                except Exception:
-                    task = None
-
-            if not task:
-                for key, value in rendered_value.items():
-                    rendered_value[key] = {"value": value, "renderer": None}
-                return rendered_value
-            else:
+            if task and task.template_fields_renderers and rendered_value is not default:
                 task_instance.refresh_from_task(task)
 
                 for template_field in task.template_fields:
-                    content = getattr(task, template_field)
-                    renderer = task.template_fields_renderers.get(template_field, None)
-                    content_value = rendered_value[template_field]
+                    content = rendered_value[template_field]
 
                     if isinstance(content, dict):
-                        rendered_value[template_field] = {"value": content_value, "renderer": renderer}
                         for dict_keys in get_key_paths(content):
                             template_path = f"{template_field}.{dict_keys}"
-                            renderer = task.template_fields_renderers.get(template_path, template_path)
-                            nested_content_value = get_value_from_path(dict_keys, content_value)
-                            rendered_value[template_path] = {
-                                "value": nested_content_value,
-                                "renderer": renderer,
-                            }
-                    else:
-                        rendered_value[template_field] = {
-                            "value": rendered_value[template_field],
-                            "renderer": renderer,
-                        }
+                            if template_path in task.template_fields_renderers:
+                                nested_value = get_value_from_path(dict_keys, content)
+                                rendered_value[template_path] = nested_value
 
-                return rendered_value
+            return rendered_value
 
         return get_value(obj[0], attr, default)
 

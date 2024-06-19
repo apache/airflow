@@ -245,6 +245,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "unixname": getuser(),
             "trigger": None,
             "triggerer_job": None,
+            "template_fields_renderers": {},
         }
 
     def test_should_raises_401_unauthenticated(self):

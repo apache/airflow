@@ -1540,6 +1540,12 @@ export interface components {
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
+      /**
+       * @description JSON object describing renderer mapping for task template fields.
+       *
+       * *New in version 2.10.0*
+       */
+      template_fields_renderers?: { [key: string]: unknown };
       trigger?: components["schemas"]["Trigger"];
       triggerer_job?: components["schemas"]["Job"];
       /**

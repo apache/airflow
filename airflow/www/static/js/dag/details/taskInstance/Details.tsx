@@ -343,9 +343,16 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                   Record<string, string | null>
                 >;
 
-                let { value: field } = renderedFields[key];
-		let validJSON = false;
-                const { renderer } = renderedFields[key];
+                const templateFieldsRenderers =
+                  taskInstance.templateFieldsRenderers as Record<
+                    string,
+                    string
+                  >;
+
+                  const field = renderedFields[key];
+		  let validJSON = false;
+                let fieldString = field as unknown as string;
+                const renderer = templateFieldsRenderers[key] || null;
                 const language: string = renderer
                   ? languageMapping[renderer] ?? "plaintext"
                   : "plaintext";
@@ -353,7 +360,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                 if (field) {
                   if (typeof field !== "string") {
                     try {
-			field = JSON.stringify(field, null, 4);
+			fieldString = JSON.stringify(field, null, 4);
 			validJSON = true;
                     } catch (e) {
                       // skip
@@ -365,7 +372,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                       <Td>{key}</Td>
                       <Td>
 		      if (validJSON) {
-                          <RenderedJsonField content={field as string} />
+                          <RenderedJsonField content={fieldString} />
 		      } else {
                         <Flex alignItems="right">
                           <SyntaxHighlighter
@@ -374,13 +381,13 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                             style={oneLight}
                             wrapLongLines
                           >
-                            {field as string}
+                            {fieldString}
                           </SyntaxHighlighter>
                           <ClipboardButton
                             ml={2}
                             mt={2}
                             iconOnly
-                            value={field as string}
+                            value={fieldString}
                           />
                               </Flex>
 		      }

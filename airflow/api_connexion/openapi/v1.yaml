@@ -3863,6 +3863,12 @@ components:
 
             *New in version 2.3.0*
           type: object
+        template_fields_renderers:
+          description: |
+            JSON object describing renderer mapping for task template fields.
+
+            *New in version 2.10.0*
+          type: object
         trigger:
           $ref: "#/components/schemas/Trigger"
         triggerer_job:
