@@ -235,6 +235,12 @@ option_image_tag_for_running = click.option(
     default="latest",
     envvar="IMAGE_TAG",
 )
+option_keep_env_variables = click.option(
+    "--keep-env-variables",
+    help="Do not clear environment variables that might have side effect while running tests",
+    envvar="KEEP_ENV_VARIABLES",
+    is_flag=True,
+)
 option_max_time = click.option(
     "--max-time",
     help="Maximum time that the command should take - if it takes longer, the command will fail.",

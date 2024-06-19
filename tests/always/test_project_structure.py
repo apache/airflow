@@ -166,6 +166,8 @@ class TestProjectStructure:
         modules_files = list(os.path.relpath(f, ROOT_FOLDER) for f in modules_files)
         # Exclude example_dags
         modules_files = list(f for f in modules_files if "/example_dags/" not in f)
+        # Exclude _vendor
+        modules_files = list(f for f in modules_files if "/_vendor/" not in f)
         # Exclude __init__.py
         modules_files = list(f for f in modules_files if not f.endswith("__init__.py"))
         # Change airflow/ to tests/

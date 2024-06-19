@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -35,3 +36,35 @@ class ComprehendHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "comprehend"
         super().__init__(*args, **kwargs)
+
+    def validate_document_classifier_training_status(
+        self, document_classifier_arn: str, fail_on_warnings: bool = False
+    ) -> None:
+        """
+        Log the Information about the document classifier.
+
+        NumberOfLabels
+        NumberOfTrainedDocuments
+        NumberOfTestDocuments
+        EvaluationMetrics
+
+        """
+        response = self.conn.describe_document_classifier(DocumentClassifierArn=document_classifier_arn)
+
+        status = response["DocumentClassifierProperties"]["Status"]
+
+        if status == "TRAINED_WITH_WARNING":
+            self.log.info(
+                "AWS Comprehend document classifier training completed with %s, Message: %s please review the skipped files folder in the output location %s",
+                status,
+                response["DocumentClassifierProperties"]["Message"],
+                response["DocumentClassifierProperties"]["OutputDataConfig"]["S3Uri"],
+            )
+
+            if fail_on_warnings:
+                raise AirflowException("Warnings in AWS Comprehend document classifier training.")
+
+        self.log.info(
+            "AWS Comprehend document classifier metadata: %s",
+            response["DocumentClassifierProperties"]["ClassifierMetadata"],
+        )

@@ -199,6 +199,10 @@ if [[ ${INTEGRATION_DRILL} == "true" ]]; then
     check_service "drill" "run_nc drill 8047" 50
 fi
 
+if [[ ${INTEGRATION_YDB} == "true" ]]; then
+    check_service "YDB Cluster" "run_nc ydb 2136" 50
+fi
+
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"

@@ -23,6 +23,81 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+
+Airflow Helm Chart 1.14.0 (2024-06-18)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+``ClusterRole`` and ``ClusterRoleBinding`` names have been updated to be unique (#37197)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``ClusterRole``s and ``ClusterRoleBinding``s created when ``multiNamespaceMode`` is enabled have been renamed to ensure unique names:
+
+  * ``{{ include "airflow.fullname" . }}-pod-launcher-role`` has been renamed to ``{{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-role``
+  * ``{{ include "airflow.fullname" . }}-pod-launcher-rolebinding`` has been renamed to ``{{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-rolebinding``
+  * ``{{ include "airflow.fullname" . }}-pod-log-reader-role`` has been renamed to ``{{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-role``
+  * ``{{ include "airflow.fullname" . }}-pod-log-reader-rolebinding`` has been renamed to ``{{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-rolebinding``
+  * ``{{ include "airflow.fullname" . }}-scc-rolebinding`` has been renamed to ``{{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-scc-rolebinding``
+
+``workers.safeToEvict`` default changed to False (#40229)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default for ``workers.safeToEvict`` now defaults to False. This is a safer default
+as it prevents the nodes workers are running on from being scaled down by the
+`K8s Cluster Autoscaler <https://kubernetes.io/docs/concepts/cluster-administration/cluster-autoscaling/#cluster-autoscaler>`_.
+If you would like to retain the previous behavior, you can set this config to True.
+
+Default Airflow image is updated to ``2.9.2`` (#40160)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.9.2``, previously it was ``2.8.3``.
+
+Default StatsD image is updated to ``v0.26.1`` (#38416)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default StatsD image that is used with the Chart is now ``v0.26.1``, previously it was ``v0.26.0``.
+
+New Features
+^^^^^^^^^^^^
+
+- Enable MySQL KEDA support for triggerer (#37365)
+- Allow AWS Executors (#38524)
+
+Improvements
+^^^^^^^^^^^^
+
+- Allow ``valueFrom`` in env config of components (#40135)
+- Enable templating in ``extraContainers`` and ``extraInitContainers`` (#38507)
+- Add safe-to-evict annotation to pod-template-file (#37352)
+- Support ``workers.command`` for KubernetesExecutor (#39132)
+- Add ``priorityClassName`` to Jobs (#39133)
+- Add Kerberos sidecar to pod-template-file (#38815)
+- Add templated field support for extra containers (#38510)
+
+Bug Fixes
+^^^^^^^^^
+
+- Set ``workers.safeToEvict`` default to False (#40229)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Document ``extraContainers`` and ``extraInitContainers`` that are templated (#40033)
+- Fix typo in HorizontalPodAutoscaling documentation (#39307)
+- Fix supported k8s versions in docs (#39172)
+- Fix typo in YAML path for ``brokerUrlSecretName`` (#39115)
+
+Misc
+^^^^
+- Default Airflow version to 2.9.2 (#40160)
+- Limit Redis image to 7.2 (#38928)
+- Build Helm values schemas with Kubernetes 1.29 resources (#38460)
+- Add missing containers to resources docs (#38534)
+- Upgrade StatsD Exporter image to 0.26.1 (#38416)
+- Remove K8S 1.25 support (#38367)
+
 Airflow Helm Chart 1.13.1 (2024-03-25)
 --------------------------------------
 
