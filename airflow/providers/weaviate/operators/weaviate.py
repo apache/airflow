@@ -93,17 +93,14 @@ class WeaviateIngestOperator(BaseOperator):
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
-    def execute(self, context: Context) -> list:
+    def execute(self, context: Context) -> None:
         self.log.debug("Input data: %s", self.input_data)
-        insertion_errors: list = []
         self.hook.batch_data(
             collection_name=self.collection_name,
             data=self.input_data,
             vector_col=self.vector_col,
             uuid_col=self.uuid_column,
-            tenant=self.tenant,
         )
-        return insertion_errors
 
 
 class WeaviateDocumentIngestOperator(BaseOperator):
@@ -145,7 +142,7 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         self,
         conn_id: str,
         input_data: pd.DataFrame | list[dict[str, Any]] | list[pd.DataFrame],
-        collection: str,
+        collection_name: str,
         document_column: str,
         existing: str = "skip",
         uuid_column: str = "id",
@@ -158,7 +155,7 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.input_data = input_data
-        self.collection = collection
+        self.collection_name = collection_name
         self.document_column = document_column
         self.existing = existing
         self.uuid_column = uuid_column
@@ -179,14 +176,13 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         :return: List of UUID which failed to create
         """
         self.log.debug("Total input objects : %s", len(self.input_data))
-        insertion_errors = self.hook.create_or_replace_document_objects(
+        batch_delete_error = self.hook.create_or_replace_document_objects(
             data=self.input_data,
             collection_name=self.collection_name,
             document_column=self.document_column,
             existing=self.existing,
             uuid_column=self.uuid_column,
             vector_column=self.vector_col,
-            tenant=self.tenant,
             verbose=self.verbose,
         )
-        return insertion_errors
+        return batch_delete_error
