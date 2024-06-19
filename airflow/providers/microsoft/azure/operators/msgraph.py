@@ -181,7 +181,6 @@ class MSGraphAsyncOperator(BaseOperator):
                     self.trigger_next_link(response=response, method_name=self.execute_complete.__name__)
                 except TaskDeferred as exception:
                     self.results = self.pull_xcom(context=context)
-                    self.log.debug("result: %s", self.results)
                     self.append_result(
                         result=result,
                         append_result_as_list_if_absent=True,
@@ -190,7 +189,6 @@ class MSGraphAsyncOperator(BaseOperator):
                     raise exception
 
                 self.append_result(result=result)
-                self.log.debug("results: %s", self.results)
 
                 return self.results
         return None
@@ -223,17 +221,27 @@ class MSGraphAsyncOperator(BaseOperator):
                 dag_id=self.dag_id,
                 map_indexes=map_index,
             )
-            or []  # noqa: W503
+            or []
         )
 
-        self.log.info(
-            "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s' and map_index %s: %s",
-            self.task_id,
-            self.dag_id,
-            self.key,
-            map_index,
-            value,
-        )
+        if map_index:
+            self.log.info(
+                "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s' and map_index %s: %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                map_index,
+                value,
+            )
+        else:
+            self.log.info(
+                "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                value,
+            )
+
         return value
 
     def push_xcom(self, context: Context, value) -> None:
