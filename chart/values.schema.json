@@ -2968,6 +2968,7 @@
                             "default": "100Gi"
                         },
                         "persistentVolumeClaimRetentionPolicy": {
+                            "description": "How PVCs are deleted during the lifecycle of a StatefulSet",
                             "type": [
                                 "object",
                                 "null"
