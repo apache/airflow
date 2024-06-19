@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 import tempfile
 from typing import TYPE_CHECKING, Sequence, List
 
@@ -85,6 +86,20 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         self.s3_extra_args = s3_extra_args or {}
         self.wasb_extra_args = wasb_extra_args or {}
 
+    @cached_property
+    def s3_hook(self) -> S3Hook:
+        """Create and return an S3Hook."""
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id,
+            verify=self.s3_verify,
+            **self.s3_extra_args
+        )
+
+    @cached_property
+    def wasb_hook(self) -> WasbHook:
+        """Create and return a WasbHook."""
+        return WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
+
     def execute(self, context: Context) -> List[str]:
         """
         execute
@@ -98,42 +113,33 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         Returns:
             None
         """
-        # First, create a WasbHook and an S3Hook using the conn's that were provided. These hooks will be
-        # passed to the methods we use to "help" with execution
-        wasb_hook: WasbHook = WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
-        s3_hook: S3Hook = S3Hook(
-            aws_conn_id=self.aws_conn_id,
-            verify=self.s3_verify,
-            **self.s3_extra_args,
-        )
-
         self.log.info(
             f"Getting list of files in the Bucket: {self.s3_bucket}"
             f"Getting file: {self.s3_key}" if self.s3_key else f"Getting files from: {self.s3_prefix}"
         )
 
         # Pull a list of files to move from S3 to Azure Blob storage
-        files_to_move: List[str] = self.get_files_to_move(s3_hook, wasb_hook)
+        files_to_move: List[str] = self.get_files_to_move()
 
         # Check to see if there are indeed files to move. If so, move each of these files. Otherwise, output
         # a logging message that denotes there are no files to move
         if files_to_move:
             for file_name in files_to_move:
-                self.move_file(file_name, s3_hook, wasb_hook)
+                self.move_file(file_name)
 
             # Assuming that files_to_move is a list (which it always should be), this will get "hit" after the
             # last file is moved from S3 -> Azure Blob
             self.log.info(f"All done, uploaded {len(files_to_move)} to Azure Blob.")
 
         else:
-            # If there are no files to move, a message will be printed. May want to consider alternative
+            # If there are no files to move, a message will be logged. May want to consider alternative
             # functionality (should an exception instead be raised?)
             self.log.info("There are no files to move!")
 
         # Return a list of the files that were moved
         return files_to_move
 
-    def get_files_to_move(self, s3_hook: S3Hook, wasb_hook: WasbHook) -> List[str]:
+    def get_files_to_move(self) -> List[str]:
         """
         get_files_to_move
 
@@ -141,10 +147,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             This "helper" method will determine the list of files that need to be moved, and return the name
             of each of these files
 
-        Params:
-            s3_hook (S3Hook)
-            wasb_hook (WasbHook)
-
+        Params: None
         Returns:
             files_to_move (List[str])
         """
@@ -154,7 +157,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         else:
             # Pull the keys from the s3_bucket using the provided prefix. Remove the prefix from the file
             # name, and add to the list of files to move
-            s3_keys: List[str] = s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_prefix)
+            s3_keys: List[str] = self.s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_prefix)
             files_to_move = [s3_key.replace(f"{self.s3_prefix}/", "", 1) for s3_key in s3_keys]
 
         if not self.replace:
@@ -163,10 +166,10 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             # see if that blob exists
             if self.blob_name:
                 azure_blob_files = [self.blob_name.split("/")[-1]] if \
-                    wasb_hook.check_for_blob(self.container_name, self.blob_name) else \
+                    self.wasb_hook.check_for_blob(self.container_name, self.blob_name) else \
                     []
             else:
-                azure_blob_files: List[str] = wasb_hook.get_blobs_list_recursive(
+                azure_blob_files: List[str] = self.wasb_hook.get_blobs_list_recursive(
                     container_name=self.container_name,
                     prefix=self.blob_prefix,
                     endswith=self.delimiter  # Optional filter by the "extension" of the file
@@ -178,7 +181,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
 
         return files_to_move
 
-    def move_file(self, file_name: str, s3_hook: S3Hook, wasb_hook: WasbHook) -> None:
+    def move_file(self, file_name: str) -> None:
         """
         move_file
 
@@ -187,9 +190,6 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
 
         Params:
             file_name (str)
-            s3_hook (str)
-            wasb_hook ()
-
         Returns: None
         """
         with tempfile.NamedTemporaryFile() as temp_file:
@@ -197,7 +197,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             # list is going to be the name pulled from the s3_key. It's not verbose, but provides
             # standard implementation across the operator
             source_s3_key: str = self.s3_key if self.s3_key else self.s3_prefix + "/" + file_name
-            s3_hook.download_file(
+            self.s3_hook.download_file(
                 local_path=temp_file.name,  # Make sure to look at this
                 bucket_name=self.s3_bucket,
                 key=source_s3_key
@@ -209,7 +209,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             # the S3 key
             destination_azure_blob_name: str = self.blob_name if self.blob_name \
                 else self.blob_prefix + "/" + file_name
-            wasb_hook.load_file(
+            self.wasb_hook.load_file(
                 file_path=temp_file.name,
                 container_name=self.container_name,
                 blob_name=destination_azure_blob_name,
