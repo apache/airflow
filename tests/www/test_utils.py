@@ -553,11 +553,56 @@ class TestFilter:
         mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
 
         result_query_filter = filter_is_null.apply(self.mock_query, None)
-        self.mock_query.filter.assert_called_once_with(mock_field == None)
+        self.mock_query.filter.assert_called_once_with(mock_field == mock_value)
 
         expected_query_filter = self.mock_query.filter(mock_field == mock_value)
 
         assert result_query_filter == expected_query_filter
+
+    def test_filter_is_not_null_apply(self):
+        filter_is_not_null = utils.FilterIsNotNull(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_is_not_null.apply(self.mock_query, None)
+        self.mock_query.filter.assert_called_once_with(mock_field != mock_value)
+
+        expected_query_filter = self.mock_query.filter(mock_field != mock_value)
+
+        assert result_query_filter == expected_query_filter
+
+    def test_filter_gte_none_value_apply(self):
+        filter_gte = utils.FilterGreaterOrEqual(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_gte.apply(self.mock_query, mock_value)
+
+        assert result_query_filter == self.mock_query
+
+    def test_filter_lte_none_value_apply(self):
+        filter_lte = utils.FilterSmallerOrEqual(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_lte.apply(self.mock_query, mock_value)
+
+        assert result_query_filter == self.mock_query
 
 
 @pytest.mark.db_test
