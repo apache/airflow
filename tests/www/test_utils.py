@@ -27,7 +27,9 @@ from urllib.parse import parse_qs
 import pendulum
 import pytest
 from bs4 import BeautifulSoup
+from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from markupsafe import Markup
+from sqlalchemy.orm import Query
 
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
@@ -534,6 +536,28 @@ class TestWrappedMarkdown:
                 from markupsafe import escape
 
                 assert escape(HTML) in rendered
+
+
+class TestFilter:
+    def setup_method(self):
+        self.mock_datamodel = Mock()
+        self.mock_query = Mock(spec=Query)
+        self.mock_column_name = "test_column"
+
+    def test_filter_is_null_apply(self):
+        filter_is_null = utils.FilterIsNull(datamodel=self.mock_datamodel, column_name=self.mock_column_name)
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_is_null.apply(self.mock_query, None)
+        self.mock_query.filter.assert_called_once_with(mock_field == None)
+
+        expected_query_filter = self.mock_query.filter(mock_field == mock_value)
+
+        assert result_query_filter == expected_query_filter
 
 
 @pytest.mark.db_test
