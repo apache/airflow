@@ -35,6 +35,11 @@ Features
 
 * ``Add 'delete_topic' to 'KafkaAdminClientHook' (#40142)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Default client in KafkaBaseHook (#40284)``
+
 Misc
 ~~~~
 

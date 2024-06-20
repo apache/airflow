@@ -40,11 +40,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.11.2
 ......
 
-Latest change: 2024-06-01
+Latest change: 2024-06-17
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`0d5bb60981 <https://github.com/apache/airflow/commit/0d5bb60981b79f67d6ea5b813a88d09b366ee2d3>`_  2024-06-17   ``Fix typos in Providers docs and Yandex hook (#40277)``
 `53e6739e67 <https://github.com/apache/airflow/commit/53e6739e67886e3326cfca0face7e9ce116ce4ab>`_  2024-06-01   ``Limit yandex provider to avoid mypy errors (#39990)``
 `8173693a70 <https://github.com/apache/airflow/commit/8173693a706f09e0f6c53bd0f4e22b2ba6586bc6>`_  2024-05-31   ``Remove upper-binding in yandex after dataproc issue is fixed (#39974)``
 `b8a83b2293 <https://github.com/apache/airflow/commit/b8a83b2293f16523b40fab6035fed5f5431076af>`_  2024-05-31   ``Workaround new yandexcloud breaking dataproc integration (#39964)``

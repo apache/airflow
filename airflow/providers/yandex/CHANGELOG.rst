@@ -38,6 +38,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Fix typos in Providers docs and Yandex hook (#40277)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

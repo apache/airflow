@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.4.2
 .....
 
-Latest change: 2024-06-17
+Latest change: 2024-06-19
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`d048122eb1 <https://github.com/apache/airflow/commit/d048122eb1899a5d5d16ad67b876d7e7c6982e66>`_  2024-06-19   ``Fix mypy problems in new waeviate client (#40330)``
 `81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
 `35871f8bb5 <https://github.com/apache/airflow/commit/35871f8bb537390fc435a4b83e53da452494725f>`_  2024-06-15   ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``

@@ -26,8 +26,13 @@
 Changelog
 ---------
 
-8.24.1
+8.25.0
 ......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Comprehend Document Classifier (#40287)``
 
 Bug Fixes
 ~~~~~~~~~

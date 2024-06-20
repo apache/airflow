@@ -38,14 +38,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.1.2
 ......
 
-Latest change: 2024-06-04
+Latest change: 2024-06-20
 
-=================================================================================================  ===========  ===============================================================================================================
+=================================================================================================  ===========  ========================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ===============================================================================================================
+=================================================================================================  ===========  ========================================================================================================================
+`d9d09638a5 <https://github.com/apache/airflow/commit/d9d09638a5a57ec48e2ed791f248a55202f29869>`_  2024-06-20   ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
+`e7052d4244 <https://github.com/apache/airflow/commit/e7052d42440070e77eb6ff1cea41550f368f77c9>`_  2024-06-18   ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+`9b394a7229 <https://github.com/apache/airflow/commit/9b394a7229484914d80fffeeb7c2d109cd58cc02>`_  2024-06-18   ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
 `d5f81a4e2d <https://github.com/apache/airflow/commit/d5f81a4e2de0d4236cffcf2e2d3c682b4c6ec355>`_  2024-05-27   ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
-=================================================================================================  ===========  ===============================================================================================================
+=================================================================================================  ===========  ========================================================================================================================
 
 10.1.1
 ......

@@ -59,15 +59,16 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``Refactor datapipeline operators (#39716)``
 * ``Fix hive_partition_sensor system test (#40023)``
 * ``Fix openai 1.32 breaking openai tests (#40110)``
 * ``Fix credentials intialization revealed by mypy version of google auth (#40108)``
 * ``Fix regular expression to exclude double quote and newline in DataflowHook (#39991)``
+* ``Fix replace parameter for BigQueryToPostgresOperator (#40278)``
 
 Misc
 ~~~~
 
+* ``Refactor datapipeline operators (#39716)``
 * ``Update pandas minimum requirement for Python 3.12 (#40272)``
 * ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
 * ``openlineage: execute extraction and message sending in separate process (#40078)``

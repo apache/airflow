@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.5.0
 .....
 
-Latest change: 2024-06-08
+Latest change: 2024-06-18
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`68aa42710b <https://github.com/apache/airflow/commit/68aa42710b957b0ec2c287393e234d8c08422413>`_  2024-06-18   ``Default client in KafkaBaseHook (#40284)``
 `cbe6c2dd24 <https://github.com/apache/airflow/commit/cbe6c2dd243ee48e0f8bade77a15f49ecef92849>`_  2024-06-08   ``Add 'delete_topic' to 'KafkaAdminClientHook' and teardown logic to Kafka integration tests (#40142)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
 =================================================================================================  ===========  =======================================================================================================
