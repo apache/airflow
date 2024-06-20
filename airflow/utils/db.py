@@ -117,8 +117,8 @@ _REVISION_HEADS_MAP = {
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
     "2.9.0": "1949afb29106",
-    "2.9.2": "0fd0c178cbe8",
-    "2.10.0": "c4602ba06b4b",
+    "2.9.2": "686269002441",
+    "2.10.0": "d482b7261ff9",
 }
 
 
@@ -738,6 +738,16 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="yandexcloud_default",
             conn_type="yandexcloud",
             schema="default",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="ydb_default",
+            conn_type="ydb",
+            host="grpc://localhost",
+            port=2135,
+            extra={"database": "/local"},
         ),
         session,
     )

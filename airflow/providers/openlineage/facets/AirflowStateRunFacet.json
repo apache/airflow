@@ -1,0 +1,34 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "AirflowStateRunFacet": {
+        "allOf": [
+          {
+            "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "dagRunState": {
+                "description": "The final status of the entire DagRun",
+                "type": "string"
+              },
+              "tasksState": {
+                "description": "Mapping of task IDs to their respective states",
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": ["dagRunState", "tasksState"]
+          }
+        ],
+        "type": "object"
+      }
+    },
+    "type": "object",
+    "properties": {
+      "airflowState": {
+        "$ref": "#/$defs/AirflowStateRunFacet"
+      }
+    }
+  }

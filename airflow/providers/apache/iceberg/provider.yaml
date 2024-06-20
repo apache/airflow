@@ -17,7 +17,7 @@
 
 ---
 package-name: apache-airflow-providers-apache-iceberg
-name: Iceberg
+name: Apache Iceberg
 description: |
     `Iceberg <https://iceberg.apache.org/>`__
 

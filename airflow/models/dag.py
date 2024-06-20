@@ -74,6 +74,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, joinedload, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
@@ -93,6 +94,7 @@ from airflow.exceptions import (
     TaskDeferred,
     TaskNotFound,
 )
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.base import Base, StringID
@@ -155,13 +157,6 @@ if TYPE_CHECKING:
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
-
-    # This is a workaround because mypy doesn't work with hybrid_property
-    # TODO: remove this hack and move hybrid_property back to main import block
-    # See https://github.com/python/mypy/issues/4430
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 log = logging.getLogger(__name__)
 
@@ -806,9 +801,22 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
+        self.validate_executor_field()
         self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
+
+    def validate_executor_field(self):
+        for task in self.tasks:
+            if task.executor:
+                try:
+                    ExecutorLoader.lookup_executor_name_by_str(task.executor)
+                except ValueError:
+                    raise ValueError(
+                        f"The specified executor {task.executor} for task {task.task_id} is not "
+                        "configured. Review the core.executors Airflow configuration to add it or "
+                        "update the executor configuration for this task."
+                    )
 
     def validate_setup_teardown(self):
         """
@@ -2877,6 +2885,8 @@ class DAG(LoggingMixin):
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
+        use_executor: bool = False,
+        mark_success_pattern: Pattern | str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -2886,6 +2896,8 @@ class DAG(LoggingMixin):
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
+        :param use_executor: if set, uses an executor to test the DAG
+        :param mark_success_pattern: regex of task_ids to mark as success instead of running
         :param session: database connection (optional)
         """
 
@@ -2944,6 +2956,15 @@ class DAG(LoggingMixin):
             # Instead of starting a scheduler, we run the minimal loop possible to check
             # for task readiness and dependency management. This is notably faster
             # than creating a BackfillJob and allows us to surface logs to the user
+
+            # ``Dag.test()`` works in two different modes depending on ``use_executor``:
+            # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
+            # - if ``use_executor`` is True, sends the task instances to the executor with
+            #   ``BaseExecutor.queue_task_instance``
+            if use_executor:
+                executor = ExecutorLoader.get_default_executor()
+                executor.start()
+
             while dr.state == DagRunState.RUNNING:
                 session.expire_all()
                 schedulable_tis, _ = dr.update_state(session=session)
@@ -2959,14 +2980,38 @@ class DAG(LoggingMixin):
                 if not scheduled_tis and ids_unrunnable:
                     self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
+
                 triggerer_running = _triggerer_is_healthy()
                 for ti in scheduled_tis:
-                    try:
-                        add_logger_if_needed(ti)
-                        ti.task = tasks[ti.task_id]
-                        _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
-                    except Exception:
-                        self.log.exception("Task failed; ti=%s", ti)
+                    ti.task = tasks[ti.task_id]
+
+                    mark_success = (
+                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        if mark_success_pattern is not None
+                        else False
+                    )
+
+                    if use_executor:
+                        if executor.has_task(ti):
+                            continue
+                        # Send the task to the executor
+                        executor.queue_task_instance(ti, ignore_ti_state=True)
+                    else:
+                        # Run the task locally
+                        try:
+                            add_logger_if_needed(ti)
+                            _run_task(
+                                ti=ti,
+                                inline_trigger=not triggerer_running,
+                                session=session,
+                                mark_success=mark_success,
+                            )
+                        except Exception:
+                            self.log.exception("Task failed; ti=%s", ti)
+                if use_executor:
+                    executor.heartbeat()
+            if use_executor:
+                executor.end()
         return dr
 
     @provide_session
@@ -4177,7 +4222,9 @@ def _run_inline_trigger(trigger):
     return asyncio.run(_run_inline_trigger_main())
 
 
-def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Session):
+def _run_task(
+    *, ti: TaskInstance, inline_trigger: bool = False, mark_success: bool = False, session: Session
+):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -4191,7 +4238,7 @@ def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Sessio
     while True:
         try:
             log.info("[DAG TEST] running task %s", ti)
-            ti._run_raw_task(session=session, raise_on_defer=inline_trigger)
+            ti._run_raw_task(session=session, raise_on_defer=inline_trigger, mark_success=mark_success)
             break
         except TaskDeferred as e:
             log.info("[DAG TEST] running trigger in line")

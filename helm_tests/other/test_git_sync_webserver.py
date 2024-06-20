@@ -172,3 +172,23 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "sshKey": "dummy-ssh-key",
+                    },
+                    "persistence": {"enabled": False},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])

@@ -38,9 +38,10 @@ from airflow.providers.google.cloud.operators.datastore import (
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "datastore_commit"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -63,16 +64,18 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["datastore", "example"],
+    tags=["example", "datastore"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID, location="EU"
     )
+
     # [START how_to_allocate_ids]
     allocate_ids = CloudDatastoreAllocateIdsOperator(
         task_id="allocate_ids", partial_keys=KEYS, project_id=PROJECT_ID
     )
     # [END how_to_allocate_ids]
+
     # [START how_to_begin_transaction]
     begin_transaction_commit = CloudDatastoreBeginTransactionOperator(
         task_id="begin_transaction_commit",
@@ -80,6 +83,7 @@ with DAG(
         project_id=PROJECT_ID,
     )
     # [END how_to_begin_transaction]
+
     # [START how_to_commit_def]
     COMMIT_BODY = {
         "mode": "TRANSACTIONAL",
@@ -94,9 +98,11 @@ with DAG(
         "singleUseTransaction": {"readWrite": {}},
     }
     # [END how_to_commit_def]
+
     # [START how_to_commit_task]
     commit_task = CloudDatastoreCommitOperator(task_id="commit_task", body=COMMIT_BODY, project_id=PROJECT_ID)
     # [END how_to_commit_task]
+
     # [START how_to_export_task]
     export_task = CloudDatastoreExportEntitiesOperator(
         task_id="export_task",
@@ -105,6 +111,7 @@ with DAG(
         overwrite_existing=True,
     )
     # [END how_to_export_task]
+
     # [START how_to_import_task]
     import_task = CloudDatastoreImportEntitiesOperator(
         task_id="import_task",
@@ -113,35 +120,42 @@ with DAG(
         project_id=PROJECT_ID,
     )
     # [END how_to_import_task]
+
     # [START get_operation_state]
     get_operation = CloudDatastoreGetOperationOperator(
         task_id="get_operation", name="{{ task_instance.xcom_pull('export_task')['name'] }}"
     )
     # [END get_operation_state]
+
     # [START delete_operation]
     delete_export_operation = CloudDatastoreDeleteOperationOperator(
         task_id="delete_export_operation",
         name="{{ task_instance.xcom_pull('export_task')['name'] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END delete_operation]
-    delete_export_operation.trigger_rule = TriggerRule.ALL_DONE
+
     delete_import_operation = CloudDatastoreDeleteOperationOperator(
         task_id="delete_import_operation",
         name="{{ task_instance.xcom_pull('import_task')['name'] }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
     chain(
+        # TEST SETUP
         create_bucket,
+        # TEST BODY
         allocate_ids,
         begin_transaction_commit,
         commit_task,
         export_task,
         import_task,
         get_operation,
+        # TEST TEARDOWN
         [delete_bucket, delete_export_operation, delete_import_operation],
     )
 

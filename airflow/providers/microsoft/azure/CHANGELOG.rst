@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+10.1.1
+......
+
+Misc
+~~~~
+
+* ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
+* ``Update example AzureContainerInstancesOperator (#39466)``
+
 10.1.0
 ......
 

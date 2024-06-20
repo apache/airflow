@@ -25,7 +25,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 # executor may have both so we need two lookup dicts.
 _alias_to_executors: dict[str, ExecutorName] = {}
 _module_to_executors: dict[str, ExecutorName] = {}
+_classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
 # Used to cache executors so that we don't construct executor objects unnecessarily
@@ -149,6 +150,7 @@ class ExecutorLoader:
                 _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
+            _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
             # Cache the executor names, so the logic of this method only runs once
             _executor_names.append(executor_name)
 
@@ -201,8 +203,10 @@ class ExecutorLoader:
             return executor_name
         elif executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
+        elif executor_name := _classname_to_executors.get(executor_name_str):
+            return executor_name
         else:
-            raise AirflowException(f"Unknown executor being loaded: {executor_name_str}")
+            raise ValueError(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
     def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:
@@ -212,7 +216,8 @@ class ExecutorLoader:
         This supports the following formats:
         * by executor name for core executor
         * by ``{plugin_name}.{class_name}`` for executor from plugins
-        * by import path.
+        * by import path
+        * by class name of the Executor
         * by ExecutorName object specification
 
         :return: an instance of executor class via executor_name

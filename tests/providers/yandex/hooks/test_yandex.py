@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from tests.test_utils.config import conf_vars
 
@@ -58,8 +59,11 @@ class TestYandexHook:
         mock_get_credentials.return_value = {"token": 122323}
         sdk_prefix = "MyAirflow"
 
-        with conf_vars({("yandex", "sdk_user_agent_prefix"): sdk_prefix}):
-            hook = YandexCloudBaseHook()
+        hook = YandexCloudBaseHook()
+        with conf_vars({("yandex", "sdk_user_agent_prefix"): sdk_prefix}), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Using `provider_user_agent` in `YandexCloudBaseHook` is deprecated. Please use it in `utils.user_agent` instead.",
+        ):
             assert hook.provider_user_agent().startswith(sdk_prefix)
 
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
@@ -84,7 +88,10 @@ class TestYandexHook:
     )
     @mock.patch("airflow.providers.yandex.utils.credentials.get_credentials", new=MagicMock())
     def test_backcompat_prefix_works(self, uri):
-        with mock.patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
+        with mock.patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",
+        ):
             hook = YandexCloudBaseHook("my_conn")
             assert hook.default_folder_id == "abc"
             assert hook.default_public_ssh_key == "abc"

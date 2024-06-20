@@ -86,7 +86,7 @@ def _set_task_deferred_context_var():
 
 def _fetch_logs_from_service(url, log_relative_path):
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
-    import httpx
+    import requests
 
     from airflow.utils.jwt_signer import JWTSigner
 
@@ -96,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
-    response = httpx.get(
+    response = requests.get(
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
@@ -574,9 +574,9 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            from httpx import UnsupportedProtocol
+            from requests.exceptions import InvalidSchema
 
-            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")
