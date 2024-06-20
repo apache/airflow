@@ -7601,6 +7601,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "annotations": {
+                    "description": "Annotations for the redis.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
