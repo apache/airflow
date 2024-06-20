@@ -67,7 +67,7 @@ Static checks, pre-commit, and tests
 
 The Airflow project has a robust test suite that includes both `static checks <08_static_code_checks.rst>`_ as well as
 `unit tests, integration tests, and various system tests <09_testing.rst>`_. If you submit a pull request (PR) that
-doesn't satisfy all static checks and tests, your PR will be automatically rejected, and you'll be asked to update the
+doesn't satisfy all static checks and tests, your PR will be automatically fail the github tests, and you'll be asked to update the
 PR accordingly.
 
 Static checks & pre-commit
