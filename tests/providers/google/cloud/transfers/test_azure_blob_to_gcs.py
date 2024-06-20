@@ -119,6 +119,4 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert lineage.inputs[0] == Dataset(
             namespace=f"wasbs://{CONTAINER_NAME}@{MOCK_AZURE_ACCOUNT_NAME}", name=BLOB_NAME
         )
-        assert lineage.outputs[0] == Dataset(
-            namespace=f"gs://{BUCKET_NAME}", name=OBJECT_NAME
-        )
+        assert lineage.outputs[0] == Dataset(namespace=f"gs://{BUCKET_NAME}", name=OBJECT_NAME)
