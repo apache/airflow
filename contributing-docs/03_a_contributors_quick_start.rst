@@ -62,7 +62,7 @@ can find more information here:
 * `Visual Studio Code <quick-start-ide/contributors_quick_start_vscode.rst>`_
 
 
-A brief note about static checks, pre-commit, and tests
+Static checks, pre-commit, and tests
 #######################################################
 
 The Airflow project has a robust test suite that includes both `static checks <08_static_code_checks.rst>`_ as well as
