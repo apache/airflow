@@ -131,19 +131,6 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
-        update_perms=conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ),
-        auth_rate_limited=conf.getboolean(
-            "fab",
-            "AUTH_RATE_LIMITED",
-            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        ),
-        auth_rate_limit=conf.get(
-            "fab",
-            "AUTH_RATE_LIMIT",
-            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
-        ),
     ):
         """
         App-builder constructor.
@@ -160,14 +147,11 @@ class AirflowAppBuilder:
             optional, your override for the global static folder
         :param static_url_path:
             optional, your override for the global static url path
-        :param update_perms:
-            optional, update permissions flag (Boolean) you can use
-            FAB_UPDATE_PERMS config key also
-        :param auth_rate_limited:
-            optional, rate limit authentication attempts if set to True (defaults to True)
-        :param auth_rate_limit:
-            optional, rate limit authentication attempts configuration (defaults "to 5 per 40 second")
         """
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+        providers_manager.initialize_providers_configuration()
         self.baseviews = []
         self._addon_managers = []
         self.addon_managers = {}
@@ -177,9 +161,9 @@ class AirflowAppBuilder:
         self.static_folder = static_folder
         self.static_url_path = static_url_path
         self.app = app
-        self.update_perms = update_perms
-        self.auth_rate_limited = auth_rate_limited
-        self.auth_rate_limit = auth_rate_limit
+        self.update_perms = conf.getboolean("fab", "UPDATE_FAB_PERMS")
+        self.auth_rate_limited = conf.getboolean("fab", "AUTH_RATE_LIMITED")
+        self.auth_rate_limit = conf.get("fab", "AUTH_RATE_LIMIT")
         if app is not None:
             self.init_app(app, session)
 
@@ -677,17 +661,4 @@ def init_appbuilder(app: Flask) -> AirflowAppBuilder:
         app=app,
         session=settings.Session,
         base_template="airflow/main.html",
-        update_perms=conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ),
-        auth_rate_limited=conf.getboolean(
-            "fab",
-            "AUTH_RATE_LIMITED",
-            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        ),
-        auth_rate_limit=conf.get(
-            "fab",
-            "AUTH_RATE_LIMIT",
-            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
-        ),
     )
