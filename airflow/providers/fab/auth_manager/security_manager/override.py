@@ -1523,14 +1523,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.username = username
             user.email = email
             user.active = True
+            self.get_session.add(user)
             user.roles = role if isinstance(role, list) else [role]
             if hashed_password:
                 user.password = hashed_password
             else:
                 user.password = generate_password_hash(password)
-            self.get_session.add(user)
             self.get_session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
+
             return user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
