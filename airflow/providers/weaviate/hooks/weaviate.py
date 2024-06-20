@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 import json
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Sequence, cast
 
 import requests
 import weaviate
@@ -35,13 +35,19 @@ from weaviate.util import generate_uuid5
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from typing import Callable, Collection, Literal
+    from typing import Callable, Literal
 
     import pandas as pd
     from weaviate.auth import AuthCredentials
+    from weaviate.collections import Collection
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
-    from weaviate.collections.classes.internal import QueryReturnType, QuerySearchReturnType, ReferenceInputs
-    from weaviate.collections.classes.types import Properties, References, TProperties, TReferences
+    from weaviate.collections.classes.internal import (
+        Object,
+        QueryReturnType,
+        QuerySearchReturnType,
+        ReferenceInputs,
+    )
+    from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
 
     from airflow.models.connection import Connection
@@ -169,12 +175,12 @@ class WeaviateHook(BaseHook):
             self.log.error("Error testing Weaviate connection: %s", e)
             return False, str(e)
 
-    def create_collection(self, name: str, **kwargs) -> Collection[Properties, References]:
+    def create_collection(self, name: str, **kwargs) -> Collection:
         """Create a new collection."""
         client = self.conn
         return client.collections.create(name=name, **kwargs)
 
-    def get_collection(self, name: str) -> Collection[Properties, References]:
+    def get_collection(self, name: str) -> Collection:
         """Get a collection by name.
 
         :param name: The name of the collection to get.
@@ -309,10 +315,11 @@ class WeaviateHook(BaseHook):
         self,
         embeddings: list[float],
         collection_name: str,
-        *properties: list[str],
+        properties: list[str],
         certainty: float = 0.7,
         limit: int = 1,
-    ) -> QuerySearchReturnType[Properties, References, TProperties, TReferences]:
+        **kwargs,
+    ) -> QuerySearchReturnType:
         """
         Query weaviate database with near vectors.
 
@@ -324,11 +331,13 @@ class WeaviateHook(BaseHook):
         client = self.conn
         collection = client.collections.get(collection_name)
         response = collection.query.near_vector(
-            near_vector=embeddings, certainty=certainty, limit=limit, return_properties=properties
+            near_vector=embeddings, certainty=certainty, limit=limit, return_properties=properties, **kwargs
         )
         return response
 
-    def query_with_text(self, search_text: str, collection_name: str, *properties: list[str], limit: int = 1):
+    def query_with_text(
+        self, search_text: str, collection_name: str, properties: list[str], limit: int = 1, **kwargs
+    ) -> QuerySearchReturnType:
         """
         Query using near text.
 
@@ -338,10 +347,12 @@ class WeaviateHook(BaseHook):
         """
         client = self.conn
         collection = client.collections.get(collection_name)
-        response = collection.query.near_text(query=search_text, limit=limit, return_properties=properties)
+        response = collection.query.near_text(
+            query=search_text, limit=limit, return_properties=properties, **kwargs
+        )
         return response
 
-    def create_object(self, data_object: dict | str, collection_name: str, **kwargs) -> UUID | None:
+    def create_object(self, data_object: dict, collection_name: str, **kwargs) -> UUID | None:
         """Create a new object.
 
         :param data_object: Object to be added. If type is str it should be either a URL or a file.
@@ -360,17 +371,16 @@ class WeaviateHook(BaseHook):
     def get_or_create_object(
         self,
         collection_name,
-        data_object: dict | str | None = None,
+        data_object: dict,
         vector: Sequence | None = None,
         **kwargs,
-    ) -> QueryReturnType[Properties, References, TProperties, TReferences] | None | UUID:
+    ) -> QueryReturnType | UUID | None:
         """Get or Create a new object.
 
         Returns the object if already exists, return UUID if not
 
         :param collection_name: Collection name associated with the object given..
-        :param data_object: Object to be added. If type is str it should be either a URL or a file. This is required
-            to create a new object.
+        :param data_object: Object to be added.
         :param vector: Vector associated with the object given. This argument is only used when creating object.
         :param kwargs: parameters to be passed to collection.data.fetch_object_by_id() or
             collection.data.fetch_objects()
@@ -385,20 +395,17 @@ class WeaviateHook(BaseHook):
             )
         return obj
 
-    def get_object(
-        self, collection_name: str, **kwargs
-    ) -> QueryReturnType[Properties, References, TProperties, TReferences] | None:
+    def get_object(self, collection_name: str, **kwargs) -> QueryReturnType:
         """Get objects or an object from weaviate.
 
-        :param kwargs: parameters to be passed to collection.data.fetch_object_by_id() or
-            collection.data.fetch_objects()
+        :param kwargs: parameters to be passed to collection.query.fetch_objects()
         """
         collection = self.get_collection(collection_name)
         return collection.query.fetch_objects(**kwargs)
 
     def get_all_objects(
         self, collection_name: str, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
-    ) -> list[dict[str, Any]] | pd.DataFrame:
+    ) -> list[Object] | pd.DataFrame:
         """Get all objects from weaviate.
 
         if after is provided, it will be used as the starting point for the listing.
@@ -407,7 +414,7 @@ class WeaviateHook(BaseHook):
         :param as_dataframe: if True, returns a pandas dataframe
         :param kwargs: parameters to be passed to weaviate_client.data_object.get()
         """
-        all_objects = []
+        all_objects: list[Object] = []
         after = kwargs.pop("after", after)
         while True:
             results = self.get_object(collection_name=collection_name, after=after, **kwargs)
@@ -419,9 +426,19 @@ class WeaviateHook(BaseHook):
             import pandas
 
             # '_WeaviateUUIDInt' object has no attribute 'is_safe' which causes error
-            for obj in all_objects:
-                obj.uuid = str(obj.uuid)
-            return pandas.DataFrame(all_objects)
+            return pandas.DataFrame(
+                [
+                    {
+                        "collection": obj.collection,
+                        "metadata": obj.metadata,
+                        "properties": obj.properties,
+                        "references": obj.references,
+                        "uuid": str(obj.uuid),
+                        "vector": obj.vector,
+                    }
+                    for obj in all_objects
+                ]
+            )
         return all_objects
 
     def delete_object(self, collection_name: str, uuid: UUID | str) -> bool:
@@ -474,7 +491,9 @@ class WeaviateHook(BaseHook):
         collection = self.get_collection(collection_name)
         return collection.data.exists(uuid=uuid)
 
-    def _delete_objects(self, uuids: Collection, collection_name: str, retry_attempts_per_object: int = 5):
+    def _delete_objects(
+        self, uuids: list[UUID], collection_name: str, retry_attempts_per_object: int = 5
+    ) -> None:
         """Delete multiple objects.
 
         Helper function for `create_or_replace_objects()` to delete multiple objects.
@@ -590,17 +609,17 @@ class WeaviateHook(BaseHook):
             offset = offset + limit
 
             if uuid_column in data_objects.objects[0].properties:
-                data = [obj.properties for obj in data_objects.objects]
+                data_object_properties = [obj.properties for obj in data_objects.objects]
             else:
-                data = []
+                data_object_properties = []
                 for obj in data_objects.objects:
-                    row = obj.properties
+                    row = dict(obj.properties)
                     row[uuid_column] = str(obj.uuid)
-                    data.append(row)
+                    data_object_properties.append(row)
 
             documents_to_uuid.update(
                 self._prepare_document_to_uuid_map(
-                    data=data,
+                    data=data_object_properties,
                     group_key=document_column,
                     get_value=lambda x: x[uuid_column],
                 )
@@ -609,7 +628,7 @@ class WeaviateHook(BaseHook):
 
     @staticmethod
     def _prepare_document_to_uuid_map(
-        data: list[dict], group_key: str, get_value: Callable[[dict], str]
+        data: Sequence[Mapping], group_key: str, get_value: Callable[[Mapping], str]
     ) -> dict[str, set]:
         """Prepare the map of grouped_key to set."""
         grouped_key_to_set: dict = {}
@@ -666,9 +685,9 @@ class WeaviateHook(BaseHook):
         document_column: str,
         collection_name: str,
         total_objects_count: int = 1,
-        batch_delete_error: list | None = None,
+        batch_delete_error: Sequence | None = None,
         verbose: bool = False,
-    ) -> list[dict[str, UUID | str]]:
+    ) -> Sequence[dict[str, UUID | str]]:
         """Delete all object that belong to list of documents.
 
         :param document_keys: list of unique documents identifiers.
@@ -692,7 +711,7 @@ class WeaviateHook(BaseHook):
         )
         total_objects_count = total_objects_count - MAX_LIMIT_ON_TOTAL_DELETABLE_OBJECTS
         matched_objects = delete_many_return.matches
-        if delete_many_return.failed > 0:
+        if delete_many_return.failed > 0 and delete_many_return.objects:
             batch_delete_error = [
                 {"uuid": obj.uuid, "error": obj.error}
                 for obj in delete_many_return.objects
@@ -712,7 +731,7 @@ class WeaviateHook(BaseHook):
         uuid_column: str | None = None,
         vector_column: str = "Vector",
         verbose: bool = False,
-    ) -> list[dict[str, UUID | str] | None]:
+    ) -> Sequence[dict[str, UUID | str] | None]:
         """
         create or replace objects belonging to documents.
 
@@ -782,7 +801,7 @@ class WeaviateHook(BaseHook):
         if verbose:
             self.log.info("%s objects remain after deduplication.", data.shape[0])
 
-        batch_delete_error: list = []
+        batch_delete_error: Sequence[dict[str, UUID | str]] = []
         (
             documents_to_uuid_map,
             changed_documents,

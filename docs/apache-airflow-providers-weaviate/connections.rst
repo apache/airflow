@@ -59,7 +59,7 @@ Weaviate API Token (optional)
 Use https (optional)
     Whether to use https for the Weaviate cluster REST and GraphQL API calls.
 
-gRPT host (optional)
+gRPC host (optional)
     The host to use for the Weaviate cluster gRPC API.
 
 gRPC port (optional)

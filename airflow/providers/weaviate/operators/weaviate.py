@@ -27,6 +27,7 @@ from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
 if TYPE_CHECKING:
     import pandas as pd
+    from weaviate.types import UUID
 
     from airflow.utils.context import Context
 
@@ -169,7 +170,7 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
-    def execute(self, context: Context) -> list:
+    def execute(self, context: Context) -> Sequence[dict[str, UUID | str] | None]:
         """
         Create or replace objects belonging to documents.
 

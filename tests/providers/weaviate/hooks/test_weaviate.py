@@ -78,8 +78,14 @@ class MockObject:
     def __init__(self, *, properties: dict, uuid: str) -> None:
         self.properties = properties
         self.uuid = uuid
+        self.collection = "collection"
+        self.metadata = "metadata"
+        self.references = "references"
+        self.vector = "vector"
 
-    def __eq__(self, other: MockObject) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MockObject):
+            return False
         return self.properties == other.properties and self.uuid == other.uuid
 
 
