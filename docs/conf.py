@@ -445,9 +445,7 @@ def get_configs_and_deprecations(
             deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
     if package_name == "apache-airflow":
-        configs = retrieve_configuration_description(
-            include_providers=True, selected_provider="apache-airflow-providers-fab"
-        )
+        configs = retrieve_configuration_description(include_providers=False)
     else:
         configs = retrieve_configuration_description(
             include_airflow=False, include_providers=True, selected_provider=package_name
