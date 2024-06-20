@@ -45,6 +45,11 @@ Bug Fixes
 
 * ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
 
+Misc
+~~~~
+
+* ``fix: sqa deprecations for airflow providers (#39293)``
+
 1.8.0
 .....
 

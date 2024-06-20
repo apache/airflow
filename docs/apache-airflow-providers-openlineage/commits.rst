@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.9.0
 .....
 
-Latest change: 2024-06-14
+Latest change: 2024-06-20
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`4fbdd07c13 <https://github.com/apache/airflow/commit/4fbdd07c1392eed517ed2af000aae2c2c3f5b3f6>`_  2024-06-20   ``fix: sqa deprecations for airflow providers (#39293)``
 `1a8d12ffe5 <https://github.com/apache/airflow/commit/1a8d12ffe50c947583c6419d4e952d0f59461135>`_  2024-06-14   ``openlineage: execute extraction and message sending in separate process (#40078)``
 `6f4098487d <https://github.com/apache/airflow/commit/6f4098487d3629ab4c99de05a503fc1b511c7300>`_  2024-06-14   ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
 `fa65a20d4a <https://github.com/apache/airflow/commit/fa65a20d4a9a3625a7cc2642f29604747cc942a1>`_  2024-06-13   ``local task job: add timeout, to not kill on_task_instance_success listener prematurely (#39890)``
