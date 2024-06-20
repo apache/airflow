@@ -752,7 +752,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.01.19-0.16.0"
+                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
