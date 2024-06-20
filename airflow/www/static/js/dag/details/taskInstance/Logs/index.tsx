@@ -18,16 +18,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Text,
-  Box,
-  Flex,
-  Button,
-  Checkbox,
-  Icon,
-  Spinner,
-  Select,
-} from "@chakra-ui/react";
+import { Text, Box, Flex, Checkbox, Icon, Spinner } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
 
 import { getMetaValue } from "src/utils";
@@ -41,6 +32,7 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import LogLink from "./LogLink";
 import { LogLevel, logLevelColorMapping, parseLogs } from "./utils";
 import LogBlock from "./LogBlock";
+import TrySelector from "../TrySelector";
 
 interface LogLevelOption {
   label: LogLevel;
@@ -57,26 +49,6 @@ const showExternalLogRedirect =
   getMetaValue("show_external_log_redirect") === "True";
 const externalLogName = getMetaValue("external_log_name");
 const logUrl = getMetaValue("log_url");
-
-const getLinkIndexes = (
-  tryNumber: number | undefined
-): Array<Array<number>> => {
-  const internalIndexes: Array<number> = [];
-  const externalIndexes: Array<number> = [];
-
-  if (tryNumber) {
-    [...Array(tryNumber)].forEach((_, index) => {
-      const tryNum = index + 1;
-      if (showExternalLogRedirect) {
-        externalIndexes.push(tryNum);
-      } else {
-        internalIndexes.push(tryNum);
-      }
-    });
-  }
-
-  return [internalIndexes, externalIndexes];
-};
 
 const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
   (value): LogLevelOption => ({
@@ -105,10 +77,7 @@ const Logs = ({
   tryNumber,
   state,
 }: Props) => {
-  const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [selectedTryNumber, setSelectedTryNumber] = useState<
-    number | undefined
-  >();
+  const [selectedTryNumber, setSelectedTryNumber] = useState(tryNumber || 1);
   const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
     []
@@ -119,13 +88,12 @@ const Logs = ({
   const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
 
-  const taskTryNumber = selectedTryNumber || tryNumber || 1;
   const { data, isLoading } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
     mapIndex,
-    taskTryNumber,
+    taskTryNumber: selectedTryNumber,
     state,
   });
 
@@ -154,14 +122,11 @@ const Logs = ({
     [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups]
   );
 
-  const logAttemptDropdownLimit = 10;
-  const showDropdown = internalIndexes.length > logAttemptDropdownLimit;
-
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (taskTryNumber > (tryNumber || 1)) {
-      setSelectedTryNumber(undefined);
+    if (selectedTryNumber > (tryNumber || 1)) {
+      setSelectedTryNumber(tryNumber || 1);
     }
 
     if (
@@ -175,16 +140,17 @@ const Logs = ({
     ) {
       setFileSourceFilters([]);
     }
-  }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
+  }, [data, fileSourceFilters, fileSources, selectedTryNumber, tryNumber]);
 
   return (
     <>
-      {externalLogName && externalIndexes.length > 0 && (
+      {showExternalLogRedirect && externalLogName && (
         <Box my={1}>
           <Text>View Logs in {externalLogName} (by attempts):</Text>
           <Flex flexWrap="wrap">
-            {externalIndexes.map((index) => (
+            {[...Array(tryNumber || 1)].map((_, index) => (
               <LogLink
+                // eslint-disable-next-line react/no-array-index-key
                 key={index}
                 dagId={dagId}
                 taskId={taskId}
@@ -196,45 +162,15 @@ const Logs = ({
         </Box>
       )}
       <Box>
-        {!showDropdown && (
-          <Box>
-            <Text as="span"> (by attempts)</Text>
-            <Flex my={1} justifyContent="space-between">
-              <Flex flexWrap="wrap">
-                {internalIndexes.map((index) => (
-                  <Button
-                    key={index}
-                    variant={taskTryNumber === index ? "solid" : "ghost"}
-                    colorScheme="blue"
-                    onClick={() => setSelectedTryNumber(index)}
-                    data-testid={`log-attempt-select-button-${index}`}
-                  >
-                    {index}
-                  </Button>
-                ))}
-              </Flex>
-            </Flex>
-          </Box>
-        )}
+        <TrySelector
+          taskId={taskId}
+          runId={dagRunId}
+          mapIndex={mapIndex}
+          selectedTryNumber={selectedTryNumber}
+          onSelectTryNumber={setSelectedTryNumber}
+        />
         <Flex my={1} justifyContent="space-between" flexWrap="wrap">
           <Flex alignItems="center" flexGrow={1} mr={10}>
-            {showDropdown && (
-              <Box width="100%" mr={2}>
-                <Select
-                  size="sm"
-                  placeholder="Select log attempt"
-                  onChange={(e) => {
-                    setSelectedTryNumber(Number(e.target.value));
-                  }}
-                >
-                  {internalIndexes.map((index) => (
-                    <option key={index} value={index}>
-                      {index}
-                    </option>
-                  ))}
-                </Select>
-              </Box>
-            )}
             <Box width="100%" mr={2}>
               <MultiSelect
                 size="sm"
@@ -313,7 +249,7 @@ const Logs = ({
           <LogBlock
             parsedLogs={parsedLogs}
             wrap={wrap}
-            tryNumber={taskTryNumber}
+            tryNumber={selectedTryNumber}
             unfoldedGroups={unfoldedLogGroups}
             setUnfoldedLogGroup={setUnfoldedLogGroup}
           />

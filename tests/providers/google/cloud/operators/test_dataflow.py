@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import warnings
 from copy import deepcopy
 from unittest import mock
 
@@ -26,7 +27,7 @@ import pytest
 from googleapiclient.errors import HttpError
 
 import airflow
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowJobStatus,
@@ -134,16 +135,18 @@ TEST_PIPELINE_BODY = {
 
 class TestDataflowCreatePythonJobOperator:
     def setup_method(self):
-        self.dataflow = DataflowCreatePythonJobOperator(
-            task_id=TASK_ID,
-            py_file=PY_FILE,
-            job_name=JOB_NAME,
-            py_options=PY_OPTIONS,
-            dataflow_default_options=DEFAULT_OPTIONS_PYTHON,
-            options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP,
-            location=TEST_LOCATION,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.dataflow = DataflowCreatePythonJobOperator(
+                task_id=TASK_ID,
+                py_file=PY_FILE,
+                job_name=JOB_NAME,
+                py_options=PY_OPTIONS,
+                dataflow_default_options=DEFAULT_OPTIONS_PYTHON,
+                options=ADDITIONAL_OPTIONS,
+                poll_sleep=POLL_SLEEP,
+                location=TEST_LOCATION,
+            )
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
@@ -214,16 +217,18 @@ class TestDataflowCreatePythonJobOperator:
 
 class TestDataflowCreateJavaJobOperator:
     def setup_method(self):
-        self.dataflow = DataflowCreateJavaJobOperator(
-            task_id=TASK_ID,
-            jar=JAR_FILE,
-            job_name=JOB_NAME,
-            job_class=JOB_CLASS,
-            dataflow_default_options=DEFAULT_OPTIONS_JAVA,
-            options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP,
-            location=TEST_LOCATION,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.dataflow = DataflowCreateJavaJobOperator(
+                task_id=TASK_ID,
+                jar=JAR_FILE,
+                job_name=JOB_NAME,
+                job_class=JOB_CLASS,
+                dataflow_default_options=DEFAULT_OPTIONS_JAVA,
+                options=ADDITIONAL_OPTIONS,
+                poll_sleep=POLL_SLEEP,
+                location=TEST_LOCATION,
+            )
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
@@ -421,16 +426,18 @@ class TestDataflowCreateJavaJobOperator:
 
 class TestDataflowCreateJavaJobOperatorWithLocal:
     def setup_method(self):
-        self.dataflow = DataflowCreateJavaJobOperator(
-            task_id=TASK_ID,
-            jar=LOCAL_JAR_FILE,
-            job_name=JOB_NAME,
-            job_class=JOB_CLASS,
-            dataflow_default_options=DEFAULT_OPTIONS_JAVA,
-            options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP,
-            location=TEST_LOCATION,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.dataflow = DataflowCreateJavaJobOperator(
+                task_id=TASK_ID,
+                jar=LOCAL_JAR_FILE,
+                job_name=JOB_NAME,
+                job_class=JOB_CLASS,
+                dataflow_default_options=DEFAULT_OPTIONS_JAVA,
+                options=ADDITIONAL_OPTIONS,
+                poll_sleep=POLL_SLEEP,
+                location=TEST_LOCATION,
+            )
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
