@@ -119,7 +119,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.01.19-0.16.0
+    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -2608,6 +2608,12 @@ dags:
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
     # sshKeySecret: airflow-ssh-secret
+    #
+    # Or set sshKeySecret with your key
+    # sshKey: |-
+    #   -----BEGIN {OPENSSH PRIVATE KEY}-----
+    #   ...
+    #   -----END {OPENSSH PRIVATE KEY}-----
     #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:

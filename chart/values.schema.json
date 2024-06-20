@@ -752,7 +752,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.01.19-0.16.0"
+                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -8428,6 +8428,14 @@
                         },
                         "credentialsSecret": {
                             "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "sshKey": {
+                            "description": "SSH private key",
                             "type": [
                                 "string",
                                 "null"

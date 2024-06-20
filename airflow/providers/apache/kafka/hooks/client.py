@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 from confluent_kafka import KafkaException
-from confluent_kafka.admin import AdminClient, NewTopic
+from confluent_kafka.admin import NewTopic
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
@@ -33,9 +33,6 @@ class KafkaAdminClientHook(KafkaBaseHook):
 
     def __init__(self, kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
         super().__init__(kafka_config_id=kafka_config_id)
-
-    def _get_client(self, config) -> AdminClient:
-        return AdminClient(config)
 
     def create_topic(
         self,
