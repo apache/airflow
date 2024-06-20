@@ -438,10 +438,8 @@ class TestRedisAnnotations:
                 {
                     "redis": {
                         "enabled": True,
-                        "metadata": {
-                            "annotations": {
-                                "example": "redis",
-                            },
+                        "annotations": {
+                            "example": "redis",
                         },
                     },
                 },
