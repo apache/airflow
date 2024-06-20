@@ -26,6 +26,7 @@ from airflow.providers.openlineage.conf import (
     _is_true,
     config_path,
     custom_extractors,
+    custom_facet_functions,
     dag_state_change_process_pool_size,
     disabled_operators,
     execution_timeout,
@@ -41,6 +42,7 @@ from tests.test_utils.config import conf_vars, env_vars
 _CONFIG_SECTION = "openlineage"
 _VAR_CONFIG_PATH = "OPENLINEAGE_CONFIG"
 _CONFIG_OPTION_CONFIG_PATH = "config_path"
+_CONFIG_OPTION_CUSTOM_FACET_FUNCTIONS = "custom_facet_functions"
 _VAR_DISABLE_SOURCE_CODE = "OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE"
 _CONFIG_OPTION_DISABLE_SOURCE_CODE = "disable_source_code"
 _CONFIG_OPTION_DISABLED_FOR_OPERATORS = "disabled_for_operators"
@@ -253,6 +255,30 @@ def test_extractors_empty_conf_option():
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_EXTRACTORS): None})
 def test_extractors_do_not_fail_if_conf_option_missing():
     assert custom_extractors() == set()
+
+
+@conf_vars(dict())
+def test_custom_facet_functions_not_set():
+    assert custom_facet_functions() == set()
+
+
+def test_custom_facet_functions_with_no_values():
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_CUSTOM_FACET_FUNCTIONS): None}):
+        assert custom_facet_functions() == set()
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_CUSTOM_FACET_FUNCTIONS): ""}):
+        assert custom_facet_functions() == set()
+
+
+@conf_vars(
+    {
+        (
+            _CONFIG_SECTION,
+            _CONFIG_OPTION_CUSTOM_FACET_FUNCTIONS,
+        ): " tests.my_function;; tests.my_function ; my_function_2; ",
+    }
+)
+def test_custom_facet_functions():
+    assert custom_facet_functions() == {"tests.my_function", "my_function_2"}
 
 
 @env_vars({_VAR_NAMESPACE: "my_custom_namespace"})
