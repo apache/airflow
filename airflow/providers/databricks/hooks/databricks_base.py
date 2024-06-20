@@ -34,11 +34,6 @@ from urllib.parse import urlsplit
 
 import aiohttp
 import requests
-from azure.identity import ClientSecretCredential, ManagedIdentityCredential
-from azure.identity.aio import (
-    ClientSecretCredential as AsyncClientSecretCredential,
-    ManagedIdentityCredential as AsyncManagedIdentityCredential,
-)
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -52,7 +47,7 @@ from tenacity import (
 )
 
 from airflow import __version__
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
 
@@ -302,6 +297,8 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
+            from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+
             for attempt in self._get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
@@ -321,6 +318,8 @@ class BaseDatabricksHook(BaseHook):
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
@@ -342,6 +341,11 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
+            from azure.identity.aio import (
+                ClientSecretCredential as AsyncClientSecretCredential,
+                ManagedIdentityCredential as AsyncManagedIdentityCredential,
+            )
+
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
@@ -361,6 +365,8 @@ class BaseDatabricksHook(BaseHook):
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except aiohttp.ClientResponseError as err:
