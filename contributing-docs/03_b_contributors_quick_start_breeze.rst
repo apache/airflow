@@ -85,7 +85,7 @@ Following are some of important topics of `Breeze documentation <../dev/breeze/d
 Running tests with Breeze
 -------------------------
 
-Many changes to the Airflow code base will require, at a minimum, a new unit test. All tests exist within the ``tests/``
+Many changes to the Airflow code base will require, at a minimum, unit tests, either a new one or updating an existing one. All tests exist within the ``tests/``
 directory in the root of the Airflow project.
 
 One advantage with Breeze is that all of the tests are run in the same environment as Airflow's continuous integration (CI)
