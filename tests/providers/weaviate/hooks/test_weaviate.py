@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import ExitStack
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
@@ -448,17 +447,13 @@ def test_create_collection(weaviate_hook):
     mock_client = MagicMock()
     weaviate_hook.get_conn = MagicMock(return_value=mock_client)
 
-    # Define test class JSON
-    test_class_json = {
-        "class": "TestCollection",
-        "description": "Test class for unit testing",
-    }
-
     # Test the create_collection method
-    weaviate_hook.create_collection(test_class_json)
+    weaviate_hook.create_collection("TestCollection", description="Test class for unit testing")
 
     # Assert that the create_collection method was called with the correct arguments
-    mock_client.schema.create_collection.assert_called_once_with(test_class_json)
+    mock_client.collections.create.assert_called_once_with(
+        name="TestCollection", description="Test class for unit testing"
+    )
 
 
 @pytest.mark.parametrize(
@@ -473,9 +468,9 @@ def test_batch_data(data, expected_length, weaviate_hook):
     """
     Test the batch_data method of WeaviateHook.
     """
-    # Mock the Weaviate Client
-    mock_client = MagicMock()
-    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+    # Mock the Weaviate Collection
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
 
     # Define test data
     test_collection_name = "TestCollection"
@@ -484,9 +479,9 @@ def test_batch_data(data, expected_length, weaviate_hook):
     weaviate_hook.batch_data(test_collection_name, data)
 
     # Assert that the batch_data method was called with the correct arguments
-    mock_client.batch.configure.assert_called_once()
-    mock_batch_context = mock_client.batch.__enter__.return_value
-    assert mock_batch_context.add_data_object.call_count == expected_length
+    mock_collection.batch.dynamic.assert_called_once()
+    mock_batch_context = mock_collection.batch.dynamic.__enter__.return_value
+    assert mock_batch_context.add_object.call_count == expected_length
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
@@ -503,63 +498,17 @@ def test_batch_data_retry(get_conn, weaviate_hook):
     assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
 
 
-@pytest.mark.parametrize(
-    argnames=["get_schema_value", "existing", "expected_value"],
-    argvalues=[
-        ({"classes": [{"class": "A"}, {"class": "B"}]}, "ignore", [{"class": "C"}]),
-        ({"classes": [{"class": "A"}, {"class": "B"}]}, "replace", [{"class": "B"}, {"class": "C"}]),
-        ({"classes": [{"class": "A"}, {"class": "B"}]}, "fail", {}),
-        ({"classes": [{"class": "A"}, {"class": "B"}]}, "invalid_option", {}),
-    ],
-    ids=["ignore", "replace", "fail", "invalid_option"],
-)
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_collections")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
-def test_upsert_schema_scenarios(
-    get_schema, create_schema, delete_collections, get_schema_value, existing, expected_value, weaviate_hook
-):
-    schema_json = {
-        "B": {"class": "B"},
-        "C": {"class": "C"},
-    }
-    with ExitStack() as stack:
-        delete_collections.return_value = None
-        if existing in ["fail", "invalid_option"]:
-            stack.enter_context(pytest.raises(ValueError))
-        get_schema.return_value = get_schema_value
-        weaviate_hook.create_or_replace_classes(schema_json=schema_json, existing=existing)
-        create_schema.assert_called_once_with({"classes": expected_value})
-        if existing == "replace":
-            delete_collections.assert_called_once_with(collection_names=["B"])
-
-
-@mock.patch("builtins.open")
-@mock.patch("json.load")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.create_schema")
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_schema")
-def test_upsert_schema_json_file_param(get_schema, create_schema, load, open, weaviate_hook):
-    """Test if schema_json is path to a json file"""
-    get_schema.return_value = {"classes": [{"class": "A"}, {"class": "B"}]}
-    load.return_value = {
-        "B": {"class": "B"},
-        "C": {"class": "C"},
-    }
-    weaviate_hook.create_or_replace_classes(schema_json="/tmp/some_temp_file.json", existing="ignore")
-    create_schema.assert_called_once_with({"classes": [{"class": "C"}]})
-
-
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_delete_collections(get_conn, weaviate_hook):
-    collection_names = ["class_a", "class_b"]
-    get_conn.return_value.schema.delete_collection.side_effect = [
+    collection_names = ["collection_a", "collection_b"]
+    get_conn.return_value.collections.delete.side_effect = [
         weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
         None,
     ]
     error_list = weaviate_hook.delete_collections(collection_names, if_error="continue")
-    assert error_list == ["class_a"]
+    assert error_list == ["collection_a"]
 
-    get_conn.return_value.schema.delete_collection.side_effect = weaviate.UnexpectedStatusCodeException(
+    get_conn.return_value.collections.delete.side_effect = weaviate.UnexpectedStatusCodeException(
         "something failed", requests.Response()
     )
     with pytest.raises(weaviate.UnexpectedStatusCodeException):
@@ -568,10 +517,10 @@ def test_delete_collections(get_conn, weaviate_hook):
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_http_errors_of_delete_collections(get_conn, weaviate_hook):
-    collection_names = ["class_a", "class_b"]
+    collection_names = ["collection_a", "collection_b"]
     resp = requests.Response()
     resp.status_code = 429
-    get_conn.return_value.schema.delete_collection.side_effect = [
+    get_conn.return_value.collections.delete.side_effect = [
         requests.exceptions.HTTPError(response=resp),
         None,
         requests.exceptions.ConnectionError,
@@ -579,7 +528,7 @@ def test_http_errors_of_delete_collections(get_conn, weaviate_hook):
     ]
     error_list = weaviate_hook.delete_collections(collection_names, if_error="continue")
     assert error_list == []
-    assert get_conn.return_value.schema.delete_collection.call_count == 4
+    assert get_conn.return_value.collections.delete.call_count == 4
 
 
 @mock.patch("weaviate.util.generate_uuid5")
