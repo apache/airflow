@@ -37,7 +37,7 @@ There are three main ways you can run an Airflow development environment:
 
 Before deciding which method to choose, there are a few factors to consider:
 
-* Breeze offers a lot of featuers, but it requires Docker Desktop, *at least* 2.5GB RAM, and 2 cores. 4GB of RAM is recommended. It also requires a substantial amount of disk space. 20GB is recommended.
+* Breeze offers a lot of features, but it requires Docker Desktop, *at least* 2.5GB RAM, and 2 cores. 4GB of RAM is recommended. It also requires a substantial amount of disk space. 20GB is recommended.
 * Experienced developers may prefer a batteries-not-included environment and might find installing into a virtual environment preferable.
   For a comprehensive venv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_.
 * Remote environments such as GitPod or GitHub Codespaces might require a paid account.
