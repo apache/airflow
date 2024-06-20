@@ -91,7 +91,7 @@ You can also run all pre-commit hooks against specific files:
 
 .. code-block:: bash
 
-   pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
+   pre-commit run --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
 Specific pre-commit hooks against all files:
