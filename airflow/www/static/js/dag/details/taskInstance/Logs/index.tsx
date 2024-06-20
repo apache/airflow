@@ -28,6 +28,7 @@ import { useTimezone } from "src/context/timezone";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import MultiSelect from "src/components/MultiSelect";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { useTaskInstance } from "src/api";
 
 import LogLink from "./LogLink";
 import { LogLevel, logLevelColorMapping, parseLogs } from "./utils";
@@ -87,6 +88,13 @@ const Logs = ({
   >([]);
   const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
+
+  const { data: taskInstance } = useTaskInstance({
+    dagId,
+    dagRunId,
+    taskId: taskId || "",
+    mapIndex,
+  });
 
   const { data, isLoading } = useTaskLog({
     dagId,
@@ -162,13 +170,13 @@ const Logs = ({
         </Box>
       )}
       <Box>
-        <TrySelector
-          taskId={taskId}
-          runId={dagRunId}
-          mapIndex={mapIndex}
-          selectedTryNumber={selectedTryNumber}
-          onSelectTryNumber={setSelectedTryNumber}
-        />
+        {!!taskInstance && (
+          <TrySelector
+            taskInstance={taskInstance}
+            selectedTryNumber={selectedTryNumber}
+            onSelectTryNumber={setSelectedTryNumber}
+          />
+        )}
         <Flex my={1} justifyContent="space-between" flexWrap="wrap">
           <Flex alignItems="center" flexGrow={1} mr={10}>
             <Box width="100%" mr={2}>
