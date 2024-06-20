@@ -60,8 +60,8 @@ class SambaHook(BaseHook):
 
         connection_cache: dict[str, smbprotocol.connection.Connection] = {}
 
-        self._host = conn.host
-        self._share = share or conn.schema
+        self._host = conn.host or ""
+        self._share = share or conn.schema or ""
         self._connection_cache = connection_cache
         self._conn_kwargs = {
             "username": conn.login,
