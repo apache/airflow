@@ -30,10 +30,8 @@ const updateTheme = (isDark) => {
   HTML.setAttribute(HTML_THEME_DATASET_KEY, isDark ? "dark" : "light");
 };
 const initTheme = () => {
-  const isDark =
-    getJsonFromStorage(STORAGE_THEME_KEY) ??
-    window.matchMedia("(prefers-color-scheme: dark)").matches;
-  updateTheme(isDark);
+  const isDark = getJsonFromStorage(STORAGE_THEME_KEY);
+  if (isDark !== null) updateTheme(isDark);
 };
 const toggleTheme = () => {
   const isDark = getJsonFromStorage(STORAGE_THEME_KEY);
@@ -43,10 +41,4 @@ window.addEventListener("click", (e) => {
   if (e.target.id !== TOGGLE_BUTTON_ID) return;
   toggleTheme();
 });
-window
-  .matchMedia("(prefers-color-scheme: dark)")
-  .addEventListener("change", (e) => {
-    const isDark = e.matches;
-    updateTheme(isDark);
-  });
 initTheme();
