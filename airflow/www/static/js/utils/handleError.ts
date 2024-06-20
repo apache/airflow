@@ -17,22 +17,20 @@
  * under the License.
  */
 
-import { useToast } from "@chakra-ui/react";
-import type { ReactNode } from "react";
+import axios from "axios";
 
-import handleError from "./handleError";
-
-const useErrorToast = () => {
-  const toast = useToast();
-  // Add an error prop and handle it as a description
-  return ({ error, title, ...rest }: { error: Error; title?: ReactNode }) => {
-    toast({
-      ...rest,
-      status: "error",
-      title: title || "Error",
-      description: handleError(error).slice(0, 500),
-    });
-  };
+const handleError = (error?: any, fallbackMessage?: string) => {
+  if (typeof error === "string") return error;
+  if (error?.response?.errors) {
+    return error.response.errors.map((e: any) => e.message).join("\n");
+  }
+  if (axios.isAxiosError(error)) {
+    return (
+      error.response?.data?.detail || error.response?.data || error.message
+    );
+  }
+  if (error?.message) return error.message;
+  return fallbackMessage || "Something went wrong.";
 };
 
-export default useErrorToast;
+export default handleError;
