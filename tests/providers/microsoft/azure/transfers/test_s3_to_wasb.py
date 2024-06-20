@@ -34,7 +34,7 @@ PREFIX = "TEST"
 TEMPFILE_NAME = "test-tempfile"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
-# Here are some of the tests that need to be run (for the execute() function)
+# Here are some of the tests that need to be run (for the get_files_to_move() function)
 # 1. Prefix with no existing files, without replace [DONE]
 # 2. Prefix with existing files, without replace [DONE]
 # 3. Prefix with existing files, with replace [DONE]
@@ -47,7 +47,7 @@ MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 # Other tests that need to be run
 # - Test __init__
-# - Test get_files_to_move
+# - Test execute()
 
 
 @mock_aws
@@ -85,13 +85,42 @@ class TestS3ToAzureBlobStorageOperator:
         assert operator.s3_extra_args == {}
         assert operator.wasb_extra_args == {}
 
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    @mock.patch("tempfile.NamedTemporaryFile")
+    def test__execute__prefix_without_replace_empty_destination(
+        self, tempfile_mock, wasb_mock_hook, s3_mock_hook
+    ):
+        # Set the list files that the S3Hook should return, along with an empty list of files in the Azure
+        # Blob storage container. This scenario was picked for testing, as it's most likely the most common
+        # setting the operator will be used in
+        s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
+
+        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
+        tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix=PREFIX,
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+        )
+        # Placing an empty "context" object here (using None)
+        uploaded_files = operator.execute(None)
+
+        assert sorted(uploaded_files) == sorted(MOCK_FILES)
+
+        # Using the default connection ID, along with the default value of verify (for the S3 hook)
+        s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", verify=False)
+        wasb_mock_hook.assert_called_once_with(wasb_conn_id="wasb_default")
+
     # There are a number of very similar tests that use the same mocking, and for the most part, the same
     # logic
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_files_to_move__prefix_without_replace_empty_destination(
-        self, wasb_mock_hook, s3_mock_hook
-    ):
+    def test__get_files_to_move__prefix_without_replace_empty_destination(self, wasb_mock_hook, s3_mock_hook):
         # Set the list files that the S3Hook should return, as well as the list of files that are returned
         # when the get_blobs_list_recursive method is called using the WasbHook. In this scenario, the
         # destination is empty, meaning that the full list should be returned
@@ -113,16 +142,12 @@ class TestS3ToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    @mock.patch("tempfile.NamedTemporaryFile")
-    def test_execute_prefix_without_replace_populated_destination(
-        self, tempfile_mock, wasb_mock_hook, s3_mock_hook
+    def test__get_files_to_move___prefix_without_replace_populated_destination(
+        self, wasb_mock_hook, s3_mock_hook
     ):
         # Set the list files that the S3Hook should return
         s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES[1:]
-
-        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
-        tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
 
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
@@ -132,22 +157,18 @@ class TestS3ToAzureBlobStorageOperator:
             blob_prefix=PREFIX,
         )
         # Placing an empty "context" object here (using None)
-        uploaded_files = operator.execute(None)
+        uploaded_files = operator.get_files_to_move()
 
         assert sorted(uploaded_files) == sorted([MOCK_FILES[0]])
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    @mock.patch("tempfile.NamedTemporaryFile")
-    def test_execute_prefix_with_replace_populated_destination(
-        self, tempfile_mock, wasb_mock_hook, s3_mock_hook
+    def test__get_files_to_move__prefix_with_replace_populated_destination(
+        self, wasb_mock_hook, s3_mock_hook
     ):
         # Set the list files that the S3Hook should return
         s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES[1:]
-
-        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
-        tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
 
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
@@ -158,7 +179,7 @@ class TestS3ToAzureBlobStorageOperator:
             replace=True,
         )
         # Placing an empty "context" object here (using None)
-        uploaded_files = operator.execute(None)
+        uploaded_files = operator.get_files_to_move()
 
         # Since the replace parameter is being set to True, all the files that are present in the S3 bucket
         # will be moved to the Azure Blob, even though there are existing files in the Azure Blob
