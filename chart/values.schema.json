@@ -1602,25 +1602,8 @@
                             "default": true
                         },
                         "persistentVolumeClaimRetentionPolicy": {
-                            "description": "How PVCs are deleted during the lifecycle of a StatefulSet",
-                            "type": [
-                                "object",
-                                "null"
-                            ],
-                            "default": null,
-                            "additionalProperties": false,
-                            "properties": {
-                                "whenDeleted": {
-                                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
-                                    "type": "string",
-                                    "default": "Retain"
-                                },
-                                "whenScaled": {
-                                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
-                                    "type": "string",
-                                    "default": "Retain"
-                                }
-                            }
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "size": {
                             "description": "Volume size for worker StatefulSet.",
@@ -2968,24 +2951,8 @@
                             "default": "100Gi"
                         },
                         "persistentVolumeClaimRetentionPolicy": {
-                            "description": "How PVCs are deleted during the lifecycle of a StatefulSet",
-                            "type": [
-                                "object",
-                                "null"
-                            ],
-                            "additionalProperties": false,
-                            "properties": {
-                                "whenDeleted": {
-                                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
-                                    "type": "string",
-                                    "default": "Retain"
-                                },
-                                "whenScaled": {
-                                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
-                                    "type": "string",
-                                    "default": "Retain"
-                                }
-                            }
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
@@ -11874,6 +11841,27 @@
                             ]
                         }
                     }
+                }
+            }
+        },
+        "persistentVolumeClaimRetentionPolicy": {
+            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
+            "type": [
+                "object",
+                "null"
+            ],
+            "default": null,
+            "additionalProperties": false,
+            "properties": {
+                "whenDeleted": {
+                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
+                    "type": "string",
+                    "default": "Retain"
+                },
+                "whenScaled": {
+                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
+                    "type": "string",
+                    "default": "Retain"
                 }
             }
         }

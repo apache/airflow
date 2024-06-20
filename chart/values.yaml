@@ -619,7 +619,7 @@ workers:
   persistence:
     # Enable persistent volumes
     enabled: true
-    # persistentVolumeClaimRetentionPolicy if statefulset is used, to determine delete when scaled/removed
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
@@ -1537,7 +1537,7 @@ triggerer:
   persistence:
     # Enable persistent volumes
     enabled: true
-    # persistentVolumeClaimRetentionPolicy if statefulset is used, to determine delete when scaled/removed
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
     persistentVolumeClaimRetentionPolicy: ~
     # Volume size for triggerer StatefulSet
     size: 100Gi
