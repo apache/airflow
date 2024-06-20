@@ -478,24 +478,30 @@ def test_batch_data(data, expected_length, weaviate_hook):
     # Test the batch_data method
     weaviate_hook.batch_data(test_collection_name, data)
 
-    # Assert that the batch_data method was called with the correct arguments
-    mock_collection.batch.dynamic.assert_called_once()
-    mock_batch_context = mock_collection.batch.dynamic.__enter__.return_value
+    mock_batch_context = mock_collection.batch.dynamic.return_value.__enter__.return_value
     assert mock_batch_context.add_object.call_count == expected_length
 
 
-@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
-def test_batch_data_retry(get_conn, weaviate_hook):
+def test_batch_data_retry(weaviate_hook):
     """Test to ensure retrying working as expected"""
+    # Mock the Weaviate Collection
+    mock_collection = MagicMock()
+    weaviate_hook.get_collection = MagicMock(return_value=mock_collection)
+
     data = [{"name": "chandler"}, {"name": "joey"}, {"name": "ross"}]
     response = requests.Response()
     response.status_code = 429
     error = requests.exceptions.HTTPError()
     error.response = response
     side_effect = [None, error, None, error, None]
-    get_conn.return_value.batch.__enter__.return_value.add_data_object.side_effect = side_effect
+
+    mock_collection.batch.dynamic.return_value.__enter__.return_value.add_object.side_effect = side_effect
+
     weaviate_hook.batch_data("TestCollection", data)
-    assert get_conn.return_value.batch.__enter__.return_value.add_data_object.call_count == len(side_effect)
+
+    assert mock_collection.batch.dynamic.return_value.__enter__.return_value.add_object.call_count == len(
+        side_effect
+    )
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
