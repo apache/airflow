@@ -25,6 +25,9 @@ import type { UseQueryResult } from "react-query";
 
 import * as utils from "src/utils";
 import * as useTaskLogModule from "src/api/useTaskLog";
+import * as useTIHistory from "src/api/useTIHistory";
+import * as useTaskInstance from "src/api/useTaskInstance";
+import type { TaskInstance } from "src/types/api-generated";
 
 import Logs from "./index";
 
@@ -55,11 +58,41 @@ describe("Test Logs Component.", () => {
     isSuccess: true,
   } as UseQueryResult<string, unknown>;
 
+  const tiReturnValue = {
+    data: { tryNumber: 2, startDate: "2024-06-18T01:47:51.724946+00:00" },
+    isSuccess: true,
+  } as UseQueryResult<TaskInstance, unknown>;
+
+  const tiHistoryValue = {
+    data: [
+      {
+        tryNumber: 1,
+        startDate: "2024-06-17T01:47:51.724946+00:00",
+        endDate: "2024-06-17T01:50:51.724946+00:00",
+        state: "failed",
+      },
+      {
+        tryNumber: 2,
+        startDate: "2024-06-18T01:47:51.724946+00:00",
+        endDate: "2024-06-18T01:50:51.724946+00:00",
+        state: "failed",
+      },
+    ],
+    isSuccess: true,
+  } as UseQueryResult<Partial<TaskInstance>[], unknown>;
+
   beforeEach(() => {
     useTaskLogMock = jest
       .spyOn(useTaskLogModule, "default")
       .mockImplementation(() => returnValue);
     window.HTMLElement.prototype.scrollIntoView = jest.fn();
+
+    jest
+      .spyOn(useTaskInstance, "default")
+      .mockImplementation(() => tiReturnValue);
+    jest
+      .spyOn(useTIHistory, "default")
+      .mockImplementation(() => tiHistoryValue);
   });
 
   test("Test Logs Content", () => {
