@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-19T22:18:14.084072
+# This constraints file was automatically generated on 2024-06-20T12:07:13.008552
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -177,7 +177,7 @@ docutils==0.16
 duckdb==1.0.0
 elastic-transport==8.13.1
 elasticsearch==8.14.0
-email_validator==2.1.2
+email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et-xmlfile==1.1.0
@@ -308,7 +308,7 @@ json-merge-patch==0.2
 jsondiff==2.0.0
 jsonpatch==1.33
 jsonpath-ng==1.6.1
-jsonpickle==3.2.1
+jsonpickle==3.2.2
 jsonpointer==3.0.0
 jsonschema-path==0.3.2
 jsonschema-specifications==2023.12.1
@@ -484,11 +484,11 @@ python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.4.3
 pyzmq==26.0.3
-qdrant-client==1.9.1
+qdrant-client==1.9.2
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.0.6
-redshift-connector==2.1.1
+redshift-connector==2.1.2
 referencing==0.31.1
 regex==2024.5.15
 requests-file==2.1.0
