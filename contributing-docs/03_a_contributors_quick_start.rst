@@ -32,8 +32,8 @@ There are three main ways you can run an Airflow development environment:
 1. With `Breeze <../dev/breeze/doc/README.rst>`_ (local) Breeze...
   1. Makes it easy (you might say, "a *breeze*") to run integrations, tests, and more
   2. A Python-built tool specifically built to develop Airflow using Docker Compose
-2. With a virtual environment such as `hatch <https://hatch.pypa.io/latest/>`_ or `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ (local)
-3. With a remote environment like `GitPod <https://www.gitpod.io/>`_ or `GitHub Codespaces <https://github.com/features/codespaces>`_ (remote)
+2. With a virtual environment management tool such as `hatch <https://hatch.pypa.io/latest/>`_ or `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ (local)
+3. With a remote environment management tool like `GitPod <https://www.gitpod.io/>`_ or `GitHub Codespaces <https://github.com/features/codespaces>`_ (remote)
 
 Before deciding which method to choose, there are a few factors to consider:
 
