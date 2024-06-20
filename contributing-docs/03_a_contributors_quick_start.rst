@@ -25,7 +25,7 @@ Note to Starters
 ################
 
 Airflow is a complex project, as is setting up an Airflow development environment to test changes.
-This guide and its sub-guides are designed to make it as easy as possible to contribute.
+This guide and its sub-guides are designed to make it as easy as possible to contribute to Airflow
 
 There are three main ways you can run an Airflow development environment:
 
