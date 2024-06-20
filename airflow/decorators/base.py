@@ -458,12 +458,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if partial_kwargs.get("pool") is None:
             partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
         if partial_kwargs.get("pool_slots") and partial_kwargs["pool_slots"] < 1:
-            dag_str = (
-                f""" in dag {partial_kwargs['dag'].dag_id
-                                   }"""
-                if partial_kwargs.get("dag")
-                else ""
-            )
+            dag_str = ""
+            if partial_kwargs.get("dag"):
+                dag_str = f" in dag {partial_kwargs['dag'].dag_id}"
             raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
         partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
         partial_kwargs["retry_delay"] = coerce_timedelta(
