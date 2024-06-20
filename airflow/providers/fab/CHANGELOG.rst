@@ -33,6 +33,7 @@ Misc
 
 * ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
 * ``Upgrade to FAB 4.5.0 (#39851)``
+* ``fix: sqa deprecations for airflow providers (#39293)``
 
 1.1.1
 .....

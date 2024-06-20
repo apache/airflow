@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.2.0
 .....
 
-Latest change: 2024-06-12
+Latest change: 2024-06-20
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`4fbdd07c13 <https://github.com/apache/airflow/commit/4fbdd07c1392eed517ed2af000aae2c2c3f5b3f6>`_  2024-06-20   ``fix: sqa deprecations for airflow providers (#39293)``
 `14deaa2f1f <https://github.com/apache/airflow/commit/14deaa2f1fb8d5dbe4d2e1d9adaa390c5e5efbf8>`_  2024-06-12   ``Add CSRF protection to "/logout" (#40145)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
 `483d408041 <https://github.com/apache/airflow/commit/483d408041b13659287aaefb09cfa36ca85a3d09>`_  2024-05-27   ``Upgrade to FAB 4.5.0 (#39851)``
