@@ -40,12 +40,10 @@ for system_test_file in system_test_files:
     record.filename = system_test_file
     liRecords = []
     for index, row in df.iterrows():
-        chunks = re.split(' +', row[0])
-        print(chunks)
-        if chunks[0].strip() == system_test_file:
-            record.time = chunks[2]
-            record.rundate = chunks[3]
-            if chunks[1] == 'S':
+        if row[0].strip() == system_test_file:
+            record.time = row[2]
+            record.rundate = row[3]
+            if row[1] == 'S':
                 record.successcount += 1
                 record.result.append('S')
             else:
