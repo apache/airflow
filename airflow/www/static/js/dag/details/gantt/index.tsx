@@ -107,7 +107,8 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
   let startDate = dagRun?.queuedAt || dagRun?.startDate;
-  let endDate = dagRun?.endDate;
+  // @ts-ignore
+  let endDate = dagRun?.endDate ?? moment().add(1, "s").toString();
 
   // Check if any task instance dates are outside the bounds of the dag run dates and update our min start and max end
   groups.children?.forEach((task) => {

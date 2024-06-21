@@ -125,11 +125,9 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
 
   return (
     <Box mt={3} flexGrow={1}>
-      {isTaskInstance && (
+      {isTaskInstance && !!taskInstance && (
         <TrySelector
-          taskId={taskId}
-          runId={runId}
-          mapIndex={mapIndex}
+          taskInstance={taskInstance}
           selectedTryNumber={selectedTryNumber || finalTryNumber}
           onSelectTryNumber={setSelectedTryNumber}
         />
