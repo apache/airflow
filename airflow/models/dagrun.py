@@ -57,7 +57,6 @@ from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
@@ -1580,20 +1579,13 @@ class DagRun(Base, LoggingMixin):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
             # check whether the operator supports start execution from triggerer
             elif ti.task.start_trigger_args is not None:
-                start_trigger_args = ti.task.start_trigger_args
+                from airflow.models.mappedoperator import MappedOperator
+
                 if isinstance(ti.task, MappedOperator):
                     context = ti.get_template_context()
-                    mapped_kwargs, _ = ti.task._expand_mapped_kwargs(context, session)
-                    start_from_trigger = mapped_kwargs.get("start_from_trigger", ti.task.start_from_trigger)
+                    ti.task._expand_start_trigger(context=context, session=session)
 
-                    # update the trigger_kwargs if it's in expanded kwargs
-                    start_trigger_args.trigger_kwargs = mapped_kwargs.get(
-                        "trigger_kwargs", start_trigger_args.trigger_kwargs
-                    )
-                else:
-                    start_from_trigger = ti.task.start_from_trigger
-
-                if start_from_trigger is True:
+                if ti.task.start_from_trigger is True:
                     ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1

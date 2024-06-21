@@ -729,6 +729,24 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
+    def _expand_start_trigger(self, *, context: Context, session: Session) -> None:
+        """Get the kwargs to create the unmapped start_from_trigger and start_trigger_args.
+
+        This method is for allowing mapped operator to start execution from triggerer.
+        """
+        if not self.start_trigger_args:
+            return
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
+        self.start_from_trigger = mapped_kwargs.get("start_from_trigger", self.start_from_trigger)
+
+        self.start_trigger_args.trigger_kwargs = mapped_kwargs.get(
+            "trigger_kwargs", self.start_trigger_args.trigger_kwargs
+        )
+        self.start_trigger_args.timeout = mapped_kwargs.get(
+            "trigger_timeout", self.start_trigger_args.timeout
+        )
+
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
