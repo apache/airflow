@@ -212,9 +212,6 @@
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_connections_prefix_none_value
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri_non_existent_key
-- tests/providers/google/cloud/sensors/test_cloud_composer.py::TestCloudComposerEnvironmentSensor::test_cloud_composer_existence_sensor_async
-- tests/providers/google/cloud/sensors/test_cloud_composer.py::TestCloudComposerEnvironmentSensor::test_cloud_composer_existence_sensor_async_execute_complete
-- tests/providers/google/cloud/sensors/test_cloud_composer.py::TestCloudComposerEnvironmentSensor::test_cloud_composer_existence_sensor_async_execute_failure
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_cron
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_datetime
 - tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_execute
