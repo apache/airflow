@@ -431,26 +431,12 @@ class TestPerComponentPodAnnotations:
 class TestRedisAnnotations:
     """Tests Redis Annotations."""
 
-    @pytest.mark.parametrize(
-        "values,show_only,expected_annotations",
-        [
-            (
-                {
-                    "redis": {
-                        "enabled": True,
-                        "annotations": {
-                            "example": "redis",
-                        },
-                    },
-                },
-                "templates/redis/redis-statefulset.yaml",
-                {
-                    "example": "redis",
-                },
-            ),
-        ],
-    )
-    def test_redis_annotations_are_added(self, values, show_only, expected_annotations):
+    def test_redis_annotations_are_added(self):
+        # Test Case
+        values = {"redis": {"annotations": {"example": "redis"}}}
+        show_only = "templates/redis/redis-statefulset.yaml"
+        expected_annotations = {"example": "redis"}
+
         k8s_objects = render_chart(
             values=values,
             show_only=[show_only],
