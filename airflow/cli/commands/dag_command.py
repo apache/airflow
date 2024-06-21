@@ -302,6 +302,39 @@ def dag_show(args) -> None:
     else:
         print(dot.source)
 
+@cli_utils.action_cli
+@providers_configuration_loaded
+def dag_serialize(args) -> dict:
+
+
+    dagbag = DagBag(process_subdir(args.subdir))
+    if dagbag.import_errors:
+        from rich import print as rich_print
+
+        rich_print(
+            "[red][bold]Error:[/bold] Failed to load all files. "
+            "For details, run `airflow dags list-import-errors`",
+            file=sys.stderr,
+        )
+
+    def get_dag_detail(dag: DAG) -> dict:
+        from airflow.serialization.serialized_objects import SerializedDAG
+        dag_details = _get_dagbag_dag_details(dag)
+        ser_dag = SerializedDAG.serialize_dag(dag)
+        tasks = [v for t in ser_dag['tasks'] for v in t.values() if "task_id" in v ]
+        reduced_tasks = [{k:d[k] for k in ("task_id", "downstream_task_ids")} for d in tasks]
+        results = {
+            "dag_id": dag_details["dag_id"],
+            "dag_dependencies": ser_dag["dag_dependencies"], 
+            "tasks": reduced_tasks, 
+            }
+        return results
+    
+
+    results = [get_dag_detail(d) for d in dagbag.dags.values()]
+
+    with open(args.save, 'w') as f:
+        json.dump(results, f, indent=4)
 
 def _display_dot_via_imgcat(dot: Dot) -> None:
     data = dot.pipe(format="png")

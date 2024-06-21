@@ -1313,6 +1313,23 @@ DAGS_COMMANDS = (
             ARG_VERBOSE,
         ),
     ),
+    ActionCommand(
+        name="serialize",
+        help="Serialize all DAGs by parsing the DagBag files",
+        description=(
+            "Drop all serialized dags from the metadata DB. This will cause all DAGs to be reserialized "
+            "from the DagBag folder. This can be helpful if your serialized DAGs get out of sync with the "
+            "version of Airflow that you are running."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_command.dag_serialize"),
+        args=(
+            ARG_DAG_ID,
+            ARG_SAVE,
+            ARG_OUTPUT,
+            ARG_SUBDIR,
+            ARG_VERBOSE,
+        ),
+    ),
 )
 TASKS_COMMANDS = (
     ActionCommand(
