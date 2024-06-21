@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+.. note::
+  The ``GCSToGCSOperator`` now retains the nested folder structure when moving or copying a single
+  object, aligning its behavior with the behavior for multiple objects. If this change impacts your
+  workflows, you may need to adjust your ``source_object`` parameter to include the full path up to
+  the folder containing your single file and specify ``destination_object`` explicitly to ignore
+  nested folders. For example, if you previously used ``source_object='folder/nested_folder/'``, to
+  move file ``'folder/nested_folder/second_nested_folder/file'`` you should now use
+  ``source_object='folder/nested_folder/second_nested_folder/'`` and specify
+  ``destination_object='folder/nested_folder/'``. This would move the file to ``'folder/nested_folder/file'``
+  instead of the fixed behavior of moving it to ``'folder/nested_folder/second_nested_folder/file'``.
+
 10.19.0
 .......
 
