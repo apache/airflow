@@ -266,3 +266,15 @@ class TestSSHOperator:
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
+
+    def test_on_kill(self):
+        # Test that on_kill closes the connection
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command="echo test",
+        )
+
+        task.on_kill()
+        self.hook.get_conn.assert_called_once()
+        self.hook.get_conn.return_value.close.assert_called_once()
