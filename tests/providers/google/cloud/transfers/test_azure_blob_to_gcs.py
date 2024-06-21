@@ -91,3 +91,32 @@ class TestAzureBlobStorageToGCSTransferOperator:
             gzip=GZIP,
             filename=mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name,
         )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
+    def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb):
+        from openlineage.client.run import Dataset
+
+        MOCK_AZURE_ACCOUNT_NAME = "mock_account_name"
+        mock_hook_wasb.return_value.get_conn.return_value.account_name = MOCK_AZURE_ACCOUNT_NAME
+
+        operator = AzureBlobStorageToGCSOperator(
+            wasb_conn_id=WASB_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            blob_name=BLOB_NAME,
+            container_name=CONTAINER_NAME,
+            bucket_name=BUCKET_NAME,
+            object_name=OBJECT_NAME,
+            filename=FILENAME,
+            gzip=GZIP,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            task_id=TASK_ID,
+        )
+
+        lineage = operator.get_openlineage_facets_on_start()
+
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == Dataset(
+            namespace=f"wasbs://{CONTAINER_NAME}@{MOCK_AZURE_ACCOUNT_NAME}", name=BLOB_NAME
+        )
+        assert lineage.outputs[0] == Dataset(namespace=f"gs://{BUCKET_NAME}", name=OBJECT_NAME)

@@ -143,6 +143,8 @@ def mock_context(task) -> Context:
             map_indexes: Iterable[int] | int | None = None,
             default: Any | None = None,
         ) -> Any:
+            if map_indexes:
+                return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}")
             return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}")
 
         def xcom_push(
@@ -152,7 +154,7 @@ def mock_context(task) -> Context:
             execution_date: datetime | None = None,
             session: Session = NEW_SESSION,
         ) -> None:
-            values[f"{self.task_id}_{self.dag_id}_{key}"] = value
+            values[f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"] = value
 
     values["ti"] = MockedTaskInstance(task=task)
 
