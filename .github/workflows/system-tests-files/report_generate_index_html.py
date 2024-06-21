@@ -43,6 +43,11 @@ for system_test_file in system_test_files:
         if row[0].strip() == system_test_file:
             record.time = row[2]
             record.rundate = row[3]
+            if row[3] is not None:
+                try:
+                    record.rundate = row[3].strftime("%m/%d/%Y")
+                except ValueError:
+                    print(ValueError)
             if row[1] == 'S':
                 record.successcount += 1
                 record.result.append('S')
