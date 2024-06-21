@@ -80,6 +80,7 @@ def dag_bag():
     return DagBag(include_examples=True)
 
 
+@pytest.mark.execution_timeout(120)
 class TestBackfillJob:
     def _mock_executor(self, executor=None):
         if not executor:
