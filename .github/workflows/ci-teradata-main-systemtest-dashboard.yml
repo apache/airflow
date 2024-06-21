@@ -97,8 +97,9 @@ jobs:
               export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}'
               export AIRFLOW_CONN_TERADATA_SSL_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?sslmode=allow'
               export AIRFLOW_CONN_TERADATA_SP_CALL='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?tmode=TERA'
-              export AIRFLOW_CONN_WASB_DEFAULT='wasb://:'
-              export AIRFLOW_CONN_AWS_DEFAULT='aws://:'
+              export AIRFLOW_CONN_WASB_DEFAULT='wasb://${{ vars.AZURE_BLOB_ACCOUNTNAME }}:${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}'
+              export AIRFLOW_CONN_AWS_DEFAULT=aws://${{ vars.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}@/?aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+
               pytest --system=teradata --junitxml=report_test.xml tests/system/providers/teradata
       - name: "Delete CSAE environment"
         if: always()
