@@ -3,6 +3,7 @@ import re
 
 import pandas as pd
 from jinja2 import Template
+from datetime import date
 
 
 class Record:
@@ -49,8 +50,9 @@ for system_test_file in system_test_files:
                 record.failurecount += 1
                 record.result.append('F')
             liRecords.append(record)
+    today = date.today()
     an_item = dict(classname=system_test_file, successre=record.successcount,
-                   failurere=record.failurecount, time=liRecords[-1].time, status=liRecords[-1].result[-10:])
+                   failurere=record.failurecount, time=liRecords[-1].time, date=today, status=liRecords[-1].result[-10:])
     items.append(an_item)
 
 
