@@ -198,3 +198,9 @@ class SSHOperator(BaseOperator):
         """Get ssh tunnel."""
         ssh_client = self.hook.get_conn()  # type: ignore[union-attr]
         ssh_client.get_transport()
+
+    def on_kill(self) -> None:
+        """Close the ssh client session."""
+        ssh_client = self.hook.get_conn()
+        ssh_client.close()
+        self.log.info("SSH client closed.")
