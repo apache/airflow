@@ -20,7 +20,7 @@ fileName = 'reporttest.csv'
 df = pd.read_csv(fileName, delimiter=',', header=None)
 
 # Read system test files under system tests directory
-directory = '../tests/system/providers/teradata'
+directory = 'tests/system/providers/teradata'
 
 # List all file names in the directory
 file_names = os.listdir(directory)
