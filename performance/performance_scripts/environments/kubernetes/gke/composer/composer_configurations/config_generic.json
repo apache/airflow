@@ -1,0 +1,35 @@
+{
+  "environment_type": "COMPOSER",
+  "api_version": "{{api_version}}",
+  "api_endpoint": "{{api_endpoint}}",
+  "force_routing": {{force_routing}},
+  "config_body": {
+    "config": {
+      "softwareConfig": {
+        "pythonVersion": "{{python_version}}",
+        "imageVersion": "composer-{{composer_version}}-airflow-{{airflow_version}}",
+        "airflowConfigOverrides": {{airflow_config_overrides}},
+        "schedulerCount": {{scheduler_count}}
+      },
+      "nodeConfig": {
+        "tags": [],
+        "diskSizeGb": {{disk_size_gb}},
+        "machineType": "projects/{{project_id}}/zones/{{zone_id}}/machineTypes/{{machine_type}}",
+        "network": "projects/{{project_id}}/global/networks/{{network_id}}",
+        "subnetwork": "projects/{{project_id}}/regions/{{location_id}}/subnetworks/{{subnetwork_id}}",
+        "ipAllocationPolicy": {
+          "useIpAliases": {{use_ip_aliases}}
+        }
+      },
+      "nodeCount": {{node_count}},
+      "privateEnvironmentConfig": {
+        "enablePrivateEnvironment": {{enable_private_environment}},
+        "privateClusterConfig": {
+          "enablePrivateEndpoint": {{enable_private_endpoint}},
+          "masterIpv4CidrBlock": "{{master_ipv4_cidr_block}}"
+        }
+      }
+    },
+    "name": "projects/{{project_id}}/locations/{{location_id}}/environments/{{environment_id}}"
+  }
+}

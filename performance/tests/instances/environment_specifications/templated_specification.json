@@ -1,0 +1,6 @@
+{
+  "environment_type": "SOME_TYPE",
+  "config_body": {},
+  "jinja_variable_1": "{{jinja_variable_1}}",
+  "jinja_variable_2": "{{jinja_variable_2}}"
+}

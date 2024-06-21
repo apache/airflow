@@ -1,0 +1,34 @@
+"""The setup script."""
+
+from setuptools import setup
+
+with open("performance_scripts/README.md") as readme_file:
+    readme = readme_file.read()
+
+with open("streaming/requirements.txt") as requirements_txt:
+    cloud_func_requirements = requirements_txt.read().split("\n")
+
+with open("requirements.txt") as requirements_txt:
+    app_requirements = requirements_txt.read().split("\n")
+
+requirements = cloud_func_requirements + app_requirements
+
+setup(
+    author="Google",
+    author_email="cloud-composer-team@google.com",
+    description="Python project dedicated to running performance tests of Apache Airflow",
+    entry_points={
+        "console_scripts": [
+            "airflow_gepard=performance_scripts.run_performance_test:main"
+        ]
+    },
+    install_requires=requirements,
+    license="",
+    long_description=readme,
+    name="airflow_gepard",
+    packages=["performance_scripts"],
+    python_requires=">=3.11",
+    url="https://github.com/airflow/performance",
+    version="0.1.0",
+    zip_safe=False,
+)

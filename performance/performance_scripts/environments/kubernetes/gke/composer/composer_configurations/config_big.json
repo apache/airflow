@@ -1,0 +1,23 @@
+{
+  "environment_type": "COMPOSER",
+  "api_version": "{{api_version}}",
+  "api_endpoint": "{{api_endpoint}}",
+  "config_body": {
+    "config": {
+      "softwareConfig": {
+        "pythonVersion": "{{python_version}}",
+        "imageVersion": "composer-{{composer_version}}-airflow-{{airflow_version}}"
+      },
+      "nodeConfig": {
+        "tags": [],
+        "diskSizeGb": 400,
+        "machineType": "projects/{{project_id}}/zones/{{zone_id}}/machineTypes/n1-standard-8"
+      },
+      "nodeCount": 12,
+      "privateEnvironmentConfig": {
+        "privateClusterConfig": {}
+      }
+    },
+    "name": "projects/{{project_id}}/locations/{{location_id}}/environments/{{environment_id}}"
+  }
+}

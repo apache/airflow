@@ -1,0 +1,13 @@
+timestamp,project_id,location,cluster_name,namespace_name,pod_name,non_existing_label_1,pod_metric_2,pod_metric_1
+1,project_id,location,cluster_name,namespace_A,pod_2_A,non_existing_1,0,120
+1,project_id,location,cluster_name,namespace_A,pod_1_A,non_existing_1,10,130
+1,project_id,location,cluster_name,namespace_B,pod_1_B,non_existing_1,20,140
+2,project_id,location,cluster_name,namespace_A,pod_2_A,non_existing_1,30,150
+2,project_id,location,cluster_name,namespace_A,pod_1_A,non_existing_1,40,160
+2,project_id,location,cluster_name,namespace_B,pod_1_B,non_existing_1,50,170
+5,project_id,location,cluster_name,namespace_A,pod_2_A,non_existing_1,60,180
+5,project_id,location,cluster_name,namespace_A,pod_1_A,non_existing_1,70,190
+5,project_id,location,cluster_name,namespace_B,pod_1_B,non_existing_1,80,200
+6,project_id,location,cluster_name,namespace_A,pod_2_A,non_existing_1,90,210
+6,project_id,location,cluster_name,namespace_A,pod_1_A,non_existing_1,100,220
+6,project_id,location,cluster_name,namespace_B,pod_1_B,non_existing_1,110,230
