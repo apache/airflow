@@ -169,7 +169,7 @@ class TestGitSyncWorker:
             "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
-    def test_container_lifecycle_looks(self):
+    def test_container_lifecycle_hooks(self):
         docs = render_chart(
             values={
                 "dags": {
