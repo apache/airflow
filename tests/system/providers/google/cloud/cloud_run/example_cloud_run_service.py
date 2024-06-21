@@ -23,10 +23,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-
-from google.cloud.run_v2 import Service
-from google.cloud.run_v2.types import k8s_min
-
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_run import (
@@ -51,18 +47,6 @@ def _assert_created_services_xcom(ti):
     assert service_name in service1_dicts[0]["name"]
 
 
-# [START howto_create_service_instance]
-def _create_service():
-    service = Service()
-    container = k8s_min.Container()
-    container.image = "us-docker.pkg.dev/cloudrun/container/service:latest"
-    service.template.containers.append(container)
-    return service
-
-
-# [END howto_create_service_instance]
-
-
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -76,7 +60,6 @@ with DAG(
         project_id=PROJECT_ID,
         region=region,
         service_name=service_name,
-        service=_create_service(),
         dag=dag,
     )
     # [END howto_operator_cloud_run_create_service]
@@ -91,14 +74,25 @@ with DAG(
         project_id=PROJECT_ID,
         region=region,
         service_name=service_name,
-        service=_create_service(),
         dag=dag,
     )
     # [END howto_operator_cloud_delete_service]
 
     (
-        create1 >> assert_created_jobs >> delete_service
+        # TEST SETUP
+        create1
+        # TEST BODY
+        >> assert_created_jobs
+        # TEST TEARDOWN
+        >> delete_service
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
 
 from tests.system.utils import get_test_run  # noqa: E402
 

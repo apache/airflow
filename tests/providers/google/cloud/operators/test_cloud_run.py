@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunDeleteJobOperator,
     CloudRunExecuteJobOperator,
     CloudRunListJobsOperator,
-    CloudRunUpdateJobOperator,
+    CloudRunUpdateJobOperator, CloudRunDeleteServiceOperator,
 )
 from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
@@ -398,22 +398,46 @@ class TestCloudRunListJobsOperator:
 class TestCloudRunCreateServiceOperator:
     def test_template_fields(self):
         operator = CloudRunCreateServiceOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME, service=SERVICE
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME,
         )
 
         _assert_common_template_fields(operator.template_fields)
         assert "service_name" in operator.template_fields
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
-    def test_create(self, hook_mock):
+    def test_execute(self, hook_mock):
         hook_mock.return_value.create_service.return_value = SERVICE
 
         operator = CloudRunCreateServiceOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME, service=SERVICE
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME,
         )
 
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.create_service.assert_called_once_with(
-            service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID, service=SERVICE
+            service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID,
+        )
+
+
+class TestCloudRunDeleteServiceOperator:
+    def test_template_fields(self):
+        operator = CloudRunDeleteServiceOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME,
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "service_name" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute(self, hook_mock):
+        hook_mock.return_value.create_service.return_value = SERVICE
+
+        operator = CloudRunDeleteServiceOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, service_name=SERVICE_NAME,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service_name=SERVICE_NAME, region=REGION, project_id=PROJECT_ID,
         )

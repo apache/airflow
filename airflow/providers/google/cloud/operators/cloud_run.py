@@ -362,7 +362,6 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param service_name: Required. The name of the service to create.
-    :param service: Required. The service descriptor containing the configuration of the service to submit.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -381,7 +380,6 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         service_name: str,
-        service: dict | Service,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -390,15 +388,13 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.region = region
         self.service_name = service_name
-        self.service = service
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self._validate_inputs()
 
     def _validate_inputs(self):
-        missing_fields = [k for k in ["project_id", "region", "service_name", "service"] if not getattr(self, k)]
-        print(f'\n\n\n\n\n\n{missing_fields}\n\n\n\n\n\n')
-        if not self.project_id or not self.region or not self.service_name or self.service:
+        missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
+        if not self.project_id or not self.region or not self.service_name:
             raise AirflowException(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
                 "keyword parameter or as extra field in Airflow connection definition. Both are not set!"
@@ -411,7 +407,6 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
 
         service = hook.create_service(
             service_name=self.service_name,
-            service=self.service,
             region=self.region,
             project_id=self.project_id,
         )
@@ -426,7 +421,6 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param service_name: Required. The name of the service to create.
-    :param service: Required. The service descriptor containing the configuration of the service to submit.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -445,7 +439,6 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         service_name: str,
-        service: dict | Service,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -454,14 +447,13 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.region = region
         self.service_name = service_name
-        self.service = service
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         # self._validate_inputs()
 
     def _validate_inputs(self):
-        missing_fields = [k for k in ["project_id", "region", "service_name", "service"] if not getattr(self, k)]
-        if not self.project_id or not self.region or not self.service_name or self.service:
+        missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
+        if not self.project_id or not self.region or not self.service_name:
             raise AirflowException(
                 f"Required parameters are missing: {missing_fields}. These parameters be passed either as "
                 "keyword parameter or as extra field in Airflow connection definition. Both are not set!"
@@ -474,7 +466,6 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
 
         service = hook.delete_service(
             service_name=self.service_name,
-            service=self.service,
             region=self.region,
             project_id=self.project_id,
         )

@@ -30,6 +30,7 @@ from google.cloud.run_v2 import (
     RunJobRequest,
     Service,
     UpdateJobRequest,
+    DeleteServiceRequest,
 )
 
 from airflow.exceptions import AirflowException
@@ -323,26 +324,43 @@ class TestCloudRunServiceHook:
         service_name = "service1"
         region = "region1"
         project_id = "projectid"
-        service = Service()
 
-        create_request = CreateServiceRequest()
-        create_request.service = service
-        create_request.service_id = service_name
-        create_request.parent = f"projects/{project_id}/locations/{region}"
+        create_request = CreateServiceRequest(
+            service_id=service_name,
+            parent = f"projects/{project_id}/locations/{region}",
+        )
 
         cloud_run_service_hook.create_service(
-            service=Service.to_dict(service), service_name=service_name, region=region, project_id=project_id
+            service_name=service_name, region=region, project_id=project_id
         )
         cloud_run_service_hook._client.create_service.assert_called_once_with(create_request)
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesClient")
+    def test_delete_service(self, mock_batch_service_client, cloud_run_service_hook):
+        service_name = "service1"
+        region = "region1"
+        project_id = "projectid"
+
+        delete_request = DeleteServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+
+        cloud_run_service_hook.delete_service(
+            service_name=service_name, region=region, project_id=project_id
+        )
+        cloud_run_service_hook._client.delete_service.assert_called_once_with(delete_request)
 
 
 class TestCloudRunServiceAsyncHook:
     def dummy_get_credentials(self):
         pass
 
-    def mock_create_service(self):
-        create_service_mock = mock.AsyncMock()
-        return create_service_mock
+    def mock_service(self):
+        return mock.AsyncMock()
 
     @pytest.mark.asyncio
     @mock.patch(
@@ -352,22 +370,45 @@ class TestCloudRunServiceAsyncHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
     async def test_create_service(self, mock_client):
         mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.create_service = self.mock_create_service()
+        mock_client.return_value.create_service = self.mock_service()
 
         hook = CloudRunServiceAsyncHook()
         hook.get_credentials = self.dummy_get_credentials
 
         await hook.create_service(
-            service=Service.to_dict(Service()),
             service_name="service1",
             region="region1",
             project_id="projectid",
         )
 
         expected_request = CreateServiceRequest(
-            service=Service.to_dict(Service()),
             service_id="service1",
             parent="projects/projectid/locations/region1",
         )
 
         mock_client.return_value.create_service.assert_called_once_with(expected_request)
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
+    async def test_delete_service(self, mock_client):
+        mock_client.return_value = mock.MagicMock()
+        mock_client.return_value.delete_service = self.mock_service()
+
+        hook = CloudRunServiceAsyncHook()
+        hook.get_credentials = self.dummy_get_credentials
+
+        await hook.delete_service(
+            service_name="service1",
+            region="region1",
+            project_id="projectid",
+        )
+
+        expected_request = DeleteServiceRequest(
+            name="projects/projectid/locations/region1/services/service1",
+        )
+
+        mock_client.return_value.delete_service.assert_called_once_with(expected_request)
