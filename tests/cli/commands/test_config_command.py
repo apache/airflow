@@ -20,8 +20,6 @@ import contextlib
 from io import StringIO
 from unittest import mock
 
-import pytest
-
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from tests.test_utils.config import conf_vars
@@ -222,13 +220,8 @@ class TestCliConfigGetValue:
 
         config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
-    @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_should_raise_exception_when_option_is_missing(self, mock_conf):
-        mock_conf.has_section.return_value = True
-        mock_conf.has_option.return_value = False
-
-        with pytest.raises(SystemExit) as ctx:
-            config_command.get_value(
-                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-            )
-        assert "The option [missing-section/dags_folder] is not found in config." == str(ctx.value)
+    def test_should_raise_exception_when_option_is_missing(self, caplog):
+        config_command.get_value(
+            self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
+        )
+        assert "section/key [missing-section/dags_folder] not found in config" in caplog.text

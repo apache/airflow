@@ -17,22 +17,20 @@
  * under the License.
  */
 
-import { useToast } from "@chakra-ui/react";
-import type { ReactNode } from "react";
+import React from "react";
+import { Alert, AlertIcon } from "@chakra-ui/react";
+import handleError from "src/utils/handleError";
 
-import handleError from "./handleError";
-
-const useErrorToast = () => {
-  const toast = useToast();
-  // Add an error prop and handle it as a description
-  return ({ error, title, ...rest }: { error: Error; title?: ReactNode }) => {
-    toast({
-      ...rest,
-      status: "error",
-      title: title || "Error",
-      description: handleError(error).slice(0, 500),
-    });
-  };
+type Props = {
+  error?: unknown;
 };
 
-export default useErrorToast;
+const ErrorAlert = ({ error }: Props) =>
+  error ? (
+    <Alert status="error" marginBottom="10px">
+      <AlertIcon />
+      {handleError(error)}
+    </Alert>
+  ) : null;
+
+export default ErrorAlert;
