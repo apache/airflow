@@ -128,7 +128,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.helpers import at_most_one, exactly_one, validate_key
+from airflow.utils.helpers import at_most_one, exactly_one, validate_instance_args, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import (
@@ -339,6 +339,32 @@ def _create_orm_dagrun(
     # state is None at the moment of creation
     run.verify_integrity(session=session)
     return run
+
+
+# TODO: The following mapping is used to validate that the arguments passed to the DAG are of the correct
+#  type. This is a temporary solution until we find a more sophisticated method for argument validation.
+#  One potential method is to use `get_type_hints` from the typing module. However, this is not fully
+#  compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
+#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
+#  manual type-checking method.
+DAG_ARGS_EXPECTED_TYPES = {
+    "dag_id": str,
+    "description": str,
+    "max_active_tasks": int,
+    "max_active_runs": int,
+    "max_consecutive_failed_dag_runs": int,
+    "dagrun_timeout": timedelta,
+    "default_view": str,
+    "orientation": str,
+    "catchup": bool,
+    "doc_md": str,
+    "is_paused_upon_creation": bool,
+    "render_template_as_native_obj": bool,
+    "tags": list,
+    "auto_register": bool,
+    "fail_stop": bool,
+    "dag_display_name": str,
+}
 
 
 @functools.total_ordering
@@ -743,6 +769,8 @@ class DAG(LoggingMixin):
         # it's only use is for determining the relative
         # fileloc based only on the serialize dag
         self._processor_dags_folder = None
+
+        validate_instance_args(self, DAG_ARGS_EXPECTED_TYPES)
 
     def get_doc_md(self, doc_md: str | None) -> str | None:
         if doc_md is None:
