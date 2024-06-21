@@ -29,9 +29,7 @@ from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
-    DatabricksRunNowDeferrableOperator,
     DatabricksRunNowOperator,
-    DatabricksSubmitRunDeferrableOperator,
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
@@ -978,8 +976,6 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
 
-
-class TestDatabricksSubmitRunDeferrableOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
         """
@@ -989,7 +985,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             "new_cluster": NEW_CLUSTER,
             "notebook_task": NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
@@ -1007,7 +1003,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksSubmitRunDeferrableOperator",
+            caller="DatabricksSubmitRunOperator",
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -1029,7 +1025,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             "errors": [],
         }
 
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID, json=run)
         assert op.execute_complete(context=None, event=event) is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -1050,7 +1046,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             "errors": [],
         }
 
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID, json=run)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
 
@@ -1063,7 +1059,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
 
     def test_execute_complete_incorrect_event_validation_failure(self):
         event = {"event_id": "no such column"}
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID)
+        op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
 
@@ -1075,7 +1071,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             "new_cluster": NEW_CLUSTER,
             "notebook_task": NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
@@ -1089,7 +1085,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksSubmitRunDeferrableOperator",
+            caller="DatabricksSubmitRunOperator",
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -1105,7 +1101,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             "new_cluster": NEW_CLUSTER,
             "notebook_task": NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        op = DatabricksSubmitRunOperator(deferrable=True, task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
@@ -1119,7 +1115,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksSubmitRunDeferrableOperator",
+            caller="DatabricksSubmitRunOperator",
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -1618,15 +1614,13 @@ class TestDatabricksRunNowOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
 
-
-class TestDatabricksRunNowDeferrableOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
         """
         Test the execute function in case where the run is successful.
         """
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("RUNNING", "RUNNING")
@@ -1670,7 +1664,7 @@ class TestDatabricksRunNowDeferrableOperator:
             "errors": [],
         }
 
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         assert op.execute_complete(context=None, event=event) is None
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -1688,7 +1682,7 @@ class TestDatabricksRunNowDeferrableOperator:
             "errors": [],
         }
 
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
 
@@ -1719,7 +1713,7 @@ class TestDatabricksRunNowDeferrableOperator:
             "errors": [],
         }
 
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         op.execute_complete(context=None, event=event)
 
         db_mock = db_mock_class.return_value
@@ -1731,46 +1725,16 @@ class TestDatabricksRunNowDeferrableOperator:
 
     def test_execute_complete_incorrect_event_validation_failure(self):
         event = {"event_id": "no such column"}
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
-    def test_operator_failed_before_defer(self, mock_defer, db_mock_class):
-        """Asserts that a task is not deferred when its failed"""
-        run = {
-            "new_cluster": NEW_CLUSTER,
-            "notebook_task": NOTEBOOK_TASK,
-        }
-        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = RUN_ID
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
-        op.execute(None)
-
-        expected = utils.normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksSubmitRunDeferrableOperator",
-        )
-
-        db_mock.submit_run.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        assert op.run_id == RUN_ID
-        assert not mock_defer.called
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator.defer")
     def test_databricks_run_now_deferrable_operator_failed_before_defer(self, mock_defer, db_mock_class):
         """Asserts that a task is not deferred when its failed"""
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
@@ -1803,7 +1767,7 @@ class TestDatabricksRunNowDeferrableOperator:
     def test_databricks_run_now_deferrable_operator_success_before_defer(self, mock_defer, db_mock_class):
         """Asserts that a task is not deferred when its succeeds"""
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
-        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(deferrable=True, task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
