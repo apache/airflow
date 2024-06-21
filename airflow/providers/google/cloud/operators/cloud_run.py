@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
+import google.cloud.exceptions
+
 from google.cloud.run_v2 import Job, Service
 
 from airflow.configuration import conf
@@ -405,11 +407,15 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
-        service = hook.create_service(
-            service_name=self.service_name,
-            region=self.region,
-            project_id=self.project_id,
-        )
+        try:
+            service = hook.create_service(
+                service_name=self.service_name,
+                region=self.region,
+                project_id=self.project_id,
+            )
+        except google.cloud.exceptions.Conflict as e:
+            self.log.error("An error occurred. Exiting.")
+            raise e
 
         return Service.to_dict(service)
 
@@ -464,10 +470,14 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
-        service = hook.delete_service(
-            service_name=self.service_name,
-            region=self.region,
-            project_id=self.project_id,
-        )
+        try:
+            service = hook.delete_service(
+                service_name=self.service_name,
+                region=self.region,
+                project_id=self.project_id,
+            )
+        except google.cloud.exceptions.NotFound as e:
+            self.log.error("An error occurred. Not Found.")
+            raise e
 
         return Service.to_dict(service)
