@@ -58,13 +58,14 @@ jobs:
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/report_generate_index_html.py
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/report_index_template.html
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/report_parse_xml.py
-            git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/reporttest.csv
             cp .github/workflows/system-tests-files/report_generate_index_html.py .
             cp .github/workflows/system-tests-files/report_index_template.html .
             cp .github/workflows/system-tests-files/report_parse_xml.py .
-            cp .github/workflows/system-tests-files/reporttest.csv .
-      - name: Display structure of downloaded files
-        run: ls -R
+      - name: "Download System Test Log Report"
+        uses: actions/download-artifact@v4
+        with:
+          name: airflow-system-test-report
+          path: .
       - name: "Define CSAE env name"
         id: define-environment-name
         run: |
@@ -109,15 +110,8 @@ jobs:
       - name: "Generate Teradata Airflow Provider System Tests Report"
         if: always()
         run:  |
-              pwd
-              ls
-              ls report_test.xml
-              ls reporttest.csv
-              cat reporttest.csv
-              cat report_test.xml
               python report_parse_xml.py
               python report_generate_index_html.py
-              cat reporttest.csv
               mkdir teradata_report
               cp index.html teradata_report/index.html
       - run: echo Upload airflow teradata system test report
