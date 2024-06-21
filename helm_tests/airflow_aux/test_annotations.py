@@ -426,3 +426,29 @@ class TestPerComponentPodAnnotations:
         for k, v in expected_annotations.items():
             assert k in annotations
             assert v == annotations[k]
+
+
+class TestRedisAnnotations:
+    """Tests Redis Annotations."""
+
+    def test_redis_annotations_are_added(self):
+        # Test Case
+        values = {"redis": {"annotations": {"example": "redis"}}}
+        show_only = "templates/redis/redis-statefulset.yaml"
+        expected_annotations = {"example": "redis"}
+
+        k8s_objects = render_chart(
+            values=values,
+            show_only=[show_only],
+        )
+
+        # This test relies on the convention that the helm chart puts annotations
+        # in its own .yaml file, so by specifying `show_only`,
+        # we should only get a single k8s_object here - the target object that
+        # we hope to test on.
+        assert len(k8s_objects) == 1
+        obj = k8s_objects[0]
+
+        for k, v in expected_annotations.items():
+            assert k in obj["metadata"]["annotations"]
+            assert v == obj["metadata"]["annotations"][k]
