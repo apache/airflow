@@ -58,14 +58,11 @@ jobs:
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/report_generate_index_html.py
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/report_index_template.html
             git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/report_parse_xml.py
+            git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/system-tests-files/reporttest.csv
             cp .github/workflows/system-tests-files/report_generate_index_html.py .
             cp .github/workflows/system-tests-files/report_index_template.html .
             cp .github/workflows/system-tests-files/report_parse_xml.py .
-      - name: "Download System Test Log Report"
-        uses: actions/download-artifact@v4
-        with:
-          name: airflow-system-test-report
-          path: .
+            cp .github/workflows/system-tests-files/reporttest.csv .
       - name: Display structure of downloaded files
         run: ls -R
       - name: "Define CSAE env name"
