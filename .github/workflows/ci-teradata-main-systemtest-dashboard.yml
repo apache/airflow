@@ -44,7 +44,7 @@ jobs:
           ref: main
           persist-credentials: false
       - name: "Github Event and Branch Details"
-        run: echo "The current checked out branch is main. Workflow trigged Event- ${{ github.event_name  }}. The fully qualified reference (ref) branch that triggered the workflow run- ${{ github.ref }}"          
+        run: echo "The current checked out branch is main. Workflow trigged Event- ${{ github.event_name  }}. The fully qualified reference (ref) branch that triggered the workflow run- ${{ github.ref }}"
       - name: "Install Python"
         uses: actions/setup-python@v4
         with:
@@ -62,11 +62,12 @@ jobs:
             cp .github/workflows/system-tests-files/report_index_template.html .
             cp .github/workflows/system-tests-files/report_parse_xml.py .
       - name: "Download System Test Log Report"
-        uses: dawidd6/action-download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          workflow: ci-teradata-main-systemtest-dashboard.yml
           name: airflow-system-test-report
           path: .
+      - name: Display structure of downloaded files
+        run: ls -R
       - name: "Define CSAE env name"
         id: define-environment-name
         run: |
