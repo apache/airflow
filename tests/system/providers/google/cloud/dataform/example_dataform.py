@@ -48,11 +48,12 @@ from airflow.providers.google.cloud.operators.dataform import (
 from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationStateSensor
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_dataform"
+DAG_ID = "dataform"
 
 REPOSITORY_ID = f"example_dataform_repository_{ENV_ID}"
 REGION = "us-central1"
@@ -281,10 +282,9 @@ with DAG(
         region=REGION,
         repository_id=REPOSITORY_ID,
         workspace_id=WORKSPACE_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_delete_workspace]
-
-    delete_workspace.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_delete_repository]
     delete_repository = DataformDeleteRepositoryOperator(
@@ -292,12 +292,17 @@ with DAG(
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_delete_repository]
 
-    delete_repository.trigger_rule = TriggerRule.ALL_DONE
-
-    (make_repository >> make_workspace >> first_initialization_step)
+    (
+        # TEST SETUP
+        make_repository
+        >> make_workspace
+        # TEST BODY
+        >> first_initialization_step
+    )
     (
         last_initialization_step
         >> install_npm_packages
@@ -312,6 +317,7 @@ with DAG(
         >> cancel_workflow_invocation
         >> make_test_directory
         >> write_test_file
+        # TEST TEARDOWN
         >> remove_test_file
         >> remove_test_directory
         >> delete_dataset

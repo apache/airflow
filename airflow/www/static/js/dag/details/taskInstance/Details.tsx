@@ -17,11 +17,12 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
-import { getGroupAndMapSummary } from "src/utils";
+import { useTIHistory } from "src/api";
+import { getGroupAndMapSummary, getMetaValue } from "src/utils";
 import { getDuration, formatDuration } from "src/datetime_utils";
 import { SimpleStatus } from "src/dag/StatusBox";
 import Time from "src/components/Time";
@@ -32,6 +33,7 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
+import TrySelector from "./TrySelector";
 
 interface Props {
   gridInstance?: GridTaskInstance;
@@ -39,23 +41,44 @@ interface Props {
   group?: Task | null;
 }
 
+const dagId = getMetaValue("dag_id");
+
 const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isGroup = !!group?.children;
   const summary: React.ReactNode[] = [];
 
+  const {
+    mapIndex,
+    runId,
+    taskId,
+    tryNumber: finalTryNumber,
+  } = gridInstance || {};
+
+  const { data: tiHistory } = useTIHistory({
+    dagId,
+    taskId: taskId || "",
+    runId: runId || "",
+    mapIndex,
+    enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+  });
+
+  const [selectedTryNumber, setSelectedTryNumber] = useState(0);
+
+  const instance =
+    selectedTryNumber !== finalTryNumber
+      ? tiHistory?.find((ti) => ti.tryNumber === selectedTryNumber)
+      : gridInstance || taskInstance;
+
   const state =
-    gridInstance?.state ||
-    (taskInstance?.state === "none" ? null : taskInstance?.state) ||
+    instance?.state ||
+    (instance?.state === "none" ? null : instance?.state) ||
     null;
   const isMapped = group?.isMapped;
-  const runId = gridInstance?.runId || taskInstance?.dagRunId;
-  const startDate = gridInstance?.startDate || taskInstance?.startDate;
-  const endDate = gridInstance?.endDate || taskInstance?.endDate;
-  const taskId = gridInstance?.taskId || taskInstance?.taskId;
-  const mapIndex = gridInstance?.mapIndex || taskInstance?.mapIndex;
+  const startDate = instance?.startDate;
+  const endDate = instance?.endDate;
   const executor = taskInstance?.executor || "<default>";
 
-  const operator = group?.operator || taskInstance?.operator;
+  const operator = taskInstance?.operator || group?.operator;
 
   const mappedStates = !taskInstance ? gridInstance?.mappedStates : undefined;
 
@@ -92,6 +115,8 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
     });
   }
 
+  const isTaskInstance = !isGroup && !(isMapped && mapIndex === undefined);
+
   const taskIdTitle = isGroup ? "Task Group ID" : "Task ID";
   const isStateFinal =
     state &&
@@ -100,9 +125,13 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
 
   return (
     <Box mt={3} flexGrow={1}>
-      <Text as="strong" mb={3}>
-        Task Instance Details
-      </Text>
+      {isTaskInstance && !!taskInstance && (
+        <TrySelector
+          taskInstance={taskInstance}
+          selectedTryNumber={selectedTryNumber || finalTryNumber}
+          onSelectTryNumber={setSelectedTryNumber}
+        />
+      )}
       <Table variant="striped">
         <Tbody>
           {group?.tooltip && (
@@ -173,12 +202,6 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                 <Td>{taskInstance.renderedMapIndex}</Td>
               </Tr>
             )}
-          {!!taskInstance?.tryNumber && (
-            <Tr>
-              <Td>Try Number</Td>
-              <Td>{taskInstance.tryNumber}</Td>
-            </Tr>
-          )}
           {operator && (
             <Tr>
               <Td>Operator</Td>

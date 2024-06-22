@@ -155,7 +155,7 @@ def create_information_schema_query(
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
     """Create query for getting table schemas from information schema."""
-    metadata = MetaData(sqlalchemy_engine)
+    metadata = MetaData()
     select_statements = []
     # Don't iterate over tables hierarchy, just pass it to query single information schema table
     if use_flat_cross_db_query:
