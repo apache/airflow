@@ -23,7 +23,7 @@ import pytest
 from azure.kusto.data import ClientRequestProperties, KustoClient
 from packaging.version import Version
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
@@ -279,28 +279,15 @@ class TestAzureDataExplorerHook:
         assert args[1]["properties"]._options["option1"] == "option_value"
 
     @pytest.mark.parametrize(
-        "mocked_connection, warning",
+        "mocked_connection",
         [
-            pytest.param(
-                "a://usr:pw@host?extra__azure_data_explorer__tenant=my-tenant"
-                "&extra__azure_data_explorer__auth_method=AAD_APP",
-                True,
-                id="prefix",
-            ),
-            pytest.param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", False, id="no-prefix"),
+            pytest.param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
         ],
         indirect=["mocked_connection"],
     )
-    def test_backcompat_prefix_works(self, mocked_connection, warning):
+    def test_prefix_works(self, mocked_connection):
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
-        if warning:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="`extra__azure_data_explorer__.*` is deprecated in azure connection extra, please use `.*` instead",
-            ):
-                assert hook.connection._kcsb.data_source == "host"
-        else:
-            assert hook.connection._kcsb.data_source == "host"
+        assert hook.connection._kcsb.data_source == "host"
         assert hook.connection._kcsb.application_client_id == "usr"
         assert hook.connection._kcsb.application_key == "pw"
         assert hook.connection._kcsb.authority_id == "my-tenant"
@@ -315,7 +302,7 @@ class TestAzureDataExplorerHook:
         ],
         indirect=True,
     )
-    def test_backcompat_prefix_both_causes_warning(self, mocked_connection):
+    def test_prefix_both_causes_warning(self, mocked_connection):
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
         assert hook.connection._kcsb.data_source == "host"
         assert hook.connection._kcsb.application_client_id == "usr"
