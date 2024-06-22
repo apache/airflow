@@ -71,7 +71,6 @@ class DAGRunSchema(SQLAlchemySchema):
     conf = ConfObject()
     data_interval_start = auto_field(validate=validate_istimezone)
     data_interval_end = auto_field(validate=validate_istimezone)
-    next_schedulable = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
     note = auto_field(dump_only=False)
 

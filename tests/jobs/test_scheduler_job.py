@@ -5575,7 +5575,7 @@ class TestSchedulerJob:
             execution_date=datetime.datetime(2022, 1, 1),
             run_type=DagRunType.SCHEDULED,
         )
-        scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
+        scheduled_run.next_schedulable = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
         ti = scheduled_run.get_task_instances()[0]
         ti.set_state(TaskInstanceState.RUNNING)
         dm = DagModel.get_dagmodel(dag.dag_id)
@@ -5619,7 +5619,7 @@ class TestSchedulerJob:
 
         # Backfill run
         backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
-        backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
+        backfill_run.next_schedulable = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
         ti = backfill_run.get_task_instances()[0]
         ti.set_state(TaskInstanceState.SUCCESS)
         dm = DagModel.get_dagmodel(dag.dag_id)
