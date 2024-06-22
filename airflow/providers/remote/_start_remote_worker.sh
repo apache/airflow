@@ -29,4 +29,4 @@ export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
 export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080/remote_worker/v1/rpcapi
 export AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION=False
 
-airflow remote worker
+airflow remote worker --concurrency 8
