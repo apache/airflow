@@ -27,7 +27,7 @@
       <h2>Remote Worker Jobs</h2>
       {% if jobs|length == 0 %}
         <p>No jobs running currently</p>
-      {% endif %}
+      {% else %}
 
       <table class="table table-striped table-bordered">
         <tr>
@@ -58,5 +58,6 @@
           </tr>
         {% endfor %}
       </table>
+      {% endif %}
     {% endblock %}
 <html>
