@@ -55,15 +55,17 @@ Features
 * ``Implement CloudComposerDAGRunSensor (#40088)``
 * ``Implement 'CloudDataTransferServiceRunJobOperator' (#39154)``
 * ``Fetch intermediate log async GKEStartPod   (#39348)``
+* ``Add OpenLineage support for AzureBlobStorageToGCSOperator in google provider package (#40290)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix hive_partition_sensor system test (#40023)``
 * ``Fix openai 1.32 breaking openai tests (#40110)``
-* ``Fix credentials intialization revealed by mypy version of google auth (#40108)``
+* ``Fix credentials initialization revealed by mypy version of google auth (#40108)``
 * ``Fix regular expression to exclude double quote and newline in DataflowHook (#39991)``
 * ``Fix replace parameter for BigQueryToPostgresOperator (#40278)``
+* ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)``
 
 Misc
 ~~~~

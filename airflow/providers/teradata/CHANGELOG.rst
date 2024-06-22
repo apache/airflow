@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Updates to Teradata Provider (#40378)``
+
 2.2.0
 .....
 

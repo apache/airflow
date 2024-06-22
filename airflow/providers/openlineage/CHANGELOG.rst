@@ -44,6 +44,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
 
 Misc
 ~~~~
