@@ -25,6 +25,7 @@ from unittest.mock import call
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -2665,3 +2666,26 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
         else:
             with pytest.raises(AirflowException):
                 dag_maker.create_dagrun(run_id=run_id)
+
+
+def test_next_schedulable_nullified_when_dependencies_are_not_met(dag_maker, session):
+    from airflow.operators.bash import BashOperator
+
+    with dag_maker():
+        op1 = BashOperator(task_id="task1", bash_command="echo 1")
+        op2 = BashOperator(task_id="task2", bash_command="echo 1")
+        op3 = BashOperator(task_id="task3", bash_command="echo 1")
+        op4 = BashOperator(task_id="task4", bash_command="echo 1")
+        op1 >> [op2, op3, op4]
+    dr = dag_maker.create_dagrun()
+    assert dr.next_schedulable
+    ti1 = dr.get_task_instance(task_id="task1")
+    ti1.state = TaskInstanceState.RUNNING
+    session.merge(ti1)
+    dr.update_state()
+    session.flush()
+    dr = session.scalar(select(DagRun))
+    # DR.next_schedulable nullified because the running PR
+    # blocked the rest of the PRs preventing frequent dependencies
+    # check
+    assert not dr.next_schedulable

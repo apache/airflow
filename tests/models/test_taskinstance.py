@@ -776,6 +776,37 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + datetime.timedelta(seconds=1)
 
+    def test_retry_sets_dagrun_next_schedulable_to_next_retry_date(self, dag_maker, time_machine):
+        """
+        Test that when a task goes into retry that the DR.next_schedulable is updated to the next retry date
+        """
+        time_machine.move_to("2021-09-19 04:56:35", tick=False)
+        with dag_maker(dag_id="test_retry_handling"):
+            task = BashOperator(
+                task_id="test_retry_handling_op",
+                bash_command="exit 1",
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=3),
+            )
+
+        def run_with_error(ti):
+            with contextlib.suppress(AirflowException):
+                ti.run()
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        with create_session() as session:
+            session.get(TaskInstance, ti.key.primary).try_number += 1
+
+        # first run -- up for retry
+        run_with_error(ti)
+        assert ti.state == State.UP_FOR_RETRY
+        # assert dr.next_schedulable is now equal to next retry datetime
+        assert dr.next_schedulable == ti.next_retry_datetime()
+
     def test_reschedule_handling(self, dag_maker, task_reschedules_for_ti):
         """
         Test that task reschedules are handled properly

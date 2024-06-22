@@ -555,6 +555,55 @@ class TestSchedulerJob:
         scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_not_called()
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_sets_next_schedulable_for_finished_tasks_dr(
+        self, mock_stats_incr, mock_task_callback, dag_maker, session
+    ):
+        mock_stats_incr.reset_mock()
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+        self.job_runner.processor_agent = mock.MagicMock()
+
+        with dag_maker():
+            op1 = BashOperator(task_id="task1", bash_command="echo 1")
+            op2 = BashOperator(task_id="task2", bash_command="echo 1")
+            op3 = BashOperator(task_id="task3", bash_command="echo 1")
+            op4 = BashOperator(task_id="task4", bash_command="echo 1")
+            op1 >> [op2, op3, op4]
+        dr = dag_maker.create_dagrun()
+        assert dr.next_schedulable
+        ti1 = dr.get_task_instance(task_id="task1")
+        ti1.state = TaskInstanceState.RUNNING
+        session.merge(ti1)
+        dr.update_state()
+        session.flush()
+        dr = session.scalar(select(DagRun))
+        # assert that next_schedulable has been nullified
+        assert not dr.next_schedulable
+
+        mock_stats_incr.reset_mock()
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+        self.job_runner.processor_agent = mock.MagicMock()
+        ti1.state = TaskInstanceState.SUCCESS
+        session.merge(ti1)
+        session.flush()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+
+        self.job_runner._process_executor_events(session=session)
+        dr = session.scalar(select(DagRun))
+        # assert that next_schedulable has been set since TI run succeeded
+        assert dr.next_schedulable
+
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
         task_id_1 = "dummy_task"

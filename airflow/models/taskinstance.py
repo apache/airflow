@@ -325,6 +325,8 @@ def _run_raw_task(
                 return None
             else:
                 ti.handle_failure(e, test_mode, context, session=session)
+                if ti.state == TaskInstanceState.UP_FOR_RETRY:
+                    ti.dag_run.next_schedulable = ti.next_retry_datetime()
                 raise
         except SystemExit as e:
             # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
@@ -3273,8 +3275,6 @@ class TaskInstance(Base, LoggingMixin):
 
                 TaskInstanceHistory.record_ti(ti, session=session)
 
-            ti.dag_run.deactivate_scheduling(session)
-            ti.dag_run.next_schedulable = ti.next_retry_datetime()
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
