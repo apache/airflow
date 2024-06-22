@@ -1,0 +1,97 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: airflow-teradata-push-branch-systemtest
+on:
+  push:
+    branches:
+      - teradata_main
+  workflow_dispatch:
+jobs:
+  teradata-tests:
+    name: "Run Teradata Provider Unit and System tests"
+    runs-on: "ubuntu-22.04"
+    strategy:
+      max-parallel: 1
+      matrix:
+        python-version: [ "3.11" ]
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout Teradata Airflow Source Code"
+        uses: actions/checkout@v4
+      - name: "Github Event and Branch Details"
+        run: echo "The current checked out branch is $GITHUB_REF. Workflow trigged Event- ${{ github.event_name  }}. The fully qualified reference (ref) branch that triggered the workflow run- ${{ github.ref }}"
+      - name: "Install Python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+          cache: 'pip'
+      - name: "Python Version"
+        run: python --version
+      - name: "Checkout ClearScape Scripts"
+        run: |
+            git fetch
+            git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/scripts/createTestEnvironments.sh
+            git checkout origin/${{vars.WORKFLOW_HELP_BRANCH}} -- .github/workflows/scripts/deleteTestEnvironments.sh
+      - name: "Define CSAE env name"
+        id: define-environment-name
+        run: |
+          echo "env-name=airflow-ci-$(date +%s%N)" >> $GITHUB_OUTPUT
+      - name: "Create CSAE environment"
+        id: create-csae-environment
+        shell: bash
+        run: |
+          echo Clearscape Environment name : ${{ steps.define-environment-name.outputs.env-name}}
+          chmod 777 .github/workflows/scripts/createTestEnvironments.sh
+          .github/workflows/scripts/createTestEnvironments.sh
+        env:
+          CSAE_TOKEN: ${{ secrets.CSAE_AIRFLOW_TOKEN }}
+          CSAE_ENV_PASSWORD: ${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}
+          CSAE_ENV_NAME: ${{ steps.define-environment-name.outputs.env-name}}
+      - name: "Install Airflow Core, Airflow Teradata Provider and Run System Tests"
+        run: |
+              echo Clearscape Environment name : ${{ steps.create-csae-environment.outputs.teradata-server-name }}
+              sudo apt update
+              sudo apt-get install -y apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+              freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
+              libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
+              libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
+              software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev python3-venv python3-pip pipx
+              pip install pytest time-machine pytest-asyncio pytest-md-report cryptography pytest-html tailer pandas jinja2 sqlalchemy hatch
+              pip install -e ".[devel,teradata,microsoft.azure,amazon]"
+              export SYSTEM_TESTS_ENV_ID=teradatasystemtest
+              export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}'
+              export AIRFLOW_CONN_TERADATA_SSL_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?sslmode=allow'
+              export AIRFLOW_CONN_TERADATA_SP_CALL='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?tmode=TERA'
+              export AIRFLOW_CONN_WASB_DEFAULT='wasb://${{ vars.AZURE_BLOB_ACCOUNTNAME }}:${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}'
+              export AIRFLOW_CONN_AWS_DEFAULT=aws://${{ vars.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}@/?aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+              export AIRFLOW_VAR_AZURE_BLOB_ACCOUNTNAME=${{ vars.AZURE_BLOB_ACCOUNTNAME }}
+              export AIRFLOW_VAR_AZURE_BLOB_ACCOUNT_SECRET_KEY=${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}
+              pytest --system=teradata --junitxml=report_test.xml tests/system/providers/teradata
+      - name: "Delete CSAE environment"
+        if: always()
+        run: |
+          chmod 777 .github/workflows/scripts/deleteTestEnvironments.sh
+          .github/workflows/scripts/deleteTestEnvironments.sh
+        env:
+          CSAE_TOKEN: ${{ secrets.CSAE_AIRFLOW_TOKEN }}
+          CSAE_ENV_NAME: ${{ steps.define-environment-name.outputs.env-name}}
+
+
+
