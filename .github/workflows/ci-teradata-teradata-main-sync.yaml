@@ -31,4 +31,6 @@ jobs:
 
       - name: Push changes to forked branch
         run: |
+          git config --global user.name "satish-chinthanippu"
+          git config --global user.email "satishchinthanippu@gmail.com"
           git push origin teradata_main
