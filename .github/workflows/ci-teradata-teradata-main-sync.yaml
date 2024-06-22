@@ -3,6 +3,7 @@ name: airflow-teradata-teradata_main-sync
 on:
   schedule:
     - cron: '0 0 * * *'  # Schedule to run every day at midnight
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -21,7 +22,9 @@ jobs:
           git config --global user.name "GitHub Actions"
 
       - name: Fetch upstream changes
-        run: git fetch upstream
+        run: |
+          git remote add upstream https://github.com/apache/airflow.git
+          git fetch upstream
 
       - name: Merge changes from upstream
         run: git merge upstream/main --no-edit
