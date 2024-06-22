@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
-    POD_EXECUTOR_DONE_KEY,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
     AirflowKubernetesScheduler,
@@ -1539,8 +1538,12 @@ class TestKubernetesJobWatcher:
     def _run(self):
         with mock.patch(
             "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.watch"
-        ) as mock_watch:
+        ) as mock_watch, mock.patch.object(
+            KubernetesJobWatcher,
+            "_pod_events",
+        ) as mock_pod_events:
             mock_watch.Watch.return_value.stream.return_value = self.events
+            mock_pod_events.return_value = self.events
             latest_resource_version = self.watcher._run(
                 self.kube_client,
                 self.watcher.resource_version,
@@ -1548,6 +1551,15 @@ class TestKubernetesJobWatcher:
                 self.watcher.kube_config,
             )
             assert self.pod.metadata.resource_version == latest_resource_version
+            mock_pod_events.assert_called_once_with(
+                kube_client=self.kube_client,
+                query_kwargs={
+                    "label_selector": "airflow-worker=123,airflow_executor_done!=True",
+                    "resource_version": "0",
+                    "_request_timeout": 30,
+                    "timeout_seconds": 3600,
+                },
+            )
 
     def assert_watcher_queue_called_once_with_state(self, state):
         self.watcher.watcher_queue.put.assert_called_once_with(
@@ -1762,14 +1774,6 @@ class TestKubernetesJobWatcher:
         self._run()
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
-
-    def test_process_status_succeeded_dedup_label(self):
-        self.pod.status.phase = "Succeeded"
-        self.pod.metadata.labels[POD_EXECUTOR_DONE_KEY] = "True"
-        self.events.append({"type": "MODIFIED", "object": self.pod})
-
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_succeeded_dedup_timestamp(self):
         self.pod.status.phase = "Succeeded"

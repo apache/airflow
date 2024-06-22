@@ -25,6 +25,7 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendBaseOperator,
+    ComprehendCreateDocumentClassifierOperator,
     ComprehendStartPiiEntitiesDetectionJobOperator,
 )
 from airflow.utils.types import NOTSET
@@ -159,5 +160,102 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         response = self.operator.execute({})
 
         assert response == self.JOB_ID
+        assert comprehend_hook.get_waiter.call_count == wait_for_completion
+        assert self.operator.defer.call_count == deferrable
+
+
+class TestComprehendCreateDocumentClassifierOperator:
+    CLASSIFIER_ARN = (
+        "arn:aws:comprehend:us-east-1:123456789012:document-classifier/insurance-classifier/version/v1"
+    )
+    ROLE_ARN = "arn:aws:iam::123456789012:role/ComprehendExecutionRole"
+    INPUT_DATA_CONFIG = {
+        "DataFormat": "COMPREHEND_CSV",
+        "S3Uri": "s3://test/native-doc.csv",
+        "DocumentType": "SEMI_STRUCTURED_DOCUMENT",
+        "Documents": {"S3Uri": "s3://test/input-docs/"},
+        "DocumentReaderConfig": {
+            "DocumentReadAction": "TEXTRACT_DETECT_DOCUMENT_TEXT",
+            "DocumentReadMode": "SERVICE_DEFAULT",
+        },
+    }
+
+    @pytest.fixture
+    def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
+        with mock.patch.object(ComprehendHook, "conn") as _conn:
+            _conn.create_document_classifier.return_value = {"DocumentClassifierArn": self.CLASSIFIER_ARN}
+            yield _conn
+
+    @pytest.fixture
+    def comprehend_hook(self) -> Generator[ComprehendHook, None, None]:
+        with mock_aws():
+            hook = ComprehendHook(aws_conn_id="aws_default")
+            yield hook
+
+    def setup_method(self):
+        self.operator = ComprehendCreateDocumentClassifierOperator(
+            task_id="create_document_classifier",
+            data_access_role_arn=self.ROLE_ARN,
+            document_classifier_name="custom_test_document_classifier",
+            input_data_config=self.INPUT_DATA_CONFIG,
+            output_data_config={"S3Uri": "s3://test/training_output/"},
+            language_code="en",
+            mode="MULTI_CLASS",
+            document_classifier_kwargs={"VersionName": "v1"},
+        )
+        self.operator.defer = mock.MagicMock()
+
+    def test_init(self):
+        assert self.operator.input_data_config == self.INPUT_DATA_CONFIG
+        assert self.operator.data_access_role_arn == self.ROLE_ARN
+        assert self.operator.document_classifier_name == "custom_test_document_classifier"
+        assert self.operator.output_data_config == {"S3Uri": "s3://test/training_output/"}
+        assert self.operator.mode == "MULTI_CLASS"
+        assert self.operator.language_code == "en"
+        assert self.operator.document_classifier_kwargs == {"VersionName": "v1"}
+        assert self.operator.fail_on_warnings is False
+
+    @mock.patch.object(ComprehendHook, "conn")
+    def test_create_document_classifier(self, mock_conn):
+        self.op = ComprehendCreateDocumentClassifierOperator(
+            task_id="create_document_classifier",
+            data_access_role_arn=self.ROLE_ARN,
+            document_classifier_name="custom_test_document_classifier",
+            input_data_config=self.INPUT_DATA_CONFIG,
+            output_data_config={"S3Uri": "s3://test/training_output/"},
+            language_code="en",
+            mode="MULTI_CLASS",
+            document_classifier_kwargs={"VersionName": "v1"},
+        )
+        self.op.wait_for_completion = False
+        self.op.execute({})
+        mock_conn.create_document_classifier.assert_called_once_with(
+            DocumentClassifierName="custom_test_document_classifier",
+            DataAccessRoleArn=self.ROLE_ARN,
+            InputDataConfig=self.INPUT_DATA_CONFIG,
+            OutputDataConfig={"S3Uri": "s3://test/training_output/"},
+            LanguageCode="en",
+            Mode="MULTI_CLASS",
+            VersionName="v1",
+        )
+
+    @pytest.mark.parametrize(
+        "wait_for_completion, deferrable",
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer"),
+        ],
+    )
+    @mock.patch.object(ComprehendHook, "get_waiter")
+    def test_create_document_classifier_wait_combinations(
+        self, _, wait_for_completion, deferrable, mock_conn, comprehend_hook
+    ):
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+
+        response = self.operator.execute({})
+
+        assert response == self.CLASSIFIER_ARN
         assert comprehend_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable

@@ -1049,7 +1049,7 @@ function check_pydantic() {
         echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
         echo
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg weaviate-client
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo
@@ -1267,9 +1267,8 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ARG AIRFLOW_PIP_VERSION=24.0
-# until https://github.com/astral-sh/uv/issues/4136 is solved we limit UV to version 0.2.5
-ARG AIRFLOW_UV_VERSION=0.2.5
+ARG AIRFLOW_PIP_VERSION=24.1
+ARG AIRFLOW_UV_VERSION=0.2.13
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1292,9 +1291,8 @@ ARG AIRFLOW_VERSION=""
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
-ARG AIRFLOW_PIP_VERSION=24.0
-# until https://github.com/astral-sh/uv/issues/4136 is solved we limit UV to version 0.2.5
-ARG AIRFLOW_UV_VERSION=0.2.5
+ARG AIRFLOW_PIP_VERSION=24.1
+ARG AIRFLOW_UV_VERSION=0.2.13
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\

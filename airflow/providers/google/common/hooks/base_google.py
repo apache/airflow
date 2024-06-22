@@ -248,6 +248,20 @@ class GoogleBaseHook(BaseHook):
             "impersonation_chain": StringField(
                 lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
             ),
+            "idp_issuer_url": StringField(
+                lazy_gettext("IdP Token Issue URL (Client Credentials Grant Flow)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "client_id": StringField(
+                lazy_gettext("Client ID (Client Credentials Grant Flow)"), widget=BS3TextFieldWidget()
+            ),
+            "client_secret": StringField(
+                lazy_gettext("Client Secret (Client Credentials Grant Flow)"),
+                widget=BS3PasswordFieldWidget(),
+            ),
+            "idp_extra_parameters": StringField(
+                lazy_gettext("IdP Extra Request Parameters"), widget=BS3TextFieldWidget()
+            ),
             "is_anonymous": BooleanField(
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
@@ -305,6 +319,18 @@ class GoogleBaseHook(BaseHook):
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
         is_anonymous = self._get_field("is_anonymous")
 
+        idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
+        client_id: str | None = self._get_field("client_id", None)
+        client_secret: str | None = self._get_field("client_secret", None)
+        idp_extra_params: str | None = self._get_field("idp_extra_params", None)
+
+        idp_extra_params_dict: dict[str, str] | None = None
+        if idp_extra_params:
+            try:
+                idp_extra_params_dict = json.loads(idp_extra_params)
+            except json.decoder.JSONDecodeError:
+                raise AirflowException("Invalid JSON.")
+
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
@@ -316,6 +342,10 @@ class GoogleBaseHook(BaseHook):
             target_principal=target_principal,
             delegates=delegates,
             is_anonymous=is_anonymous,
+            idp_issuer_url=idp_issuer_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            idp_extra_params_dict=idp_extra_params_dict,
         )
 
         overridden_project_id = self._get_field("project")

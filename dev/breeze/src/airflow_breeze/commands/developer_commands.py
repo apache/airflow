@@ -49,6 +49,7 @@ from airflow_breeze.commands.common_options import (
     option_include_removed_providers,
     option_installation_package_format,
     option_integration,
+    option_keep_env_variables,
     option_max_time,
     option_mount_sources,
     option_mysql_version,
@@ -277,6 +278,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_install_selected_providers
 @option_installation_package_format
 @option_integration
+@option_keep_env_variables
 @option_max_time
 @option_mount_sources
 @option_mysql_version
@@ -329,6 +331,7 @@ def shell(
     install_selected_providers: str,
     install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
+    keep_env_variables: bool,
     max_time: int | None,
     mount_sources: str,
     mysql_version: str,
@@ -395,6 +398,7 @@ def shell(
         install_airflow_with_constraints=install_airflow_with_constraints,
         install_selected_providers=install_selected_providers,
         integration=integration,
+        keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         package_format=package_format,

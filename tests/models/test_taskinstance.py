@@ -69,6 +69,7 @@ from airflow.models.taskinstance import (
     TaskInstanceNote,
     _run_finished_callback,
 )
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -3615,6 +3616,25 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
         assert callback_function.called
+
+    def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="test_history_tab",
+                bash_command="ech",
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=2),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+        with pytest.raises(AirflowException):
+            ti.run()
+        ti.refresh_from_db()
+        assert ti.state == State.UP_FOR_RETRY
+        assert session.query(TaskInstance).count() == 1
+        assert session.query(TaskInstanceHistory).count() == 1
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

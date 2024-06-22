@@ -20,9 +20,8 @@ import logging
 import re
 from datetime import datetime, timezone
 from enum import Enum
+from importlib import metadata
 from typing import Any
-
-import importlib_metadata
 
 from airflow.exceptions import AirflowException
 from airflow.utils.helpers import prune_dict
@@ -78,7 +77,7 @@ def get_airflow_version() -> tuple[int, ...]:
 
 def get_botocore_version() -> tuple[int, ...]:
     """Return the version number of the installed botocore package in the form of a tuple[int,...]."""
-    return tuple(map(int, importlib_metadata.version("botocore").split(".")[:3]))
+    return tuple(map(int, metadata.version("botocore").split(".")[:3]))
 
 
 def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:

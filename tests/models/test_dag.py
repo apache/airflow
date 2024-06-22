@@ -56,9 +56,11 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
+    DAG_ARGS_EXPECTED_TYPES,
     DagModel,
     DagOwnerAttributes,
     DagTag,
+    ExecutorLoader,
     dag as dag_decorator,
     get_dataset_triggered_next_run_info,
 )
@@ -2761,6 +2763,28 @@ my_postgres_conn:
             dag.access_control = outdated_permissions
         assert dag.access_control == updated_permissions
 
+    def test_validate_executor_field_executor_not_configured(self):
+        dag = DAG(
+            "test-dag",
+            schedule=None,
+        )
+
+        EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
+        with pytest.raises(
+            ValueError, match="The specified executor test.custom.executor for task t1 is not configured"
+        ):
+            dag.validate()
+
+    def test_validate_executor_field(self):
+        with patch.object(ExecutorLoader, "lookup_executor_name_by_str"):
+            dag = DAG(
+                "test-dag",
+                schedule=None,
+            )
+
+            EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
+            dag.validate()
+
     def test_validate_params_on_trigger_dag(self):
         dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
@@ -3903,6 +3927,18 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
     )
+
+
+def test_invalid_type_for_args():
+    with pytest.raises(TypeError):
+        DAG("invalid-default-args", max_consecutive_failed_dag_runs="not_an_int")
+
+
+@mock.patch("airflow.models.dag.validate_instance_args")
+def test_dag_init_validates_arg_types(mock_validate_instance_args):
+    dag = DAG("dag_with_expected_args")
+
+    mock_validate_instance_args.assert_called_once_with(dag, DAG_ARGS_EXPECTED_TYPES)
 
 
 class TestTaskClearingSetupTeardownBehavior:

@@ -227,6 +227,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -285,6 +286,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -332,6 +334,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -382,6 +385,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -442,6 +446,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
                 "execution_date": "2020-01-01T00:00:00+00:00",
+                "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
@@ -667,6 +672,31 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 id="test queue filter ~",
             ),
+            pytest.param(
+                [
+                    {"executor": "test_exec_1"},
+                    {"executor": "test_exec_2"},
+                    {"executor": "test_exec_3"},
+                ],
+                True,
+                (
+                    "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID"
+                    "/taskInstances?executor=test_exec_1,test_exec_2"
+                ),
+                2,
+                id="test_executor_filter",
+            ),
+            pytest.param(
+                [
+                    {"executor": "test_exec_1"},
+                    {"executor": "test_exec_2"},
+                    {"executor": "test_exec_3"},
+                ],
+                True,
+                "/api/v1/dags/~/dagRuns/~/taskInstances?executor=test_exec_1,test_exec_2",
+                2,
+                id="test executor filter ~",
+            ),
         ],
     )
     def test_should_respond_200(self, task_instances, update_extras, url, expected_ti, session):
@@ -768,6 +798,18 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 2,
                 "test",
                 id="test queue filter",
+            ),
+            pytest.param(
+                [
+                    {"executor": "test_exec_1"},
+                    {"executor": "test_exec_2"},
+                    {"executor": "test_exec_3"},
+                ],
+                True,
+                {"executor": ["test_exec_1", "test_exec_2"]},
+                2,
+                "test",
+                id="test executor filter",
             ),
             pytest.param(
                 [
@@ -2367,6 +2409,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -2426,6 +2469,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
                 "execution_date": "2020-01-01T00:00:00+00:00",
+                "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,

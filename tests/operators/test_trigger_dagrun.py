@@ -92,7 +92,7 @@ class TestDagRunOperator:
         """
         Asserts whether the correct extra links url will be created.
 
-        Specifically it tests whether the correct dag id and date are passed to
+        Specifically it tests whether the correct dag id and run id are passed to
         the method which constructs the final url.
         Note: We can't run that method to generate the url itself because the Flask app context
         isn't available within the test logic, so it is mocked here.
@@ -111,7 +111,7 @@ class TestDagRunOperator:
         args, _ = mock_build_url.call_args
         expected_args = {
             "dag_id": triggered_dag_run.dag_id,
-            "base_date": triggered_dag_run.logical_date.isoformat(),
+            "dag_run_id": triggered_dag_run.run_id,
         }
         assert expected_args in args
 
