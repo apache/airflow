@@ -23,7 +23,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.providers.google.cloud.sensors.cloud_composer import (
     CloudComposerDAGRunSensor,
     CloudComposerEnvironmentSensor,
@@ -53,6 +58,12 @@ TEST_EXEC_RESULT = lambda state: {
     "output_end": True,
     "exit_info": {"exit_code": 0, "error": ""},
 }
+DEPRECATION_MESSAGE = (
+    "The `CloudComposerEnvironmentSensor` operator is deprecated. "
+    "You can achieve the same functionality "
+    "by using operators in deferrable or non-deferrable mode, since every operator for Cloud "
+    "Composer will wait for the operation to complete."
+)
 
 
 class TestCloudComposerEnvironmentSensor:
@@ -62,12 +73,13 @@ class TestCloudComposerEnvironmentSensor:
         Asserts that a task is deferred and a CloudComposerExecutionTrigger will be fired
         when the CloudComposerEnvironmentSensor is executed.
         """
-        task = CloudComposerEnvironmentSensor(
-            task_id="task_id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            operation_name=TEST_OPERATION_NAME,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+            task = CloudComposerEnvironmentSensor(
+                task_id="task_id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                operation_name=TEST_OPERATION_NAME,
+            )
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(
@@ -79,24 +91,26 @@ class TestCloudComposerEnvironmentSensor:
     )
     def test_cloud_composer_existence_sensor_async_execute_failure(self, soft_fail, expected_exception):
         """Tests that an expected exception is raised in case of error event."""
-        task = CloudComposerEnvironmentSensor(
-            task_id="task_id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            operation_name=TEST_OPERATION_NAME,
-            soft_fail=soft_fail,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+            task = CloudComposerEnvironmentSensor(
+                task_id="task_id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                operation_name=TEST_OPERATION_NAME,
+                soft_fail=soft_fail,
+            )
         with pytest.raises(expected_exception, match="No event received in trigger callback"):
             task.execute_complete(context={}, event=None)
 
     def test_cloud_composer_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        task = CloudComposerEnvironmentSensor(
-            task_id="task_id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            operation_name=TEST_OPERATION_NAME,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+            task = CloudComposerEnvironmentSensor(
+                task_id="task_id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                operation_name=TEST_OPERATION_NAME,
+            )
         with mock.patch.object(task.log, "info"):
             task.execute_complete(
                 context={}, event={"operation_done": True, "operation_name": TEST_OPERATION_NAME}
