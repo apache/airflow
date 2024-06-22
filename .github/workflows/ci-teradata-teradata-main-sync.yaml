@@ -31,5 +31,5 @@ jobs:
 
       - name: Push changes to forked branch
         run: |
-          git remote set-url origin https://satish-chinthanippu:${{ secrets.GIT_SYNC_PUSH_KEY }}@github.com/Teradata/airflow.git
+          git remote set-url origin https://DA230216:${{ secrets.GIT_SYNC_PUSH_KEY }}@github.com/Teradata/airflow.git
           git push origin teradata_main
