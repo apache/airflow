@@ -33,4 +33,5 @@ jobs:
         run: |
           git config --global user.name "satish-chinthanippu"
           git config --global user.email "satishchinthanippu@gmail.com"
+          git remote set-url origin https://github.com/Teradata/airflow.git
           git push origin teradata_main
