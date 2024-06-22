@@ -68,7 +68,25 @@ template_bp = Blueprint(
 )
 
 
-class RemoteWorker(BaseView):
+class RemoteWorkerJobs(BaseView):
+    """Simple view to show remote worker jobs."""
+
+    default_view = "jobs"
+
+    @expose("/jobs")
+    @has_access_view(AccessView.JOBS)
+    @provide_session
+    def jobs(self, session: Session = NEW_SESSION):
+        from airflow.providers.remote.models.remote_job import RemoteJobModel
+
+        jobs = session.scalars(select(RemoteJobModel)).all()
+        html_states = {
+            str(state): wwwutils.state_token(str(state)) for state in TaskInstanceState.__members__.values()
+        }
+        return self.render_template("remote_worker_jobs.html", jobs=jobs, html_states=html_states)
+
+
+class RemoteWorkerHosts(BaseView):
     """Simple view to show remote worker status."""
 
     default_view = "status"
@@ -77,13 +95,10 @@ class RemoteWorker(BaseView):
     @has_access_view(AccessView.JOBS)
     @provide_session
     def status(self, session: Session = NEW_SESSION):
-        from airflow.providers.remote.models.remote_job import RemoteJobModel
+        from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
 
-        jobs = session.scalars(select(RemoteJobModel)).all()
-        html_states = {
-            str(state): wwwutils.state_token(str(state)) for state in TaskInstanceState.__members__.values()
-        }
-        return self.render_template("remote_worker_status.html", jobs=jobs, html_states=html_states)
+        hosts = session.scalars(select(RemoteWorkerModel)).all()
+        return self.render_template("remote_worker_hosts.html", hosts=hosts)
 
 
 # Check if RemoteExecutor is actually loaded
@@ -98,10 +113,15 @@ class RemoteExecutorPlugin(AirflowPlugin):
     appbuilder_views = (
         [
             {
-                "name": "Remote Worker Status",
+                "name": "Remote Worker Jobs",
                 "category": "Admin",
-                "view": RemoteWorker(),
-            }
+                "view": RemoteWorkerJobs(),
+            },
+            {
+                "name": "Remote Worker Hosts",
+                "category": "Admin",
+                "view": RemoteWorkerHosts(),
+            },
         ]
         if REMOTE_EXECUTOR_ACTIVE
         else []
