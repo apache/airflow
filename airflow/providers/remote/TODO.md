@@ -44,14 +44,14 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] CLI
   - [x] Get a job and execute it
   - [x] Report result
-  - [ ] Heartbeat
+  - [x] Heartbeat
   - [ ] Queues
-  - [ ] Retry on connection loss
+  - [x] Retry on connection loss
   - [ ] Send logs
   - [ ] Archive logs on completions
   - [ ] Can terminate job
   - [ ] Check version match
-  - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
+  - [?] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
 - [ ] Web UI
   - [ ] Show logs while executing
   - [ ] Show logs after completion
@@ -62,7 +62,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 - [ ] Tests
 - [ ] AIP-69
   - [x] Draft
-  - [ ] Update specs
+  - [x] Update specs
   - [ ] Vote
 
 ## Future Feature Collection

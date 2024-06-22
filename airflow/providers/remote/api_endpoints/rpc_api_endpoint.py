@@ -61,6 +61,7 @@ def _initialize_map() -> dict[str, Callable]:
         _xcom_pull,
     )
     from airflow.providers.remote.models.remote_job import RemoteJob
+    from airflow.providers.remote.models.remote_worker import RemoteWorker
     from airflow.secrets.metastore import MetastoreBackend
     from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -129,6 +130,8 @@ def _initialize_map() -> dict[str, Callable]:
         # Additional things from Remote Executor
         RemoteJob.reserve_task,
         RemoteJob.set_state,
+        RemoteWorker.register_worker,
+        RemoteWorker.set_state,
     ]
     return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 
