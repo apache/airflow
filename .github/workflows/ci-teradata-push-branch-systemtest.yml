@@ -21,8 +21,7 @@ on:
   push:
     branches:
       - IDE-*
-      - teradata_release_*
-      - teradata_main
+  workflow_dispatch:
 jobs:
   teradata-tests:
     name: "Run Teradata Provider Unit and System tests"
@@ -36,6 +35,9 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout Teradata Airflow Source Code"
         uses: actions/checkout@v4
+        with:
+          ref: IDE-compute_cluster
+          persist-credentials: false
       - name: "Github Event and Branch Details"
         run: echo "The current checked out branch is $GITHUB_REF. Workflow trigged Event- ${{ github.event_name  }}. The fully qualified reference (ref) branch that triggered the workflow run- ${{ github.ref }}"
       - name: "Install Python"
