@@ -282,6 +282,8 @@ def _run_raw_task(
             # a trigger.
             if raise_on_defer:
                 raise
+            if not test_mode:
+                ti.refresh_from_db(lock_for_update=True, session=session)
             ti.defer_task(exception=defer, session=session)
             ti.log.info(
                 "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, execution_date=%s, start_date=%s",
