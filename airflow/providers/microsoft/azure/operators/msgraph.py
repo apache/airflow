@@ -39,8 +39,6 @@ if TYPE_CHECKING:
 
     from kiota_abstractions.request_adapter import ResponseType
     from kiota_abstractions.request_information import QueryParams
-    from kiota_abstractions.response_handler import NativeResponseType
-    from kiota_abstractions.serialization import ParsableFactory
     from msgraph_core import APIVersion
 
     from airflow.utils.context import Context
@@ -59,9 +57,6 @@ class MSGraphAsyncOperator(BaseOperator):
     :param url: The url being executed on the Microsoft Graph API (templated).
     :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
         `str`, `int`, `float`, `bool` and `datetime` (default is None).
-    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-        lambda response, error_map: response.json()).  The default expression will convert the native response
-        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param key: The key that will be used to store `XCom's` ("return_value" is default).
@@ -94,9 +89,6 @@ class MSGraphAsyncOperator(BaseOperator):
         *,
         url: str,
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
@@ -116,7 +108,6 @@ class MSGraphAsyncOperator(BaseOperator):
         super().__init__(**kwargs)
         self.url = url
         self.response_type = response_type
-        self.response_handler = response_handler
         self.path_parameters = path_parameters
         self.url_template = url_template
         self.method = method
@@ -134,7 +125,6 @@ class MSGraphAsyncOperator(BaseOperator):
         self.results: list[Any] | None = None
 
     def execute(self, context: Context) -> None:
-        self.log.info("Executing url '%s' as '%s'", self.url, self.method)
         self.defer(
             trigger=MSGraphTrigger(
                 url=self.url,
@@ -167,14 +157,14 @@ class MSGraphAsyncOperator(BaseOperator):
         self.log.debug("context: %s", context)
 
         if event:
-            self.log.info("%s completed with %s: %s", self.task_id, event.get("status"), event)
+            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
 
             response = event.get("response")
 
-            self.log.info("response: %s", response)
+            self.log.debug("response: %s", response)
 
             if response:
                 response = self.serializer.deserialize(response)
@@ -188,8 +178,9 @@ class MSGraphAsyncOperator(BaseOperator):
                 event["response"] = result
 
                 try:
-                    self.trigger_next_link(response, method_name=self.pull_execute_complete.__name__)
+                    self.trigger_next_link(response=response, method_name=self.execute_complete.__name__)
                 except TaskDeferred as exception:
+                    self.results = self.pull_xcom(context=context)
                     self.append_result(
                         result=result,
                         append_result_as_list_if_absent=True,
@@ -198,7 +189,6 @@ class MSGraphAsyncOperator(BaseOperator):
                     raise exception
 
                 self.append_result(result=result)
-                self.log.debug("results: %s", self.results)
 
                 return self.results
         return None
@@ -208,8 +198,6 @@ class MSGraphAsyncOperator(BaseOperator):
         result: Any,
         append_result_as_list_if_absent: bool = False,
     ):
-        self.log.debug("value: %s", result)
-
         if isinstance(self.results, list):
             if isinstance(result, list):
                 self.results.extend(result)
@@ -224,30 +212,43 @@ class MSGraphAsyncOperator(BaseOperator):
             else:
                 self.results = result
 
+    def pull_xcom(self, context: Context) -> list:
+        map_index = context["ti"].map_index
+        value = list(
+            context["ti"].xcom_pull(
+                key=self.key,
+                task_ids=self.task_id,
+                dag_id=self.dag_id,
+                map_indexes=map_index,
+            )
+            or []
+        )
+
+        if map_index:
+            self.log.info(
+                "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s' and map_index %s: %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                map_index,
+                value,
+            )
+        else:
+            self.log.info(
+                "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                value,
+            )
+
+        return value
+
     def push_xcom(self, context: Context, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
             self.log.info("Pushing XCom with key '%s': %s", self.key, value)
             self.xcom_push(context=context, key=self.key, value=value)
-
-    def pull_execute_complete(self, context: Context, event: dict[Any, Any] | None = None) -> Any:
-        self.results = list(
-            self.xcom_pull(
-                context=context,
-                task_ids=self.task_id,
-                dag_id=self.dag_id,
-                key=self.key,
-            )
-            or []
-        )
-        self.log.info(
-            "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
-            self.task_id,
-            self.dag_id,
-            self.key,
-            self.results,
-        )
-        return self.execute_complete(context, event)
 
     @staticmethod
     def paginate(operator: MSGraphAsyncOperator, response: dict) -> tuple[Any, dict[str, Any] | None]:
@@ -281,7 +282,6 @@ class MSGraphAsyncOperator(BaseOperator):
                         url=url,
                         query_parameters=query_parameters,
                         response_type=self.response_type,
-                        response_handler=self.response_handler,
                         conn_id=self.conn_id,
                         timeout=self.timeout,
                         proxies=self.proxies,

@@ -25,6 +25,43 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Updates to Teradata Provider (#40378)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+.. note::
+  This release contains several new features including:
+  • Introduction of Stored Procedure Support in Teradata Hook
+  • Inclusion of the TeradataStoredProcedureOperator for executing stored procedures
+  • Integration of Azure Blob Storage to Teradata Transfer Operator
+  • Integration of Amazon S3 to Teradata Transfer Operator
+  • Provision of necessary documentation, along with unit and system tests, for the Teradata Provider modifications.
+
+* ``Updates to Teradata Provider (#39217)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 2.1.0
 .....
 

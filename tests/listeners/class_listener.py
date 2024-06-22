@@ -19,38 +19,70 @@ from __future__ import annotations
 
 from airflow.listeners import hookimpl
 from airflow.utils.state import DagRunState, TaskInstanceState
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
+if AIRFLOW_V_2_10_PLUS:
 
-class ClassBasedListener:
-    def __init__(self):
-        self.started_component = None
-        self.stopped_component = None
-        self.state = []
+    class ClassBasedListener:
+        def __init__(self):
+            self.started_component = None
+            self.stopped_component = None
+            self.state = []
 
-    @hookimpl
-    def on_starting(self, component):
-        self.started_component = component
-        self.state.append(DagRunState.RUNNING)
+        @hookimpl
+        def on_starting(self, component):
+            self.started_component = component
+            self.state.append(DagRunState.RUNNING)
 
-    @hookimpl
-    def before_stopping(self, component):
-        global stopped_component
-        stopped_component = component
-        self.state.append(DagRunState.SUCCESS)
+        @hookimpl
+        def before_stopping(self, component):
+            global stopped_component
+            stopped_component = component
+            self.state.append(DagRunState.SUCCESS)
 
-    @hookimpl
-    def on_task_instance_running(self, previous_state, task_instance, session):
-        self.state.append(TaskInstanceState.RUNNING)
+        @hookimpl
+        def on_task_instance_running(self, previous_state, task_instance, session):
+            self.state.append(TaskInstanceState.RUNNING)
 
-    @hookimpl
-    def on_task_instance_success(self, previous_state, task_instance, session):
-        self.state.append(TaskInstanceState.SUCCESS)
+        @hookimpl
+        def on_task_instance_success(self, previous_state, task_instance, session):
+            self.state.append(TaskInstanceState.SUCCESS)
 
-    @hookimpl
-    def on_task_instance_failed(
-        self, previous_state, task_instance, error: None | str | BaseException, session
-    ):
-        self.state.append(TaskInstanceState.FAILED)
+        @hookimpl
+        def on_task_instance_failed(
+            self, previous_state, task_instance, error: None | str | BaseException, session
+        ):
+            self.state.append(TaskInstanceState.FAILED)
+else:
+
+    class ClassBasedListener:  # type: ignore[no-redef]
+        def __init__(self):
+            self.started_component = None
+            self.stopped_component = None
+            self.state = []
+
+        @hookimpl
+        def on_starting(self, component):
+            self.started_component = component
+            self.state.append(DagRunState.RUNNING)
+
+        @hookimpl
+        def before_stopping(self, component):
+            global stopped_component
+            stopped_component = component
+            self.state.append(DagRunState.SUCCESS)
+
+        @hookimpl
+        def on_task_instance_running(self, previous_state, task_instance, session):
+            self.state.append(TaskInstanceState.RUNNING)
+
+        @hookimpl
+        def on_task_instance_success(self, previous_state, task_instance, session):
+            self.state.append(TaskInstanceState.SUCCESS)
+
+        @hookimpl
+        def on_task_instance_failed(self, previous_state, task_instance, session):
+            self.state.append(TaskInstanceState.FAILED)
 
 
 def clear():

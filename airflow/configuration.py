@@ -390,6 +390,9 @@ class AirflowConfigParser(ConfigParser):
             "worker_pods_pending_timeout_check_interval",
             "2.6.0",
         ),
+        ("fab", "update_fab_perms"): ("webserver", "update_fab_perms", "2.9.0"),
+        ("fab", "auth_rate_limited"): ("webserver", "auth_rate_limited", "2.9.0"),
+        ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
     }
 
     # A mapping of new configurations to a list of old configurations for when one configuration

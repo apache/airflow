@@ -26,6 +26,69 @@
 Changelog
 ---------
 
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``local task job: add timeout, to not kill on_task_instance_success listener prematurely (#39890)``
+* ``openlineage: add some debug logging around sql parser call sites (#40200)``
+* ``Add task SLA and queued datetime information to AirflowRunFacet (#40091)``
+* ``Add error stacktrace to OpenLineage task event (#39813)``
+* ``Introduce AirflowJobFacet and AirflowStateRunFacet (#39520)``
+* ``Use UUIDv7 for OpenLineage runIds (#39889)``
+* ``openlineage: execute extraction and message sending in separate process (#40078)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
+
+Misc
+~~~~
+
+* ``fix: sqa deprecations for airflow providers (#39293)``
+
+1.8.0
+.....
+
+.. warning::
+  In Airflow 2.10.0, we fix the way try_number works.
+  For Airflow >= 2.10.0, use ``apache-airflow-providers-openlineage >= 1.8.0``.
+  Older versions of Airflow are not affected, In case you run an incompatible version
+  an exception will be raised asking you to upgrade provider version.
+
+Features
+~~~~~~~~
+
+* ``Scheduler to handle incrementing of try_number (#39336)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Prevent error when extractor can't be imported (#39736)``
+* ``Re-configure ORM in spawned OpenLineage process in scheduler. (#39735)``
+
+Misc
+~~~~
+
+* ``chore: Update conf retrieval docstring and adjust pool_size (#39721)``
+* ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+* ``Use 'ProcessPoolExecutor' over 'ThreadPoolExecutor'. (#39235)``
+* ``misc: Add custom provider runtime checks (#39609)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``openlineage: notify that logged exception was caught (#39493)``
+* ``chore: Add more OpenLineage logs to facilitate debugging (#39136)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add missing 'dag_state_change_process_pool_size' in 'provider.yaml'. (#39674)``
+   * ``Run unit tests for Providers with airflow installed as package. (#39513)``
+   * ``Reapply templates for all providers (#39554)``
+
+
 1.7.1
 .....
 

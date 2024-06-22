@@ -18,7 +18,7 @@
 Contribution Workflow
 =====================
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
@@ -112,7 +112,7 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   mkvirtualenv myenv --python=python3.9
+   python3 -m venv venv && source venv/bin/activate
 
 5. Initialize the created environment:
 

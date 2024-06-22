@@ -27,7 +27,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncIterator,
-    Callable,
     Sequence,
 )
 from uuid import UUID
@@ -43,8 +42,6 @@ if TYPE_CHECKING:
 
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
-    from kiota_abstractions.response_handler import NativeResponseType
-    from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
     from msgraph_core import APIVersion
 
@@ -89,9 +86,6 @@ class MSGraphTrigger(BaseTrigger):
     :param url: The url being executed on the Microsoft Graph API (templated).
     :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
         `str`, `int`, `float`, `bool` and `datetime` (default is None).
-    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-        lambda response, error_map: response.json()).  The default expression will convert the native response
-        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
@@ -119,9 +113,6 @@ class MSGraphTrigger(BaseTrigger):
         self,
         url: str,
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
@@ -143,7 +134,6 @@ class MSGraphTrigger(BaseTrigger):
         )
         self.url = url
         self.response_type = response_type
-        self.response_handler = response_handler
         self.path_parameters = path_parameters
         self.url_template = url_template
         self.method = method
@@ -207,7 +197,6 @@ class MSGraphTrigger(BaseTrigger):
             response = await self.hook.run(
                 url=self.url,
                 response_type=self.response_type,
-                response_handler=self.response_handler,
                 path_parameters=self.path_parameters,
                 method=self.method,
                 query_parameters=self.query_parameters,

@@ -20,6 +20,30 @@
 Changelog
 ---------
 
+1.4.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
+* ``Fix mypy problems in new waeviate client (#40330)``
+
+1.4.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 1.4.0
 .....
 

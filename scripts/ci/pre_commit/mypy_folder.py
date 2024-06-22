@@ -44,7 +44,31 @@ if mypy_folder not in ALLOWED_FOLDERS:
 
 arguments = [mypy_folder]
 if mypy_folder == "airflow/providers":
-    arguments.append("--namespace-packages")
+    arguments.extend(
+        [
+            "tests/providers",
+            "tests/system/providers",
+            "tests/integration/providers",
+            "--namespace-packages",
+        ]
+    )
+
+if mypy_folder == "airflow":
+    arguments.extend(
+        [
+            "tests",
+            "--exclude",
+            "airflow/providers",
+            "--exclude",
+            "tests/providers",
+            "--exclude",
+            "tests/system/providers",
+            "--exclude",
+            "tests/integration/providers",
+        ]
+    )
+
+print("Running /opt/airflow/scripts/in_container/run_mypy.sh with arguments: ", arguments)
 
 res = run_command_via_breeze_shell(
     [
@@ -64,7 +88,7 @@ ci_environment = os.environ.get("CI")
 if res.returncode != 0:
     if ci_environment:
         console.print(
-            "[yellow]You are running mypy with the folders selected. If you want to"
+            "[yellow]You are running mypy with the folders selected. If you want to "
             "reproduce it locally, you need to run the following command:\n"
         )
         console.print("pre-commit run --hook-stage manual mypy-<folder> --all-files\n")

@@ -69,6 +69,21 @@ class TestScheduler:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
@@ -99,6 +114,20 @@ class TestScheduler:
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "release-name-test-init-container"} == jmespath.search(
+            "spec.template.spec.initContainers[-1]", docs[0]
+        )
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -140,7 +169,17 @@ class TestScheduler:
         docs = render_chart(
             values={
                 "scheduler": {
-                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
@@ -149,6 +188,14 @@ class TestScheduler:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(

@@ -27,6 +27,71 @@
 Changelog
 ---------
 
+8.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Scheduler restarting due to too many completed pods in cluster (#40183)``
+
+Misc
+~~~~
+
+* ``Bump minimum kubernetes lib version to kubernetes 29.0.0 (#40253)``
+
+8.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes KubernetesPodTrigger failing running pods with timeout (#40019)``
+* ``Refresh properties on KubernetesPodOperator on token expiration also when logging (#39789)``
+* ``Fix reattach_on_restart parameter for the sync mode (#39329)``
+* ``Avoid resetting adopted task instances when retrying for kubernetes executor (#39406)``
+
+Misc
+~~~~
+
+* ``Include fatal reason for pod pending events (#39924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+   * ``Resolve common providers deprecations in tests (#40036)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout when watching pod events in k8s executor (#39551)``
+* ``Add retry logic for KubernetesCreateResourceOperator and KubernetesJobOperator (#39201)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deprecated calls in 'cncf.kubernetes' provider (#39381)``
+* ``Handling exception getting logs when pods finish success (#39296)``
+* ``fix wrong arguments in read_namespaced_pod_log call (#39874)``
+
+Misc
+~~~~
+
+* ``Move Kubernetes cli to provider package (#39587)``
+* ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Replace pod_manager.read_pod_logs with client.read_namespaced_pod_log in KubernetesPodOperator._write_logs (#39112)``
+* ``Add a warning message to KPO to warn of one second interval logs duplication (#39861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+   * ``Faster 'airflow_version' imports (#39552)``
+   * ``Prepare docs 3rd wave May 2024 (#39738)``
+
 8.2.0
 .....
 

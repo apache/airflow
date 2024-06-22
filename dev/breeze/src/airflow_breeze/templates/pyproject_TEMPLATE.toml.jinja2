@@ -99,7 +99,7 @@ provider_info = "airflow.providers.{{ PROVIDER_ID }}.get_provider_info:get_provi
 {%- for extra_name, dependencies_list in EXTRAS_REQUIREMENTS.items() %}
 "{{  extra_name }}" = [
 {%- for dependency in dependencies_list %}
-    "{{ dependency }}",
+    "{{ dependency | replace('"', '\\"') }}",
 {%- endfor %}
 ]
 {%- endfor %}

@@ -68,7 +68,7 @@ apache-airflow-providers-grpc package
 `gRPC <https://grpc.io/>`__
 
 
-Release: 3.5.0
+Release: 3.5.2
 
 Provider package
 ----------------
@@ -94,5 +94,5 @@ PIP package               Version required
 ``apache-airflow``        ``>=2.7.0``
 ``google-auth``           ``>=1.0.0,<3.0.0``
 ``google-auth-httplib2``  ``>=0.0.1``
-``grpcio``                ``>=1.15.0``
+``grpcio``                ``>=1.59.0``
 ========================  ==================

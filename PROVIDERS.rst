@@ -19,7 +19,7 @@
 Apache Airflow Providers
 ************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 What is a provider?
 ===================
@@ -155,7 +155,7 @@ will be able to use the new version without breaking their workflows. When we up
 2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump ``MINOR`` version of the
 provider when we increase minimum Airflow version.
 
-Increasing the minimum version ot the Providers is one of the reasons why 3rd-party provider maintainers
+Increasing the minimum version of the Providers is one of the reasons why 3rd-party provider maintainers
 might want to maintain their own providers - as they can decide to support older versions of Airflow.
 
 3rd-parties relation to community providers
@@ -326,3 +326,14 @@ There are the following consequences (or lack of them) of removing the provider:
     last released. This however, should only be done in case there are no viable alternatives for the users.
 * Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
   of accepting new provider described above.
+
+Provider Dependencies
+=====================
+
+The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
+
+All provider dependencies, including versions and constraints, are listed in this file.
+When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
+
+To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
+Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.

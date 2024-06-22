@@ -20,7 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+]
+
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
@@ -42,7 +50,7 @@ def mock_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None):
     conn = mock.MagicMock()
     conn.cursor.return_value = cursor
 
-    class MockedHook(hook_class):
+    class MockedHook(hook_class):  # type: ignore[misc, valid-type]
         conn_name_attr = "test_conn_id"
 
         @classmethod

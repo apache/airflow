@@ -62,7 +62,7 @@ apache-airflow-providers-mongo package
 `MongoDB <https://www.mongodb.com/>`__
 
 
-Release: 4.1.0
+Release: 4.1.2
 
 Provider package
 ----------------
@@ -87,5 +87,5 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.7.0``
 ``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=3.6.0``
+``pymongo``         ``>=4.0.0``
 ==================  ==================

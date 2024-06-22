@@ -53,7 +53,7 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
 
-        LazyXComAccess(dag_id='simple_mapping', run_id='test_run', task_id='add_one')
+        LazySelectSequence([15 items])
 
     You can use normal sequence syntax on this object (e.g. ``values[0]``), or iterate through it normally with a ``for`` loop. ``list(values)`` will give you a "real" ``list``, but since this would eagerly load values from *all* of the referenced upstream mapped tasks, you must be aware of the potential performance implications if the mapped number is large.
 
@@ -174,7 +174,7 @@ This would result in the add task being called 6 times. Please note, however, th
 Named mapping
 -------------
 
-By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
+By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This will typically look like ``map_index_template="{{ task.<property> }}"`` when the expansion looks like ``.expand(<property>=...)``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
 
 .. code-block:: python
 
@@ -521,14 +521,14 @@ Since it is common to want to transform the output data format for task mapping,
 
 There are a couple of things to note:
 
-#. The callable argument of ``map()`` (``create_copy_kwargs`` in the example) **must not** be a task, but a plain Python function. The transformation is as a part of the "pre-processing" of the downstream task (i.e. ``copy_files``), not a standalone task in the DAG.
-#. The callable always take exactly one positional argument. This function is called for each item in the iterable used for task-mapping, similar to how Python's built-in ``map()`` works.
+#. The callable argument of :func:`map()` (``create_copy_kwargs`` in the example) **must not** be a task, but a plain Python function. The transformation is as a part of the "pre-processing" of the downstream task (i.e. ``copy_files``), not a standalone task in the DAG.
+#. The callable always take exactly one positional argument. This function is called for each item in the iterable used for task-mapping, similar to how Python's built-in :func:`map()` works.
 #. Since the callable is executed as a part of the downstream task, you can use any existing techniques to write the task function. To mark a component as skipped, for example, you should raise ``AirflowSkipException``. Note that returning ``None`` **does not** work here.
 
 Combining upstream data (aka "zipping")
 =======================================
 
-It is also common to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in ``zip()`` function), and is also performed as pre-processing of the downstream task.
+It is also common to want to combine multiple input sources into one task mapping iterable. This is generally known as "zipping" (like Python's built-in :func:`zip()` function), and is also performed as pre-processing of the downstream task.
 
 This is especially useful for conditional logic in task mapping. For example, if you want to download files from S3, but rename those files, something like this would be possible:
 
@@ -552,7 +552,46 @@ This is especially useful for conditional logic in task mapping. For example, if
 
     download_filea_from_a_rename.expand(filenames_a_b=filenames_a_b)
 
-The ``zip`` function takes arbitrary positional arguments, and return an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's ``itertools.zip_longest``—the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
+Similar to the built-in :func:`zip`, you can zip an arbitrary number of iterables together to get an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's :func:`itertools.zip_longest`—the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
+
+Concatenating multiple upstreams
+================================
+
+Another common pattern to combine input sources is to run the same task against multiple iterables. It is of course totally valid to simply run the same code separately for each iterable, for example:
+
+.. code-block:: python
+
+    list_filenames_a = S3ListOperator(
+        task_id="list_files_in_a",
+        bucket="bucket",
+        prefix="incoming/provider_a/{{ data_interval_start|ds }}",
+    )
+    list_filenames_b = S3ListOperator(
+        task_id="list_files_in_b",
+        bucket="bucket",
+        prefix="incoming/provider_b/{{ data_interval_start|ds }}",
+    )
+
+
+    @task
+    def download_file(filename):
+        S3Hook().download_file(filename)
+        # process file...
+
+
+    download_file.override(task_id="download_file_a").expand(filename=list_filenames_a.output)
+    download_file.override(task_id="download_file_b").expand(filename=list_filenames_b.output)
+
+The DAG, however, would be both more scalable and easier to inspect if the tasks can be combined into one. This can done with ``concat``:
+
+.. code-block:: python
+
+    # Tasks list_filenames_a and list_filenames_b, and download_file stay unchanged.
+
+    list_filenames_concat = list_filenames_a.concat(list_filenames_b)
+    download_file.expand(filename=list_filenames_concat)
+
+This creates one single task to expand against both lists instead. You can ``concat`` an arbitrary number of iterables together (e.g. ``foo.concat(bar, rex)``); alternatively, since the return value is also an XCom reference, the ``concat`` calls can be chained (e.g. ``foo.concat(bar).concat(rex)``) to achieve the same result: one single iterable that concatenates all of them in order, similar to Python's :func:`itertools.chain`.
 
 What data types can be expanded?
 ================================

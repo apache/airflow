@@ -35,14 +35,48 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.1.2
+......
+
+Latest change: 2024-06-20
+
+=================================================================================================  ===========  ========================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================================
+`d9d09638a5 <https://github.com/apache/airflow/commit/d9d09638a5a57ec48e2ed791f248a55202f29869>`_  2024-06-20   ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
+`e7052d4244 <https://github.com/apache/airflow/commit/e7052d42440070e77eb6ff1cea41550f368f77c9>`_  2024-06-18   ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+`9b394a7229 <https://github.com/apache/airflow/commit/9b394a7229484914d80fffeeb7c2d109cd58cc02>`_  2024-06-18   ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`d5f81a4e2d <https://github.com/apache/airflow/commit/d5f81a4e2de0d4236cffcf2e2d3c682b4c6ec355>`_  2024-05-27   ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
+=================================================================================================  ===========  ========================================================================================================================
+
+10.1.1
+......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`e81cefb8a6 <https://github.com/apache/airflow/commit/e81cefb8a65c53e9ba340d456915b260ff87afdf>`_  2024-05-26   ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
+`ecf6e57e27 <https://github.com/apache/airflow/commit/ecf6e57e275cc002f40cd0412647bbd0242cfdef>`_  2024-05-13   ``Update example AzureContainerInstancesOperator (#39466)``
+=================================================================================================  ===========  ===================================================================================
+
 10.1.0
 ......
 
-Latest change: 2024-04-25
+Latest change: 2024-05-12
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`97e867f170 <https://github.com/apache/airflow/commit/97e867f1701fae287a20dff7e0f9e9ecbdc38f27>`_  2024-05-12   ``Prepare docs 2nd wave May 2024 (#39565)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`a61f393ec4 <https://github.com/apache/airflow/commit/a61f393ec4361499fcef9f2854668db85b852ec0>`_  2024-05-05   ``Implemented MSGraphSensor as a deferrable sensor (#39304)``
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `df1f75b676 <https://github.com/apache/airflow/commit/df1f75b676a4e294d5d89ba590416f26c937efc1>`_  2024-04-25   ``add dns_config and diagnostics parameters to AzureContainerInstancesOperator (#39156)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `15c2734c4c <https://github.com/apache/airflow/commit/15c2734c4cac2e2acbdeaf28dfe67d04e28cee90>`_  2024-04-25   ``Implement run-method on KiotaRequestAdapterHook and move logic away from triggerer to hook (#39237)``

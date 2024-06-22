@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone as stdlib_timezone
 from unittest import mock
 from unittest.mock import Mock, call, patch
 
@@ -97,11 +97,25 @@ class TestSFTPSensor:
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert not output
 
+    @pytest.mark.parametrize(
+        "newer_than",
+        (
+            datetime(2020, 1, 2),
+            datetime(2020, 1, 2, tzinfo=stdlib_timezone.utc),
+            "2020-01-02",
+            "2020-01-02 00:00:00+00:00",
+            "2020-01-02 00:00:00.001+00:00",
+            "2020-01-02T00:00:00+00:00",
+            "2020-01-02T00:00:00Z",
+            "2020-01-02T00:00:00+04:00",
+            "2020-01-02T00:00:00.000001+04:00",
+        ),
+    )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_naive_datetime(self, sftp_hook_mock):
+    def test_multiple_datetime_format_in_newer_than(self, sftp_hook_mock, newer_than):
         sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         sftp_sensor = SFTPSensor(
-            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than=datetime(2020, 1, 2)
+            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than=newer_than
         )
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)

@@ -19,7 +19,7 @@
 Contributor's Quick Start
 *************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Note to Starters
 ################
@@ -468,8 +468,7 @@ on macOS, install via
 
 .. code-block:: bash
 
-  pyenv activate airflow-env
-  pip install pre-commit
+  pipx install pre-commit
 
 3. Go to your project directory
 

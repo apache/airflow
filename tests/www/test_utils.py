@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import itertools
 import re
+import time
 from datetime import datetime
 from unittest.mock import Mock
 from urllib.parse import parse_qs
@@ -26,12 +27,14 @@ from urllib.parse import parse_qs
 import pendulum
 import pytest
 from bs4 import BeautifulSoup
+from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from markupsafe import Markup
+from sqlalchemy.orm import Query
 
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
 from airflow.www import utils
-from airflow.www.utils import DagRunCustomSQLAInterface, json_f, wrapped_markdown
+from airflow.www.utils import CustomSQLAInterface, DagRunCustomSQLAInterface, json_f, wrapped_markdown
 from tests.test_utils.config import conf_vars
 
 
@@ -159,6 +162,57 @@ class TestUtils:
         assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
         assert "<script>alert(1)</script>" not in html
 
+    def test_nobr_f(self):
+        attr = {"attr_name": "attribute"}
+        f = attr.get("attr_name")
+        expected_markup = Markup("<nobr>{}</nobr>").format(f)
+
+        nobr = utils.nobr_f("attr_name")
+        result_markup = nobr(attr)
+
+        assert result_markup == expected_markup
+
+    def test_nobr_f_empty_attr(self):
+        attr = {"attr_name": ""}
+        f = attr.get("attr_name")
+        expected_markup = Markup("<nobr>{}</nobr>").format(f)
+
+        nobr = utils.nobr_f("attr_name")
+        result_markup = nobr(attr)
+
+        assert result_markup == expected_markup
+
+    def test_nobr_f_missing_attr(self):
+        attr = {}
+        f = None
+        expected_markup = Markup("<nobr>{}</nobr>").format(f)
+
+        nobr = utils.nobr_f("attr_name")
+        result_markup = nobr(attr)
+
+        assert result_markup == expected_markup
+
+    def test_epoch(self):
+        test_datetime = datetime(2024, 6, 19, 12, 0, 0)
+        result = utils.epoch(test_datetime)
+        epoch_time = result[0]
+
+        expected_epoch_time = int(time.mktime(test_datetime.timetuple())) * 1000
+
+        assert epoch_time == expected_epoch_time
+
+    @pytest.mark.db_test
+    def test_make_cache_key(self):
+        from airflow.www.app import cached_app
+
+        with cached_app(testing=True).test_request_context(
+            "/test/path", query_string={"key1": "value1", "key2": "value2"}
+        ):
+            expected_args = str(hash(frozenset({"key1": "value1", "key2": "value2"}.items())))
+            expected_cache_key = ("/test/path" + expected_args).encode("ascii", "ignore")
+            result_cache_key = utils.make_cache_key()
+            assert result_cache_key == expected_cache_key
+
     @pytest.mark.db_test
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
@@ -166,14 +220,27 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "execution_date": datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "execution_date": datetime.now()}
+                )
+            )
+
+            html_map_index_none = str(
+                utils.task_instance_link(
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "execution_date": datetime.now()}
                 )
             )
 
         assert "%3Ca%261%3E" in html
         assert "%3Cb2%3E" in html
+        assert "map_index" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html
+
+        assert "%3Ca%261%3E" in html_map_index_none
+        assert "%3Cb2%3E" in html_map_index_none
+        assert "map_index" not in html_map_index_none
+        assert "<a&1>" not in html_map_index_none
+        assert "<b2>" not in html_map_index_none
 
     @pytest.mark.db_test
     def test_dag_link(self):
@@ -252,6 +319,10 @@ class TestAttrRenderer:
         )
         assert expected_encoded_dag_run_conf == encoded_dag_run_conf
 
+    def test_encode_dag_run_none(self):
+        no_dag_run_result = utils.encode_dag_run(None)
+        assert no_dag_run_result is None
+
     def test_json_f_webencoder(self):
         dag_run_conf = {
             "1": "string",
@@ -271,6 +342,38 @@ class TestAttrRenderer:
         dagrun.get = Mock(return_value=dag_run_conf)
 
         assert formatter(dagrun) == expected_markup
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_get_sensitive_variables_fields():
+    with pytest.warns(DeprecationWarning) as warning:
+        result = utils.get_sensitive_variables_fields()
+
+        # assert deprecation warning
+        assert len(warning) == 1
+        assert "This function is deprecated." in str(warning[-1].message)
+
+    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
+
+    expected_result = get_sensitive_variables_fields()
+    assert result == expected_result
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_should_hide_value_for_key():
+    key_name = "key"
+
+    with pytest.warns(DeprecationWarning) as warning:
+        result = utils.should_hide_value_for_key(key_name)
+
+        # assert deprecation warning
+        assert len(warning) == 1
+        assert "This function is deprecated." in str(warning[-1].message)
+
+    from airflow.utils.log.secrets_masker import should_hide_value_for_key
+
+    expected_result = should_hide_value_for_key(key_name)
+    assert result == expected_result
 
 
 class TestWrappedMarkdown:
@@ -435,6 +538,80 @@ class TestWrappedMarkdown:
                 assert escape(HTML) in rendered
 
 
+class TestFilter:
+    def setup_method(self):
+        self.mock_datamodel = Mock()
+        self.mock_query = Mock(spec=Query)
+        self.mock_column_name = "test_column"
+
+    def test_filter_is_null_apply(self):
+        filter_is_null = utils.FilterIsNull(datamodel=self.mock_datamodel, column_name=self.mock_column_name)
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_is_null.apply(self.mock_query, None)
+        self.mock_query.filter.assert_called_once_with(mock_field == mock_value)
+
+        expected_query_filter = self.mock_query.filter(mock_field == mock_value)
+
+        assert result_query_filter == expected_query_filter
+
+    def test_filter_is_not_null_apply(self):
+        filter_is_not_null = utils.FilterIsNotNull(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_is_not_null.apply(self.mock_query, None)
+        self.mock_query.filter.assert_called_once_with(mock_field != mock_value)
+
+        expected_query_filter = self.mock_query.filter(mock_field != mock_value)
+
+        assert result_query_filter == expected_query_filter
+
+    def test_filter_gte_none_value_apply(self):
+        filter_gte = utils.FilterGreaterOrEqual(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_gte.apply(self.mock_query, mock_value)
+
+        assert result_query_filter == self.mock_query
+
+    def test_filter_lte_none_value_apply(self):
+        filter_lte = utils.FilterSmallerOrEqual(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        self.mock_query, mock_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, None)
+
+        result_query_filter = filter_lte.apply(self.mock_query, mock_value)
+
+        assert result_query_filter == self.mock_query
+
+
+@pytest.mark.db_test
+def test_get_col_default_not_existing(session):
+    interface = CustomSQLAInterface(obj=DagRun, session=session)
+    default_value = interface.get_col_default("column_not_existing")
+    assert default_value is None
+
+
 @pytest.mark.db_test
 def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, session):
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
@@ -442,7 +619,9 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     dates = (pendulum.datetime(2023, 1, x) for x in range(1, 4))
     for dag_id, date in itertools.product(dag_ids, dates):
         with dag_maker(dag_id=dag_id) as dag:
-            dag.create_dagrun(execution_date=date, state="running", run_type="scheduled")
+            dag.create_dagrun(
+                execution_date=date, state="running", run_type="scheduled", data_interval=(date, date)
+            )
     dag_runs = session.query(DagRun).all()
     assert len(dag_runs) == 9
     assert len(set(x.run_id for x in dag_runs)) == 3

@@ -22,7 +22,7 @@ Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow tes
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Running tests
 -------------

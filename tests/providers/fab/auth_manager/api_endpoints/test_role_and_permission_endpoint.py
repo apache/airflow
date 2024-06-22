@@ -19,8 +19,13 @@ from __future__ import annotations
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.providers.fab.auth_manager.models import Role
-from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.models import Role
+    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
+
+
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import (
     assert_401,

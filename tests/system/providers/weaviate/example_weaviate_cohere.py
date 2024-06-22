@@ -82,7 +82,7 @@ def example_weaviate_cohere():
         task_id="perform_ingestion",
         conn_id="weaviate_default",
         class_name="Weaviate_example_class",
-        input_json=update_vector_data_in_json["return_value"],
+        input_data=update_vector_data_in_json["return_value"],
     )
 
     embed_query = CohereEmbeddingOperator(

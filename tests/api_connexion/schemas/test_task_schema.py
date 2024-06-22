@@ -60,6 +60,7 @@ class TestTaskSchema:
             "wait_for_downstream": False,
             "weight_rule": "downstream",
             "is_mapped": False,
+            "doc_md": None,
         }
         assert expected == result
 
@@ -108,6 +109,7 @@ class TestTaskCollectionSchema:
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
                     "is_mapped": False,
+                    "doc_md": None,
                 }
             ],
             "total_entries": 1,
