@@ -31,5 +31,4 @@ jobs:
 
       - name: Push changes to forked branch
         run: |
-          git remote add origin https://github.com/Teradata/airflow.git
-          git push
+          git push origin teradata_main
