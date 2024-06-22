@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-22T03:43:25.115755
+# This constraints file was automatically generated on 2024-06-22T15:05:25.153382
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -121,6 +121,7 @@ apache-airflow-providers-celery==3.7.2
 apache-airflow-providers-cloudant==3.5.1
 apache-airflow-providers-cncf-kubernetes==8.3.1
 apache-airflow-providers-cohere==1.2.1
+apache-airflow-providers-common-compat==1.0.0rc1
 apache-airflow-providers-common-io==1.3.2
 apache-airflow-providers-common-sql==1.14.0
 apache-airflow-providers-databricks==6.5.0
@@ -184,6 +185,7 @@ apache-airflow-providers-trino==5.7.1
 apache-airflow-providers-vertica==3.8.1
 apache-airflow-providers-weaviate==1.4.1
 apache-airflow-providers-yandex==3.11.1
+apache-airflow-providers-ydb==1.0.0rc1
 apache-airflow-providers-zendesk==4.7.1
 apache-beam==2.56.0
 apispec==6.6.1
