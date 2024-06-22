@@ -2230,6 +2230,9 @@ redis:
   enabled: true
   terminationGracePeriodSeconds: 600
 
+  # Annotations for Redis Statefulset
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
