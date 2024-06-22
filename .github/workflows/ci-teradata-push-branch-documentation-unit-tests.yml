@@ -21,8 +21,6 @@
       push:
         branches:
           - IDE-*
-          - teradata_release_*
-          - teradata_main
     permissions:
       contents: write
       pages: write
