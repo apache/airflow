@@ -47,7 +47,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param mime_type: The mime-type string
     :param gzip: Allows for file to be compressed and uploaded as gzip
-    :param chunk_size: Blob chunk size in bytes. This must be a multiple of 262144 bytes (256 KiB)
+    :param chunk_size: Blob chunk size in bytes. This must be a multiple of 262144 bytes (256 x 1024 bytes)
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
