@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-    name: airflow-teradata-main-documentation-unit-tests
+    name: airflow-teradata-teradata_main-documentation-unit-tests
     on:
       push:
         branches:
