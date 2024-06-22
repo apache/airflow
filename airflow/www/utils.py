@@ -527,7 +527,12 @@ def dag_run_link(attr):
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
 
-    url = url_for("Airflow.graph", dag_id=dag_id, dag_run_id=run_id)
+    url = url_for(
+        "Airflow.grid",
+        dag_id=dag_id,
+        dag_run_id=run_id,
+        tab="graph",
+    )
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 

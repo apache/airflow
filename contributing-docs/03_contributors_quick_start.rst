@@ -468,8 +468,7 @@ on macOS, install via
 
 .. code-block:: bash
 
-  pyenv activate airflow-env
-  pip install pre-commit
+  pipx install pre-commit
 
 3. Go to your project directory
 

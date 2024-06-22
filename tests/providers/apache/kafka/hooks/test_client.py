@@ -58,7 +58,7 @@ class TestKafkaAdminClientHook:
         assert isinstance(self.hook.get_conn, AdminClient)
 
     @patch(
-        "airflow.providers.apache.kafka.hooks.client.AdminClient",
+        "airflow.providers.apache.kafka.hooks.base.AdminClient",
     )
     def test_create_topic(self, admin_client):
         mock_f = MagicMock()
@@ -68,7 +68,7 @@ class TestKafkaAdminClientHook:
         mock_f.result.assert_called_once()
 
     @patch(
-        "airflow.providers.apache.kafka.hooks.client.AdminClient",
+        "airflow.providers.apache.kafka.hooks.base.AdminClient",
     )
     def test_create_topic_error(self, admin_client):
         mock_f = MagicMock()
@@ -82,7 +82,7 @@ class TestKafkaAdminClientHook:
             self.hook.create_topic(topics=[("topic_name", 0, 1)])
 
     @patch(
-        "airflow.providers.apache.kafka.hooks.client.AdminClient",
+        "airflow.providers.apache.kafka.hooks.base.AdminClient",
     )
     def test_create_topic_warning(self, admin_client, caplog):
         mock_f = MagicMock()
@@ -99,7 +99,7 @@ class TestKafkaAdminClientHook:
             assert "The topic topic_name already exists" in caplog.text
 
     @patch(
-        "airflow.providers.apache.kafka.hooks.client.AdminClient",
+        "airflow.providers.apache.kafka.hooks.base.AdminClient",
     )
     def test_delete_topic(self, admin_client):
         mock_f = MagicMock()
