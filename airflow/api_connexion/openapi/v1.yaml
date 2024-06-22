@@ -3222,11 +3222,6 @@ components:
           description: |
             The end of the interval the DAG run covers.
           nullable: true
-        next_schedulable:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
         run_type:
           type: string
           readOnly: true
