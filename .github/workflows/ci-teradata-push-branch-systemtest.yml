@@ -78,6 +78,7 @@ jobs:
               pip install -e ".[devel,teradata,microsoft.azure,amazon]"
               export SYSTEM_TESTS_ENV_ID=teradatasystemtest
               export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}'
+              export AIRFLOW_CONN_TERADATA_LAKE='teradata://${{ vars.LAKE_ENV_USERNAME }}:${{ secrets.LAKE_ENV_PASSWORD }}@${{ vars.LAKE_SERVER_NAME }}:/${{ vars.LAKE_ENV_DATABASE }}'
               export AIRFLOW_CONN_TERADATA_SSL_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?sslmode=allow'
               export AIRFLOW_CONN_TERADATA_SP_CALL='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?tmode=TERA'
               export AIRFLOW_CONN_WASB_DEFAULT='wasb://${{ vars.AZURE_BLOB_ACCOUNTNAME }}:${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}'
