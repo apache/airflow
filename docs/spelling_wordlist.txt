@@ -901,6 +901,7 @@ keyring
 keyspace
 keytab
 kfp
+KiB
 Kibana
 killMode
 Kinesis
