@@ -248,7 +248,4 @@
 - tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperatorForParams::test_overwrite_params
 - tests/providers/snowflake/operators/test_snowflake_sql.py::test_exec_success
 - tests/providers/snowflake/operators/test_snowflake_sql.py::test_execute_openlineage_events
-- tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_invalid_sql
-- tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_multiple_statements
-- tests/providers/sqlite/operators/test_sqlite.py::TestSqliteOperator::test_sqlite_operator_with_one_statement
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
