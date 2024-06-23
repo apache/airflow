@@ -501,19 +501,19 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
+        "remove-providers": "common.io fab remote",
         "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.8.4",
-        "remove-providers": "fab",
+        "remove-providers": "fab remote",
         "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.9.1",
-        "remove-providers": "",
+        "remove-providers": "remote",
         "run-tests": "true",
     },
 ]
