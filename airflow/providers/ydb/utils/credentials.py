@@ -21,8 +21,6 @@ from typing import TYPE_CHECKING, Any
 import ydb
 import ydb.iam.auth as auth
 
-from airflow.exceptions import AirflowException
-
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
@@ -63,11 +61,11 @@ def get_credentials_from_connection(
 
     service_account_json_path = connection_extra.get("service_account_json_path")
     if service_account_json_path:
-        return auth.BaseJWTCredentials.from_file(auth.ServiceAccountCredentials, service_account_json_path)
+        return auth.ServiceAccountCredentials.from_file(service_account_json_path)
 
     service_account_json = connection_extra.get("service_account_json")
     if service_account_json:
-        raise AirflowException("service_account_json parameter is not supported yet")
+        return auth.ServiceAccountCredentials.from_content(service_account_json)
 
     use_vm_metadata = connection_extra.get("use_vm_metadata", False)
     if use_vm_metadata:
