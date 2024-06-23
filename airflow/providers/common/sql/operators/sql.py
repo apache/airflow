@@ -177,7 +177,10 @@ class BaseSQLOperator(BaseOperator):
             )
 
         if self.database:
-            hook.schema = self.database
+            if hook.conn_type == "postgres":
+                hook.database = self.database
+            else:
+                hook.schema = self.database
 
         return hook
 
