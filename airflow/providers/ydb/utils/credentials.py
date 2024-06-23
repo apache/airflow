@@ -18,11 +18,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import logging
 import ydb
 import ydb.iam.auth as auth
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
+
+log = logging.getLogger(__name__)
 
 
 def get_credentials_from_connection(
@@ -52,23 +55,29 @@ def get_credentials_from_connection(
             database=database,
         )
 
+        log.info("using login as credentials")
         return ydb.StaticCredentials(driver_config, user=connection.login, password=connection.password)
 
     connection_extra = connection_extra or {}
     token = connection_extra.get("token")
     if token:
+        log.info("using token as credentials")
         return ydb.AccessTokenCredentials(token)
 
     service_account_json_path = connection_extra.get("service_account_json_path")
     if service_account_json_path:
+        log.info("using service_account_json_path as credentials")
         return auth.ServiceAccountCredentials.from_file(service_account_json_path)
 
     service_account_json = connection_extra.get("service_account_json")
     if service_account_json:
+        log.info("using service_account_json as credentials")
         return auth.ServiceAccountCredentials.from_content(service_account_json)
 
     use_vm_metadata = connection_extra.get("use_vm_metadata", False)
     if use_vm_metadata:
+        log.info("using vm metadata as credentials")
         return auth.MetadataUrlCredentials()
 
+    log.info("using anonymous access")
     return ydb.AnonymousCredentials()
