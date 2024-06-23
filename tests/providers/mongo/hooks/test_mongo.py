@@ -56,6 +56,10 @@ def mongo_connections():
         ),
         # Mongo establishes connection during initialization, so we need to have this connection
         Connection(conn_id="fake_connection", conn_type="mongo", host="mongo", port=27017),
+        Connection(
+            conn_id="mongo_srv_scheme",
+            uri="mongodb+srv://test_user:test_password@test_host:1234/test_db"
+        ),
     ]
 
     with pytest.MonkeyPatch.context() as mp:
@@ -107,6 +111,10 @@ class TestMongoHook:
 
     def test_srv(self):
         hook = MongoHook(mongo_conn_id="mongo_default_with_srv")
+        assert hook.uri.startswith("mongodb+srv://")
+
+    def test_srv_scheme(self):
+        hook = MongoHook(mongo_conn_id="mongo_srv_scheme")
         assert hook.uri.startswith("mongodb+srv://")
 
     def test_insert_one(self):
@@ -265,6 +273,15 @@ class TestMongoHook:
 
     def test_create_uri_srv_true(self):
         self.hook.extras["srv"] = True
+        self.hook.connection.login = "test_user"
+        self.hook.connection.password = "test_password"
+        self.hook.connection.host = "test_host"
+        self.hook.connection.port = 1234
+        self.hook.connection.schema = "test_db"
+        assert self.hook._create_uri() == "mongodb+srv://test_user:test_password@test_host:1234/test_db"
+
+    def test_create_uri_srv_scheme(self):
+        self.hook.connection.conn_type = "mongodb+srv"
         self.hook.connection.login = "test_user"
         self.hook.connection.password = "test_password"
         self.hook.connection.host = "test_host"
