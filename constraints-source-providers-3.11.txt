@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-22T18:56:01.037277
+# This constraints file was automatically generated on 2024-06-23T06:02:18.847693
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -151,7 +151,7 @@ colorlog==6.8.2
 comm==0.2.2
 confluent-kafka==2.4.0
 connexion==2.14.2
-coverage==7.5.3
+coverage==7.5.4
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==2.0.5
@@ -320,7 +320,7 @@ kubernetes_asyncio==30.1.0
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
-limits==3.12.0
+limits==3.13.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==24.10.0
@@ -343,7 +343,7 @@ mongomock==4.1.2
 more-itertools==10.3.0
 moto==5.0.9
 mpmath==1.3.0
-msal-extensions==1.1.0
+msal-extensions==1.2.0
 msal==1.29.0
 msgraph-core==1.1.0
 msrest==0.7.1
@@ -414,7 +414,7 @@ platformdirs==4.2.2
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
-portalocker==2.8.2
+portalocker==2.10.0
 pprintpp==0.4.0
 pre-commit==3.7.1
 presto-python-client==0.8.4
@@ -580,7 +580,7 @@ types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316
 types-PyMySQL==1.1.0.20240524
 types-PyYAML==6.0.12.20240311
-types-aiofiles==23.2.0.20240403
+types-aiofiles==23.2.0.20240623
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==2.0.0.20240423
