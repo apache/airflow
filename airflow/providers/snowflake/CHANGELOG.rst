@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``openlineage: add some debug logging around sql parser call sites (#40200)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``Bump Snowflake client driver versions to minimum 2.7.11 per support policy (#39886)``
+
 5.5.1
 .....
 

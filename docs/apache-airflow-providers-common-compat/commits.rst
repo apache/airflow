@@ -32,3 +32,16 @@ Package apache-airflow-providers-common-compat
 
 This is detailed commit list of changes for versions provider package: ``common.compat``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  =======================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================
+`0019c9b35a <https://github.com/apache/airflow/commit/0019c9b35af545c60954113503f7f37c9fc3efcb>`_  2024-06-22   ``Add common.compat provider (#40374)``
+=================================================================================================  ===========  =======================================

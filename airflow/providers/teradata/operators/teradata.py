@@ -31,7 +31,7 @@ class TeradataOperator(SQLExecuteQueryOperator):
     """
     General Teradata Operator to execute queries on Teradata Database.
 
-    Executes sql statements in the Teradata SQL Database using teradatasql jdbc driver
+    Executes sql statements in the Teradata SQL Database using Teradata Python SQL Driver
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

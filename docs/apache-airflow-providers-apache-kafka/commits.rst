@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.0
+.....
+
+Latest change: 2024-06-18
+
+=================================================================================================  ===========  =======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================
+`68aa42710b <https://github.com/apache/airflow/commit/68aa42710b957b0ec2c287393e234d8c08422413>`_  2024-06-18   ``Default client in KafkaBaseHook (#40284)``
+`cbe6c2dd24 <https://github.com/apache/airflow/commit/cbe6c2dd243ee48e0f8bade77a15f49ecef92849>`_  2024-06-08   ``Add 'delete_topic' to 'KafkaAdminClientHook' and teardown logic to Kafka integration tests (#40142)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+=================================================================================================  ===========  =======================================================================================================
+
 1.4.1
 .....
 
-Latest change: 2024-05-11
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `e637367958 <https://github.com/apache/airflow/commit/e637367958726bdbf133b0326e58db258ff340de>`_  2024-05-11   ``Group id is mandatory configurtion option for confluent_kafka 2.4.0+ (#39559)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
