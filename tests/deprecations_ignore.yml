@@ -235,8 +235,4 @@
 - tests/providers/mysql/operators/test_mysql.py::TestMySql::test_mysql_operator_test_multi
 - tests/providers/mysql/operators/test_mysql.py::TestMySql::test_overwrite_schema
 - tests/providers/mysql/operators/test_mysql.py::test_execute_openlineage_events
-- tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperator::test_snowflake_operator
-- tests/providers/snowflake/operators/test_snowflake.py::TestSnowflakeOperatorForParams::test_overwrite_params
-- tests/providers/snowflake/operators/test_snowflake_sql.py::test_exec_success
-- tests/providers/snowflake/operators/test_snowflake_sql.py::test_execute_openlineage_events
 - tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
