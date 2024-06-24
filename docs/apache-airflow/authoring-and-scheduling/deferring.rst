@@ -245,12 +245,12 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
             # We have no more work to do here. Mark as complete.
             return
 
-These parameters can be mapped using the ``expand`` method.
+These parameters can be mapped using the ``expand`` and ``partial`` methods.
 
 .. code-block:: python
 
-    WaitTwoHourSensor.partial(task_id="transform").expand(
-        trigger_kwargs=[{"moment": timedelta(hours=1)}], start_from_trigger=True
+    WaitTwoHourSensor.partial(task_id="transform").partial(start_from_trigger=True).expand(
+        trigger_kwargs=[{"moment": timedelta(hours=2)}, {"moment": timedelta(hours=2)}]
     )
 
 Writing Triggers
