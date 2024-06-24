@@ -745,15 +745,18 @@ class MappedOperator(AbstractOperator):
                 fail_reason="unmappable or already specified",
             )
 
-        self.start_from_trigger = self.partial_kwargs.get(
-            "start_from_trigger", mapped_kwargs.get("start_from_trigger", self.start_from_trigger)
+        # Ordering is significant; mapped kwargs should override partial ones.
+
+        self.start_from_trigger = mapped_kwargs.get(
+            "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
         )
 
-        self.start_trigger_args.trigger_kwargs = self.partial_kwargs.get(
-            "trigger_kwargs", mapped_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs)
+        self.start_trigger_args.trigger_kwargs = mapped_kwargs.get(
+            "trigger_kwargs",
+            self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
         )
-        self.start_trigger_args.timeout = self.partial_kwargs.get(
-            "trigger_timeout", mapped_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
+        self.start_trigger_args.timeout = mapped_kwargs.get(
+            "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
         )
 
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
