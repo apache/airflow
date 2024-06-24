@@ -723,7 +723,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             if ti.state in State.finished:
-                ti.dag_run.next_schedulable = timezone.utcnow()
+                ti.dag_run.activate_scheduling(session)
 
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
@@ -981,6 +981,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 conf.getfloat("scheduler", "parsing_cleanup_interval"),
                 self._cleanup_stale_dags,
             )
+        timers.call_regular_interval(5, self._check_and_activate_dagrun_scheduling)
 
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
@@ -1853,3 +1854,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             _executor_to_tis[ExecutorLoader.load_executor(executor)].append(ti)
 
         return _executor_to_tis
+
+    @provide_session
+    def _check_and_activate_dagrun_scheduling(self, session: Session = NEW_SESSION):
+        tis = session.scalars(select(TI).where(TI.state == TaskInstanceState.UP_FOR_RETRY)).all()
+        self.log.debug("Checking for DRs to activate scheduling for")
+        for ti in tis:
+            # Get task from the Serialized DAG
+            try:
+                dag = self.dagbag.get_dag(ti.dag_id)
+                ti.task = dag.get_task(ti.task_id)
+                ti.dag_run = ti.get_dagrun(session)
+            except Exception:
+                continue
+            if not ti.is_premature:
+                ti.dag_run.activate_scheduling(session)

@@ -1066,7 +1066,7 @@ class DagRun(Base, LoggingMixin):
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
-                self.next_schedulable = None
+                self.deactivate_scheduling(session)
                 continue
             # If schedulable is not yet expanded, try doing it now. This is
             # called in two places: First and ideally in the mini scheduler at
