@@ -284,39 +284,42 @@ class SSHHook(BaseHook):
         cmd = self.host_proxy_cmd
         return paramiko.ProxyCommand(cmd) if cmd else None
 
-    @cached_property
     def get_conn(self) -> paramiko.SSHClient:
         """Establish an SSH connection to the remote host."""
-        self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
-        client = paramiko.SSHClient()
+        if self.client is None:
+            self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
+            client = paramiko.SSHClient()
 
-        if self.allow_host_key_change:
-            self.log.warning(
-                "Remote Identification Change is not verified. "
-                "This won't protect against Man-In-The-Middle attacks"
-            )
-            # to avoid BadHostKeyException, skip loading host keys
-            client.set_missing_host_key_policy(paramiko.MissingHostKeyPolicy)
-        else:
-            client.load_system_host_keys()
-
-        if self.no_host_key_check:
-            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
-            # to avoid BadHostKeyException, skip loading and saving host keys
-            known_hosts = os.path.expanduser("~/.ssh/known_hosts")
-            if not self.allow_host_key_change and os.path.isfile(known_hosts):
-                client.load_host_keys(known_hosts)
-
-        elif self.host_key is not None:
-            # Get host key from connection extra if it not set or None then we fallback to system host keys
-            client_host_keys = client.get_host_keys()
-            if self.port == SSH_PORT:
-                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-            else:
-                client_host_keys.add(
-                    f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+            if self.allow_host_key_change:
+                self.log.warning(
+                    "Remote Identification Change is not verified. "
+                    "This won't protect against Man-In-The-Middle attacks"
                 )
+                # to avoid BadHostKeyException, skip loading host keys
+                client.set_missing_host_key_policy(paramiko.MissingHostKeyPolicy)
+            else:
+                client.load_system_host_keys()
+
+            if self.no_host_key_check:
+                self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
+                # to avoid BadHostKeyException, skip loading and saving host keys
+                known_hosts = os.path.expanduser("~/.ssh/known_hosts")
+                if not self.allow_host_key_change and os.path.isfile(known_hosts):
+                    client.load_host_keys(known_hosts)
+
+            elif self.host_key is not None:
+                # Get host key from connection extra if it not set or None then we fallback to system host keys
+                client_host_keys = client.get_host_keys()
+                if self.port == SSH_PORT:
+                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                else:
+                    client_host_keys.add(
+                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                    )
+        else:
+            # Return the existing connection
+            return self.client
 
         connect_kwargs: dict[str, Any] = {
             "hostname": self.remote_host,
