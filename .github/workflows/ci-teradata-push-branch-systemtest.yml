@@ -36,7 +36,7 @@ jobs:
       - name: "Checkout Teradata Airflow Source Code"
         uses: actions/checkout@v4
         with:
-          ref: IDE-compute_cluster
+          ref: main
           persist-credentials: false
       - name: "Github Event and Branch Details"
         run: echo "The current checked out branch is $GITHUB_REF. Workflow trigged Event- ${{ github.event_name  }}. The fully qualified reference (ref) branch that triggered the workflow run- ${{ github.ref }}"
@@ -83,10 +83,12 @@ jobs:
               export AIRFLOW_CONN_TERADATA_LAKE='teradata://${{ vars.LAKE_ENV_USERNAME }}:${{ secrets.LAKE_ENV_PASSWORD }}@${{ vars.LAKE_SERVER_NAME }}:/${{ vars.LAKE_ENV_USERNAME }}'
               export AIRFLOW_CONN_TERADATA_SSL_DEFAULT='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?sslmode=allow'
               export AIRFLOW_CONN_TERADATA_SP_CALL='teradata://${{ vars.CSAE_AIRFLOW_ENV_USERNAME }}:${{ secrets.CSAE_AIRFLOW_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_AIRFLOW_ENV_DATABASE }}?tmode=TERA'
-              export AIRFLOW_CONN_WASB_DEFAULT='wasb://${{ vars.AZURE_BLOB_ACCOUNTNAME }}:${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}'
+              export AIRFLOW_CONN_WASB_DEFAULT='wasb://${{ vars.AZURE_BLOB_ACCOUNTNAME }}:${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}@'
               export AIRFLOW_CONN_AWS_DEFAULT=aws://${{ vars.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}@/?aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
               export AIRFLOW_VAR_AZURE_BLOB_ACCOUNTNAME=${{ vars.AZURE_BLOB_ACCOUNTNAME }}
               export AIRFLOW_VAR_AZURE_BLOB_ACCOUNT_SECRET_KEY=${{ secrets.AZURE_BLOB_ACCOUNT_SECRET_KEY }}
+              export AIRFLOW_VAR_AWS_ACCESS_KEY_ID=${{ vars.TERADATA_DOWNLOAD_AWS_SECRET_ACCESS_ID }}
+              export AIRFLOW_VAR_AWS_SECRET_ACCESS_KEY=${{ secrets.TERADATA_DOWNLOAD_AWS_SECRET_ACCESS_KEY }}
               pytest --system=teradata --junitxml=report_test.xml tests/system/providers/teradata
       - name: "Delete CSAE environment"
         if: always()
