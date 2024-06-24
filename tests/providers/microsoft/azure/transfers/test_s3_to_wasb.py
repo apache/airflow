@@ -35,19 +35,19 @@ TEMPFILE_NAME = "test-tempfile"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 # Here are some of the tests that need to be run (for the get_files_to_move() function)
-# 1. Prefix with no existing files, without replace [DONE]
-# 2. Prefix with existing files, without replace [DONE]
-# 3. Prefix with existing files, with replace [DONE]
-# 4. Two keys without existing files, without replace [DONE]
-# 5. Two keys with existing files, without replace
-# 6. Two keys with existing files, with replace
-# 7. S3 key with Azure prefix, without existing files, without replace
-# 8. S3 key with Azure prefix, with existing files, without replace
-# 9. S3 key with Azure prefix, with existing files, with replace
+# 1. Prefix with no existing files, without replace                           [DONE]
+# 2. Prefix with existing files, without replace                              [DONE]
+# 3. Prefix with existing files, with replace                                 [DONE]
+# 4. Two keys without existing files, without replace                         [DONE]
+# 5. Two keys with existing files, without replace                            [DONE]
+# 6. Two keys with existing files, with replace                               [DONE]
+# 7. S3 key with Azure prefix, without existing files, without replace        [DONE]
+# 8. S3 key with Azure prefix, with existing files, without replace           [DONE]
+# 9. S3 key with Azure prefix, with existing files, with replace           [SKIPPED]
 
 # Other tests that need to be run
-# - Test __init__
-# - Test execute()
+# - Test __init__                                                             [DONE]
+# - Test execute()                                                            [DONE]
 
 
 @mock_aws
@@ -117,7 +117,8 @@ class TestS3ToAzureBlobStorageOperator:
         wasb_mock_hook.assert_called_once_with(wasb_conn_id="wasb_default")
 
     # There are a number of very similar tests that use the same mocking, and for the most part, the same
-    # logic
+    # logic. These tests are used to validate the records being returned by the get_files_to_move() method,
+    # which heavily drives the successful execution of the operator
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     def test__get_files_to_move__prefix_without_replace_empty_destination(self, wasb_mock_hook, s3_mock_hook):
@@ -185,20 +186,12 @@ class TestS3ToAzureBlobStorageOperator:
         # will be moved to the Azure Blob, even though there are existing files in the Azure Blob
         assert sorted(uploaded_files) == sorted(MOCK_FILES)
 
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    @mock.patch("tempfile.NamedTemporaryFile")
-    def test_execute_key_without_replace_empty_destination(
-        self, tempfile_mock, wasb_mock_hook, s3_mock_hook
-    ):
+    def test__get_file_to_move__key_without_replace_empty_destination(self, wasb_mock_hook):
         # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
         # single key is being passed, rather than a prefix). Here, there is no file present in the container,
-        # so the file can be moved
+        # so the file SHOULD be moved
         wasb_mock_hook.return_value.check_for_blob.return_value = False
-
-        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
-        tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
-
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
@@ -207,10 +200,83 @@ class TestS3ToAzureBlobStorageOperator:
             blob_name="TEST/TEST1.csv",
         )
         # Placing an empty "context" object here (using None)
-        uploaded_files = operator.execute(None)
+        uploaded_files = operator.get_files_to_move()
 
         # Only the file name should be returned, rather than the entire blob name
         assert sorted(uploaded_files) == sorted(["TEST1.csv"])
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    def test__get_file_to_move__key_without_replace_populated_destination(self, wasb_mock_hook):
+        # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
+        # single key is being passed, rather than a prefix). Here, there IS a file present in the container,
+        # so the file should NOT be moved
+        wasb_mock_hook.return_value.check_for_blob.return_value = True
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_key="TEST/TEST1.csv",
+            container_name=CONTAINER_NAME,
+            blob_name="TEST/TEST1.csv",
+        )
+        # Placing an empty "context" object here (using None)
+        uploaded_files = operator.get_files_to_move()
+
+        # Only the file name should be returned, rather than the entire blob name
+        assert sorted(uploaded_files) == sorted([])
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    def test__get_file_to_move__key_with_replace_populated_destination(self, wasb_mock_hook):
+        # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
+        # single key is being passed, rather than a prefix). Here, there IS a file present in the container,
+        # and the value of replace is True, so the file SHOULD be moved
+        wasb_mock_hook.return_value.check_for_blob.return_value = True  # Denoting presence of file in WASB
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_key="TEST/TEST1.csv",
+            container_name=CONTAINER_NAME,
+            blob_name="TEST/TEST1.csv",
+            replace=True
+        )
+        # Placing an empty "context" object here (using None)
+        uploaded_files = operator.get_files_to_move()
+
+        # Only the file name should be returned, rather than the entire blob name
+        assert sorted(uploaded_files) == sorted(["TEST1.csv"])
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    def test__get_files_to_move__s3_key_blob_prefix_without_replace_empty_destination(self, wasb_mock_hook):
+        # A single S3 key is being used to move to a file to a container using a prefix. The files being
+        # returned should take the same name as the file key that was passed to s3_key
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_key="TEST/TEST1.csv",
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+        )
+        uploaded_files = operator.get_files_to_move()
+
+        assert sorted(uploaded_files) == sorted(["TEST1.csv"])
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    def test__get_files_to_move__s3_key_blob_prefix_without_replace_populated_destination(
+        self, wasb_mock_hook
+    ):
+        # A single S3 key is being used to move to a file to a container using a prefix. Since replace is
+        # set to False, and the name of the file is present in the container, no file should be returned
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = ["TEST1.csv"]
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_key="TEST/TEST1.csv",
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+        )
+        uploaded_files = operator.get_files_to_move()
+
+        assert sorted(uploaded_files) == sorted([])
 
 
 # Test helpers
