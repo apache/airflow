@@ -776,9 +776,9 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + datetime.timedelta(seconds=1)
 
-    def test_retry_sets_dagrun_next_schedulable_to_next_retry_date(self, dag_maker, time_machine):
+    def test_retry_sets_dagrun_next_schedulable_to_none(self, dag_maker, time_machine):
         """
-        Test that when a task goes into retry that the DR.next_schedulable is updated to the next retry date
+        Test that when a task goes into retry that the DR.next_schedulable is nullified
         """
         time_machine.move_to("2021-09-19 04:56:35", tick=False)
         with dag_maker(dag_id="test_retry_handling"):
@@ -798,14 +798,11 @@ class TestTaskInstance:
         ti = dr.task_instances[0]
         ti.task = task
 
-        with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
-
         # first run -- up for retry
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
-        # assert dr.next_schedulable is now equal to next retry datetime
-        assert dr.next_schedulable == ti.next_retry_datetime()
+        # assert dr.next_schedulable is now None
+        assert not dr.next_schedulable
 
     def test_reschedule_handling(self, dag_maker, task_reschedules_for_ti):
         """

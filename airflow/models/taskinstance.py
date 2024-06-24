@@ -325,8 +325,6 @@ def _run_raw_task(
                 return None
             else:
                 ti.handle_failure(e, test_mode, context, session=session)
-                if ti.state == TaskInstanceState.UP_FOR_RETRY:
-                    ti.dag_run.next_schedulable = ti.next_retry_datetime()
                 raise
         except SystemExit as e:
             # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
@@ -483,7 +481,7 @@ def clear_task_instances(
             ti.clear_next_method_args()
             session.merge(ti)
         if not dag_run_state:
-            ti.dag_run.next_schedulable = timezone.utcnow()
+            ti.dag_run.activate_scheduling(session)
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
@@ -558,11 +556,11 @@ def clear_task_instances(
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
                 if dag_run_state == DagRunState.QUEUED:
-                    dr.next_schedulable = timezone.utcnow()
+                    dr.activate_scheduling(session)
                     dr.start_date = None
                     dr.clear_number += 1
             else:
-                dr.next_schedulable = timezone.utcnow()
+                dr.activate_scheduling(session)
     session.flush()
 
 
@@ -3278,6 +3276,7 @@ class TaskInstance(Base, LoggingMixin):
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
+            ti.dag_run.deactivate_scheduling(session)
 
         return {
             "ti": ti,
