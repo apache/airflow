@@ -122,7 +122,7 @@ with DAG(
                 "1": "One box of choccolate",
                 "2": "Two bananas",
                 "3": "Three apples",
-                # Note: Value display mapping does not need to be complete.s
+                # Note: Value display mapping does not need to be complete
             },
         ),
         # An array of numbers
