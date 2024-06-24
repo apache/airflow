@@ -344,8 +344,8 @@ extraSecrets: {}
 #        ...
 #   'proxy-config':
 #     stringData: |
-#        HTTP_PROXY: http://proxyuser:proxy_password@192.168.0.10:2080
-#        HTTPS_PROXY: http://proxyuser:proxy_password@192.168.0.10:2080
+#        HTTP_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        HTTPS_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
 #        NO_PROXY: "localhost,127.0.0.1,.svc.cluster.local,kubernetes.default.svc"
 
 # Extra ConfigMaps that will be managed by the chart

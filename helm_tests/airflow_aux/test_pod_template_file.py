@@ -89,9 +89,9 @@ class TestPodTemplateFile:
                 },
                 "extraEnvFrom": [
                     {
-                    "secretRef": {
-                        "name": "proxy-config"
-                    }
+                        "secretRef": {
+                            "name": "proxy-config"
+                        }
                     }
                 ],
             },
