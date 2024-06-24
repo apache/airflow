@@ -458,9 +458,16 @@ class TestBigQueryUpdateTableSchemaOperator:
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
             project_id=TEST_GCP_PROJECT_ID,
+            location=TEST_DATASET_LOCATION,
+            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
         )
         operator.execute(context=MagicMock())
 
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
+            location=TEST_DATASET_LOCATION,
+        )
         mock_hook.return_value.update_table_schema.assert_called_once_with(
             schema_fields_updates=schema_field_updates,
             include_policy_tags=False,

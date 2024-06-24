@@ -427,6 +427,71 @@ class TestBaseSensor:
         assert sensor_ti.state == State.SUCCESS
         assert dummy_ti.state == State.NONE
 
+    def test_ok_with_reschedule_and_exponential_backoff(
+        self, make_sensor, time_machine, task_reschedules_for_ti, session
+    ):
+        sensor, dr = make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=36000,
+            mode="reschedule",
+            exponential_backoff=True,
+        )
+
+        def _get_tis():
+            tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
+            yield next(x for x in tis if x.task_id == SENSOR_OP)
+            yield next(x for x in tis if x.task_id == DUMMY_OP)
+
+        false_count = 10
+        sensor.poke = Mock(side_effect=[False] * false_count + [True])
+
+        task_start_date = timezone.utcnow()
+
+        time_machine.move_to(task_start_date, tick=False)
+        curr_date = task_start_date
+
+        def run_duration():
+            return (timezone.utcnow() - task_start_date).total_seconds()
+
+        new_interval = 0
+
+        sensor_ti, dummy_ti = _get_tis()
+        assert dummy_ti.state == State.NONE
+        assert sensor_ti.state == State.NONE
+
+        # ordinarily the scheduler does this
+        sensor_ti.state = State.SCHEDULED
+        sensor_ti.try_number += 1  # first TI run
+        session.commit()
+
+        # loop poke returns false
+        for _poke_count in range(1, false_count + 1):
+            curr_date = curr_date + timedelta(seconds=new_interval)
+            time_machine.coordinates.shift(new_interval)
+            self._run(sensor)
+            sensor_ti, dummy_ti = _get_tis()
+            assert sensor_ti.state == State.UP_FOR_RESCHEDULE
+            # verify another row in task_reschedule table
+            task_reschedules = task_reschedules_for_ti(sensor_ti)
+            assert len(task_reschedules) == _poke_count
+            old_interval = new_interval
+            new_interval = sensor._get_next_poke_interval(task_start_date, run_duration, _poke_count)
+            assert old_interval < new_interval  # actual test
+            assert task_reschedules[-1].start_date == curr_date
+            assert task_reschedules[-1].reschedule_date == curr_date + timedelta(seconds=new_interval)
+            assert dummy_ti.state == State.NONE
+
+        # last poke returns True and task succeeds
+        curr_date = curr_date + timedelta(seconds=new_interval)
+        time_machine.coordinates.shift(new_interval)
+        self._run(sensor)
+
+        sensor_ti, dummy_ti = _get_tis()
+        assert sensor_ti.state == State.SUCCESS
+        assert dummy_ti.state == State.NONE
+
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
     def test_should_include_ready_to_reschedule_dep(self, mode):
         sensor = DummySensor(task_id="a", return_value=True, mode=mode)

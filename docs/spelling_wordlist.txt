@@ -901,6 +901,7 @@ keyring
 keyspace
 keytab
 kfp
+KiB
 Kibana
 killMode
 Kinesis
@@ -1843,6 +1844,8 @@ Yandex
 yandex
 yandexcloud
 yarnpkg
+YDB
+ydb
 Yieldr
 yml
 youtrack

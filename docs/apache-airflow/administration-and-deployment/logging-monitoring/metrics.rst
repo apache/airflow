@@ -257,21 +257,21 @@ Name                                                             Description
 ================================================================ ========================================================================
 ``dagrun.dependency-check.<dag_id>``                             Milliseconds taken to check DAG dependencies
 ``dagrun.dependency-check``                                      Milliseconds taken to check DAG dependencies. Metric with dag_id tagging.
-``dag.<dag_id>.<task_id>.duration``                              Seconds taken to run a task
-``task.duration``                                                Seconds taken to run a task. Metric with dag_id and task-id tagging.
-``dag.<dag_id>.<task_id>.scheduled_duration``                    Seconds a task spends in the Scheduled state, before being Queued
-``task.scheduled_duration``                                      Seconds a task spends in the Scheduled state, before being Queued.
+``dag.<dag_id>.<task_id>.duration``                              Milliseconds taken to run a task
+``task.duration``                                                Milliseconds taken to run a task. Metric with dag_id and task-id tagging.
+``dag.<dag_id>.<task_id>.scheduled_duration``                    Milliseconds a task spends in the Scheduled state, before being Queued
+``task.scheduled_duration``                                      Milliseconds a task spends in the Scheduled state, before being Queued.
                                                                  Metric with dag_id and task_id tagging.
-``dag.<dag_id>.<task_id>.queued_duration``                       Seconds a task spends in the Queued state, before being Running
-``task.queued_duration``                                         Seconds a task spends in the Queued state, before being Running.
+``dag.<dag_id>.<task_id>.queued_duration``                       Milliseconds a task spends in the Queued state, before being Running
+``task.queued_duration``                                         Milliseconds a task spends in the Queued state, before being Running.
                                                                  Metric with dag_id and task_id tagging.
-``dag_processing.last_duration.<dag_file>``                      Seconds taken to load the given DAG file
-``dag_processing.last_duration``                                 Seconds taken to load the given DAG file. Metric with file_name tagging.
-``dagrun.duration.success.<dag_id>``                             Seconds taken for a DagRun to reach success state
-``dagrun.duration.success``                                      Seconds taken for a DagRun to reach success state.
+``dag_processing.last_duration.<dag_file>``                      Milliseconds taken to load the given DAG file
+``dag_processing.last_duration``                                 Milliseconds taken to load the given DAG file. Metric with file_name tagging.
+``dagrun.duration.success.<dag_id>``                             Milliseconds taken for a DagRun to reach success state
+``dagrun.duration.success``                                      Milliseconds taken for a DagRun to reach success state.
                                                                  Metric with dag_id and run_type tagging.
-``dagrun.duration.failed.<dag_id>``                              Seconds taken for a DagRun to reach failed state
-``dagrun.duration.failed``                                       Seconds taken for a DagRun to reach failed state.
+``dagrun.duration.failed.<dag_id>``                              Milliseconds taken for a DagRun to reach failed state
+``dagrun.duration.failed``                                       Milliseconds taken for a DagRun to reach failed state.
                                                                  Metric with dag_id and run_type tagging.
 ``dagrun.schedule_delay.<dag_id>``                               Milliseconds of delay between the scheduled DagRun
                                                                  start date and the actual DagRun start date
@@ -281,8 +281,8 @@ Name                                                             Description
                                                                  only a single scheduler can enter this loop at a time
 ``scheduler.critical_section_query_duration``                    Milliseconds spent running the critical section task instance query
 ``scheduler.scheduler_loop_duration``                            Milliseconds spent running one scheduler loop
-``dagrun.<dag_id>.first_task_scheduling_delay``                  Seconds elapsed between first task start_date and dagrun expected start
-``dagrun.first_task_scheduling_delay``                           Seconds elapsed between first task start_date and dagrun expected start.
+``dagrun.<dag_id>.first_task_scheduling_delay``                  Milliseconds elapsed between first task start_date and dagrun expected start
+``dagrun.first_task_scheduling_delay``                           Milliseconds elapsed between first task start_date and dagrun expected start.
                                                                  Metric with dag_id and run_type tagging.
 ``collect_db_dags``                                              Milliseconds taken for fetching all Serialized Dags from DB
 ``kubernetes_executor.clear_not_launched_queued_tasks.duration`` Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor

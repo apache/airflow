@@ -642,6 +642,7 @@ class TestClearTasks:
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             )
             ti = dr.task_instances[0]
             ti.task = task

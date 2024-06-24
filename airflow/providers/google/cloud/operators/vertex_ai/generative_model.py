@@ -187,6 +187,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
         to the Multi-modal model, in order to elicit a specific response (templated).
+    :param generation_config: Optional. Generation configuration settings.
+    :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
@@ -210,6 +212,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         prompt: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -219,6 +223,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.prompt = prompt
+        self.generation_config = generation_config
+        self.safety_settings = safety_settings
         self.pretrained_model = pretrained_model
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -232,6 +238,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings,
             pretrained_model=self.pretrained_model,
         )
 
@@ -251,6 +259,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
         to the Multi-modal model, in order to elicit a specific response (templated).
+    :param generation_config: Optional. Generation configuration settings.
+    :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
@@ -279,6 +289,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         prompt: str,
         media_gcs_path: str,
         mime_type: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro-vision",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -288,6 +300,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.prompt = prompt
+        self.generation_config = generation_config
+        self.safety_settings = safety_settings
         self.pretrained_model = pretrained_model
         self.media_gcs_path = media_gcs_path
         self.mime_type = mime_type
@@ -303,6 +317,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings,
             pretrained_model=self.pretrained_model,
             media_gcs_path=self.media_gcs_path,
             mime_type=self.mime_type,

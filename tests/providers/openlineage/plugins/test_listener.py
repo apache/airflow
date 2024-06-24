@@ -29,7 +29,6 @@ import pytest
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils.state import State
@@ -60,6 +59,10 @@ class TemplateOperator(BaseOperator):
 
 def render_df():
     return pd.DataFrame({"col": [1, 2]})
+
+
+def regular_call(self, callable, callable_name, use_fork):
+    callable()
 
 
 @patch("airflow.models.TaskInstance.xcom_push")
@@ -214,6 +217,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_custom_facets")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call)
 def test_adapter_start_task_is_called_with_proper_arguments(
     mock_get_job_name, mock_get_custom_facets, mock_get_airflow_run_facet, mock_disabled
 ):
@@ -254,6 +258,7 @@ def test_adapter_start_task_is_called_with_proper_arguments(
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call)
 def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mocked_adapter, mock_disabled):
     """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -296,6 +301,7 @@ def test_adapter_fail_task_is_called_with_proper_arguments(mock_get_job_name, mo
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call)
 def test_adapter_complete_task_is_called_with_proper_arguments(
     mock_get_job_name, mocked_adapter, mock_disabled
 ):
@@ -335,6 +341,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     )
 
 
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call)
 def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_method():
     """Tests the OpenLineageListener's response when a task instance is in the running state.
 
@@ -353,6 +360,7 @@ def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_met
 
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call)
 def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_method(mock_adapter):
     """Tests the OpenLineageListener's response when a task instance is in the failed state.
 
@@ -375,6 +383,7 @@ def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_meth
 
 
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
+@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call)
 def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_method(mock_adapter):
     """Tests the OpenLineageListener's response when a task instance is in the success state.
 
@@ -524,13 +533,10 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
     """mock ProcessPoolExecutor and check if conf.dag_state_change_process_pool_size is applied to max_workers"""
     listener = OpenLineageListener()
     # mock ProcessPoolExecutor class
-    try:
-        with conf_vars({("openlineage", "dag_state_change_process_pool_size"): max_workers}):
-            listener.on_dag_run_running(mock.MagicMock(), None)
-        mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
-        mock_executor.return_value.submit.assert_called_once()
-    finally:
-        conf.dag_state_change_process_pool_size.cache_clear()
+    with conf_vars({("openlineage", "dag_state_change_process_pool_size"): max_workers}):
+        listener.on_dag_run_running(mock.MagicMock(), None)
+    mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
+    mock_executor.return_value.submit.assert_called_once()
 
 
 class TestOpenLineageSelectiveEnable:
@@ -570,7 +576,6 @@ class TestOpenLineageSelectiveEnable:
         if enable_dag:
             enable_lineage(self.dag)
 
-        conf.selective_enable.cache_clear()
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
             listener._executor = mock.Mock()
@@ -580,11 +585,6 @@ class TestOpenLineageSelectiveEnable:
             listener.on_dag_run_failed(self.dagrun, msg="test failure")
             listener.on_dag_run_success(self.dagrun, msg="test success")
 
-        try:
-            assert expected_call_count == listener._executor.submit.call_count
-        finally:
-            conf.selective_enable.cache_clear()
-
     @pytest.mark.parametrize(
         "selective_enable, enable_task, expected_dag_call_count, expected_task_call_count",
         [
@@ -593,6 +593,9 @@ class TestOpenLineageSelectiveEnable:
             ("True", False, 0, 0),
             ("False", False, 3, 3),
         ],
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
     def test_listener_with_task_enabled(
         self, selective_enable, enable_task, expected_dag_call_count, expected_task_call_count
@@ -604,49 +607,46 @@ class TestOpenLineageSelectiveEnable:
 
         on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
 
-        conf.selective_enable.cache_clear()
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
             listener._executor = mock.Mock()
             listener.extractor_manager = mock.Mock()
             listener.adapter = mock.Mock()
-            try:
-                # run all three DagRun-related hooks
-                listener.on_dag_run_running(self.dagrun, msg="test running")
-                listener.on_dag_run_failed(self.dagrun, msg="test failure")
-                listener.on_dag_run_success(self.dagrun, msg="test success")
 
-                assert expected_dag_call_count == listener._executor.submit.call_count
+            # run all three DagRun-related hooks
+            listener.on_dag_run_running(self.dagrun, msg="test running")
+            listener.on_dag_run_failed(self.dagrun, msg="test failure")
+            listener.on_dag_run_success(self.dagrun, msg="test success")
 
-                # run TaskInstance-related hooks for lineage enabled task
-                listener.on_task_instance_running(None, self.task_instance_1, None)
-                listener.on_task_instance_success(None, self.task_instance_1, None)
-                listener.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=self.task_instance_1,
-                    session=None,
-                    **on_task_failed_kwargs,
-                )
+            assert expected_dag_call_count == listener._executor.submit.call_count
 
-                assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
+            # run TaskInstance-related hooks for lineage enabled task
+            listener.on_task_instance_running(None, self.task_instance_1, None)
+            listener.on_task_instance_success(None, self.task_instance_1, None)
+            listener.on_task_instance_failed(
+                previous_state=None,
+                task_instance=self.task_instance_1,
+                session=None,
+                **on_task_failed_kwargs,
+            )
 
-                # run TaskInstance-related hooks for lineage disabled task
-                listener.on_task_instance_running(None, self.task_instance_2, None)
-                listener.on_task_instance_success(None, self.task_instance_2, None)
-                listener.on_task_instance_failed(
-                    previous_state=None,
-                    task_instance=self.task_instance_2,
-                    session=None,
-                    **on_task_failed_kwargs,
-                )
+            assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
 
-                # with selective-enable disabled both task_1 and task_2 should trigger metadata extraction
-                if selective_enable == "False":
-                    expected_task_call_count *= 2
+            # run TaskInstance-related hooks for lineage disabled task
+            listener.on_task_instance_running(None, self.task_instance_2, None)
+            listener.on_task_instance_success(None, self.task_instance_2, None)
+            listener.on_task_instance_failed(
+                previous_state=None,
+                task_instance=self.task_instance_2,
+                session=None,
+                **on_task_failed_kwargs,
+            )
 
-                assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
-            finally:
-                conf.selective_enable.cache_clear()
+            # with selective-enable disabled both task_1 and task_2 should trigger metadata extraction
+            if selective_enable == "False":
+                expected_task_call_count *= 2
+
+            assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
 
     @pytest.mark.parametrize(
         "selective_enable, enable_task, expected_call_count, expected_task_call_count",
@@ -656,6 +656,9 @@ class TestOpenLineageSelectiveEnable:
             ("True", False, 0, 0),
             ("False", False, 3, 3),
         ],
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
     )
     def test_listener_with_dag_disabled_task_enabled(
         self, selective_enable, enable_task, expected_call_count, expected_task_call_count
@@ -668,7 +671,6 @@ class TestOpenLineageSelectiveEnable:
 
         on_task_failed_kwargs = {"error": ValueError("test")} if AIRFLOW_V_2_10_PLUS else {}
 
-        conf.selective_enable.cache_clear()
         with conf_vars({("openlineage", "selective_enable"): selective_enable}):
             listener = OpenLineageListener()
             listener._executor = mock.Mock()
@@ -687,8 +689,5 @@ class TestOpenLineageSelectiveEnable:
                 previous_state=None, task_instance=self.task_instance_1, session=None, **on_task_failed_kwargs
             )
 
-        try:
-            assert expected_call_count == listener._executor.submit.call_count
-            assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
-        finally:
-            conf.selective_enable.cache_clear()
+        assert expected_call_count == listener._executor.submit.call_count
+        assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count

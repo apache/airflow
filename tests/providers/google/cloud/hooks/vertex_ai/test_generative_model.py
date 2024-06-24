@@ -23,6 +23,8 @@ import pytest
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
+vertexai = pytest.importorskip("vertexai.generative_models")
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory
 
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     GenerativeModelHook,
@@ -45,6 +47,17 @@ TEST_TOP_K = 40
 TEST_TEXT_EMBEDDING_MODEL = ""
 
 TEST_MULTIMODAL_PRETRAINED_MODEL = "gemini-pro"
+TEST_SAFETY_SETTINGS = {
+    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+}
+TEST_GENERATION_CONFIG = {
+    "max_output_tokens": TEST_MAX_OUTPUT_TOKENS,
+    "top_p": TEST_TOP_P,
+    "temperature": TEST_TEMPERATURE,
+}
 
 TEST_MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
 TEST_VISION_PROMPT = "In 10 words or less, describe this content."
@@ -104,10 +117,16 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=TEST_PROMPT,
+            generation_config=TEST_GENERATION_CONFIG,
+            safety_settings=TEST_SAFETY_SETTINGS,
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
         )
         mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
-        mock_model.return_value.generate_content.assert_called_once_with(TEST_PROMPT)
+        mock_model.return_value.generate_content.assert_called_once_with(
+            contents=[TEST_PROMPT],
+            generation_config=TEST_GENERATION_CONFIG,
+            safety_settings=TEST_SAFETY_SETTINGS,
+        )
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model_part"))
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
@@ -116,6 +135,8 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=TEST_VISION_PROMPT,
+            generation_config=TEST_GENERATION_CONFIG,
+            safety_settings=TEST_SAFETY_SETTINGS,
             pretrained_model=TEST_MULTIMODAL_VISION_MODEL,
             media_gcs_path=TEST_MEDIA_GCS_PATH,
             mime_type=TEST_MIME_TYPE,
@@ -124,5 +145,7 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         mock_part.assert_called_once_with(TEST_MEDIA_GCS_PATH, TEST_MIME_TYPE)
 
         mock_model.return_value.generate_content.assert_called_once_with(
-            [TEST_VISION_PROMPT, mock_part.return_value]
+            contents=[TEST_VISION_PROMPT, mock_part.return_value],
+            generation_config=TEST_GENERATION_CONFIG,
+            safety_settings=TEST_SAFETY_SETTINGS,
         )

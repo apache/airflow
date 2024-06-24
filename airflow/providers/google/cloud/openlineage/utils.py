@@ -158,9 +158,13 @@ def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:
         if not result:
             return None
     """
+    # chain.pop modifies passed list, this can be unexpected
+    chain = chain.copy()
     chain.reverse()
     try:
         while chain:
+            while isinstance(source, list) and len(source) == 1:
+                source = source[0]
             next_key = chain.pop()
             if isinstance(source, dict):
                 source = source.get(next_key)

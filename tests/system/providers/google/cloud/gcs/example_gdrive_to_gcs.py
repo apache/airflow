@@ -149,7 +149,8 @@ with DAG(
     )
 
     (
-        [create_bucket >> upload_file >> copy_single_file, create_temp_gcp_connection_task]
+        [create_bucket >> upload_file, create_temp_gcp_connection_task]
+        >> copy_single_file
         # TEST BODY
         >> detect_file
         >> upload_gdrive_to_gcs

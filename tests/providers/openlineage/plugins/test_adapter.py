@@ -44,13 +44,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.conf import (
-    config_path,
-    custom_extractors,
-    disabled_operators,
-    is_disabled,
-    is_source_enabled,
     namespace,
-    transport,
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
@@ -62,27 +56,6 @@ from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
-
-
-@pytest.fixture(autouse=True)
-def clear_cache():
-    config_path.cache_clear()
-    is_source_enabled.cache_clear()
-    disabled_operators.cache_clear()
-    custom_extractors.cache_clear()
-    namespace.cache_clear()
-    transport.cache_clear()
-    is_disabled.cache_clear()
-    try:
-        yield
-    finally:
-        config_path.cache_clear()
-        is_source_enabled.cache_clear()
-        disabled_operators.cache_clear()
-        custom_extractors.cache_clear()
-        namespace.cache_clear()
-        transport.cache_clear()
-        is_disabled.cache_clear()
 
 
 @patch.dict(
@@ -154,9 +127,6 @@ def test_create_client_overrides_env_vars():
 
         assert client.transport.kind == "http"
         assert client.transport.url == "http://localhost:5050"
-
-    transport.cache_clear()
-    config_path.cache_clear()
 
     with conf_vars({("openlineage", "transport"): '{"type": "console"}'}):
         client = OpenLineageAdapter().get_or_create_openlineage_client()
@@ -893,9 +863,6 @@ def test_configuration_precedence_when_creating_ol_client():
             assert client.transport.config.endpoint == "api/v1/lineage"
             assert client.transport.config.auth.api_key == "random_token"
 
-    config_path.cache_clear()
-    transport.cache_clear()
-
     # Second, check transport in Airflow configuration (airflow.cfg or env variable)
     with patch.dict(
         os.environ,
@@ -916,9 +883,6 @@ def test_configuration_precedence_when_creating_ol_client():
             assert client.transport.kind == "kafka"
             assert client.transport.kafka_config.topic == "test"
             assert client.transport.kafka_config.config == {"acks": "all"}
-
-    config_path.cache_clear()
-    transport.cache_clear()
 
     # Third, check legacy OPENLINEAGE_CONFIG env variable
     with patch.dict(
@@ -942,9 +906,6 @@ def test_configuration_precedence_when_creating_ol_client():
             assert client.transport.config.endpoint == "api/v1/lineage"
             assert client.transport.config.auth.api_key == "random_token"
 
-    config_path.cache_clear()
-    transport.cache_clear()
-
     # Fourth, check legacy OPENLINEAGE_URL env variable
     with patch.dict(
         os.environ,
@@ -966,9 +927,6 @@ def test_configuration_precedence_when_creating_ol_client():
             assert client.transport.config.url == "http://test.com"
             assert client.transport.config.endpoint == "api/v1/lineage"
             assert client.transport.config.auth.api_key == "test_api_key"
-
-    config_path.cache_clear()
-    transport.cache_clear()
 
     # If all else fails, use console transport
     with patch.dict(os.environ, {}, clear=True):

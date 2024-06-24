@@ -466,7 +466,7 @@ Setting retries for each task drastically reduces the chance that either of thes
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
 
-Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
+Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
 How to reduce the airflow UI page load time?

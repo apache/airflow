@@ -741,6 +741,16 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="ydb_default",
+            conn_type="ydb",
+            host="grpc://localhost",
+            port=2135,
+            extra={"database": "/local"},
+        ),
+        session,
+    )
 
 
 def _get_flask_db(sql_database_uri):

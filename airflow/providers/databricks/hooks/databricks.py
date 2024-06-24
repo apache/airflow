@@ -256,6 +256,7 @@ class DatabricksHook(BaseDatabricksHook):
         expand_tasks: bool = False,
         job_name: str | None = None,
         page_token: str | None = None,
+        include_user_names: bool = False,
     ) -> list[dict[str, Any]]:
         """
         List the jobs in the Databricks Job Service.
@@ -275,6 +276,7 @@ class DatabricksHook(BaseDatabricksHook):
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
+                "include_user_names": include_user_names,
             }
             payload["page_token"] = page_token
             if job_name:

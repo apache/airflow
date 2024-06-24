@@ -683,7 +683,12 @@ def update_release_notes(
             if non_interactive:
                 answer = Answer.YES
             else:
-                answer = user_confirm(f"Provider {provider_package_id} marked for release. Proceed?")
+                provider_details = get_provider_details(provider_package_id)
+                current_release_version = provider_details.versions[0]
+                answer = user_confirm(
+                    f"Provider {provider_package_id} with "
+                    f"version: {current_release_version} marked for release. Proceed?"
+                )
             if answer == Answer.NO:
                 get_console().print(
                     f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"

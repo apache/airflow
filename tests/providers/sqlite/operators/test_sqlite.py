@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.sqlite.operators.sqlite import SqliteOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -51,7 +51,7 @@ class TestSqliteOperator:
             dummy VARCHAR(50)
         );
         """
-        op = SqliteOperator(task_id="basic_sqlite", sql=sql, dag=self.dag)
+        op = SQLExecuteQueryOperator(task_id="basic_sqlite", sql=sql, dag=self.dag, conn_id="sqlite_default")
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sqlite_operator_with_multiple_statements(self):
@@ -59,7 +59,12 @@ class TestSqliteOperator:
             "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        op = SqliteOperator(task_id="sqlite_operator_with_multiple_statements", sql=sql, dag=self.dag)
+        op = SQLExecuteQueryOperator(
+            task_id="sqlite_operator_with_multiple_statements",
+            sql=sql,
+            dag=self.dag,
+            conn_id="sqlite_default",
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sqlite_operator_with_invalid_sql(self):
@@ -70,6 +75,11 @@ class TestSqliteOperator:
 
         from sqlite3 import OperationalError
 
-        op = SqliteOperator(task_id="sqlite_operator_with_multiple_statements", sql=sql, dag=self.dag)
+        op = SQLExecuteQueryOperator(
+            task_id="sqlite_operator_with_multiple_statements",
+            sql=sql,
+            dag=self.dag,
+            conn_id="sqlite_default",
+        )
         with pytest.raises(OperationalError, match="no such table: test_airflow2"):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

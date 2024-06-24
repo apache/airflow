@@ -752,7 +752,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.01.19-0.16.0"
+                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1026,6 +1026,11 @@
                             "type": "string"
                         }
                     },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -1071,6 +1076,11 @@
                         "additionalProperties": {
                             "type": "string"
                         }
+                    },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
                     },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
@@ -1864,7 +1874,7 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into workers (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
@@ -7601,6 +7611,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "annotations": {
+                    "description": "Annotations for the redis.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -8420,6 +8438,14 @@
                         },
                         "credentialsSecret": {
                             "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "sshKey": {
+                            "description": "SSH private key",
                             "type": [
                                 "string",
                                 "null"
