@@ -1945,14 +1945,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _check_and_activate_dagrun_scheduling(self, session: Session = NEW_SESSION):
         tis = session.scalars(select(TI).where(TI.state == TaskInstanceState.UP_FOR_RETRY)).all()
-        self.log.debug("Checking for DRs to activate scheduling for")
+        self.log.debug("Checking for DagRuns ready for scheduling")
+        drs = []
         for ti in tis:
+            if ti.dag_run in drs:
+                continue
             # Get task from the Serialized DAG
             try:
                 dag = self.dagbag.get_dag(ti.dag_id)
                 ti.task = dag.get_task(ti.task_id)
-                ti.dag_run = ti.get_dagrun(session)
             except Exception:
                 continue
             if not ti.is_premature:
                 ti.dag_run.activate_scheduling(session)
+                drs.append(ti.dag_run)
