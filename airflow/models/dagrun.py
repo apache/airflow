@@ -1577,7 +1577,10 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
-            # check whether the operator supports start execution from triggerer
+            # check "start_trigger_args" to see whether the operator supports start execution from triggerer
+            # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
+            # this task.
+            # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
             elif ti.task.start_trigger_args is not None:
                 from airflow.models.mappedoperator import MappedOperator
 
