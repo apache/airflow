@@ -86,6 +86,9 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         self.s3_extra_args = s3_extra_args or {}
         self.wasb_extra_args = wasb_extra_args or {}
 
+    # These cached properties come in handy when working with hooks. Rather than closing and opening new
+    # hooks, the same hook can be used across multiple methods (without having to use the constructor to
+    # create the hook)
     @cached_property
     def s3_hook(self) -> S3Hook:
         """Create and return an S3Hook."""
