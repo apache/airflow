@@ -317,60 +317,61 @@ class SSHHook(BaseHook):
                     client_host_keys.add(
                         f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
                     )
+
+            connect_kwargs: dict[str, Any] = {
+                "hostname": self.remote_host,
+                "username": self.username,
+                "timeout": self.conn_timeout,
+                "compress": self.compress,
+                "port": self.port,
+                "sock": self.host_proxy,
+                "look_for_keys": self.look_for_keys,
+                "banner_timeout": self.banner_timeout,
+            }
+
+            if self.password:
+                password = self.password.strip()
+                connect_kwargs.update(password=password)
+
+            if self.pkey:
+                connect_kwargs.update(pkey=self.pkey)
+
+            if self.key_file:
+                connect_kwargs.update(key_filename=self.key_file)
+
+            if self.disabled_algorithms:
+                connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
+
+            def log_before_sleep(retry_state):
+                return self.log.info(
+                    "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+                )
+
+            for attempt in Retrying(
+                reraise=True,
+                wait=wait_fixed(3) + wait_random(0, 2),
+                stop=stop_after_attempt(3),
+                before_sleep=log_before_sleep,
+            ):
+                with attempt:
+                    client.connect(**connect_kwargs)
+
+            if self.keepalive_interval:
+                # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
+                # type "Transport | None" and item "None" has no attribute "set_keepalive".
+                client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
+
+            if self.ciphers:
+                # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
+                # type "Transport | None" and item "None" has no method `get_security_options`".
+                client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
+
+            self.client = client
+            return client
+
         else:
             # Return the existing connection
             return self.client
-
-        connect_kwargs: dict[str, Any] = {
-            "hostname": self.remote_host,
-            "username": self.username,
-            "timeout": self.conn_timeout,
-            "compress": self.compress,
-            "port": self.port,
-            "sock": self.host_proxy,
-            "look_for_keys": self.look_for_keys,
-            "banner_timeout": self.banner_timeout,
-        }
-
-        if self.password:
-            password = self.password.strip()
-            connect_kwargs.update(password=password)
-
-        if self.pkey:
-            connect_kwargs.update(pkey=self.pkey)
-
-        if self.key_file:
-            connect_kwargs.update(key_filename=self.key_file)
-
-        if self.disabled_algorithms:
-            connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
-
-        def log_before_sleep(retry_state):
-            return self.log.info(
-                "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
-            )
-
-        for attempt in Retrying(
-            reraise=True,
-            wait=wait_fixed(3) + wait_random(0, 2),
-            stop=stop_after_attempt(3),
-            before_sleep=log_before_sleep,
-        ):
-            with attempt:
-                client.connect(**connect_kwargs)
-
-        if self.keepalive_interval:
-            # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Transport | None" and item "None" has no attribute "set_keepalive".
-            client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
-
-        if self.ciphers:
-            # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Transport | None" and item "None" has no method `get_security_options`".
-            client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
-
-        self.client = client
-        return client
 
     @deprecated(
         reason=(
