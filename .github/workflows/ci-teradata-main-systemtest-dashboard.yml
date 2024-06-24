@@ -126,6 +126,7 @@ jobs:
           name: airflow-system-test-report
           path: |
             reporttest.csv
+            report_test.xml
       - name: "Build GITHUB Page for Teradata Airflow Provider System Tests Report"
         if: always()
         uses: actions/jekyll-build-pages@v1
