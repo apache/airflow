@@ -198,6 +198,7 @@ class SnowflakeHook(DbApiHook):
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
         session_parameters = extra_dict.get("session_parameters")
+        client_request_mfa_token = extra_dict.get("client_request_mfa_token", False)
 
         conn_config = {
             "user": conn.login,
@@ -212,6 +213,7 @@ class SnowflakeHook(DbApiHook):
             "session_parameters": self.session_parameters or session_parameters,
             # application is used to track origin of the requests
             "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
+            "client_request_mfa_token": client_request_mfa_token,
         }
         if insecure_mode:
             conn_config["insecure_mode"] = insecure_mode
