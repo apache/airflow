@@ -1585,7 +1585,7 @@ class DagRun(Base, LoggingMixin):
                     context = ti.get_template_context()
                     ti.task._expand_start_trigger(context=context, session=session)
 
-                if ti.task.start_from_trigger is True:
+                if ti.task.start_from_trigger:
                     ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1
