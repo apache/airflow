@@ -51,6 +51,7 @@ from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
+from airflow.triggers.base import StartTriggerArgs
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
@@ -81,7 +82,6 @@ if TYPE_CHECKING:
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -729,13 +729,13 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def _expand_start_trigger(self, *, context: Context, session: Session) -> None:
-        """Get the kwargs to create the unmapped start_from_trigger and start_trigger_args.
+    def _expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """Get the kwargs to create the unmapped start_from_trigger.
 
         This method is for allowing mapped operator to start execution from triggerer.
         """
         if not self.start_trigger_args:
-            return
+            return False
 
         mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
         if self._disallow_kwargs_override:
@@ -746,17 +746,46 @@ class MappedOperator(AbstractOperator):
             )
 
         # Ordering is significant; mapped kwargs should override partial ones.
-
-        self.start_from_trigger = mapped_kwargs.get(
+        return mapped_kwargs.get(
             "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
         )
 
-        self.start_trigger_args.trigger_kwargs = mapped_kwargs.get(
+    def _expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs:
+        """Get the kwargs to create the unmapped start_trigger_args.
+
+        This method is for allowing mapped operator to start execution from triggerer.
+        """
+        if not self.start_trigger_args:
+            raise AirflowException(
+                "Cannot expand start_trigger_args for mapped operator without class level start_trigger_args"
+            )
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        trigger_kwargs = mapped_kwargs.get(
             "trigger_kwargs",
             self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
         )
-        self.start_trigger_args.timeout = mapped_kwargs.get(
+        next_kwargs = mapped_kwargs.get(
+            "next_kwargs",
+            self.partial_kwargs.get("next_kwargs", self.start_trigger_args.next_kwargs),
+        )
+        timeout = mapped_kwargs.get(
             "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
+        )
+        return StartTriggerArgs(
+            trigger_cls=self.start_trigger_args.trigger_cls,
+            trigger_kwargs=trigger_kwargs,
+            next_method=self.start_trigger_args.next_method,
+            next_kwargs=next_kwargs,
+            timeout=timeout,
         )
 
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:

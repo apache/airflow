@@ -1617,13 +1617,20 @@ def _defer_task(
         next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
+        if isinstance(ti.task, MappedOperator):
+            context = ti.get_template_context()
+            start_trigger_args = ti.task._expand_start_trigger_args(context=context, session=session)
+        else:
+            start_trigger_args = ti.task.start_trigger_args
+
+        trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+        next_kwargs = start_trigger_args.next_kwargs
+        next_method = start_trigger_args.next_method
+        timeout = start_trigger_args.timeout
         trigger_row = Trigger(
             classpath=ti.task.start_trigger_args.trigger_cls,
-            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
+            kwargs=trigger_kwargs,
         )
-        next_kwargs = ti.task.start_trigger_args.next_kwargs
-        next_method = ti.task.start_trigger_args.next_method
-        timeout = ti.task.start_trigger_args.timeout
     else:
         raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
 
