@@ -87,6 +87,13 @@ class TestPodTemplateFile:
                         "knownHosts": None,
                     }
                 },
+                "extraEnvFrom": [
+                    {
+                    "secretRef": {
+                        "name": "airflow-proxy-config"
+                    }
+                    }
+                ],
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
