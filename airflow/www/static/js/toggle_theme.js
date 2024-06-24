@@ -37,8 +37,10 @@ const toggleTheme = () => {
   const isDark = getJsonFromStorage(STORAGE_THEME_KEY);
   updateTheme(!isDark);
 };
-window.addEventListener("click", (e) => {
-  if (e.target.id !== TOGGLE_BUTTON_ID) return;
-  toggleTheme();
+document.addEventListener("DOMContentLoaded", () => {
+  const themeButton = document.getElementById("themeToggleButton");
+  themeButton.addEventListener("click", () => {
+    toggleTheme();
+  });
 });
 initTheme();
