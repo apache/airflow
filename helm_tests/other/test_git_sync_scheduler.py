@@ -80,6 +80,13 @@ class TestGitSyncSchedulerTest:
                     },
                     "persistence": {"enabled": True},
                 },
+                "extraEnvFrom": [
+                    {
+                        "secretRef": {
+                            "name": "proxy-config"
+                        }
+                    }
+                ],
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -89,7 +96,13 @@ class TestGitSyncSchedulerTest:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
-            "envFrom": [],
+            "envFrom": [
+                {
+                    "secretRef": {
+                        "name": "proxy-config"
+                    }
+                }                
+            ],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
@@ -141,6 +154,13 @@ class TestGitSyncSchedulerTest:
                     },
                     "persistence": {"enabled": True},
                 },
+                "extraEnvFrom": [
+                    {
+                        "secretRef": {
+                            "name": "proxy-config"
+                        }
+                    }
+                ],
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -150,7 +170,13 @@ class TestGitSyncSchedulerTest:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
-            "envFrom": [],
+            "envFrom": [
+                {
+                    "secretRef": {
+                        "name": "proxy-config"
+                    }
+                }                
+            ],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
