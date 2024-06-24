@@ -101,7 +101,7 @@ with DAG(
                 "Quebec,Romeo,Sierra,Tango,Uniform,Victor,Whiskey,X-ray,Yankee,Zulu"
             ).split(","),
         ),
-        # If you want to select multiple items from a fixed list JSON schema des not allow to use enum
+        # If you want to select multiple items from a fixed list JSON schema does not allow to use enum
         # In this case the type "array" is being used together with "examples" as pick list
         "multi_select": Param(
             ["two", "three"],
