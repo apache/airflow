@@ -1606,15 +1606,15 @@ def _defer_task(
 
     if exception is not None:
         trigger_row = Trigger.from_object(exception.trigger)
-        trigger_kwargs = exception.kwargs
         next_method = exception.method_name
+        next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
         trigger_row = Trigger(
             classpath=ti.task.start_trigger_args.trigger_cls,
             kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
         )
-        trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
+        next_kwargs = ti.task.start_trigger_args.next_kwargs
         next_method = ti.task.start_trigger_args.next_method
         timeout = ti.task.start_trigger_args.timeout
     else:
@@ -1635,7 +1635,7 @@ def _defer_task(
     ti.state = TaskInstanceState.DEFERRED
     ti.trigger_id = trigger_row.id
     ti.next_method = next_method
-    ti.next_kwargs = trigger_kwargs or {}
+    ti.next_kwargs = next_kwargs or {}
 
     # Calculate timeout too if it was passed
     if timeout is not None:
