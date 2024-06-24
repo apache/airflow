@@ -20,12 +20,11 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import AirflowSkipException
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap, TaskMapVariant
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap, TaskMapVariant
-from airflow.utils.state import TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 
@@ -193,9 +192,9 @@ def test_xcom_map_error_fails_task(dag_maker, session):
 
 
 def test_task_map_from_task_instance_xcom():
-    task = EmptyOperator(task_id='test_task')
-    ti = TaskInstance(task=task, run_id='test_run', map_index=0)
-    ti.dag_id = 'test_dag'
+    task = EmptyOperator(task_id="test_task")
+    ti = TaskInstance(task=task, run_id="test_run", map_index=0)
+    ti.dag_id = "test_dag"
     value = {"key1": "value1", "key2": "value2"}
 
     # Test case where run_id is not None
@@ -212,12 +211,13 @@ def test_task_map_from_task_instance_xcom():
     with pytest.raises(ValueError, match="cannot record task map for unrun task instance"):
         TaskMap.from_task_instance_xcom(ti, value)
 
+
 def test_task_map_variant():
     # Test case where keys is None
     task_map = TaskMap(
-        dag_id='test_dag',
-        task_id='test_task',
-        run_id='test_run',
+        dag_id="test_dag",
+        task_id="test_task",
+        run_id="test_run",
         map_index=0,
         length=3,
         keys=None,

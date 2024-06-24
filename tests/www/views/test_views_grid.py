@@ -89,7 +89,10 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 def dag_with_runs(dag_without_runs):
     date = dag_without_runs.dag.start_date
     run_1 = dag_without_runs.create_dagrun(
-        run_id="run_1", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+        run_id="run_1", 
+        state=DagRunState.SUCCESS, 
+        run_type=DagRunType.SCHEDULED, 
+        execution_date=date
     )
     run_2 = dag_without_runs.create_dagrun(
         run_id="run_2",
@@ -475,7 +478,9 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
         ddrq = DatasetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+            target_dag_id=DAG_ID, 
+            dataset_id=ds1_id, 
+            created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
         session.add(ddrq)
         dataset_events = [
