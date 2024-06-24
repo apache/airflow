@@ -200,9 +200,8 @@ class TestGitSyncWorker:
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
+        assert {
+            "postStart": {"exec": {"command": ["/bin/sh","-c","echo postStart handler > /git/message_start"]}},
+            "preStop": {"exec": {"command": ["/bin/sh","-c","echo preStop handler > /git/message_start"]}}
+       } == jmespath.search("spec.template.spec.containers[1].lifecycle", docs[0])
 
-        assert {"postStart": {"exec": {"command": ["/bin/sh","-c","echo postStart handler > /git/message_start"]}},
-                "preStop": {"exec": {"command": ["/bin/sh","-c","echo preStop handler > /git/message_start"]}}
-                } in jmespath.search(
-            "spec.template.spec.containers[1].lifecycle", docs[0]
-        )
