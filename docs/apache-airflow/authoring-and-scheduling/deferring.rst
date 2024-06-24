@@ -249,7 +249,7 @@ These parameters can be mapped using the ``expand`` and ``partial`` methods.
 
 .. code-block:: python
 
-    WaitTwoHourSensor.partial(task_id="transform").partial(start_from_trigger=True).expand(
+    WaitTwoHourSensor.partial(task_id="transform", start_from_trigger=True).expand(
         trigger_kwargs=[{"moment": timedelta(hours=2)}, {"moment": timedelta(hours=2)}]
     )
 
