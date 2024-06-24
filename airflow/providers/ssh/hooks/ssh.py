@@ -284,6 +284,7 @@ class SSHHook(BaseHook):
         cmd = self.host_proxy_cmd
         return paramiko.ProxyCommand(cmd) if cmd else None
 
+    @cached_property
     def get_conn(self) -> paramiko.SSHClient:
         """Establish an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
