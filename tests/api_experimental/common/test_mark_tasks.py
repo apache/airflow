@@ -578,13 +578,23 @@ class TestMarkDAGRun:
                     if middle_time:
                         assert dr.end_date > middle_time
 
-    def test_set_running_dag_run_to_success(self):
+    def test_set_running_dag_run_to_success(self, session):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.RUNNING, date)
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
+        # nullify the next_schedulable so we can test it'd be reset
+        dr.next_schedulable = None
+        session.merge(dr)
+        session.flush()
+        dr = session.query(DagRun).first()
+        assert not dr.next_schedulable
 
         altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=True)
+
+        # assert next_schedulable was set
+        dr = session.query(DagRun).first()
+        assert dr.next_schedulable
 
         # All except the SUCCESS task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
