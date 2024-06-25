@@ -231,4 +231,4 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
 def test_plain_xcom_arg_hash():
     empty_operator = EmptyOperator(task_id="task_id")
     plain_xcom_arg = PlainXComArg(empty_operator, key="key")
-    assert hash(plain_xcom_arg) == hash(("task_id", "key"))
+    assert hash(plain_xcom_arg) == hash((empty_operator, "key"))

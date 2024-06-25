@@ -69,10 +69,10 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        # Fetch the correct dag id and execution date for the triggerED dag
+        # Fetch the correct dag id and run id for the triggerED dag
         # which is stored in xcom during execution of the triggerING task.
         dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
-        when = XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO)
+        triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
         old_trigger_dag_id: str | None = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
         if (
@@ -86,7 +86,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         # for backwards compatibility. If the dag id is templated, the old trigger dag id will
         # be set to None so the button in the UI will be grayed out until the dag is can be
         # retrieved from the XCom
-        query = {"dag_id": dag_id or old_trigger_dag_id, "base_date": when}
+        query = {"dag_id": dag_id or old_trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)
 
 
