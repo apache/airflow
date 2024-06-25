@@ -29,4 +29,10 @@ export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
 export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080/remote_worker/v1/rpcapi
 export AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION=False
 
+# Ensure logs are smelling like remote and are not visible to other components
+export AIRFLOW__LOGGING__BASE_LOG_FOLDER=remote_logs
+
 airflow remote worker --concurrency 8
+
+# Eventually start with:
+# airflow remote worker --concurrency 8 --queues remote
