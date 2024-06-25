@@ -408,6 +408,25 @@ class TracebackSessionForTests:
         return False, self.traceback[-2]
 
 
+def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
+    """Determine whether the database connection URI specifies a relative path."""
+    # Check for non-empty connection string:
+    if not sqla_conn_str:
+        return False
+    # Check for the right URI scheme:
+    if not sqla_conn_str.startswith("sqlite"):
+        return False
+    # In-memory is not useful for production, but useful for writing tests against Airflow for extensions
+    if sqla_conn_str == "sqlite://":
+        return False
+    # Check for absolute path:
+    if sqla_conn_str.startswith(abs_prefix := "sqlite:///") and os.path.isabs(
+        sqla_conn_str[len(abs_prefix) :]
+    ):
+        return False
+    return True
+
+
 def _json_serializer(o):
     """JSON serializer for the SQLAlchemy engine.
 
