@@ -321,6 +321,32 @@ def test_process_form_extras_updates_sensitive_placeholder_unchanged(
     }
 
 
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+def test_process_form_extras_remove(mock_pm_hooks, mock_import_str):
+    """
+    Test the remove value from field.
+    """
+    # Testing parameters set in both extra and custom fields (connection updates).
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test4",
+        "conn_id": "extras_test4",
+        "extra": '{"extra__test4__remove_field": "remove_field_val3"}',
+        "extra__test4__remove_field": "",
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__test4__remove_field", "remove_field", False)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {
+        "extra__test4__remove_field": "remove_field_val3",
+    }
+
+
 def test_duplicate_connection(admin_client):
     """Test Duplicate multiple connection with suffix"""
     conn1 = Connection(
