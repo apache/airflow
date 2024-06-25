@@ -556,11 +556,11 @@ def clear_task_instances(
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
                 if dag_run_state == DagRunState.QUEUED:
-                    dr.activate_scheduling(session)
+                    dr.activate_scheduling()
                     dr.start_date = None
                     dr.clear_number += 1
             else:
-                dr.activate_scheduling(session)
+                dr.activate_scheduling()
     session.flush()
 
 
