@@ -309,7 +309,6 @@ class TestPytestSnowflakeHook:
             role="role",
             authenticator="authenticator",
             session_parameters="session_parameters",
-            client_request_mfa_token="client_request_mfa_token",
         )
         extras = {k: f"{v}_extra" for k, v in hook_params.items()}
         with mock.patch.dict(

@@ -215,10 +215,12 @@ class SnowflakeHook(DbApiHook):
             "session_parameters": self.session_parameters or session_parameters,
             # application is used to track origin of the requests
             "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
-            "client_request_mfa_token": client_request_mfa_token,
         }
         if insecure_mode:
             conn_config["insecure_mode"] = insecure_mode
+
+        if client_request_mfa_token:
+            conn_config["client_request_mfa_token"] = client_request_mfa_token
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private key.
         # If private_key_content is specified in the extra json, use it as a private key.
