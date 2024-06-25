@@ -729,10 +729,10 @@ def update_release_notes(
     provider_details = get_provider_details(provider_package_id)
     current_release_version = provider_details.versions[0]
     answer = user_confirm(
-        f"Provider {provider_package_id} is to be released with version: "
-        f"{current_release_version}. Do you want to check and update versions?"
+        f"Do you want to leave the version for {provider_package_id} with version: "
+        f"{current_release_version} as is? y/n: "
     )
-    if answer == Answer.YES:
+    if answer == Answer.NO:
         type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
         if type_of_change == TypeOfChange.SKIP:
             raise PrepareReleaseDocsUserSkippedException()
@@ -754,6 +754,10 @@ def update_release_notes(
                 reapply_templates_only=reapply_templates_only,
                 only_min_version_update=only_min_version_update,
             )
+    else:
+        get_console().print(
+            f"[info] Proceeding with provider: {provider_package_id} version as {current_release_version}"
+        )
     provider_details = get_provider_details(provider_package_id)
     _verify_changelog_exists(provider_details.provider_id)
     jinja_context = get_provider_documentation_jinja_context(
