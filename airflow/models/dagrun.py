@@ -258,15 +258,11 @@ class DagRun(Base, LoggingMixin):
             )
         return run_id
 
-    @provide_session
-    def deactivate_scheduling(self, session: Session = NEW_SESSION):
+    def deactivate_scheduling(self):
         self.next_schedulable = None
-        session.merge(self)
 
-    @provide_session
-    def activate_scheduling(self, session: Session = NEW_SESSION):
+    def activate_scheduling(self):
         self.next_schedulable = timezone.utcnow()
-        session.merge(self)
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -1066,7 +1062,7 @@ class DagRun(Base, LoggingMixin):
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
-                self.deactivate_scheduling(session)
+                self.deactivate_scheduling()
                 continue
             # If schedulable is not yet expanded, try doing it now. This is
             # called in two places: First and ideally in the mini scheduler at
