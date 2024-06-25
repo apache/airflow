@@ -1061,14 +1061,6 @@ def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, ad
     ) as dag:
         BashOperator(task_id="task_1", bash_command="echo test")
 
-    dag_run = dag_maker.create_dagrun(
-        run_id="test_dagrun_id",
-        run_type=DagRunType.SCHEDULED,
-        execution_date=execution_date,
-        start_date=execution_date,
-        state=DagRunState.RUNNING,
-    )
-
     with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
         mocked_dag_bag.get_dag.return_value = dag
         url = f"/dags/{dag.dag_id}/graph"
