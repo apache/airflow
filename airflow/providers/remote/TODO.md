@@ -45,7 +45,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Get a job and execute it
   - [x] Report result
   - [x] Heartbeat
-  - [ ] Queues
+  - [x] Queues
   - [x] Retry on connection loss
   - [ ] Send logs
   - [ ] Archive logs on completions
