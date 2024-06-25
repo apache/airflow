@@ -35,7 +35,7 @@ pytestmark = pytest.mark.db_test
 log = logging.getLogger(__name__)
 
 
-def _no_op(*args, **kwargs) -> Any:
+def _no_op(context, *args, **kwargs) -> Any:
     """no_op A function that returns its arguments
 
     :return: whatever was passed in
