@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import base64
 from unittest import mock
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
 )
+from airflow.providers.amazon.aws.triggers.lambda_function import LambdaInvokeFunctionCompleteTrigger
 
 FUNCTION_NAME = "function_name"
 PAYLOADS = [
@@ -219,7 +220,8 @@ class TestLambdaInvokeFunctionOperator:
             qualifier="f",
         )
         returned_payload = Mock()
-        returned_payload.read().decode.return_value = "data was read"
+        returned_payload.read.return_value = "data was read".encode('utf-8')
+
         fake_response = {
             "ResponseMetadata": "",
             "StatusCode": 200,
@@ -254,24 +256,24 @@ class TestLambdaInvokeFunctionOperator:
         else:
             assert "The last 4 KB of the Lambda execution log" not in caplog.text
 
-    @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
-    def test_invoke_lambda_bad_http_code(self, hook_mock):
+    @patch.object(LambdaHook, "conn")
+    def test_invoke_lambda_bad_http_code(self, mock_conn):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
         )
-        hook_mock().invoke_lambda.return_value = {"ResponseMetadata": "", "StatusCode": 404}
+        mock_conn.invoke.return_value = {"ResponseMetadata": "", "StatusCode": 404}
 
         with pytest.raises(ValueError):
             operator.execute(None)
 
-    @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
-    def test_invoke_lambda_function_error(self, hook_mock):
+    @patch.object(LambdaHook, "conn")
+    def test_invoke_lambda_function_error(self, mock_conn):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
         )
-        hook_mock().invoke_lambda.return_value = {
+        mock_conn.invoke.return_value = {
             "ResponseMetadata": "",
             "StatusCode": 404,
             "FunctionError": "yes",
@@ -280,3 +282,62 @@ class TestLambdaInvokeFunctionOperator:
 
         with pytest.raises(ValueError):
             operator.execute(None)
+
+    @mock.patch.object(LambdaHook, "conn")
+    def test_invoke_lambda_deferrable_mode(
+        self,
+        mock_conn,
+    ):
+        operator = LambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+            invocation_type="b",
+            log_type="c",
+            keep_empty_log_lines=False,
+            client_context="d",
+            payload=b'{"key": "value"}',
+            qualifier="f",
+            deferrable=True
+        )
+
+        with pytest.raises(TaskDeferred) as exec:
+            operator.execute(None)
+
+        assert isinstance(
+            exec.value.trigger, LambdaInvokeFunctionCompleteTrigger
+        ), "Trigger is not a LambdaInvokeFunctionCompleteTrigger"
+
+    def test_invoke_lambda_execute_complete(
+        self,
+        caplog,
+    ):
+        task = LambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+            invocation_type="b",
+            log_type="c",
+            keep_empty_log_lines=False,
+            client_context="d",
+            payload=b'{"key": "value"}',
+            qualifier="f",
+            deferrable=True
+        )
+
+        payload = b'{"key": "value"}'
+        returned_payload = Mock()
+        returned_payload.read.return_value = payload
+
+        fake_response = {
+            "ResponseMetadata": "",
+            "StatusCode": 200,
+            "LogResult": LOG_RESPONSE,
+            "Payload": returned_payload,
+        }
+        caplog.set_level("INFO", "airflow.task.operators")
+        resp_payload = task.execute_complete(context=None, event={"status": "success", "response": fake_response, "payload": payload})
+
+        assert resp_payload == payload.decode()
+        assert "The last 4 KB of the Lambda execution log" in caplog.text
+        assert "FOO" in caplog.messages
+        assert "BAR" in caplog.messages
+

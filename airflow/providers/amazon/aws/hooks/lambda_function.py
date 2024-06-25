@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -69,8 +70,44 @@ class LambdaHook(AwsBaseHook):
         :param payload: The JSON that you want to provide to your Lambda function as input.
         :param qualifier: AWS Lambda Function Version or Alias Name
         """
-        if isinstance(payload, str):
-            payload = payload.encode()
+        invoke_args = {
+            "FunctionName": function_name,
+            "InvocationType": invocation_type,
+            "LogType": log_type,
+            "ClientContext": client_context,
+            "Payload": payload,
+            "Qualifier": qualifier,
+        }
+
+        return self.conn.invoke(**self._parse_args(invoke_args))
+
+    async def invoke_lambda_async(
+        self,
+        *,
+        function_name: str,
+        invocation_type: str | None = None,
+        log_type: str | None = None,
+        client_context: str | None = None,
+        payload: bytes | str | None = None,
+        qualifier: str | None = None,
+    ):
+        """
+        Invoke Lambda Function.
+
+        The async version of invoke lambda function.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Lambda.Client.invoke`
+
+        :param function_name: AWS Lambda Function Name
+        :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
+        :param log_type: Set to Tail to include the execution log in the response.
+            Applies to synchronously invoked functions only.
+        :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
+            to pass to the function in the context object.
+        :param payload: The JSON that you want to provide to your Lambda function as input.
+        :param qualifier: AWS Lambda Function Version or Alias Name
+        """
 
         invoke_args = {
             "FunctionName": function_name,
@@ -80,7 +117,24 @@ class LambdaHook(AwsBaseHook):
             "Payload": payload,
             "Qualifier": qualifier,
         }
-        return self.conn.invoke(**trim_none_values(invoke_args))
+
+        async with self.async_conn as client:
+            response = await client.invoke(**self._parse_args(invoke_args))
+
+        return response
+
+    @staticmethod
+    def _parse_args(invoke_args: dict[str, Any]) -> dict[str, Any]:
+        payload = invoke_args.get("Payload")
+
+        if isinstance(payload, str):
+            if payload.startswith("b'") and payload.endswith("'"):
+                payload = payload[2:-1].encode()
+            else:
+                payload = payload.encode()
+
+            invoke_args["Payload"] = payload
+        return trim_none_values(invoke_args)
 
     def create_lambda(
         self,
@@ -207,3 +261,37 @@ class LambdaHook(AwsBaseHook):
         """
         encoded_log_result = base64.b64decode(log_result.encode("ascii")).decode()
         return [log_row for log_row in encoded_log_result.splitlines() if keep_empty_lines or log_row]
+
+    def validate_response(self, response: dict[str, Any], keep_empty_log_lines: bool = False,
+                          payload=None) -> Any:
+
+        success_status_codes = [200, 202, 204]
+        self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
+
+        if log_result := response.get("LogResult"):
+            log_records = self.encode_log_result(
+                log_result,
+                keep_empty_lines=keep_empty_log_lines,
+            )
+            if log_records:
+                self.log.info(
+                    "The last 4 KB of the Lambda execution log (keep_empty_log_lines=%s).",
+                    keep_empty_log_lines,
+                )
+                for log_record in log_records:
+                    self.log.info(log_record)
+
+        if response.get("StatusCode") not in success_status_codes:
+            raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
+
+        if isinstance(payload, bytes):
+            payload = payload.decode()
+
+        if "FunctionError" in response:
+            raise ValueError(
+                "Lambda function execution resulted in error",
+                {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
+            )
+        self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
+
+        return payload

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -25,8 +24,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
-from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger, \
+    LambdaInvokeFunctionCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event, trim_none_values
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -196,6 +196,7 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
         invocation_type: str | None = None,
         client_context: str | None = None,
         payload: bytes | str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -206,46 +207,55 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
+        self.deferrable = deferrable
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> Any:
         """
         Invoke the target AWS Lambda function from Airflow.
 
         :return: The response payload from the function, or an error object.
         """
-        success_status_codes = [200, 202, 204]
+
         self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.function_name, self.payload)
-        response = self.hook.invoke_lambda(
-            function_name=self.function_name,
-            invocation_type=self.invocation_type,
-            log_type=self.log_type,
-            client_context=self.client_context,
-            payload=self.payload,
-            qualifier=self.qualifier,
-        )
-        self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
 
-        if log_result := response.get("LogResult"):
-            log_records = self.hook.encode_log_result(
-                log_result,
-                keep_empty_lines=self.keep_empty_log_lines,
+        if not self.deferrable:
+            response = self.hook.invoke_lambda(
+                function_name=self.function_name,
+                invocation_type=self.invocation_type,
+                log_type=self.log_type,
+                client_context=self.client_context,
+                payload=self.payload,
+                qualifier=self.qualifier,
             )
-            if log_records:
-                self.log.info(
-                    "The last 4 KB of the Lambda execution log (keep_empty_log_lines=%s).",
-                    self.keep_empty_log_lines,
-                )
-                for log_record in log_records:
-                    self.log.info(log_record)
 
-        if response.get("StatusCode") not in success_status_codes:
-            raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
-        payload_stream = response.get("Payload")
-        payload = payload_stream.read().decode()
-        if "FunctionError" in response:
-            raise ValueError(
-                "Lambda function execution resulted in error",
-                {"ResponseMetadata": response.get("ResponseMetadata"), "Payload": payload},
+            return_payload = response.get("Payload").read() if "Payload" in response else None
+            return self.hook.validate_response(response=response,
+                                               keep_empty_log_lines=self.keep_empty_log_lines,
+                                               payload=return_payload)
+
+        else:
+            self.defer(
+                trigger=LambdaInvokeFunctionCompleteTrigger(
+                    function_name=self.function_name,
+                    invocation_type=self.invocation_type,
+                    log_type=self.log_type,
+                    client_context=self.client_context,
+                    payload=self.payload,
+                    qualifier=self.qualifier,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
             )
-        self.log.info("Lambda function invocation succeeded: %r", response.get("ResponseMetadata"))
-        return payload
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
+        event = validate_execute_complete_event(event)
+
+        if not event or event["status"] != "success":
+            raise AirflowException(f"Trigger error: event is {event}")
+
+        return self.hook.validate_response(response=event["response"],
+                                           keep_empty_log_lines=self.keep_empty_log_lines,
+                                           payload=event["payload"])

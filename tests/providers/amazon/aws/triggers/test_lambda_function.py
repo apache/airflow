@@ -16,7 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from unittest import mock
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger, \
+    LambdaInvokeFunctionCompleteTrigger
+from airflow.triggers.base import TriggerEvent
+
+TEST_AWS_CONN_ID = "test-aws-conn-id"
+TEST_REGION_NAME = "eu-west-2"
+TEST_VERIFY = True
+TEST_BOTOCORE_CONFIG = {"region_name": "eu-west-2"}
 
 
 class TestLambdaCreateFunctionCompleteTrigger:
@@ -46,3 +59,60 @@ class TestLambdaCreateFunctionCompleteTrigger:
             "waiter_max_attempts": 30,
             "aws_conn_id": "aws_default",
         }
+
+
+class TestLambdaInvokeFunctionCompleteTrigger:
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        self.invoke_lambda_trigger = LambdaInvokeFunctionCompleteTrigger(
+            function_name="test",
+            payload=b'{"key": "value"}',
+            invocation_type="RequestResponse",
+            log_type="Tail",
+            qualifier="test",
+            client_context=None,
+            aws_conn_id=TEST_AWS_CONN_ID,
+            region_name=TEST_REGION_NAME,
+            verify=TEST_VERIFY,
+            botocore_config=TEST_BOTOCORE_CONFIG,
+        )
+
+    def test_serialization(self):
+        classpath, kwargs = self.invoke_lambda_trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.lambda_function.LambdaInvokeFunctionCompleteTrigger"
+        assert kwargs == {
+            "function_name": "test",
+            "payload": b'{"key": "value"}',
+            "invocation_type": "RequestResponse",
+            "log_type": "Tail",
+            "qualifier": "test",
+            "client_context": None,
+            "aws_conn_id": TEST_AWS_CONN_ID,
+            "region_name": TEST_REGION_NAME,
+            "verify": TEST_VERIFY,
+            "botocore_config": TEST_BOTOCORE_CONFIG,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.invoke_lambda_async"
+    )
+    @mock.patch.object(LambdaHook, "async_conn")
+    async def test_run(self, mock_async_conn, mock_invoke_lambda_async):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        payload = b'{"key": "value"}'
+        returned_payload = AsyncMock()
+        returned_payload.read.return_value = payload
+
+        fake_response = {
+            "ResponseMetadata": "",
+            "StatusCode": 200,
+            "Payload": returned_payload,
+        }
+
+        mock_invoke_lambda_async.return_value = fake_response
+        generator = self.invoke_lambda_trigger.run()
+        event = await generator.asend(None)
+        assert event.payload["status"] == "success"
+        assert event.payload["payload"] == payload.decode()
