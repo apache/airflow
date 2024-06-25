@@ -179,7 +179,6 @@ def encode_dag_run(
         "data_interval_start": datetime_to_string(dag_run.data_interval_start),
         "data_interval_end": datetime_to_string(dag_run.data_interval_end),
         "run_type": dag_run.run_type,
-        "next_schedulable": datetime_to_string(dag_run.next_schedulable),
         "external_trigger": dag_run.external_trigger,
         "conf": dag_run_conf,
         "conf_is_json": conf_is_json,
