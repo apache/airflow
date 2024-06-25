@@ -1958,4 +1958,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             if not ti.is_premature:
                 ti.dag_run.activate_scheduling()
+                session.merge(ti.dag_run)
                 drs.append(ti.dag_run)
+        session.flush()
