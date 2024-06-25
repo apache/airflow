@@ -128,6 +128,7 @@ class SnowflakeHook(DbApiHook):
                         "authenticator": "snowflake oauth",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
+                        "client_request_mfa_token": "client request mfa token",
                     },
                     indent=1,
                 ),
@@ -155,6 +156,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
+        self.client_request_mfa_token = kwargs.pop("client_request_mfa_token", None)
         self.query_ids: list[str] = []
 
     def _get_field(self, extra_dict, field_name):
@@ -194,11 +196,11 @@ class SnowflakeHook(DbApiHook):
         role = self._get_field(extra_dict, "role") or ""
         insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
         schema = conn.schema or ""
+        client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
 
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
         session_parameters = extra_dict.get("session_parameters")
-        client_request_mfa_token = extra_dict.get("client_request_mfa_token", False)
 
         conn_config = {
             "user": conn.login,
