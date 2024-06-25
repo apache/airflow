@@ -96,7 +96,6 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
-                    "client_request_mfa_token": False,
                 },
             ),
             (
@@ -126,7 +125,6 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
-                    "client_request_mfa_token": False,
                 },
             ),
             (
@@ -139,6 +137,7 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "True",
+                        "extra__snowflake__client_request_mfa_token": "True",
                     },
                 },
                 (
@@ -158,7 +157,7 @@ class TestPytestSnowflakeHook:
                     "user": "user",
                     "warehouse": "af_wh",
                     "insecure_mode": True,
-                    "client_request_mfa_token": False,
+                    "client_request_mfa_token": True,
                 },
             ),
             (
@@ -171,6 +170,7 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "False",
+                        "extra__snowflake__client_request_mfa_token": "False",
                     },
                 },
                 (
@@ -189,7 +189,6 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
-                    "client_request_mfa_token": False,
                 },
             ),
             (
@@ -249,6 +248,7 @@ class TestPytestSnowflakeHook:
                     "extra": {
                         **BASE_CONNECTION_KWARGS["extra"],
                         "extra__snowflake__insecure_mode": False,
+                        "extra__snowflake__client_request_mfa_token": False,
                     },
                 },
                 (
@@ -267,7 +267,6 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
-                    "client_request_mfa_token": False,
                 },
             ),
         ],
@@ -309,7 +308,6 @@ class TestPytestSnowflakeHook:
             role="role",
             authenticator="authenticator",
             session_parameters="session_parameters",
-            client_request_mfa_token="client_request_mfa_token",
         )
         extras = {k: f"{v}_extra" for k, v in hook_params.items()}
         with mock.patch.dict(
