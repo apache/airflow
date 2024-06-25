@@ -587,6 +587,7 @@ class TestKubernetesJobOperator:
             cluster_context=mock_cluster_context,
             config_file=mock_config_file,
             in_cluster=mock_in_cluster,
+            kube_config=None,
             poll_interval=POLL_INTERVAL,
         )
         assert actual_result is None

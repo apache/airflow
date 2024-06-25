@@ -68,6 +68,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         custom_resource_definition: bool = False,
         namespaced: bool = True,
         config_file: str | None = None,
+        kube_config: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,6 +79,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self.custom_resource_definition = custom_resource_definition
         self.namespaced = namespaced
         self.config_file = config_file
+        self.kube_config = kube_config
 
         if not any([self.yaml_conf, self.yaml_conf_file]):
             raise AirflowException("One of `yaml_conf` or `yaml_conf_file` arguments must be provided")
@@ -92,7 +94,9 @@ class KubernetesResourceBaseOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> KubernetesHook:
-        hook = KubernetesHook(conn_id=self.kubernetes_conn_id, config_file=self.config_file)
+        hook = KubernetesHook(
+            conn_id=self.kubernetes_conn_id, config_file=self.config_file, kube_config=self.kube_config
+        )
         return hook
 
     def get_namespace(self) -> str:

@@ -265,6 +265,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             in_cluster=self.in_cluster or self.template_body.get("kubernetes", {}).get("in_cluster", False),
             config_file=self.config_file
             or self.template_body.get("kubernetes", {}).get("kube_config_file", None),
+            kube_config=self.kube_config,
             cluster_context=self.cluster_context
             or self.template_body.get("kubernetes", {}).get("cluster_context", None),
         )

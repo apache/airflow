@@ -167,6 +167,7 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param kube_config: content of kubeconfig file.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -287,6 +288,7 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        kube_config: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -362,6 +364,7 @@ class KubernetesPodOperator(BaseOperator):
         self.affinity = convert_affinity(affinity) if affinity else {}
         self.container_resources = container_resources
         self.config_file = config_file
+        self.kube_config = kube_config
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.hostnetwork = hostnetwork
@@ -515,6 +518,7 @@ class KubernetesPodOperator(BaseOperator):
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
+            kube_config=self.kube_config,
             cluster_context=self.cluster_context,
         )
         return hook
@@ -708,6 +712,7 @@ class KubernetesPodOperator(BaseOperator):
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
                 config_file=self.config_file,
+                kube_config=self.kube_config,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 get_logs=self.get_logs,

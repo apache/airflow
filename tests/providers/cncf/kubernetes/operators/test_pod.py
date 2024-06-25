@@ -236,6 +236,7 @@ class TestKubernetesPodOperator:
             conn_id="kubernetes_default",
             config_file=file_path,
             in_cluster=None,
+            kube_config=None,
         )
 
     @pytest.mark.parametrize(

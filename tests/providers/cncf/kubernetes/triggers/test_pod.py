@@ -102,6 +102,7 @@ class TestKubernetesPodTrigger:
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "config_file": CONFIG_FILE,
+            "kube_config": None,
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,

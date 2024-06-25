@@ -82,6 +82,7 @@ def test_spark_kubernetes_operator_hook(mock_kubernetes_hook, data_file):
         in_cluster=True,
         cluster_context="cluster_context",
         config_file="config_file",
+        kube_config=None,
     )
 
 

@@ -281,6 +281,49 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
+        "conn_id, kube_config, has_conn_id, has_kube_config",
+        (
+            (None, None, False, False),
+            (None, "content of kubeconfig file", False, True),
+            ("kube_config", None, True, False),
+            ("kube_config", "content of kubeconfig file", True, True),
+        ),
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch.object(tempfile, "NamedTemporaryFile")
+    def test_kube_config(
+        self,
+        mock_tempfile,
+        mock_kube_config_merger,
+        mock_kube_config_loader,
+        conn_id,
+        kube_config,
+        has_conn_id,
+        has_kube_config,
+    ):
+        """
+        Verifies whether temporary kube config file is created.
+        """
+        mock_tempfile.return_value.__enter__.return_value.name = "fake-temp-file"
+        mock_kube_config_merger.return_value.config = {"fake_config": "value"}
+        kubernetes_hook = KubernetesHook(conn_id=conn_id, kube_config=kube_config)
+        api_conn = kubernetes_hook.get_conn()
+
+        # When conn_id or kube_config exists, the content of kubeconfig file will be saved to the
+        # temporary file ``fake-temp-file``, and then kube_config_loader will load ``fake-temp-file``,
+        # otherwise kube_config_loader will load ``~/.kube/config``
+        if has_conn_id or has_kube_config:
+            mock_tempfile.is_called_once()
+            mock_kube_config_loader.assert_called_once()
+            mock_kube_config_merger.assert_called_once_with("fake-temp-file")
+        else:
+            mock_tempfile.assert_not_called()
+            mock_kube_config_loader.assert_called_once()
+            mock_kube_config_merger.assert_called_once_with(KUBE_CONFIG_PATH)
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @pytest.mark.parametrize(
         "conn_id, has_config",
         (
             (None, False),

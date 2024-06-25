@@ -61,6 +61,7 @@ class TestKubernetesJobTrigger:
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "config_file": CONFIG_FILE,
+            "kube_config": None,
             "in_cluster": IN_CLUSTER,
         }
 
@@ -130,6 +131,7 @@ class TestKubernetesJobTrigger:
             conn_id=CONN_ID,
             in_cluster=IN_CLUSTER,
             config_file=CONFIG_FILE,
+            kube_config=None,
             cluster_context=CLUSTER_CONTEXT,
         )
         assert hook_actual == hook_expected
