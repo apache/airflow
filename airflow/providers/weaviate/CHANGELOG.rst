@@ -20,6 +20,51 @@
 Changelog
 ---------
 
+2.0.0
+......
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   * We bumped the minimum version of weaviate-client to 4.4.0. Many of the concepts and methods have been changed. We suggest you read `Migrate from v3 to v4 <https://weaviate.io/developers/weaviate/client-libraries/python/v3_v4_migration>`_ before you upgrade to this version
+
+* Add columns ``Port``, ``gRPC host``, ``gRPC port``  and ``Use https``, ``Use a secure channel for the underlying gRPC API`` options  to the Weaviate connection. The default values from Airflow providers may not be suitable for using Weaviate correctly, so we recommend explicitly specifying these values.
+* Update ``WeaviateIngestOperator`` and ``WeaviateDocumentIngestOperator`` to use ``WeaviateHook`` with ``weaviate-client`` v4 API.
+   * Argument ``class_name`` is named as ``collection_name``
+   * Argument ``batch_params`` is removed.
+* Update ``WeaviateHook`` to utilize ``weaviate-client`` v4 API. The implemetation has been extensively changed. We recommend reading `Migrate from v3 to v4 <https://weaviate.io/developers/weaviate/client-libraries/python/v3_v4_migration>`_ to understand the changes on the Weaviate side before using the updated ``WeaviateHook``.
+    * Migrate the following public methods
+        * ``test_connections``
+        * ``query_with_vector``
+        * ``create_object``
+        * ``get_object``
+        * ``delete_object``
+        * ``update_object``
+        * ``replace_object``
+        * ``object_exists``
+        * ``batch_data``
+        * ``get_or_create_object``
+        * ``create_or_replace_document_objects``
+
+    * Rename the following public methods
+        * ``update_schema`` to ``update_collection_configuration``
+        * ``create_class`` to ``create_collection``
+        * ``get_schema`` to ``get_collection_configuraiton``
+        * ``delete_classes`` to ``delete_collections``
+        * ``query_without_vector`` to ``query_with_text``
+
+    * Remove the following public methods
+        * ``validate_object``
+        * ``update_schema``
+        * ``create_schema``
+        * ``delete_all_schema``
+        * ``check_subset_of_schema``
+
+ * Remove deprecated method ``WeaviateHook.get_client``
+ * Remove unused argument ``retry_status_codes`` in ``WeaviateHook.__init__``
+
 1.4.2
 .....
 
