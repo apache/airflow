@@ -86,8 +86,38 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 
 ## Notes
 
+### Test on Windows
+
+Create wheel on Linux:
+
+``` bash
+breeze release-management generate-constraints --python 3.10
+breeze release-management prepare-provider-packages --package-format wheel --include-removed-providers remote
+breeze release-management prepare-airflow-package
 ```
-/opt/airflow/airflow/providers/remote/_start_internal_api.sh
-/opt/airflow/airflow/providers/remote/_start_task.sh
-/opt/airflow/airflow/providers/remote/_start_celery_worker.sh
+
+Copy the files to Windows
+
+On Windows "cheat sheet", Assume Python 3.10 installed, files mounted in Z:\Temp:
+
+``` text
+python -m venv airflow-venv
+airflow-venv\Scripts\activate.bat
+
+pip install --constraint Z:\temp\constraints-source-providers-3.10.txt Z:\temp\apache_airflow_providers_remote-0.1.0-py3-none-any.whl Z:\temp\apache_airflow-2.10.0.dev0-py3-none-any.whl
+
+set AIRFLOW_ENABLE_AIP_44=true
+set AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
+set AIRFLOW__CORE__INTERNAL_API_URL=http://nas:8080/remote_worker/v1/rpcapi
+set AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION=False
+set AIRFLOW__CORE__EXECUTOR=RemoteExecutor
+set AIRFLOW__CORE__DAGS_FOLDER=dags
+set AIRFLOW__LOGGING__BASE_LOG_FOLDER=logs
+
+airflow remote worker --concurrency 4 --queues windows
 ```
+
+Notes on Windows:
+
+- PR https://github.com/apache/airflow/pull/40424 fixes PythonOperator
+- Log folder temple must replace run_id colons _or_ DAG must be triggered with Run ID w/o colons as not allowed as file name in Windows
