@@ -1132,7 +1132,8 @@
   },
   "remote": {
     "deps": [
-      "apache-airflow>=2.10.0"
+      "apache-airflow>=2.10.0,<3.0",
+      "pydantic"
     ],
     "devel-deps": [],
     "plugins": [
