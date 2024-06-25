@@ -314,7 +314,7 @@ class PlainXComArg(XComArg):
         return PlainXComArg(operator=self.operator, key=item)
 
     def __hash__(self) -> int:
-        return hash((self.operator.task_id, self.key))
+        return hash((self.operator, self.key))
 
     def __iter__(self):
         """
