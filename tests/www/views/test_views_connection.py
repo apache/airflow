@@ -316,6 +316,37 @@ def test_process_form_extras_updates_sensitive_placeholder_unchanged(
     }
 
 
+@pytest.mark.parametrize("field_name", ["extra__test4__custom_field", "custom_field"])
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+def test_process_form_extras_remove(mock_pm_hooks, mock_import_str, field_name):
+    """
+    Test the remove value from field.
+    """
+    # Testing parameters set in both extra and custom fields (connection updates).
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test4",
+        "conn_id": "extras_test4",
+        "extra": '{"extra__test4__custom_field": "custom_field_val3"}',
+        "extra__test4__custom_field": "",
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__test4__custom_field", field_name, False)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    if field_name == "custom_field":
+        assert json.loads(mock_form.extra.data) == {
+            "custom_field": "",
+            "extra__test4__custom_field": "custom_field_val3",
+        }
+    else:
+        assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": ""}
+
+
 def test_duplicate_connection(admin_client):
     """Test Duplicate multiple connection with suffix"""
     conn1 = Connection(

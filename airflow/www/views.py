@@ -4360,10 +4360,7 @@ class ConnectionModelView(AirflowModelView):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
                     value = form.data[key]
-                    # Some extra fields have a default value of False so we need to explicitly check the
-                    # value isn't an empty string.
-                    if value != "":
-                        extra[field_name] = value
+                    extra[field_name] = value
         if extra.keys():
             sensitive_unchanged_keys = set()
             for key, value in extra.items():
