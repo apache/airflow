@@ -728,10 +728,13 @@ def update_release_notes(
 
     provider_details = get_provider_details(provider_package_id)
     current_release_version = provider_details.versions[0]
-    answer = user_confirm(
-        f"Do you want to leave the version for {provider_package_id} with version: "
-        f"{current_release_version} as is?"
-    )
+    if not non_interactive:
+        answer = user_confirm(
+            f"Do you want to leave the version for {provider_package_id} with version: "
+            f"{current_release_version} as is?"
+        )
+    else:
+        answer = Answer.YES
     if answer == Answer.NO:
         type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
         if type_of_change == TypeOfChange.SKIP:
