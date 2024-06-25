@@ -142,11 +142,12 @@ class LambdaInvokeFunctionCompleteTrigger(BaseTrigger):
 
     @cached_property
     def hook(self) -> LambdaHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id,
-                          region_name=self.region_name,
-                          verify=self.verify,
-                          config=self.botocore_config,
-                          )
+        return LambdaHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         response = await self.hook.invoke_lambda_async(

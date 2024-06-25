@@ -24,9 +24,11 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger, \
-    LambdaInvokeFunctionCompleteTrigger
-from airflow.providers.amazon.aws.utils import validate_execute_complete_event, trim_none_values
+from airflow.providers.amazon.aws.triggers.lambda_function import (
+    LambdaCreateFunctionCompleteTrigger,
+    LambdaInvokeFunctionCompleteTrigger,
+)
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -215,7 +217,6 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
 
         :return: The response payload from the function, or an error object.
         """
-
         self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.function_name, self.payload)
 
         if not self.deferrable:
@@ -229,9 +230,9 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
             )
 
             return_payload = response.get("Payload").read() if "Payload" in response else None
-            return self.hook.validate_response(response=response,
-                                               keep_empty_log_lines=self.keep_empty_log_lines,
-                                               payload=return_payload)
+            return self.hook.validate_response(
+                response=response, keep_empty_log_lines=self.keep_empty_log_lines, payload=return_payload
+            )
 
         else:
             self.defer(
@@ -256,6 +257,8 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
         if not event or event["status"] != "success":
             raise AirflowException(f"Trigger error: event is {event}")
 
-        return self.hook.validate_response(response=event["response"],
-                                           keep_empty_log_lines=self.keep_empty_log_lines,
-                                           payload=event["payload"])
+        return self.hook.validate_response(
+            response=event["response"],
+            keep_empty_log_lines=self.keep_empty_log_lines,
+            payload=event["payload"],
+        )

@@ -17,14 +17,15 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger, \
-    LambdaInvokeFunctionCompleteTrigger
-from airflow.triggers.base import TriggerEvent
+from airflow.providers.amazon.aws.triggers.lambda_function import (
+    LambdaCreateFunctionCompleteTrigger,
+    LambdaInvokeFunctionCompleteTrigger,
+)
 
 TEST_AWS_CONN_ID = "test-aws-conn-id"
 TEST_REGION_NAME = "eu-west-2"
@@ -62,7 +63,6 @@ class TestLambdaCreateFunctionCompleteTrigger:
 
 
 class TestLambdaInvokeFunctionCompleteTrigger:
-
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
         self.invoke_lambda_trigger = LambdaInvokeFunctionCompleteTrigger(
@@ -80,7 +80,10 @@ class TestLambdaInvokeFunctionCompleteTrigger:
 
     def test_serialization(self):
         classpath, kwargs = self.invoke_lambda_trigger.serialize()
-        assert classpath == "airflow.providers.amazon.aws.triggers.lambda_function.LambdaInvokeFunctionCompleteTrigger"
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.lambda_function.LambdaInvokeFunctionCompleteTrigger"
+        )
         assert kwargs == {
             "function_name": "test",
             "payload": b'{"key": "value"}',
@@ -95,9 +98,7 @@ class TestLambdaInvokeFunctionCompleteTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.invoke_lambda_async"
-    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.invoke_lambda_async")
     @mock.patch.object(LambdaHook, "async_conn")
     async def test_run(self, mock_async_conn, mock_invoke_lambda_async):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()

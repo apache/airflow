@@ -108,7 +108,6 @@ class LambdaHook(AwsBaseHook):
         :param payload: The JSON that you want to provide to your Lambda function as input.
         :param qualifier: AWS Lambda Function Version or Alias Name
         """
-
         invoke_args = {
             "FunctionName": function_name,
             "InvocationType": invocation_type,
@@ -262,9 +261,9 @@ class LambdaHook(AwsBaseHook):
         encoded_log_result = base64.b64decode(log_result.encode("ascii")).decode()
         return [log_row for log_row in encoded_log_result.splitlines() if keep_empty_lines or log_row]
 
-    def validate_response(self, response: dict[str, Any], keep_empty_log_lines: bool = False,
-                          payload=None) -> Any:
-
+    def validate_response(
+        self, response: dict[str, Any], keep_empty_log_lines: bool = False, payload=None
+    ) -> Any:
         success_status_codes = [200, 202, 204]
         self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
 

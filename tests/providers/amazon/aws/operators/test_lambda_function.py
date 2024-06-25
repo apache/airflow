@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import base64
 from unittest import mock
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -220,7 +220,7 @@ class TestLambdaInvokeFunctionOperator:
             qualifier="f",
         )
         returned_payload = Mock()
-        returned_payload.read.return_value = "data was read".encode('utf-8')
+        returned_payload.read.return_value = b"data was read"
 
         fake_response = {
             "ResponseMetadata": "",
@@ -297,7 +297,7 @@ class TestLambdaInvokeFunctionOperator:
             client_context="d",
             payload=b'{"key": "value"}',
             qualifier="f",
-            deferrable=True
+            deferrable=True,
         )
 
         with pytest.raises(TaskDeferred) as exec:
@@ -320,7 +320,7 @@ class TestLambdaInvokeFunctionOperator:
             client_context="d",
             payload=b'{"key": "value"}',
             qualifier="f",
-            deferrable=True
+            deferrable=True,
         )
 
         payload = b'{"key": "value"}'
@@ -334,10 +334,11 @@ class TestLambdaInvokeFunctionOperator:
             "Payload": returned_payload,
         }
         caplog.set_level("INFO", "airflow.task.operators")
-        resp_payload = task.execute_complete(context=None, event={"status": "success", "response": fake_response, "payload": payload})
+        resp_payload = task.execute_complete(
+            context=None, event={"status": "success", "response": fake_response, "payload": payload}
+        )
 
         assert resp_payload == payload.decode()
         assert "The last 4 KB of the Lambda execution log" in caplog.text
         assert "FOO" in caplog.messages
         assert "BAR" in caplog.messages
-

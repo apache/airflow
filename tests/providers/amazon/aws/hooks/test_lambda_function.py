@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 import base64
-import logging
-from unittest import mock, mock as async_mock
-from unittest.mock import MagicMock, AsyncMock
+from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -166,8 +165,9 @@ class TestLambdaHook:
         hook = LambdaHook()
         await hook.invoke_lambda_async(function_name=FUNCTION_NAME, payload=payload)
 
-        mock_make_api_call.assert_called_once_with("Invoke",
-                                                   {"FunctionName": FUNCTION_NAME, "Payload": invoke_payload})
+        mock_make_api_call.assert_called_once_with(
+            "Invoke", {"FunctionName": FUNCTION_NAME, "Payload": invoke_payload}
+        )
 
     def test_validate_response_success(self):
         sample_response = {
@@ -183,9 +183,9 @@ class TestLambdaHook:
                     "x-amzn-remapped-content-length": "0",
                     "x-amz-executed-version": "$LATEST",
                     "x-amz-log-result": "U1RBUlQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUgVmVyc2lvbjogJExBVEVTVApFTkQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUKUkVQT1JUIFJlcXVlc3RJZDogMmEzY2JkMWYtYWZiYS00Y2Q4LTk4ZDctMmQwMTU2NjMyY2VlCUR1cmF0aW9uOiAxLjg3IG1zCUJpbGxlZCBEdXJhdGlvbjogMiBtcwlNZW1vcnkgU2l6ZTogMTI4IE1CCU1heCBNZW1vcnkgVXNlZDogMzAgTUIJSW5pdCBEdXJhdGlvbjogMTA3LjE0IG1zCQo=",
-                    "x-amzn-trace-id": "root=1-6679f3e1-42fb62f97deb767d7712386f;parent=30345a2039563aa5;sampled=0;lineage=570f530d:0"
+                    "x-amzn-trace-id": "root=1-6679f3e1-42fb62f97deb767d7712386f;parent=30345a2039563aa5;sampled=0;lineage=570f530d:0",
                 },
-                "RetryAttempts": 0
+                "RetryAttempts": 0,
             },
             "StatusCode": 200,
             "LogResult": "U1RBUlQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUgVmVyc2lvbjogJExBVEVTVApFTkQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUKUkVQT1JUIFJlcXVlc3RJZDogMmEzY2JkMWYtYWZiYS00Y2Q4LTk4ZDctMmQwMTU2NjMyY2VlCUR1cmF0aW9uOiAxLjg3IG1zCUJpbGxlZCBEdXJhdGlvbjogMiBtcwlNZW1vcnkgU2l6ZTogMTI4IE1CCU1heCBNZW1vcnkgVXNlZDogMzAgTUIJSW5pdCBEdXJhdGlvbjogMTA3LjE0IG1zCQo=",
@@ -211,12 +211,12 @@ class TestLambdaHook:
                     "x-amzn-remapped-content-length": "0",
                     "x-amz-executed-version": "$LATEST",
                     "x-amz-log-result": "U1RBUlQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUgVmVyc2lvbjogJExBVEVTVApFTkQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUKUkVQT1JUIFJlcXVlc3RJZDogMmEzY2JkMWYtYWZiYS00Y2Q4LTk4ZDctMmQwMTU2NjMyY2VlCUR1cmF0aW9uOiAxLjg3IG1zCUJpbGxlZCBEdXJhdGlvbjogMiBtcwlNZW1vcnkgU2l6ZTogMTI4IE1CCU1heCBNZW1vcnkgVXNlZDogMzAgTUIJSW5pdCBEdXJhdGlvbjogMTA3LjE0IG1zCQo=",
-                    "x-amzn-trace-id": "root=1-6679f3e1-42fb62f97deb767d7712386f;parent=30345a2039563aa5;sampled=0;lineage=570f530d:0"
+                    "x-amzn-trace-id": "root=1-6679f3e1-42fb62f97deb767d7712386f;parent=30345a2039563aa5;sampled=0;lineage=570f530d:0",
                 },
-                "RetryAttempts": 0
+                "RetryAttempts": 0,
             },
             "StatusCode": 200,
-            'FunctionError': 'Unhandled',
+            "FunctionError": "Unhandled",
             "LogResult": "U1RBUlQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUgVmVyc2lvbjogJExBVEVTVApFTkQgUmVxdWVzdElkOiAyYTNjYmQxZi1hZmJhLTRjZDgtOThkNy0yZDAxNTY2MzJjZWUKUkVQT1JUIFJlcXVlc3RJZDogMmEzY2JkMWYtYWZiYS00Y2Q4LTk4ZDctMmQwMTU2NjMyY2VlCUR1cmF0aW9uOiAxLjg3IG1zCUJpbGxlZCBEdXJhdGlvbjogMiBtcwlNZW1vcnkgU2l6ZTogMTI4IE1CCU1heCBNZW1vcnkgVXNlZDogMzAgTUIJSW5pdCBEdXJhdGlvbjogMTA3LjE0IG1zCQo=",
             "ExecutedVersion": "$LATEST",
         }
