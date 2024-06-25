@@ -286,7 +286,7 @@ class SnowflakeHook(DbApiHook):
             **{
                 k: v
                 for k, v in conn_params.items()
-                if v and k not in ["session_parameters", "insecure_mode", "private_key"]
+                if v and k not in ["session_parameters", "insecure_mode", "private_key", "client_request_mfa_token"]
             }
         )
 
