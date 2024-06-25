@@ -2199,6 +2199,7 @@ class TestStringifiedDAGs:
                 trigger_cls="airflow.triggers.testing.SuccessTrigger",
                 trigger_kwargs=None,
                 next_method="execute_complete",
+                next_kwargs=None,
                 timeout=None,
             )
             start_from_trigger = False
@@ -2216,6 +2217,7 @@ class TestStringifiedDAGs:
                 trigger_cls="airflow.triggers.testing.SuccessTrigger",
                 trigger_kwargs={},
                 next_method="execute_complete",
+                next_kwargs=None,
                 timeout=None,
             )
             start_from_trigger = True
@@ -2239,6 +2241,7 @@ class TestStringifiedDAGs:
                 "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
                 "trigger_kwargs": {},
                 "next_method": "execute_complete",
+                "next_kwargs": None,
                 "timeout": None,
             }
             assert task["__var"]["start_from_trigger"] is True

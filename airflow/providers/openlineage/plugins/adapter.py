@@ -295,11 +295,17 @@ class OpenLineageAdapter(LoggingMixin):
         """
         error_facet = {}
         if error:
-            if isinstance(error, BaseException):
+            stack_trace = None
+            if isinstance(error, BaseException) and error.__traceback__:
                 import traceback
 
-                error = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
-            error_facet = {"errorMessage": ErrorMessageRunFacet(message=error, programmingLanguage="python")}
+                stack_trace = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
+
+            error_facet = {
+                "errorMessage": ErrorMessageRunFacet(
+                    message=str(error), programmingLanguage="python", stackTrace=stack_trace
+                )
+            }
 
         event = RunEvent(
             eventType=RunState.FAIL,

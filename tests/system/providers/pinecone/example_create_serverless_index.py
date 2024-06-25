@@ -20,6 +20,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.decorators import task, teardown
 from airflow.providers.pinecone.operators.pinecone import CreateServerlessIndexOperator
 
 index_name = os.getenv("INDEX_NAME", "test")
@@ -33,7 +34,7 @@ with DAG(
 ) as dag:
     # [START howto_operator_create_serverless_index]
     # reference: https://docs.pinecone.io/reference/api/control-plane/create_index
-    CreateServerlessIndexOperator(
+    create_index = CreateServerlessIndexOperator(
         task_id="pinecone_create_serverless_index",
         index_name=index_name,
         dimension=128,
@@ -42,6 +43,16 @@ with DAG(
         metric="cosine",
     )
     # [END howto_operator_create_serverless_index]
+
+    @teardown
+    @task
+    def delete_index():
+        from airflow.providers.pinecone.hooks.pinecone import PineconeHook
+
+        hook = PineconeHook()
+        hook.delete_index(index_name=index_name)
+
+    create_index >> delete_index()
 
 
 from tests.system.utils import get_test_run  # noqa: E402
