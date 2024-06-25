@@ -481,7 +481,7 @@ def clear_task_instances(
             ti.clear_next_method_args()
             session.merge(ti)
         if not dag_run_state:
-            ti.dag_run.activate_scheduling(session)
+            ti.dag_run.activate_scheduling()
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
@@ -3276,7 +3276,7 @@ class TaskInstance(Base, LoggingMixin):
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
-            ti.dag_run.deactivate_scheduling(session)
+            ti.dag_run.deactivate_scheduling()
 
         return {
             "ti": ti,

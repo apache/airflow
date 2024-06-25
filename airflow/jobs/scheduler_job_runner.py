@@ -784,7 +784,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             if ti.state in State.finished:
-                ti.dag_run.activate_scheduling(session)
+                ti.dag_run.activate_scheduling()
 
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
@@ -1957,5 +1957,5 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             except Exception:
                 continue
             if not ti.is_premature:
-                ti.dag_run.activate_scheduling(session)
+                ti.dag_run.activate_scheduling()
                 drs.append(ti.dag_run)
