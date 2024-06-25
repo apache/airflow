@@ -34,7 +34,7 @@ Breaking changes
 * Update ``WeaviateIngestOperator`` and ``WeaviateDocumentIngestOperator`` to use ``WeaviateHook`` with ``weaviate-client`` v4 API.
    * Argument ``class_name`` is named as ``collection_name``
    * Argument ``batch_params`` is removed.
-* Update ``WeaviateHook`` to utilize ``weaviate-client`` v4 API. The implemetation has been extensively changed. We recommend reading `Migrate from v3 to v4 <https://weaviate.io/developers/weaviate/client-libraries/python/v3_v4_migration>`_ to understand the changes on the Weaviate side before using the updated ``WeaviateHook``.
+* Update ``WeaviateHook`` to utilize ``weaviate-client`` v4 API. The implementation has been extensively changed. We recommend reading `Migrate from v3 to v4 <https://weaviate.io/developers/weaviate/client-libraries/python/v3_v4_migration>`_ to understand the changes on the Weaviate side before using the updated ``WeaviateHook``.
     * Migrate the following public methods
         * ``test_connections``
         * ``query_with_vector``

@@ -31,7 +31,7 @@ Configuring the Connection
 --------------------------
 
 Host (required)
-    The host to use for the Weaviate cluster REST and GraphQL API calls.
+    The host to use for the Weaviate cluster REST and GraphQL API calls. DO NOT include the schema (i.e., http or https).
 
 OIDC Username (optional)
     Username for the OIDC user when OIDC option is to be used for authentication.
