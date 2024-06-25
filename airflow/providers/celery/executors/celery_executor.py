@@ -243,6 +243,7 @@ class CeleryExecutor(BaseExecutor):
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
+        self.send_pool = ProcessPoolExecutor(max_workers=self._sync_parallelism)
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
@@ -312,12 +313,10 @@ class CeleryExecutor(BaseExecutor):
         # Use chunks instead of a work queue to reduce context switching
         # since tasks are roughly uniform in size
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
-        num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
-        with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
-            key_and_async_results = list(
-                send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
-            )
+        key_and_async_results = list(
+            self.send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
+        )
         return key_and_async_results
 
     def sync(self) -> None:
