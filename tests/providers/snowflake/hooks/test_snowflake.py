@@ -215,7 +215,6 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
-                    "client_request_mfa_token": False,
                 },
             ),
             (
@@ -239,7 +238,6 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
-                    "client_request_mfa_token": False,
                 },
             ),
             (
@@ -353,7 +351,6 @@ class TestPytestSnowflakeHook:
                 "schema": "",
                 "authenticator": "snowflake",
                 "session_parameters": None,
-                "client_request_mfa_token": False,
                 **(extras if include_unprefixed else dict(zip(extras.keys(), extras_prefixed.values()))),
             }
 
@@ -522,7 +519,6 @@ class TestPytestSnowflakeHook:
                 "session_parameters": {"AA": "AAA"},
                 "user": "user",
                 "warehouse": "TEST_WAREHOUSE",
-                "client_request_mfa_token": False,
             } == hook._get_conn_params
             assert (
                 "snowflake://user:pw@TEST_ACCOUNT.TEST_REGION/TEST_DATABASE/TEST_SCHEMA"
