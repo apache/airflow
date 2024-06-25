@@ -39,9 +39,6 @@ Breaking changes
 * Remove deprecated method ``WeaviateHook.get_client``
 * Remove unused argument ``retry_status_codes`` in ``WeaviateHook.__init__``
 
-1.4.2
-.....
-
 Misc
 ~~~~
 
