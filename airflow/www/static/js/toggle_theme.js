@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, localStorage, window */
+/* global document, localStorage */
 
 const STORAGE_THEME_KEY = "darkTheme";
 const HTML_THEME_DATASET_KEY = "data-color-scheme";
@@ -38,7 +38,7 @@ const toggleTheme = () => {
   updateTheme(!isDark);
 };
 document.addEventListener("DOMContentLoaded", () => {
-  const themeButton = document.getElementById("themeToggleButton");
+  const themeButton = document.getElementById(TOGGLE_BUTTON_ID);
   themeButton.addEventListener("click", () => {
     toggleTheme();
   });
