@@ -43,7 +43,7 @@ def _batch_tester(messages, context, test_string=None):
         assert x.value().decode(encoding="utf-8") == test_string
 
 
-def _basic_message_tester(message,context, test=None) -> Any:
+def _basic_message_tester(message, context, test=None) -> Any:
     """a function that tests the message received"""
 
     assert test
