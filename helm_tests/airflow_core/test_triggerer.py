@@ -647,6 +647,24 @@ class TestTriggerer:
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
 
+    def test_persistent_volume_claim_retention_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "triggerer": {
+                    "persistence": {
+                        "enabled": True,
+                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                    }
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert {
+            "whenDeleted": "Delete",
+        } == jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0])
+
 
 class TestTriggererServiceAccount:
     """Tests triggerer service account."""

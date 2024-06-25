@@ -839,6 +839,24 @@ class TestScheduler:
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
 
+    def test_persistent_volume_claim_retention_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "workers": {
+                    "persistence": {
+                        "enabled": True,
+                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "whenDeleted": "Delete",
+        } == jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0])
+
 
 class TestSchedulerNetworkPolicy:
     """Tests scheduler network policy."""
