@@ -388,7 +388,7 @@ Steps:
 
 2) Configure PyCharm Interpreter
 
-   * Open PyCharm and navigate to **Settings** (or **Preferences** on macOS) > **Project: <Your Project Name>** > **Python Interpreter**.
+   * Open PyCharm and navigate to **Settings** > **Project: <Your Project Name>** > **Python Interpreter**.
    * Click the **"Add Interpreter"** button and choose **"On Docker Compose"**.
    * In the **Configuration file** field, select your ``docker-compose.yaml`` file.
    * In the **Service field**, choose the newly added ``airflow-python`` service.
