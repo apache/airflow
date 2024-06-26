@@ -192,6 +192,8 @@ class SSHOperator(BaseOperator):
         enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
         if not enable_pickling:
             result = b64encode(result).decode("utf-8")
+
+        self.on_kill()
         return result
 
     def tunnel(self) -> None:
