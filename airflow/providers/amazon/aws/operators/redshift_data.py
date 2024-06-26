@@ -30,6 +30,37 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
+    """
+    Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftDataOperator`
+    :param database: the name of the database
+    :param sql: the SQL statement or list of  SQL statement to run
+    :param cluster_identifier: unique identifier of a cluster
+    :param db_user: the database username
+    :param parameters: the parameters for the SQL statement
+    :param secret_arn: the name or ARN of the secret that enables db access
+    :param statement_name: the name of the SQL statement
+    :param with_event: indicates whether to send an event to EventBridge
+    :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
+    :param poll_interval: how often in seconds to check the query status
+    :param return_sql_result: if True will return the result of an SQL statement,
+        if False (default) will return statement ID
+    :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
+        `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
+        https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
     aws_hook_class = RedshiftDataHook
     template_fields = aws_template_fields(
         "cluster_identifier",
