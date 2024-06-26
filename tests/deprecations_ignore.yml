@@ -223,8 +223,6 @@
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_last_modified_time_with_all_true_cond
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_last_modified_time_with_one_true_cond
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_no_last_modified_time
-- tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_do_push
-- tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_dont_push
 - tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
 - tests/providers/microsoft/mssql/operators/test_mssql.py::TestMsSqlOperator::test_get_hook_default
 - tests/providers/microsoft/mssql/operators/test_mssql.py::TestMsSqlOperator::test_get_hook_from_conn
