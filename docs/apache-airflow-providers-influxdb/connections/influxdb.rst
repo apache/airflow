@@ -37,6 +37,8 @@ Extra (required)
     ``org_name``: (required) `Create org <https://docs.influxdata.com/influxdb/cloud/reference/cli/influx/org/create/>`_
     name using influxdb cli or UI
 
+    ``timeout``:: (not-required) add timeout to query (default: 10000)
+
     Example "extras" field:
 
     .. code-block:: JSON
