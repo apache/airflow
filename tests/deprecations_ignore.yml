@@ -226,8 +226,6 @@
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_do_push
 - tests/providers/jdbc/operators/test_jdbc.py::TestJdbcOperator::test_execute_dont_push
 - tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
-- tests/providers/microsoft/mssql/operators/test_mssql.py::TestMsSqlOperator::test_get_hook_default
-- tests/providers/microsoft/mssql/operators/test_mssql.py::TestMsSqlOperator::test_get_hook_from_conn
 - tests/providers/microsoft/psrp/hooks/test_psrp.py::TestPsrpHook::test_invoke_cmdlet_deprecated_kwargs
 - tests/providers/mysql/operators/test_mysql.py::TestMySql::test_mysql_operator_openlineage
 - tests/providers/mysql/operators/test_mysql.py::TestMySql::test_mysql_operator_resolve_parameters_template_json_file
