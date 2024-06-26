@@ -141,17 +141,14 @@ def test_execute_openlineage_events(connection_port):
 
     dbapi_hook = MySqlHookForTests()
 
-    class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
-        def get_db_hook(self):
-            return dbapi_hook
-
     sql = """CREATE TABLE IF NOT EXISTS popular_orders_day_of_week (
         order_day_of_week VARCHAR(64) NOT NULL,
         order_placed_on   TIMESTAMP NOT NULL,
         orders_placed     INTEGER NOT NULL
     );
 FORGOT TO COMMENT"""
-    op = SQLExecuteQueryOperatorForTest(task_id="mysql-operator", sql=sql)
+    op = SQLExecuteQueryOperator(task_id="mysql-operator", sql=sql)
+    op._hook = dbapi_hook
     DB_SCHEMA_NAME = "PUBLIC"
     rows = [
         (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_day_of_week", 1, "varchar"),
