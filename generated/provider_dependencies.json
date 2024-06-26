@@ -1319,7 +1319,7 @@
       "httpx>=0.25.0",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
-      "weaviate-client>=3.24.2"
+      "weaviate-client>=4.4.0"
     ],
     "devel-deps": [],
     "plugins": [],

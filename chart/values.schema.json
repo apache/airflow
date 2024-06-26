@@ -1601,6 +1601,10 @@
                             "type": "boolean",
                             "default": true
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                        },
                         "size": {
                             "description": "Volume size for worker StatefulSet.",
                             "type": "string",
@@ -2945,6 +2949,10 @@
                             "description": "Volume size for triggerer StatefulSet.",
                             "type": "string",
                             "default": "100Gi"
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
@@ -11833,6 +11841,27 @@
                             ]
                         }
                     }
+                }
+            }
+        },
+        "persistentVolumeClaimRetentionPolicy": {
+            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
+            "type": [
+                "object",
+                "null"
+            ],
+            "default": null,
+            "additionalProperties": false,
+            "properties": {
+                "whenDeleted": {
+                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
+                    "type": "string",
+                    "default": "Retain"
+                },
+                "whenScaled": {
+                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
+                    "type": "string",
+                    "default": "Retain"
                 }
             }
         }
