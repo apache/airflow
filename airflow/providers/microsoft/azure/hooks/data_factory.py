@@ -53,6 +53,7 @@ from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_async_default_azure_credential,
     get_sync_default_azure_credential,
+    AzureCloud, AzureEndpoint
 )
 
 if TYPE_CHECKING:
@@ -156,6 +157,7 @@ class AzureDataFactoryHook(BaseHook):
     conn_name_attr: str = "azure_data_factory_conn_id"
     default_conn_name: str = "azure_data_factory_default"
     hook_name: str = "Azure Data Factory"
+    azure_cloud: AzureCloud = AzureCloud.AzureGlobal
 
     @classmethod
     @add_managed_identity_connection_widgets
@@ -172,6 +174,11 @@ class AzureDataFactoryHook(BaseHook):
                 lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
             "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
+            "cloudOperator": StringField(
+                lazy_gettext("Cloud Portal URL"),
+                widget=BS3TextFieldWidget(),
+                description="Currently Only: AzureGlobal, AzureChina, AzureUS",
+            ),
         }
 
     @classmethod
@@ -189,6 +196,21 @@ class AzureDataFactoryHook(BaseHook):
         self._conn: DataFactoryManagementClient | None = None
         self.conn_id = azure_data_factory_conn_id
         super().__init__()
+
+        def get_cloud():
+            conn = self.get_connection(self.conn_id)
+            extras = conn.extra_dejson
+
+            try:
+                operator = get_field(extras, "cloudOperator", strict=True)
+                if operator == "AzureChina":
+                    self.azure_cloud = AzureCloud.AzureChinaCloud
+                elif operator == "AzureUS":
+                    self.azure_cloud = AzureCloud.AzureUSGovernment
+            except KeyError:
+                pass
+
+        get_cloud()
 
     def get_conn(self) -> DataFactoryManagementClient:
         if self._conn is not None:
@@ -209,7 +231,10 @@ class AzureDataFactoryHook(BaseHook):
                 raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
 
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=tenant
+                client_id=conn.login,
+                client_secret=conn.password,
+                tenant_id=tenant,
+                authority=AzureEndpoint.get_login_endpoint(self.azure_cloud, False)
             )
         else:
             managed_identity_client_id = get_field(extras, "managed_identity_client_id")
@@ -218,8 +243,12 @@ class AzureDataFactoryHook(BaseHook):
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
-        self._conn = self._create_client(credential, subscription_id)
-
+        self._conn = self._create_client(
+            credential,
+            subscription_id,
+            base_url=AzureEndpoint.get_management_endpoint(self.azure_cloud),
+            credential_scopes=[f"{AzureEndpoint.get_management_endpoint(self.azure_cloud)}/.default"]
+        )
         return self._conn
 
     def refresh_conn(self) -> DataFactoryManagementClient:
@@ -247,20 +276,27 @@ class AzureDataFactoryHook(BaseHook):
         return factory_name in factories
 
     @staticmethod
-    def _create_client(credential: Credentials, subscription_id: str):
+    def _create_client(
+            credential: Credentials,
+            subscription_id: str,
+            base_url: str,
+            **kwargs: Any
+    ) -> DataFactoryManagementClient:
         return DataFactoryManagementClient(
             credential=credential,
             subscription_id=subscription_id,
+            base_url=base_url,
+            **kwargs
         )
 
     @provide_targeted_factory
     def update_factory(
-        self,
-        factory: Factory,
-        resource_group_name: str,
-        factory_name: str,
-        if_match: str | None = None,
-        **config: Any,
+            self,
+            factory: Factory,
+            resource_group_name: str,
+            factory_name: str,
+            if_match: str | None = None,
+            **config: Any,
     ) -> Factory:
         """
         Update the factory.
@@ -283,11 +319,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def create_factory(
-        self,
-        factory: Factory,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            factory: Factory,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> Factory:
         """
         Create the factory.
@@ -319,12 +355,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def get_linked_service(
-        self,
-        linked_service_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        if_none_match: str | None = None,
-        **config: Any,
+            self,
+            linked_service_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            if_none_match: str | None = None,
+            **config: Any,
     ) -> LinkedServiceResource | None:
         """
         Get the linked service.
@@ -355,12 +391,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def update_linked_service(
-        self,
-        linked_service_name: str,
-        linked_service: LinkedServiceResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            linked_service_name: str,
+            linked_service: LinkedServiceResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> LinkedServiceResource:
         """
         Update the linked service.
@@ -382,12 +418,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def create_linked_service(
-        self,
-        linked_service_name: str,
-        linked_service: LinkedServiceResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            linked_service_name: str,
+            linked_service: LinkedServiceResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> LinkedServiceResource:
         """
         Create the linked service.
@@ -409,11 +445,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def delete_linked_service(
-        self,
-        linked_service_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            linked_service_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Delete the linked service.
@@ -429,11 +465,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def get_dataset(
-        self,
-        dataset_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            dataset_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> DatasetResource | None:
         """
         Get the dataset.
@@ -457,12 +493,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def update_dataset(
-        self,
-        dataset_name: str,
-        dataset: DatasetResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            dataset_name: str,
+            dataset: DatasetResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> DatasetResource:
         """
         Update the dataset.
@@ -484,12 +520,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def create_dataset(
-        self,
-        dataset_name: str,
-        dataset: DatasetResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            dataset_name: str,
+            dataset: DatasetResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> DatasetResource:
         """
         Create the dataset.
@@ -511,11 +547,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def delete_dataset(
-        self,
-        dataset_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            dataset_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Delete the dataset.
@@ -529,12 +565,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def get_dataflow(
-        self,
-        dataflow_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        if_none_match: str | None = None,
-        **config: Any,
+            self,
+            dataflow_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            if_none_match: str | None = None,
+            **config: Any,
     ) -> DataFlowResource:
         """
         Get the dataflow.
@@ -553,10 +589,10 @@ class AzureDataFactoryHook(BaseHook):
         )
 
     def _dataflow_exists(
-        self,
-        dataflow_name: str,
-        resource_group_name: str,
-        factory_name: str,
+            self,
+            dataflow_name: str,
+            resource_group_name: str,
+            factory_name: str,
     ) -> bool:
         """Return whether the dataflow already exists."""
         dataflows = {
@@ -568,13 +604,13 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def update_dataflow(
-        self,
-        dataflow_name: str,
-        dataflow: DataFlowResource | IO,
-        resource_group_name: str,
-        factory_name: str,
-        if_match: str | None = None,
-        **config: Any,
+            self,
+            dataflow_name: str,
+            dataflow: DataFlowResource | IO,
+            resource_group_name: str,
+            factory_name: str,
+            if_match: str | None = None,
+            **config: Any,
     ) -> DataFlowResource:
         """
         Update the dataflow.
@@ -590,9 +626,9 @@ class AzureDataFactoryHook(BaseHook):
         :return: DataFlowResource.
         """
         if not self._dataflow_exists(
-            dataflow_name,
-            resource_group_name,
-            factory_name,
+                dataflow_name,
+                resource_group_name,
+                factory_name,
         ):
             raise AirflowException(f"Dataflow {dataflow_name!r} does not exist.")
 
@@ -602,13 +638,13 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def create_dataflow(
-        self,
-        dataflow_name: str,
-        dataflow: DataFlowResource,
-        resource_group_name: str,
-        factory_name: str,
-        if_match: str | None = None,
-        **config: Any,
+            self,
+            dataflow_name: str,
+            dataflow: DataFlowResource,
+            resource_group_name: str,
+            factory_name: str,
+            if_match: str | None = None,
+            **config: Any,
     ) -> DataFlowResource:
         """
         Create the dataflow.
@@ -632,11 +668,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def delete_dataflow(
-        self,
-        dataflow_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            dataflow_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Delete the dataflow.
@@ -650,11 +686,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def get_pipeline(
-        self,
-        pipeline_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            pipeline_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> PipelineResource | None:
         """
         Get the pipeline.
@@ -678,12 +714,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def update_pipeline(
-        self,
-        pipeline_name: str,
-        pipeline: PipelineResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            pipeline_name: str,
+            pipeline: PipelineResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> PipelineResource:
         """
         Update the pipeline.
@@ -705,12 +741,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def create_pipeline(
-        self,
-        pipeline_name: str,
-        pipeline: PipelineResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            pipeline_name: str,
+            pipeline: PipelineResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> PipelineResource:
         """
         Create the pipeline.
@@ -732,11 +768,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def delete_pipeline(
-        self,
-        pipeline_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            pipeline_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Delete the pipeline.
@@ -750,11 +786,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def run_pipeline(
-        self,
-        pipeline_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            pipeline_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> CreateRunResponse:
         """
         Run a pipeline.
@@ -771,11 +807,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def get_pipeline_run(
-        self,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> PipelineRun:
         """
         Get the pipeline run.
@@ -789,10 +825,10 @@ class AzureDataFactoryHook(BaseHook):
         return self.get_conn().pipeline_runs.get(resource_group_name, factory_name, run_id, **config)
 
     def get_pipeline_run_status(
-        self,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
+            self,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
     ) -> str:
         """
         Get a pipeline run's current status.
@@ -809,13 +845,13 @@ class AzureDataFactoryHook(BaseHook):
         return pipeline_run_status
 
     def wait_for_pipeline_run_status(
-        self,
-        run_id: str,
-        expected_statuses: str | set[str],
-        resource_group_name: str,
-        factory_name: str,
-        check_interval: int = 60,
-        timeout: int = 60 * 60 * 24 * 7,
+            self,
+            run_id: str,
+            expected_statuses: str | set[str],
+            resource_group_name: str,
+            factory_name: str,
+            check_interval: int = 60,
+            timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
         Wait for a pipeline run to match an expected status.
@@ -834,8 +870,8 @@ class AzureDataFactoryHook(BaseHook):
         start_time = time.monotonic()
 
         while (
-            pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES
-            and pipeline_run_status not in expected_statuses
+                pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES
+                and pipeline_run_status not in expected_statuses
         ):
             # Check if the pipeline-run duration has exceeded the ``timeout`` configured.
             if start_time + timeout < time.monotonic():
@@ -852,11 +888,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def cancel_pipeline_run(
-        self,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Cancel the pipeline run.
@@ -870,11 +906,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def get_trigger(
-        self,
-        trigger_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> TriggerResource | None:
         """
         Get the trigger.
@@ -898,13 +934,13 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def update_trigger(
-        self,
-        trigger_name: str,
-        trigger: TriggerResource,
-        resource_group_name: str,
-        factory_name: str,
-        if_match: str | None = None,
-        **config: Any,
+            self,
+            trigger_name: str,
+            trigger: TriggerResource,
+            resource_group_name: str,
+            factory_name: str,
+            if_match: str | None = None,
+            **config: Any,
     ) -> TriggerResource:
         """
         Update the trigger.
@@ -928,12 +964,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def create_trigger(
-        self,
-        trigger_name: str,
-        trigger: TriggerResource,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            trigger: TriggerResource,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> TriggerResource:
         """
         Create the trigger.
@@ -955,11 +991,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def delete_trigger(
-        self,
-        trigger_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Delete the trigger.
@@ -973,11 +1009,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def start_trigger(
-        self,
-        trigger_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> LROPoller:
         """
         Start the trigger.
@@ -992,11 +1028,11 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def stop_trigger(
-        self,
-        trigger_name: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> LROPoller:
         """
         Stop the trigger.
@@ -1011,12 +1047,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def rerun_trigger(
-        self,
-        trigger_name: str,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Rerun the trigger.
@@ -1033,12 +1069,12 @@ class AzureDataFactoryHook(BaseHook):
 
     @provide_targeted_factory
     def cancel_trigger(
-        self,
-        trigger_name: str,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            trigger_name: str,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Cancel the trigger.
@@ -1149,7 +1185,10 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
                 raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
 
             credential = AsyncClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=tenant
+                client_id=conn.login,
+                client_secret=conn.password,
+                tenant_id=tenant,
+                authority=AzureEndpoint.get_login_endpoint(self.azure_cloud, False)
             )
         else:
             managed_identity_client_id = get_field(extras, "managed_identity_client_id")
@@ -1162,6 +1201,8 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         self._async_conn = AsyncDataFactoryManagementClient(
             credential=credential,
             subscription_id=subscription_id,
+            base_url=AzureEndpoint.get_management_endpoint(self.azure_cloud),
+            credential_scopes=[f"{AzureEndpoint.get_management_endpoint(self.azure_cloud)}/.default"]
         )
 
         return self._async_conn
@@ -1172,11 +1213,11 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
 
     @provide_targeted_factory_async
     async def get_pipeline_run(
-        self,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> PipelineRun:
         """
         Connect to Azure Data Factory asynchronously to get the pipeline run details by run id.
@@ -1191,7 +1232,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         return pipeline_run
 
     async def get_adf_pipeline_run_status(
-        self, run_id: str, resource_group_name: str, factory_name: str
+            self, run_id: str, resource_group_name: str, factory_name: str
     ) -> str:
         """
         Connect to Azure Data Factory asynchronously and get the pipeline status by run_id.
@@ -1206,11 +1247,11 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
 
     @provide_targeted_factory_async
     async def cancel_pipeline_run(
-        self,
-        run_id: str,
-        resource_group_name: str,
-        factory_name: str,
-        **config: Any,
+            self,
+            run_id: str,
+            resource_group_name: str,
+            factory_name: str,
+            **config: Any,
     ) -> None:
         """
         Cancel the pipeline run.
