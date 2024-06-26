@@ -54,6 +54,8 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
+from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -367,6 +369,7 @@ class TestEcsExecutorTask:
 class TestAwsEcsExecutor:
     """Tests the AWS ECS Executor."""
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
     def test_execute(self, change_state_mock, mock_airflow_key, mock_executor):
         """Test execution from end-to-end."""
@@ -1205,8 +1208,18 @@ class TestEcsExecutorConfig:
         nested_dict = {"a": "a", "b": "b", "c": {"d": "d"}}
         assert _recursive_flatten_dict(nested_dict) == {"a": "a", "b": "b", "d": "d"}
 
+    @pytest.mark.skipif(
+        RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+        reason="Config defaults are validated against provider.yaml so this test "
+        "should only run when tests are run from sources",
+    )
     def test_validate_config_defaults(self):
-        """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS."""
+        """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS.
+
+        This test should only be run to verify configuration defaults are the same when it is run from
+        airflow sources, not when airflow is installed from packages, because airflow installed from packages
+        will not have the provider.yml file.
+        """
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         executor_path = "aws/executors/ecs"
         config_filename = curr_dir.replace("tests", "airflow").replace(executor_path, "provider.yaml")

@@ -29,9 +29,11 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1715384437
+source-date-epoch: 1718604460
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.20.0
+  - 10.19.0
   - 10.18.0
   - 10.17.0
   - 10.16.0
@@ -92,6 +94,7 @@ dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
+  - dill>=0.2.3
   # When upgrading the major version of gcloud-aio-auth we want to make sure to
   # 1. use at least version 5.2, which uses offset-aware datetime internally
   # 2. override Token's new `refresh` method instead of `acquire_access_token`, which allows us to avoid
@@ -102,18 +105,21 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
-  - google-ads>=23.1.0
-  - google-analytics-admin
+  - google-ads>=24.1.0
+  - google-analytics-admin>=0.9.0
   # Google-api-core 2.16.0 back-compat issue:
   # - https://github.com/googleapis/python-api-core/issues/576
   # - https://github.com/apache/airflow/issues/39394
   - google-api-core>=2.11.0,!=2.16.0,!=2.18.0
-  - google-api-python-client>=1.6.0
-  - google-auth>=1.0.0
+  - google-api-python-client>=2.0.2
+  - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.42.1
+  - google-cloud-aiplatform>=1.54.0
   - google-cloud-automl>=2.12.0
-  - google-cloud-bigquery>=3.0.1
+  # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
+  # which has led to backward compatibility issues
+  # - https://github.com/apache/airflow/issues/39541
+  - google-cloud-bigquery<3.21.0,>=3.4.0
   - google-cloud-bigquery-datatransfer>=3.13.0
   - google-cloud-bigtable>=2.17.0
   - google-cloud-build>=3.22.0
@@ -146,25 +152,27 @@ dependencies:
   - google-cloud-videointelligence>=2.11.0
   - google-cloud-vision>=3.4.0
   - google-cloud-workflows>=1.10.0
-  - google-cloud-run>=0.9.0
+  - google-cloud-run>=0.10.0
   - google-cloud-batch>=0.13.0
   - grpcio-gcp>=0.2.2
-  - httpx
+  - httpx>=0.25.0
   - json-merge-patch>=0.2
-  - looker-sdk>=22.2.0
-  - pandas-gbq
+  - looker-sdk>=22.4.0
+  - pandas-gbq>=0.7.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
   # In addition FAB also limit sqlalchemy to < 2.0
-  - pandas>=1.2.5,<2.2
+  - pandas>=2.1.2,<2.2;python_version>="3.9"
+  - pandas>=1.5.3,<2.2;python_version<"3.9"
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
-  - PyOpenSSL
+  - python-slugify>=7.0.0
+  - PyOpenSSL>=23.0.0
   - sqlalchemy-bigquery>=1.2.1
   - sqlalchemy-spanner>=1.6.2
-  - python-slugify>=5.0
+  - tenacity>=8.1.0
 
 additional-extras:
   - name: apache.beam
@@ -1218,6 +1226,7 @@ extra-links:
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
+  - airflow.providers.google.cloud.links.dataflow.DataflowPipelineLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreImportExportLink
   - airflow.providers.google.cloud.links.datastore.CloudDatastoreEntitiesLink
   - airflow.providers.google.cloud.links.bigtable.BigtableInstanceLink
@@ -1271,6 +1280,12 @@ extra-links:
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
   - airflow.providers.google.marketing_platform.links.analytics_admin.GoogleAnalyticsPropertyLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyDatasetLink
+  - airflow.providers.google.cloud.links.translate.TranslationDatasetListLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
+  - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

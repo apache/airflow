@@ -20,6 +20,14 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
 2.0.0
 .....
 
@@ -64,6 +72,7 @@ Misc
 * ``Simplify 'airflow_version' imports (#39497)``
 * ``CreatePodIndexOperator fix defaults of pod_type and metric parameters (#39365)``
 * ``Reapply templates for all providers (#39554)``
+* ``Fix the argument type of input_vectors in pinecone upsert (#39688)``
 
 .. Review and move the new changes to one of the sections above:
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
@@ -72,6 +81,7 @@ Misc
    * ``Add comment about versions updated by release manager (#37488)``
    * ``D401 fixes in Pinecone provider (#37270)``
    * ``Prepare docs 1st wave May 2024 (#39328)``
+   * ``Prepare docs 2nd wave May 2024 (#39565)``
 
 1.1.2
 .....

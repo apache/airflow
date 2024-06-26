@@ -36,11 +36,12 @@ from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
-from airflow.triggers.testing import SuccessTrigger
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -1989,16 +1990,21 @@ def test_schedule_tis_map_index(dag_maker, session):
 
 def test_schedule_tis_start_trigger(dag_maker, session):
     """
-    Test that an operator with _start_trigger and _next_method set can be directly
-    deferred during scheduling.
+    Test that an operator with start_trigger_args set can be directly deferred during scheduling.
     """
-    trigger = SuccessTrigger()
 
     class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs=None,
+            next_method="execute_complete",
+            timeout=None,
+        )
+        start_from_trigger = True
+
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.start_trigger = trigger
-            self.next_method = "execute_complete"
+            self.start_trigger_args.trigger_kwargs = {}
 
         def execute_complete(self):
             pass
@@ -2012,6 +2018,29 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     assert ti.state is None
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
+
+
+def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
+    """
+    When empty operator is not actually run, then we need to increment the try_number,
+    since ordinarily it's incremented when scheduled, but empty operator is generally not scheduled.
+    """
+
+    with dag_maker(session=session):
+        BashOperator(task_id="real_task", bash_command="echo 1")
+        EmptyOperator(task_id="empty_task")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    session.commit()
+    tis = dr.task_instances
+    dr.schedule_tis(tis, session=session)
+    session.commit()
+    session.expunge_all()
+    tis = dr.get_task_instances(session=session)
+    real_ti = next(x for x in tis if x.task_id == "real_task")
+    empty_ti = next(x for x in tis if x.task_id == "empty_task")
+    assert real_ti.try_number == 1
+    assert empty_ti.try_number == 1
 
 
 def test_mapped_expand_kwargs(dag_maker):

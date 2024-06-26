@@ -143,10 +143,15 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 Triggering Deferral from Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to defer your task directly to the triggerer without going into the worker, you can add the class level attributes ``start_trigger`` and ``next_method`` to your deferrable operator.
+ .. versionadded:: 2.10.0
 
-* ``start_trigger``: An instance of a trigger you want to defer to. It will be serialized into the database.
+If you want to defer your task directly to the triggerer without going into the worker, you can set class level attribute ``start_with_trigger`` to ``True`` and add a class level attribute ``start_trigger_args`` with an ``StartTriggerArgs`` object with the following 4 attributes to your deferrable operator:
+
+* ``trigger_cls``: An importable path to your trigger class.
+* ``trigger_kwargs``: Keyword arguments to pass to the ``trigger_cls`` when it's initialized.
 * ``next_method``: The method name on your operator that you want Airflow to call when it resumes.
+* ``next_kwargs``: Additional keyword arguments to pass to the ``next_method`` when it is called.
+* ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
 
 This is particularly useful when deferring is the only thing the ``execute`` method does. Here's a basic refinement of the previous example.
@@ -156,23 +161,29 @@ This is particularly useful when deferring is the only thing the ``execute`` met
     from datetime import timedelta
     from typing import Any
 
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.sensors.base import BaseSensorOperator
-    from airflow.triggers.temporal import TimeDeltaTrigger
     from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
-        start_trigger = TimeDeltaTrigger(timedelta(hours=1))
-        next_method = "execute_complete"
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_kwargs={"moment": timedelta(hours=1)},
+            next_method="execute_complete",
+            next_kwargs=None,
+            timeout=None,
+        )
+        start_from_trigger = True
 
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
 
-``start_trigger`` and ``next_method`` can also be set at the instance level for more flexible configuration.
+``start_from_trigger`` and ``trigger_kwargs`` can also be modified at the instance level for more flexible configuration.
 
 .. warning::
-    Dynamic task mapping is not supported when ``start_trigger`` and ``next_method`` are assigned in instance level.
+    Dynamic task mapping is not supported when ``trigger_kwargs`` is modified at instance level.
 
 .. code-block:: python
 
@@ -184,11 +195,19 @@ This is particularly useful when deferring is the only thing the ``execute`` met
     from airflow.utils.context import Context
 
 
-    class WaitOneHourSensor(BaseSensorOperator):
+    class WaitTwoHourSensor(BaseSensorOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_kwargs={},
+            next_method="execute_complete",
+            next_kwargs=None,
+            timeout=None,
+        )
+
         def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
             super().__init__(*args, **kwargs)
-            self.start_trigger = TimeDeltaTrigger(timedelta(hours=1))
-            self.next_method = "execute_complete"
+            self.start_trigger_args.trigger_kwargs = {"moment": timedelta(hours=1)}
+            self.start_from_trigger = True
 
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.

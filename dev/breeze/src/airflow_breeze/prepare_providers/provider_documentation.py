@@ -64,7 +64,6 @@ AUTOMATICALLY_GENERATED_CONTENT = (
 # https://github.com/pre-commit/pygrep-hooks/blob/main/.pre-commit-hooks.yaml
 BACKTICKS_CHECK = re.compile(r"^(?! {4}).*(^| )`[^`]+`([^_]|$)", re.MULTILINE)
 
-
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -683,7 +682,12 @@ def update_release_notes(
             if non_interactive:
                 answer = Answer.YES
             else:
-                answer = user_confirm(f"Provider {provider_package_id} marked for release. Proceed?")
+                provider_details = get_provider_details(provider_package_id)
+                current_release_version = provider_details.versions[0]
+                answer = user_confirm(
+                    f"Provider {provider_package_id} with "
+                    f"version: {current_release_version} marked for release. Proceed?"
+                )
             if answer == Answer.NO:
                 get_console().print(
                     f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
@@ -721,6 +725,42 @@ def update_release_notes(
             )
     else:
         _update_source_date_epoch_in_provider_yaml(provider_package_id)
+
+    provider_details = get_provider_details(provider_package_id)
+    current_release_version = provider_details.versions[0]
+    if not non_interactive:
+        answer = user_confirm(
+            f"Do you want to leave the version for {provider_package_id} with version: "
+            f"{current_release_version} as is?"
+        )
+    else:
+        answer = Answer.YES
+    if answer == Answer.NO:
+        type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
+        if type_of_change == TypeOfChange.SKIP:
+            raise PrepareReleaseDocsUserSkippedException()
+        get_console().print(
+            f"[info]Provider {provider_package_id} has been classified as:[/]\n\n"
+            f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
+        )
+        get_console().print()
+        if type_of_change == TypeOfChange.DOCUMENTATION:
+            _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
+        elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+            with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
+                provider_package_id=provider_package_id, type_of_change=type_of_change
+            )
+            _update_source_date_epoch_in_provider_yaml(provider_package_id)
+            proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
+                provider_package_id=provider_package_id,
+                base_branch=base_branch,
+                reapply_templates_only=reapply_templates_only,
+                only_min_version_update=only_min_version_update,
+            )
+    else:
+        get_console().print(
+            f"[info] Proceeding with provider: {provider_package_id} version as {current_release_version}"
+        )
     provider_details = get_provider_details(provider_package_id)
     _verify_changelog_exists(provider_details.provider_id)
     jinja_context = get_provider_documentation_jinja_context(

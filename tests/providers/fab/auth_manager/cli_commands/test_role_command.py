@@ -25,11 +25,16 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.providers.fab.auth_manager.cli_commands import role_command
-from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.cli_commands import role_command
+    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+
 from airflow.security import permissions
 
 pytestmark = pytest.mark.db_test
+
 
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.models import Role

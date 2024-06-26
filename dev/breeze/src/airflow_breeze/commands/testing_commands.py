@@ -32,12 +32,14 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
     option_image_name,
     option_image_tag_for_running,
     option_include_success_outputs,
     option_integration,
+    option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
     option_parallelism,
@@ -151,14 +153,11 @@ def _run_test(
     shell_params: ShellParams,
     extra_pytest_args: tuple,
     python_version: str,
-    db_reset: bool,
     output: Output | None,
     test_timeout: int,
     output_outside_the_group: bool = False,
     skip_docker_compose_down: bool = False,
 ) -> tuple[int, str]:
-    shell_params.run_tests = True
-    shell_params.db_reset = db_reset
     if "[" in shell_params.test_type and not shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
@@ -203,9 +202,13 @@ def _run_test(
             python_version=python_version,
             parallel_test_types_list=shell_params.parallel_test_types_list,
             helm_test_package=None,
+            keep_env_variables=shell_params.keep_env_variables,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
+    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
+    # Which might be the case if we are ignoring some providers during compatibility checks
+    run_cmd = [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
@@ -315,7 +318,6 @@ def _run_tests_in_pool(
                         "shell_params": shell_params.clone_with_test(test_type=test_type),
                         "extra_pytest_args": extra_pytest_args,
                         "python_version": shell_params.python,
-                        "db_reset": db_reset,
                         "output": outputs[index],
                         "test_timeout": test_timeout,
                         "skip_docker_compose_down": skip_docker_compose_down,
@@ -333,6 +335,17 @@ def _run_tests_in_pool(
         summarize_on_ci=SummarizeAfter.FAILURE,
         summary_start_regexp=r".*= FAILURES.*|.*= ERRORS.*",
     )
+
+
+def pull_images_for_docker_compose(shell_params: ShellParams):
+    get_console().print("Pulling images once before parallel run\n")
+    env = shell_params.env_variables_for_docker_commands
+    pull_cmd = [
+        "docker",
+        "compose",
+        "pull",
+    ]
+    run_command(pull_cmd, output=None, check=False, env=env)
 
 
 def run_tests_in_parallel(
@@ -357,6 +370,7 @@ def run_tests_in_parallel(
     get_console().print(f"[info]Skip docker-compose down: {skip_docker_compose_down}")
     get_console().print("[info]Shell params:")
     get_console().print(shell_params.__dict__)
+    pull_images_for_docker_compose(shell_params)
     _run_tests_in_pool(
         tests_to_run=shell_params.parallel_test_types_list,
         parallelism=parallelism,
@@ -430,7 +444,7 @@ option_skip_provider_tests = click.option(
 )
 option_skip_providers = click.option(
     "--skip-providers",
-    help="Coma separated list of providers to skip when running tests",
+    help="Space-separated list of provider ids to skip when running tests",
     type=str,
     default="",
     envvar="SKIP_PROVIDERS",
@@ -496,12 +510,14 @@ option_force_sa_warnings = click.option(
 @option_enable_coverage
 @option_excluded_parallel_test_types
 @option_force_sa_warnings
+@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_image_tag_for_running
 @option_include_success_outputs
 @option_integration
 @option_install_airflow_with_constraints
+@option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_package_format
@@ -552,10 +568,12 @@ def command_for_tests(**kwargs):
 @option_enable_coverage
 @option_excluded_parallel_test_types
 @option_forward_credentials
+@option_force_lowest_dependencies
 @option_github_repository
 @option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
+@option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_package_format
@@ -610,10 +628,12 @@ def command_for_db_tests(**kwargs):
 @option_enable_coverage
 @option_excluded_parallel_test_types
 @option_forward_credentials
+@option_force_lowest_dependencies
 @option_github_repository
 @option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
+@option_keep_env_variables
 @option_mount_sources
 @option_package_format
 @option_parallel_test_types
@@ -662,11 +682,13 @@ def _run_test_command(
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
     forward_credentials: bool,
+    force_lowest_dependencies: bool,
     github_repository: str,
     image_tag: str | None,
     include_success_outputs: bool,
     install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
+    keep_env_variables: bool,
     mount_sources: str,
     parallel_test_types: str,
     parallelism: int,
@@ -711,12 +733,14 @@ def _run_test_command(
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
         force_sa_warnings=force_sa_warnings,
+        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
         image_tag=image_tag,
         integration=integration,
         install_airflow_with_constraints=install_airflow_with_constraints,
+        keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         package_format=package_format,
@@ -736,6 +760,8 @@ def _run_test_command(
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
         use_xdist=use_xdist,
+        run_tests=True,
+        db_reset=db_reset,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
@@ -749,7 +775,7 @@ def _run_test_command(
     if skip_providers:
         ignored_path_list = [
             f"--ignore=tests/providers/{provider_id.replace('.','/')}"
-            for provider_id in skip_providers.split(",")
+            for provider_id in skip_providers.split(" ")
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:
@@ -782,7 +808,6 @@ def _run_test_command(
             shell_params=shell_params,
             extra_pytest_args=extra_pytest_args,
             python_version=python,
-            db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
             output_outside_the_group=True,
@@ -850,6 +875,8 @@ def integration_tests(
         skip_provider_tests=skip_provider_tests,
         test_type="Integration",
         force_sa_warnings=force_sa_warnings,
+        run_tests=True,
+        db_reset=db_reset,
     )
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -858,7 +885,6 @@ def integration_tests(
         shell_params=shell_params,
         extra_pytest_args=extra_pytest_args,
         python_version=python,
-        db_reset=db_reset,
         output=None,
         test_timeout=test_timeout,
         output_outside_the_group=True,
@@ -927,6 +953,7 @@ def helm_tests(
         parallel_test_types_list=[],
         python_version=shell_params.python,
         helm_test_package=helm_test_package,
+        keep_env_variables=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

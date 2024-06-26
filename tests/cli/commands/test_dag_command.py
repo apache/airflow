@@ -874,7 +874,11 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -903,7 +907,13 @@ class TestCliDags:
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
-                mock.call().test(execution_date=mock.ANY, run_conf=None, session=mock.ANY),
+                mock.call().test(
+                    execution_date=mock.ANY,
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
+                ),
             ]
         )
 
@@ -927,7 +937,9 @@ class TestCliDags:
                 mock.call().test(
                     execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
+                    use_executor=False,
                     session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -947,7 +959,11 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -1024,3 +1040,24 @@ class TestCliDags:
             assert mock_run.call_args_list[0] == ((trigger,), {})
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
+
+    @mock.patch("airflow.models.taskinstance.TaskInstance._execute_task_with_callbacks")
+    def test_dag_test_with_mark_success(self, mock__execute_task_with_callbacks):
+        """
+        option `--mark-success-pattern` should mark matching tasks as success without executing them.
+        """
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "test",
+                "example_sensor_decorator",
+                datetime(2024, 1, 1, 0, 0, 0).isoformat(),
+                "--mark-success-pattern",
+                "wait_for_upstream",
+            ]
+        )
+        dag_command.dag_test(cli_args)
+
+        # only second operator was actually executed, first one was marked as success
+        assert len(mock__execute_task_with_callbacks.call_args_list) == 1
+        assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"

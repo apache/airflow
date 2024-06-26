@@ -34,6 +34,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
 
 T = TypeVar("T")
@@ -127,6 +128,7 @@ class SnowflakeHook(DbApiHook):
                         "authenticator": "snowflake oauth",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
+                        "client_request_mfa_token": "client request mfa token",
                     },
                     indent=1,
                 ),
@@ -154,6 +156,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
+        self.client_request_mfa_token = kwargs.pop("client_request_mfa_token", None)
         self.query_ids: list[str] = []
 
     def _get_field(self, extra_dict, field_name):
@@ -193,6 +196,7 @@ class SnowflakeHook(DbApiHook):
         role = self._get_field(extra_dict, "role") or ""
         insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
         schema = conn.schema or ""
+        client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
 
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
@@ -214,6 +218,9 @@ class SnowflakeHook(DbApiHook):
         }
         if insecure_mode:
             conn_config["insecure_mode"] = insecure_mode
+
+        if client_request_mfa_token:
+            conn_config["client_request_mfa_token"] = client_request_mfa_token
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private key.
         # If private_key_content is specified in the extra json, use it as a private key.
@@ -279,7 +286,9 @@ class SnowflakeHook(DbApiHook):
             **{
                 k: v
                 for k, v in conn_params.items()
-                if v and k not in ["session_parameters", "insecure_mode", "private_key"]
+                if v
+                and k
+                not in ["session_parameters", "insecure_mode", "private_key", "client_request_mfa_token"]
             }
         )
 
@@ -462,9 +471,7 @@ class SnowflakeHook(DbApiHook):
     def get_openlineage_default_schema(self) -> str | None:
         return self._get_conn_params["schema"]
 
-    def _get_openlineage_authority(self, _) -> str:
-        from openlineage.common.provider.snowflake import fix_snowflake_sqlalchemy_uri
-
+    def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())
         return urlparse(uri).hostname
 
@@ -474,10 +481,10 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
-        connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
-
         if self.query_ids:
+            self.log.debug("openlineage: getting connection to get database info")
+            connection = self.get_connection(getattr(self, self.conn_name_attr))
+            namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
             return OperatorLineage(
                 run_facets={
                     "externalQuery": ExternalQueryRunFacet(

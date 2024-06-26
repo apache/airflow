@@ -22,9 +22,11 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 state: ready
-source-date-epoch: 1715384415
+source-date-epoch: 1718603992
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.5.2
+  - 3.5.1
   - 3.5.0
   - 3.4.1
   - 3.4.0
@@ -43,7 +45,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - cloudant>=2.0
+  - cloudant>=2.13.0
 
 integrations:
   - integration-name: IBM Cloudant

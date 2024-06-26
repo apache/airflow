@@ -22,9 +22,11 @@ description: |
     `Apache Kylin <https://kylin.apache.org/>`__
 
 state: ready
-source-date-epoch: 1715384404
+source-date-epoch: 1718603957
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.6.2
+  - 3.6.1
   - 3.6.0
   - 3.5.0
   - 3.4.0
@@ -43,7 +45,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - kylinpy>=2.6
+  - kylinpy>=2.7.0
 
 integrations:
   - integration-name: Apache Kylin

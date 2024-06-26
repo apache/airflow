@@ -29,6 +29,7 @@ import sys
 import warnings
 from typing import TYPE_CHECKING
 
+import re2
 from sqlalchemy import delete, select
 
 from airflow import settings
@@ -605,9 +606,21 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
+    use_executor = args.use_executor
+
+    mark_success_pattern = (
+        re2.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
+    )
+
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
         dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
+    dr: DagRun = dag.test(
+        execution_date=execution_date,
+        run_conf=run_conf,
+        use_executor=use_executor,
+        mark_success_pattern=mark_success_pattern,
+        session=session,
+    )
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun

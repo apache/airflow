@@ -35,6 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.6.0
+.....
+
+Latest change: 2024-06-17
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`a1f9b7de28 <https://github.com/apache/airflow/commit/a1f9b7de28a75d1a401bb0053e7b9b703ea88fbb>`_  2024-06-14   ``Databricks: stop including user names in 'list_jobs' (#40178)``
+`68bd42a7ff <https://github.com/apache/airflow/commit/68bd42a7ffc3d2828b1ac4102e65944429d34012>`_  2024-06-04   ``Add DatabricksTaskOperator (#40013)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`f0ea079594 <https://github.com/apache/airflow/commit/f0ea0795945b0344d5d4a958f6646cf6dab47abb>`_  2024-05-30   ``Lower log levels from INFO to DEBUG to reduce log verbosity - Databricks provider auth (#39941)``
+`2ecf7fa07d <https://github.com/apache/airflow/commit/2ecf7fa07d6d681c73ae4831801f9d98db298d89>`_  2024-05-30   ``Add DatabricksWorkflowTaskGroup (#39771)``
+=================================================================================================  ===========  ===================================================================================================
+
+6.5.0
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`f18e6340d8 <https://github.com/apache/airflow/commit/f18e6340d89f9fb18850c1340434064276a95c54>`_  2024-05-21   ``Better typing for BaseOperator 'defer' (#39742)``
+`1e4663f34c <https://github.com/apache/airflow/commit/1e4663f34c2fb42b87cf75e4776650620eb2baa4>`_  2024-05-14   ``add deferrable support to 'DatabricksNotebookOperator' (#39295)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`2d103e115c <https://github.com/apache/airflow/commit/2d103e115c9951ce2bccb6b7ffa4fbd7ff269ef3>`_  2024-05-03   ``get all failed tasks errors in when exception raised in DatabricksCreateJobsOperator (#39354)``
+=================================================================================================  ===========  =================================================================================================
+
 6.4.0
 .....
 
@@ -43,6 +76,7 @@ Latest change: 2024-05-01
 =================================================================================================  ===========  ==================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `42dbccaac2 <https://github.com/apache/airflow/commit/42dbccaac26671dc2ec7891da9a077a6257bd933>`_  2024-05-01   ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
 `7683344c9c <https://github.com/apache/airflow/commit/7683344c9cb4750d5d3eaabee74893a902d849dc>`_  2024-04-26   ``Add 'DatabricksNotebookOperator' (#39178)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``

@@ -35,14 +35,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.0
+.....
+
+Latest change: 2024-06-04
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`83c118413c <https://github.com/apache/airflow/commit/83c118413cef8c140276489b408c4b46ea0a30b5>`_  2024-06-04   ``Add 'retry_from_failure' parameter to DbtCloudRunJobOperator (#38868)``
+`5d227860ad <https://github.com/apache/airflow/commit/5d227860ad38db8afd724fb9d3d9607c9888683e>`_  2024-06-04   ``Fix 'DbtCloudRunJobOperator' to Use Correct Status Parameters for 'reuse_existing_run' (#40048)``
+=================================================================================================  ===========  ===================================================================================================
+
+3.8.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`3938f71dfa <https://github.com/apache/airflow/commit/3938f71dfae21c84a3518625543a28ad02edf641>`_  2024-05-08   ``Scheduler to handle incrementing of try_number (#39336)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`7550a11f1d <https://github.com/apache/airflow/commit/7550a11f1d094b768942f28698b87c4f69fad7f5>`_  2024-05-07   ``Add (optional) dependency between dbt-cloud and openlineage providers (#39366)``
+`c528090335 <https://github.com/apache/airflow/commit/c528090335c7063cf4112a59ba8cc3353364e8ce>`_  2024-05-06   ``Validate dbt 'cause' field to be less than 255 characters (#38896)``
+=================================================================================================  ===========  ==================================================================================
+
 3.8.0
 .....
 
-Latest change: 2024-04-30
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `d4bdffc45c <https://github.com/apache/airflow/commit/d4bdffc45cd2e55783bba1e7442c346aef7ca573>`_  2024-04-30   ``migrate to dbt v3 api for project endpoints (#39214)``
 `79b5443d40 <https://github.com/apache/airflow/commit/79b5443d40545d16f219f4f7dc260257fdf45bbd>`_  2024-04-30   ``fix(dbt): fix wrong payload set when reuse_existing_run set to True in DbtCloudRunJobOperator (#39271)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``

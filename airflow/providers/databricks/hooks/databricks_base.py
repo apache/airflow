@@ -47,17 +47,13 @@ from tenacity import (
 )
 
 from airflow import __version__
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
 
 if TYPE_CHECKING:
     from airflow.models import Connection
 
-# https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
-# https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
-AZURE_DEFAULT_AD_ENDPOINT = "https://login.microsoftonline.com"
-AZURE_TOKEN_SERVICE_URL = "{}/{}/oauth2/token"
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
 AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
@@ -301,46 +297,29 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
+            from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+
             for attempt in self._get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        params = {
-                            "api-version": "2018-02-01",
-                            "resource": resource,
-                        }
-                        resp = requests.get(
-                            AZURE_METADATA_SERVICE_TOKEN_URL,
-                            params=params,
-                            headers={**self.user_agent_header, "Metadata": "true"},
-                            timeout=self.token_timeout_seconds,
-                        )
+                        token = ManagedIdentityCredential().get_token(f"{resource}/.default")
                     else:
-                        tenant_id = self.databricks_conn.extra_dejson["azure_tenant_id"]
-                        data = {
-                            "grant_type": "client_credentials",
-                            "client_id": self.databricks_conn.login,
-                            "resource": resource,
-                            "client_secret": self.databricks_conn.password,
-                        }
-                        azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
-                            "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
+                        credential = ClientSecretCredential(
+                            client_id=self.databricks_conn.login,
+                            client_secret=self.databricks_conn.password,
+                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         )
-                        resp = requests.post(
-                            AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
-                            data=data,
-                            headers={
-                                **self.user_agent_header,
-                                "Content-Type": "application/x-www-form-urlencoded",
-                            },
-                            timeout=self.token_timeout_seconds,
-                        )
-
-                    resp.raise_for_status()
-                    jsn = resp.json()
-
+                        token = credential.get_token(f"{resource}/.default")
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
@@ -362,47 +341,32 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
+            from azure.identity.aio import (
+                ClientSecretCredential as AsyncClientSecretCredential,
+                ManagedIdentityCredential as AsyncManagedIdentityCredential,
+            )
+
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-                        params = {
-                            "api-version": "2018-02-01",
-                            "resource": resource,
-                        }
-                        async with self._session.get(
-                            url=AZURE_METADATA_SERVICE_TOKEN_URL,
-                            params=params,
-                            headers={**self.user_agent_header, "Metadata": "true"},
-                            timeout=self.token_timeout_seconds,
-                        ) as resp:
-                            resp.raise_for_status()
-                            jsn = await resp.json()
+                        token = await AsyncManagedIdentityCredential().get_token(f"{resource}/.default")
                     else:
-                        tenant_id = self.databricks_conn.extra_dejson["azure_tenant_id"]
-                        data = {
-                            "grant_type": "client_credentials",
-                            "client_id": self.databricks_conn.login,
-                            "resource": resource,
-                            "client_secret": self.databricks_conn.password,
-                        }
-                        azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
-                            "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
+                        credential = AsyncClientSecretCredential(
+                            client_id=self.databricks_conn.login,
+                            client_secret=self.databricks_conn.password,
+                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         )
-                        async with self._session.post(
-                            url=AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
-                            data=data,
-                            headers={
-                                **self.user_agent_header,
-                                "Content-Type": "application/x-www-form-urlencoded",
-                            },
-                            timeout=self.token_timeout_seconds,
-                        ) as resp:
-                            resp.raise_for_status()
-                            jsn = await resp.json()
-
+                        token = await credential.get_token(f"{resource}/.default")
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
                     self._is_oauth_token_valid(jsn)
                     self.oauth_tokens[resource] = jsn
                     break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except aiohttp.ClientResponseError as err:
@@ -499,21 +463,21 @@ class BaseDatabricksHook(BaseHook):
             )
             return self.databricks_conn.extra_dejson["token"]
         elif not self.databricks_conn.login and self.databricks_conn.password:
-            self.log.info("Using token auth.")
+            self.log.debug("Using token auth.")
             return self.databricks_conn.password
         elif "azure_tenant_id" in self.databricks_conn.extra_dejson:
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")
-            self.log.info("Using AAD Token for SPN.")
+            self.log.debug("Using AAD Token for SPN.")
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-            self.log.info("Using AAD Token for managed identity.")
+            self.log.debug("Using AAD Token for managed identity.")
             self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
-            self.log.info("Using Service Principal Token.")
+            self.log.debug("Using Service Principal Token.")
             return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
@@ -527,21 +491,21 @@ class BaseDatabricksHook(BaseHook):
             )
             return self.databricks_conn.extra_dejson["token"]
         elif not self.databricks_conn.login and self.databricks_conn.password:
-            self.log.info("Using token auth.")
+            self.log.debug("Using token auth.")
             return self.databricks_conn.password
         elif "azure_tenant_id" in self.databricks_conn.extra_dejson:
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")
-            self.log.info("Using AAD Token for SPN.")
+            self.log.debug("Using AAD Token for SPN.")
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
-            self.log.info("Using AAD Token for managed identity.")
+            self.log.debug("Using AAD Token for managed identity.")
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
-            self.log.info("Using Service Principal Token.")
+            self.log.debug("Using Service Principal Token.")
             return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")

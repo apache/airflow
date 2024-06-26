@@ -33,7 +33,7 @@ you are developing your own operators and DAGs.
 
 This - seemingly unsolvable - puzzle is solved by having pinned constraints files.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pinned constraint files
 -----------------------
@@ -181,13 +181,13 @@ or dependencies that are necessary to enable the feature in editable build.
 airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
 apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
-cncf.kubernetes, cohere, common.io, common.sql, databricks, datadog, dbt.cloud, dingding, discord,
-docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc, hashicorp, http, imap,
-influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
-mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, pagerduty,
-papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce, samba, segment,
-sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular, telegram,
-teradata, trino, vertica, weaviate, yandex, zendesk
+cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
+dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
+microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
+oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
+samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular,
+telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 
   .. END PROVIDER EXTRAS HERE
 

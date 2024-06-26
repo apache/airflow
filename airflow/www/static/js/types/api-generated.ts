@@ -139,6 +139,44 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
+    /**
+     * Get task dependencies blocking task from getting scheduled.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_task_instance_dependencies"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
+    /**
+     * Get task dependencies blocking task from getting scheduled.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_mapped_task_instance_dependencies"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+  };
   "/dags/{dag_id}/updateTaskInstancesState": {
     /** Updates the state for multiple task instances simultaneously. */
     post: operations["post_set_task_instances_state"];
@@ -436,6 +474,8 @@ export interface paths {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
       };
     };
   };
@@ -1078,6 +1118,12 @@ export interface components {
        * *New in version 2.3.0*
        */
       next_dagrun_create_after?: string | null;
+      /**
+       * @description (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+       *
+       * *New in version 2.9.0*
+       */
+      max_consecutive_failed_dag_runs?: number | null;
     };
     /**
      * @description Collection of DAGs.
@@ -1394,6 +1440,13 @@ export interface components {
       created_date?: string;
       triggerer_id?: number | null;
     } | null;
+    TaskFailedDependency: {
+      name?: string;
+      reason?: string;
+    };
+    TaskInstanceDependencyCollection: {
+      dependencies?: components["schemas"]["TaskFailedDependency"][];
+    };
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1446,6 +1499,12 @@ export interface components {
       /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
       queued_when?: string | null;
       pid?: number | null;
+      /**
+       * @description Executor the task is configured to run on or None (which indicates the default executor)
+       *
+       * *New in version 2.10.0*
+       */
+      executor?: string | null;
       executor_config?: string;
       sla_miss?: components["schemas"]["SLAMiss"];
       /**
@@ -1637,6 +1696,7 @@ export interface components {
       wait_for_downstream?: boolean;
       retries?: number;
       queue?: string | null;
+      executor?: string | null;
       pool?: string;
       pool_slots?: number;
       execution_timeout?: components["schemas"]["TimeDelta"];
@@ -1649,6 +1709,12 @@ export interface components {
       template_fields?: string[];
       sub_dag?: components["schemas"]["DAG"];
       downstream_task_ids?: string[];
+      /**
+       * @description Task documentation in markdown.
+       *
+       * *New in version 2.10.0*
+       */
+      doc_md?: string | null;
     };
     /** @description Collection of tasks. */
     TaskCollection: {
@@ -2182,6 +2248,8 @@ export interface components {
       pool?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       queue?: string[];
+      /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
+      executor?: string[];
     };
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
@@ -2510,6 +2578,8 @@ export interface components {
     FilterPool: string[];
     /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
     FilterQueue: string[];
+    /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
+    FilterExecutor: string[];
     /**
      * @description List of tags to filter results.
      *
@@ -3014,6 +3084,66 @@ export interface operations {
       content: {
         "application/json": components["schemas"]["SetTaskInstanceNote"];
       };
+    };
+  };
+  /**
+   * Get task dependencies blocking task from getting scheduled.
+   *
+   * *New in version 2.10.0*
+   */
+  get_task_instance_dependencies: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceDependencyCollection"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get task dependencies blocking task from getting scheduled.
+   *
+   * *New in version 2.10.0*
+   */
+  get_mapped_task_instance_dependencies: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceDependencyCollection"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /** Updates the state for multiple task instances simultaneously. */
@@ -3853,6 +3983,8 @@ export interface operations {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -4081,6 +4213,8 @@ export interface operations {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
         /**
          * The name of the field to order the results by.
          * Prefix a field name with `-` to reverse the sort order.
@@ -5148,6 +5282,12 @@ export type SLAMiss = CamelCasedPropertiesDeep<
 export type Trigger = CamelCasedPropertiesDeep<
   components["schemas"]["Trigger"]
 >;
+export type TaskFailedDependency = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskFailedDependency"]
+>;
+export type TaskInstanceDependencyCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskInstanceDependencyCollection"]
+>;
 export type Job = CamelCasedPropertiesDeep<components["schemas"]["Job"]>;
 export type TaskInstance = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstance"]
@@ -5369,6 +5509,13 @@ export type SetMappedTaskInstanceNoteVariables = CamelCasedPropertiesDeep<
   operations["set_mapped_task_instance_note"]["parameters"]["path"] &
     operations["set_mapped_task_instance_note"]["requestBody"]["content"]["application/json"]
 >;
+export type GetTaskInstanceDependenciesVariables = CamelCasedPropertiesDeep<
+  operations["get_task_instance_dependencies"]["parameters"]["path"]
+>;
+export type GetMappedTaskInstanceDependenciesVariables =
+  CamelCasedPropertiesDeep<
+    operations["get_mapped_task_instance_dependencies"]["parameters"]["path"]
+  >;
 export type PostSetTaskInstancesStateVariables = CamelCasedPropertiesDeep<
   operations["post_set_task_instances_state"]["parameters"]["path"] &
     operations["post_set_task_instances_state"]["requestBody"]["content"]["application/json"]

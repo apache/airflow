@@ -120,7 +120,7 @@ const NotesAccordion = ({
           <AccordionButton p={0} pb={2} fontSize="inherit">
             <Box flex="1" textAlign="left" onClick={toggleNotesPanel}>
               <Text as="strong" size="lg">
-                {objectIdentifier} Notes:
+                {objectIdentifier} Notes
               </Text>
             </Box>
             <AccordionIcon />

@@ -22,9 +22,11 @@ description: |
     `MongoDB <https://www.mongodb.com/>`__
 
 state: ready
-source-date-epoch: 1715384454
+source-date-epoch: 1718605092
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.1.2
+  - 4.1.1
   - 4.1.0
   - 4.0.0
   - 3.6.0
@@ -50,10 +52,10 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - dnspython>=1.13.0
-  - pymongo>=3.6.0
+  - pymongo>=4.0.0
 
 devel-dependencies:
-  - mongomock
+  - mongomock>=4.0.0
 
 integrations:
   - integration-name: MongoDB

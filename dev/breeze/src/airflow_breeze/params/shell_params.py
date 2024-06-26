@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -38,17 +39,21 @@ from airflow_breeze.global_constants import (
     DEFAULT_CELERY_BROKER,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
+    DRILL_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
+    MOUNT_PROVIDERS_AND_TESTS,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_TESTS,
+    MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
+    USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
     get_airflow_version,
 )
@@ -144,6 +149,7 @@ class ShellParams:
     extra_args: tuple = ()
     force_build: bool = False
     force_sa_warnings: bool = True
+    force_lowest_dependencies: bool = False
     forward_credentials: bool = False
     forward_ports: bool = True
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
@@ -157,6 +163,7 @@ class ShellParams:
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
+    keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
@@ -329,12 +336,20 @@ class ShellParams:
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
 
-        if self.use_airflow_version is not None and self.mount_sources not in [MOUNT_REMOVE, MOUNT_TESTS]:
+        if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
                 "\n[warning]Forcing --mount-sources to `remove` since we are not installing airflow "
-                f"from sources but from {self.use_airflow_version}[/]\n"
+                f"from sources but from {self.use_airflow_version} since you attempt"
+                f" to use {self.mount_sources} (but you can use any of "
+                f"{USE_AIRFLOW_MOUNT_SOURCES} in such case[/]\n"
             )
             self.mount_sources = MOUNT_REMOVE
+        if self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES and self.use_airflow_version is None:
+            get_console().print(
+                "[error]You need to specify --use-airflow-version when using one of the"
+                f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
+            )
+            sys.exit(1)
         if self.forward_ports and not self.project_name == "pre-commit":
             compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
         if self.mount_sources == MOUNT_SELECTED:
@@ -342,7 +357,9 @@ class ShellParams:
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "local-all-sources.yml")
         elif self.mount_sources == MOUNT_TESTS:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources-only.yml")
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources.yml")
+        elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "providers-and-tests-sources.yml")
         elif self.mount_sources == MOUNT_REMOVE:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
         if self.forward_credentials:
@@ -442,11 +459,13 @@ class ShellParams:
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
 
-    @cached_property
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
-        passed to it.
+        passed to it. We cannot cache this property because it can be run few times after modifying shell
+        params - for example when we first run "pull" on images before tests anda then run tests - each
+        separately with different test types.
 
         This is the only place where you need to add environment variables if you want to pass them to
         docker or docker-compose.
@@ -473,6 +492,7 @@ class ShellParams:
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
+        _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
         _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CI", None, "false")
@@ -492,8 +512,11 @@ class ShellParams:
         _set_var(_env, "DOCKER_IS_ROOTLESS", self.rootless_docker)
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
+        _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
+        _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
@@ -507,8 +530,10 @@ class ShellParams:
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
+        _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
+        _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "PACKAGE_FORMAT", self.package_format)

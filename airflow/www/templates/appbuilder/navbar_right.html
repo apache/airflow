@@ -83,7 +83,12 @@
         <li><a href="{{user_profile_url}}"><span class="material-icons">account_circle</span>{{_("Your Profile")}}</a></li>
         <li role="separator" class="divider"></li>
       {% endif %}
-      <li><a href="{{auth_manager.get_url_logout()}}"><span class="material-icons">exit_to_app</span>{{_("Log Out")}}</a></li>
+      <li>
+        <form method="POST" action="{{auth_manager.get_url_logout()}}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-link"><span class="material-icons">exit_to_app</span>{{_("Log Out")}}</button>
+        </form>
+      </li>
     </ul>
   </li>
 {% else %}

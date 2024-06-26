@@ -37,8 +37,9 @@ from airflow.exceptions import (
     NoAvailablePoolSlot,
     TaskConcurrencyLimitReached,
 )
-from airflow.executors.executor_constants import MOCK_EXECUTOR
+from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
@@ -71,6 +72,7 @@ pytestmark = pytest.mark.db_test
 logger = logging.getLogger(__name__)
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+DEFAULT_DAG_RUN_ID = "test1"
 
 
 @pytest.fixture(scope="module")
@@ -78,11 +80,39 @@ def dag_bag():
     return DagBag(include_examples=True)
 
 
-# Patch the MockExecutor into the dict of known executors in the Loader
-@patch.dict(
-    ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
-)
+@pytest.mark.execution_timeout(120)
 class TestBackfillJob:
+    def _mock_executor(self, executor=None):
+        if not executor:
+            default_executor = MockExecutor()
+        else:
+            default_executor = executor()
+
+        default_executor.name = mock.MagicMock(
+            alias="default_exec",
+            module_path=f"{default_executor.__module__}.{default_executor.__class__.__qualname__}",
+        )
+        with mock.patch("airflow.jobs.job.Job.executors", new_callable=mock.PropertyMock) as executors_mock:
+            with mock.patch("airflow.jobs.job.Job.executor", new_callable=mock.PropertyMock) as executor_mock:
+                with mock.patch(
+                    "airflow.executors.executor_loader.ExecutorLoader.load_executor"
+                ) as loader_mock:
+                    executor_mock.return_value = default_executor
+                    executors_mock.return_value = [default_executor]
+                    # The executor is mocked, so cannot be loaded/imported. Mock load_executor and return the
+                    # correct object for the given input executor name.
+                    loader_mock.side_effect = lambda *x: {
+                        ("default_exec",): default_executor,
+                        ("default.exec.module.path",): default_executor,
+                        (None,): default_executor,
+                    }[x]
+
+                    yield default_executor
+
+    @pytest.fixture
+    def mock_executor(self):
+        yield from self._mock_executor()
+
     @staticmethod
     def clean_db():
         clear_db_dags()
@@ -124,7 +154,7 @@ class TestBackfillJob:
         dag = self._get_dummy_dag(dag_maker)
         dag_run = dag_maker.create_dagrun(state=None)
 
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -138,14 +168,14 @@ class TestBackfillJob:
 
         assert State.FAILED == dag_run.state
 
-    def test_dag_run_with_finished_tasks_set_to_success(self, dag_maker):
+    def test_dag_run_with_finished_tasks_set_to_success(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(dag_maker)
         dag_run = dag_maker.create_dagrun(state=None)
 
         for ti in dag_run.get_task_instances():
             ti.set_state(State.SUCCESS)
 
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -168,7 +198,7 @@ class TestBackfillJob:
         target_dag_run = session.query(DagRun).filter(DagRun.dag_id == target_dag.dag_id).one_or_none()
         assert target_dag_run is None
 
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -176,6 +206,7 @@ class TestBackfillJob:
             end_date=DEFAULT_DATE,
             ignore_first_depends_on_past=True,
         )
+
         run_job(job=job, execute_callable=job_runner._execute)
 
         dag_run = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one_or_none()
@@ -186,13 +217,13 @@ class TestBackfillJob:
         assert task_instances_list
 
     @pytest.mark.backend("postgres", "mysql")
-    def test_backfill_multi_dates(self):
+    def test_backfill_multi_dates(self, mock_executor):
         dag = self.dagbag.get_dag("miscellaneous_test_dag")
 
         end_date = DEFAULT_DATE + datetime.timedelta(days=1)
 
-        executor = MockExecutor(parallelism=16)
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -288,7 +319,7 @@ class TestBackfillJob:
             ["latest_only", ("latest_only", "task1")],
         ],
     )
-    def test_backfill_examples(self, dag_id, expected_execution_order):
+    def test_backfill_examples(self, dag_id, expected_execution_order, mock_executor):
         """
         Test backfilling example dags
 
@@ -299,8 +330,8 @@ class TestBackfillJob:
         dag = self.dagbag.get_dag(dag_id)
 
         logger.info("*** Running example DAG: %s", dag.dag_id)
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -315,14 +346,12 @@ class TestBackfillJob:
             for task_id in expected_execution_order
         ] == executor.sorted_tasks
 
-    def test_backfill_conf(self, dag_maker):
+    def test_backfill_conf(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(dag_maker, dag_id="test_backfill_conf")
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-
         conf_ = json.loads("""{"key": "value"}""")
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -340,7 +369,7 @@ class TestBackfillJob:
         assert conf_ == dr[0].conf
 
     @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_max_active_tis_per_dag_limit(self, mock_log, dag_maker):
+    def test_backfill_respect_max_active_tis_per_dag_limit(self, mock_log, dag_maker, mock_executor):
         max_active_tis_per_dag = 2
         dag = self._get_dummy_dag(
             dag_maker,
@@ -349,9 +378,8 @@ class TestBackfillJob:
         )
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -397,7 +425,7 @@ class TestBackfillJob:
     @pytest.mark.parametrize("with_max_active_tis_per_dag", [False, True])
     @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
     def test_backfill_respect_max_active_tis_per_dagrun_limit(
-        self, mock_log, dag_maker, with_max_active_tis_per_dag
+        self, mock_log, dag_maker, with_max_active_tis_per_dag, mock_executor
     ):
         max_active_tis_per_dag = 3
         max_active_tis_per_dagrun = 2
@@ -410,9 +438,8 @@ class TestBackfillJob:
 
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -477,14 +504,13 @@ class TestBackfillJob:
         assert times_task_concurrency_limit_reached_in_debug > 0
 
     @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_dag_concurrency_limit(self, mock_log, dag_maker):
+    def test_backfill_respect_dag_concurrency_limit(self, mock_log, dag_maker, mock_executor):
         dag = self._get_dummy_dag(dag_maker, dag_id="test_backfill_respect_concurrency_limit")
         dag_maker.create_dagrun(state=None)
         dag.max_active_tasks = 2
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -528,16 +554,15 @@ class TestBackfillJob:
         assert times_dag_concurrency_limit_reached_in_debug > 0
 
     @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_default_pool_limit(self, mock_log, dag_maker):
+    def test_backfill_respect_default_pool_limit(self, mock_log, dag_maker, mock_executor):
         default_pool_slots = 2
         set_default_pool_slots(default_pool_slots)
 
         dag = self._get_dummy_dag(dag_maker, dag_id="test_backfill_with_no_pool_limit")
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -584,7 +609,7 @@ class TestBackfillJob:
         assert 0 == times_task_concurrency_limit_reached_in_debug
         assert times_pool_limit_reached_in_debug > 0
 
-    def test_backfill_pool_not_found(self, dag_maker):
+    def test_backfill_pool_not_found(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(
             dag_maker,
             dag_id="test_backfill_pool_not_found",
@@ -592,9 +617,7 @@ class TestBackfillJob:
         )
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -608,7 +631,7 @@ class TestBackfillJob:
             return
 
     @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_pool_limit(self, mock_log, dag_maker):
+    def test_backfill_respect_pool_limit(self, mock_log, dag_maker, mock_executor):
         session = settings.Session()
 
         slots = 2
@@ -627,9 +650,8 @@ class TestBackfillJob:
         )
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
+        executor = job.executor
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -672,15 +694,13 @@ class TestBackfillJob:
         assert 0 == times_dag_concurrency_limit_reached_in_debug
         assert times_pool_limit_reached_in_debug > 0
 
-    def test_backfill_run_rescheduled(self, dag_maker):
+    def test_backfill_run_rescheduled(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(
             dag_maker, dag_id="test_backfill_run_rescheduled", task_id="test_backfill_run_rescheduled_task-1"
         )
-        dag_maker.create_dagrun(state=None)
+        dag_maker.create_dagrun(state=None, run_id=DEFAULT_DAG_RUN_ID)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -689,24 +709,25 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
-        ti = TI(task=dag.get_task("test_backfill_run_rescheduled_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI(task=dag.get_task("test_backfill_run_rescheduled_task-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         ti.set_state(State.UP_FOR_RESCHEDULE)
 
-        job = Job(executor=executor)
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=dag,
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-            rerun_failed_tasks=True,
-        )
-        run_job(job=job, execute_callable=job_runner._execute)
-        ti = TI(task=dag.get_task("test_backfill_run_rescheduled_task-1"), execution_date=DEFAULT_DATE)
-        ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
+        for _ in self._mock_executor():
+            job = Job()
+            job_runner = BackfillJobRunner(
+                job=job,
+                dag=dag,
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                rerun_failed_tasks=True,
+            )
+            run_job(job=job, execute_callable=job_runner._execute)
+            ti = TI(task=dag.get_task("test_backfill_run_rescheduled_task-1"), run_id=DEFAULT_DAG_RUN_ID)
+            ti.refresh_from_db()
+            assert ti.state == State.SUCCESS
 
-    def test_backfill_override_conf(self, dag_maker):
+    def test_backfill_override_conf(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(
             dag_maker, dag_id="test_backfill_override_conf", task_id="test_backfill_override_conf-1"
         )
@@ -715,9 +736,7 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
         )
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -735,20 +754,15 @@ class TestBackfillJob:
             dr = wrapped_task_instances_for_dag_run.call_args_list[0][0][1]
             assert dr.conf == {"a": 1}
 
-    def test_backfill_skip_active_scheduled_dagrun(self, dag_maker, caplog):
+    def test_backfill_skip_active_scheduled_dagrun(self, dag_maker, caplog, mock_executor):
         dag = self._get_dummy_dag(
             dag_maker,
             dag_id="test_backfill_skip_active_scheduled_dagrun",
             task_id="test_backfill_skip_active_scheduled_dagrun-1",
         )
-        dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.RUNNING,
-        )
+        dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING, run_id=DEFAULT_DAG_RUN_ID)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -760,22 +774,18 @@ class TestBackfillJob:
             run_job(job=job, execute_callable=job_runner._execute)
             assert "Backfill cannot be created for DagRun" in caplog.messages[0]
 
-        ti = TI(
-            task=dag.get_task("test_backfill_skip_active_scheduled_dagrun-1"), execution_date=DEFAULT_DATE
-        )
+        ti = TI(task=dag.get_task("test_backfill_skip_active_scheduled_dagrun-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         # since DAG backfill is skipped, task state should be none
         assert ti.state == State.NONE
 
-    def test_backfill_rerun_failed_tasks(self, dag_maker):
+    def test_backfill_rerun_failed_tasks(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(
             dag_maker, dag_id="test_backfill_rerun_failed", task_id="test_backfill_rerun_failed_task-1"
         )
-        dag_maker.create_dagrun(state=None)
+        dag_maker.create_dagrun(state=None, run_id=DEFAULT_DAG_RUN_ID)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -784,11 +794,11 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
-        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         ti.set_state(State.FAILED)
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -797,20 +807,18 @@ class TestBackfillJob:
             rerun_failed_tasks=True,
         )
         run_job(job=job, execute_callable=job_runner._execute)
-        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
+    def test_backfill_rerun_upstream_failed_tasks(self, dag_maker, mock_executor):
         with dag_maker(dag_id="test_backfill_rerun_upstream_failed", schedule="@daily") as dag:
             op1 = EmptyOperator(task_id="test_backfill_rerun_upstream_failed_task-1")
             op2 = EmptyOperator(task_id="test_backfill_rerun_upstream_failed_task-2")
             op1.set_upstream(op2)
-        dag_maker.create_dagrun(state=None)
+        dag_maker.create_dagrun(state=None, run_id=DEFAULT_DAG_RUN_ID)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -819,11 +827,11 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
-        ti = TI(task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI(task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         ti.set_state(State.UPSTREAM_FAILED)
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -832,19 +840,17 @@ class TestBackfillJob:
             rerun_failed_tasks=True,
         )
         run_job(job=job, execute_callable=job_runner._execute)
-        ti = TI(task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI(task=dag.get_task("test_backfill_rerun_upstream_failed_task-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_backfill_rerun_failed_tasks_without_flag(self, dag_maker):
+    def test_backfill_rerun_failed_tasks_without_flag(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(
             dag_maker, dag_id="test_backfill_rerun_failed", task_id="test_backfill_rerun_failed_task-1"
         )
-        dag_maker.create_dagrun(state=None)
+        dag_maker.create_dagrun(state=None, run_id=DEFAULT_DAG_RUN_ID)
 
-        executor = MockExecutor()
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -853,11 +859,11 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
-        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), execution_date=DEFAULT_DATE)
+        ti = TI(task=dag.get_task("test_backfill_rerun_failed_task-1"), run_id=DEFAULT_DAG_RUN_ID)
         ti.refresh_from_db()
         ti.set_state(State.FAILED)
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -869,7 +875,7 @@ class TestBackfillJob:
         with pytest.raises(AirflowException):
             run_job(job=job, execute_callable=job_runner._execute)
 
-    def test_backfill_retry_intermittent_failed_task(self, dag_maker):
+    def test_backfill_retry_intermittent_failed_task(self, dag_maker, mock_executor):
         with dag_maker(
             dag_id="test_intermittent_failure_job",
             schedule="@daily",
@@ -881,14 +887,14 @@ class TestBackfillJob:
             task1 = EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor(parallelism=16)
+        executor = mock_executor
         executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)] = (
             State.UP_FOR_RETRY
         )
         executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)] = (
             State.UP_FOR_RETRY
         )
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -897,7 +903,7 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
-    def test_backfill_retry_always_failed_task(self, dag_maker):
+    def test_backfill_retry_always_failed_task(self, dag_maker, mock_executor):
         with dag_maker(
             dag_id="test_always_failure_job",
             schedule="@daily",
@@ -909,12 +915,12 @@ class TestBackfillJob:
             task1 = EmptyOperator(task_id="task1")
         dr = dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor(parallelism=16)
+        executor = mock_executor
         executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=0)] = (
             State.UP_FOR_RETRY
         )
         executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -924,7 +930,7 @@ class TestBackfillJob:
         with pytest.raises(BackfillUnfinished):
             run_job(job=job, execute_callable=job_runner._execute)
 
-    def test_backfill_ordered_concurrent_execute(self, dag_maker):
+    def test_backfill_ordered_concurrent_execute(self, dag_maker, mock_executor):
         with dag_maker(
             dag_id="test_backfill_ordered_concurrent_execute",
             schedule="@daily",
@@ -942,8 +948,8 @@ class TestBackfillJob:
         runid0 = f"backfill__{DEFAULT_DATE.isoformat()}"
         dag_maker.create_dagrun(run_id=runid0)
 
-        executor = MockExecutor(parallelism=16)
-        job = Job(executor=executor)
+        executor = mock_executor
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1001,30 +1007,30 @@ class TestBackfillJob:
         dag = self.dagbag.get_dag("test_backfill_pooled_task_dag")
         dag.clear()
 
-        executor = MockExecutor(do_update=True)
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         # run with timeout because this creates an infinite loop if not
         # caught
         try:
-            with timeout(seconds=5):
+            with timeout(seconds=20):
                 run_job(job=job, execute_callable=job_runner._execute)
         except AirflowTaskTimeout:
-            pass
-        ti = TI(task=dag.get_task("test_backfill_pooled_task"), execution_date=DEFAULT_DATE)
+            logger.info("Timeout while waiting for task to complete")
+        run_id = f"backfill__{DEFAULT_DATE.isoformat()}"
+        ti = TI(task=dag.get_task("test_backfill_pooled_task"), run_id=run_id)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize("ignore_depends_on_past", [True, False])
     def test_backfill_depends_on_past_works_independently_on_ignore_depends_on_past(
-        self, ignore_depends_on_past
+        self, ignore_depends_on_past, mock_executor
     ):
         dag = self.dagbag.get_dag("test_depends_on_past")
         dag.clear()
         run_date = DEFAULT_DATE + datetime.timedelta(days=5)
 
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1034,12 +1040,13 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
+        run_id = f"backfill__{run_date.isoformat()}"
         # ti should have succeeded
-        ti = TI(dag.tasks[0], run_date)
+        ti = TI(dag.tasks[0], run_id=run_id)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_backfill_depends_on_past_backwards(self):
+    def test_backfill_depends_on_past_backwards(self, mock_executor):
         """
         Test that CLI respects -B argument and raises on interaction with depends_on_past
         """
@@ -1053,23 +1060,25 @@ class TestBackfillJob:
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag, ignore_first_depends_on_past=True, **kwargs)
         run_job(job=job, execute_callable=job_runner._execute)
 
-        ti = TI(dag.get_task("test_dop_task"), end_date)
+        run_id = f"backfill__{end_date.isoformat()}"
+        ti = TI(dag.get_task("test_dop_task"), run_id=run_id)
         ti.refresh_from_db()
         # runs fine forwards
         assert ti.state == State.SUCCESS
 
         # raises backwards
         expected_msg = "You cannot backfill backwards because one or more tasks depend_on_past: test_dop_task"
-        executor = MockExecutor()
-        job = Job(executor=executor)
-        job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
-        with pytest.raises(AirflowException, match=expected_msg):
-            run_job(job=job, execute_callable=job_runner._execute)
+
+        for _ in self._mock_executor():
+            # Mock again to get a new executor
+            job = Job()
+            job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
+            with pytest.raises(AirflowException, match=expected_msg):
+                run_job(job=job, execute_callable=job_runner._execute)
 
     def test_cli_receives_delay_arg(self):
         """
@@ -1107,7 +1116,7 @@ class TestBackfillJob:
             op4 >> op3
         return dag
 
-    def test_backfill_max_limit_check_within_limit(self, dag_maker):
+    def test_backfill_max_limit_check_within_limit(self, dag_maker, mock_executor):
         dag = self._get_dag_test_max_active_limits(
             dag_maker, dag_id="test_backfill_max_limit_check_within_limit", max_active_runs=16
         )
@@ -1115,8 +1124,7 @@ class TestBackfillJob:
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
         end_date = DEFAULT_DATE
 
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1130,7 +1138,7 @@ class TestBackfillJob:
         assert 2 == len(dagruns)
         assert all(run.state == State.SUCCESS for run in dagruns)
 
-    def test_backfill_notifies_dagrun_listener(self, dag_maker):
+    def test_backfill_notifies_dagrun_listener(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(dag_maker)
         dag_run = dag_maker.create_dagrun(state=None)
         dag_listener.clear()
@@ -1139,8 +1147,7 @@ class TestBackfillJob:
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
         end_date = DEFAULT_DATE
 
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1161,7 +1168,7 @@ class TestBackfillJob:
         assert dag_listener.success[0].run_id == dag_run.run_id
         assert dag_listener.success[0].state == DagRunState.SUCCESS
 
-    def test_backfill_max_limit_check(self, dag_maker):
+    def test_backfill_max_limit_check(self, dag_maker, mock_executor):
         dag_id = "test_backfill_max_limit_check"
         run_id = "test_dag_run"
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
@@ -1192,10 +1199,7 @@ class TestBackfillJob:
                     cond.release()
                     thread_session.close()
 
-                executor = MockExecutor()
-                job = Job(
-                    executor=executor,
-                )
+                job = Job()
                 job_runner = BackfillJobRunner(
                     job=job,
                     dag=dag,
@@ -1237,7 +1241,7 @@ class TestBackfillJob:
             finally:
                 dag_run_created_cond.release()
 
-    def test_backfill_max_limit_check_no_count_existing(self, dag_maker):
+    def test_backfill_max_limit_check_no_count_existing(self, dag_maker, mock_executor):
         start_date = DEFAULT_DATE
         end_date = DEFAULT_DATE
         # Existing dagrun that is within the backfill range
@@ -1246,8 +1250,7 @@ class TestBackfillJob:
         )
         dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job, dag=dag, start_date=start_date, end_date=end_date, donot_pickle=True
         )
@@ -1261,7 +1264,7 @@ class TestBackfillJob:
         assert 1 == len(dagruns)
         assert State.SUCCESS == dagruns[0].state
 
-    def test_backfill_max_limit_check_complete_loop(self, dag_maker):
+    def test_backfill_max_limit_check_complete_loop(self, dag_maker, mock_executor):
         dag = self._get_dag_test_max_active_limits(
             dag_maker, dag_id="test_backfill_max_limit_check_complete_loop"
         )
@@ -1272,8 +1275,7 @@ class TestBackfillJob:
         # Given the max limit to be 1 in active dag runs, we need to run the
         # backfill job 3 times
         success_expected = 2
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1288,7 +1290,7 @@ class TestBackfillJob:
         assert success_expected == success_dagruns
         assert 0 == running_dagruns  # no dag_runs in running state are left
 
-    def test_sub_set_subdag(self, dag_maker):
+    def test_sub_set_subdag(self, dag_maker, mock_executor):
         with dag_maker(
             "test_sub_set_subdag",
             on_success_callback=lambda _: None,
@@ -1307,11 +1309,10 @@ class TestBackfillJob:
 
         dr = dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor()
         sub_dag = dag.partial_subset(
             task_ids_or_regex="leave*", include_downstream=False, include_upstream=False
         )
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(job=job, dag=sub_dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         run_job(job=job, execute_callable=job_runner._execute)
 
@@ -1321,7 +1322,7 @@ class TestBackfillJob:
             else:
                 assert State.NONE == ti.state
 
-    def test_backfill_fill_blanks(self, dag_maker):
+    def test_backfill_fill_blanks(self, dag_maker, mock_executor):
         with dag_maker(
             "test_backfill_fill_blanks",
         ) as dag:
@@ -1333,8 +1334,6 @@ class TestBackfillJob:
             op6 = EmptyOperator(task_id="op6")
 
         dr = dag_maker.create_dagrun(state=None)
-
-        executor = MockExecutor()
 
         session = settings.Session()
 
@@ -1356,7 +1355,7 @@ class TestBackfillJob:
         session.commit()
         session.close()
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         with pytest.raises(AirflowException, match="Some task instances failed"):
             run_job(job=job, execute_callable=job_runner._execute)
@@ -1376,7 +1375,7 @@ class TestBackfillJob:
             elif ti.task_id == op5.task_id:
                 assert ti.state == State.UPSTREAM_FAILED
 
-    def test_backfill_execute_subdag(self):
+    def test_backfill_execute_subdag(self, mock_executor):
         dag = self.dagbag.get_dag("example_subdag_operator")
         subdag_op_task = dag.get_task("section-1")
 
@@ -1384,8 +1383,8 @@ class TestBackfillJob:
         subdag.timetable = cron_timetable("@daily")
 
         start_date = timezone.utcnow()
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        executor = mock_executor
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=subdag,
@@ -1422,14 +1421,13 @@ class TestBackfillJob:
         subdag.clear()
         dag.clear()
 
-    def test_subdag_clear_parentdag_downstream_clear(self):
+    def test_subdag_clear_parentdag_downstream_clear(self, mock_executor):
         dag = self.dagbag.get_dag("clear_subdag_test_dag")
         subdag_op_task = dag.get_task("daily_job")
 
         subdag = subdag_op_task.subdag
 
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1441,15 +1439,16 @@ class TestBackfillJob:
         with timeout(seconds=30):
             run_job(job=job, execute_callable=job_runner._execute)
 
-        ti_subdag = TI(task=dag.get_task("daily_job"), execution_date=DEFAULT_DATE)
+        run_id = f"backfill__{DEFAULT_DATE.isoformat()}"
+        ti_subdag = TI(task=dag.get_task("daily_job"), run_id=run_id)
         ti_subdag.refresh_from_db()
         assert ti_subdag.state == State.SUCCESS
 
-        ti_irrelevant = TI(task=dag.get_task("daily_job_irrelevant"), execution_date=DEFAULT_DATE)
+        ti_irrelevant = TI(task=dag.get_task("daily_job_irrelevant"), run_id=run_id)
         ti_irrelevant.refresh_from_db()
         assert ti_irrelevant.state == State.SUCCESS
 
-        ti_downstream = TI(task=dag.get_task("daily_job_downstream"), execution_date=DEFAULT_DATE)
+        ti_downstream = TI(task=dag.get_task("daily_job_downstream"), run_id=run_id)
         ti_downstream.refresh_from_db()
         assert ti_downstream.state == State.SUCCESS
 
@@ -1471,7 +1470,7 @@ class TestBackfillJob:
         subdag.clear()
         dag.clear()
 
-    def test_backfill_execute_subdag_with_removed_task(self):
+    def test_backfill_execute_subdag_with_removed_task(self, mock_executor):
         """
         Ensure that subdag operators execute properly in the case where
         an associated task of the subdag has been removed from the dag
@@ -1481,8 +1480,7 @@ class TestBackfillJob:
         subdag = dag.get_task("section-1").subdag
 
         session = settings.Session()
-        executor = MockExecutor()
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=subdag,
@@ -1530,7 +1528,7 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun(state=None)
         job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag)
-        ti = TI(task1, dr.execution_date)
+        ti = TI(task1, run_id=dr.run_id)
         ti.refresh_from_db()
 
         ti_status = BackfillJobRunner._DagRunTaskStatus()
@@ -1693,13 +1691,11 @@ class TestBackfillJob:
             )
         ]
 
-    def test_backfill_run_backwards(self):
+    def test_backfill_run_backwards(self, mock_executor):
         dag = self.dagbag.get_dag("test_start_date_scheduling")
         dag.clear()
 
-        executor = MockExecutor(parallelism=16)
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1742,15 +1738,15 @@ class TestBackfillJob:
         job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag)
         # create dagruns
-        dr1 = dag_maker.create_dagrun(state=State.RUNNING)
+        dr1 = dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID, state=State.RUNNING)
         dr2 = dag.create_dagrun(run_id="test2", state=State.SUCCESS)
 
         # create taskinstances and set states
         dr1_tis = []
         dr2_tis = []
         for task, state in zip(tasks, states):
-            ti1 = TI(task, dr1.execution_date)
-            ti2 = TI(task, dr2.execution_date)
+            ti1 = TI(task, run_id=dr1.run_id)
+            ti2 = TI(task, run_id=dr2.run_id)
             ti1.refresh_from_db()
             ti2.refresh_from_db()
             ti1.state = state
@@ -1822,12 +1818,12 @@ class TestBackfillJob:
         assert State.SCHEDULED == ti1.state
         assert State.NONE == ti2.state
 
-    def test_job_id_is_assigned_to_dag_run(self, dag_maker):
+    def test_job_id_is_assigned_to_dag_run(self, dag_maker, mock_executor):
         dag_id = "test_job_id_is_assigned_to_dag_run"
         with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule="@daily") as dag:
             EmptyOperator(task_id="dummy_task", dag=dag)
 
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job, dag=dag, start_date=timezone.utcnow() - datetime.timedelta(days=1)
         )
@@ -1835,14 +1831,12 @@ class TestBackfillJob:
         dr: DagRun = dag.get_last_dagrun()
         assert dr.creating_job_id == job.id
 
-    def test_backfill_has_job_id_int(self):
+    def test_backfill_has_job_id_int(self, mock_executor):
         """Make sure that backfill jobs are assigned job_ids and that the job_id is an int."""
         dag = self.dagbag.get_dag("test_start_date_scheduling")
         dag.clear()
 
-        executor = MockExecutor(parallelism=16)
-
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1851,12 +1845,12 @@ class TestBackfillJob:
             run_backwards=True,
         )
         run_job(job=job, execute_callable=job_runner._execute)
-        assert isinstance(executor.job_id, int)
+        assert isinstance(job.executor.job_id, int)
 
     @pytest.mark.long_running
-    @pytest.mark.parametrize("executor_name", ["SequentialExecutor", "DebugExecutor"])
+    @pytest.mark.parametrize("executor", [SequentialExecutor, DebugExecutor])
     @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow", "test_sensor"])
-    def test_backfilling_dags(self, dag_id, executor_name, session):
+    def test_backfilling_dags(self, dag_id, executor, session):
         """
         End-to-end test for backfilling dags with various executors.
 
@@ -1865,34 +1859,33 @@ class TestBackfillJob:
 
         """
         # This test needs a real executor to run, so that the `make_list` task can write out the TaskMap
-        from airflow.executors.executor_loader import ExecutorLoader
+        for _ in self._mock_executor(executor):
+            self.dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
+            dag = self.dagbag.get_dag(dag_id)
 
-        self.dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
-        dag = self.dagbag.get_dag(dag_id)
+            when = timezone.datetime(2022, 1, 1)
 
-        when = timezone.datetime(2022, 1, 1)
+            job = Job()
+            job_runner = BackfillJobRunner(
+                job=job,
+                dag=dag,
+                start_date=when,
+                end_date=when,
+                donot_pickle=True,
+            )
+            run_job(job=job, execute_callable=job_runner._execute)
 
-        job = Job(executor=ExecutorLoader.load_executor(executor_name))
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=dag,
-            start_date=when,
-            end_date=when,
-            donot_pickle=True,
-        )
-        run_job(job=job, execute_callable=job_runner._execute)
+            dr = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)[0]
+            assert dr
+            assert dr.state == DagRunState.SUCCESS
 
-        dr = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)[0]
-        assert dr
-        assert dr.state == DagRunState.SUCCESS
+            # Check that every task has a start and end date
+            for ti in dr.task_instances:
+                assert ti.state == TaskInstanceState.SUCCESS
+                assert ti.start_date is not None
+                assert ti.end_date is not None
 
-        # Check that every task has a start and end date
-        for ti in dr.task_instances:
-            assert ti.state == TaskInstanceState.SUCCESS
-            assert ti.start_date is not None
-            assert ti.end_date is not None
-
-    def test_mapped_dag_pre_existing_tis(self, dag_maker, session):
+    def test_mapped_dag_pre_existing_tis(self, dag_maker, session, mock_executor):
         """If the DagRun already has some mapped TIs, ensure that we re-run them successfully"""
         from airflow.decorators import task
         from airflow.operators.python import PythonOperator
@@ -1925,13 +1918,13 @@ class TestBackfillJob:
             ti.dag_run = dr
         session.flush()
 
-        executor = MockExecutor()
+        executor = mock_executor
 
         ti_status = BackfillJobRunner._DagRunTaskStatus()
         ti_status.active_runs.add(dr)
         ti_status.to_run = {ti.key: ti for ti in dr.task_instances}
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -1960,7 +1953,7 @@ class TestBackfillJob:
         with patch.object(executor, "change_state", side_effect=on_change_state):
             job_runner._process_backfill_task_instances(
                 ti_status=ti_status,
-                executor=job.executor,
+                executor=executor,
                 start_date=dr.execution_date,
                 pickle_id=None,
                 session=session,
@@ -1984,7 +1977,7 @@ class TestBackfillJob:
             ),
         }
 
-    def test_mapped_dag_unexpandable(self, dag_maker, session):
+    def test_mapped_dag_unexpandable(self, dag_maker, session, mock_executor):
         with dag_maker(session=session) as dag:
 
             @dag.task
@@ -2001,9 +1994,8 @@ class TestBackfillJob:
 
             consumer.expand(a=get_things(), b=this_fails())
 
-        executor = MockExecutor()
         when = timezone.datetime(2022, 1, 1)
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag, start_date=when, end_date=when, donot_pickle=True)
         run_job(job=job, execute_callable=job_runner._execute)
         (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)
@@ -2016,7 +2008,7 @@ class TestBackfillJob:
         tis[("this_fails", -1)].state == TaskInstanceState.FAILED
         tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
 
-    def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog):
+    def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog, mock_executor):
         with dag_maker() as dag:
             EmptyOperator(task_id="task1")
 
@@ -2025,7 +2017,7 @@ class TestBackfillJob:
         session.merge(dr)
         session.flush()
         dag.clear()
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -2039,7 +2031,9 @@ class TestBackfillJob:
         assert dr.start_date
         assert f"Failed to record duration of {dr}" not in caplog.text
 
-    def test_task_instances_are_not_set_to_scheduled_when_dagrun_reset(self, dag_maker, session):
+    def test_task_instances_are_not_set_to_scheduled_when_dagrun_reset(
+        self, dag_maker, session, mock_executor
+    ):
         """Test that when dagrun is reset, task instances are not set to scheduled"""
 
         with dag_maker() as dag:
@@ -2055,7 +2049,7 @@ class TestBackfillJob:
 
         dag.clear()
 
-        job = Job(executor=MockExecutor())
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -2076,7 +2070,7 @@ class TestBackfillJob:
             (False, 2, AirflowException),
         ),
     )
-    def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
+    def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception, mock_executor):
         with dag_maker(
             dag_id="test_disable_retry",
             schedule="@daily",
@@ -2088,7 +2082,8 @@ class TestBackfillJob:
             task1 = EmptyOperator(task_id="task1")
         dag_run = dag_maker.create_dagrun(state=None)
 
-        executor = MockExecutor(parallelism=16)
+        executor = mock_executor
+        executor.parallelism = 16
         executor.mock_task_results[
             TaskInstanceKey(dag.dag_id, task1.task_id, dag_run.run_id, try_number=1)
         ] = TaskInstanceState.UP_FOR_RETRY
@@ -2096,7 +2091,7 @@ class TestBackfillJob:
             TaskInstanceKey(dag.dag_id, task1.task_id, dag_run.run_id, try_number=2)
         ] = TaskInstanceState.FAILED
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
@@ -2116,6 +2111,8 @@ class TestBackfillJob:
 
         dag.clear()
 
+    # Qyarantined issue tracked in https://github.com/apache/airflow/issues/39858
+    @pytest.mark.quarantined
     def test_backfill_failed_dag_with_upstream_failed_task(self, dag_maker):
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / "test_backfill_with_upstream_failed_task.py"))
         dag = self.dagbag.get_dag("test_backfill_with_upstream_failed_task")

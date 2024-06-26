@@ -22,9 +22,11 @@ description: |
     `Exasol <https://www.exasol.com/>`__
 
 state: ready
-source-date-epoch: 1715384431
+source-date-epoch: 1718604316
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.5.2
+  - 4.5.1
   - 4.5.0
   - 4.4.3
   - 4.4.2
@@ -63,7 +65,9 @@ dependencies:
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
   # In addition FAB also limit sqlalchemy to < 2.0
-  - pandas>=1.2.5,<2.2
+  - pandas>=2.1.2,<2.2;python_version>="3.9"
+  - pandas>=1.5.3,<2.2;python_version<"3.9"
+
 
 integrations:
   - integration-name: Exasol

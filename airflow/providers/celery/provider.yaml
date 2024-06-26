@@ -22,9 +22,11 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1715384414
+source-date-epoch: 1717567108
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.7.2
+  - 3.7.1
   - 3.7.0
   - 3.6.2
   - 3.6.1

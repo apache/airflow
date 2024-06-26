@@ -119,9 +119,9 @@
       <a href={{ get_docs_url("executor/index.html") }}  target="_blank" rel="noopener noreferrer"><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
-  {% if otel_on | default(false) %}
+  {% if otel_traces_on | default(false) %}
     {% call show_message(category='warning', dismissible=false) %}
-      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
+      OpenTelemetry tracing support is experimental. <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst#running-breeze-with-an-opentelemetry-stack" target="_blank" rel="noopener noreferrer">
         <b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
@@ -133,27 +133,27 @@
     <div class="dags-table-header">
       <div class="form-group btn-group">
         <a
-          href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='all', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
           title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
         <a
-          href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='active', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-default' }}"
           title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
         <a
-          href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='paused', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'paused' else 'btn-default' }}"
           title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
       </div>
       <div class="form-group btn-group p-2">
         <a
-          href="{{ url_for('Airflow.index', status='running', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-          class="btn {{ 'btn-primary' if status_filter == 'running' else 'btn-default' }}"
-          title="Show currently running DAG runs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+          href="{{ url_for('Airflow.index', lastrun='reset_filter' if lastrun_filter == 'running' else 'running', status=request.args.get('status', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if lastrun_filter == 'running' else 'btn-default' }}"
+          title="Show currently running DAG runs">Running <span class="badge">{{ "{:,}".format(lastrun_count_running) }}</span></a>
         <a
-          href="{{ url_for('Airflow.index', status='failed', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-          class="btn {{ 'btn-primary' if status_filter == 'failed' else 'btn-default' }}"
-          title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(status_count_failed) }}</span></a>
+          href="{{ url_for('Airflow.index', lastrun='reset_filter' if lastrun_filter == 'failed' else 'failed', status=request.args.get('status', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if lastrun_filter == 'failed' else 'btn-default' }}"
+          title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(lastrun_count_failed) }}</span></a>
       </div>
       <div style="min-width: 200px; padding: 0 10px;">
         <form id="tags_form">
@@ -392,6 +392,10 @@
                     <span class="material-icons" aria-hidden="true">play_arrow</span>
                   </a>
                 {% endif %}
+                <a href="{{ url_for('Airflow.parse_dag', file_token=file_tokens[dag.dag_id], redirect_url=url_for(request.endpoint)) }}" title="Reparse&nbsp;DAG" aria-label="Reparse DAG"
+                    class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
+                    <span class="material-icons">restore_page</span>
+                </a>
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG"
                     aria-label="Delete DAG"
@@ -490,4 +494,7 @@
       return false;
     }
   </script>
+  {% if scarf_url %}
+  <img referrerpolicy="no-referrer-when-downgrade" src="{{ scarf_url }}" width="0" height="0" alt="" style="display:none;" />
+  {% endif %}
 {% endblock %}

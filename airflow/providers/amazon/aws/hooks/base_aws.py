@@ -156,7 +156,9 @@ class BaseSessionFactory(LoggingMixin):
 
         return async_get_session()
 
-    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
+    def create_session(
+        self, deferrable: bool = False
+    ) -> boto3.session.Session | aiobotocore.session.AioSession:
         """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
@@ -198,7 +200,7 @@ class BaseSessionFactory(LoggingMixin):
 
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
-    ) -> boto3.session.Session:
+    ) -> boto3.session.Session | aiobotocore.session.AioSession:
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
@@ -239,7 +241,10 @@ class BaseSessionFactory(LoggingMixin):
         session._credentials = credentials
         session.set_config_variable("region", self.basic_session.region_name)
 
-        return boto3.session.Session(botocore_session=session, **session_kwargs)
+        if not deferrable:
+            return boto3.session.Session(botocore_session=session, **session_kwargs)
+
+        return session
 
     def _refresh_credentials(self) -> dict[str, Any]:
         self.log.debug("Refreshing credentials")

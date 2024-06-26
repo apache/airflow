@@ -63,6 +63,7 @@ def import_all_models():
     import airflow.models.dataset
     import airflow.models.errors
     import airflow.models.serialized_dag
+    import airflow.models.taskinstancehistory
     import airflow.models.tasklog
 
 
@@ -150,6 +151,7 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.models.taskfail import TaskFail
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable

@@ -37,14 +37,46 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.11.2
+......
+
+Latest change: 2024-06-17
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`0d5bb60981 <https://github.com/apache/airflow/commit/0d5bb60981b79f67d6ea5b813a88d09b366ee2d3>`_  2024-06-17   ``Fix typos in Providers docs and Yandex hook (#40277)``
+`53e6739e67 <https://github.com/apache/airflow/commit/53e6739e67886e3326cfca0face7e9ce116ce4ab>`_  2024-06-01   ``Limit yandex provider to avoid mypy errors (#39990)``
+`8173693a70 <https://github.com/apache/airflow/commit/8173693a706f09e0f6c53bd0f4e22b2ba6586bc6>`_  2024-05-31   ``Remove upper-binding in yandex after dataproc issue is fixed (#39974)``
+`b8a83b2293 <https://github.com/apache/airflow/commit/b8a83b2293f16523b40fab6035fed5f5431076af>`_  2024-05-31   ``Workaround new yandexcloud breaking dataproc integration (#39964)``
+=================================================================================================  ===========  =========================================================================
+
+3.11.1
+......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`e0dd075d1b <https://github.com/apache/airflow/commit/e0dd075d1b4ef48bdae5a9a690a27518e4438104>`_  2024-05-15   `` AIP-21: yandexcloud: rename files, emit deprecation warning (#39618)``
+`defe4590e9 <https://github.com/apache/airflow/commit/defe4590e9c94a9b5157143d618a143cb30ade78>`_  2024-05-11   ``yandex provider: bump version for yq http client package (#39548)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`05945a47f3 <https://github.com/apache/airflow/commit/05945a47f32571422fec82559cbde366f255b8ed>`_  2024-05-09   ``add doc about Yandex Query operator (#39445)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  =========================================================================
+
 3.11.0
 ......
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 =================================================================================================  ===========  =======================================================================
 

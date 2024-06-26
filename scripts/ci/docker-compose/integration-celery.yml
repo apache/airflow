@@ -15,14 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   rabbitmq:
+    container_name: rabbitmq
     image: rabbitmq:3.7
     labels:
       breeze.description: "Integration required for Celery executor tests."
     volumes:
       - rabbitmq-db-volume:/var/lib/rabbitmq
+    ports:
+      - "${RABBITMQ_HOST_PORT}:5672"
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 5s
@@ -30,17 +32,9 @@ services:
       retries: 50
     restart: "on-failure"
   redis:
-    image: redis:5.0.1
-    volumes:
-      - redis-db-volume:/data/redis
-    ports:
-      - "${REDIS_HOST_PORT}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: "on-failure"
+    extends:
+      file: integration-redis.yml
+      service: redis
   airflow:
     environment:
       - INTEGRATION_CELERY=true

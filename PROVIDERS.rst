@@ -19,7 +19,7 @@
 Apache Airflow Providers
 ************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 What is a provider?
 ===================
@@ -155,7 +155,7 @@ will be able to use the new version without breaking their workflows. When we up
 2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump ``MINOR`` version of the
 provider when we increase minimum Airflow version.
 
-Increasing the minimum version ot the Providers is one of the reasons why 3rd-party provider maintainers
+Increasing the minimum version of the Providers is one of the reasons why 3rd-party provider maintainers
 might want to maintain their own providers - as they can decide to support older versions of Airflow.
 
 3rd-parties relation to community providers

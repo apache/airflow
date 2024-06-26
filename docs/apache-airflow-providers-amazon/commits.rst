@@ -35,14 +35,78 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.25.0
+......
+
+Latest change: 2024-06-19
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`d5fb711ae0 <https://github.com/apache/airflow/commit/d5fb711ae09b06bef882a7b3b2cd20607a3671e3>`_  2024-06-19   ``Add Amazon Comprehend Document Classifier (#40287)``
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`6f4098487d <https://github.com/apache/airflow/commit/6f4098487d3629ab4c99de05a503fc1b511c7300>`_  2024-06-14   ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+`835f28c8b9 <https://github.com/apache/airflow/commit/835f28c8b9141d7c1b9c527a77ad8da7bb460d08>`_  2024-06-12   ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+`15178b6953 <https://github.com/apache/airflow/commit/15178b6953001ea7ab9e013cb5e7ede72ec6c36f>`_  2024-06-08   ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+`22bd188439 <https://github.com/apache/airflow/commit/22bd1884397cb900d1cc825467f0f21539d53fa8>`_  2024-06-08   ``Fix 'importlib_metadata' import in aws utils (#40134)``
+=================================================================================================  ===========  ====================================================================================
+
+8.24.0
+......
+
+Latest change: 2024-06-07
+
+=================================================================================================  ===========  ================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================
+`35bece7dc3 <https://github.com/apache/airflow/commit/35bece7dc33537eefa328aeef6fbfb206567e8e5>`_  2024-06-07   ``Prepare docs 1st wave June 2024 (#40057)``
+`42a2b1a3bb <https://github.com/apache/airflow/commit/42a2b1a3bb6d39e29deead92d261b840854f3fb4>`_  2024-06-06   ``Fix aws assume role session creation when deferrable (#40051)``
+`06a200d5fa <https://github.com/apache/airflow/commit/06a200d5fad3d80219d1d545929ebec3cc1afb55>`_  2024-06-05   ``Bump boto min versions (#40052)``
+`99dd24b436 <https://github.com/apache/airflow/commit/99dd24b436c1a8c5f736e9784c60d469a5b2bed7>`_  2024-06-04   ``Doc-only: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
+`ea682382bc <https://github.com/apache/airflow/commit/ea682382bc3570a820d400994114e8b0060add66>`_  2024-06-04   ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`19c145c9ef <https://github.com/apache/airflow/commit/19c145c9ef692a902cc0a2efd31fd7ec23d818f0>`_  2024-06-03   ``Resolve aws emr deprecations in tests (#40020)``
+`357988831a <https://github.com/apache/airflow/commit/357988831ad1fd0a5db8cdabdc875528e9346cc3>`_  2024-06-02   ``Deduplicate model name in SageMakerTransformOperator (#39956)``
+`78523fdbf1 <https://github.com/apache/airflow/commit/78523fdbf1b80a7fbc7ec5e7b0b20f6934917898>`_  2024-05-31   ``Adding Amazon Glue Data Quality Service (#39923)``
+`fcd1a26a9a <https://github.com/apache/airflow/commit/fcd1a26a9a006ee8ee3ac023abb247f565d36e67>`_  2024-05-31   ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+`fa0aaf694e <https://github.com/apache/airflow/commit/fa0aaf694ecf71364c7e8032b803ecc5cef7ac3d>`_  2024-05-31   ``Resolving EMR notebook deprecated warnings (#39829)``
+`ddcc1b3a00 <https://github.com/apache/airflow/commit/ddcc1b3a00c14a727c0237d61d2df43e480e303d>`_  2024-05-30   ``Fix: remove process_func from templated_fields (#39948)``
+`11f219abff <https://github.com/apache/airflow/commit/11f219abffb49ef713bac3e60121fcbf737dc95b>`_  2024-05-30   ``Prepare docs 4th wave May 2024 (#39934)``
+`5f2ebb312b <https://github.com/apache/airflow/commit/5f2ebb312b08769b454a777280ddf5c43c38bb87>`_  2024-05-29   ``ECS Overrides for AWS Batch submit_job (#39903)``
+`53081cd342 <https://github.com/apache/airflow/commit/53081cd342098a2ab7be18a62f7b87e7c0b9e2e3>`_  2024-05-27   ``Implement amazon s3 to dynamodb transfer operator (#39654)``
+`8a35a6abdc <https://github.com/apache/airflow/commit/8a35a6abdcdcc2558048701adce82f2132e05884>`_  2024-05-26   ``Resolving ECS fargate deprecated warnings (#39834)``
+=================================================================================================  ===========  ================================================================================================================
+
+8.23.0
+......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ==============================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`e565cea65c <https://github.com/apache/airflow/commit/e565cea65cb42e43387aa7fd135ac46e8ac25f65>`_  2024-05-23   ``Resolving EMR deprecated warnings (#39743)``
+`7b588b4dd9 <https://github.com/apache/airflow/commit/7b588b4dd97ee719b9574c2f9b948b7a5a837968>`_  2024-05-22   ``misc: add comment about remove unused code (#39748)``
+`a78ee74b6a <https://github.com/apache/airflow/commit/a78ee74b6a6d1774f7f248b14100eda8f87d9952>`_  2024-05-22   ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+`49b38719e2 <https://github.com/apache/airflow/commit/49b38719e24bd4adb3354319aeacb87b87e79b9c>`_  2024-05-21   ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
+`8d1bd345b2 <https://github.com/apache/airflow/commit/8d1bd345b2f343c9abe83e6dc5a71604796f0085>`_  2024-05-17   ``fix: empty openlineage dataset name for AthenaExtractor (#39677)``
+`f3687b68a6 <https://github.com/apache/airflow/commit/f3687b68a677f61a57d78a96b6b9323ab8f8258e>`_  2024-05-16   ``Sagemaker trigger: pass the job name as part of the event (#39671)``
+`9ea78d9d72 <https://github.com/apache/airflow/commit/9ea78d9d726d9ddb6109a7fba0c3a838f8a05610>`_  2024-05-15   ``Fix default value for aws batch operator retry strategy (#39608)``
+`9284dc5391 <https://github.com/apache/airflow/commit/9284dc53914fc1b8b17399158de7b2c883519664>`_  2024-05-15   ``Amazon Bedrock - Retrieve and RetrieveAndGenerate (#39500)``
+`9dd77520be <https://github.com/apache/airflow/commit/9dd77520be3d8492156958d57b63b5779a3f55eb>`_  2024-05-15   ``Introduce Amazon Comprehend Service (#39592)``
+`339ea508e2 <https://github.com/apache/airflow/commit/339ea508e2afa56205cfdaf90574fb42a0101eac>`_  2024-05-14   ``Handle task adoption for batch executor (#39590)``
+=================================================================================================  ===========  ==============================================================================================================================
+
 8.22.0
 ......
 
-Latest change: 2024-05-11
+Latest change: 2024-05-12
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`97e867f170 <https://github.com/apache/airflow/commit/97e867f1701fae287a20dff7e0f9e9ecbdc38f27>`_  2024-05-12   ``Prepare docs 2nd wave May 2024 (#39565)``
 `ca058a635e <https://github.com/apache/airflow/commit/ca058a635ee53b3717964b8bf4bfce241f40e762>`_  2024-05-11   ``enh(amazon_hook): raise not found exception instead of general exception when download file (#39509)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

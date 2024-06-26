@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 pytest.importorskip("weaviate")
@@ -36,30 +37,51 @@ class TestWeaviateIngestOperator:
         return WeaviateIngestOperator(
             task_id="weaviate_task",
             conn_id="weaviate_conn",
-            class_name="my_class",
-            input_json=[{"data": "sample_data"}],
+            collection_name="my_collection",
+            input_data=[{"data": "sample_data"}],
         )
 
     def test_constructor(self, operator):
         assert operator.conn_id == "weaviate_conn"
-        assert operator.class_name == "my_class"
+        assert operator.collection_name == "my_collection"
         assert operator.input_data == [{"data": "sample_data"}]
-        assert operator.batch_params == {}
         assert operator.hook_params == {}
 
     @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
     def test_execute_with_input_json(self, mock_log, operator):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Passing 'input_json' to WeaviateIngestOperator is deprecated and you should use 'input_data' instead",
+        ):
+            operator = WeaviateIngestOperator(
+                task_id="weaviate_task",
+                conn_id="weaviate_conn",
+                collection_name="my_collection",
+                input_json=[{"data": "sample_data"}],
+            )
         operator.hook.batch_data = MagicMock()
 
         operator.execute(context=None)
 
         operator.hook.batch_data.assert_called_once_with(
-            class_name="my_class",
+            collection_name="my_collection",
             data=[{"data": "sample_data"}],
-            batch_config_params={},
             vector_col="Vector",
             uuid_col="id",
-            tenant=None,
+        )
+        mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
+
+    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateIngestOperator.log")
+    def test_execute_with_input_data(self, mock_log, operator):
+        operator.hook.batch_data = MagicMock()
+
+        operator.execute(context=None)
+
+        operator.hook.batch_data.assert_called_once_with(
+            collection_name="my_collection",
+            data=[{"data": "sample_data"}],
+            vector_col="Vector",
+            uuid_col="id",
         )
         mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
 
@@ -71,7 +93,7 @@ class TestWeaviateIngestOperator:
             dag_id=dag_id,
             task_id="task-id",
             conn_id="weaviate_conn",
-            class_name="my_class",
+            collection_name="my_collection",
             input_json="{{ dag.dag_id }}",
             input_data="{{ dag.dag_id }}",
         )
@@ -86,8 +108,7 @@ class TestWeaviateIngestOperator:
             WeaviateIngestOperator.partial(
                 task_id="fake-task-id",
                 conn_id="weaviate_conn",
-                class_name="FooBar",
-                batch_params={"spam": "egg"},
+                collection_name="FooBar",
                 hook_params={"baz": "biz"},
             ).expand(input_data=[{}, {}])
 
@@ -96,7 +117,6 @@ class TestWeaviateIngestOperator:
         with set_current_task_instance_session(session=session):
             for ti in tis:
                 ti.render_templates()
-                assert ti.task.batch_params == {"spam": "egg"}
                 assert ti.task.hook_params == {"baz": "biz"}
 
 
@@ -107,23 +127,21 @@ class TestWeaviateDocumentIngestOperator:
             task_id="weaviate_task",
             conn_id="weaviate_conn",
             input_data=[{"data": "sample_data"}],
-            class_name="my_class",
+            collection_name="my_collection",
             document_column="docLink",
             existing="skip",
             uuid_column="id",
             vector_col="vector",
-            batch_config_params={"size": 1000},
         )
 
     def test_constructor(self, operator):
         assert operator.conn_id == "weaviate_conn"
         assert operator.input_data == [{"data": "sample_data"}]
-        assert operator.class_name == "my_class"
+        assert operator.collection_name == "my_collection"
         assert operator.document_column == "docLink"
         assert operator.existing == "skip"
         assert operator.uuid_column == "id"
         assert operator.vector_col == "vector"
-        assert operator.batch_config_params == {"size": 1000}
         assert operator.hook_params == {}
 
     @patch("airflow.providers.weaviate.operators.weaviate.WeaviateDocumentIngestOperator.log")
@@ -134,13 +152,11 @@ class TestWeaviateDocumentIngestOperator:
 
         operator.hook.create_or_replace_document_objects.assert_called_once_with(
             data=[{"data": "sample_data"}],
-            class_name="my_class",
+            collection_name="my_collection",
             document_column="docLink",
             existing="skip",
             uuid_column="id",
             vector_column="vector",
-            batch_config_params={"size": 1000},
-            tenant=None,
             verbose=False,
         )
         mock_log.debug.assert_called_once_with("Total input objects : %s", len([{"data": "sample_data"}]))
@@ -151,7 +167,7 @@ class TestWeaviateDocumentIngestOperator:
             WeaviateDocumentIngestOperator.partial(
                 task_id="fake-task-id",
                 conn_id="weaviate_conn",
-                class_name="FooBar",
+                collection_name="FooBar",
                 document_column="spam-egg",
                 hook_params={"baz": "biz"},
             ).expand(input_data=[{}, {}])

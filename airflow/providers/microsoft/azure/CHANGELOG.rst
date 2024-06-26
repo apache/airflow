@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+10.1.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
+* ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+   * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
+
+10.1.1
+......
+
+Misc
+~~~~
+
+* ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
+* ``Update example AzureContainerInstancesOperator (#39466)``
+
 10.1.0
 ......
 
