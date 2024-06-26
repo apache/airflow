@@ -1954,6 +1954,7 @@ class TaskInstance(Base, LoggingMixin):
         return {
             "dag_id": task.dag_id,
             "task_id": task.task_id,
+            "task_owner" : task.owner,
             "run_id": run_id,
             "try_number": 0,
             "hostname": "",
