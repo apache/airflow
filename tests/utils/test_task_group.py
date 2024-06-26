@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pendulum
 import pytest
@@ -37,7 +38,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import TaskGroup, task_group_to_dict
+from airflow.utils.task_group import TASKGROUP_ARGS_EXPECTED_TYPES, TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
 
 
@@ -1630,3 +1631,20 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
     assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
     assert set(t1.operator.downstream_task_ids) == set()
     assert set(t2.operator.downstream_task_ids) == set()
+
+
+def test_task_group_with_invalid_arg_type_raises_error():
+    error_msg = "'ui_color' has an invalid type <class 'int'> with value 123, expected type is <class 'str'>"
+    with DAG(dag_id="dag_with_tg_invalid_arg_type"):
+        with pytest.raises(TypeError, match=error_msg):
+            with TaskGroup("group_1", ui_color=123):
+                EmptyOperator(task_id="task1")
+
+
+@mock.patch("airflow.utils.task_group.validate_instance_args")
+def test_task_group_init_validates_arg_types(mock_validate_instance_args):
+    with DAG(dag_id="dag_with_tg_valid_arg_types"):
+        with TaskGroup("group_1", ui_color="red") as tg:
+            EmptyOperator(task_id="task1")
+
+    mock_validate_instance_args.assert_called_with(tg, TASKGROUP_ARGS_EXPECTED_TYPES)

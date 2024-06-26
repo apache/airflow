@@ -150,7 +150,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, list, tuple)):
+        if isinstance(value, (set, tuple)):
             return str(list(value))
         return value
 
@@ -214,6 +214,12 @@ class TaskInstanceInfo(InfoJsonEncodable):
     }
 
 
+class DatasetInfo(InfoJsonEncodable):
+    """Defines encoding Airflow Dataset object to JSON."""
+
+    includes = ["uri", "extra"]
+
+
 class TaskInfo(InfoJsonEncodable):
     """Defines encoding BaseOperator/AbstractOperator object to JSON."""
 
@@ -242,6 +248,9 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
+        "trigger_dag_id",
+        "external_dag_id",
+        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
@@ -255,6 +264,8 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
+        "inlets": lambda task: [DatasetInfo(inlet) for inlet in task.inlets],
+        "outlets": lambda task: [DatasetInfo(outlet) for outlet in task.outlets],
     }
 
 

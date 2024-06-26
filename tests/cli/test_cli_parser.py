@@ -45,6 +45,8 @@ from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecut
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 # Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
 # Only can be `-[a-z]` or `-[A-Z]`
