@@ -3832,9 +3832,21 @@ class TaskInstance(Base, LoggingMixin):
         if common_ancestor is None:
             return None
 
-        # At this point we know the two tasks share a mapped task group, and we
-        # should use a "partial" value. Let's break down the mapped ti count
-        # between the ancestor and further expansion happened inside it.
+        # At this point we know both tasks share a mapped task group.
+        # When this ti is not yet expanded (map_index < 0), all of the upstream task
+        # map_indexes should be considered as upstream.
+        # With this early return, we avoid a bug in the following situation:
+        # 1. This ti was not yet expanded
+        # 2. Its upstream task (inside the same mapped task group) was already expanded (so it
+        # doesn't have any ti with map_index == -1)
+        # Then this method would return -1 as a relevant upstream map index even when an upstream
+        # ti with that index does not exist.
+        if self.map_index < 0 and isinstance(common_ancestor, MappedTaskGroup):
+            return None
+
+        # At this point we know the two tasks share a mapped task group, and both
+        # of them are expanded, so we should use a "partial" value. Let's break down the mapped
+        # ti count between the ancestor and further expansion happened inside it.
         ancestor_ti_count = common_ancestor.get_mapped_ti_count(self.run_id, session=session)
         ancestor_map_index = self.map_index * ancestor_ti_count // ti_count
 
