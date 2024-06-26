@@ -62,8 +62,8 @@ class InfluxDBHook(BaseHook):
         self.uri = None
         self.org_name = None
 
-    def get_client(self, uri, token, org_name):
-        return InfluxDBClient(url=uri, token=token, org=org_name)
+    def get_client(self, uri, token, org_name, timeout):
+        return InfluxDBClient(url=uri, token=token, org=org_name, timeout=timeout)
 
     def get_uri(self, conn: Connection):
         """Add additional parameters to the URI based on InfluxDB host requirements."""
@@ -84,11 +84,12 @@ class InfluxDBHook(BaseHook):
 
         token = self.connection.extra_dejson.get("token")
         self.org_name = self.connection.extra_dejson.get("org_name")
+        timeout = self.connection.extra_dejson.get("timeout", 10000)
 
         self.log.info("URI: %s", self.uri)
         self.log.info("Organization: %s", self.org_name)
 
-        self.client = self.get_client(self.uri, token, self.org_name)
+        self.client = self.get_client(self.uri, token, self.org_name, timeout)
 
         return self.client
 
