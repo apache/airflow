@@ -53,6 +53,10 @@ class S3ToTeradataOperator(BaseOperator):
     :param aws_conn_id: The Airflow AWS connection used for AWS credentials.
     :param teradata_conn_id: The connection ID used to connect to Teradata
         :ref:`Teradata connection <howto/connection:Teradata>`.
+    :param teradata_authorization_name: The name of Teradata Authorization Database Object,
+        is used to control who can access an S3 object store.
+        Refer to
+        https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Teradata-VantageTM-Native-Object-Store-Getting-Started-Guide-17.20/Setting-Up-Access/Controlling-Foreign-Table-Access-with-an-AUTHORIZATION-Object
 
     Note that ``s3_source_key`` and ``teradata_table`` are
     templated, so you can use variables in them if you wish.
@@ -69,6 +73,7 @@ class S3ToTeradataOperator(BaseOperator):
         teradata_table: str,
         aws_conn_id: str = "aws_default",
         teradata_conn_id: str = "teradata_default",
+        teradata_authorization_name: str = "",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -77,6 +82,7 @@ class S3ToTeradataOperator(BaseOperator):
         self.teradata_table = teradata_table
         self.aws_conn_id = aws_conn_id
         self.teradata_conn_id = teradata_conn_id
+        self.teradata_authorization_name = teradata_authorization_name
 
     def execute(self, context: Context) -> None:
         self.log.info(
@@ -84,20 +90,26 @@ class S3ToTeradataOperator(BaseOperator):
         )
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
-        access_key = ""
-        access_secret = ""
-        if not self.public_bucket:
-            credentials = s3_hook.get_credentials()
-            access_key = credentials.access_key
-            access_secret = credentials.secret_key
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
+        credentials_part = "ACCESS_ID= '' ACCESS_KEY= ''"
+        if not self.public_bucket:
+            # Accessing data directly from the S3 bucket and creating permanent table inside the database
+            if self.teradata_authorization_name:
+                credentials_part = f"AUTHORIZATION={self.teradata_authorization_name}"
+            else:
+                credentials = s3_hook.get_credentials()
+                access_key = credentials.access_key
+                access_secret = credentials.secret_key
+                credentials_part = f"ACCESS_ID= '{access_key}' ACCESS_KEY= '{access_secret}'"
+                token = credentials.token
+                if token:
+                    credentials_part = credentials_part + f" SESSION_TOKEN = '{token}'"
         sql = dedent(f"""
                         CREATE MULTISET TABLE {self.teradata_table} AS
                         (
                             SELECT * FROM (
                                 LOCATION = '{self.s3_source_key}'
-                                ACCESS_ID= '{access_key}'
-                                ACCESS_KEY= '{access_secret}'
+                                {credentials_part}
                             ) AS d
                         ) WITH DATA
                         """).rstrip()

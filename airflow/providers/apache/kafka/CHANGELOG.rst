@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'delete_topic' to 'KafkaAdminClientHook' (#40142)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Default client in KafkaBaseHook (#40284)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
 1.4.1
 .....
 
