@@ -2490,10 +2490,9 @@ class Airflow(AirflowBaseView):
 
     @expose("/blocked", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @action_logging
     @provide_session
     def blocked(self, session: Session = NEW_SESSION):
-        """Mark Dag Blocked."""
+        """Retrieve active_dag_runs and max_active_runs information for running Dags."""
         allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         # Filter by post parameters
