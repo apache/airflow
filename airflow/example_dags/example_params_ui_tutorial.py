@@ -101,7 +101,7 @@ with DAG(
                 "Quebec,Romeo,Sierra,Tango,Uniform,Victor,Whiskey,X-ray,Yankee,Zulu"
             ).split(","),
         ),
-        # If you want to select multiple items from a fixed list JSON schema des not allow to use enum
+        # If you want to select multiple items from a fixed list JSON schema does not allow to use enum
         # In this case the type "array" is being used together with "examples" as pick list
         "multi_select": Param(
             ["two", "three"],
@@ -122,7 +122,7 @@ with DAG(
                 "1": "One box of choccolate",
                 "2": "Two bananas",
                 "3": "Three apples",
-                # Note: Value display mapping does not need to be complete.s
+                # Note: Value display mapping does not need to be complete
             },
         ),
         # An array of numbers
@@ -146,14 +146,14 @@ with DAG(
             type="string",
             format="date-time",
             title="Date-Time Picker",
-            description="Please select a date and time, use the button on the left for a pup-up calendar.",
+            description="Please select a date and time, use the button on the left for a pop-up calendar.",
         ),
         "date": Param(
             f"{datetime.date.today()}",
             type="string",
             format="date",
             title="Date Picker",
-            description="Please select a date, use the button on the left for a pup-up calendar. "
+            description="Please select a date, use the button on the left for a pop-up calendar. "
             "See that here are no times!",
         ),
         "time": Param(
@@ -161,7 +161,7 @@ with DAG(
             type=["string", "null"],
             format="time",
             title="Time Picker",
-            description="Please select a time, use the button on the left for a pup-up tool.",
+            description="Please select a time, use the button on the left for a pop-up tool.",
         ),
         # Fields can be required or not. If the defined fields are typed they are getting required by default
         # (else they would not pass JSON schema validation) - to make typed fields optional you must

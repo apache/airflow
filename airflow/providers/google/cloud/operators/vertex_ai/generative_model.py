@@ -33,11 +33,11 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
     Uses the Vertex AI PaLM API to generate natural language text.
 
     :param project_id: Required. The ID of the Google Cloud project that the
-        service belongs to.
+        service belongs to (templated).
     :param location: Required. The ID of the Google Cloud location that the
-        service belongs to.
+        service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Vertex AI PaLM API, in order to elicit a specific response.
+        to the Vertex AI PaLM API, in order to elicit a specific response (templated).
     :param pretrained_model: By default uses the pre-trained model `text-bison`,
         optimized for performing natural language tasks such as classification,
         summarization, extraction, content creation, and ideation.
@@ -59,6 +59,8 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
 
     def __init__(
         self,
@@ -116,11 +118,11 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
     Uses the Vertex AI PaLM API to generate natural language text.
 
     :param project_id: Required. The ID of the Google Cloud project that the
-        service belongs to.
+        service belongs to (templated).
     :param location: Required. The ID of the Google Cloud location that the
-        service belongs to.
+        service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Vertex AI PaLM API, in order to elicit a specific response.
+        to the Vertex AI PaLM API, in order to elicit a specific response (templated).
     :param pretrained_model: By default uses the pre-trained model `textembedding-gecko`,
         optimized for performing text embeddings.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -133,6 +135,8 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
 
     def __init__(
         self,
@@ -178,11 +182,13 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
     Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
     :param project_id: Required. The ID of the Google Cloud project that the
-        service belongs to.
+        service belongs to (templated).
     :param location: Required. The ID of the Google Cloud location that the
-        service belongs to.
+        service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Multi-modal model, in order to elicit a specific response.
+        to the Multi-modal model, in order to elicit a specific response (templated).
+    :param generation_config: Optional. Generation configuration settings.
+    :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
@@ -198,12 +204,16 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
+
     def __init__(
         self,
         *,
         project_id: str,
         location: str,
         prompt: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -213,6 +223,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.prompt = prompt
+        self.generation_config = generation_config
+        self.safety_settings = safety_settings
         self.pretrained_model = pretrained_model
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -226,6 +238,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings,
             pretrained_model=self.pretrained_model,
         )
 
@@ -240,11 +254,13 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
     Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
     :param project_id: Required. The ID of the Google Cloud project that the
-        service belongs to.
+        service belongs to (templated).
     :param location: Required. The ID of the Google Cloud location that the
-        service belongs to.
+        service belongs to (templated).
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Multi-modal model, in order to elicit a specific response.
+        to the Multi-modal model, in order to elicit a specific response (templated).
+    :param generation_config: Optional. Generation configuration settings.
+    :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
@@ -263,6 +279,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
+
     def __init__(
         self,
         *,
@@ -271,6 +289,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         prompt: str,
         media_gcs_path: str,
         mime_type: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro-vision",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -280,6 +300,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.prompt = prompt
+        self.generation_config = generation_config
+        self.safety_settings = safety_settings
         self.pretrained_model = pretrained_model
         self.media_gcs_path = media_gcs_path
         self.mime_type = mime_type
@@ -295,6 +317,8 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings,
             pretrained_model=self.pretrained_model,
             media_gcs_path=self.media_gcs_path,
             mime_type=self.mime_type,

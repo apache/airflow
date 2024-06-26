@@ -23,11 +23,8 @@ import re
 import socket
 import subprocess
 import time
-import warnings
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Iterable, Mapping
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -126,12 +123,12 @@ class HiveCliHook(BaseHook):
         from wtforms import BooleanField, StringField
 
         return {
-            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=False),
+            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=True),
             "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget(), default=""),
             "principal": StringField(
                 lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
             ),
-            "high_availability": BooleanField(lazy_gettext("High Availability"), default=False),
+            "high_availability": BooleanField(lazy_gettext("High Availability mode"), default=False),
         }
 
     @classmethod
@@ -163,10 +160,10 @@ class HiveCliHook(BaseHook):
             self._validate_beeline_parameters(conn)
             if self.high_availability:
                 jdbc_url = f"jdbc:hive2://{conn.host}/{conn.schema}"
-                self.log.info("High Availability set, setting JDBC url as %s", jdbc_url)
+                self.log.info("High Availability selected, setting JDBC url as %s", jdbc_url)
             else:
                 jdbc_url = f"jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
-                self.log.info("High Availability not set, setting JDBC url as %s", jdbc_url)
+                self.log.info("High Availability not selected, setting JDBC url as %s", jdbc_url)
             if conf.get("core", "security") == "kerberos":
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -561,15 +558,6 @@ class HiveMetastoreHook(BaseHook):
         if not host:
             raise AirflowException("Failed to locate the valid server.")
 
-        if "authMechanism" in conn.extra_dejson:
-            warnings.warn(
-                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            conn.extra_dejson["auth_mechanism"] = conn.extra_dejson["authMechanism"]
-            del conn.extra_dejson["authMechanism"]
-
         auth_mechanism = conn.extra_dejson.get("auth_mechanism", "NOSASL")
 
         if conf.get("core", "security") == "kerberos":
@@ -871,15 +859,6 @@ class HiveServer2Hook(DbApiHook):
         password: str | None = None
 
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-
-        if "authMechanism" in db.extra_dejson:
-            warnings.warn(
-                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            db.extra_dejson["auth_mechanism"] = db.extra_dejson["authMechanism"]
-            del db.extra_dejson["authMechanism"]
 
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:

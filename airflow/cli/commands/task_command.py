@@ -34,7 +34,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -45,7 +45,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -156,8 +155,10 @@ def _get_dag_run(
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
+@internal_api_call
 @provide_session
-def _get_ti(
+def _get_ti_db_access(
+    dag: DAG,
     task: Operator,
     map_index: int,
     *,
@@ -167,12 +168,15 @@ def _get_ti(
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
-    dag = task.dag
-    if dag is None:
-        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    # this check is imperfect because diff dags could have tasks with same name
+    # but in a task, dag_id is a property that accesses its dag, and we don't
+    # currently include the dag when serializing an operator
+    if task.task_id not in dag.task_dict:
+        raise ValueError(f"Provided task {task.task_id} is not in dag '{dag.dag_id}.")
+
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    if needs_expansion(task):
+    if task.get_needs_expansion():
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
@@ -194,9 +198,38 @@ def _get_ti(
             )
         # TODO: Validate map_index is in range?
         ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        if dag_run in session:
+            session.add(ti)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
+    ti.refresh_from_task(task, pool_override=pool)
+    return ti, dr_created
+
+
+def _get_ti(
+    task: Operator,
+    map_index: int,
+    *,
+    exec_date_or_run_id: str | None = None,
+    pool: str | None = None,
+    create_if_necessary: CreateIfNecessary = False,
+):
+    dag = task.dag
+    if dag is None:
+        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+
+    ti, dr_created = _get_ti_db_access(
+        dag=dag,
+        task=task,
+        map_index=map_index,
+        exec_date_or_run_id=exec_date_or_run_id,
+        pool=pool,
+        create_if_necessary=create_if_necessary,
+    )
+
+    # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
+    # is the original task object and not the result of the round trip
     ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
@@ -640,7 +673,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
             else:
                 ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True, raise_on_defer=True)
     except TaskDeferred as defer:
-        ti.defer_task(defer=defer, session=session)
+        ti.defer_task(exception=defer, session=session)
         log.info("[TASK TEST] running trigger in line")
 
         event = _run_inline_trigger(defer.trigger)

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG using TrinoOperator.
+Example DAG using SQLExecuteQueryOperator to connect to Trino.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.trino.operators.trino import TrinoOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 SCHEMA = "hive.cities"
 TABLE = "city"
@@ -40,12 +40,12 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    trino_create_schema = TrinoOperator(
+    trino_create_schema = SQLExecuteQueryOperator(
         task_id="trino_create_schema",
         sql=f"CREATE SCHEMA IF NOT EXISTS {SCHEMA} WITH (location = 's3://irisbkt/cities/');",
         handler=list,
     )
-    trino_create_table = TrinoOperator(
+    trino_create_table = SQLExecuteQueryOperator(
         task_id="trino_create_table",
         sql=f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE}(
         cityid bigint,
@@ -53,14 +53,12 @@ with models.DAG(
         )""",
         handler=list,
     )
-
-    trino_insert = TrinoOperator(
+    trino_insert = SQLExecuteQueryOperator(
         task_id="trino_insert",
         sql=f"""INSERT INTO {SCHEMA}.{TABLE} VALUES (1, 'San Francisco');""",
         handler=list,
     )
-
-    trino_multiple_queries = TrinoOperator(
+    trino_multiple_queries = SQLExecuteQueryOperator(
         task_id="trino_multiple_queries",
         sql=f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE1}(cityid bigint,cityname varchar);
         INSERT INTO {SCHEMA}.{TABLE1} VALUES (2, 'San Jose');
@@ -68,14 +66,13 @@ with models.DAG(
         INSERT INTO {SCHEMA}.{TABLE2} VALUES (3, 'San Diego');""",
         handler=list,
     )
-
-    trino_templated_query = TrinoOperator(
+    trino_templated_query = SQLExecuteQueryOperator(
         task_id="trino_templated_query",
         sql="SELECT * FROM {{ params.SCHEMA }}.{{ params.TABLE }}",
         handler=list,
         params={"SCHEMA": SCHEMA, "TABLE": TABLE1},
     )
-    trino_parameterized_query = TrinoOperator(
+    trino_parameterized_query = SQLExecuteQueryOperator(
         task_id="trino_parameterized_query",
         sql=f"select * from {SCHEMA}.{TABLE2} where cityname = ?",
         parameters=("San Diego",),

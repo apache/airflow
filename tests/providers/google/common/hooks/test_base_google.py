@@ -30,14 +30,14 @@ import google.auth.compute_engine
 import pytest
 import tenacity
 from google.auth.environment_vars import CREDENTIALS
-from google.auth.exceptions import GoogleAuthError
+from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.cloud.exceptions import Forbidden
 
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from airflow.providers.google.common.hooks import base_google as hook
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, is_refresh_credentials_exception
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -96,6 +96,46 @@ class TestQuotaRetry:
             _retryable_test_with_temporary_quota_retry(
                 NoForbiddenAfterCount(5, message=message, errors=errors)
             )
+
+
+class TestRefreshCredentialsRetry:
+    @pytest.mark.parametrize(
+        "exc, retryable",
+        [
+            (RefreshError("Other error", "test body"), False),
+            (RefreshError("Unable to acquire impersonated credentials", "test body"), True),
+            (ValueError(), False),
+        ],
+    )
+    def test_is_refresh_credentials_exception(self, exc, retryable):
+        assert is_refresh_credentials_exception(exc) is retryable
+
+    def test_do_nothing_on_non_error(self):
+        @hook.GoogleBaseHook.refresh_credentials_retry()
+        def func():
+            return 42
+
+        assert func() == 42
+
+    def test_raise_non_refresh_error(self):
+        @hook.GoogleBaseHook.refresh_credentials_retry()
+        def func():
+            raise ValueError()
+
+        with pytest.raises(ValueError):
+            func()
+
+    @mock.patch("tenacity.nap.time.sleep", mock.MagicMock())
+    def test_retry_on_refresh_error(self):
+        func_return = mock.Mock(
+            side_effect=[RefreshError("Unable to acquire impersonated credentials", "test body"), 42]
+        )
+
+        @hook.GoogleBaseHook.refresh_credentials_retry()
+        def func():
+            return func_return()
+
+        assert func() == 42
 
 
 class FallbackToDefaultProjectIdFixtureClass:
@@ -247,9 +287,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
@@ -273,9 +313,9 @@ class TestProvideGcpCredentialFile:
 
         @hook.GoogleBaseHook.provide_gcp_credential_file
         def assert_gcp_credential_file_in_env(_):
-            raise Exception()
+            raise RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             assert_gcp_credential_file_in_env(self.instance)
 
         assert CREDENTIALS not in os.environ
@@ -325,9 +365,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
@@ -346,9 +386,9 @@ class TestProvideGcpCredentialFileAsContext:
         key_path = "/test/key-path"
         self.instance.extras = {"key_path": key_path}
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             with self.instance.provide_gcp_credential_file_as_context():
-                raise Exception()
+                raise RuntimeError("Some exception occurred")
 
         assert CREDENTIALS not in os.environ
 
@@ -372,6 +412,11 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert ("CREDENTIALS", "PROJECT_ID") == result
 
@@ -409,6 +454,11 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -439,6 +489,11 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -459,6 +514,11 @@ class TestGoogleBaseHook:
             delegate_to="USER",
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -495,6 +555,11 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert ("CREDENTIALS", "SECOND_PROJECT_ID") == result
 
@@ -504,12 +569,7 @@ class TestGoogleBaseHook:
             "key_path": "KEY_PATH",
             "keyfile_dict": '{"KEY": "VALUE"}',
         }
-        with pytest.raises(
-            AirflowException,
-            match=re.escape(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive. "
-            ),
-        ):
+        with pytest.raises(AirflowException, match="mutually exclusive"):
             self.instance.get_credentials_and_project_id()
 
     def test_get_credentials_and_project_id_with_invalid_keyfile_dict(self):
@@ -518,6 +578,29 @@ class TestGoogleBaseHook:
         }
         with pytest.raises(AirflowException, match=re.escape("Invalid key JSON.")):
             self.instance.get_credentials_and_project_id()
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", ""))
+    def test_get_credentials_and_project_id_with_is_anonymous(self, mock_get_creds_and_proj_id):
+        self.instance.extras = {
+            "is_anonymous": True,
+        }
+        self.instance.get_credentials_and_project_id()
+        mock_get_creds_and_proj_id.assert_called_once_with(
+            key_path=None,
+            keyfile_dict=None,
+            credential_config_file=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
+            scopes=self.instance.scopes,
+            delegate_to=None,
+            target_principal=None,
+            delegates=None,
+            is_anonymous=True,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
+        )
 
     @pytest.mark.skipif(
         not default_creds_available, reason="Default Google Cloud credentials not available to run tests"
@@ -724,6 +807,11 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=target_principal,
             delegates=delegates,
+            is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, PROJECT_ID) == result
 

@@ -24,7 +24,7 @@ import signal
 import sys
 import time
 import warnings
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
+    from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.sqlalchemy import (
         CommitProhibitorGuard,
@@ -196,6 +197,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] stalled_task_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
         if task_adoption_timeout:
@@ -204,6 +206,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[celery] task_adoption_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         worker_pods_pending_timeout = conf.getfloat(
             "kubernetes_executor", "worker_pods_pending_timeout", fallback=0
@@ -214,6 +217,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
                 "Please update your config to use '[scheduler] task_queued_timeout' instead.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._task_queued_timeout = max(
@@ -270,8 +274,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
 
-        self.job.executor.debug_dump()
-        self.log.info("-" * 80)
+        for executor in self.job.executors:
+            self.log.info("Debug dump for the executor %s", executor)
+            executor.debug_dump()
+            self.log.info("-" * 80)
 
     def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
@@ -687,7 +693,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
-            if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
+            if state in (
+                TaskInstanceState.FAILED,
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.QUEUED,
+                TaskInstanceState.RUNNING,
+            ):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -706,7 +717,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
-            if state == TaskInstanceState.QUEUED:
+            if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
@@ -819,19 +830,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         try:
-            self.job.executor.job_id = self.job.id
+            callback_sink: PipeCallbackSink | DatabaseCallbackSink
+
             if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
-                self.job.executor.callback_sink = PipeCallbackSink(
-                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
-                )
+                callback_sink = PipeCallbackSink(get_sink_pipe=self.processor_agent.get_callbacks_pipe)
             else:
                 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.job.executor.callback_sink = DatabaseCallbackSink()
+                callback_sink = DatabaseCallbackSink()
 
-            self.job.executor.start()
+            for executor in self.job.executors:
+                executor.job_id = self.job.id
+                executor.callback_sink = callback_sink
+                executor.start()
 
             self.register_signals()
 
@@ -860,10 +873,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
-            try:
-                self.job.executor.end()
-            except Exception:
-                self.log.exception("Exception when executing Executor.end")
+            for executor in self.job.executors:
+                try:
+                    executor.end()
+                except Exception:
+                    self.log.exception("Exception when executing Executor.end on %s", executor)
             if self.processor_agent:
                 try:
                     self.processor_agent.end()
@@ -1552,22 +1566,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TI.queued_by_job_id == self.job.id,
             )
         ).all()
-        try:
-            cleaned_up_task_instances = self.job.executor.cleanup_stuck_queued_tasks(
-                tis=tasks_stuck_in_queued
-            )
-            cleaned_up_task_instances = set(cleaned_up_task_instances)
-            for ti in tasks_stuck_in_queued:
-                if repr(ti) in cleaned_up_task_instances:
-                    self._task_context_logger.warning(
-                        "Marking task instance %s stuck in queued as failed. "
-                        "If the task instance has available retries, it will be retried.",
-                        ti,
-                        ti=ti,
-                    )
-        except NotImplementedError:
-            self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
-            ...
+
+        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
+            try:
+                cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
+                for ti in stuck_tis:
+                    if repr(ti) in cleaned_up_task_instances:
+                        self._task_context_logger.warning(
+                            "Marking task instance %s stuck in queued as failed. "
+                            "If the task instance has available retries, it will be retried.",
+                            ti,
+                            ti=ti,
+                        )
+            except NotImplementedError:
+                self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
@@ -1579,11 +1591,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
             Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+            Stats.gauge(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
             Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
@@ -1620,7 +1635,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     query = (
                         select(TI)
-                        .options(lazyload("dag_run"))  # avoids double join to dag_run
+                        .options(lazyload(TI.dag_run))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
                         .join(TI.queued_by_job)
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
@@ -1635,7 +1650,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Lock these rows, so that another scheduler can't try and adopt these too
                     tis_to_adopt_or_reset = with_row_locks(query, of=TI, session=session, skip_locked=True)
                     tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
-                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
+
+                    to_reset: list[TaskInstance] = []
+                    exec_to_tis = self._executor_to_tis(tis_to_adopt_or_reset)
+                    for executor, tis in exec_to_tis.items():
+                        to_reset.extend(executor.try_adopt_task_instances(tis))
 
                     reset_tis_message = []
                     for ti in to_reset:
@@ -1815,3 +1834,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
         Stats.gauge("dataset.orphaned", updated_count)
+
+    def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
+        """Organize TIs into lists per their respective executor."""
+        _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
+        executor: str | None
+        for ti in tis:
+            if ti.executor:
+                executor = str(ti.executor)
+            else:
+                executor = None
+            _executor_to_tis[ExecutorLoader.load_executor(executor)].append(ti)
+
+        return _executor_to_tis

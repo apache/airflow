@@ -18,14 +18,17 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from os import environ
 
-from botocore.exceptions import ClientError
+import boto3
 
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.operators.bedrock import (
+    BedrockCreateProvisionedModelThroughputOperator,
     BedrockCustomizeModelOperator,
     BedrockInvokeModelOperator,
 )
@@ -34,7 +37,11 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
 )
-from airflow.providers.amazon.aws.sensors.bedrock import BedrockCustomizeModelCompletedSensor
+from airflow.providers.amazon.aws.sensors.bedrock import (
+    BedrockCustomizeModelCompletedSensor,
+    BedrockProvisionModelThroughputCompletedSensor,
+)
+from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
@@ -44,14 +51,22 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 
 DAG_ID = "example_bedrock"
 
-# Creating a custom model takes nearly two hours. If SKIP_LONG_TASKS is True then set
-# the trigger rule to an improbable state.  This way we can still have the code snippets
-# for docs, and we can manually run the full tests occasionally.
-SKIP_LONG_TASKS = True
+# Creating a custom model takes nearly two hours. If SKIP_LONG_TASKS
+# is True then these tasks will be skipped. This way we can still have
+# the code snippets for docs, and we can manually run the full tests.
+SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", default=True)
 
-LLAMA_MODEL_ID = "meta.llama2-13b-chat-v1"
+# No-commitment Provisioned Throughput is currently restricted to external
+# customers only and will fail with a ServiceQuotaExceededException if run
+# on the AWS System Test stack.
+SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", default=True)
+
+
+LLAMA_SHORT_MODEL_ID = "meta.llama2-13b-chat-v1"
+TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
+TITAN_SHORT_MODEL_ID = TITAN_MODEL_ID.split(":")[0]
+
 PROMPT = "What color is an orange?"
-TITAN_MODEL_ID = "amazon.titan-text-express-v1"
 TRAIN_DATA = {"prompt": "what is AWS", "completion": "it's Amazon Web Services"}
 HYPERPARAMETERS = {
     "epochCount": "1",
@@ -61,15 +76,80 @@ HYPERPARAMETERS = {
 }
 
 
-@task
-def delete_custom_model(model_name: str):
-    try:
-        BedrockHook().conn.delete_custom_model(modelIdentifier=model_name)
-    except ClientError as e:
-        if SKIP_LONG_TASKS and (e.response["Error"]["Code"] == "ValidationException"):
-            # There is no model to delete.  Since we skipped making one, that's fine.
-            return
-        raise e
+@task_group
+def customize_model_workflow():
+    # [START howto_operator_customize_model]
+    customize_model = BedrockCustomizeModelOperator(
+        task_id="customize_model",
+        job_name=custom_model_job_name,
+        custom_model_name=custom_model_name,
+        role_arn=test_context[ROLE_ARN_KEY],
+        base_model_id=f"{model_arn_prefix}{TITAN_SHORT_MODEL_ID}",
+        hyperparameters=HYPERPARAMETERS,
+        training_data_uri=training_data_uri,
+        output_data_uri=f"s3://{bucket_name}/myOutputData",
+    )
+    # [END howto_operator_customize_model]
+
+    # [START howto_sensor_customize_model]
+    await_custom_model_job = BedrockCustomizeModelCompletedSensor(
+        task_id="await_custom_model_job",
+        job_name=custom_model_job_name,
+    )
+    # [END howto_sensor_customize_model]
+
+    @task
+    def delete_custom_model():
+        BedrockHook().conn.delete_custom_model(modelIdentifier=custom_model_name)
+
+    @task.branch
+    def run_or_skip():
+        return end_workflow.task_id if SKIP_LONG_TASKS else customize_model.task_id
+
+    run_or_skip = run_or_skip()
+    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+
+    chain(run_or_skip, Label("Long-running tasks skipped"), end_workflow)
+    chain(run_or_skip, customize_model, await_custom_model_job, delete_custom_model(), end_workflow)
+
+
+@task_group
+def provision_throughput_workflow():
+    # [START howto_operator_provision_throughput]
+    provision_throughput = BedrockCreateProvisionedModelThroughputOperator(
+        task_id="provision_throughput",
+        model_units=1,
+        provisioned_model_name=provisioned_model_name,
+        model_id=f"{model_arn_prefix}{TITAN_MODEL_ID}",
+    )
+    # [END howto_operator_provision_throughput]
+
+    # [START howto_sensor_provision_throughput]
+    await_provision_throughput = BedrockProvisionModelThroughputCompletedSensor(
+        task_id="await_provision_throughput",
+        model_id=provision_throughput.output,
+    )
+    # [END howto_sensor_provision_throughput]
+
+    @task
+    def delete_provision_throughput(provisioned_model_id: str):
+        BedrockHook().conn.delete_provisioned_model_throughput(provisionedModelId=provisioned_model_id)
+
+    @task.branch
+    def run_or_skip():
+        return end_workflow.task_id if SKIP_PROVISION_THROUGHPUT else provision_throughput.task_id
+
+    run_or_skip = run_or_skip()
+    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+
+    chain(run_or_skip, Label("Quota-restricted tasks skipped"), end_workflow)
+    chain(
+        run_or_skip,
+        provision_throughput,
+        await_provision_throughput,
+        delete_provision_throughput(provision_throughput.output),
+        end_workflow,
+    )
 
 
 with DAG(
@@ -86,6 +166,8 @@ with DAG(
     training_data_uri = f"s3://{bucket_name}/{input_data_s3_key}"
     custom_model_name = f"CustomModel{env_id}"
     custom_model_job_name = f"CustomizeModelJob{env_id}"
+    provisioned_model_name = f"ProvisionedModel{env_id}"
+    model_arn_prefix = f"arn:aws:bedrock:{boto3.session.Session().region_name}::foundation-model/"
 
     create_bucket = S3CreateBucketOperator(
         task_id="create_bucket",
@@ -95,14 +177,14 @@ with DAG(
     upload_training_data = S3CreateObjectOperator(
         task_id="upload_data",
         s3_bucket=bucket_name,
-        s3_key=training_data_uri,
+        s3_key=input_data_s3_key,
         data=json.dumps(TRAIN_DATA),
     )
 
     # [START howto_operator_invoke_llama_model]
     invoke_llama_model = BedrockInvokeModelOperator(
         task_id="invoke_llama",
-        model_id=LLAMA_MODEL_ID,
+        model_id=LLAMA_SHORT_MODEL_ID,
         input_data={"prompt": PROMPT},
     )
     # [END howto_operator_invoke_llama_model]
@@ -110,34 +192,10 @@ with DAG(
     # [START howto_operator_invoke_titan_model]
     invoke_titan_model = BedrockInvokeModelOperator(
         task_id="invoke_titan",
-        model_id=TITAN_MODEL_ID,
+        model_id=TITAN_SHORT_MODEL_ID,
         input_data={"inputText": PROMPT},
     )
     # [END howto_operator_invoke_titan_model]
-
-    # [START howto_operator_customize_model]
-    customize_model = BedrockCustomizeModelOperator(
-        task_id="customize_model",
-        job_name=custom_model_job_name,
-        custom_model_name=custom_model_name,
-        role_arn=test_context[ROLE_ARN_KEY],
-        base_model_id=f"arn:aws:bedrock:us-east-1::foundation-model/{TITAN_MODEL_ID}",
-        hyperparameters=HYPERPARAMETERS,
-        training_data_uri=training_data_uri,
-        output_data_uri=f"s3://{bucket_name}/myOutputData",
-    )
-    # [END howto_operator_customize_model]
-
-    # [START howto_sensor_customize_model]
-    await_custom_model_job = BedrockCustomizeModelCompletedSensor(
-        task_id="await_custom_model_job",
-        job_name=custom_model_job_name,
-    )
-    # [END howto_sensor_customize_model]
-
-    if SKIP_LONG_TASKS:
-        customize_model.trigger_rule = TriggerRule.ALL_SKIPPED
-        await_custom_model_job.trigger_rule = TriggerRule.ALL_SKIPPED
 
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
@@ -152,12 +210,10 @@ with DAG(
         create_bucket,
         upload_training_data,
         # TEST BODY
-        invoke_llama_model,
-        invoke_titan_model,
-        customize_model,
-        await_custom_model_job,
+        [invoke_llama_model, invoke_titan_model],
+        customize_model_workflow(),
+        provision_throughput_workflow(),
         # TEST TEARDOWN
-        delete_custom_model(custom_model_name),
         delete_bucket,
     )
 

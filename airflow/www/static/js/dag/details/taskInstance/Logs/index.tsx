@@ -31,7 +31,6 @@ import {
   ButtonGroup,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
-import { BiCollapse, BiExpand } from "react-icons/bi";
 
 import { getMetaValue } from "src/utils";
 import useTaskLog from "src/api/useTaskLog";
@@ -40,10 +39,12 @@ import { useTimezone } from "src/context/timezone";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import MultiSelect from "src/components/MultiSelect";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { useTaskInstance } from "src/api";
 
 import LogLink from "./LogLink";
 import { LogLevel, logLevelColorMapping, parseLogs } from "./utils";
 import LogBlock from "./LogBlock";
+import TrySelector from "../TrySelector";
 
 interface LogLevelOption {
   label: LogLevel;
@@ -61,26 +62,6 @@ const showExternalLogRedirect =
 const externalLogName = getMetaValue("external_log_name");
 const logUrl = getMetaValue("log_url");
 
-const getLinkIndexes = (
-  tryNumber: number | undefined
-): Array<Array<number>> => {
-  const internalIndexes: Array<number> = [];
-  const externalIndexes: Array<number> = [];
-
-  if (tryNumber) {
-    [...Array(tryNumber)].forEach((_, index) => {
-      const tryNum = index + 1;
-      if (showExternalLogRedirect) {
-        externalIndexes.push(tryNum);
-      } else {
-        internalIndexes.push(tryNum);
-      }
-    });
-  }
-
-  return [internalIndexes, externalIndexes];
-};
-
 const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
   (value): LogLevelOption => ({
     label: value,
@@ -97,8 +78,6 @@ interface Props {
   executionDate: DagRun["executionDate"];
   tryNumber: TaskInstance["tryNumber"];
   state?: TaskInstance["state"];
-  isFullScreen?: boolean;
-  toggleFullScreen?: () => void;
 }
 
 const Logs = ({
@@ -107,15 +86,12 @@ const Logs = ({
   taskId,
   mapIndex,
   executionDate,
-  tryNumber,
+  tryNumber: finalTryNumber,
   state,
-  isFullScreen,
-  toggleFullScreen,
 }: Props) => {
-  const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [selectedTryNumber, setSelectedTryNumber] = useState<
-    number | undefined
-  >();
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1
+  );
   const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
     []
@@ -126,13 +102,19 @@ const Logs = ({
   const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
 
-  const taskTryNumber = selectedTryNumber || tryNumber || 1;
+  const { data: taskInstance } = useTaskInstance({
+    dagId,
+    dagRunId,
+    taskId: taskId || "",
+    mapIndex,
+  });
+
   const { data, isLoading } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
     mapIndex,
-    taskTryNumber,
+    taskTryNumber: selectedTryNumber,
     state,
   });
 
@@ -161,14 +143,11 @@ const Logs = ({
     [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups]
   );
 
-  const logAttemptDropdownLimit = 10;
-  const showDropdown = internalIndexes.length > logAttemptDropdownLimit;
-
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (taskTryNumber > (tryNumber || 1)) {
-      setSelectedTryNumber(undefined);
+    if (selectedTryNumber > (finalTryNumber || 1)) {
+      setSelectedTryNumber(finalTryNumber || 1);
     }
 
     if (
@@ -182,66 +161,38 @@ const Logs = ({
     ) {
       setFileSourceFilters([]);
     }
-  }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
+  }, [data, fileSourceFilters, fileSources, selectedTryNumber, finalTryNumber]);
 
   return (
     <>
-      {externalLogName && externalIndexes.length > 0 && (
+      {showExternalLogRedirect && externalLogName && (
         <Box my={1}>
           <Text>View Logs in {externalLogName} Task Instance Try Number:</Text>
           <Flex flexWrap="wrap">
-            {externalIndexes.map((index) => (
-              <LogLink
-                key={index}
-                dagId={dagId}
-                taskId={taskId}
-                executionDate={executionDate}
-                tryNumber={index}
-              />
-            ))}
+            {Array.from({ length: finalTryNumber || 1 }, (_, i) => i + 1).map(
+              (tryNumber) => (
+                <LogLink
+                  key={tryNumber}
+                  dagId={dagId}
+                  taskId={taskId}
+                  executionDate={executionDate}
+                  tryNumber={tryNumber}
+                />
+              )
+            )}
           </Flex>
         </Box>
       )}
       <Box>
-        {!showDropdown && (
-          <Box>
-            <Text as="span"> Task Instance Try Number</Text>
-            <Flex my={1} justifyContent="space-between">
-              <Flex flexWrap="wrap">
-                {internalIndexes.map((index) => (
-                  <Button
-                    key={index}
-                    variant={taskTryNumber === index ? "solid" : "ghost"}
-                    colorScheme="blue"
-                    onClick={() => setSelectedTryNumber(index)}
-                    data-testid={`log-attempt-select-button-${index}`}
-                  >
-                    {index}
-                  </Button>
-                ))}
-              </Flex>
-            </Flex>
-          </Box>
+        {!!taskInstance && (
+          <TrySelector
+            taskInstance={taskInstance}
+            selectedTryNumber={selectedTryNumber}
+            onSelectTryNumber={setSelectedTryNumber}
+          />
         )}
         <Flex my={1} justifyContent="space-between" flexWrap="wrap">
           <Flex alignItems="center" flexGrow={1} mr={10}>
-            {showDropdown && (
-              <Box width="100%" mr={2}>
-                <Select
-                  size="sm"
-                  placeholder="Select log attempt"
-                  onChange={(e) => {
-                    setSelectedTryNumber(Number(e.target.value));
-                  }}
-                >
-                  {internalIndexes.map((index) => (
-                    <option key={index} value={index}>
-                      {index}
-                    </option>
-                  ))}
-                </Select>
-              </Box>
-            )}
             <Box width="100%" mr={2}>
               <MultiSelect
                 size="sm"
@@ -292,25 +243,12 @@ const Logs = ({
               taskId={taskId}
               executionDate={executionDate}
               isInternal
-              tryNumber={tryNumber}
+              tryNumber={selectedTryNumber}
               mapIndex={mapIndex}
             />
             <LinkButton href={`${logUrl}&${params.toString()}`}>
               See More
             </LinkButton>
-            <IconButton
-              variant="ghost"
-              aria-label="Toggle full screen"
-              title="Toggle full screen"
-              onClick={toggleFullScreen}
-              icon={
-                isFullScreen ? (
-                  <BiCollapse height="24px" />
-                ) : (
-                  <BiExpand height="24px" />
-                )
-              }
-            />
           </Flex>
         </Flex>
       </Box>
@@ -329,15 +267,15 @@ const Logs = ({
       {isLoading ? (
         <Spinner />
       ) : (
-        parsedLogs && (
+        !! parsedLogs && (
           <>
             <LogBlock
               parsedLogs={parsedLogs}
               wrap={wrap}
-              tryNumber={taskTryNumber}
+              tryNumber={selectedTryNumber}
               unfoldedGroups={unfoldedLogGroups}
               setUnfoldedLogGroup={setUnfoldedLogGroup}
-            />
+          />
             <Box>
               <Text as="span">Log Page Number</Text>
               <Flex flexWrap="wrap">
@@ -346,7 +284,7 @@ const Logs = ({
                   <ButtonGroup size="sm">
                     <Button
                       key={index}
-                      variant={taskTryNumber === index ? "solid" : "ghost"}
+                      variant={selectedTryNumber === index ? "solid" : "ghost"}
                       colorScheme="blue"
                       onClick={() => setSelectedTryNumber(index)}
                       data-testid={`log-attempt-select-button-${index}`}

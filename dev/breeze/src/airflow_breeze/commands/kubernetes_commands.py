@@ -105,6 +105,13 @@ def kubernetes_group():
     pass
 
 
+option_copy_local_sources = click.option(
+    "--copy-local-sources/--no-copy-local-sources",
+    help="Copy local sources to the image.",
+    default=True,
+    show_default=True,
+    envvar="COPY_LOCAL_SOURCES",
+)
 option_executor = click.option(
     "--executor",
     help="Executor to use for a kubernetes cluster.",
@@ -557,6 +564,7 @@ def _rebuild_k8s_image(
     python: str,
     image_tag: str,
     rebuild_base_image: bool,
+    copy_local_sources: bool,
     use_uv: bool,
     output: Output | None,
 ) -> tuple[int, str]:
@@ -587,13 +595,20 @@ def _rebuild_k8s_image(
         f"[info]Building the K8S image for Python {python} using "
         f"airflow base image: {params.airflow_image_name_with_tag}\n"
     )
+    if copy_local_sources:
+        extra_copy_command = "COPY --chown=airflow:0 . /opt/airflow/"
+    else:
+        extra_copy_command = ""
     docker_image_for_kubernetes_tests = f"""
 FROM {params.airflow_image_name_with_tag}
 
-COPY . /opt/airflow/
-COPY airflow/example_dags/ /opt/airflow/dags/
+USER airflow
 
-COPY airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+{extra_copy_command}
+
+COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
+
+COPY --chown=airflow:0 airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """
@@ -636,6 +651,7 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
     help="Build k8s-ready airflow image (optionally all images in parallel).",
 )
 @option_answer
+@option_copy_local_sources
 @option_debug_resources
 @option_dry_run
 @option_image_tag
@@ -649,6 +665,7 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
 @option_use_uv
 @option_verbose
 def build_k8s_image(
+    copy_local_sources: bool,
     debug_resources: bool,
     image_tag: str,
     include_success_outputs: bool,
@@ -680,6 +697,7 @@ def build_k8s_image(
                             "python": _python,
                             "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
+                            "copy local sources": copy_local_sources,
                             "use_uv": use_uv,
                             "output": outputs[index],
                         },
@@ -698,6 +716,7 @@ def build_k8s_image(
             python=python,
             image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
+            copy_local_sources=copy_local_sources,
             use_uv=use_uv,
             output=None,
         )
@@ -1515,6 +1534,7 @@ def _run_complete_tests(
     executor: str,
     image_tag: str,
     rebuild_base_image: bool,
+    copy_local_sources: bool,
     use_uv: bool,
     upgrade: bool,
     wait_time_in_seconds: int,
@@ -1532,6 +1552,7 @@ def _run_complete_tests(
         image_tag=image_tag,
         use_uv=use_uv,
         rebuild_base_image=rebuild_base_image,
+        copy_local_sources=copy_local_sources,
     )
     if returncode != 0:
         return returncode, message
@@ -1646,6 +1667,7 @@ def _run_complete_tests(
 )
 @option_debug_resources
 @option_dry_run
+@option_copy_local_sources
 @option_executor
 @option_force_recreate_cluster
 @option_force_venv_setup
@@ -1666,6 +1688,7 @@ def _run_complete_tests(
 @option_wait_time_in_seconds
 @click.argument("test_args", nargs=-1, type=click.Path())
 def run_complete_tests(
+    copy_local_sources: bool,
     debug_resources: bool,
     executor: str,
     force_recreate_cluster: bool,
@@ -1728,6 +1751,7 @@ def run_complete_tests(
                             "executor": executor,
                             "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
+                            "copy_local_sources": copy_local_sources,
                             "use_uv": use_uv,
                             "upgrade": upgrade,
                             "wait_time_in_seconds": wait_time_in_seconds,
@@ -1755,6 +1779,7 @@ def run_complete_tests(
             executor=executor,
             image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
+            copy_local_sources=copy_local_sources,
             use_uv=use_uv,
             upgrade=upgrade,
             wait_time_in_seconds=wait_time_in_seconds,

@@ -114,6 +114,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
     _TableConfig(table_name="task_fail", recency_column_name="start_date"),
     _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
@@ -186,9 +187,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     if dialect_name == "sqlite":
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
-            tuple_(*pk_cols).in_(
-                select(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
-            )
+            tuple_(*pk_cols).in_(select(*[target_table.c[x.name] for x in source_table.primary_key.columns]))
         )
     else:
         delete = source_table.delete().where(
@@ -198,8 +197,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
-        metadata.bind = session.get_bind()
-        target_table.drop()
+        bind = session.get_bind()
+        target_table.drop(bind=bind)
     session.commit()
     print("Finished Performing Delete")
 
@@ -219,6 +218,8 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
 
 class CreateTableAs(Executable, ClauseElement):
     """Custom sqlalchemy clause element for CTAS operations."""
+
+    inherit_cache = False
 
     def __init__(self, name, query):
         self.name = name

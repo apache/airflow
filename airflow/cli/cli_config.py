@@ -417,6 +417,19 @@ ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
     help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
+ARG_USE_EXECUTOR = Arg(
+    ("--use-executor",),
+    help="Use an executor to test the DAG. By default it runs the DAG without an executor. "
+    "If set, it uses the executor configured in the environment.",
+    action="store_true",
+)
+ARG_MARK_SUCCESS_PATTERN = Arg(
+    ("--mark-success-pattern",),
+    help=(
+        "Don't run task_ids matching the regex <MARK_SUCCESS_PATTERN>, mark them as successful instead.\n"
+        "Can be used to skip e.g. dependency check sensors or cleanup steps in local testing.\n"
+    ),
+)
 
 # list_tasks
 ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
@@ -688,6 +701,12 @@ ARG_DB_SQL_ONLY = Arg(
 ARG_DB_SKIP_INIT = Arg(
     ("-s", "--skip-init"),
     help="Only remove tables; do not perform db init.",
+    action="store_true",
+    default=False,
+)
+ARG_DB_USE_MIGRATION_FILES = Arg(
+    ("-m", "--use-migration-files"),
+    help="Use migration files to perform migration",
     action="store_true",
     default=False,
 )
@@ -1274,7 +1293,9 @@ DAGS_COMMANDS = (
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
+            ARG_USE_EXECUTOR,
             ARG_VERBOSE,
+            ARG_MARK_SUCCESS_PATTERN,
         ),
     ),
     ActionCommand(
@@ -1525,7 +1546,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="upgrade",
@@ -1545,6 +1566,7 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
         hide=True,
@@ -1568,6 +1590,7 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
@@ -1852,14 +1875,14 @@ KUBERNETES_COMMANDS = (
             "(created by KubernetesExecutor/KubernetesPodOperator) "
             "in evicted/failed/succeeded/pending states"
         ),
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.cleanup_pods"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
         args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )

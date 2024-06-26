@@ -26,6 +26,194 @@
 Changelog
 ---------
 
+8.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Comprehend Document Classifier (#40287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'importlib_metadata' import in aws utils (#40134)``
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+* ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
+8.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Overrides for AWS Batch submit_job (#39903)``
+* ``Add transfer operator S3ToDynamoDBOperator (#39654)``
+* ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
+* ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+* ``Adding Amazon Glue Data Quality Service (#39923)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Deduplicate model name in SageMakerTransformOperator (#39956)``
+* ``Fix: remove process_func from templated_fields (#39948)``
+* ``Fix aws assume role session creation when deferrable (#40051)``
+
+Misc
+~~~~
+
+* ``Resolving ECS fargate deprecated warnings (#39834)``
+* ``Resolving EMR notebook deprecated warnings (#39829)``
+* ``Bump boto min versions (#40052)``
+* ``docs: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Implement per-provider tests with lowest-direct dependency resolution (#39946)``
+   * ``Resolve aws emr deprecations in tests (#40020)``
+   * ``Prepare docs 4th wave May 2024 (#39934)``
+
+8.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Amazon Bedrock - Retrieve and RetrieveAndGenerate (#39500)``
+* ``Introduce Amazon Comprehend Service (#39592)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: empty openlineage dataset name for AthenaExtractor (#39677)``
+* ``Fix default value for aws batch operator retry strategy (#39608)``
+* ``Sagemaker trigger: pass the job name as part of the event (#39671)``
+* ``Handle task adoption for batch executor (#39590)``
+* ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+* ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
+
+Misc
+~~~~
+
+* ``Resolving EMR deprecated warnings (#39743)``
+* ``misc: add comment about remove unused code (#39748)``
+
+8.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``'S3DeleteObjectsOperator' Added ability to filter keys by last modified time (#39151)``
+* ``Amazon Bedrock - Add Knowledge Bases and Data Sources integration (#39245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``EcsExcecutor Scheduler to handle incrementing of try_number (#39336)``
+* ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+
+Misc
+~~~~
+
+* ``Add 'jmespath' as an explicit dependency (#39350)``
+* ``Drop 'xmlsec' dependency (#39534)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``enh(amazon_hook): raise not found exception instead of general exception when download file (#39509)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+8.21.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Added logging_config,snapstart,ephemeral_storage parameters to aws lambdacreatefunctionoperator (#39300)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in GlueJobOperator where consecutive runs fail when a local script file is used (#38960)``
+* ``Update 'is_authorized_custom_view' from auth manager to handle custom actions (#39167)``
+* ``Update logic to allow retries in AWS Batch Client hook to be effective (#38998)``
+* ``Amazon Bedrock - Model Throughput Provisioning (#38850)``
+
+Misc
+~~~~
+
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Allow importing the aws executors with a shorter path (#39093)``
+* ``Remove flag from AWS auth manager to use it (#39033)``
+* ``Limit xmlsec<1.3.14  (#39104)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename "try_number" increments that are unrelated to the airflow concept (#39317)``
+   * ``Activate RUF015 that checks for unnecessary iterable allocation for first element (#38949)``
+   * ``Add tests for 'EmrServerlessJobSensor' and 'EmrServerlessApplicationSensor' (#39099)``
+
+8.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``AWS Batch Executor (#37618)``
+* ``Add fallback 'region_name' value to AWS Executors (#38704)``
+* ``Introduce Amazon Bedrock service (#38602)``
+* ``Amazon Bedrock - Model Customization Jobs (#38693)``
+* ``ECS Executor - add support to adopt orphaned tasks. (#37786)``
+* ``Update AWS auth manager CLI command to not disable AVP schema validation (#38301)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reduce 's3hook' memory usage (#37886)``
+* ``Add check in AWS auth manager to check if the Amazon Verified Permissions schema is up to date (#38333)``
+* ``fix: EmrServerlessStartJobOperator not serializing DAGs correctly when partial/expand is used. (#38022)``
+* ``fix(amazon): add return statement to yield within a while loop in triggers (#38396)``
+* ``Fix set deprecated amazon operators arguments in 'MappedOperator' (#38346)``
+* ``'ECSExecutor' API Retry bug fix (#38118)``
+* ``Fix 'region' argument in 'MappedOperator' based on 'AwsBaseOperator' / 'AwsBaseSensor' (#38178)``
+* ``Fix bug for ECS Executor where tasks were being skipped if one task failed. (#37979)``
+* ``Fix init checks for aws redshift to s3 operator (#37861)``
+
+Misc
+~~~~
+
+* ``Make the method 'BaseAuthManager.is_authorized_custom_view' abstract (#37915)``
+* ``Replace "Role" by "Group" in AWS auth manager (#38078)``
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+* ``Use 'AwsLogsHook' when fetching Glue job logs (#38010)``
+* ``Implement 'filter_permitted_dag_ids' in AWS auth manager (#37666)``
+* ``AWS auth manager CLI: persist the policy store description when doing updates (#37946)``
+* ``Change f-string to formatting into the logging messages for Batch Executor (#37929)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Add back system test for AWS auth manager (#38044)``
+   * ``Revert "Add system test to test the AWS auth manager (#37947)" (#38004)``
+   * ``Add system test to test the AWS auth manager (#37947)``
+   * ``fix: try002 for provider amazon (#38789)``
+   * ``Typo fix (#38783)``
+   * ``fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)``
+   * ``Revert "fix: COMMAND string should be raw to avoid SyntaxWarning: invalid escape sequence '\s' (#38734)" (#38864)``
+
 8.19.0
 ......
 

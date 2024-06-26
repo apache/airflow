@@ -36,7 +36,7 @@ from airflow.exceptions import (
 )
 from airflow.models.taskmixin import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.utils.helpers import validate_group_key
+from airflow.utils.helpers import validate_group_key, validate_instance_args
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -48,6 +48,21 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DependencyMixin
     from airflow.utils.edgemodifier import EdgeModifier
+
+# TODO: The following mapping is used to validate that the arguments passed to the TaskGroup are of the
+#  correct type. This is a temporary solution until we find a more sophisticated method for argument
+#  validation. One potential method is to use get_type_hints from the typing module. However, this is not
+#  fully compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
+#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
+#  manual type-checking method.
+TASKGROUP_ARGS_EXPECTED_TYPES = {
+    "group_id": str,
+    "prefix_group_id": bool,
+    "tooltip": str,
+    "ui_color": str,
+    "ui_fgcolor": str,
+    "add_suffix_on_collision": bool,
+}
 
 
 class TaskGroup(DAGNode):
@@ -159,6 +174,8 @@ class TaskGroup(DAGNode):
         self.downstream_group_ids: set[str | None] = set()
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
+
+        validate_instance_args(self, TASKGROUP_ARGS_EXPECTED_TYPES)
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
@@ -679,13 +696,17 @@ class TaskGroupContext:
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.mappedoperator import MappedOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}
+        is_mapped = {}
         if task.is_setup is True:
             setup_teardown_type["setupTeardownType"] = "setup"
         elif task.is_teardown is True:
             setup_teardown_type["setupTeardownType"] = "teardown"
+        if isinstance(task, MappedOperator):
+            is_mapped["isMapped"] = True
         return {
             "id": task.task_id,
             "value": {
@@ -694,6 +715,7 @@ def task_group_to_dict(task_item_or_group):
                 "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
+                **is_mapped,
                 **setup_teardown_type,
             },
         }

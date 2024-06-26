@@ -173,8 +173,10 @@ const generateGraph = ({
         }));
       closedGroupIds.push(id);
     }
-    const extraLabelLength =
-      value.label.length > 20 ? value.label.length - 19 : 0;
+
+    const label = value.isMapped ? `${value.label} [100]` : value.label;
+    const labelLength = getTextWidth(label, font);
+    const width = labelLength > 200 ? labelLength : 200;
 
     return {
       id,
@@ -184,9 +186,8 @@ const generateGraph = ({
         isJoinNode,
         childCount,
       },
-      // Make tasks with long names wider
-      width: isJoinNode ? 10 : 200 + extraLabelLength * 5,
-      height: isJoinNode ? 10 : 70,
+      width: isJoinNode ? 10 : width,
+      height: isJoinNode ? 10 : 80,
     };
   };
 

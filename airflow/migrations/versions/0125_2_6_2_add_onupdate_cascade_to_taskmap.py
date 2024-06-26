@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add ``onupdate`` cascade to ``task_map`` table
+"""Add ``onupdate`` cascade to ``task_map`` table.
 
 Revision ID: c804e5c76e3e
 Revises: 98ae134e6fff
 Create Date: 2023-05-19 23:30:57.368617
 
 """
+
 from __future__ import annotations
 
 from alembic import op
@@ -36,7 +37,7 @@ airflow_version = "2.6.2"
 
 
 def upgrade():
-    """Apply Add onupdate cascade to taskmap"""
+    """Apply Add onupdate cascade to taskmap."""
     with op.batch_alter_table("task_map") as batch_op:
         batch_op.drop_constraint("task_map_task_instance_fkey", type_="foreignkey")
         batch_op.create_foreign_key(
@@ -50,7 +51,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add onupdate cascade to taskmap"""
+    """Unapply Add onupdate cascade to taskmap."""
     with op.batch_alter_table("task_map") as batch_op:
         batch_op.drop_constraint("task_map_task_instance_fkey", type_="foreignkey")
         batch_op.create_foreign_key(

@@ -57,8 +57,10 @@ from flask_appbuilder.security.views import (
     AuthOAuthView,
     AuthOIDView,
     AuthRemoteUserView,
+    AuthView,
     RegisterUserModelView,
 )
+from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
@@ -121,6 +123,21 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
+
+
+# The following class patches the logout method within AuthView, so it only supports POST method
+# to make CSRF protection effective. You could remove the patch and configure it when it is supported
+# natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
+
+
+class _ModifiedAuthView(AuthView):
+    @expose("/logout/", methods=["POST"])
+    def logout(self):
+        return super().logout()
+
+
+for auth_view in [AuthDBView, AuthLDAPView, AuthOAuthView, AuthOIDView, AuthRemoteUserView]:
+    auth_view.__bases__ = (_ModifiedAuthView,)
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
@@ -217,7 +234,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
@@ -232,7 +248,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
     ]
@@ -259,6 +274,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
@@ -269,6 +285,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
@@ -1506,14 +1523,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.username = username
             user.email = email
             user.active = True
+            self.get_session.add(user)
             user.roles = role if isinstance(role, list) else [role]
             if hashed_password:
                 user.password = hashed_password
             else:
                 user.password = generate_password_hash(password)
-            self.get_session.add(user)
             self.get_session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
+
             return user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
@@ -2212,7 +2230,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.debug("User info from Azure: %s", me)
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
             return {
-                "email": me.get("upn", me["email"]),
+                "email": me["email"] if "email" in me else me["upn"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
                 "username": me["oid"],
@@ -2229,13 +2247,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             me = self.oauth_remotes[provider].get("userinfo")
             data = me.json()
             log.debug("User info from Okta: %s", data)
-            return {
-                "username": f"{provider}_{data['sub']}",
-                "first_name": data.get("given_name", ""),
-                "last_name": data.get("family_name", ""),
-                "email": data["email"],
-                "role_keys": data.get("groups", []),
-            }
+            if "error" not in data:
+                return {
+                    "username": f"{provider}_{data['sub']}",
+                    "first_name": data.get("given_name", ""),
+                    "last_name": data.get("family_name", ""),
+                    "email": data["email"],
+                    "role_keys": data.get("groups", []),
+                }
+            else:
+                log.error(data.get("error_description"))
+            return {}
         # for Auth0
         if provider == "auth0":
             data = self.appbuilder.sm.oauth_remotes[provider].userinfo()
@@ -2258,8 +2280,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "first_name": data.get("given_name", ""),
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
+                "role_keys": data.get("groups", []),
             }
-
         # for Authentik
         if provider == "authentik":
             id_token = resp["id_token"]

@@ -72,18 +72,9 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/sensors/test_emr.py",
             "tests/providers/amazon/aws/sensors/test_sagemaker.py",
             "tests/providers/amazon/aws/test_exceptions.py",
-            "tests/providers/amazon/aws/triggers/test_athena.py",
-            "tests/providers/amazon/aws/triggers/test_batch.py",
-            "tests/providers/amazon/aws/triggers/test_eks.py",
-            "tests/providers/amazon/aws/triggers/test_emr.py",
-            "tests/providers/amazon/aws/triggers/test_glue_crawler.py",
-            "tests/providers/amazon/aws/triggers/test_lambda_function.py",
-            "tests/providers/amazon/aws/triggers/test_rds.py",
             "tests/providers/amazon/aws/triggers/test_step_function.py",
             "tests/providers/amazon/aws/utils/test_rds.py",
             "tests/providers/amazon/aws/utils/test_sagemaker.py",
-            "tests/providers/amazon/aws/utils/test_sqs.py",
-            "tests/providers/amazon/aws/utils/test_tags.py",
             "tests/providers/amazon/aws/waiters/test_base_waiter.py",
             "tests/providers/apache/cassandra/hooks/test_cassandra.py",
             "tests/providers/apache/drill/operators/test_drill.py",
@@ -91,9 +82,7 @@ class TestProjectStructure:
             "tests/providers/apache/hdfs/hooks/test_hdfs.py",
             "tests/providers/apache/hdfs/log/test_hdfs_task_handler.py",
             "tests/providers/apache/hdfs/sensors/test_hdfs.py",
-            "tests/providers/apache/hive/transfers/test_mssql_to_hive.py",
             "tests/providers/apache/hive/plugins/test_hive.py",
-            "tests/providers/apache/kafka/hooks/test_base.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
             "tests/providers/celery/executors/test_default_celery.py",
             "tests/providers/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
@@ -151,29 +140,23 @@ class TestProjectStructure:
             "tests/providers/google/cloud/operators/vertex_ai/test_model_service.py",
             "tests/providers/google/cloud/operators/vertex_ai/test_pipeline_job.py",
             "tests/providers/google/cloud/sensors/test_dataform.py",
-            "tests/providers/google/cloud/transfers/test_bigquery_to_mssql.py",
             "tests/providers/google/cloud/transfers/test_bigquery_to_sql.py",
-            "tests/providers/google/cloud/transfers/test_mssql_to_gcs.py",
             "tests/providers/google/cloud/transfers/test_presto_to_gcs.py",
-            "tests/providers/google/cloud/transfers/test_trino_to_gcs.py",
-            "tests/providers/google/cloud/triggers/test_cloud_composer.py",
             "tests/providers/google/cloud/utils/test_bigquery.py",
             "tests/providers/google/cloud/utils/test_bigquery_get_data.py",
             "tests/providers/google/cloud/utils/test_dataform.py",
             "tests/providers/google/common/links/test_storage.py",
             "tests/providers/google/common/test_consts.py",
             "tests/providers/google/test_go_module_utils.py",
-            "tests/providers/microsoft/azure/fs/test_adls.py",
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "tests/providers/mongo/sensors/test_mongo.py",
-            "tests/providers/openlineage/plugins/test_adapter.py",
-            "tests/providers/openlineage/plugins/test_facets.py",
-            "tests/providers/openlineage/test_sqlparser.py",
             "tests/providers/redis/operators/test_redis_publish.py",
             "tests/providers/redis/sensors/test_redis_key.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
+            "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
+            "tests/providers/yandex/operators/test_yandexcloud_dataproc.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?
@@ -183,6 +166,8 @@ class TestProjectStructure:
         modules_files = list(os.path.relpath(f, ROOT_FOLDER) for f in modules_files)
         # Exclude example_dags
         modules_files = list(f for f in modules_files if "/example_dags/" not in f)
+        # Exclude _vendor
+        modules_files = list(f for f in modules_files if "/_vendor/" not in f)
         # Exclude __init__.py
         modules_files = list(f for f in modules_files if not f.endswith("__init__.py"))
         # Change airflow/ to tests/
@@ -376,6 +361,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         ".CloudDataTransferServiceS3ToGCSOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
         ".CloudDataTransferServiceGCSToGCSOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+        "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
+        "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
@@ -398,6 +389,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor",
+        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor",
         "airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerEnvironmentSensor",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
@@ -525,6 +518,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
         "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
+        "airflow.providers.amazon.aws.sensors.bedrock.BedrockBaseSensor",
         "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
         "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
         "airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor",
@@ -534,6 +528,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.sensors.ecs.EcsBaseSensor",
         "airflow.providers.amazon.aws.sensors.eks.EksBaseSensor",
         "airflow.providers.amazon.aws.transfers.base.AwsToAwsBaseOperator",
+        "airflow.providers.amazon.aws.operators.comprehend.ComprehendBaseOperator",
+        "airflow.providers.amazon.aws.sensors.comprehend.ComprehendBaseSensor",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {

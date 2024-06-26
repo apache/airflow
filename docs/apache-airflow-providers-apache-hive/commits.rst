@@ -35,14 +35,72 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-7.0.1
+8.1.2
 .....
 
-Latest change: 2024-03-01
+Latest change: 2024-06-17
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+=================================================================================================  ===========  ==================================================================================
+
+8.1.1
+.....
+
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`ea8ed7c43f <https://github.com/apache/airflow/commit/ea8ed7c43f7b25cb2ee2f75f9b857569aa09c7ff>`_  2024-05-16   ``Improvising high availability field name in hive hook (#39658)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ==================================================================
+
+8.1.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
+8.0.0
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`a92c47b6fa <https://github.com/apache/airflow/commit/a92c47b6fa06ccd746fdae21919cfc3cab28fa57>`_  2024-04-09   ``Removing deprecated code in hive provider (#38859)``
+`6e0ac39764 <https://github.com/apache/airflow/commit/6e0ac3976491679ab99e116d41846f0c1261abaa>`_  2024-04-09   ``Setting use_beeline by default for hive cli connection (#38763)``
+`cec6d31a5a <https://github.com/apache/airflow/commit/cec6d31a5a1d7872ffc063207d57cda3168a756c>`_  2024-04-05   ``Fix TRY002 for apache hive provider (#38781)``
+`c2981fec55 <https://github.com/apache/airflow/commit/c2981fec557a2be4a77f666ecc8888e7d07b1838>`_  2024-04-04   ``Adding support to hive hook for high availability Hive installations (#38651)``
+`72c0911ede <https://github.com/apache/airflow/commit/72c0911eded10af5a97dd37d62c762e10e435894>`_  2024-03-22   ``Fix deprecated apache.hive operators arguments in 'MappedOperator' (#38351)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`1739e0545c <https://github.com/apache/airflow/commit/1739e0545cbcf87367153b26cd8f4f37ab7b01b8>`_  2024-03-11   ``Fix D105 for Apache Hive Provider (#38042)``
+=================================================================================================  ===========  =================================================================================
+
+7.0.1
+.....
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `b610c58a7b <https://github.com/apache/airflow/commit/b610c58a7b3c85995ad72beeac5a8dbdce10e7cf>`_  2024-03-01   ``Remove references from the code to Jira Issues (#37807)``
 `2bc103698f <https://github.com/apache/airflow/commit/2bc103698fad1b7c0bebed0d5cbdda0ec7ea83c3>`_  2024-02-28   ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
 `9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``

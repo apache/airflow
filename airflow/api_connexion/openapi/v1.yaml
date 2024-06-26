@@ -679,6 +679,71 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/MapIndex"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /dags/{dag_id}/updateTaskInstancesState:
     parameters:
       - $ref: "#/components/parameters/DAGID"
@@ -1091,6 +1156,27 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /parseDagFile/{file_token}:
+    parameters:
+      - $ref: "#/components/parameters/FileToken"
+
+    put:
+      summary: Request re-parsing of a DAG file
+      description: >
+        Request re-parsing of existing DAG files using a file token.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
+      operationId: reparse_dag_file
+      tags: [ DAG ]
+      responses:
+        "201":
+          description: Success.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
@@ -1417,6 +1503,7 @@ paths:
       - $ref: "#/components/parameters/FilterState"
       - $ref: "#/components/parameters/FilterPool"
       - $ref: "#/components/parameters/FilterQueue"
+      - $ref: "#/components/parameters/FilterExecutor"
     get:
       summary: List task instances
       description: >
@@ -1585,6 +1672,7 @@ paths:
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/FilterPool"
         - $ref: "#/components/parameters/FilterQueue"
+        - $ref: "#/components/parameters/FilterExecutor"
         - $ref: "#/components/parameters/OrderBy"
       responses:
         "200":
@@ -3038,6 +3126,14 @@ components:
             Earliest time at which this ``next_dagrun`` can be created.
 
             *New in version 2.3.0*
+        max_consecutive_failed_dag_runs:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: |
+            (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+
+            *New in version 2.9.0*
 
     DAGCollection:
       description: |
@@ -3159,6 +3255,7 @@ components:
 
             *New in version 2.5.0*
           nullable: true
+
 
     UpdateDagRunState:
       type: object
@@ -3536,6 +3633,22 @@ components:
           type: integer
           nullable: true
 
+    TaskFailedDependency:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+
+    TaskInstanceDependencyCollection:
+      type: object
+      properties:
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskFailedDependency"
+
     Job:
       type: object
       nullable: true
@@ -3641,6 +3754,13 @@ components:
         pid:
           type: integer
           nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
         executor_config:
           type: string
         sla_miss:
@@ -3980,6 +4100,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        executor:
+          type: string
+          readOnly: true
+          nullable: true
         pool:
           type: string
           readOnly: true
@@ -4014,6 +4138,14 @@ components:
           readOnly: true
           items:
             type: string
+        doc_md:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Task documentation in markdown.
+
+            *New in version 2.10.0*
 
     TaskCollection:
       type: object
@@ -4833,6 +4965,11 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        executor:
+          type: array
+          items:
+            type: string
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
 
     # Common data type
     ScheduleInterval:
@@ -5398,7 +5535,14 @@ components:
         items:
           type: string
       description: The value can be repeated to retrieve multiple matching values (OR condition).
-
+    FilterExecutor:
+      in: query
+      name: executor
+      schema:
+        type: array
+        items:
+          type: string
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
     FilterTags:
       in: query
       name: tags

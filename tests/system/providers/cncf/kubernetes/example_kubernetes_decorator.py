@@ -49,7 +49,7 @@ with DAG(
         for i in range(n):
             # inner loop to handle number of columns
             # values changing acc. to outer loop
-            for j in range(i + 1):
+            for _ in range(i + 1):
                 # printing stars
                 print("* ", end="")
 

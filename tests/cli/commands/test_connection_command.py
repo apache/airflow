@@ -32,7 +32,7 @@ from airflow.cli.commands import connection_command
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.db_test
@@ -372,6 +372,7 @@ class TestCliAddConnections:
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
+                    "extra": None,
                 },
                 id="json-connection",
             ),
@@ -393,6 +394,7 @@ class TestCliAddConnections:
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
+                    "extra": None,
                 },
                 id="uri-connection-with-description",
             ),
@@ -414,6 +416,7 @@ class TestCliAddConnections:
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
+                    "extra": None,
                 },
                 id="uri-connection-with-description-2",
             ),
@@ -424,7 +427,7 @@ class TestCliAddConnections:
                     "new2",
                     f"--conn-uri={TEST_URL}",
                     "--conn-extra",
-                    "{'extra': 'yes'}",
+                    '{"extra": "yes"}',
                 ],
                 "Successfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
                 {
@@ -436,6 +439,7 @@ class TestCliAddConnections:
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
+                    "extra": '{"extra": "yes"}',
                 },
                 id="uri-connection-with-extra",
             ),
@@ -446,7 +450,7 @@ class TestCliAddConnections:
                     "new3",
                     f"--conn-uri={TEST_URL}",
                     "--conn-extra",
-                    "{'extra': 'yes'}",
+                    '{"extra": "yes"}',
                     "--conn-description",
                     "new3 description",
                 ],
@@ -460,6 +464,7 @@ class TestCliAddConnections:
                     "login": "airflow",
                     "port": 5432,
                     "schema": "airflow",
+                    "extra": '{"extra": "yes"}',
                 },
                 id="uri-connection-with-extra-and-description",
             ),
@@ -486,6 +491,7 @@ class TestCliAddConnections:
                     "login": "airflow",
                     "port": 9083,
                     "schema": "airflow",
+                    "extra": None,
                 },
                 id="individual-parts",
             ),
@@ -498,7 +504,7 @@ class TestCliAddConnections:
                     "",
                     "--conn-type=google_cloud_platform",
                     "--conn-extra",
-                    "{'extra': 'yes'}",
+                    '{"extra": "yes"}',
                     "--conn-description=new5 description",
                 ],
                 "Successfully added `conn_id`=new5 : google_cloud_platform://:@:",
@@ -511,6 +517,7 @@ class TestCliAddConnections:
                     "login": None,
                     "port": None,
                     "schema": None,
+                    "extra": '{"extra": "yes"}',
                 },
                 id="empty-uri-with-conn-type-and-extra",
             ),
@@ -526,6 +533,7 @@ class TestCliAddConnections:
                     "login": None,
                     "port": None,
                     "schema": "",
+                    "extra": '{"region_name": "foo-bar-1"}',
                 },
                 id="uri-without-authority-and-host-blocks",
             ),
@@ -541,13 +549,14 @@ class TestCliAddConnections:
                     "login": "",
                     "port": None,
                     "schema": "",
+                    "extra": '{"region_name": "foo-bar-1"}',
                 },
                 id="uri-with-@-instead-authority-and-host-blocks",
             ),
         ],
     )
     @pytest.mark.execution_timeout(120)
-    def test_cli_connection_add(self, cmd, expected_output, expected_conn):
+    def test_cli_connection_add(self, cmd, expected_output, expected_conn, session):
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))
 
@@ -555,19 +564,19 @@ class TestCliAddConnections:
 
         assert expected_output in stdout
         conn_id = cmd[2]
-        with create_session() as session:
-            comparable_attrs = [
-                "conn_type",
-                "description",
-                "host",
-                "is_encrypted",
-                "is_extra_encrypted",
-                "login",
-                "port",
-                "schema",
-            ]
-            current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-            assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+        comparable_attrs = [
+            "conn_type",
+            "description",
+            "host",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "login",
+            "port",
+            "schema",
+            "extra",
+        ]
+        current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
 
     def test_cli_connections_add_duplicate(self):
         conn_id = "to_be_duplicated"
@@ -653,8 +662,7 @@ class TestCliDeleteConnections:
     def setup_method(self):
         clear_db_connections(add_default_connections_back=False)
 
-    @provide_session
-    def test_cli_delete_connections(self, session=None):
+    def test_cli_delete_connections(self, session):
         merge_conn(
             Connection(
                 conn_id="new1",
@@ -729,7 +737,7 @@ class TestCliImportConnections:
                 "password": "password",
                 "port": 5432,
                 "schema": "airflow",
-                "extra": "test",
+                "extra": '{"foo": "bar"}',
             },
             "new1": {
                 "conn_type": "mysql",
@@ -739,7 +747,7 @@ class TestCliImportConnections:
                 "password": "password",
                 "port": 3306,
                 "schema": "airflow",
-                "extra": "test",
+                "extra": '{"spam": "egg"}',
             },
         }
 
@@ -772,11 +780,10 @@ class TestCliImportConnections:
             }
             assert expected_connections == current_conns_as_dicts
 
-    @provide_session
     @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
     @mock.patch("os.path.exists")
     def test_cli_connections_import_should_not_overwrite_existing_connections(
-        self, mock_exists, mock_parse_secret_file, session=None
+        self, mock_exists, mock_parse_secret_file, session
     ):
         mock_exists.return_value = True
 
@@ -804,7 +811,7 @@ class TestCliImportConnections:
                 "password": "password",
                 "port": 5432,
                 "schema": "airflow",
-                "extra": "test",
+                "extra": '{"foo": "bar"}',
             },
             "new3": {
                 "conn_type": "mysql",
@@ -814,7 +821,7 @@ class TestCliImportConnections:
                 "password": "new password",
                 "port": 3306,
                 "schema": "airflow",
-                "extra": "test",
+                "extra": '{"spam": "egg"}',
             },
         }
 
@@ -852,11 +859,10 @@ class TestCliImportConnections:
         # The existing connection's description should not have changed
         assert current_conns_as_dicts["new3"]["description"] == "original description"
 
-    @provide_session
     @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
     @mock.patch("os.path.exists")
     def test_cli_connections_import_should_overwrite_existing_connections(
-        self, mock_exists, mock_parse_secret_file, session=None
+        self, mock_exists, mock_parse_secret_file, session
     ):
         mock_exists.return_value = True
 
@@ -884,7 +890,7 @@ class TestCliImportConnections:
                 "password": "password",
                 "port": 5432,
                 "schema": "airflow",
-                "extra": "test",
+                "extra": '{"foo": "bar"}',
             },
             "new3": {
                 "conn_type": "mysql",
@@ -894,7 +900,7 @@ class TestCliImportConnections:
                 "password": "new password",
                 "port": 3306,
                 "schema": "airflow",
-                "extra": "test",
+                "extra": '{"spam": "egg"}',
             },
         }
 

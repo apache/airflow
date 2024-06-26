@@ -97,3 +97,7 @@ Keep in mind that some additional commands may be required.
 
 Some tests may require extra setup. If this is the case, the steps should be documented inside the docstring of
 related test file.
+
+## Dashboard
+
+To check the status of the system tests against the head revision of Apache Airflow, please refer to this [dashboard](https://storage.googleapis.com/providers-dashboard-html/dashboard.html).

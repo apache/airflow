@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG that uses Google AutoML services.
-"""
+
+"""Example Airflow DAG that uses Google AutoML Translation services."""
 
 from __future__ import annotations
 
@@ -31,7 +30,6 @@ from google.cloud import storage  # type: ignore[attr-defined]
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator,
     AutoMLDeleteDatasetOperator,
@@ -43,7 +41,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-DAG_ID = "example_automl_translate"
+DAG_ID = "automl_translate"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 GCP_AUTOML_LOCATION = "us-central1"
@@ -57,7 +55,7 @@ MODEL = {
     "translation_model_metadata": {},
 }
 
-DATASET_NAME = f"ds_translate_{ENV_ID}".replace("-", "_")
+DATASET_NAME = f"ds_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATASET = {
     "display_name": DATASET_NAME,
     "translation_dataset_metadata": {
@@ -72,8 +70,6 @@ GCS_FILE_PATH = f"automl/datasets/translate/{CSV_FILE_NAME}"
 AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/{CSV_FILE_NAME}"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 
-extract_object_id = CloudAutoMLHook.extract_object_id
-
 
 # Example DAG for AutoML Translation
 with DAG(
@@ -81,7 +77,6 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    user_defined_macros={"extract_object_id": extract_object_id},
     tags=["example", "automl", "translate"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(

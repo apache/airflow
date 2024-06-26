@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from openlineage.client.facet import (
     LifecycleStateChange,
     LifecycleStateChangeDatasetFacet,
@@ -171,48 +172,59 @@ class TestGCSDeleteObjectsOperator:
             any_order=True,
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_get_openlineage_facets_on_complete(self, mock_hook):
+    @pytest.mark.parametrize(
+        ("objects", "prefix", "inputs"),
+        (
+            (["folder/a.txt", "b.json"], None, ["folder/a.txt", "b.json"]),
+            (["folder/a.txt", "folder/b.json"], None, ["folder/a.txt", "folder/b.json"]),
+            (None, ["folder/a.txt", "b.json"], ["folder/a.txt", "b.json"]),
+            (None, "dir/pre", ["dir"]),
+            (None, ["dir/"], ["dir"]),
+            (None, "", ["/"]),
+            (None, "/", ["/"]),
+            (None, "pre", ["/"]),
+            (None, "dir/pre*", ["dir"]),
+            (None, "*", ["/"]),
+        ),
+        ids=(
+            "objects",
+            "multiple objects in the same dir",
+            "objects as prefixes",
+            "directory with prefix",
+            "directory",
+            "empty prefix",
+            "slash as prefix",
+            "prefix with no ending slash",
+            "directory with prefix with wildcard",
+            "just wildcard",
+        ),
+    )
+    def test_get_openlineage_facets_on_start(self, objects, prefix, inputs):
         bucket_url = f"gs://{TEST_BUCKET}"
         expected_inputs = [
             Dataset(
                 namespace=bucket_url,
-                name="folder/a.txt",
+                name=name,
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
                         previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
                             namespace=bucket_url,
-                            name="folder/a.txt",
+                            name=name,
                         ),
                     )
                 },
-            ),
-            Dataset(
-                namespace=bucket_url,
-                name="b.txt",
-                facets={
-                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
-                        lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
-                            namespace=bucket_url,
-                            name="b.txt",
-                        ),
-                    )
-                },
-            ),
+            )
+            for name in inputs
         ]
 
         operator = GCSDeleteObjectsOperator(
-            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=["folder/a.txt", "b.txt"]
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=objects, prefix=prefix
         )
-
-        operator.execute(None)
-
-        lineage = operator.get_openlineage_facets_on_complete(None)
-        assert len(lineage.inputs) == 2
+        lineage = operator.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == 0
-        assert lineage.inputs == expected_inputs
+        assert sorted(lineage.inputs) == sorted(expected_inputs)
 
 
 class TestGoogleCloudStorageListOperator:
@@ -483,15 +495,78 @@ class TestGCSTimeSpanFileTransformOperator:
             ]
         )
 
+    @pytest.mark.parametrize(
+        ("source_prefix", "dest_prefix", "inputs", "outputs"),
+        (
+            (
+                None,
+                None,
+                [Dataset(f"gs://{TEST_BUCKET}", "/")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "/")],
+            ),
+            (
+                None,
+                "dest_pre/",
+                [Dataset(f"gs://{TEST_BUCKET}", "/")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "dest_pre")],
+            ),
+            (
+                "source_pre/",
+                None,
+                [Dataset(f"gs://{TEST_BUCKET}", "source_pre")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "/")],
+            ),
+            (
+                "source_pre/",
+                "dest_pre/",
+                [Dataset(f"gs://{TEST_BUCKET}", "source_pre")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "dest_pre")],
+            ),
+            (
+                "source_pre",
+                "dest_pre",
+                [Dataset(f"gs://{TEST_BUCKET}", "/")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "/")],
+            ),
+            (
+                "dir1/source_pre",
+                "dir2/dest_pre",
+                [Dataset(f"gs://{TEST_BUCKET}", "dir1")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "dir2")],
+            ),
+            (
+                "",
+                "/",
+                [Dataset(f"gs://{TEST_BUCKET}", "/")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "/")],
+            ),
+            (
+                "source/a.txt",
+                "target/",
+                [Dataset(f"gs://{TEST_BUCKET}", "source/a.txt")],
+                [Dataset(f"gs://{TEST_BUCKET}_dest", "target")],
+            ),
+        ),
+        ids=(
+            "no prefixes",
+            "dest prefix only",
+            "source prefix only",
+            "both with ending slash",
+            "both without ending slash",
+            "both as directory with prefix",
+            "both empty or root",
+            "source prefix is file path",
+        ),
+    )
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_get_openlineage_facets_on_complete(self, mock_hook, mock_subprocess, mock_tempdir):
+    def test_get_openlineage_facets_on_complete(
+        self, mock_hook, mock_subprocess, mock_tempdir, source_prefix, dest_prefix, inputs, outputs
+    ):
         source_bucket = TEST_BUCKET
-        source_prefix = "source_prefix"
 
         destination_bucket = TEST_BUCKET + "_dest"
-        destination_prefix = "destination_prefix"
         destination = "destination"
 
         file1 = "file1"
@@ -508,8 +583,8 @@ class TestGCSTimeSpanFileTransformOperator:
 
         mock_tempdir.return_value.__enter__.side_effect = ["source", destination]
         mock_hook.return_value.list_by_timespan.return_value = [
-            f"{source_prefix}/{file1}",
-            f"{source_prefix}/{file2}",
+            f"{source_prefix or ''}{file1}",
+            f"{source_prefix or ''}{file2}",
         ]
 
         mock_proc = mock.MagicMock()
@@ -529,7 +604,7 @@ class TestGCSTimeSpanFileTransformOperator:
             source_prefix=source_prefix,
             source_gcp_conn_id="",
             destination_bucket=destination_bucket,
-            destination_prefix=destination_prefix,
+            destination_prefix=dest_prefix,
             destination_gcp_conn_id="",
             transform_script="script.py",
         )
@@ -541,32 +616,11 @@ class TestGCSTimeSpanFileTransformOperator:
             ]
             op.execute(context=context)
 
-        expected_inputs = [
-            Dataset(
-                namespace=f"gs://{source_bucket}",
-                name=f"{source_prefix}/{file1}",
-            ),
-            Dataset(
-                namespace=f"gs://{source_bucket}",
-                name=f"{source_prefix}/{file2}",
-            ),
-        ]
-        expected_outputs = [
-            Dataset(
-                namespace=f"gs://{destination_bucket}",
-                name=f"{destination_prefix}/{file1}",
-            ),
-            Dataset(
-                namespace=f"gs://{destination_bucket}",
-                name=f"{destination_prefix}/{file2}",
-            ),
-        ]
-
         lineage = op.get_openlineage_facets_on_complete(None)
-        assert len(lineage.inputs) == 2
-        assert len(lineage.outputs) == 2
-        assert lineage.inputs == expected_inputs
-        assert lineage.outputs == expected_outputs
+        assert len(lineage.inputs) == len(inputs)
+        assert len(lineage.outputs) == len(outputs)
+        assert sorted(lineage.inputs) == sorted(inputs)
+        assert sorted(lineage.outputs) == sorted(outputs)
 
 
 class TestGCSDeleteBucketOperator:

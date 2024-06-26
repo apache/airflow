@@ -246,7 +246,10 @@ class TestSessionFactory:
 
         session_profile = async_session.get_config_variable("profile")
 
+        import aiobotocore.session
+
         assert session_profile == profile_name
+        assert isinstance(async_session, aiobotocore.session.AioSession)
 
     @pytest.mark.asyncio
     async def test_async_create_a_session_from_credentials_without_token(self):
@@ -263,9 +266,12 @@ class TestSessionFactory:
         sf = BaseSessionFactory(conn=mock_conn_config, config=None)
         async_session = sf.create_session(deferrable=True)
         cred = await async_session.get_credentials()
+        import aiobotocore.session
+
         assert cred.access_key == "test_aws_access_key_id"
         assert cred.secret_key == "test_aws_secret_access_key"
         assert cred.token is None
+        assert isinstance(async_session, aiobotocore.session.AioSession)
 
     config_for_credentials_test = [
         (
@@ -300,6 +306,7 @@ class TestSessionFactory:
         # Validate method of botocore credentials provider.
         # It shouldn't be 'explicit' which refers in this case to initial credentials.
         assert session.get_credentials().method == "sts-assume-role"
+        assert isinstance(session, boto3.session.Session)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -330,14 +337,15 @@ class TestSessionFactory:
             conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
             sf = BaseSessionFactory(conn=conn)
             session = sf.create_session(deferrable=True)
-            assert session.region_name == region_name
+            assert session.get_config_variable("region") == region_name
             # Validate method of botocore credentials provider.
             # It shouldn't be 'explicit' which refers in this case to initial credentials.
             credentials = await session.get_credentials()
+            import aiobotocore.session
 
             assert inspect.iscoroutinefunction(credentials.get_frozen_credentials)
-
             assert credentials.method == "sts-assume-role"
+            assert isinstance(session, aiobotocore.session.AioSession)
 
 
 class TestAwsBaseHook:
@@ -1055,7 +1063,7 @@ class ThrowErrorUntilCount:
         """
         if self.counter < self.count:
             self.counter += 1
-            raise Exception()
+            raise RuntimeError("Fake Unexpected Error")
         return True
 
 
@@ -1109,12 +1117,12 @@ class TestRetryDecorator:  # ptlint: disable=invalid-name
             count=2,
             quota_retry=quota_retry,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Fake Unexpected Error"):
             _non_retryable_test(custom_fn)
 
     def test_raise_exception_when_no_retry_args(self):
         custom_fn = ThrowErrorUntilCount(count=2, quota_retry=None)
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Fake Unexpected Error"):
             _retryable_test(custom_fn)
 
 

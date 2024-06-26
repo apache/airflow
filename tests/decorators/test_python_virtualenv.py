@@ -19,28 +19,65 @@ from __future__ import annotations
 
 import datetime
 import sys
+from importlib.util import find_spec
 from subprocess import CalledProcessError
+from typing import Any
 
 import pytest
 
 from airflow.decorators import setup, task, teardown
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PYTHON_VERSION = sys.version_info[0]
+PYTHON_VERSION = f"{sys.version_info.major}{sys.version_info.minor}"
+DILL_INSTALLED = find_spec("dill") is not None
+DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
+CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
+CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+
+_Invalid = Any
 
 
+@pytest.mark.execution_timeout(120)
 class TestPythonVirtualenvDecorator:
+    @CLOUDPICKLE_MARKER
+    def test_add_cloudpickle(self, dag_maker):
+        @task.virtualenv(serializer="cloudpickle", system_site_packages=False)
+        def f():
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    @DILL_MARKER
     def test_add_dill(self, dag_maker):
-        @task.virtualenv(use_dill=True, system_site_packages=False)
+        @task.virtualenv(serializer="dill", system_site_packages=False)
         def f():
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
         with dag_maker():
             ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    @DILL_MARKER
+    def test_add_dill_use_dill(self, dag_maker):
+        @task.virtualenv(use_dill=True, system_site_packages=False)
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+            with dag_maker():
+                ret = f()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -56,8 +93,15 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_no_system_site_packages(self, dag_maker):
-        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, use_dill=True)
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+        ],
+    )
+    def test_no_system_site_packages(self, serializer, dag_maker):
+        @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, serializer=serializer)
         def f():
             try:
                 import funcsigs  # noqa: F401
@@ -70,12 +114,19 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_system_site_packages(self, dag_maker):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+        ],
+    )
+    def test_system_site_packages(self, serializer, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
             requirements=["funcsigs"],
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            serializer=serializer,
         )
         def f():
             import funcsigs  # noqa: F401
@@ -85,12 +136,21 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_requirements_pinned(self, dag_maker):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_with_requirements_pinned(self, serializer, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
             requirements=["funcsigs==0.4"],
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            serializer=serializer,
         )
         def f():
             import funcsigs
@@ -103,7 +163,16 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_requirements_file(self, dag_maker, tmp_path):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_with_requirements_file(self, serializer, dag_maker, tmp_path):
         requirements_file = tmp_path / "requirements.txt"
         requirements_file.write_text("funcsigs==0.4\nattrs==23.1.0")
 
@@ -111,7 +180,7 @@ class TestPythonVirtualenvDecorator:
             system_site_packages=False,
             requirements="requirements.txt",
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            serializer=serializer,
         )
         def f():
             import funcsigs
@@ -129,12 +198,21 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_unpinned_requirements(self, dag_maker):
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_unpinned_requirements(self, serializer, extra_requirements, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
-            requirements=["funcsigs", "dill"],
+            requirements=["funcsigs", *extra_requirements],
             python_version=PYTHON_VERSION,
-            use_dill=True,
+            serializer=serializer,
         )
         def f():
             import funcsigs  # noqa: F401
@@ -144,7 +222,16 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_fail(self, dag_maker):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_fail(self, serializer, dag_maker):
         @task.virtualenv()
         def f():
             raise Exception
@@ -155,8 +242,17 @@ class TestPythonVirtualenvDecorator:
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_python_3(self, dag_maker):
-        @task.virtualenv(python_version=3, use_dill=False, requirements=["dill"])
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_python_3(self, serializer, extra_requirements, dag_maker):
+        @task.virtualenv(python_version="3", serializer=serializer, requirements=extra_requirements)
         def f():
             import sys
 
@@ -172,8 +268,17 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_with_args(self, dag_maker):
-        @task.virtualenv
+    @pytest.mark.parametrize(
+        "serializer, extra_requirements",
+        [
+            pytest.param("pickle", [], id="pickle"),
+            pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", ["cloudpickle"], marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, [], id="default"),
+        ],
+    )
+    def test_with_args(self, serializer, extra_requirements, dag_maker):
+        @task.virtualenv(serializer=serializer, requirements=extra_requirements)
         def f(a, b, c=False, d=False):
             if a == 0 and b == 1 and c and not d:
                 return True
@@ -250,3 +355,29 @@ class TestPythonVirtualenvDecorator:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_invalid_annotation(self, dag_maker):
+        import uuid
+
+        unique_id = uuid.uuid4().hex
+        value = {"unique_id": unique_id}
+
+        # Functions that throw an error
+        # if `from __future__ import annotations` is missing
+        @task.virtualenv(multiple_outputs=False, do_xcom_push=True)
+        def in_venv(value: dict[str, _Invalid]) -> _Invalid:
+            assert isinstance(value, dict)
+            return value["unique_id"]
+
+        with dag_maker():
+            ret = in_venv(value)
+
+        dr = dag_maker.create_dagrun()
+        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ti = dr.get_task_instances()[0]
+
+        assert ti.state == TaskInstanceState.SUCCESS
+
+        xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
+        assert isinstance(xcom, str)
+        assert xcom == unique_id

@@ -31,7 +31,7 @@ from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
+from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -39,6 +39,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -119,6 +120,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 1 day ago, but a sla of 0, so we'll already have a sla_miss on the books.
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         dag, task = create_dummy_dag(
             dag_id="test_sla_miss",
             task_id="dummy",
@@ -126,7 +128,13 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": datetime.timedelta()},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(
+            TaskInstance(
+                task=task,
+                run_id=test_run_id,
+                state=State.SUCCESS,
+            )
+        )
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
         mock_dagbag = mock.Mock()
@@ -151,6 +159,7 @@ class TestDagFileProcessor:
         # so we'll already have an sla_miss on the books.
         # Pass anything besides a timedelta object to the sla argument.
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         dag, task = create_dummy_dag(
             dag_id="test_sla_miss",
             task_id="dummy",
@@ -158,7 +167,7 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": None},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance(task=task, run_id=test_run_id, state=State.SUCCESS))
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
 
         mock_dagbag = mock.Mock()
@@ -182,6 +191,7 @@ class TestDagFileProcessor:
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
         test_start_date = timezone.utcnow() - datetime.timedelta(days=2)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         dag, task = create_dummy_dag(
             dag_id="test_sla_miss",
             task_id="dummy",
@@ -190,7 +200,7 @@ class TestDagFileProcessor:
         )
 
         # Create a TaskInstance for two days ago
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance(task=task, run_id=test_run_id, state=State.SUCCESS))
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(
@@ -231,10 +241,10 @@ class TestDagFileProcessor:
         ) as dag:
             task = EmptyOperator(task_id="dummy")
 
-        dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
+        dr = dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
         # Create a TaskInstance for two days ago
-        ti = TaskInstance(task=task, execution_date=test_start_date, state="success")
+        ti = TaskInstance(task=task, run_id=dr.run_id, state=State.SUCCESS)
         session.merge(ti)
         session.flush()
 
@@ -274,15 +284,16 @@ class TestDagFileProcessor:
         # so we have 2 missing slas
         now = timezone.utcnow()
         test_start_date = now - datetime.timedelta(days=3)
+        # test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         with dag_maker(
             dag_id="test_sla_miss",
             default_args={"start_date": test_start_date, "sla": datetime.timedelta(days=1)},
         ) as dag:
             task = EmptyOperator(task_id="dummy")
 
-        dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
+        dr = dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.merge(TaskInstance(task=task, run_id=dr.run_id, state="success"))
         session.merge(
             SlaMiss(task_id=task.task_id, dag_id=dag.dag_id, execution_date=now - datetime.timedelta(days=2))
         )
@@ -321,6 +332,7 @@ class TestDagFileProcessor:
         )
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
 
         for i, callback in enumerate([[sla_callback], sla_callback]):
             dag, task = create_dummy_dag(
@@ -331,7 +343,7 @@ class TestDagFileProcessor:
             )
             mock_stats_incr.reset_mock()
 
-            session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+            session.merge(TaskInstance(task=task, run_id=test_run_id, state=State.SUCCESS))
 
             # Create an SlaMiss where notification was sent, but email was not
             session.merge(
@@ -365,6 +377,7 @@ class TestDagFileProcessor:
         session = settings.Session()
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         email1 = "test1@test.com"
         dag, task = create_dummy_dag(
             dag_id="test_sla_miss",
@@ -372,8 +385,7 @@ class TestDagFileProcessor:
             email=email1,
             default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
         )
-
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        session.merge(TaskInstance(task=task, run_id=test_run_id, state=State.SUCCESS))
 
         email2 = "test2@test.com"
         EmptyOperator(task_id="sla_not_missed", dag=dag, owner="airflow", email=email2)
@@ -412,6 +424,7 @@ class TestDagFileProcessor:
         mock_send_email.side_effect = RuntimeError("Could not send an email")
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         dag, task = create_dummy_dag(
             dag_id=dag_id,
             task_id=task_id,
@@ -420,7 +433,7 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.reset_mock()
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        session.merge(TaskInstance(task=task, run_id=test_run_id, state=State.SUCCESS))
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(SlaMiss(task_id=task_id, dag_id=dag_id, execution_date=test_start_date))
@@ -446,6 +459,7 @@ class TestDagFileProcessor:
         session = settings.Session()
 
         test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
+        test_run_id = DagRunType.SCHEDULED.generate_run_id(test_start_date)
         dag, task = create_dummy_dag(
             dag_id="test_sla_miss",
             task_id="dummy",
@@ -453,7 +467,7 @@ class TestDagFileProcessor:
             default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=1)},
         )
 
-        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="Success"))
+        session.merge(TaskInstance(task=task, run_id=test_run_id, state=State.SUCCESS))
 
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(
@@ -479,6 +493,7 @@ class TestDagFileProcessor:
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
             )
             task = dag.get_task(task_id="run_this_first")
@@ -512,6 +527,7 @@ class TestDagFileProcessor:
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
             )
             task = dag.get_task(task_id="run_this_first")
@@ -546,6 +562,7 @@ class TestDagFileProcessor:
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
             )
             ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
@@ -578,6 +595,7 @@ class TestDagFileProcessor:
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
             )
             ti = dagrun.get_task_instance(task.task_id)
@@ -604,7 +622,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -621,7 +639,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -646,7 +664,7 @@ class TestDagFileProcessor:
             file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
         self._process_file(temp_dagfile, dag_directory=tmp_path, session=session)
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
@@ -661,7 +679,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(parseable_filename.as_posix(), dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 0
 
@@ -674,7 +692,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 0
 
@@ -695,7 +713,7 @@ class TestDagFileProcessor:
         )
         self._process_file(unparseable_filename.as_posix(), dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
 
         assert len(import_errors) == 1
         import_error = import_errors[0]
@@ -717,7 +735,7 @@ class TestDagFileProcessor:
         self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_1 = (
-            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
         )
 
         # process the file multiple times
@@ -725,7 +743,7 @@ class TestDagFileProcessor:
             self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
         import_error_2 = (
-            session.query(errors.ImportError).filter(errors.ImportError.filename == filename_to_parse).one()
+            session.query(ParseImportError).filter(ParseImportError.filename == filename_to_parse).one()
         )
 
         # assert that the ID of the import error did not change
@@ -745,7 +763,7 @@ class TestDagFileProcessor:
             file_to_parse.writelines(PARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(filename_to_parse, dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
 
         assert len(import_errors) == 0
 
@@ -760,7 +778,7 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(zip_filename, dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
         assert len(import_errors) == 1
 
         # Remove the import error from the file
@@ -768,7 +786,7 @@ class TestDagFileProcessor:
             zip_file.writestr(TEMP_DAG_FILENAME, "import os # airflow DAG")
         self._process_file(zip_filename, dag_directory=tmp_path, session=session)
 
-        import_errors = session.query(errors.ImportError).all()
+        import_errors = session.query(ParseImportError).all()
         assert len(import_errors) == 0
 
         session.rollback()
@@ -780,7 +798,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -817,7 +835,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(unparseable_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -849,7 +867,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
@@ -887,7 +905,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(invalid_zip_filename, dag_directory=tmp_path, session=session)
-            import_errors = session.query(errors.ImportError).all()
+            import_errors = session.query(ParseImportError).all()
 
             assert len(import_errors) == 1
             import_error = import_errors[0]

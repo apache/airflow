@@ -271,13 +271,17 @@ The following features are supported in the Trigger UI Form:
               | For multi-value selects ``examples`` you can add
               | the attribute ``values_display`` with a dict and
               | map data values to display labels.
-            * | If you add the attribute ``items``, a JSON entry
+            * | If you add the attribute ``items`` with a
+              | dictionary that contains a field ``type``
+              | with a value other than "string", a JSON entry
               | field will be generated for more array types and
               | additional type validation as described in
               | `JSON Schema Array Items <https://json-schema.org/understanding-json-schema/reference/array.html#items>`_.
           - ``Param(["a", "b", "c"], type="array")``
 
             ``Param(["two", "three"], type="array", examples=["one", "two", "three", "four", "five"])``
+
+            ``Param(["one@example.com", "two@example.com"], type="array", items={"type": "string", "format": "idn-email"})``
 
         * - ``object``
           - | Generates a JSON entry field with

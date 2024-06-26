@@ -516,25 +516,24 @@ class SFTPHookAsync(BaseHook):
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
 
-    async def list_directory(self, path: str = "") -> list[str] | None:
+    async def list_directory(self, path: str = "") -> list[str] | None:  # type: ignore[return]
         """Return a list of files on the SFTP server at the provided path."""
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            files = await sftp_client.listdir(path)
-            return sorted(files)
-        except asyncssh.SFTPNoSuchFile:
-            return None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                files = await sftp_client.listdir(path)
+                return sorted(files)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
-    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:
+    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            files = await sftp_client.readdir(path)
-            return files
-        except asyncssh.SFTPNoSuchFile:
-            return None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                return await sftp_client.readdir(path)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
     async def get_files_and_attrs_by_pattern(
         self, path: str = "", fnmatch_pattern: str = ""
@@ -550,7 +549,7 @@ class SFTPHookAsync(BaseHook):
         matched_files = [file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)]
         return matched_files
 
-    async def get_mod_time(self, path: str) -> str:
+    async def get_mod_time(self, path: str) -> str:  # type: ignore[return]
         """
         Make SFTP async connection.
 
@@ -559,9 +558,10 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote file
         """
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
+        ssh_conn = None
         try:
+            ssh_conn = await self._get_conn()
+            sftp_client = await ssh_conn.start_sftp_client()
             ftp_mdtm = await sftp_client.stat(path)
             modified_time = ftp_mdtm.mtime
             mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
@@ -569,3 +569,6 @@ class SFTPHookAsync(BaseHook):
             return mod_time
         except asyncssh.SFTPNoSuchFile:
             raise AirflowException("No files matching")
+        finally:
+            if ssh_conn:
+                ssh_conn.close()

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.machinery
 import importlib.util
@@ -30,6 +31,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
+from sqlalchemy import (
+    Column,
+    String,
+)
 from sqlalchemy.exc import OperationalError
 from tabulate import tabulate
 
@@ -43,6 +48,7 @@ from airflow.exceptions import (
     AirflowDagDuplicatedIdException,
     RemovedInAirflow3Warning,
 )
+from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -58,6 +64,7 @@ from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET
+from airflow.utils.warnings import capture_with_reraise
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -67,13 +74,23 @@ if TYPE_CHECKING:
 
 
 class FileLoadStat(NamedTuple):
-    """Information about single file."""
+    """
+    Information about single file.
+
+    :param file: Loaded file.
+    :param duration: Time spent on process file.
+    :param dag_num: Total number of DAGs loaded in this file.
+    :param task_num: Total number of Tasks loaded in this file.
+    :param dags: DAGs names loaded in this file.
+    :param warning_num: Total number of warnings captured from processing this file.
+    """
 
     file: str
     duration: timedelta
     dag_num: int
     task_num: int
     dags: str
+    warning_num: int
 
 
 class DagBag(LoggingMixin):
@@ -89,11 +106,16 @@ class DagBag(LoggingMixin):
     :param dag_folder: the folder to scan to find DAGs
     :param include_examples: whether to include the examples that ship
         with airflow or not
+    :param safe_mode: when ``False``, scans all python modules for dags.
+        When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
+        to filter python modules to scan for dags.
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
+    :param store_serialized_dags: deprecated parameter, same effect as `read_dags_from_db`
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
+    :param collect_dags: when True, collects dags during class initialization.
     """
 
     def __init__(
@@ -134,6 +156,7 @@ class DagBag(LoggingMixin):
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
         self.import_errors: dict[str, str] = {}
+        self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
@@ -309,10 +332,21 @@ class DagBag(LoggingMixin):
         # Ensure we don't pick up anything else we didn't mean to
         DagContext.autoregistered_dags.clear()
 
-        if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
-            mods = self._load_modules_from_file(filepath, safe_mode)
-        else:
-            mods = self._load_modules_from_zip(filepath, safe_mode)
+        self.captured_warnings.pop(filepath, None)
+        with capture_with_reraise() as captured_warnings:
+            if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
+                mods = self._load_modules_from_file(filepath, safe_mode)
+            else:
+                mods = self._load_modules_from_zip(filepath, safe_mode)
+
+        if captured_warnings:
+            formatted_warnings = []
+            for msg in captured_warnings:
+                category = msg.category.__name__
+                if (module := msg.category.__module__) != "builtins":
+                    category = f"{module}.{category}"
+                formatted_warnings.append(f"{msg.filename}:{msg.lineno}: {category}: {msg.message}")
+            self.captured_warnings[filepath] = tuple(formatted_warnings)
 
         found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
 
@@ -561,6 +595,7 @@ class DagBag(LoggingMixin):
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
+                        warning_num=len(self.captured_warnings.get(filepath, [])),
                     )
                 )
             except Exception as e:
@@ -698,3 +733,32 @@ class DagBag(LoggingMixin):
 
         security_manager = ApplessAirflowSecurityManager(session=session)
         security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
+
+
+def generate_md5_hash(context):
+    fileloc = context.get_current_parameters()["fileloc"]
+    return hashlib.md5(fileloc.encode()).hexdigest()
+
+
+class DagPriorityParsingRequest(Base):
+    """Model to store the dag parsing requests that will be prioritized when parsing files."""
+
+    __tablename__ = "dag_priority_parsing_request"
+
+    # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
+    # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
+    # size consistent with other tables. This is a workaround to enforce the unique constraint.
+    id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
+
+    # The location of the file containing the DAG object
+    # Note: Do not depend on fileloc pointing to a file; in the case of a
+    # packaged DAG, it will point to the subpath of the DAG within the
+    # associated zip.
+    fileloc = Column(String(2000), nullable=False)
+
+    def __init__(self, fileloc: str) -> None:
+        super().__init__()
+        self.fileloc = fileloc
+
+    def __repr__(self) -> str:
+        return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"

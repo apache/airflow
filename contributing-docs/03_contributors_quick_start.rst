@@ -19,7 +19,7 @@
 Contributor's Quick Start
 *************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Note to Starters
 ################
@@ -169,7 +169,8 @@ like system, this command will install all necessary dependencies that should be
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
-3. With Hatch you can enter virtual environment with ``hatch env shell`` command:
+3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
+   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details:
 
 Forking and cloning Project
 ---------------------------
@@ -468,8 +469,7 @@ on macOS, install via
 
 .. code-block:: bash
 
-  pyenv activate airflow-env
-  pip install pre-commit
+  pipx install pre-commit
 
 3. Go to your project directory
 

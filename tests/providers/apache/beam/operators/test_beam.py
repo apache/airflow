@@ -256,6 +256,79 @@ class TestBeamRunPythonPipelineOperator:
         op.on_kill()
         dataflow_cancel_job.assert_not_called()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_execute_gcs_hook_not_called_without_gs_prefix(self, mock_gcs_hook, _):
+        """
+        Test that execute method does not call GCSHook when neither py_file nor requirements_file
+        starts with 'gs://'. (i.e., running pipeline entirely locally)
+        """
+        local_test_op_args = {
+            "task_id": TASK_ID,
+            "py_file": "local_file.py",
+            "py_options": ["-m"],
+            "default_pipeline_options": {
+                "project": TEST_PROJECT,
+                "requirements_file": "local_requirements.txt",
+            },
+            "pipeline_options": {"output": "test_local/output", "labels": {"foo": "bar"}},
+        }
+
+        op = BeamRunPythonPipelineOperator(**local_test_op_args)
+        context_mock = mock.MagicMock()
+
+        op.execute(context_mock)
+        mock_gcs_hook.assert_not_called()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_execute_gcs_hook_called_with_gs_prefix_py_file(self, mock_gcs_hook, _):
+        """
+        Test that execute method calls GCSHook when only 'py_file' starts with 'gs://'.
+        """
+        local_test_op_args = {
+            "task_id": TASK_ID,
+            "py_file": "gs://gcs_file.py",
+            "py_options": ["-m"],
+            "default_pipeline_options": {
+                "project": TEST_PROJECT,
+                "requirements_file": "local_requirements.txt",
+            },
+            "pipeline_options": {"output": "test_local/output", "labels": {"foo": "bar"}},
+        }
+        op = BeamRunPythonPipelineOperator(**local_test_op_args)
+        context_mock = mock.MagicMock()
+
+        op.execute(context_mock)
+        mock_gcs_hook.assert_called_once()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_execute_gcs_hook_called_with_gs_prefix_pipeline_requirements(self, mock_gcs_hook, _):
+        """
+        Test that execute method calls GCSHook when only pipeline_options 'requirements_file' starts with
+        'gs://'.
+        Note: "pipeline_options" is merged with and overrides keys in "default_pipeline_options" when
+              BeamRunPythonPipelineOperator is instantiated, so testing GCS 'requirements_file' specified
+              in "pipeline_options"
+        """
+        local_test_op_args = {
+            "task_id": TASK_ID,
+            "py_file": "local_file.py",
+            "py_options": ["-m"],
+            "default_pipeline_options": {
+                "project": TEST_PROJECT,
+                "requirements_file": "gs://gcs_requirements.txt",
+            },
+            "pipeline_options": {"output": "test_local/output", "labels": {"foo": "bar"}},
+        }
+
+        op = BeamRunPythonPipelineOperator(**local_test_op_args)
+        context_mock = mock.MagicMock()
+
+        op.execute(context_mock)
+        mock_gcs_hook.assert_called_once()
+
 
 class TestBeamRunJavaPipelineOperator:
     @pytest.fixture(autouse=True)
@@ -940,24 +1013,20 @@ class TestBeamRunJavaPipelineOperatorAsync:
         ), "Trigger is not a BeamPJavaPipelineTrigger"
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
-    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_async_execute_direct_runner(self, gcs_hook, beam_hook_mock):
+    def test_async_execute_direct_runner(self, beam_hook_mock):
         """
         Test BeamHook is created and the right args are passed to
         start_java_pipeline when executing direct runner.
         """
-        gcs_provide_file = gcs_hook.return_value.provide_file
         op = BeamRunJavaPipelineOperator(**self.default_op_kwargs)
         with pytest.raises(TaskDeferred):
             op.execute(context=mock.MagicMock())
         beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
-        gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
+    def test_exec_dataflow_runner(self, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
         """
         Test DataflowHook is created and the right args are passed to
         start_java_pipeline when executing Dataflow runner.
@@ -966,7 +1035,6 @@ class TestBeamRunJavaPipelineOperatorAsync:
         op = BeamRunJavaPipelineOperator(
             runner="DataflowRunner", dataflow_config=dataflow_config, **self.default_op_kwargs
         )
-        gcs_provide_file = gcs_hook.return_value.provide_file
         magic_mock = mock.MagicMock()
         with pytest.raises(TaskDeferred):
             op.execute(context=magic_mock)
@@ -989,7 +1057,6 @@ class TestBeamRunJavaPipelineOperatorAsync:
             "region": "us-central1",
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
         }
-        gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
         persist_link_mock.assert_called_once_with(
             op,
             magic_mock,

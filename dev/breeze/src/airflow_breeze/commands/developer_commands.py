@@ -49,6 +49,7 @@ from airflow_breeze.commands.common_options import (
     option_include_removed_providers,
     option_installation_package_format,
     option_integration,
+    option_keep_env_variables,
     option_max_time,
     option_mount_sources,
     option_mysql_version,
@@ -78,6 +79,10 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_use_packages_from_dist,
 )
 from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.testing_commands import (
+    option_force_lowest_dependencies,
+    option_test_type,
+)
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_EXECUTORS,
@@ -218,6 +223,15 @@ option_warn_image_upgrade_needed = click.option(
     envvar="WARN_IMAGE_UPGRADE_NEEDED",
 )
 
+option_install_airflow_with_constraints_default_true = click.option(
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -255,13 +269,16 @@ option_warn_image_upgrade_needed = click.option(
 @option_dry_run
 @option_executor_shell
 @option_force_build
+@option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_image_tag_for_running
 @option_include_mypy_volume
+@option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
 @option_integration
+@option_keep_env_variables
 @option_max_time
 @option_mount_sources
 @option_mysql_version
@@ -276,6 +293,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_python
 @option_restart
 @option_run_db_tests_only
+@option_test_type
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
@@ -305,12 +323,15 @@ def shell(
     executor: str,
     extra_args: tuple,
     force_build: bool,
+    force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
     image_tag: str | None,
     include_mypy_volume: bool,
     install_selected_providers: str,
+    install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
+    keep_env_variables: bool,
     max_time: int | None,
     mount_sources: str,
     mysql_version: str,
@@ -331,6 +352,7 @@ def shell(
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
+    test_type: str,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
@@ -368,13 +390,15 @@ def shell(
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
+        force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
         image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         install_selected_providers=install_selected_providers,
-        install_airflow_with_constraints=True,
         integration=integration,
+        keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         package_format=package_format,
@@ -394,6 +418,7 @@ def shell(
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
+        test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
@@ -627,7 +652,7 @@ def start_airflow(
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -700,7 +725,7 @@ def build_docs(
             "[info]To view the built documentation, you have two options:\n\n"
             "1. Start the webserver in breeze and access the built docs at "
             "http://localhost:28080/docs/\n"
-            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view"
+            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view "
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
@@ -848,9 +873,7 @@ def static_checks(
     if show_diff_on_failure:
         command_to_execute.append("--show-diff-on-failure")
     if last_commit:
-        get_console().print(
-            "\n[info]Running checks for last commit in the current branch current branch: HEAD^..HEAD\n"
-        )
+        get_console().print("\n[info]Running checks for last commit in the current branch: HEAD^..HEAD\n")
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
         get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
@@ -1025,3 +1048,36 @@ def find_airflow_container() -> str | None:
     else:
         stop_exec_on_error(1)
         return None
+
+
+@main.command(
+    name="generate-migration-file", help="Autogenerate the alembic migration file for the ORM changes."
+)
+@option_builder
+@option_github_repository
+@click.option(
+    "-m",
+    "--message",
+    help="Message to use for the migration",
+    default="Empty message",
+    show_default=True,
+)
+def autogenerate(
+    builder: str,
+    github_repository: str,
+    message: str,
+):
+    """Autogenerate the alembic migration file."""
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    build_params = BuildCiParams(
+        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    shell_params = ShellParams(
+        github_repository=github_repository,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    )
+    cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
+    execute_command_in_shell(shell_params, project_name="db", command=cmd)
+    fix_ownership_using_docker()

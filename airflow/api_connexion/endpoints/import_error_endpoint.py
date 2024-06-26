@@ -30,7 +30,7 @@ from airflow.api_connexion.schemas.error_schema import (
 )
 from airflow.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.models.dag import DagModel
-from airflow.models.errors import ImportError as ImportErrorModel
+from airflow.models.errors import ParseImportError
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 @provide_session
 def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get an import error."""
-    error = session.get(ImportErrorModel, import_error_id)
+    error = session.get(ParseImportError, import_error_id)
     if error is None:
         raise NotFound(
             "Import error not found",
@@ -85,8 +85,8 @@ def get_import_errors(
     """Get all import errors."""
     to_replace = {"import_error_id": "id"}
     allowed_sort_attrs = ["import_error_id", "timestamp", "filename"]
-    count_query = select(func.count(ImportErrorModel.id))
-    query = select(ImportErrorModel)
+    count_query = select(func.count(ParseImportError.id))
+    query = select(ParseImportError)
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
 
     can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
@@ -94,11 +94,9 @@ def get_import_errors(
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        dagfiles_subq = (
-            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids)).subquery()
-        )
-        query = query.where(ImportErrorModel.filename.in_(dagfiles_subq))
-        count_query = count_query.where(ImportErrorModel.filename.in_(dagfiles_subq))
+        dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
+        query = query.where(ParseImportError.filename.in_(dagfiles_stmt))
+        count_query = count_query.where(ParseImportError.filename.in_(dagfiles_stmt))
 
     total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()

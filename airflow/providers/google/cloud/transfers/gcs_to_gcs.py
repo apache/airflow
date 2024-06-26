@@ -234,8 +234,6 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
-        self.resolved_source_objects: set[str] = set()
-        self.resolved_target_objects: set[str] = set()
 
     def execute(self, context: Context):
         hook = GCSHook(
@@ -410,19 +408,8 @@ class GCSToGCSOperator(BaseOperator):
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
                 raise AirflowException(msg)
-        if len(objects) == 1 and objects[0][-1] != "/":
-            self._copy_file(hook=hook, source_object=objects[0])
         elif len(objects):
             self._copy_multiple_objects(hook=hook, source_objects=objects, prefix=prefix)
-
-    def _copy_file(self, hook, source_object):
-        destination_object = self.destination_object or source_object
-        if self.destination_object and self.destination_object[-1] == "/":
-            file_name = source_object.split("/")[-1]
-            destination_object += file_name
-        self._copy_single_object(
-            hook=hook, source_object=source_object, destination_object=destination_object
-        )
 
     def _copy_multiple_objects(self, hook, source_objects, prefix):
         # Check whether the prefix is a root directory for all the rest of objects.
@@ -443,7 +430,12 @@ class GCSToGCSOperator(BaseOperator):
                 destination_object = source_obj
             else:
                 file_name_postfix = source_obj.replace(base_path, "", 1)
-                destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
+
+                destination_object = (
+                    self.destination_object.rstrip("/")[0 : self.destination_object.rfind("/")]
+                    + "/"
+                    + file_name_postfix
+                )
 
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
@@ -540,13 +532,6 @@ class GCSToGCSOperator(BaseOperator):
             self.destination_bucket,
             destination_object,
         )
-
-        self.resolved_source_objects.add(source_object)
-        if not destination_object:
-            self.resolved_target_objects.add(source_object)
-        else:
-            self.resolved_target_objects.add(destination_object)
-
         hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
 
         if self.move_object:
@@ -559,17 +544,36 @@ class GCSToGCSOperator(BaseOperator):
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """
+        from pathlib import Path
+
         from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        def _process_prefix(pref):
+            if WILDCARD in pref:
+                pref = pref.split(WILDCARD)[0]
+            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
+            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
+                pref = Path(pref).parent.as_posix()
+            return ["/" if pref in ("", "/", ".") else pref.rstrip("/")]  # Adjust root path
+
+        inputs = []
+        for prefix in self.source_objects:
+            result = _process_prefix(prefix)
+            inputs.extend(result)
+
+        if self.destination_object is None:
+            outputs = inputs.copy()
+        else:
+            outputs = _process_prefix(self.destination_object)
+
         return OperatorLineage(
             inputs=[
-                Dataset(namespace=f"gs://{self.source_bucket}", name=source)
-                for source in sorted(self.resolved_source_objects)
+                Dataset(namespace=f"gs://{self.source_bucket}", name=source) for source in sorted(set(inputs))
             ],
             outputs=[
                 Dataset(namespace=f"gs://{self.destination_bucket}", name=target)
-                for target in sorted(self.resolved_target_objects)
+                for target in sorted(set(outputs))
             ],
         )

@@ -22,7 +22,7 @@ Before reading this document, you should be familiar with `Contributors' guide <
 This document assumes that you are a bit familiar how Airflow's community work, but you would like to learn more
 about the rules by which we add new members.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Committers vs. Maintainers
 --------------------------
@@ -222,5 +222,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
     * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
     * If you had been a collaborator role before getting committer, remove your Github ID from ``.asf.yaml``.
-7.  To be listed on airflow main entry web site, also raise a PR in
+7.  Raise PR to airflow site with the following:
+    * List your name in the committers list
     `Airflow-Site committers.json <https://github.com/apache/airflow-site/blob/main/landing-pages/site/data/committers.json>`__.
+    * Post entry in `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.

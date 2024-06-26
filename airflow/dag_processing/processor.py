@@ -39,11 +39,13 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.models import SlaMiss, errors
+from airflow.listeners.listener import get_listener_manager
+from airflow.models import SlaMiss
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.stats import Stats
@@ -613,30 +615,36 @@ class DagFileProcessor(LoggingMixin):
         # that no longer have errors
         for dagbag_file in files_without_error:
             session.execute(
-                delete(errors.ImportError)
-                .where(errors.ImportError.filename.startswith(dagbag_file))
+                delete(ParseImportError)
+                .where(ParseImportError.filename.startswith(dagbag_file))
                 .execution_options(synchronize_session="fetch")
             )
 
         # files that still have errors
-        existing_import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]
+        existing_import_error_files = [x.filename for x in session.query(ParseImportError.filename).all()]
 
         # Add the errors of the processed files
         for filename, stacktrace in import_errors.items():
             if filename in existing_import_error_files:
-                session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
+                session.query(ParseImportError).filter(ParseImportError.filename == filename).update(
                     {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
                     synchronize_session="fetch",
                 )
+                # sending notification when an existing dag import error occurs
+                get_listener_manager().hook.on_existing_dag_import_error(
+                    filename=filename, stacktrace=stacktrace
+                )
             else:
                 session.add(
-                    errors.ImportError(
+                    ParseImportError(
                         filename=filename,
                         timestamp=timezone.utcnow(),
                         stacktrace=stacktrace,
                         processor_subdir=processor_subdir,
                     )
                 )
+                # sending notification when a new dag import error occurs
+                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
             (
                 session.query(DagModel)
                 .filter(DagModel.fileloc == filename)

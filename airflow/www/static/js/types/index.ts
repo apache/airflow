@@ -40,6 +40,7 @@ type TaskState =
   | "upstream_failed"
   | "skipped"
   | "deferred"
+  | "none"
   | null;
 
 interface Dag {
@@ -143,6 +144,7 @@ interface DepNode {
     labelStyle?: string;
     style?: string;
     setupTeardownType?: "setup" | "teardown";
+    isMapped?: boolean;
   };
   children?: DepNode[];
   edges?: MidEdge[];

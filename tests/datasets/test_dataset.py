@@ -20,15 +20,17 @@ from __future__ import annotations
 import os
 from collections import defaultdict
 from typing import Callable
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny, _sanitize_uri
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -346,7 +348,7 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
     ), "Serialized 'dataset_triggers' should be a dict"
 
 
-def datasets_equal(d1: BaseDatasetEventInput, d2: BaseDatasetEventInput) -> bool:
+def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
     if type(d1) != type(d2):
         return False
 
@@ -441,3 +443,28 @@ def test_datasets_expression_error(expression: Callable[[], None], error: str) -
     with pytest.raises(TypeError) as info:
         expression()
     assert str(info.value) == error
+
+
+def mock_get_uri_normalizer(normalized_scheme):
+    def normalizer(uri):
+        raise ValueError("Incorrect URI format")
+
+    return normalizer
+
+
+@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+@patch("airflow.datasets.warnings.warn")
+def test__sanitize_uri_raises_warning(mock_warn):
+    _sanitize_uri("postgres://localhost:5432/database.schema.table")
+    msg = mock_warn.call_args.args[0]
+    assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant" in msg
+    assert "In Airflow 3, this will raise an exception." in msg
+
+
+@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+@conf_vars({("core", "strict_dataset_uri_validation"): "True"})
+def test__sanitize_uri_raises_exception():
+    with pytest.raises(ValueError) as e_info:
+        _sanitize_uri("postgres://localhost:5432/database.schema.table")
+    assert isinstance(e_info.value, ValueError)
+    assert str(e_info.value) == "Incorrect URI format"

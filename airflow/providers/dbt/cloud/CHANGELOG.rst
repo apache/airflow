@@ -28,6 +28,74 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'retry_from_failure' parameter to DbtCloudRunJobOperator (#38868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DbtCloudRunJobOperator' to Use Correct Status Parameters for 'reuse_existing_run' (#40048)``
+
+3.8.1
+.....
+
+.. warning::
+  You need to take action on this note only if you are running Airflow>=2.10.0
+  In Airflow 2.10.0, we fix the way try_number works, so that it no longer returns different values depending
+  on task instance state.  Importantly, after the task is done, it no longer shows current_try + 1.
+  Thus we patch this provider to fix try_number references so they no longer adjust for the old, bad behavior.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Scheduler to handle incrementing of try_number (#39336)``
+* ``Validate dbt 'cause' field to be less than 255 characters (#38896)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Add (optional) dependency between dbt-cloud and openlineage providers (#39366)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+
+
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(dbt): fix wrong payload set when reuse_existing_run set to True in DbtCloudRunJobOperator (#39271)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``migrate to dbt v3 api for project endpoints (#39214)``
+
+3.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: disabled_for_operators now stops whole event emission (#38033)``
+* ``fix(dbt): add return statement to yield within a while loop in triggers (#38395)``
+
 3.7.0
 .....
 

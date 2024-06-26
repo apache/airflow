@@ -28,39 +28,34 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.cncf.kubernetes import pod_generator
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
+    KubernetesExecutor,
+    PodReconciliationError,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    ADOPTED,
+)
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
+    AirflowKubernetesScheduler,
+    KubernetesJobWatcher,
+    ResourceVersion,
+    get_base_pod_from_template,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    annotations_for_logging_task_metadata,
+    annotations_to_key,
+    create_unique_id,
+    get_logs_task_metadata,
+)
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
-
-try:
-    from airflow.providers.cncf.kubernetes import pod_generator
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-        KubernetesExecutor,
-        PodReconciliationError,
-    )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
-        ADOPTED,
-        POD_EXECUTOR_DONE_KEY,
-    )
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
-        AirflowKubernetesScheduler,
-        KubernetesJobWatcher,
-        ResourceVersion,
-        create_pod_id,
-        get_base_pod_from_template,
-    )
-    from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
-        annotations_for_logging_task_metadata,
-        annotations_to_key,
-        get_logs_task_metadata,
-    )
-    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-except ImportError:
-    AirflowKubernetesScheduler = None  # type: ignore
 
 
 class TestAirflowKubernetesScheduler:
@@ -100,17 +95,12 @@ class TestAirflowKubernetesScheduler:
         regex = r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$"
         return len(value) <= 63 and re.match(regex, value)
 
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
-            pod_name = PodGenerator.make_unique_pod_id(create_pod_id(dag_id, task_id))
-            assert self._is_valid_pod_id(pod_name)
+            with pytest.warns(AirflowProviderDeprecationWarning, match=r"deprecated\. Use `add_pod_suffix`"):
+                pod_name = PodGenerator.make_unique_pod_id(create_unique_id(dag_id, task_id))
+            assert self._is_valid_pod_id(pod_name), f"dag_id={dag_id!r}, task_id={task_id!r}"
 
-    @pytest.mark.skipif(
-        AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.PodGenerator")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     def test_get_base_pod_from_template(self, mock_kubeconfig, mock_generator, data_file):
@@ -144,14 +134,16 @@ class TestAirflowKubernetesScheduler:
 
     def test_make_safe_label_value(self):
         for dag_id, task_id in self._cases():
+            case = f"dag_id={dag_id!r}, task_id={task_id!r}"
             safe_dag_id = pod_generator.make_safe_label_value(dag_id)
-            assert self._is_safe_label_value(safe_dag_id)
+            assert self._is_safe_label_value(safe_dag_id), case
             safe_task_id = pod_generator.make_safe_label_value(task_id)
-            assert self._is_safe_label_value(safe_task_id)
-            dag_id = "my_dag_id"
-            assert dag_id == pod_generator.make_safe_label_value(dag_id)
-            dag_id = "my_dag_id_" + "a" * 64
-            assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
+            assert self._is_safe_label_value(safe_task_id), case
+
+        dag_id = "my_dag_id"
+        assert dag_id == pod_generator.make_safe_label_value(dag_id)
+        dag_id = "my_dag_id_" + "a" * 64
+        assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
 
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()
@@ -998,8 +990,35 @@ class TestKubernetesExecutor:
 
         tis_to_flush = executor.try_adopt_task_instances([mock_ti])
         assert tis_to_flush == [mock_ti]
+        assert executor.running == set()
         mock_adopt_launched_task.assert_not_called()
         mock_adopt_completed_pods.assert_called_once()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task"
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods"
+    )
+    def test_try_adopt_already_adopted_task_instances(
+        self, mock_adopt_completed_pods, mock_adopt_launched_task, mock_kube_dynamic_client
+    ):
+        """For TIs that are already adopted, we should not flush them"""
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.get.return_value.items = []
+        mock_kube_client = mock.MagicMock()
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        ti_key = TaskInstanceKey("dag", "task", "run_id", 1)
+        mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
+        executor.running = {ti_key}
+
+        tis_to_flush = executor.try_adopt_task_instances([mock_ti])
+        mock_adopt_launched_task.assert_not_called()
+        mock_adopt_completed_pods.assert_called_once()
+        assert tis_to_flush == []
+        assert executor.running == {ti_key}
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_adopt_launched_task(self, mock_kube_client):
@@ -1519,8 +1538,12 @@ class TestKubernetesJobWatcher:
     def _run(self):
         with mock.patch(
             "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.watch"
-        ) as mock_watch:
+        ) as mock_watch, mock.patch.object(
+            KubernetesJobWatcher,
+            "_pod_events",
+        ) as mock_pod_events:
             mock_watch.Watch.return_value.stream.return_value = self.events
+            mock_pod_events.return_value = self.events
             latest_resource_version = self.watcher._run(
                 self.kube_client,
                 self.watcher.resource_version,
@@ -1528,6 +1551,15 @@ class TestKubernetesJobWatcher:
                 self.watcher.kube_config,
             )
             assert self.pod.metadata.resource_version == latest_resource_version
+            mock_pod_events.assert_called_once_with(
+                kube_client=self.kube_client,
+                query_kwargs={
+                    "label_selector": "airflow-worker=123,airflow_executor_done!=True",
+                    "resource_version": "0",
+                    "_request_timeout": 30,
+                    "timeout_seconds": 3600,
+                },
+            )
 
     def assert_watcher_queue_called_once_with_state(self, state):
         self.watcher.watcher_queue.put.assert_called_once_with(
@@ -1625,7 +1657,7 @@ class TestKubernetesJobWatcher:
                                 "state": {
                                     "waiting": {
                                         "reason": "CreateContainerError",
-                                        "message": 'Error: Error response from daemon: create \invalid\path: "\\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
+                                        "message": r'Error: Error response from daemon: create \invalid\path: "\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
                                     }
                                 },
                                 "lastState": {},
@@ -1742,14 +1774,6 @@ class TestKubernetesJobWatcher:
         self._run()
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
-
-    def test_process_status_succeeded_dedup_label(self):
-        self.pod.status.phase = "Succeeded"
-        self.pod.metadata.labels[POD_EXECUTOR_DONE_KEY] = "True"
-        self.events.append({"type": "MODIFIED", "object": self.pod})
-
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_succeeded_dedup_timestamp(self):
         self.pod.status.phase = "Succeeded"

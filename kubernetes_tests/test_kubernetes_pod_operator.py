@@ -62,6 +62,7 @@ def create_context(task) -> Context:
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
+    task_instance.try_number = 1
     task_instance.xcom_push = mock.Mock()  # type: ignore
     return Context(
         dag=dag,
@@ -1171,7 +1172,7 @@ class TestKubernetesPodOperatorSystem:
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
         with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
-            with pytest.raises(Exception):
+            with pytest.raises(ApiException, match=r'pods \\"test.[a-z0-9]+\\" not found'):
                 k.execute(context)
             create_mock.assert_called_once()
 
