@@ -42,7 +42,7 @@ describe("Test LogLink Component.", () => {
     expect(linkElement).not.toHaveAttribute("target");
     expect(
       linkElement?.href.includes(
-        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&format=file&try_number=${tryNumber}`
+        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&try_number=${tryNumber}&format=file`
       )
     ).toBeTruthy();
   });

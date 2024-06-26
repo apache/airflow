@@ -25,6 +25,16 @@
 Changelog
 ---------
 
+1.14.1
+......
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``standardizes template fields for 'BaseSQLOperator' and adds 'database' as a templated field (#39826)``
+
 1.14.0
 ......
 

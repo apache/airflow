@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``local task job: add timeout, to not kill on_task_instance_success listener prematurely (#39890)``
+* ``openlineage: add some debug logging around sql parser call sites (#40200)``
+* ``Add task SLA and queued datetime information to AirflowRunFacet (#40091)``
+* ``Add error stacktrace to OpenLineage task event (#39813)``
+* ``Introduce AirflowJobFacet and AirflowStateRunFacet (#39520)``
+* ``Use UUIDv7 for OpenLineage runIds (#39889)``
+* ``openlineage: execute extraction and message sending in separate process (#40078)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
+
+Misc
+~~~~
+
+* ``fix: sqa deprecations for airflow providers (#39293)``
+
 1.8.0
 .....
 
