@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
@@ -29,45 +27,9 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data.type_defs import GetStatementResultResponseTypeDef
-
     from airflow.utils.context import Context
 
-
 class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
-    """
-    Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:RedshiftDataOperator`
-
-    :param database: the name of the database
-    :param sql: the SQL statement or list of  SQL statement to run
-    :param cluster_identifier: unique identifier of a cluster
-    :param db_user: the database username
-    :param parameters: the parameters for the SQL statement
-    :param secret_arn: the name or ARN of the secret that enables db access
-    :param statement_name: the name of the SQL statement
-    :param with_event: indicates whether to send an event to EventBridge
-    :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
-    :param poll_interval: how often in seconds to check the query status
-    :param return_sql_result: if True will return the result of an SQL statement,
-        if False (default) will return statement ID
-    :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
-        `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
-        https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is ``None`` or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
-    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :param verify: Whether or not to verify SSL certificates. See:
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
-        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-    """
-
     aws_hook_class = RedshiftDataHook
     template_fields = aws_template_fields(
         "cluster_identifier",
@@ -110,19 +72,12 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.statement_name = statement_name
         self.with_event = with_event
         self.wait_for_completion = wait_for_completion
-        if poll_interval > 0:
-            self.poll_interval = poll_interval
-        else:
-            self.log.warning(
-                "Invalid poll_interval:",
-                poll_interval,
-            )
+        self.poll_interval = max(poll_interval, 1)
         self.return_sql_result = return_sql_result
         self.statement_id: str | None = None
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
-        """Execute a statement against Amazon Redshift."""
         self.log.info("Executing statement: %s", self.sql)
 
         # Set wait_for_completion to False so that it waits for the status in the deferred task.
@@ -162,9 +117,13 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
                 )
 
         if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=self.statement_id)
-            self.log.debug("Statement result: %s", result)
-            return result
+            results = []
+            for i in range(1, len(self.sql) + 1):
+                sub_statement_id = f"{self.statement_id}:{i}"
+                result = self.hook.conn.get_statement_result(Id=sub_statement_id)
+                results.append(result)
+                self.log.debug("Statement result for %s: %s", sub_statement_id, result)
+            return results
         else:
             return self.statement_id
 
@@ -183,9 +142,13 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
         self.log.info("%s completed successfully.", self.task_id)
         if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=statement_id)
-            self.log.debug("Statement result: %s", result)
-            return result
+            results = []
+            for i in range(1, len(self.sql) + 1):
+                sub_statement_id = f"{statement_id}:{i}"
+                result = self.hook.conn.get_statement_result(Id=sub_statement_id)
+                results.append(result)
+                self.log.debug("Statement result for %s: %s", sub_statement_id, result)
+            return results
 
         return statement_id
 
