@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class DataInterval(NamedTuple):
-    """A data interval for a DagRun to operate over.
+    """
+    A data interval for a DagRun to operate over.
 
     Both ``start`` and ``end`` **MUST** be "aware", i.e. contain timezone
     information.
@@ -44,7 +45,8 @@ class DataInterval(NamedTuple):
 
 
 class TimeRestriction(NamedTuple):
-    """Restriction on when a DAG can be scheduled for a run.
+    """
+    Restriction on when a DAG can be scheduled for a run.
 
     Specifically, the run must not be earlier than ``earliest``, nor later than
     ``latest``. If ``catchup`` is *False*, the run must also not be earlier than
@@ -65,7 +67,8 @@ class TimeRestriction(NamedTuple):
 
 
 class DagRunInfo(NamedTuple):
-    """Information to schedule a DagRun.
+    """
+    Information to schedule a DagRun.
 
     Instances of this will be returned by timetables when they are asked to
     schedule a DagRun creation.
@@ -87,7 +90,8 @@ class DagRunInfo(NamedTuple):
 
     @classmethod
     def interval(cls, start: DateTime, end: DateTime) -> DagRunInfo:
-        """Represent a run on a continuous schedule.
+        """
+        Represent a run on a continuous schedule.
 
         In such a schedule, each data interval starts right after the previous
         one ends, and each run is scheduled right after the interval ends. This
@@ -97,7 +101,8 @@ class DagRunInfo(NamedTuple):
 
     @property
     def logical_date(self: DagRunInfo) -> DateTime:
-        """Infer the logical date to represent a DagRun.
+        """
+        Infer the logical date to represent a DagRun.
 
         This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
         essentially the same, just a different name.
@@ -159,7 +164,8 @@ class Timetable(Protocol):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        """Deserialize a timetable from data.
+        """
+        Deserialize a timetable from data.
 
         This is called when a serialized DAG is deserialized. ``data`` will be
         whatever was returned by ``serialize`` during DAG serialization. The
@@ -168,7 +174,8 @@ class Timetable(Protocol):
         return cls()
 
     def serialize(self) -> dict[str, Any]:
-        """Serialize the timetable for JSON encoding.
+        """
+        Serialize the timetable for JSON encoding.
 
         This is called during DAG serialization to store timetable information
         in the database. This should return a JSON-serializable dict that will
@@ -178,7 +185,8 @@ class Timetable(Protocol):
         return {}
 
     def validate(self) -> None:
-        """Validate the timetable is correctly specified.
+        """
+        Validate the timetable is correctly specified.
 
         Override this method to provide run-time validation raised when a DAG
         is put into a dagbag. The default implementation does nothing.
@@ -189,7 +197,8 @@ class Timetable(Protocol):
 
     @property
     def summary(self) -> str:
-        """A short summary for the timetable.
+        """
+        A short summary for the timetable.
 
         This is used to display the timetable in the web UI. A cron expression
         timetable, for example, can use this to display the expression. The
@@ -198,7 +207,8 @@ class Timetable(Protocol):
         return type(self).__name__
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        """When a DAG run is manually triggered, infer a data interval for it.
+        """
+        When a DAG run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
         be when the user triggers the run. The default implementation raises
@@ -212,7 +222,8 @@ class Timetable(Protocol):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        """Provide information to schedule the next DagRun.
+        """
+        Provide information to schedule the next DagRun.
 
         The default implementation raises ``NotImplementedError``.
 

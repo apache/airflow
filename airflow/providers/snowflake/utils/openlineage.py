@@ -34,7 +34,8 @@ def fix_account_name(name: str) -> str:
 
 
 def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
-    """Fix snowflake sqlalchemy connection URI to OpenLineage structure.
+    """
+    Fix snowflake sqlalchemy connection URI to OpenLineage structure.
 
     Snowflake sqlalchemy connection URI has following structure:
     'snowflake://<user_login_name>:<password>@<account_identifier>/<database_name>/<schema_name>?warehouse=<warehouse_name>&role=<role_name>'

@@ -44,7 +44,8 @@ class KeySchema(TypedDict):
 
 
 class S3ToDynamoDBOperator(BaseOperator):
-    """Load Data from S3 into a DynamoDB.
+    """
+    Load Data from S3 into a DynamoDB.
 
     Data stored in S3 can be uploaded to a new or existing DynamoDB. Supported file formats CSV, DynamoDB JSON and
     Amazon ION.

@@ -28,7 +28,8 @@ from airflow.utils.types import NOTSET
 
 
 class _BashDecoratedOperator(DecoratedOperator, BashOperator):
-    """Wraps a Python callable and uses the callable return value as the Bash command to be executed.
+    """
+    Wraps a Python callable and uses the callable return value as the Bash command to be executed.
 
     :param python_callable: A reference to an object that is callable.
     :param op_kwargs: A dictionary of keyword arguments that will get unpacked
@@ -85,7 +86,8 @@ def bash_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wrap a function into a BashOperator.
+    """
+    Wrap a function into a BashOperator.
 
     Accepts kwargs for operator kwargs. Can be reused in a single DAG. This function is only used only used
     during type checking or auto-completion.

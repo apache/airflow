@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add DagRunNote and TaskInstanceNote.
+"""
+Add DagRunNote and TaskInstanceNote.
 
 Revision ID: 1986afd32c1b
 Revises: ee8d93fcc81e

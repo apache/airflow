@@ -40,7 +40,8 @@ if TYPE_CHECKING:
 
 
 class _UpstreamTIStates(NamedTuple):
-    """States of the upstream tis for a specific ti.
+    """
+    States of the upstream tis for a specific ti.
 
     This is used to determine whether the specific ti can run in this iteration.
     """
@@ -56,7 +57,8 @@ class _UpstreamTIStates(NamedTuple):
 
     @classmethod
     def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
-        """Calculate states for a task instance.
+        """
+        Calculate states for a task instance.
 
         ``counter`` is inclusive of ``setup_counter`` -- e.g. if there are 2 skipped upstreams, one
         of which is a setup, then counter will show 2 skipped and setup counter will show 1.
@@ -117,7 +119,8 @@ class TriggerRuleDep(BaseTIDep):
         dep_context: DepContext,
         session: Session,
     ) -> Iterator[TIDepStatus]:
-        """Evaluate whether ``ti``'s trigger rule was met.
+        """
+        Evaluate whether ``ti``'s trigger rule was met.
 
         :param ti: Task instance to evaluate the trigger rule of.
         :param dep_context: The current dependency context.
@@ -129,7 +132,8 @@ class TriggerRuleDep(BaseTIDep):
 
         @functools.lru_cache
         def _get_expanded_ti_count() -> int:
-            """Get how many tis the current task is supposed to be expanded into.
+            """
+            Get how many tis the current task is supposed to be expanded into.
 
             This extra closure allows us to query the database only when needed,
             and at most once.
@@ -141,7 +145,8 @@ class TriggerRuleDep(BaseTIDep):
 
         @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
-            """Get the given task's map indexes relevant to the current ti.
+            """
+            Get the given task's map indexes relevant to the current ti.
 
             This extra closure allows us to query the database only when needed,
             and at most once for each task (instead of once for each expanded
@@ -231,7 +236,8 @@ class TriggerRuleDep(BaseTIDep):
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
         def _evaluate_setup_constraint(*, relevant_setups) -> Iterator[tuple[TIDepStatus, bool]]:
-            """Evaluate whether ``ti``'s trigger rule was met.
+            """
+            Evaluate whether ``ti``'s trigger rule was met.
 
             :param ti: Task instance to evaluate the trigger rule of.
             :param dep_context: The current dependency context.
@@ -321,7 +327,8 @@ class TriggerRuleDep(BaseTIDep):
                 )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
-            """Evaluate whether ``ti``'s trigger rule was met.
+            """
+            Evaluate whether ``ti``'s trigger rule was met.
 
             :param ti: Task instance to evaluate the trigger rule of.
             :param dep_context: The current dependency context.

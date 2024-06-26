@@ -197,7 +197,8 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 
 class DatabricksCreateJobsOperator(BaseOperator):
-    """Creates (or resets) a Databricks job using the API endpoint.
+    """
+    Creates (or resets) a Databricks job using the API endpoint.
 
     .. seealso::
         https://docs.databricks.com/api/workspace/jobs/create

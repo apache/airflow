@@ -41,7 +41,8 @@ def _convert_to_float_if_possible(s: str) -> float | str:
 
 
 def _parse_boolean(val: str) -> str | bool:
-    """Try to parse a string into boolean.
+    """
+    Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
     """

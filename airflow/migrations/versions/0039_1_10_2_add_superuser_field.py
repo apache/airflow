@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add superuser field.
+"""
+Add superuser field.
 
 Revision ID: 41f5f12752f8
 Revises: 03bc53e68815

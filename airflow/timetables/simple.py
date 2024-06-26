@@ -41,7 +41,8 @@ class _TrivialTimetable(Timetable):
         return cls()
 
     def __eq__(self, other: Any) -> bool:
-        """As long as *other* is of the same type.
+        """
+        As long as *other* is of the same type.
 
         This is only for testing purposes and should not be relied on otherwise.
         """
@@ -57,7 +58,8 @@ class _TrivialTimetable(Timetable):
 
 
 class NullTimetable(_TrivialTimetable):
-    """Timetable that never schedules anything.
+    """
+    Timetable that never schedules anything.
 
     This corresponds to ``schedule=None``.
     """
@@ -79,7 +81,8 @@ class NullTimetable(_TrivialTimetable):
 
 
 class OnceTimetable(_TrivialTimetable):
-    """Timetable that schedules the execution once as soon as possible.
+    """
+    Timetable that schedules the execution once as soon as possible.
 
     This corresponds to ``schedule="@once"``.
     """
@@ -110,7 +113,8 @@ class OnceTimetable(_TrivialTimetable):
 
 
 class ContinuousTimetable(_TrivialTimetable):
-    """Timetable that schedules continually, while still respecting start_date and end_date.
+    """
+    Timetable that schedules continually, while still respecting start_date and end_date.
 
     This corresponds to ``schedule="@continuous"``.
     """
@@ -147,7 +151,8 @@ class ContinuousTimetable(_TrivialTimetable):
 
 
 class DatasetTriggeredTimetable(_TrivialTimetable):
-    """Timetable that never schedules anything.
+    """
+    Timetable that never schedules anything.
 
     This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
 

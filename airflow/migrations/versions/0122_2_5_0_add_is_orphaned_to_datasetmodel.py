@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add is_orphaned to DatasetModel.
+"""
+Add is_orphaned to DatasetModel.
 
 Revision ID: 290244fb8b83
 Revises: 1986afd32c1b

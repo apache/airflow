@@ -663,7 +663,8 @@ class DataformHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InstallNpmPackagesResponse:
-        """Install NPM dependencies in the provided workspace.
+        """
+        Install NPM dependencies in the provided workspace.
 
         Requires "package.json" to be created in the workspace.
 

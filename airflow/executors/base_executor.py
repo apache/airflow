@@ -501,7 +501,8 @@ class BaseExecutor(LoggingMixin):
         )
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Send callback for execution.
+        """
+        Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
@@ -513,7 +514,8 @@ class BaseExecutor(LoggingMixin):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        """Vends CLI commands to be included in Airflow CLI.
+        """
+        Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
@@ -523,7 +525,8 @@ class BaseExecutor(LoggingMixin):
 
     @classmethod
     def _get_parser(cls) -> argparse.ArgumentParser:
-        """Generate documentation; used by Sphinx argparse.
+        """
+        Generate documentation; used by Sphinx argparse.
 
         :meta private:
         """

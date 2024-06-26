@@ -182,7 +182,8 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
 
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Container Training job.
+    """
+    Create Custom Container Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -659,7 +660,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
 
 
 class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Python Package Training job.
+    """
+    Create Custom Python Package Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1136,7 +1138,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
 
 
 class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create a Custom Training Job pipeline.
+    """
+    Create a Custom Training Job pipeline.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

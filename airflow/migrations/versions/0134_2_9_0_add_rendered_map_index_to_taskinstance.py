@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add rendered_map_index to TaskInstance.
+"""
+Add rendered_map_index to TaskInstance.
 
 Revision ID: 1fd565369930
 Revises: 88344c1d9134

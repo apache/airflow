@@ -75,7 +75,8 @@ class ExecutorLoader:
 
     @classmethod
     def block_use_of_hybrid_exec(cls, executor_config: list):
-        """Raise an exception if the user tries to use multiple executors before the feature is complete.
+        """
+        Raise an exception if the user tries to use multiple executors before the feature is complete.
 
         This check is built into a method so that it can be easily mocked in unit tests.
 
@@ -89,7 +90,8 @@ class ExecutorLoader:
 
     @classmethod
     def _get_executor_names(cls) -> list[ExecutorName]:
-        """Return the executor names from Airflow configuration.
+        """
+        Return the executor names from Airflow configuration.
 
         :return: List of executor names from Airflow configuration
         """
@@ -158,7 +160,8 @@ class ExecutorLoader:
 
     @classmethod
     def get_executor_names(cls) -> list[ExecutorName]:
-        """Return the executor names from Airflow configuration.
+        """
+        Return the executor names from Airflow configuration.
 
         :return: List of executor names from Airflow configuration
         """
@@ -166,7 +169,8 @@ class ExecutorLoader:
 
     @classmethod
     def get_default_executor_name(cls) -> ExecutorName:
-        """Return the default executor name from Airflow configuration.
+        """
+        Return the default executor name from Airflow configuration.
 
         :return: executor name from Airflow configuration
         """

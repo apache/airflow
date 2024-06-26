@@ -26,7 +26,8 @@ log = logging.getLogger(__name__)
 
 
 def build_credentials_block(credentials: ReadOnlyCredentials) -> str:
-    """Generate AWS credentials block for Redshift COPY and UNLOAD commands.
+    """
+    Generate AWS credentials block for Redshift COPY and UNLOAD commands.
 
     See AWS docs for details:
     https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials

@@ -185,7 +185,8 @@ class PubSubPullSensor(BaseSensorOperator):
         pulled_messages: list[ReceivedMessage],
         context: Context,
     ):
-        """Convert `ReceivedMessage` objects into JSON-serializable dicts.
+        """
+        Convert `ReceivedMessage` objects into JSON-serializable dicts.
 
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
 

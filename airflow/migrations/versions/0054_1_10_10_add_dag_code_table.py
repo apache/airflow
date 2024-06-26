@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``dag_code`` table.
+"""
+Add ``dag_code`` table.
 
 Revision ID: 952da73b5eff
 Revises: 852ae6c715af
