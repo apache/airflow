@@ -754,3 +754,78 @@ def get_mapped_task_instance_dependencies(
     return get_task_instance_dependencies(
         dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
     )
+
+
+@provide_session
+def get_task_instance_try_details(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get details of a task instance try."""
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+    def _query(orm_object):
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+        )
+        query = query.where(orm_object.map_index == map_index)
+
+        query = (
+            query.join(orm_object.dag_run)
+            .outerjoin(
+                SlaMiss,
+                and_(
+                    SlaMiss.dag_id == orm_object.dag_id,
+                    SlaMiss.execution_date == DR.execution_date,
+                    SlaMiss.task_id == orm_object.task_id,
+                ),
+            )
+            .add_columns(SlaMiss)
+            .options(joinedload(orm_object.rendered_task_instance_fields))
+        )
+        try:
+            result = session.execute(query).one_or_none()
+        except MultipleResultsFound:
+            raise NotFound(
+                "Task instance not found",
+                detail="Task instance is mapped, add the map_index value to the URL",
+            )
+        return result
+
+    result = _query(TI)
+
+    if not result:
+        result = _query(TaskInstanceHistory)
+    if result is None:
+        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}, map_index={map_index}, try_number={task_try_number}."
+        raise NotFound(error_message)
+    return task_instance_schema.dump(result)
+
+
+@provide_session
+def get_mapped_task_instance_try_details(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get details of a mapped task instance try."""
+    return get_task_instance_try_details(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        task_try_number=task_try_number,
+        map_index=map_index,
+        session=session,
+    )
