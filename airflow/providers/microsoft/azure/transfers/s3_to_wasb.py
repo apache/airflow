@@ -195,15 +195,16 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             file_name (str)
         Returns: None
         """
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with tempfile.NamedTemporaryFile("w") as temp_file:
             # If using an s3_key, this creates a scenario where the only file in the files_to_move
             # list is going to be the name pulled from the s3_key. It's not verbose, but provides
             # standard implementation across the operator
+            self.log.info(f"File name: {file_name}")
             source_s3_key: str = self.s3_key if self.s3_key else self.s3_prefix + "/" + file_name
-            self.s3_hook.download_file(
-                local_path=temp_file.name,  # Make sure to look at this
-                bucket_name=self.s3_bucket,
-                key=source_s3_key
+            self.s3_hook.get_conn().download_file(
+                self.s3_bucket,
+                source_s3_key,
+                temp_file.name
             )
 
             # Load the file to Azure Blob using either the key that has been passed in, or the key
