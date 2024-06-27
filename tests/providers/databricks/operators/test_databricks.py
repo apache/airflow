@@ -1536,7 +1536,7 @@ class TestDatabricksRunNowOperator:
         with dag_maker("test_xcomarg", render_template_as_native_obj=True):
 
             @task
-            def push_json() -> dict[str, str]:
+            def push_json() -> dict:
                 return {
                     "notebook_params": NOTEBOOK_PARAMS,
                     "notebook_task": NOTEBOOK_TASK,
