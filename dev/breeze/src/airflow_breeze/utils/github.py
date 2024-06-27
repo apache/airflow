@@ -37,7 +37,7 @@ def get_ga_output(name: str, value: Any) -> str:
     return f"{output_name}={printed_value}"
 
 
-def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 10) -> bool:
+def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 60) -> bool:
     """
     Downloads a file from GitHub repository of Apache Airflow
 
