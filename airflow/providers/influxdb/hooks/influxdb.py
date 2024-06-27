@@ -25,7 +25,7 @@ This module allows to connect to a InfluxDB database.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write.point import Point
@@ -60,6 +60,26 @@ class InfluxDBHook(BaseHook):
         self.client = None
         self.extras: dict = {}
         self.uri = None
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+        from wtforms.validators import InputRequired
+
+        return {
+            "token": StringField(
+                lazy_gettext("Token"), widget=BS3TextFieldWidget(), default="", validators=[InputRequired()]
+            ),
+            "org_name": StringField(
+                lazy_gettext("Organization Name"),
+                widget=BS3TextFieldWidget(),
+                default="",
+                validators=[InputRequired()],
+            ),
+        }
 
     def get_client(self, uri, kwargs):
         return InfluxDBClient(url=uri, **kwargs)
