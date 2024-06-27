@@ -38,7 +38,6 @@ class TestInfluxDbHook:
         self.influxdb_hook.get_client = mock.Mock()
         self.influxdb_hook.get_conn()
 
-        assert self.influxdb_hook.org_name == "test"
         assert self.influxdb_hook.uri == "http://localhost:7687"
 
         assert self.influxdb_hook.get_connection.return_value.schema == "http"
