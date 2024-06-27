@@ -32,6 +32,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -130,6 +131,10 @@ class BaseExecutor(LoggingMixin):
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
+        self.task_context_logger: TaskContextLogger = TaskContextLogger(
+            component_name="Executor",
+            call_site_logger=self.log,
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -149,7 +154,7 @@ class BaseExecutor(LoggingMixin):
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
         else:
-            self.log.error("could not queue task %s", task_instance.key)
+            self.task_context_logger.error("could not queue task %s", task_instance.key, ti=task_instance)
 
     def queue_task_instance(
         self,
@@ -284,8 +289,11 @@ class BaseExecutor(LoggingMixin):
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
                 # Otherwise, we give up and remove the task from the queue.
-                self.log.error(
-                    "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                self.task_context_logger.error(
+                    "could not queue task %s (still running after %d attempts)",
+                    key,
+                    attempt.total_tries,
+                    ti=ti,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]

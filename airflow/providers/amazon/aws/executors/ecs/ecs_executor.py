@@ -320,10 +320,11 @@ class AwsEcsExecutor(BaseExecutor):
                 )
             )
         else:
-            self.log.error(
+            self.task_context_logger.error(
                 "Airflow task %s has failed a maximum of %s times. Marking as failed",
                 task_key,
                 failure_count,
+                ti=task_key,
             )
             self.fail(task_key)
         self.active_workers.pop_by_key(task_key)
@@ -386,14 +387,15 @@ class AwsEcsExecutor(BaseExecutor):
                     )
                     self.pending_tasks.append(ecs_task)
                 else:
-                    self.log.error(
+                    self.task_context_logger.error(
                         "ECS task %s has failed a maximum of %s times. Marking as failed",
                         task_key,
                         attempt_number,
+                        ti=task_key,
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
-                self.log.error("ECS RunTask Response: %s", run_task_response)
+                self.task_context_logger.error("ECS RunTask Response: %s", run_task_response, ti=task_key)
                 raise EcsExecutorException(
                     "No failures and no ECS tasks provided in response. This should never happen."
                 )
