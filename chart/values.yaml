@@ -1037,6 +1037,9 @@ createUserJob:
   # Launch additional containers into user creation job
   extraContainers: []
 
+  # Add additional init containers into user creation job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into user creation job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1136,6 +1139,9 @@ migrateDatabaseJob:
 
   # Launch additional containers into database migration job
   extraContainers: []
+
+  # Add additional init containers into migrate database job (templated).
+  extraInitContainers: []
 
   # Mount additional volumes into database migration job. It can be templated like in the following example:
   #   extraVolumes:
