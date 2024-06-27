@@ -90,6 +90,10 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
+      {{- if .Values.migrateDatabaseJob.extraInitContainers }}
+      initContainers:
+        {{- tpl (toYaml .Values.migrateDatabaseJob.extraInitContainers) . | nindent 8 }}
+      {{- end }}
       containers:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
