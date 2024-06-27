@@ -203,6 +203,9 @@ class SSHOperator(BaseOperator):
 
     def on_kill(self) -> None:
         """Close the ssh client session."""
-        ssh_client = self.hook.get_conn()
-        ssh_client.close()
-        self.log.info("SSH client closed.")
+        ssh_client = self.hook.client
+        if ssh_client:
+            ssh_client.close()
+            self.log.info("SSH client closed.")
+        else:
+            self.log.info("No SSH client to close.")
