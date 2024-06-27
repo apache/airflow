@@ -505,43 +505,23 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
-        if tasks is not None:
-            self.json["tasks"] = tasks
-        if spark_jar_task is not None:
-            self.json["spark_jar_task"] = spark_jar_task
-        if notebook_task is not None:
-            self.json["notebook_task"] = notebook_task
-        if spark_python_task is not None:
-            self.json["spark_python_task"] = spark_python_task
-        if spark_submit_task is not None:
-            self.json["spark_submit_task"] = spark_submit_task
-        if pipeline_task is not None:
-            self.json["pipeline_task"] = pipeline_task
-        if dbt_task is not None:
-            self.json["dbt_task"] = dbt_task
-        if new_cluster is not None:
-            self.json["new_cluster"] = new_cluster
-        if existing_cluster_id is not None:
-            self.json["existing_cluster_id"] = existing_cluster_id
-        if libraries is not None:
-            self.json["libraries"] = libraries
-        if run_name is not None:
-            self.json["run_name"] = run_name
-        if timeout_seconds is not None:
-            self.json["timeout_seconds"] = timeout_seconds
-        if "run_name" not in self.json:
-            self.json["run_name"] = run_name or kwargs["task_id"]
-        if idempotency_token is not None:
-            self.json["idempotency_token"] = idempotency_token
-        if access_control_list is not None:
-            self.json["access_control_list"] = access_control_list
-        if git_source is not None:
-            self.json["git_source"] = git_source
-
-        if "dbt_task" in self.json and "git_source" not in self.json:
-            raise AirflowException("git_source is required for dbt_task")
-        if pipeline_task is not None and "pipeline_id" in pipeline_task and "pipeline_name" in pipeline_task:
-            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
+        self._overridden_json_params = {
+            "tasks": tasks,
+            "spark_jar_task": spark_jar_task,
+            "notebook_task": notebook_task,
+            "spark_python_task": spark_python_task,
+            "spark_submit_task": spark_submit_task,
+            "pipeline_task": pipeline_task,
+            "dbt_task": dbt_task,
+            "new_cluster": new_cluster,
+            "existing_cluster_id": existing_cluster_id,
+            "libraries": libraries,
+            "run_name": run_name,
+            "timeout_seconds": timeout_seconds,
+            "idempotency_token": idempotency_token,
+            "access_control_list": access_control_list,
+            "git_source": git_source,
+        }
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -560,7 +540,28 @@ class DatabricksSubmitRunOperator(BaseOperator):
             caller=caller,
         )
 
+    def _setup_and_validate_json(self):
+        for key, value in self._overridden_json_params.items():
+            if value is not None:
+                self.json[key] = value
+
+        if "run_name" not in self.json or self.json["run_name"] is None:
+            self.json["run_name"] = self.task_id
+
+        if "dbt_task" in self.json and "git_source" not in self.json:
+            raise AirflowException("git_source is required for dbt_task")
+        if (
+            "pipeline_task" in self.json
+            and "pipeline_id" in self.json["pipeline_task"]
+            and "pipeline_name" in self.json["pipeline_task"]
+        ):
+            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
+
+        if self.json:
+            self.json = normalise_json_content(self.json)
+
     def execute(self, context: Context):
+        self._setup_and_validate_json()
         if (
             "pipeline_task" in self.json
             and self.json["pipeline_task"].get("pipeline_id") is None
