@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
+    from airflow.datasets import BaseDataset
     from airflow.models.dataset import DatasetEvent
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
@@ -156,9 +157,24 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
 
     description: str = "Triggered by datasets"
 
+    def __init__(self, datasets: BaseDataset) -> None:
+        super().__init__()
+        self.dataset_condition = datasets
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.serialized_objects import decode_dataset_condition
+
+        return cls(decode_dataset_condition(data["dataset_condition"]))
+
     @property
     def summary(self) -> str:
         return "Dataset"
+
+    def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.serialized_objects import encode_dataset_condition
+
+        return {"dataset_condition": encode_dataset_condition(self.dataset_condition)}
 
     def generate_run_id(
         self,

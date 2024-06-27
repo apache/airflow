@@ -1968,7 +1968,7 @@ class TestDag:
 
     def test_timetable_and_description_from_dataset(self):
         dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == DatasetTriggeredTimetable()
+        assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
         assert dag.schedule_interval == "Dataset"
         assert dag.timetable.description == "Triggered by datasets"
 

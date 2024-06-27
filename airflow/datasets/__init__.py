@@ -124,12 +124,15 @@ class BaseDataset:
     :meta private:
     """
 
-    def __or__(self, other: BaseDataset) -> DatasetAny:
+    def __bool__(self) -> bool:
+        return True
+
+    def __or__(self, other: BaseDataset) -> BaseDataset:
         if not isinstance(other, BaseDataset):
             return NotImplemented
         return DatasetAny(self, other)
 
-    def __and__(self, other: BaseDataset) -> DatasetAll:
+    def __and__(self, other: BaseDataset) -> BaseDataset:
         if not isinstance(other, BaseDataset):
             return NotImplemented
         return DatasetAll(self, other)
@@ -216,7 +219,7 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
-    def __or__(self, other: BaseDataset) -> DatasetAny:
+    def __or__(self, other: BaseDataset) -> BaseDataset:
         if not isinstance(other, BaseDataset):
             return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
@@ -238,7 +241,7 @@ class DatasetAll(_DatasetBooleanCondition):
 
     agg_func = all
 
-    def __and__(self, other: BaseDataset) -> DatasetAll:
+    def __and__(self, other: BaseDataset) -> BaseDataset:
         if not isinstance(other, BaseDataset):
             return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
