@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add description field to ``Variable`` model.
+"""
+Add description field to ``Variable`` model.
 
 Revision ID: e165e7455d70
 Revises: 90d1635d7b86

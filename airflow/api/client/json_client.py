@@ -25,14 +25,16 @@ from airflow.api.client import api_client
 
 
 class Client(api_client.Client):
-    """Json API client implementation.
+    """
+    Json API client implementation.
 
     This client is used to interact with a Json API server and perform various actions
     such as triggering DAG runs,deleting DAGs, interacting with pools, and getting lineage information.
     """
 
     def _request(self, url: str, json=None, method: str = "GET") -> dict:
-        """Make a request to the Json API server.
+        """
+        Make a request to the Json API server.
 
         :param url: The URL to send the request to.
         :param method: The HTTP method to use (e.g. "GET", "POST", "DELETE").
@@ -56,7 +58,8 @@ class Client(api_client.Client):
         return resp.json()
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
-        """Trigger a DAG run.
+        """
+        Trigger a DAG run.
 
         :param dag_id: The ID of the DAG to trigger.
         :param run_id: The ID of the DAG run to create. If not provided, a default ID will be generated.
@@ -76,7 +79,8 @@ class Client(api_client.Client):
         return self._request(url, method="POST", json=data)["message"]
 
     def delete_dag(self, dag_id: str):
-        """Delete a DAG.
+        """
+        Delete a DAG.
 
         :param dag_id: The ID of the DAG to delete.
         :return: A message indicating the status of the DAG delete operation.
@@ -87,7 +91,8 @@ class Client(api_client.Client):
         return data["message"]
 
     def get_pool(self, name: str):
-        """Get information about a specific pool.
+        """
+        Get information about a specific pool.
 
         :param name: The name of the pool to retrieve information for.
         :return: A tuple containing the name of the pool, the number of
@@ -99,7 +104,8 @@ class Client(api_client.Client):
         return pool["pool"], pool["slots"], pool["description"]
 
     def get_pools(self):
-        """Get a list of all pools.
+        """
+        Get a list of all pools.
 
         :return: A list of tuples, each containing the name of a pool,
             the number of slots in the pool, and a description of the pool.
@@ -110,7 +116,8 @@ class Client(api_client.Client):
         return [(p["pool"], p["slots"], p["description"]) for p in pools]
 
     def create_pool(self, name: str, slots: int, description: str, include_deferred: bool):
-        """Create a new pool.
+        """
+        Create a new pool.
 
         :param name: The name of the pool to create.
         :param slots: The number of slots in the pool.
@@ -131,7 +138,8 @@ class Client(api_client.Client):
         return response["pool"], response["slots"], response["description"], response["include_deferred"]
 
     def delete_pool(self, name: str):
-        """Delete a pool.
+        """
+        Delete a pool.
 
         :param name: The name of the pool to delete.
         :return: A tuple containing the name of the pool, the number
@@ -143,7 +151,8 @@ class Client(api_client.Client):
         return pool["pool"], pool["slots"], pool["description"]
 
     def get_lineage(self, dag_id: str, execution_date: str):
-        """Get the lineage of a DAG run.
+        """
+        Get the lineage of a DAG run.
 
         :param dag_id: The ID of the DAG.
         :param execution_date: The execution date of the DAG run, in the format "YYYY-MM-DDTHH:MM:SS".

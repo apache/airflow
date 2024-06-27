@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``description`` and ``default_view`` column to ``dag`` table.
+"""
+Add ``description`` and ``default_view`` column to ``dag`` table.
 
 Revision ID: c8ffec048a3b
 Revises: 41f5f12752f8

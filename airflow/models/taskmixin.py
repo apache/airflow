@@ -129,7 +129,8 @@ class DependencyMixin:
 
 
 class TaskMixin(DependencyMixin):
-    """Mixin to provide task-related things.
+    """
+    Mixin to provide task-related things.
 
     :meta private:
     """

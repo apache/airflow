@@ -86,7 +86,8 @@ class NotMapped(Exception):
 
 
 class AbstractOperator(Templater, DAGNode):
-    """Common implementation for operators, including unmapped and mapped.
+    """
+    Common implementation for operators, including unmapped and mapped.
 
     This base class is more about sharing implementations, not defining a common
     interface. Unfortunately it's difficult to use this as the common base class
@@ -245,7 +246,8 @@ class AbstractOperator(Templater, DAGNode):
         return self.downstream_task_ids
 
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
-        """Get a flat set of relative IDs, upstream or downstream.
+        """
+        Get a flat set of relative IDs, upstream or downstream.
 
         Will recurse each relative found in the direction specified.
 
@@ -325,7 +327,8 @@ class AbstractOperator(Templater, DAGNode):
                 yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
-        """Return mapped nodes that are direct dependencies of the current task.
+        """
+        Return mapped nodes that are direct dependencies of the current task.
 
         For now, this walks the entire DAG to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
@@ -343,7 +346,8 @@ class AbstractOperator(Templater, DAGNode):
         from airflow.utils.task_group import TaskGroup
 
         def _walk_group(group: TaskGroup) -> Iterable[tuple[str, DAGNode]]:
-            """Recursively walk children in a task group.
+            """
+            Recursively walk children in a task group.
 
             This yields all direct children (including both tasks and task
             groups), and all children of any task groups.
@@ -365,7 +369,8 @@ class AbstractOperator(Templater, DAGNode):
                 yield child
 
     def iter_mapped_dependants(self) -> Iterator[MappedOperator | MappedTaskGroup]:
-        """Return mapped nodes that depend on the current task the expansion.
+        """
+        Return mapped nodes that depend on the current task the expansion.
 
         For now, this walks the entire DAG to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
@@ -379,7 +384,8 @@ class AbstractOperator(Templater, DAGNode):
         )
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
-        """Return mapped task groups this task belongs to.
+        """
+        Return mapped task groups this task belongs to.
 
         Groups are returned from the innermost to the outmost.
 
@@ -390,7 +396,8 @@ class AbstractOperator(Templater, DAGNode):
         yield from group.iter_mapped_task_groups()
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
-        """Get the mapped task group "closest" to this task in the DAG.
+        """
+        Get the mapped task group "closest" to this task in the DAG.
 
         :meta private:
         """
@@ -410,7 +417,8 @@ class AbstractOperator(Templater, DAGNode):
         return self._needs_expansion
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" operator from current abstract operator.
+        """
+        Get the "normal" operator from current abstract operator.
 
         MappedOperator uses this to unmap itself based on the map index. A non-
         mapped operator (i.e. BaseOperator subclass) simply returns itself.
@@ -486,7 +494,8 @@ class AbstractOperator(Templater, DAGNode):
         return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
-        """For an operator, gets the URLs that the ``extra_links`` entry points to.
+        """
+        For an operator, gets the URLs that the ``extra_links`` entry points to.
 
         :meta private:
 
@@ -547,7 +556,8 @@ class AbstractOperator(Templater, DAGNode):
         return group.get_mapped_ti_count(run_id, session=session)
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
-        """Create the mapped task instances for mapped task.
+        """
+        Create the mapped task instances for mapped task.
 
         :raise NotMapped: If this task does not need expansion.
         :return: The newly created mapped task instances (if any) in ascending
@@ -675,7 +685,8 @@ class AbstractOperator(Templater, DAGNode):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         If the operator is mapped, this should return the unmapped, fully
         rendered, and map-expanded operator. The mapped operator should not be

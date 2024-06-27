@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""compare types between ORM and DB.
+"""
+compare types between ORM and DB.
 
 Revision ID: 44b7034f6bdc
 Revises: 424117c37d18

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rename user table.
+"""
+Rename user table.
 
 Revision ID: 2e82aab8ef20
 Revises: 1968acfc09e3

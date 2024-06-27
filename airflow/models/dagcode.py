@@ -40,7 +40,8 @@ log = logging.getLogger(__name__)
 
 
 class DagCode(Base):
-    """A table for DAGs code.
+    """
+    A table for DAGs code.
 
     dag_code table contains code of DAG files synchronized by scheduler.
 
@@ -63,7 +64,8 @@ class DagCode(Base):
 
     @provide_session
     def sync_to_db(self, session: Session = NEW_SESSION) -> None:
-        """Write code into database.
+        """
+        Write code into database.
 
         :param session: ORM Session
         """
@@ -72,7 +74,8 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def bulk_sync_to_db(cls, filelocs: Iterable[str], session: Session = NEW_SESSION) -> None:
-        """Write code in bulk into database.
+        """
+        Write code in bulk into database.
 
         :param filelocs: file paths of DAGs to sync
         :param session: ORM Session
@@ -133,7 +136,8 @@ class DagCode(Base):
         processor_subdir: str,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Delete code not included in alive_dag_filelocs.
+        """
+        Delete code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param processor_subdir: dag processor subdir
@@ -156,7 +160,8 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def has_dag(cls, fileloc: str, session: Session = NEW_SESSION) -> bool:
-        """Check a file exist in dag_code table.
+        """
+        Check a file exist in dag_code table.
 
         :param fileloc: the file to check
         :param session: ORM Session
@@ -169,7 +174,8 @@ class DagCode(Base):
 
     @classmethod
     def get_code_by_fileloc(cls, fileloc: str) -> str:
-        """Return source code for a given fileloc.
+        """
+        Return source code for a given fileloc.
 
         :param fileloc: file path of a DAG
         :return: source code as string
@@ -179,7 +185,8 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def code(cls, fileloc, session: Session = NEW_SESSION) -> str:
-        """Return source code for this DagCode object.
+        """
+        Return source code for this DagCode object.
 
         :return: source code as string
         """
@@ -203,7 +210,8 @@ class DagCode(Base):
 
     @staticmethod
     def dag_fileloc_hash(full_filepath: str) -> int:
-        """Hashing file location for indexing.
+        """
+        Hashing file location for indexing.
 
         :param full_filepath: full filepath of DAG file
         :return: hashed full_filepath

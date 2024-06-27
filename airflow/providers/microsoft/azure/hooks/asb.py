@@ -92,7 +92,8 @@ class BaseAzureServiceBusHook(BaseHook):
 
 
 class AdminClientHook(BaseAzureServiceBusHook):
-    """Interact with the ServiceBusAdministrationClient.
+    """
+    Interact with the ServiceBusAdministrationClient.
 
     This can create, update, list, and delete resources of a Service Bus
     namespace. This hook uses the same Azure Service Bus client connection
@@ -100,7 +101,8 @@ class AdminClientHook(BaseAzureServiceBusHook):
     """
 
     def get_conn(self) -> ServiceBusAdministrationClient:
-        """Create a ServiceBusAdministrationClient instance.
+        """
+        Create a ServiceBusAdministrationClient instance.
 
         This uses the connection string in connection details.
         """
@@ -190,7 +192,8 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
 
 class MessageHook(BaseAzureServiceBusHook):
-    """Interact with ServiceBusClient.
+    """
+    Interact with ServiceBusClient.
 
     This acts as a high level interface for getting ServiceBusSender and ServiceBusReceiver.
     """
@@ -225,7 +228,8 @@ class MessageHook(BaseAzureServiceBusHook):
         return client
 
     def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
-        """Use ServiceBusClient Send to send message(s) to a Service Bus Queue.
+        """
+        Use ServiceBusClient Send to send message(s) to a Service Bus Queue.
 
         By using ``batch_message_flag``, it enables and send message as batch message.
 
@@ -295,7 +299,8 @@ class MessageHook(BaseAzureServiceBusHook):
         max_message_count: int | None,
         max_wait_time: float | None,
     ):
-        """Receive a batch of subscription message at once.
+        """
+        Receive a batch of subscription message at once.
 
         This approach is optimal if you wish to process multiple messages
         simultaneously, or perform an ad-hoc receive as a single call.

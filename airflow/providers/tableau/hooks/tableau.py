@@ -31,7 +31,8 @@ if TYPE_CHECKING:
 
 
 def parse_boolean(val: str) -> str | bool:
-    """Try to parse a string into boolean.
+    """
+    Try to parse a string into boolean.
 
     The string is returned as-is if it does not look like a boolean value.
     """
@@ -129,7 +130,8 @@ class TableauHook(BaseHook):
         category=AirflowProviderDeprecationWarning,
     )
     def _auth_via_token(self) -> Auth.contextmgr:
-        """Authenticate via personal access token.
+        """
+        Authenticate via personal access token.
 
         This method is deprecated. Please, use the authentication via password instead.
         """

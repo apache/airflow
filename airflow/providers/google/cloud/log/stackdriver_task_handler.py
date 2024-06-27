@@ -50,7 +50,8 @@ _DEFAULT_SCOPESS = frozenset(
 
 
 class StackdriverTaskHandler(logging.Handler):
-    """Handler that directly makes Stackdriver logging API calls.
+    """
+    Handler that directly makes Stackdriver logging API calls.
 
     This is a Python standard ``logging`` handler using that can be used to
     route Python standard logging messages directly to the Stackdriver
@@ -174,7 +175,8 @@ class StackdriverTaskHandler(logging.Handler):
         return labels or {}
 
     def emit(self, record: logging.LogRecord) -> None:
-        """Actually log the specified logging record.
+        """
+        Actually log the specified logging record.
 
         :param record: The record to be logged.
         """

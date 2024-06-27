@@ -30,7 +30,8 @@ BASE_LINK = "https://console.cloud.google.com"
 
 
 class BaseGoogleLink(BaseOperatorLink):
-    """Base class for all Google links.
+    """
+    Base class for all Google links.
 
     :meta private:
     """

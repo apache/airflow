@@ -23,12 +23,14 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-    from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
+
+MSSQL_DEFAULT = "mssql_default"
 
 
 class TestMsSqlOperator:
@@ -46,7 +48,7 @@ class TestMsSqlOperator:
         mock_hook = MagicMock()
         mock_get_db_hook.return_value = mock_hook
 
-        op = MsSqlOperator(task_id="test", sql="")
+        op = SQLExecuteQueryOperator(task_id="test", sql="", conn_id=MSSQL_DEFAULT)
         assert op.get_db_hook() == mock_hook
 
     @mock.patch(
@@ -59,5 +61,5 @@ class TestMsSqlOperator:
         """
         mock_get_db_hook.return_value.side_effect = Mock(side_effect=AirflowException())
 
-        op = MsSqlOperator(task_id="test", sql="")
+        op = SQLExecuteQueryOperator(task_id="test", sql="", conn_id=MSSQL_DEFAULT)
         assert op.get_db_hook().__class__.__name__ == "MsSqlHook"

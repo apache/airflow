@@ -26,7 +26,8 @@ from airflow.hooks.base import BaseHook
 
 
 class PigCliHook(BaseHook):
-    """Simple wrapper around the pig CLI.
+    """
+    Simple wrapper around the pig CLI.
 
     :param pig_cli_conn_id: Connection id used by the hook
     :param pig_properties: additional properties added after pig cli command as list of strings.

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``serialized_dag`` table.
+"""
+Add ``serialized_dag`` table.
 
 Revision ID: d38e04c12aa2
 Revises: 6e96a59344a4

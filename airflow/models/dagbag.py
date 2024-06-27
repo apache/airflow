@@ -496,7 +496,8 @@ class DagBag(LoggingMixin):
         self._bag_dag(dag=dag, root_dag=root_dag, recursive=True)
 
     def _bag_dag(self, *, dag, root_dag, recursive):
-        """Actual implementation of bagging a dag.
+        """
+        Actual implementation of bagging a dag.
 
         The only purpose of this is to avoid exposing ``recursive`` in ``bag_dag()``,
         intended to only be used by the ``_bag_dag()`` implementation.

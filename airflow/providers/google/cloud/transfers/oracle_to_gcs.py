@@ -29,7 +29,8 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 
 
 class OracleToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from Oracle to Google Cloud Storage in JSON, CSV or Parquet format.
+    """
+    Copy data from Oracle to Google Cloud Storage in JSON, CSV or Parquet format.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

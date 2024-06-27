@@ -158,7 +158,8 @@ class AwsLogsHook(AwsBaseHook):
     async def describe_log_streams_async(
         self, log_group: str, stream_prefix: str, order_by: str, count: int
     ) -> dict[str, Any] | None:
-        """Async function to get the list of log streams for the specified log group.
+        """
+        Async function to get the list of log streams for the specified log group.
 
         You can list all the log streams or filter the results by prefix. You can also control
         how the results are ordered.
@@ -193,7 +194,8 @@ class AwsLogsHook(AwsBaseHook):
         skip: int = 0,
         start_from_head: bool = True,
     ) -> AsyncGenerator[Any, dict[str, Any]]:
-        """Yield all the available items in a single log stream.
+        """
+        Yield all the available items in a single log stream.
 
         :param log_group: The name of the log group.
         :param log_stream_name: The name of the specific stream.

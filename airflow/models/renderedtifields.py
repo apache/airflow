@@ -203,7 +203,8 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     @provide_session
     @retry_db_transaction
     def write(self, session: Session = None):
-        """Write instance to database.
+        """
+        Write instance to database.
 
         :param session: SqlAlchemy Session
         """

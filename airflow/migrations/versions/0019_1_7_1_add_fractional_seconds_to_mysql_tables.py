@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add fractional seconds to MySQL tables.
+"""
+Add fractional seconds to MySQL tables.
 
 Revision ID: 4addfa1236f1
 Revises: f2ca10b85618

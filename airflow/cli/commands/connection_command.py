@@ -327,7 +327,8 @@ def connections_import(args):
 
 
 def _import_helper(file_path: str, overwrite: bool) -> None:
-    """Load connections from a file and save them to the DB.
+    """
+    Load connections from a file and save them to the DB.
 
     :param overwrite: Whether to skip or overwrite on collision.
     """

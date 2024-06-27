@@ -34,7 +34,8 @@ if TYPE_CHECKING:
 
 
 class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
-    """Find, Create, Update, Execute and Delete AWS DataSync Tasks.
+    """
+    Find, Create, Update, Execute and Delete AWS DataSync Tasks.
 
     If ``do_xcom_push`` is True, then the DataSync TaskArn and TaskExecutionArn
     which were executed will be pushed to an XCom.

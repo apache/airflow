@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Added DagPriorityParsingRequest table.
+"""
+Added DagPriorityParsingRequest table.
 
 Revision ID: c4602ba06b4b
 Revises: 677fdbb7fc54

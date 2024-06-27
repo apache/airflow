@@ -338,7 +338,8 @@ class Interval(TypeDecorator):
 
 
 def nulls_first(col, session: Session) -> dict[str, Any]:
-    """Specify *NULLS FIRST* to the column ordering.
+    """
+    Specify *NULLS FIRST* to the column ordering.
 
     This is only done to Postgres, currently the only backend that supports it.
     Other databases do not need it since NULL values are considered lower than
@@ -395,7 +396,8 @@ def with_row_locks(
 
 @contextlib.contextmanager
 def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
-    """Lock database rows during the context manager block.
+    """
+    Lock database rows during the context manager block.
 
     This is a convenient method for ``with_row_locks`` when we don't need the
     locked rows.

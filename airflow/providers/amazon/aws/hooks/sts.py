@@ -36,7 +36,8 @@ class StsHook(AwsBaseHook):
         super().__init__(client_type="sts", *args, **kwargs)
 
     def get_account_number(self) -> str:
-        """Get the account Number.
+        """
+        Get the account Number.
 
         .. seealso::
             - :external+boto3:py:meth:`STS.Client.get_caller_identity`
