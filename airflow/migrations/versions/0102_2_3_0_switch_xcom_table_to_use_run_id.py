@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Switch XCom table to use ``run_id`` and add ``map_index``.
+"""
+Switch XCom table to use ``run_id`` and add ``map_index``.
 
 Revision ID: c306b5b5ae4a
 Revises: a3bcd0914482
@@ -79,7 +80,8 @@ def _get_dagrun_table() -> Table:
 
 
 def upgrade():
-    """Switch XCom table to use run_id.
+    """
+    Switch XCom table to use run_id.
 
     For performance reasons, this is done by creating a new table with needed
     data pre-populated, adding back constraints we need, and renaming it to
@@ -132,7 +134,8 @@ def upgrade():
 
 
 def downgrade():
-    """Switch XCom table back to use execution_date.
+    """
+    Switch XCom table back to use execution_date.
 
     Basically an inverse operation.
     """

@@ -40,7 +40,8 @@ DEFAULT_DATAFLOW_LOCATION = "us-central1"
 
 
 class TemplateJobStartTrigger(BaseTrigger):
-    """Dataflow trigger to check if templated job has been finished.
+    """
+    Dataflow trigger to check if templated job has been finished.
 
     :param project_id: Required. the Google Cloud project ID in which the job was started.
     :param job_id: Required. ID of the job.

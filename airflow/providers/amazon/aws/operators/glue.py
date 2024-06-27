@@ -43,7 +43,8 @@ if TYPE_CHECKING:
 
 
 class GlueJobOperator(BaseOperator):
-    """Create an AWS Glue Job.
+    """
+    Create an AWS Glue Job.
 
     AWS Glue is a serverless Spark ETL service for running Spark Jobs on the AWS
     cloud. Language support: Python and Scala.
@@ -179,7 +180,8 @@ class GlueJobOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        """Execute AWS Glue Job from Airflow.
+        """
+        Execute AWS Glue Job from Airflow.
 
         :return: the current Glue job ID.
         """

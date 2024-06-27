@@ -936,7 +936,8 @@ class DependencyDetector:
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
-    """A JSON serializable representation of operator.
+    """
+    A JSON serializable representation of operator.
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
@@ -1100,7 +1101,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: dict[str, Any]) -> None:
-        """Populate operator attributes with serialized values.
+        """
+        Populate operator attributes with serialized values.
 
         This covers simple attributes that don't reference other things in the
         DAG. Setting references (such as ``op.dag`` and task dependencies) is
@@ -1228,7 +1230,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
-        """Handle DAG references on an operator.
+        """
+        Handle DAG references on an operator.
 
         The operator should have been mostly populated earlier by calling
         ``populate_operator``. This function further fixes object references

@@ -89,7 +89,8 @@ def get_identity_column_lineage_facet(
 
 @define
 class BigQueryJobRunFacet(BaseFacet):
-    """Facet that represents relevant statistics of bigquery run.
+    """
+    Facet that represents relevant statistics of bigquery run.
 
     This facet is used to provide statistics about bigquery run.
 
@@ -134,7 +135,8 @@ class BigQueryErrorRunFacet(BaseFacet):
 
 
 def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:
-    """Get object from nested structure of objects, where it's not guaranteed that all keys in the nested structure exist.
+    """
+    Get object from nested structure of objects, where it's not guaranteed that all keys in the nested structure exist.
 
     Intended to replace chain of `dict.get()` statements.
 

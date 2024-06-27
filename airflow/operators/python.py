@@ -77,7 +77,8 @@ def is_venv_installed() -> bool:
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """Use :func:`airflow.decorators.task` instead, this is deprecated.
+    """
+    Use :func:`airflow.decorators.task` instead, this is deprecated.
 
     Calls ``@task.python`` and allows users to turn a Python function into
     an Airflow task.
@@ -756,7 +757,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         )
 
     def _calculate_cache_hash(self, exclude_cloudpickle: bool = False) -> tuple[str, str]:
-        """Generate the hash of the cache folder to use.
+        """
+        Generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
         - (sorted) list of requirements

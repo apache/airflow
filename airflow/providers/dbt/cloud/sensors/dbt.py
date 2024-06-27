@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 
 class DbtCloudJobRunSensor(BaseSensorOperator):
-    """Checks the status of a dbt Cloud job run.
+    """
+    Checks the status of a dbt Cloud job run.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -108,7 +109,8 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         return job_run_status == DbtCloudJobRunStatus.SUCCESS.value
 
     def execute(self, context: Context) -> None:
-        """Run the sensor.
+        """
+        Run the sensor.
 
         Depending on whether ``deferrable`` is set, this would either defer to
         the triggerer or poll for states of the job run, until the job reaches a

@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Fix inconsistency between ORM and migration files.
+"""
+Fix inconsistency between ORM and migration files.
 
 Revision ID: 686269002441
 Revises: bff083ad727d

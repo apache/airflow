@@ -27,7 +27,8 @@ from airflow.providers.http.hooks.http import HttpHook
 
 
 class DingdingHook(HttpHook):
-    """Send message using a DingTalk Custom Robot API.
+    """
+    Send message using a DingTalk Custom Robot API.
 
     .. seealso::
         `How to get webhook token <https://open.dingtalk.com/document/robots/custom-robot-access>`__
@@ -86,7 +87,8 @@ class DingdingHook(HttpHook):
         return json.dumps(data)
 
     def get_conn(self, headers: dict | None = None) -> Session:
-        """Overwrite HttpHook get_conn.
+        """
+        Overwrite HttpHook get_conn.
 
         We just need base_url and headers, and not don't need generic params.
 

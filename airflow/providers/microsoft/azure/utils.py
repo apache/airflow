@@ -62,7 +62,8 @@ def _get_default_azure_credential(
     workload_identity_tenant_id: str | None = None,
     use_async: bool = False,
 ) -> DefaultAzureCredential | AsyncDefaultAzureCredential:
-    """Get DefaultAzureCredential based on provided arguments.
+    """
+    Get DefaultAzureCredential based on provided arguments.
 
     If managed_identity_client_id and workload_identity_tenant_id are provided, this function returns
     DefaultAzureCredential with managed identity.
@@ -115,7 +116,8 @@ def add_managed_identity_connection_widgets(func):
 
 
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
-    """Adapt azure-identity credentials for backward compatibility.
+    """
+    Adapt azure-identity credentials for backward compatibility.
 
     Adapt credentials from azure-identity to be compatible with SD
     that needs msrestazure or azure.common.credentials
@@ -132,7 +134,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         workload_identity_tenant_id: str | None = None,
         **kwargs,
     ):
-        """Adapt azure-identity credentials for backward compatibility.
+        """
+        Adapt azure-identity credentials for backward compatibility.
 
         :param credential: Any azure-identity credential (DefaultAzureCredential by default)
         :param resource_id: The scope to use to get the token (default ARM)
@@ -156,7 +159,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         )
 
     def set_token(self):
-        """Ask the azure-core BearerTokenCredentialPolicy policy to get a token.
+        """
+        Ask the azure-core BearerTokenCredentialPolicy policy to get a token.
 
         Using the policy gives us for free the caching system of azure-core.
         We could make this code simpler by using private method, but by definition

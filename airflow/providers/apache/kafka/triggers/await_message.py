@@ -29,7 +29,8 @@ from airflow.utils.module_loading import import_string
 
 
 class AwaitMessageTrigger(BaseTrigger):
-    """A trigger that waits for a message matching specific criteria to arrive in Kafka.
+    """
+    A trigger that waits for a message matching specific criteria to arrive in Kafka.
 
     The behavior of the consumer of this trigger is as follows:
     - poll the Kafka topics for a message, if no message returned, sleep

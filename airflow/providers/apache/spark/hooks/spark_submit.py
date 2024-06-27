@@ -218,7 +218,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._env: dict[str, Any] | None = None
 
     def _resolve_should_track_driver_status(self) -> bool:
-        """Check if we should track the driver status.
+        """
+        Check if we should track the driver status.
 
         If so, we should send subsequent spark-submit status requests after the
         initial spark-submit request.
@@ -445,7 +446,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def _resolve_kerberos_principal(self, principal: str | None) -> str:
-        """Resolve kerberos principal if airflow > 2.8.
+        """
+        Resolve kerberos principal if airflow > 2.8.
 
         TODO: delete when min airflow version >= 2.8 and import directly from airflow.security.kerberos
         """
