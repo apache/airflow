@@ -1499,7 +1499,7 @@ class TestDatabricksRunNowOperator:
                     "job_id": JOB_ID,
                 },
             )
-            op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
+            op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
             push_json >> op
 
         db_mock = db_mock_class.return_value
@@ -1546,7 +1546,7 @@ class TestDatabricksRunNowOperator:
 
             json = push_json()
 
-            op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
+            op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
 
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
