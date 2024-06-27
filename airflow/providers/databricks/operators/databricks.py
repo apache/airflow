@@ -284,34 +284,21 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
-        if name is not None:
-            self.json["name"] = name
-        if description is not None:
-            self.json["description"] = description
-        if tags is not None:
-            self.json["tags"] = tags
-        if tasks is not None:
-            self.json["tasks"] = tasks
-        if job_clusters is not None:
-            self.json["job_clusters"] = job_clusters
-        if email_notifications is not None:
-            self.json["email_notifications"] = email_notifications
-        if webhook_notifications is not None:
-            self.json["webhook_notifications"] = webhook_notifications
-        if notification_settings is not None:
-            self.json["notification_settings"] = notification_settings
-        if timeout_seconds is not None:
-            self.json["timeout_seconds"] = timeout_seconds
-        if schedule is not None:
-            self.json["schedule"] = schedule
-        if max_concurrent_runs is not None:
-            self.json["max_concurrent_runs"] = max_concurrent_runs
-        if git_source is not None:
-            self.json["git_source"] = git_source
-        if access_control_list is not None:
-            self.json["access_control_list"] = access_control_list
-        if self.json:
-            self.json = normalise_json_content(self.json)
+        self._overridden_json_params = {
+            "name": name,
+            "description": description,
+            "tags": tags,
+            "tasks": tasks,
+            "job_clusters": job_clusters,
+            "email_notifications": email_notifications,
+            "webhook_notifications": webhook_notifications,
+            "notification_settings": notification_settings,
+            "timeout_seconds": timeout_seconds,
+            "schedule": schedule,
+            "max_concurrent_runs": max_concurrent_runs,
+            "git_source": git_source,
+            "access_control_list": access_control_list,
+        }
 
     @cached_property
     def _hook(self):
@@ -323,9 +310,20 @@ class DatabricksCreateJobsOperator(BaseOperator):
             caller="DatabricksCreateJobsOperator",
         )
 
-    def execute(self, context: Context) -> int:
+    def _setup_and_validate_json(self):
+        for key, value in self._overridden_json_params.items():
+            if value is not None:
+                self.json[key] = value
+
         if "name" not in self.json:
             raise AirflowException("Missing required parameter: name")
+
+        if self.json:
+            self.json = normalise_json_content(self.json)
+
+    def execute(self, context: Context) -> int:
+        self._setup_and_validate_json()
+
         job_id = self._hook.find_job_id_by_name(self.json["name"])
         if job_id is None:
             return self._hook.create_job(self.json)
