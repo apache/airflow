@@ -51,7 +51,8 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Archive logs on completions
   - [ ] Can terminate job
   - [ ] Check version match
-  - [?] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
+  - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
+  - [ ] Add a stop command
 - [ ] Web UI
   - [ ] Show logs while executing
   - [ ] Show logs after completion
