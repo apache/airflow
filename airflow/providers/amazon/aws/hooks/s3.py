@@ -36,7 +36,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -465,7 +465,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name_async
     async def get_file_metadata_async(
         self, client: AioBaseClient, bucket_name: str, key: str | None = None
-    ) -> list[Any]:
+    ) -> AsyncIterator[Any]:
         """
         Get a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
 
@@ -477,11 +477,10 @@ class S3Hook(AwsBaseHook):
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
-        files = []
         async for page in response:
             if "Contents" in page:
-                files += page["Contents"]
-        return files
+                for row in page["Contents"]:
+                    yield row
 
     async def _check_key_async(
         self,
@@ -506,21 +505,19 @@ class S3Hook(AwsBaseHook):
         """
         bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
         if wildcard_match:
-            keys = await self.get_file_metadata_async(client, bucket_name, key)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if not key_matches:
-                return False
-        elif use_regex:
-            keys = await self.get_file_metadata_async(client, bucket_name)
-            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
-            if not key_matches:
-                return False
+            async for k in self.get_file_metadata_async(client, bucket_name, key):
+                if fnmatch.fnmatch(k["Key"], key):
+                    return True
+            return False
+        if use_regex:
+            async for k in self.get_file_metadata_async(client, bucket_name):
+                if re.match(pattern=key, string=k["Key"]):
+                    return True
+            return False
+        if await self.get_head_object_async(client, key, bucket_name):
+            return True
         else:
-            obj = await self.get_head_object_async(client, key, bucket_name)
-            if obj is None:
-                return False
-
-        return True
+            return False
 
     async def check_key_async(
         self,
