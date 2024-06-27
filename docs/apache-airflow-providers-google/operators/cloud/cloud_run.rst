@@ -33,16 +33,23 @@ Create a job
 Before you create a job in Cloud Run, you need to define it.
 For more information about the Job object fields, visit `Google Cloud Run Job description <https://cloud.google.com/run/docs/reference/rpc/google.cloud.run.v2#google.cloud.run.v2.Job>`__
 
-A simple job configuration can look as follows:
+A simple job configuration can be created with a Job object:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
     :language: python
     :dedent: 0
-    :start-after: [START howto_operator_cloud_run_job_creation]
-    :end-before: [END howto_operator_cloud_run_job_creation]
+    :start-after: [START howto_cloud_run_job_instance_creation]
+    :end-before: [END howto_cloud_run_job_instance_creation]
 
+or with a Python dictionary:
 
-With this configuration we can create the job:
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_cloud_run_job_dict_creation]
+    :end-before: [END howto_cloud_run_job_dict_creation]
+
+You can create a Cloud Run Job with any of these configurations :
 :class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunCreateJobOperator`
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
