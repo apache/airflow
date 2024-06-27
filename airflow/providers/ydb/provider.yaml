@@ -30,7 +30,7 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - ydb>=3.11.3
+  - ydb>=3.12.1
 
 integrations:
   - integration-name: YDB
