@@ -4408,7 +4408,10 @@ class ConnectionModelView(AirflowModelView):
             if is_sensitive and field_name in extra_dictionary:
                 extra_dictionary[field_name] = SENSITIVE_FIELD_PLACEHOLDER
         # form.data is a property that builds the dictionary from fields so we have to modify the fields
-        form.extra.data = json.dumps(extra_dictionary)
+        if extra_dictionary:
+            form.extra.data = json.dumps(extra_dictionary)
+        else:
+            form.extra.data = None
 
 
 class PluginView(AirflowBaseView):
