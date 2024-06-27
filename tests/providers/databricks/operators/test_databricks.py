@@ -23,8 +23,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.decorators import task
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
+from airflow.operators.python import PythonOperator
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -36,6 +38,7 @@ from airflow.providers.databricks.operators.databricks import (
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils import databricks as utils
+from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -1125,18 +1128,20 @@ class TestDatabricksSubmitRunOperator:
 
 
 class TestDatabricksRunNowOperator:
-    def test_init_with_named_parameters(self):
+    def test_validate_json_with_named_parameters(self):
         """
-        Test the initializer with the named parameters.
+        Test the _setup_and_validate_json function with named parameters.
         """
         op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
+        op._setup_and_validate_json()
+
         expected = utils.normalise_json_content({"job_id": 42})
 
         assert expected == op.json
 
-    def test_init_with_json(self):
+    def test_validate_json_with_json(self):
         """
-        Test the initializer with json data.
+        Test the _setup_and_validate_json function with json data.
         """
         json = {
             "notebook_params": NOTEBOOK_PARAMS,
@@ -1147,6 +1152,7 @@ class TestDatabricksRunNowOperator:
             "repair_run": False,
         }
         op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
+        op._setup_and_validate_json()
 
         expected = utils.normalise_json_content(
             {
@@ -1161,9 +1167,9 @@ class TestDatabricksRunNowOperator:
 
         assert expected == op.json
 
-    def test_init_with_merging(self):
+    def test_validate_json_with_merging(self):
         """
-        Test the initializer when json and other named parameters are both
+        Test the _setup_and_validate_json function when json and other named parameters are both
         provided. The named parameters should override top level keys in the
         json dict.
         """
@@ -1180,6 +1186,7 @@ class TestDatabricksRunNowOperator:
             jar_params=override_jar_params,
             spark_submit_params=SPARK_SUBMIT_PARAMS,
         )
+        op._setup_and_validate_json()
 
         expected = utils.normalise_json_content(
             {
@@ -1194,12 +1201,13 @@ class TestDatabricksRunNowOperator:
         assert expected == op.json
 
     @pytest.mark.db_test
-    def test_init_with_templating(self):
+    def test_validate_json_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 
         dag = DAG("test", start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
+        op._setup_and_validate_json()
         expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
@@ -1209,7 +1217,7 @@ class TestDatabricksRunNowOperator:
         )
         assert expected == op.json
 
-    def test_init_with_bad_type(self):
+    def test_validate_json_with_bad_type(self):
         json = {"test": datetime.now()}
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
@@ -1217,7 +1225,114 @@ class TestDatabricksRunNowOperator:
             r"for parameter json\[test\] is not a number or a string"
         )
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
+            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)._setup_and_validate_json()
+
+    def test_validate_json_exception_with_job_name_and_job_id(self):
+        exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
+
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(
+                task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME
+            )._setup_and_validate_json()
+
+        run = {"job_id": JOB_ID, "job_name": JOB_NAME}
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(task_id=TASK_ID, json=run)._setup_and_validate_json()
+
+        run = {"job_id": JOB_ID}
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)._setup_and_validate_json()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
+        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
+        with dag_maker("test_chime_notifier", render_template_as_native_obj=True) as dag:
+            push_json = PythonOperator(
+                task_id="push_json",
+                python_callable=lambda: {
+                    "notebook_params": NOTEBOOK_PARAMS,
+                    "notebook_task": NOTEBOOK_TASK,
+                    "jar_params": JAR_PARAMS,
+                    "job_id": JOB_ID,
+                },
+            )
+            op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
+            push_json >> op
+
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["push_json"].run()
+        tis[TASK_ID].run()
+
+        expected = utils.normalise_json_content(
+            {
+                "notebook_params": NOTEBOOK_PARAMS,
+                "notebook_task": NOTEBOOK_TASK,
+                "jar_params": JAR_PARAMS,
+                "job_id": JOB_ID,
+            }
+        )
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksRunNowOperator",
+        )
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run.assert_called_once_with(RUN_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
+        with dag_maker("test_xcomarg", render_template_as_native_obj=True) as dag:
+
+            @task
+            def push_json() -> dict[str, str]:
+                return {
+                    "notebook_params": NOTEBOOK_PARAMS,
+                    "notebook_task": NOTEBOOK_TASK,
+                    "jar_params": JAR_PARAMS,
+                    "job_id": JOB_ID,
+                }
+
+            json = push_json()
+
+            op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
+
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["push_json"].run()
+        tis[TASK_ID].run()
+
+        expected = utils.normalise_json_content(
+            {
+                "notebook_params": NOTEBOOK_PARAMS,
+                "notebook_task": NOTEBOOK_TASK,
+                "jar_params": JAR_PARAMS,
+                "job_id": JOB_ID,
+            }
+        )
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksRunNowOperator",
+        )
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run.assert_called_once_with(RUN_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):
@@ -1485,20 +1600,6 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
-
-    def test_init_exception_with_job_name_and_job_id(self):
-        exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
-
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME)
-
-        run = {"job_id": JOB_ID, "job_name": JOB_NAME}
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, json=run)
-
-        run = {"job_id": JOB_ID}
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_with_job_name(self, db_mock_class):

@@ -806,27 +806,16 @@ class DatabricksRunNowOperator(BaseOperator):
         self.deferrable = deferrable
         self.repair_run = repair_run
         self.cancel_previous_runs = cancel_previous_runs
-
-        if job_id is not None:
-            self.json["job_id"] = job_id
-        if job_name is not None:
-            self.json["job_name"] = job_name
-        if "job_id" in self.json and "job_name" in self.json:
-            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
-        if notebook_params is not None:
-            self.json["notebook_params"] = notebook_params
-        if python_params is not None:
-            self.json["python_params"] = python_params
-        if python_named_params is not None:
-            self.json["python_named_params"] = python_named_params
-        if jar_params is not None:
-            self.json["jar_params"] = jar_params
-        if spark_submit_params is not None:
-            self.json["spark_submit_params"] = spark_submit_params
-        if idempotency_token is not None:
-            self.json["idempotency_token"] = idempotency_token
-        if self.json:
-            self.json = normalise_json_content(self.json)
+        self._overridden_json_params = {
+            "job_id": job_id,
+            "job_name": job_name,
+            "notebook_params": notebook_params,
+            "python_params": python_params,
+            "python_named_params": python_named_params,
+            "jar_params": jar_params,
+            "spark_submit_params": spark_submit_params,
+            "idempotency_token": idempotency_token,
+        }
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
@@ -844,7 +833,19 @@ class DatabricksRunNowOperator(BaseOperator):
             caller=caller,
         )
 
+    def _setup_and_validate_json(self):
+        for key, value in self._overridden_json_params.items():
+            if value is not None:
+                self.json[key] = value
+
+        if "job_id" in self.json and "job_name" in self.json:
+            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
+
+        if self.json:
+            self.json = normalise_json_content(self.json)
+
     def execute(self, context: Context):
+        self._setup_and_validate_json()
         hook = self._hook
         if "job_name" in self.json:
             job_id = hook.find_job_id_by_name(self.json["job_name"])
