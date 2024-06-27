@@ -979,7 +979,7 @@ class TestDatabricksSubmitRunOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
         json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True) as dag:
+        with dag_maker("test_templated", render_template_as_native_obj=True):
             push_json = PythonOperator(
                 task_id="push_json",
                 python_callable=lambda: {
@@ -1016,7 +1016,7 @@ class TestDatabricksSubmitRunOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
-        with dag_maker("test_xcomarg", render_template_as_native_obj=True) as dag:
+        with dag_maker("test_xcomarg", render_template_as_native_obj=True):
 
             @task
             def push_json() -> dict:
@@ -1489,7 +1489,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
         json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True) as dag:
+        with dag_maker("test_templated", render_template_as_native_obj=True):
             push_json = PythonOperator(
                 task_id="push_json",
                 python_callable=lambda: {
@@ -1533,7 +1533,7 @@ class TestDatabricksRunNowOperator:
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
-        with dag_maker("test_xcomarg", render_template_as_native_obj=True) as dag:
+        with dag_maker("test_xcomarg", render_template_as_native_obj=True):
 
             @task
             def push_json() -> dict[str, str]:
