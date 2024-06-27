@@ -109,54 +109,58 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
-        self.log.info("Executing statement: %s", self.sql)
+    self.log.info("Executing statement: %s", self.sql)
 
-        # Set wait_for_completion to False so that it waits for the status in the deferred task.
-        wait_for_completion = self.wait_for_completion
-        if self.deferrable and self.wait_for_completion:
-            self.wait_for_completion = False
+    
+    wait_for_completion = self.wait_for_completion
+    if self.deferrable and self.wait_for_completion:
+        self.wait_for_completion = False
 
-        self.statement_id = self.hook.execute_query(
-            database=self.database,
-            sql=self.sql,
-            cluster_identifier=self.cluster_identifier,
-            workgroup_name=self.workgroup_name,
-            db_user=self.db_user,
-            parameters=self.parameters,
-            secret_arn=self.secret_arn,
-            statement_name=self.statement_name,
-            with_event=self.with_event,
-            wait_for_completion=wait_for_completion,
-            poll_interval=self.poll_interval,
-        )
+    
+    if isinstance(self.sql, str):
+        self.sql = [self.sql]
 
-        if self.deferrable:
-            is_finished = self.hook.check_query_is_finished(self.statement_id)
-            if not is_finished:
-                self.defer(
-                    timeout=self.execution_timeout,
-                    trigger=RedshiftDataTrigger(
-                        statement_id=self.statement_id,
-                        task_id=self.task_id,
-                        poll_interval=self.poll_interval,
-                        aws_conn_id=self.aws_conn_id,
-                        region_name=self.region_name,
-                        verify=self.verify,
-                        botocore_config=self.botocore_config,
-                    ),
-                    method_name="execute_complete",
-                )
+    self.statement_id = self.hook.execute_query(
+        database=self.database,
+        sql=self.sql,
+        cluster_identifier=self.cluster_identifier,
+        workgroup_name=self.workgroup_name,
+        db_user=self.db_user,
+        parameters=self.parameters,
+        secret_arn=self.secret_arn,
+        statement_name=self.statement_name,
+        with_event=self.with_event,
+        wait_for_completion=wait_for_completion,
+        poll_interval=self.poll_interval,
+    )
 
-        if self.return_sql_result:
-            results = []
-            for i in range(1, len(self.sql) + 1):
-                sub_statement_id = f"{self.statement_id}:{i}"
-                result = self.hook.conn.get_statement_result(Id=sub_statement_id)
-                results.append(result)
-                self.log.debug("Statement result for %s: %s", sub_statement_id, result)
-            return results
-        else:
-            return self.statement_id
+    if self.deferrable:
+        is_finished = self.hook.check_query_is_finished(self.statement_id)
+        if not is_finished:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=RedshiftDataTrigger(
+                    statement_id=self.statement_id,
+                    task_id=self.task_id,
+                    poll_interval=self.poll_interval,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+            )
+
+    if self.return_sql_result:
+        results = []
+        for i in range(1, len(self.sql) + 1):
+            sub_statement_id = f"{self.statement_id}:{i}"
+            result = self.hook.conn.get_statement_result(Id=sub_statement_id)
+            results.append(result)
+            self.log.debug("Statement result for %s: %s", sub_statement_id, result)
+        return results
+    else:
+        return self.statement_id
 
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None
