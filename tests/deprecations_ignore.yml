@@ -225,4 +225,3 @@
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_no_last_modified_time
 - tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
 - tests/providers/microsoft/psrp/hooks/test_psrp.py::TestPsrpHook::test_invoke_cmdlet_deprecated_kwargs
-- tests/providers/trino/operators/test_trino.py::test_execute_openlineage_events
