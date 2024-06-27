@@ -756,6 +756,7 @@ def get_mapped_task_instance_dependencies(
     )
 
 
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_try_details(
     *,
@@ -806,7 +807,7 @@ def get_task_instance_try_details(
         result = _query(TaskInstanceHistory)
     if result is None:
         error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}, map_index={map_index}, try_number={task_try_number}."
-        raise NotFound(error_message)
+        raise NotFound("Task instance not found", detail=error_message)
     return task_instance_schema.dump(result)
 
 
