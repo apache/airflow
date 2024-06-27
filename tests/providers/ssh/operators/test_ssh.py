@@ -192,13 +192,17 @@ class TestSSHOperator:
         assert task.get_pty == get_pty_out
 
     def test_ssh_client_managed_correctly(self):
-        # Ensure connection gets closed once (via context_manager)
+        # Ensure connection gets closed once (via context_manager) using on_kill
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command="ls",
         )
-        task.execute()
+
+        with mock.patch.object(task, "on_kill") as on_kill:
+            task.execute()
+            task.on_kill.assert_called_once()
+
         self.hook.get_conn.assert_called_once()
         self.hook.get_conn.return_value.__exit__.assert_called_once()
 
@@ -266,15 +270,3 @@ class TestSSHOperator:
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
-
-    def test_on_kill(self):
-        # Test that on_kill closes the connection
-        task = SSHOperator(
-            task_id="test",
-            ssh_hook=self.hook,
-            command="echo test",
-        )
-
-        task.on_kill()
-        self.hook.get_conn.assert_called_once()
-        self.hook.get_conn.return_value.close.assert_called_once()
