@@ -1246,7 +1246,7 @@ class TestDatabricksRunNowOperator:
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
         json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_chime_notifier", render_template_as_native_obj=True) as dag:
+        with dag_maker("test_templated", render_template_as_native_obj=True) as dag:
             push_json = PythonOperator(
                 task_id="push_json",
                 python_callable=lambda: {
