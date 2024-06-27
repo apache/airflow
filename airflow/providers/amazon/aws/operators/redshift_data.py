@@ -109,12 +109,14 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
-    self.log.info("Executing statement: %s", self.sql)
+        self.log.info("Executing statement: %s", self.sql)
 
+  
     wait_for_completion = self.wait_for_completion
     if self.deferrable and self.wait_for_completion:
         self.wait_for_completion = False
 
+ 
     if isinstance(self.sql, str):
         self.sql = [self.sql]
 
@@ -159,6 +161,31 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         return results
     else:
         return self.statement_id
+
+    def execute_complete(
+        self, context: Context, event: dict[str, Any] | None = None
+    ) -> GetStatementResultResponseTypeDef | str:
+        event = validate_execute_complete_event(event)
+
+        if event["status"] == "error":
+            msg = f"context: {context}, error message: {event['message']}"
+            raise AirflowException(msg)
+
+        statement_id = event["statement_id"]
+        if not statement_id:
+            raise AirflowException("statement_id should not be empty.")
+
+        self.log.info("%s completed successfully.", self.task_id)
+        if self.return_sql_result:
+            results = []
+            for i in range(1, len(self.sql) + 1):
+                sub_statement_id = f"{statement_id}:{i}"
+                result = self.hook.conn.get_statement_result(Id=sub_statement_id)
+                results.append(result)
+                self.log.debug("Statement result for %s: %s", sub_statement_id, result)
+            return results
+
+        return statement_id
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""
