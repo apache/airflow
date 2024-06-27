@@ -992,6 +992,7 @@ class TestDatabricksSubmitRunOperator:
 
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
@@ -1030,6 +1031,7 @@ class TestDatabricksSubmitRunOperator:
             op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
@@ -1504,6 +1506,7 @@ class TestDatabricksRunNowOperator:
 
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
@@ -1550,6 +1553,7 @@ class TestDatabricksRunNowOperator:
 
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
