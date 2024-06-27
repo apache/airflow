@@ -261,7 +261,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         if TYPE_CHECKING:
             assert ti.task
 
-        if ti.state == TaskInstanceState.RUNNING:
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED):
             fqdn = get_hostname()
             same_hostname = fqdn == ti.hostname
             if not same_hostname:

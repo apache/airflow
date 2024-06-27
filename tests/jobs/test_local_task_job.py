@@ -149,15 +149,16 @@ class TestLocalTaskJob:
             job_runner.heartbeat_callback()
 
         job1.task_runner.process.pid = 1
-        ti.state = State.RUNNING
-        ti.hostname = get_hostname()
-        ti.pid = 1
-        session.merge(ti)
-        session.commit()
-        assert ti.pid != os.getpid()
-        assert not ti.run_as_user
-        assert not job1.task_runner.run_as_user
-        job_runner.heartbeat_callback(session=None)
+        for state in (State.RUNNING, State.DEFERRED):
+            ti.state = state
+            ti.hostname = get_hostname()
+            ti.pid = 1
+            session.merge(ti)
+            session.commit()
+            assert ti.pid != os.getpid()
+            assert not ti.run_as_user
+            assert not job1.task_runner.run_as_user
+            job_runner.heartbeat_callback(session=None)
 
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException):
