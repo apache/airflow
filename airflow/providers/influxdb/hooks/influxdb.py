@@ -73,7 +73,7 @@ class InfluxDBHook(BaseHook):
             "token": StringField(
                 lazy_gettext("Token"), widget=BS3TextFieldWidget(), default="", validators=[InputRequired()]
             ),
-            "org_name": StringField(
+            "org": StringField(
                 lazy_gettext("Organization Name"),
                 widget=BS3TextFieldWidget(),
                 default="",
