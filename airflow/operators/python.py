@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import fcntl
 import importlib
 import inspect
 import json
@@ -790,6 +789,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         venv_path.parent.mkdir(parents=True, exist_ok=True)
         with open(f"{venv_path}.lock", "w") as f:
             # Ensure that cache is not build by parallel workers
+            import fcntl
+
             fcntl.flock(f, fcntl.LOCK_EX)
 
             hash_marker = venv_path / "install_complete_marker.json"

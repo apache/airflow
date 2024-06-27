@@ -36,6 +36,24 @@ html {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
+html[data-color-scheme="dark"] {
+  filter: invert(100%) hue-rotate(180deg);
+}
+html[data-color-scheme="dark"] #dark_icon {
+  display: block;
+}
+html[data-color-scheme="dark"] #light_icon {
+  display: none;
+}
+html[data-color-scheme="light"] {
+  /* not do */
+}
+html[data-color-scheme="light"] #dark_icon {
+  display: none;
+}
+html[data-color-scheme="light"] #light_icon {
+  display: block;
+}
 body {
   margin: 0;
 }

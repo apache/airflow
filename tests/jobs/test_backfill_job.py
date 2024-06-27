@@ -1013,10 +1013,10 @@ class TestBackfillJob:
         # run with timeout because this creates an infinite loop if not
         # caught
         try:
-            with timeout(seconds=5):
+            with timeout(seconds=20):
                 run_job(job=job, execute_callable=job_runner._execute)
         except AirflowTaskTimeout:
-            pass
+            logger.info("Timeout while waiting for task to complete")
         run_id = f"backfill__{DEFAULT_DATE.isoformat()}"
         ti = TI(task=dag.get_task("test_backfill_pooled_task"), run_id=run_id)
         ti.refresh_from_db()

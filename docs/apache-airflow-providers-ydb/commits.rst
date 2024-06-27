@@ -25,4 +25,23 @@
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-ydb
-------------------------------------
+------------------------------------------------------
+
+`YDB <https://ydb.tech/>`__
+
+
+This is detailed commit list of changes for versions provider package: ``ydb``.
+For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2024-06-15
+
+=================================================================================================  ===========  =================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================
+`161fd5573f <https://github.com/apache/airflow/commit/161fd5573fd9e52b270359fb794b3dfeee7d701c>`_  2024-06-15   ``add new YDB provider (#39996)``
+=================================================================================================  ===========  =================================
