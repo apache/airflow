@@ -115,7 +115,6 @@ from airflow.security import permissions
 from airflow.settings import json
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
     ContinuousTimetable,
@@ -652,35 +651,31 @@ class DAG(LoggingMixin):
                 stacklevel=2,
             )
 
-        self.timetable: Timetable
+        if timetable is not None:
+            schedule = timetable
+        elif schedule_interval is not NOTSET:
+            schedule = schedule_interval
+
+        # Kept for compatibility. Do not use in new code.
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: BaseDataset | None = None
-        if isinstance(schedule, BaseDataset):
-            self.dataset_triggers = schedule
+
+        if isinstance(schedule, Timetable):
+            self.timetable = schedule
+            self.schedule_interval = schedule.summary
+        elif isinstance(schedule, BaseDataset):
+            self.timetable = DatasetTriggeredTimetable(schedule)
+            self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets")
-            self.dataset_triggers = DatasetAll(*schedule)
-        elif isinstance(schedule, Timetable):
-            timetable = schedule
-        elif schedule is not NOTSET and not isinstance(schedule, BaseDataset):
-            schedule_interval = schedule
-
-        if isinstance(schedule, DatasetOrTimeSchedule):
-            self.timetable = schedule
-            self.dataset_triggers = self.timetable.datasets
+            self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
-        elif self.dataset_triggers:
-            self.timetable = DatasetTriggeredTimetable()
-            self.schedule_interval = self.timetable.summary
-        elif timetable:
-            self.timetable = timetable
-            self.schedule_interval = self.timetable.summary
+        elif isinstance(schedule, ArgNotSet):
+            self.timetable = create_timetable(schedule, self.timezone)
+            self.schedule_interval = DEFAULT_SCHEDULE_INTERVAL
         else:
-            if isinstance(schedule_interval, ArgNotSet):
-                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
-            self.schedule_interval = schedule_interval
-            self.timetable = create_timetable(schedule_interval, self.timezone)
+            self.timetable = create_timetable(schedule, self.timezone)
+            self.schedule_interval = schedule
 
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
@@ -3250,10 +3245,7 @@ class DAG(LoggingMixin):
             )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            if (dataset_triggers := dag.dataset_triggers) is None:
-                orm_dag.dataset_expression = None
-            else:
-                orm_dag.dataset_expression = dataset_triggers.as_expression()
+            orm_dag.dataset_expression = dag.timetable.dataset_condition.as_expression()
 
             orm_dag.processor_subdir = processor_subdir
 
@@ -3309,11 +3301,11 @@ class DAG(LoggingMixin):
         # later we'll persist them to the database.
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
-            if dag.dataset_triggers is None:
+            if not (dataset_condition := dag.timetable.dataset_condition):
                 if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
                     curr_orm_dag.schedule_dataset_references = []
             else:
-                for _, dataset in dag.dataset_triggers.iter_datasets():
+                for _, dataset in dataset_condition.iter_datasets():
                     dag_references[dag.dag_id].add(dataset.uri)
                     input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
@@ -3967,7 +3959,7 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-            if not dag_ready(dag_id, cond=ser_dag.dag.dataset_triggers, statuses=statuses):
+            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses

@@ -25,7 +25,7 @@ This module allows to connect to a InfluxDB database.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write.point import Point
@@ -60,10 +60,29 @@ class InfluxDBHook(BaseHook):
         self.client = None
         self.extras: dict = {}
         self.uri = None
-        self.org_name = None
 
-    def get_client(self, uri, token, org_name):
-        return InfluxDBClient(url=uri, token=token, org=org_name)
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+        from wtforms.validators import InputRequired
+
+        return {
+            "token": StringField(
+                lazy_gettext("Token"), widget=BS3TextFieldWidget(), default="", validators=[InputRequired()]
+            ),
+            "org": StringField(
+                lazy_gettext("Organization Name"),
+                widget=BS3TextFieldWidget(),
+                default="",
+                validators=[InputRequired()],
+            ),
+        }
+
+    def get_client(self, uri, kwargs):
+        return InfluxDBClient(url=uri, **kwargs)
 
     def get_uri(self, conn: Connection):
         """Add additional parameters to the URI based on InfluxDB host requirements."""
@@ -82,13 +101,7 @@ class InfluxDBHook(BaseHook):
         if self.client is not None:
             return self.client
 
-        token = self.connection.extra_dejson.get("token")
-        self.org_name = self.connection.extra_dejson.get("org_name")
-
-        self.log.info("URI: %s", self.uri)
-        self.log.info("Organization: %s", self.org_name)
-
-        self.client = self.get_client(self.uri, token, self.org_name)
+        self.client = self.get_client(self.uri, self.extras)
 
         return self.client
 
