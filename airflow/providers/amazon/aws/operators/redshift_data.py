@@ -108,7 +108,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.statement_id: str | None = None
         self.deferrable = deferrable
 
-    def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
+    def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | str:
         self.log.info("Executing statement: %s", self.sql)
 
   
