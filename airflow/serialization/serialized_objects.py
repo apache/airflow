@@ -229,7 +229,8 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
 
 
 def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
-    """Encode a dataset condition.
+    """
+    Encode a dataset condition.
 
     :meta private:
     """
@@ -243,7 +244,8 @@ def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
 
 
 def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
-    """Decode a previously serialized dataset condition.
+    """
+    Decode a previously serialized dataset condition.
 
     :meta private:
     """
