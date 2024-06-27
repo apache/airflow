@@ -430,6 +430,7 @@ def test_validate_provider_info_with_schema():
     [
         ("amazon", "2.7.0"),
         ("common.io", "2.8.0"),
+        ("remote", "2.10.0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
