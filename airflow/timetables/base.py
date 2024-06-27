@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 
 class _NullDataset(BaseDataset):
-    """Sentinel type that represents "no datasets".
+    """
+    Sentinel type that represents "no datasets".
 
     This is only implemented to make typing easier in timetables, and not
     expected to be used anywhere else.
@@ -162,7 +163,8 @@ class Timetable(Protocol):
 
     @property
     def can_be_scheduled(self):
-        """Whether this timetable can actually schedule runs in an automated manner.
+        """
+        Whether this timetable can actually schedule runs in an automated manner.
 
         This defaults to and should generally be *True* (including non periodic
         execution types like *@once* and data triggered tables), but
