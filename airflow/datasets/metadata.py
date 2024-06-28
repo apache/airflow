@@ -24,7 +24,7 @@ import attrs
 from airflow.datasets import coerce_to_uri
 
 if TYPE_CHECKING:
-    from airflow.datasets import Dataset
+    from airflow.datasets import Dataset, DatasetAlias
 
 
 @attrs.define(init=False)
@@ -33,7 +33,14 @@ class Metadata:
 
     uri: str
     extra: dict[str, Any]
+    alias: DatasetAlias | str | list[DatasetAlias | str] | None
 
-    def __init__(self, target: str | Dataset, extra: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        target: str | Dataset,
+        extra: dict[str, Any],
+        alias: DatasetAlias | str | list[DatasetAlias | str] | None = None,
+    ) -> None:
         self.uri = coerce_to_uri(target)
         self.extra = extra
+        self.alias = alias
