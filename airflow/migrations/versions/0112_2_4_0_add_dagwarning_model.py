@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add DagWarning model.
+"""
+Add DagWarning model.
 
 Revision ID: 424117c37d18
 Revises: f5fcbda3e651

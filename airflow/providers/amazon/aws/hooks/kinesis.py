@@ -45,7 +45,8 @@ class FirehoseHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def put_records(self, records: Iterable):
-        """Write batch records to Kinesis Firehose.
+        """
+        Write batch records to Kinesis Firehose.
 
         .. seealso::
             - :external+boto3:py:meth:`Firehose.Client.put_record_batch`

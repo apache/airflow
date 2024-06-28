@@ -267,7 +267,8 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
 def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
-    """Render a Jinja2 template with given Airflow context.
+    """
+    Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
     input context into dict eagerly many times, which triggers deprecation
@@ -381,7 +382,8 @@ def prune_dict(val: Any, mode="strict"):
 
 
 def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    """Ensure *kwargs1* and *kwargs2* do not contain common keys.
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
 
     :raises TypeError: If common keys are found.
     """

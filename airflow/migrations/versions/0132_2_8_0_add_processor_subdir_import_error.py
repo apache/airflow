@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add processor_subdir to ImportError.
+"""
+Add processor_subdir to ImportError.
 
 Revision ID: 10b52ebd31f7
 Revises: bd5dfbe21f88

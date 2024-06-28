@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add-k8s-yaml-to-rendered-templates.
+"""
+add-k8s-yaml-to-rendered-templates.
 
 Revision ID: 45ba3f1493b9
 Revises: 364159666cbd

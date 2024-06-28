@@ -37,7 +37,8 @@ EXISTING_ROLES = {
     category=RemovedInAirflow3Warning,
 )
 class AirflowSecurityManager(FabAirflowSecurityManagerOverride):
-    """Placeholder, just here to avoid breaking the code of users who inherit from this.
+    """
+    Placeholder, just here to avoid breaking the code of users who inherit from this.
 
     Do not use if writing new code.
     """

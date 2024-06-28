@@ -363,7 +363,8 @@ class DbApiHook(BaseHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Run a command or a list of commands.
+        """
+        Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
         execute sequentially.
@@ -456,7 +457,8 @@ class DbApiHook(BaseHook):
             return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
-        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
+        """
+        Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
         transform the result of an SQL command (typically returned by cursor methods) into a common
@@ -505,7 +507,8 @@ class DbApiHook(BaseHook):
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn) -> bool:
-        """Get autocommit setting for the provided connection.
+        """
+        Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting. True if ``autocommit`` is set
@@ -564,7 +567,8 @@ class DbApiHook(BaseHook):
         executemany=False,
         **kwargs,
     ):
-        """Insert a collection of tuples into a table.
+        """
+        Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
         done in a new transaction.

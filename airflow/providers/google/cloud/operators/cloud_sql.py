@@ -224,7 +224,8 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 
 
 class CloudSQLBaseOperator(GoogleCloudBaseOperator):
-    """Abstract base operator for Google Cloud SQL operators.
+    """
+    Abstract base operator for Google Cloud SQL operators.
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :param project_id: Optional, Google Cloud Project ID.  f set to None or missing,
@@ -292,7 +293,8 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
 
 
 class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
-    """Create a new Cloud SQL instance.
+    """
+    Create a new Cloud SQL instance.
 
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
@@ -393,7 +395,8 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
-    """Update settings of a Cloud SQL instance.
+    """
+    Update settings of a Cloud SQL instance.
 
     Caution: This is a partial update, so only included values for the settings will be
     updated.
@@ -485,7 +488,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
-    """Delete a Cloud SQL instance.
+    """
+    Delete a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -531,7 +535,8 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
-    """Clone an instance to a target instance.
+    """
+    Clone an instance to a target instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -622,7 +627,8 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """Create a new database inside a Cloud SQL instance.
+    """
+    Create a new database inside a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -726,7 +732,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """Update resource containing information about a database using patch semantics.
+    """
+    Update resource containing information about a database using patch semantics.
 
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
@@ -829,7 +836,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """Delete a database from a Cloud SQL instance.
+    """
+    Delete a database from a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -908,7 +916,8 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
-    """Export data from a Cloud SQL instance to a Cloud Storage bucket.
+    """
+    Export data from a Cloud SQL instance to a Cloud Storage bucket.
 
     The exported format can be a SQL dump or CSV file.
 
@@ -1045,7 +1054,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
-    """Import data into a Cloud SQL instance from Cloud Storage.
+    """
+    Import data into a Cloud SQL instance from Cloud Storage.
 
     CSV IMPORT
     ``````````
@@ -1157,7 +1167,8 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
-    """Perform DML or DDL query on an existing Cloud Sql instance.
+    """
+    Perform DML or DDL query on an existing Cloud Sql instance.
 
     It optionally uses cloud-sql-proxy to establish secure connection with the
     database.

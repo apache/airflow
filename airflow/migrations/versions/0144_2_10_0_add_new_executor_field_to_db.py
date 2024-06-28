@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add new executor field to db.
+"""
+add new executor field to db.
 
 Revision ID: 677fdbb7fc54
 Revises: 0fd0c178cbe8

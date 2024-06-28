@@ -1143,7 +1143,8 @@ class DataformRemoveDirectoryOperator(GoogleCloudBaseOperator):
 
 
 class DataformInstallNpmPackagesOperator(GoogleCloudBaseOperator):
-    """Install NPM dependencies in the provided workspace.
+    """
+    Install NPM dependencies in the provided workspace.
 
     Requires "package.json" to be created in the workspace.
 

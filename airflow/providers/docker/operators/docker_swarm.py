@@ -232,7 +232,8 @@ class DockerSwarmOperator(DockerOperator):
 
     @staticmethod
     def format_args(args: list[str] | str | None) -> list[str] | None:
-        """Retrieve args.
+        """
+        Retrieve args.
 
         The args string is parsed to a list.
 

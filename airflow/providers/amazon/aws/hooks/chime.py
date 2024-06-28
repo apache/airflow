@@ -30,7 +30,8 @@ from airflow.providers.http.hooks.http import HttpHook
 
 
 class ChimeWebhookHook(HttpHook):
-    """Interact with Amazon Chime Webhooks to create notifications.
+    """
+    Interact with Amazon Chime Webhooks to create notifications.
 
     .. warning:: This hook is only designed to work with web hooks and not chat bots.
 

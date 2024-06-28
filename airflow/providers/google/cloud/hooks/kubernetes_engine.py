@@ -104,7 +104,8 @@ class GKEClusterConnection:
 
 
 class GKEHook(GoogleBaseHook):
-    """Google Kubernetes Engine cluster APIs.
+    """
+    Google Kubernetes Engine cluster APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -157,7 +158,8 @@ class GKEHook(GoogleBaseHook):
         return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
-        """Continuously fetch the status from Google Cloud.
+        """
+        Continuously fetch the status from Google Cloud.
 
         This is done until the given operation completes, or raises an error.
 
@@ -177,7 +179,8 @@ class GKEHook(GoogleBaseHook):
         return operation
 
     def get_operation(self, operation_name: str, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
-        """Get an operation from Google Cloud.
+        """
+        Get an operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch
         :param project_id: Google Cloud project ID
@@ -192,7 +195,8 @@ class GKEHook(GoogleBaseHook):
 
     @staticmethod
     def _append_label(cluster_proto: Cluster, key: str, val: str) -> Cluster:
-        """Append labels to provided Cluster Protobuf.
+        """
+        Append labels to provided Cluster Protobuf.
 
         Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
          airflow version string follows semantic versioning spec: x.y.z).
@@ -216,7 +220,8 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Operation | None:
-        """Delete the cluster, the Kubernetes endpoint, and all worker nodes.
+        """
+        Delete the cluster, the Kubernetes endpoint, and all worker nodes.
 
         Firewalls and routes that were configured during cluster creation are
         also deleted. Other Google Compute Engine resources that might be in use
@@ -259,7 +264,8 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Operation | Cluster:
-        """Create a cluster.
+        """
+        Create a cluster.
 
         This should consist of the specified number, and the type of Google
         Compute Engine instances.
@@ -314,7 +320,8 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Cluster:
-        """Get details of specified cluster.
+        """
+        Get details of specified cluster.
 
         :param name: The name of the cluster to retrieve.
         :param project_id: Google Cloud project ID.
@@ -404,7 +411,8 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         operation_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
-        """Fetch an operation from Google Cloud.
+        """
+        Fetch an operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch.
         :param project_id: Google Cloud project ID.
@@ -420,7 +428,8 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
 
 
 class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
-    """GKE authenticated hook for standard Kubernetes API.
+    """
+    GKE authenticated hook for standard Kubernetes API.
 
     This hook provides full set of the standard Kubernetes API provided by the KubernetesHook,
     and at the same time it provides a GKE authentication, so it makes it possible to KubernetesHook
@@ -506,7 +515,8 @@ class GKEKubernetesHook(GoogleBaseHook, KubernetesHook):
 
 
 class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
-    """Async GKE authenticated hook for standard Kubernetes API.
+    """
+    Async GKE authenticated hook for standard Kubernetes API.
 
     This hook provides full set of the standard Kubernetes API provided by the AsyncKubernetesHook,
     and at the same time it provides a GKE authentication, so it makes it possible to KubernetesHook
@@ -639,7 +649,8 @@ class GKEJobHook(GKEKubernetesHook):
     category=AirflowProviderDeprecationWarning,
 )
 class GKEPodAsyncHook(GKEKubernetesAsyncHook):
-    """Google Kubernetes Engine pods APIs asynchronously.
+    """
+    Google Kubernetes Engine pods APIs asynchronously.
 
     :param cluster_url: The URL pointed to the cluster.
     :param ssl_ca_cert: SSL certificate used for authentication to the pod.

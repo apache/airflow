@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Make connection login/password TEXT.
+"""
+Make connection login/password TEXT.
 
 Revision ID: bd5dfbe21f88
 Revises: f7bf2a57d0a6

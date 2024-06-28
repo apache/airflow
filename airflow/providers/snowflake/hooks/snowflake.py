@@ -50,7 +50,8 @@ def _try_to_boolean(value: Any):
 
 
 class SnowflakeHook(DbApiHook):
-    """A client to interact with Snowflake.
+    """
+    A client to interact with Snowflake.
 
     This hook requires the snowflake_conn_id connection. The snowflake account, login,
     and, password field must be setup in the connection. Other inputs can be defined
@@ -183,7 +184,8 @@ class SnowflakeHook(DbApiHook):
 
     @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
-        """Fetch connection params as a dict.
+        """
+        Fetch connection params as a dict.
 
         This is used in ``get_uri()`` and ``get_connection()``.
         """
@@ -299,7 +301,8 @@ class SnowflakeHook(DbApiHook):
         return conn
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
-        """Get an sqlalchemy_engine object.
+        """
+        Get an sqlalchemy_engine object.
 
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
@@ -356,7 +359,8 @@ class SnowflakeHook(DbApiHook):
         return_last: bool = True,
         return_dictionaries: bool = False,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Run a command or list of commands.
+        """
+        Run a command or list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
         execute sequentially. The result of the queries is returned if the

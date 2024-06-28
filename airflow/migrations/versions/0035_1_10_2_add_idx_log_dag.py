@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add index on ``log`` table.
+"""
+Add index on ``log`` table.
 
 Revision ID: dd25f486b8ea
 Revises: 9635ae0956e7

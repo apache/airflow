@@ -30,7 +30,8 @@ from airflow.models.dagcode import DagCode
     reason="Use DagCode().get_code_by_fileloc() instead", version="2.2.4", category=RemovedInAirflow3Warning
 )
 def get_code(dag_id: str) -> str:
-    """Return python code of a given dag_id.
+    """
+    Return python code of a given dag_id.
 
     :param dag_id: DAG id
     :return: code of the DAG

@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add Kubernetes resource check-pointing.
+"""
+Add Kubernetes resource check-pointing.
 
 Revision ID: 33ae817a1ff4
 Revises: d2ae31099d61

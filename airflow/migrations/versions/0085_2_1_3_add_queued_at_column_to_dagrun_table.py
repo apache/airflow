@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``queued_at`` column in ``dag_run`` table.
+"""
+Add ``queued_at`` column in ``dag_run`` table.
 
 Revision ID: 97cdd93827b8
 Revises: a13f7613ad25

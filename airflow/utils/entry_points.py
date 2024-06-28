@@ -45,7 +45,8 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
 
 
 def entry_points_with_dist(group: str) -> Iterator[EPnD]:
-    """Retrieve entry points of the given group.
+    """
+    Retrieve entry points of the given group.
 
     This is like the ``entry_points()`` function from ``importlib.metadata``,
     except it also returns the distribution the entry point was loaded from.

@@ -41,7 +41,8 @@ if TYPE_CHECKING:
 
 
 class BaseVertexAIJobTrigger(BaseTrigger):
-    """Base class for Vertex AI job triggers.
+    """
+    Base class for Vertex AI job triggers.
 
     This trigger polls the Vertex AI job and checks its status.
 

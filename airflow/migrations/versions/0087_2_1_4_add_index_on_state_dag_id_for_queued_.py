@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add index on state, dag_id for queued ``dagrun``.
+"""
+Add index on state, dag_id for queued ``dagrun``.
 
 Revision ID: ccde3e26fe78
 Revises: 092435bf5d12

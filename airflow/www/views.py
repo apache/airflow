@@ -36,7 +36,7 @@ from functools import cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
-from urllib.parse import unquote, urlencode, urljoin, urlsplit
+from urllib.parse import unquote, urlencode, urljoin, urlparse, urlsplit
 
 import configupdater
 import flask.json
@@ -4125,7 +4125,8 @@ class ConnectionFormWidget(FormWidget):
 
 
 class ConnectionFormProxy:
-    """A stand-in for the connection form class.
+    """
+    A stand-in for the connection form class.
 
     Flask-Appbuilder model views only ever call the ``refresh()`` function on
     the form class, so this is the perfect place to make the form generation
@@ -4200,7 +4201,8 @@ class ConnectionModelView(AirflowModelView):
     base_order = ("conn_id", "asc")
 
     def _iter_extra_field_names_and_sensitivity(self) -> Iterator[tuple[str, str, bool]]:
-        """Iterate through provider-backed connection fields.
+        """
+        Iterate through provider-backed connection fields.
 
         Note that this cannot be a property (including a cached property)
         because Flask-Appbuilder attempts to access all members on startup, and
@@ -4218,7 +4220,8 @@ class ConnectionModelView(AirflowModelView):
 
     @property
     def add_columns(self) -> list[str]:
-        """A list of columns to show in the Add form.
+        """
+        A list of columns to show in the Add form.
 
         This dynamically calculates additional fields from providers and add
         them to the backing list. This calculation is done exactly once (by
@@ -4235,7 +4238,8 @@ class ConnectionModelView(AirflowModelView):
 
     @property
     def edit_columns(self) -> list[str]:
-        """A list of columns to show in the Edit form.
+        """
+        A list of columns to show in the Edit form.
 
         This dynamically calculates additional fields from providers and add
         them to the backing list. This calculation is done exactly once (by
@@ -4510,6 +4514,13 @@ class ProviderView(AirflowBaseView):
         def _build_link(match_obj):
             text = match_obj.group(1)
             url = match_obj.group(2)
+
+            # parsing the url to check if ita a valid url
+            parsed_url = urlparse(url)
+            if not (parsed_url.scheme == "http" or parsed_url.scheme == "https"):
+                # returning the original raw text
+                return escape(match_obj.group(0))
+
             return Markup(f'<a href="{url}">{text}</a>')
 
         cd = escape(description)
@@ -5763,7 +5774,8 @@ def restrict_to_dev(f):
 
 
 class DevView(BaseView):
-    """View to show Airflow Dev Endpoints.
+    """
+    View to show Airflow Dev Endpoints.
 
     This view should only be accessible in development mode. You can enable development mode by setting
     `AIRFLOW_ENV=development` in your environment.
@@ -5780,7 +5792,8 @@ class DevView(BaseView):
 
 
 class DocsView(BaseView):
-    """View to show airflow dev docs endpoints.
+    """
+    View to show airflow dev docs endpoints.
 
     This view should only be accessible in development mode. You can enable development mode by setting
     `AIRFLOW_ENV=development` in your environment.

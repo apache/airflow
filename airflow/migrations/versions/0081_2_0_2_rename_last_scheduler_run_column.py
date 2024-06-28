@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``.
+"""
+Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``.
 
 Revision ID: 2e42bb497a22
 Revises: 8646922c8a04

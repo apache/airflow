@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``RenderedTaskInstanceFields`` table.
+"""
+Add ``RenderedTaskInstanceFields`` table.
 
 Revision ID: 852ae6c715af
 Revises: a4c2fd67d16b

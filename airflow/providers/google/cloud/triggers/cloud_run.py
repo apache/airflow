@@ -39,7 +39,8 @@ class RunJobStatus(Enum):
 
 
 class CloudRunJobFinishedTrigger(BaseTrigger):
-    """Cloud Run trigger to check if templated job has been finished.
+    """
+    Cloud Run trigger to check if templated job has been finished.
 
     :param operation_name: Required. Name of the operation.
     :param job_name: Required. Name of the job.

@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add updated_at column to DagRun and TaskInstance.
+"""
+Add updated_at column to DagRun and TaskInstance.
 
 Revision ID: ee8d93fcc81e
 Revises: e07f49787c9d

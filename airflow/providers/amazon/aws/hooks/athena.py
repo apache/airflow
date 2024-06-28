@@ -50,7 +50,8 @@ def query_params_to_string(params: dict[str, str | Collection[str]]) -> str:
 
 
 class AthenaHook(AwsBaseHook):
-    """Interact with Amazon Athena.
+    """
+    Interact with Amazon Athena.
 
     Provide thick wrapper around
     :external+boto3:py:class:`boto3.client("athena") <Athena.Client>`.
@@ -106,7 +107,8 @@ class AthenaHook(AwsBaseHook):
         client_request_token: str | None = None,
         workgroup: str = "primary",
     ) -> str:
-        """Run a Trino/Presto query on Athena with provided config.
+        """
+        Run a Trino/Presto query on Athena with provided config.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.start_query_execution`
@@ -136,7 +138,8 @@ class AthenaHook(AwsBaseHook):
         return query_execution_id
 
     def get_query_info(self, query_execution_id: str, use_cache: bool = False) -> dict:
-        """Get information about a single execution of a query.
+        """
+        Get information about a single execution of a query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
@@ -152,7 +155,8 @@ class AthenaHook(AwsBaseHook):
         return response
 
     def check_query_status(self, query_execution_id: str, use_cache: bool = False) -> str | None:
-        """Fetch the state of a submitted query.
+        """
+        Fetch the state of a submitted query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
@@ -200,7 +204,8 @@ class AthenaHook(AwsBaseHook):
     def get_query_results(
         self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
     ) -> dict | None:
-        """Fetch submitted query results.
+        """
+        Fetch submitted query results.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_results`
@@ -234,7 +239,8 @@ class AthenaHook(AwsBaseHook):
         page_size: int | None = None,
         starting_token: str | None = None,
     ) -> PageIterator | None:
-        """Fetch submitted Athena query results.
+        """
+        Fetch submitted Athena query results.
 
         .. seealso::
             - :external+boto3:py:class:`Athena.Paginator.GetQueryResults`
@@ -274,7 +280,8 @@ class AthenaHook(AwsBaseHook):
     def poll_query_status(
         self, query_execution_id: str, max_polling_attempts: int | None = None, sleep_time: int | None = None
     ) -> str | None:
-        """Poll the state of a submitted query until it reaches final state.
+        """
+        Poll the state of a submitted query until it reaches final state.
 
         :param query_execution_id: ID of submitted athena query
         :param max_polling_attempts: Number of times to poll for query state before function exits
@@ -299,7 +306,8 @@ class AthenaHook(AwsBaseHook):
             return self.check_query_status(query_execution_id)
 
     def get_output_location(self, query_execution_id: str) -> str:
-        """Get the output location of the query results in S3 URI format.
+        """
+        Get the output location of the query results in S3 URI format.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
@@ -319,7 +327,8 @@ class AthenaHook(AwsBaseHook):
             raise
 
     def stop_query(self, query_execution_id: str) -> dict:
-        """Cancel the submitted query.
+        """
+        Cancel the submitted query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.stop_query_execution`

@@ -41,7 +41,8 @@ POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value m
 
 
 def rand_str(num):
-    """Generate random lowercase alphanumeric string of length num.
+    """
+    Generate random lowercase alphanumeric string of length num.
 
     :meta private:
     """
@@ -49,7 +50,8 @@ def rand_str(num):
 
 
 def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
-    """Add random string to pod or job name while staying under max length.
+    """
+    Add random string to pod or job name while staying under max length.
 
     :param name: name of the pod or job
     :param rand_len: length of the random string to append
@@ -65,7 +67,8 @@ def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_M
     category=AirflowProviderDeprecationWarning,
 )
 def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
-    """Add random string to pod name while staying under max length.
+    """
+    Add random string to pod name while staying under max length.
 
     :param pod_name: name of the pod
     :param rand_len: length of the random string to append

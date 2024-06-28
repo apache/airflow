@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add run_id to (Audit) log table and increase event name length.
+"""
+Add run_id to (Audit) log table and increase event name length.
 
 Revision ID: d75389605139
 Revises: 1fd565369930

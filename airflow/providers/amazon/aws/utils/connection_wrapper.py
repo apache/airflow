@@ -39,7 +39,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class _ConnectionMetadata:
-    """Connection metadata data-class.
+    """
+    Connection metadata data-class.
 
     This class implements main :ref:`~airflow.models.connection.Connection` attributes
     and use in AwsConnectionWrapper for avoid circular imports.
@@ -76,7 +77,8 @@ class _ConnectionMetadata:
 
 @dataclass
 class AwsConnectionWrapper(LoggingMixin):
-    """AWS Connection Wrapper class helper.
+    """
+    AWS Connection Wrapper class helper.
 
     Use for validate and resolve AWS Connection parameters.
 
@@ -131,7 +133,8 @@ class AwsConnectionWrapper(LoggingMixin):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
     def get_service_config(self, service_name: str) -> dict[str, Any]:
-        """Get AWS Service related config dictionary.
+        """
+        Get AWS Service related config dictionary.
 
         :param service_name: Name of botocore/boto3 service.
         """
@@ -363,7 +366,8 @@ class AwsConnectionWrapper(LoggingMixin):
         session_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> tuple[str | None, str | None, str | None]:
-        """Get AWS credentials from connection login/password and extra.
+        """
+        Get AWS credentials from connection login/password and extra.
 
         ``aws_access_key_id`` and ``aws_secret_access_key`` order:
 
@@ -478,7 +482,8 @@ class AwsConnectionWrapper(LoggingMixin):
 def _parse_s3_config(
     config_file_name: str, config_format: str | None = "boto", profile: str | None = None
 ) -> tuple[str | None, str | None]:
-    """Parse a config file for S3 credentials.
+    """
+    Parse a config file for S3 credentials.
 
     Can currently parse boto, s3cmd.conf and AWS SDK config formats.
 

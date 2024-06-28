@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase size of ``connection.extra`` field to handle multiple RSA keys.
+"""
+Increase size of ``connection.extra`` field to handle multiple RSA keys.
 
 Revision ID: 449b4072c2da
 Revises: 82b7c48c147f

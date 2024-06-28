@@ -30,7 +30,8 @@ from airflow.utils.types import NOTSET, ArgNotSet
 
 
 class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):
-    """Base AWS (Amazon) Sensor Class for build sensors in top of AWS Hooks.
+    """
+    Base AWS (Amazon) Sensor Class for build sensors in top of AWS Hooks.
 
     .. warning::
         Only for internal usage, this class might be changed, renamed or removed in the future

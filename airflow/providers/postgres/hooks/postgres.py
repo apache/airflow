@@ -43,7 +43,8 @@ CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
 
 
 class PostgresHook(DbApiHook):
-    """Interact with Postgres.
+    """
+    Interact with Postgres.
 
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
@@ -176,7 +177,8 @@ class PostgresHook(DbApiHook):
         return self.conn
 
     def copy_expert(self, sql: str, filename: str) -> None:
-        """Execute SQL using psycopg2's ``copy_expert`` method.
+        """
+        Execute SQL using psycopg2's ``copy_expert`` method.
 
         Necessary to execute COPY command without access to a superuser.
 
@@ -197,7 +199,8 @@ class PostgresHook(DbApiHook):
             conn.commit()
 
     def get_uri(self) -> str:
-        """Extract the URI from the connection.
+        """
+        Extract the URI from the connection.
 
         :return: the extracted URI in Sqlalchemy URI format.
         """
@@ -213,7 +216,8 @@ class PostgresHook(DbApiHook):
 
     @staticmethod
     def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
-        """Serialize a cell.
+        """
+        Serialize a cell.
 
         PostgreSQL adapts all arguments to the ``execute()`` method internally,
         hence we return the cell without any conversion.
@@ -228,7 +232,8 @@ class PostgresHook(DbApiHook):
         return cell
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
-        """Get the IAM token.
+        """
+        Get the IAM token.
 
         This uses AWSHook to retrieve a temporary password to connect to
         Postgres or Redshift. Port is required. If none is provided, the default
@@ -269,7 +274,8 @@ class PostgresHook(DbApiHook):
         return login, token, port
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
-        """Get the table's primary key.
+        """
+        Get the table's primary key.
 
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
@@ -292,7 +298,8 @@ class PostgresHook(DbApiHook):
     def _generate_insert_sql(
         self, table: str, values: tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
-        """Generate the INSERT SQL statement.
+        """
+        Generate the INSERT SQL statement.
 
         The REPLACE variant is specific to the PostgreSQL syntax.
 

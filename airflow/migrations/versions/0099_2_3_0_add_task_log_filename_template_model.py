@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``LogTemplate`` table to track changes to config values ``log_filename_template``.
+"""
+Add ``LogTemplate`` table to track changes to config values ``log_filename_template``.
 
 Revision ID: f9da662e7089
 Revises: 786e3737b18f

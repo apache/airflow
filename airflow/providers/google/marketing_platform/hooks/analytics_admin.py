@@ -70,7 +70,8 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListAccountsPager:
-        """Get list of accounts in Google Analytics.
+        """
+        Get list of accounts in Google Analytics.
 
         .. seealso::
             For more details please check the client library documentation:
@@ -97,7 +98,8 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Property:
-        """Create Google Analytics property.
+        """
+        Create Google Analytics property.
 
         .. seealso::
             For more details please check the client library documentation:
@@ -127,7 +129,8 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Property:
-        """Soft delete Google Analytics property.
+        """
+        Soft delete Google Analytics property.
 
         .. seealso::
             For more details please check the client library documentation:
@@ -153,7 +156,8 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DataStream:
-        """Create Google Analytics data stream.
+        """
+        Create Google Analytics data stream.
 
         .. seealso::
             For more details please check the client library documentation:
@@ -184,7 +188,8 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
-        """Delete Google Analytics data stream.
+        """
+        Delete Google Analytics data stream.
 
         .. seealso::
             For more details please check the client library documentation:
@@ -214,7 +219,8 @@ class GoogleAnalyticsAdminHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListGoogleAdsLinksPager:
-        """Get list of Google Ads links.
+        """
+        Get list of Google Ads links.
 
         .. seealso::
             For more details please check the client library documentation:

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Adding ``extra`` column to ``Log`` table.
+"""
+Adding ``extra`` column to ``Log`` table.
 
 Revision ID: 502898887f84
 Revises: 52d714495f0

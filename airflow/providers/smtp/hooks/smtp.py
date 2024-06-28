@@ -189,7 +189,8 @@ class SmtpHook(BaseHook):
         custom_headers: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        """Send an email with html content.
+        """
+        Send an email with html content.
 
         :param to: Recipient email address or list of addresses.
         :param subject: Email subject.

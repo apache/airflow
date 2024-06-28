@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add TI state index.
+"""
+Add TI state index.
 
 Revision ID: 211e584da130
 Revises: 2e82aab8ef20

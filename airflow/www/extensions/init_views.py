@@ -195,7 +195,8 @@ def set_cors_headers_on_response(response):
 
 
 class _LazyResolution:
-    """OpenAPI endpoint that lazily resolves the function on first use.
+    """
+    OpenAPI endpoint that lazily resolves the function on first use.
 
     This is a stand-in replacement for ``connexion.Resolution`` that implements
     its public attributes ``function`` and ``operation_id``, but the function
@@ -212,7 +213,8 @@ class _LazyResolution:
 
 
 class _LazyResolver(Resolver):
-    """OpenAPI endpoint resolver that loads lazily on first use.
+    """
+    OpenAPI endpoint resolver that loads lazily on first use.
 
     This re-implements ``connexion.Resolver.resolve()`` to not eagerly resolve
     the endpoint function (and thus avoid importing it in the process), but only
@@ -226,7 +228,8 @@ class _LazyResolver(Resolver):
 
 
 class _CustomErrorRequestBodyValidator(RequestBodyValidator):
-    """Custom request body validator that overrides error messages.
+    """
+    Custom request body validator that overrides error messages.
 
     By default, Connextion emits a very generic *None is not of type 'object'*
     error when receiving an empty request body (with the view specifying the

@@ -152,7 +152,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     def _extract_openlineage_unique_dataset_paths(
         query_result: list[dict[str, Any]],
     ) -> tuple[list[tuple[str, str]], list[str]]:
-        """Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
+        """
+        Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
 
         Each row in the results is expected to have a 'file' field, which is a URI.
         The function parses these URIs and constructs a set of unique OpenLineage (namespace, name) tuples.

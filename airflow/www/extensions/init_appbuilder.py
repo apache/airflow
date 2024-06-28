@@ -279,7 +279,8 @@ class AirflowAppBuilder:
 
     @property
     def require_confirmation_dag_change(self):
-        """Get the value of the require_confirmation_dag_change configuration.
+        """
+        Get the value of the require_confirmation_dag_change configuration.
 
         The logic is:
          - return True, in page dag.html, when user trigger/pause the dag from UI.
@@ -379,7 +380,8 @@ class AirflowAppBuilder:
         category_label="",
         menu_cond=None,
     ):
-        """Add your views associated with menus using this method.
+        """
+        Add your views associated with menus using this method.
 
         :param baseview:
             A BaseView type class instantiated or not.
@@ -476,7 +478,8 @@ class AirflowAppBuilder:
         baseview=None,
         cond=None,
     ):
-        """Add your own links to menu using this method.
+        """
+        Add your own links to menu using this method.
 
         :param name:
             The string name that identifies the menu.
@@ -522,7 +525,8 @@ class AirflowAppBuilder:
                 self._add_permissions_menu(category)
 
     def add_separator(self, category, cond=None):
-        """Add a separator to the menu, you will sequentially create the menu.
+        """
+        Add a separator to the menu, you will sequentially create the menu.
 
         :param category:
             The menu category where the separator will be included.
@@ -556,7 +560,8 @@ class AirflowAppBuilder:
         return baseview
 
     def security_cleanup(self):
-        """Clean up security.
+        """
+        Clean up security.
 
         This method is useful if you have changed the name of your menus or
         classes. Changing them leaves behind permissions that are not associated
@@ -573,7 +578,8 @@ class AirflowAppBuilder:
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
-        """Migrates all permissions to the new names on all the Roles.
+        """
+        Migrates all permissions to the new names on all the Roles.
 
         This method is useful when you use:
 

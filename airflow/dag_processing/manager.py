@@ -769,7 +769,8 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.exception("Error removing old import errors")
 
             def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
-                """Get "full" paths to DAGs if inside ZIP files.
+                """
+                Get "full" paths to DAGs if inside ZIP files.
 
                 This is the format used by the remove/delete functions.
                 """

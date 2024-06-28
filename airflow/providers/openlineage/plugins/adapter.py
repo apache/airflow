@@ -139,7 +139,8 @@ class OpenLineageAdapter(LoggingMixin):
         )
 
     def emit(self, event: RunEvent):
-        """Emit OpenLineage event.
+        """
+        Emit OpenLineage event.
 
         :param event: Event to be emitted.
         :return: Redacted Event.
