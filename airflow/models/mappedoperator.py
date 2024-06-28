@@ -688,14 +688,16 @@ class MappedOperator(AbstractOperator):
         """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(
+        self, context: Context, session: Session, *, include_xcom: bool = True
+    ) -> tuple[Mapping[str, Any], set[int]]:
         """
         Get the kwargs to create the unmapped operator.
 
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
         """
-        return self._get_specified_expand_input().resolve(context, session)
+        return self._get_specified_expand_input().resolve(context, session, include_xcom=include_xcom)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         """
@@ -730,14 +732,15 @@ class MappedOperator(AbstractOperator):
         }
 
     def _expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
-        """Get the kwargs to create the unmapped start_from_trigger.
+        """
+        Get the kwargs to create the unmapped start_from_trigger.
 
         This method is for allowing mapped operator to start execution from triggerer.
         """
         if not self.start_trigger_args:
             return False
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
         if self._disallow_kwargs_override:
             prevent_duplicates(
                 self.partial_kwargs,
@@ -751,7 +754,8 @@ class MappedOperator(AbstractOperator):
         )
 
     def _expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs:
-        """Get the kwargs to create the unmapped start_trigger_args.
+        """
+        Get the kwargs to create the unmapped start_trigger_args.
 
         This method is for allowing mapped operator to start execution from triggerer.
         """
@@ -760,7 +764,7 @@ class MappedOperator(AbstractOperator):
                 "Cannot expand start_trigger_args for mapped operator without class level start_trigger_args"
             )
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
         if self._disallow_kwargs_override:
             prevent_duplicates(
                 self.partial_kwargs,
