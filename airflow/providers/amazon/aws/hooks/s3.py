@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import gzip as gz
+import inspect
 import logging
 import os
 import re
@@ -63,40 +64,14 @@ logger = logging.getLogger(__name__)
 
 def provide_bucket_name(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
+    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
+
     function_signature = signature(func)
 
-    @wraps(func)
-    def wrapper(*args, **kwargs) -> Callable:
-        bound_args = function_signature.bind(*args, **kwargs)
-
-        if "bucket_name" not in bound_args.arguments:
-            self = args[0]
-
-            if "bucket_name" in self.service_config:
-                bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
-            elif self.conn_config and self.conn_config.schema:
-                warnings.warn(
-                    "s3 conn_type, and the associated schema field, is deprecated. "
-                    "Please use aws conn_type instead, and specify `bucket_name` "
-                    "in `service_config.s3` within `extras`.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                bound_args.arguments["bucket_name"] = self.conn_config.schema
-
-        return func(*bound_args.args, **bound_args.kwargs)
-
-    return wrapper
-
-
-def provide_bucket_name_async(func: Callable) -> Callable:
-    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
-    function_signature = signature(func)
-
-    @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+    # todo: raise immediately if func has no bucket_name arg
+    async def maybe_add_bucket_name(*args, **kwargs):
         bound_args = function_signature.bind(*args, **kwargs)
 
         if "bucket_name" not in bound_args.arguments:
@@ -105,8 +80,46 @@ def provide_bucket_name_async(func: Callable) -> Callable:
                 connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
                 if connection.schema:
                     bound_args.arguments["bucket_name"] = connection.schema
+        return bound_args
 
-        return await func(*bound_args.args, **bound_args.kwargs)
+    if inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            bound_args = await maybe_add_bucket_name(*args, **kwargs)
+            print(f"invoking async function {func=}")
+            return await func(*bound_args.args, **bound_args.kwargs)
+
+    elif inspect.isasyncgenfunction(func):
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            bound_args = await maybe_add_bucket_name(*args, **kwargs)
+            async for thing in func(*bound_args.args, **bound_args.kwargs):
+                yield thing
+
+    else:
+
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Callable:
+            bound_args = function_signature.bind(*args, **kwargs)
+
+            if "bucket_name" not in bound_args.arguments:
+                self = args[0]
+
+                if "bucket_name" in self.service_config:
+                    bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
+                elif self.conn_config and self.conn_config.schema:
+                    warnings.warn(
+                        "s3 conn_type, and the associated schema field, is deprecated. "
+                        "Please use aws conn_type instead, and specify `bucket_name` "
+                        "in `service_config.s3` within `extras`.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    bound_args.arguments["bucket_name"] = self.conn_config.schema
+
+            return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
 
@@ -400,8 +413,8 @@ class S3Hook(AwsBaseHook):
 
         return prefixes
 
-    @provide_bucket_name_async
     @unify_bucket_name_and_key
+    @provide_bucket_name
     async def get_head_object_async(
         self, client: AioBaseClient, key: str, bucket_name: str | None = None
     ) -> dict[str, Any] | None:
@@ -462,7 +475,7 @@ class S3Hook(AwsBaseHook):
 
         return prefixes
 
-    @provide_bucket_name_async
+    @provide_bucket_name
     async def get_file_metadata_async(
         self, client: AioBaseClient, bucket_name: str, key: str | None = None
     ) -> AsyncIterator[Any]:
