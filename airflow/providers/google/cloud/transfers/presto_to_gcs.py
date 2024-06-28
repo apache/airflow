@@ -144,7 +144,8 @@ class _PrestoToGCSPrestoCursorAdapter:
 
 
 class PrestoToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from PrestoDB to Google Cloud Storage in JSON, CSV or Parquet format.
+    """
+    Copy data from PrestoDB to Google Cloud Storage in JSON, CSV or Parquet format.
 
     :param presto_conn_id: Reference to a specific Presto hook.
     """

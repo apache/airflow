@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class CohereEmbeddingOperator(BaseOperator):
-    """Creates the embedding base by interacting with cohere hosted services.
+    """
+    Creates the embedding base by interacting with cohere hosted services.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

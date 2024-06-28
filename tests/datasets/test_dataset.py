@@ -258,22 +258,21 @@ def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test
     with dag_maker(schedule=DatasetAny(*datasets)) as dag:
         EmptyOperator(task_id="hello")
 
-    # Verify dataset triggers are set up correctly
+    # Verify datasets are set up correctly
     assert isinstance(
-        dag.dataset_triggers, DatasetAny
-    ), "DAG dataset triggers should be an instance of DatasetAny"
+        dag.timetable.dataset_condition, DatasetAny
+    ), "DAG datasets should be an instance of DatasetAny"
 
-    # Serialize and deserialize DAG dataset triggers
-    serialized_trigger = SerializedDAG.serialize(dag.dataset_triggers)
-    deserialized_trigger = SerializedDAG.deserialize(serialized_trigger)
+    # Round-trip the DAG through serialization
+    deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
 
     # Verify serialization and deserialization integrity
     assert isinstance(
-        deserialized_trigger, DatasetAny
-    ), "Deserialized trigger should maintain type DatasetAny"
+        deserialized_dag.timetable.dataset_condition, DatasetAny
+    ), "Deserialized datasets should maintain type DatasetAny"
     assert (
-        deserialized_trigger.objects == dag.dataset_triggers.objects
-    ), "Deserialized trigger objects should match original"
+        deserialized_dag.timetable.dataset_condition.objects == dag.timetable.dataset_condition.objects
+    ), "Deserialized datasets should match original"
 
 
 @pytest.mark.db_test
@@ -303,12 +302,13 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
     for (serialized_dag,) in serialized_dags:
         dag = SerializedDAG.deserialize(serialized_dag.data)
         for dataset_uri, status in dag_statuses[dag.dag_id].items():
-            assert dag.dataset_triggers.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
+            cond = dag.timetable.dataset_condition
+            assert cond.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
 
 
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_datasets")
-def test_dag_with_complex_dataset_triggers(session, dag_maker):
+def test_dag_with_complex_dataset_condition(session, dag_maker):
     # Create Dataset instances
     d1 = Dataset(uri="hello1")
     d2 = Dataset(uri="hello2")
@@ -324,13 +324,13 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
         EmptyOperator(task_id="hello")
 
     assert isinstance(
-        dag.dataset_triggers, DatasetAny
+        dag.timetable.dataset_condition, DatasetAny
     ), "DAG's dataset trigger should be an instance of DatasetAny"
     assert any(
-        isinstance(trigger, DatasetAll) for trigger in dag.dataset_triggers.objects
+        isinstance(trigger, DatasetAll) for trigger in dag.timetable.dataset_condition.objects
     ), "DAG's dataset trigger should include DatasetAll"
 
-    serialized_triggers = SerializedDAG.serialize(dag.dataset_triggers)
+    serialized_triggers = SerializedDAG.serialize(dag.timetable.dataset_condition)
 
     deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
 
@@ -341,11 +341,13 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
         isinstance(trigger, DatasetAll) for trigger in deserialized_triggers.objects
     ), "Deserialized triggers should include DatasetAll"
 
-    serialized_dag_dict = SerializedDAG.to_dict(dag)["dag"]
-    assert "dataset_triggers" in serialized_dag_dict, "Serialized DAG should contain 'dataset_triggers'"
+    serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
+    assert (
+        "dataset_condition" in serialized_timetable_dict
+    ), "Serialized timetable should contain 'dataset_condition'"
     assert isinstance(
-        serialized_dag_dict["dataset_triggers"], dict
-    ), "Serialized 'dataset_triggers' should be a dict"
+        serialized_timetable_dict["dataset_condition"], dict
+    ), "Serialized 'dataset_condition' should be a dict"
 
 
 def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:

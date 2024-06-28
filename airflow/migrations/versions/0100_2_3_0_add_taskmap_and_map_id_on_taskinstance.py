@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add TaskMap and map_index on TaskInstance.
+"""
+Add TaskMap and map_index on TaskInstance.
 
 Add ``map_index`` column to TaskInstance to identify task-mapping,
 and a ``task_map`` table to track mapping values from XCom.

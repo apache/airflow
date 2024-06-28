@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add case-insensitive unique constraint for username.
+"""
+Add case-insensitive unique constraint for username.
 
 Revision ID: e07f49787c9d
 Revises: b0d31815b5a6

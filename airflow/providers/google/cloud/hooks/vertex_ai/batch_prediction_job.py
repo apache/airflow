@@ -551,7 +551,8 @@ class BatchPredictionJobAsyncHook(GoogleBaseAsyncHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> types.BatchPredictionJob:
-        """Retrieve a batch prediction tuning job.
+        """
+        Retrieve a batch prediction tuning job.
 
         :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
         :param location: Required. The ID of the Google Cloud region that the job belongs to.

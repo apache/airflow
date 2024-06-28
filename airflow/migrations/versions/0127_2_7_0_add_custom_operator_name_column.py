@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add custom_operator_name column.
+"""
+Add custom_operator_name column.
 
 Revision ID: 788397e78828
 Revises: 937cbd173ca1

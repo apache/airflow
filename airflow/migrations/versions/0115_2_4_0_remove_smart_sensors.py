@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove smart sensors.
+"""
+Remove smart sensors.
 
 Revision ID: f4ff391becb5
 Revises: 0038cd0c28b4

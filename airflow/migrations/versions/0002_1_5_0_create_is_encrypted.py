@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``is_encrypted`` column in ``connection`` table.
+"""
+Add ``is_encrypted`` column in ``connection`` table.
 
 Revision ID: 1507a7289a2f
 Revises: e3a246e0dc1

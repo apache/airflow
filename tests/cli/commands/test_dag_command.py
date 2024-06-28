@@ -970,7 +970,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("workday.AfterWorkdayTimetable", side_effect=lambda: mock.MagicMock(active_runs_limit=None))
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
     def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
         """

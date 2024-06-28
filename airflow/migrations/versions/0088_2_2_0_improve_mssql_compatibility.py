@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Improve MSSQL compatibility.
+"""
+Improve MSSQL compatibility.
 
 Revision ID: 83f031fd9f1c
 Revises: ccde3e26fe78
