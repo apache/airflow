@@ -586,6 +586,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
+        self.cluster = event["cluster"]
         self._after_execution()
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
