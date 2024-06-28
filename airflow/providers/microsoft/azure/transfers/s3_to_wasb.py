@@ -117,7 +117,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
 
             # Assuming that files_to_move is a list (which it always should be), this will get "hit" after the
             # last file is moved from S3 -> Azure Blob
-            self.log.info("All done, uploaded % to Azure Blob.", len(files_to_move))
+            self.log.info("All done, uploaded %s to Azure Blob.", len(files_to_move))
 
         else:
             # If there are no files to move, a message will be logged. May want to consider alternative
