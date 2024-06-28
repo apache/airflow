@@ -73,7 +73,6 @@ def provide_bucket_name(func: Callable) -> Callable:
             "Decorator provide_bucket_name should only wrap a function with param 'bucket_name'."
         )
 
-    # todo: raise immediately if func has no bucket_name arg
     async def maybe_add_bucket_name(*args, **kwargs):
         bound_args = function_signature.bind(*args, **kwargs)
 
