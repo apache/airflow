@@ -680,7 +680,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.execute_complete(None, event)
 
         # task gets described to assert its success
-        client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
+        client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
