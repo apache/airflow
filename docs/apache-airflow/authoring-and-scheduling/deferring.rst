@@ -245,7 +245,7 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
             # We have no more work to do here. Mark as complete.
             return
 
-These parameters can be mapped using the ``expand`` and ``partial`` methods.
+These parameters can be mapped using the ``expand`` and ``partial`` methods. Note that XCom values won't be resolved at this stage.
 
 .. code-block:: python
 
