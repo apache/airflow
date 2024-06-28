@@ -21,15 +21,15 @@ from __future__ import annotations
 from io import RawIOBase
 from unittest import mock
 
+import pytest
 from moto import mock_aws
 
 from airflow.providers.microsoft.azure.transfers.s3_to_wasb import S3ToAzureBlobStorageOperator
 
 TASK_ID = "test-s3-to-azure-blob-operator"
 AWS_CONN_ID = "test-conn-id"
-S3_BUCKET = "s3://test-bucket/"
+S3_BUCKET = "test-bucket"
 CONTAINER_NAME = "test-container"
-DELIMITER = ".csv"
 PREFIX = "TEST"
 TEMPFILE_NAME = "test-tempfile"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
@@ -64,7 +64,6 @@ class TestS3ToAzureBlobStorageOperator:
             container_name=CONTAINER_NAME,
             blob_prefix=PREFIX,
             replace=True,
-            delimiter=DELIMITER,
         )
 
         # ... is None is used to validate if a value is None, while not ... is used to evaluate if a value
@@ -78,7 +77,6 @@ class TestS3ToAzureBlobStorageOperator:
         assert operator.s3_key is None
         assert operator.blob_prefix == PREFIX
         assert operator.blob_name is None
-        assert operator.delimiter == DELIMITER
         assert not operator.create_container  # Should be false (match default value in constructor)
         assert operator.replace
         assert not operator.s3_verify  # Should be false (match default value in constructor)
@@ -109,7 +107,6 @@ class TestS3ToAzureBlobStorageOperator:
         )
         # Placing an empty "context" object here (using None)
         uploaded_files = operator.execute(None)
-
         assert sorted(uploaded_files) == sorted(MOCK_FILES)
 
         # Using the default connection ID, along with the default value of verify (for the S3 hook)
@@ -138,7 +135,6 @@ class TestS3ToAzureBlobStorageOperator:
             blob_prefix=PREFIX,
         )
         uploaded_files = operator.get_files_to_move()
-
         assert sorted(uploaded_files) == sorted(MOCK_FILES)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
@@ -159,7 +155,6 @@ class TestS3ToAzureBlobStorageOperator:
         )
         # Placing an empty "context" object here (using None)
         uploaded_files = operator.get_files_to_move()
-
         assert sorted(uploaded_files) == sorted([MOCK_FILES[0]])
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
@@ -257,7 +252,6 @@ class TestS3ToAzureBlobStorageOperator:
             blob_prefix=PREFIX,
         )
         uploaded_files = operator.get_files_to_move()
-
         assert sorted(uploaded_files) == sorted(["TEST1.csv"])
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
@@ -275,8 +269,43 @@ class TestS3ToAzureBlobStorageOperator:
             blob_prefix=PREFIX,
         )
         uploaded_files = operator.get_files_to_move()
-
         assert sorted(uploaded_files) == sorted([])
 
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    def test__move_file(self, wasb_mock_hook, s3_mock_hook):
+        # Only a single S3 key is provided, and there are no blobs in the container. This means that this file
+        # should be moved, and the move_file method will be executed
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
+        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
 
-# Test helpers
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_key="TEST/TEST1.csv",
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+        )
+
+        # Call the move_file method
+        operator.move_file("TEST1.csv")
+
+        # Test that the s3_hook has been called once (to create the client), and the wasb_hook has been called
+        # to load the file to WASB
+        operator.s3_hook.get_conn.assert_called_once()
+        operator.wasb_hook.load_file.assert_called_once_with(
+            file_path=mock.ANY,
+            container_name=CONTAINER_NAME,
+            blob_name=f"{PREFIX}/TEST1.csv",
+            create_container=False,
+        )
+
+    def test__create_key(self):
+        # There are three tests that will be run:
+        # 1. Test will a full path
+        # 2. Test with a prefix and a file name
+        # 3. Test with no full path, and a missing file name
+        assert S3ToAzureBlobStorageOperator._create_key("TEST/TEST1.csv", None, None) == "TEST/TEST1.csv"
+        assert S3ToAzureBlobStorageOperator._create_key(None, "TEST", "TEST1.csv") == "TEST/TEST1.csv"
+        with pytest.raises(Exception):
+            S3ToAzureBlobStorageOperator._create_key(None, "TEST", None)
