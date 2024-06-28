@@ -3299,7 +3299,7 @@ class DAG(LoggingMixin):
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
 
-        outlet_dataset_aliases: list[DatasetAliasModel] = []
+        outlet_dataset_alias_models: list[DatasetAliasModel] = []
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -3338,7 +3338,7 @@ class DAG(LoggingMixin):
                     outlet_datasets[DatasetModel.from_public(d)] = None
 
                 for d_a in dataset_alias_outlets:
-                    outlet_dataset_aliases.append(DatasetAliasModel.from_public(d_a))
+                    outlet_dataset_alias_models.append(DatasetAliasModel.from_public(d_a))
 
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
@@ -3365,17 +3365,28 @@ class DAG(LoggingMixin):
         del all_datasets
 
         # store dataset aliases
-        new_dataset_aliases: list[DatasetAliasModel] = []
-        for dataset_alias in outlet_dataset_aliases:
-            stored_dataset_alias = session.scalar(
-                select(DatasetAliasModel).where(DatasetAlias.name == dataset_alias.name).limit(1)
-            )
-            if not stored_dataset_alias:
-                new_dataset_aliases.append(dataset_alias)
-        dataset_manager.create_dataset_aliases(dataset_alias_models=new_dataset_aliases, session=session)
+        new_dataset_alias_models: list[DatasetAliasModel] = []
+        if outlet_dataset_alias_models:
+            outlet_dataset_alias_names = [dataset_alias.name for dataset_alias in outlet_dataset_alias_models]
+            stored_dataset_alias_names = session.scalars(
+                select(DatasetAliasModel.name).where(DatasetAliasModel.name.in_(outlet_dataset_alias_names))
+            ).fetchall()
 
-        del new_dataset_aliases
-        del outlet_dataset_aliases
+            if stored_dataset_alias_names:
+                new_dataset_alias_models = [
+                    dataset_alias_model
+                    for dataset_alias_model in outlet_dataset_alias_models
+                    if dataset_alias_model.name not in stored_dataset_alias_names
+                ]
+            else:
+                new_dataset_alias_models = outlet_dataset_alias_models
+
+            dataset_manager.create_dataset_aliases(
+                dataset_alias_models=new_dataset_alias_models, session=session
+            )
+
+        del new_dataset_alias_models
+        del outlet_dataset_alias_models
 
         # reconcile dag-schedule-on-dataset references
         for dag_id, uri_list in dag_references.items():
