@@ -423,15 +423,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
             self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
-            tis_we_have_room_for = self._slots_free_for_tis(task_instances_to_examine)
+            executor_slots_available: dict[ExecutorName, int] = {}
+            # First get a mapping of executor names to slots they have available
+            for executor in self.job.executors:
+                if TYPE_CHECKING:
+                    # All executors should have a name if they are initted from the executor_loader.
+                    # But we need to check for None to make mypy happy.
+                    assert executor.name
+                executor_slots_available[executor.name] = executor.slots_available
 
             for task_instance in task_instances_to_examine:
-                if task_instance not in tis_we_have_room_for:
-                    self.log.debug(
-                        "Not scheduling %s since its executor %s does not currently have any more available slots"
-                    )
-                    continue
-
                 pool_name = task_instance.pool
 
                 pool_stats = pools.get(pool_name)
@@ -569,6 +570,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
                             )
                             continue
+
+                if executor_obj := self._try_to_load_executor(task_instance.executor):
+                    if TYPE_CHECKING:
+                        # All executors should have a name if they are initted from the executor_loader.
+                        # But we need to check for None to make mypy happy.
+                        assert executor_obj.name
+                    if executor_slots_available[executor_obj.name] <= 0:
+                        self.log.debug(
+                            "Not scheduling %s since its executor %s does not currently have any more "
+                            "available slots"
+                        )
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                        continue
+                    else:
+                        executor_slots_available[executor_obj.name] -= 1
+                else:
+                    # This is a defensive guard for if we happen to have a task who's executor cannot be
+                    # found. The check in the dag parser should make this not realistically possible but the
+                    # loader can fail if some direct DB modification has happened or another as yet unknown
+                    # edge case. _try_to_load_executor will log an error message explaining the executor
+                    # cannot be found.
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    continue
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
@@ -1896,34 +1920,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return _executor_to_tis
 
-    def _slots_free_for_tis(self, tis: list[TaskInstance]) -> set[TaskInstance]:
-        """Return TIs that we have slots available for."""
-        # First get a mapping of executor names to slots they have available
-        executor_to_slots_available: dict[ExecutorName, int] = {}
-        for executor in self.job.executors:
-            if TYPE_CHECKING:
-                # All executors should have a name if they are initted from the executor_loader. But we need
-                # to check for None to make mypy happy.
-                assert executor.name
-            executor_to_slots_available[executor.name] = executor.slots_available
-
-        # Loop through all the TIs we're scheduling for and add them to a set to be moved to queued if the
-        # executor they're assigned to has slots available.
-        tis_we_have_room_for = set()
-        for ti in tis:
-            if executor_obj := self._try_to_load_executor(ti.executor):
-                if TYPE_CHECKING:
-                    # All executors should have a name if they are initted from the executor_loader. But we
-                    # need to check for None to make mypy happy.
-                    assert executor_obj.name
-                if executor_to_slots_available[executor_obj.name] > 0:
-                    tis_we_have_room_for.add(ti)
-                    executor_to_slots_available[executor_obj.name] -= 1
-
-        return tis_we_have_room_for
-
     def _try_to_load_executor(self, executor_name: str | None) -> BaseExecutor | None:
-        """Try to load the given executor.
+        """
+        Try to load the given executor.
 
         In this context, we don't want to fail if the executor does not exist. Catch the exception and
         log to the user.
