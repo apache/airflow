@@ -64,7 +64,6 @@ logger = logging.getLogger(__name__)
 
 def provide_bucket_name(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
-    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
 
