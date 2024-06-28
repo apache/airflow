@@ -23,15 +23,14 @@ from copy import copy
 from logging import Logger
 from typing import TYPE_CHECKING
 
+from sqlalchemy.orm import create_session
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.models.taskinstancekey import TaskInstanceKey
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
@@ -110,16 +109,13 @@ class TaskContextLogger:
             assert isinstance(h, FileTaskHandler)
         return h
 
-    @provide_session
-    def _log(
-        self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey, session: Session = NEW_SESSION
-    ):
+    def _log(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message to the task instance logs.
 
         :param level: the log level
         :param msg: the message to relay to task context log
-        :param ti: the task instance
+        :param ti: the task instance or the task instance key
         """
         if self.call_site_logger and self.call_site_logger.isEnabledFor(level=level):
             with suppress(Exception):
@@ -133,7 +129,9 @@ class TaskContextLogger:
 
         task_handler = copy(self.task_handler)
         try:
-            ti = ensure_ti(ti, session)
+            if isinstance(ti, TaskInstanceKey):
+                with create_session() as session:
+                    ti = ensure_ti(ti, session)
             task_handler.set_context(ti, identifier=self.component_name)
             if hasattr(task_handler, "mark_end_on_close"):
                 task_handler.mark_end_on_close = False
