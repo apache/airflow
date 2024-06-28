@@ -21,13 +21,11 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
-
-from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 from airflow.providers.amazon.aws.operators.s3 import (
-    S3CreateObjectOperator,
     S3CreateBucketOperator,
+    S3CreateObjectOperator,
+    S3DeleteBucketOperator,
     S3DeleteObjectsOperator,
-    S3DeleteBucketOperator
 )
 from airflow.providers.microsoft.azure.transfers.s3_to_wasb import S3ToAzureBlobStorageOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -37,18 +35,13 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 # Set constants
 DAG_ID: str = "example_s3_to_wasb"
-S3_PREFIX: str = "test"
-S3_KEY: str = "test/TEST1.csv"
-BLOB_PREFIX: str = "test"
-BLOB_NAME: str = "test/TEST1.csv"
+S3_PREFIX: str = "TEST"
+S3_KEY: str = "TEST/TEST1.csv"
+BLOB_PREFIX: str = "TEST"
+BLOB_NAME: str = "TEST/TEST1.csv"
 
 
-with DAG(
-    dag_id=DAG_ID,
-    start_date=datetime(2024, 1, 1),
-    schedule="@once",
-    catchup=False
-) as dag:
+with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catchup=False) as dag:
     # Pull the task context, as well as the ENV_ID
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
@@ -57,20 +50,22 @@ with DAG(
     s3_bucket_name: str = f"{env_id}-s3-bucket"
     wasb_container_name: str = f"{env_id}-wasb-container"
 
-    # Create an S3 bucket
+    # Create an S3 bucket as part of testing set up, which will be removed by the remove_s3_bucket during
+    # teardown
     create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket_name)
 
-    # Add a file to S3
+    # Add a file to the S3 bucket created above. Part of testing set up, this file will eventually be removed
+    # by the remove_s3_object task during teardown
     create_s3_object = S3CreateObjectOperator(
         task_id="create_s3_object",
         s3_bucket=s3_bucket_name,
         s3_key=S3_KEY,
         data=b"Testing...",
         replace=True,
-        encrypt=False
+        encrypt=False,
     )
 
-    # Move a file from S3 to WASB
+    # [START how_to_s3_to_wasb]
     s3_to_wasb = S3ToAzureBlobStorageOperator(
         task_id="s3_to_wasb",
         s3_bucket=s3_bucket_name,
@@ -78,22 +73,20 @@ with DAG(
         s3_key=S3_KEY,
         blob_prefix=BLOB_PREFIX,  # Using a prefix for this
         trigger_rule=TriggerRule.ALL_DONE,
-        replace=True
+        replace=True,
     )
+    # [END how_to_s3_to_wasb]
 
     # Part of tear down, remove all the objects at the S3_PREFIX
     remove_s3_object = S3DeleteObjectsOperator(
-        task_id="remove_s3_object",
-        bucket=s3_bucket_name,
-        prefix=S3_PREFIX,
-        trigger_rule=TriggerRule.ALL_DONE
+        task_id="remove_s3_object", bucket=s3_bucket_name, prefix=S3_PREFIX, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    # Remove an S3 bucket
+    # Remove the S3 bucket created as part of setup
     remove_s3_bucket = S3DeleteBucketOperator(
         task_id="remove_s3_bucket",
         bucket_name=s3_bucket_name,  # Force delete?
-        trigger_rule=TriggerRule.ALL_DONE
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # Set dependencies
@@ -106,7 +99,7 @@ with DAG(
         s3_to_wasb,
         # TEST TEARDOWN
         remove_s3_object,
-        remove_s3_bucket
+        remove_s3_bucket,
     )
 
     from tests.system.utils.watcher import watcher
@@ -119,4 +112,10 @@ from tests.system.utils import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 # To execute, run pytest --system microsoft tests/system/providers/microsoft/azure/example_s3_to_wasb.py
+test_run = get_test_run(dag)
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

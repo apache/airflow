@@ -64,7 +64,7 @@ class TestS3ToAzureBlobStorageOperator:
             container_name=CONTAINER_NAME,
             blob_prefix=PREFIX,
             replace=True,
-            delimiter=DELIMITER
+            delimiter=DELIMITER,
         )
 
         # ... is None is used to validate if a value is None, while not ... is used to evaluate if a value
@@ -236,7 +236,7 @@ class TestS3ToAzureBlobStorageOperator:
             s3_key="TEST/TEST1.csv",
             container_name=CONTAINER_NAME,
             blob_name="TEST/TEST1.csv",
-            replace=True
+            replace=True,
         )
         # Placing an empty "context" object here (using None)
         uploaded_files = operator.get_files_to_move()
