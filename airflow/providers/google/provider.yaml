@@ -114,7 +114,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.54.0
+  - google-cloud-aiplatform>=1.57.0
   - google-cloud-automl>=2.12.0
   # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
   # which has led to backward compatibility issues

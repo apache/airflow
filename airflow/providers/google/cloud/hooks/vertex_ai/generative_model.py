@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Sequence
 
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
@@ -59,13 +59,13 @@ class GenerativeModelHook(GoogleBaseHook):
         model = GenerativeModel(pretrained_model)
         return model
 
-    def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
-        """Return a Generative Model Part object."""
-        part = Part.from_uri(content_gcs_path, mime_type=content_mime_type)
-        return part
+    # def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
+    #     """Return a Generative Model Part object."""
+    #     part = Part.from_uri(content_gcs_path, mime_type=content_mime_type)
+    #     return part
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def prompt_language_model(
+    def text_generation_model_predict(
         self,
         prompt: str,
         pretrained_model: str,
@@ -113,7 +113,7 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def generate_text_embeddings(
+    def text_embedding_model_get_embeddings(
         self,
         prompt: str,
         pretrained_model: str,
@@ -137,10 +137,11 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.values
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def prompt_multimodal_model(
+    def generative_model_generate_content(
         self,
-        prompt: str,
+        contents: list,
         location: str,
+        tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro",
@@ -149,8 +150,8 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
-        :param prompt: Required. Inputs or queries that a user or a program gives
-            to the Multi-modal model, in order to elicit a specific response.
+        :param contents: Required. The multi-part content of a message that a user or a program
+            gives to the generative model, in order to elicit a specific response.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
@@ -164,46 +165,10 @@ class GenerativeModelHook(GoogleBaseHook):
 
         model = self.get_generative_model(pretrained_model)
         response = model.generate_content(
-            contents=[prompt], generation_config=generation_config, safety_settings=safety_settings
-        )
-
-        return response.text
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def prompt_multimodal_model_with_media(
-        self,
-        prompt: str,
-        location: str,
-        media_gcs_path: str,
-        mime_type: str,
-        generation_config: dict | None = None,
-        safety_settings: dict | None = None,
-        pretrained_model: str = "gemini-pro-vision",
-        project_id: str = PROVIDE_PROJECT_ID,
-    ) -> str:
-        """
-        Use the Vertex AI Gemini Pro foundation model to generate natural language text.
-
-        :param prompt: Required. Inputs or queries that a user or a program gives
-            to the Multi-modal model, in order to elicit a specific response.
-        :param generation_config: Optional. Generation configuration settings.
-        :param safety_settings: Optional. Per request settings for blocking unsafe content.
-        :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
-            supporting prompts with text-only input, including natural language
-            tasks, multi-turn text and code chat, and code generation. It can
-            output text and code.
-        :param media_gcs_path: A GCS path to a content file such as an image or a video.
-            Can be passed to the multi-modal model as part of the prompt. Used with vision models.
-        :param mime_type: Validates the media type presented by the file in the media_gcs_path.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        """
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
-
-        model = self.get_generative_model(pretrained_model)
-        part = self.get_generative_model_part(media_gcs_path, mime_type)
-        response = model.generate_content(
-            contents=[prompt, part], generation_config=generation_config, safety_settings=safety_settings
+            contents=contents,
+            tools=tools,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
         )
 
         return response.text
