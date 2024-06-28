@@ -674,7 +674,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
     def test_execute_complete(self, client_mock):
-        event = {"status": "success", "task_arn": "my_arn"}
+        event = {"status": "success", "task_arn": "my_arn", "cluster": "test_cluster"}
         self.ecs.reattach = True
 
         self.ecs.execute_complete(None, event)
