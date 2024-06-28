@@ -68,6 +68,10 @@ def provide_bucket_name(func: Callable) -> Callable:
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
 
     function_signature = signature(func)
+    if "bucket_name" not in function_signature.parameters:
+        raise RuntimeError(
+            "Decorator provide_bucket_name should only wrap a function with param 'bucket_name'."
+        )
 
     # todo: raise immediately if func has no bucket_name arg
     async def maybe_add_bucket_name(*args, **kwargs):
