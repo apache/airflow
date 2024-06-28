@@ -329,7 +329,8 @@ class S3ToGCSOperator(S3ListOperator):
         return job_names
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+        """
+        Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

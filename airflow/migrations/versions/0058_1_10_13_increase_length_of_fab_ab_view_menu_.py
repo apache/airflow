@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column.
+"""
+Increase length of ``Flask-AppBuilder`` ``ab_view_menu.name`` column.
 
 Revision ID: 03afc6b6f902
 Revises: 92c57b58940d

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add Dataset model.
+"""
+Add Dataset model.
 
 Revision ID: 0038cd0c28b4
 Revises: 44b7034f6bdc

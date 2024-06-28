@@ -279,6 +279,7 @@ extend-select = [
     "D101",
     "D106",
     "D2",
+    "D213", # Conflicts with D212.  Both can not be enabled.
     "D3",
     "D400",
     "D401",
@@ -299,8 +300,7 @@ extend-select = [
 ]
 ignore = [
     "D203",
-    "D212",
-    "D213",
+    "D212", # Conflicts with D213.  Both can not be enabled.
     "D214",
     "D215",
     "E731", # Do not assign a lambda expression, use a def

@@ -551,7 +551,8 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
 def sorted_dag_runs(
     query: Select, *, ordering: Sequence[str], limit: int, session: Session
 ) -> Sequence[DagRun]:
-    """Produce DAG runs sorted by specified columns.
+    """
+    Produce DAG runs sorted by specified columns.
 
     :param query: An ORM select object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
@@ -850,7 +851,8 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class DagRunCustomSQLAInterface(CustomSQLAInterface):
-    """Custom interface to allow faster deletion.
+    """
+    Custom interface to allow faster deletion.
 
     The ``delete`` and ``delete_all`` methods are overridden to speed up
     deletion when a DAG run has a lot of related task instances. Relying on
@@ -929,7 +931,8 @@ class UIAlert:
         self.message = Markup(message) if html else message
 
     def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
-        """Determine if the user should see the message.
+        """
+        Determine if the user should see the message.
 
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
         set in ``webserver_config.py``, An anonymous user would have the

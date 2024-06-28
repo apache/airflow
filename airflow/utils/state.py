@@ -33,7 +33,8 @@ class JobState(str, Enum):
 
 
 class TaskInstanceState(str, Enum):
-    """All possible states that a Task Instance can be in.
+    """
+    All possible states that a Task Instance can be in.
 
     Note that None is also allowed, so always use this in a type hint with Optional.
     """
@@ -71,7 +72,8 @@ class TaskInstanceState(str, Enum):
 
 
 class DagRunState(str, Enum):
-    """All possible states that a DagRun can be in.
+    """
+    All possible states that a DagRun can be in.
 
     These are "shared" with TaskInstanceState in some parts of the code,
     so please ensure that their values always match the ones with the

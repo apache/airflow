@@ -188,7 +188,8 @@ class ObjectStoragePath(CloudPath):
         return self.fs.checksum(self.path)
 
     def read_block(self, offset: int, length: int, delimiter=None):
-        r"""Read a block of bytes.
+        r"""
+        Read a block of bytes.
 
         Starting at ``offset`` of the file, read ``length`` bytes. If
         ``delimiter`` is set then we ensure that the read starts and stops at
@@ -223,7 +224,8 @@ class ObjectStoragePath(CloudPath):
         return self.fs.read_block(self.path, offset=offset, length=length, delimiter=delimiter)
 
     def sign(self, expiration: int = 100, **kwargs):
-        """Create a signed URL representing the given path.
+        """
+        Create a signed URL representing the given path.
 
         Some implementations allow temporary URLs to be generated, as a
         way of delegating credentials.
@@ -259,7 +261,8 @@ class ObjectStoragePath(CloudPath):
             shutil.copyfileobj(f1, f2, **kwargs)
 
     def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
-        """Copy file(s) from this path to another location.
+        """
+        Copy file(s) from this path to another location.
 
         For remote to remote copies, the key used for the destination will be the same as the source.
         So that s3://src_bucket/foo/bar will be copied to gcs://dst_bucket/foo/bar and not
@@ -323,7 +326,8 @@ class ObjectStoragePath(CloudPath):
         self._cp_file(dst, **kwargs)
 
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
-        """Move file(s) from this path to another location.
+        """
+        Move file(s) from this path to another location.
 
         :param path: Destination path
         :param recursive: bool

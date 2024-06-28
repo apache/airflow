@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add owner_display_name to (Audit) Log table.
+"""
+Add owner_display_name to (Audit) Log table.
 
 Revision ID: f7bf2a57d0a6
 Revises: 375a816bbbf4

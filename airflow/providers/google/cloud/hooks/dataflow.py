@@ -80,7 +80,8 @@ T = TypeVar("T", bound=Callable)
 def process_line_and_extract_dataflow_job_id_callback(
     on_new_job_id_callback: Callable[[str], None] | None,
 ) -> Callable[[str], None]:
-    """Build callback that triggers the specified function.
+    """
+    Build callback that triggers the specified function.
 
     The returned callback is intended to be used as ``process_line_callback`` in
     :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`.
@@ -1583,7 +1584,8 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         page_size: int | None = None,
         page_token: str | None = None,
     ) -> ListJobsAsyncPager:
-        """List jobs.
+        """
+        List jobs.
 
         For detail see:
         https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.ListJobsRequest

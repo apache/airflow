@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 
 class CronTriggerTimetable(CronMixin, Timetable):
-    """Timetable that triggers DAG runs according to a cron expression.
+    """
+    Timetable that triggers DAG runs according to a cron expression.
 
     This is different from ``CronDataIntervalTimetable``, where the cron
     expression specifies the *data interval* of a DAG run. With this timetable,

@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 
 class ArgNotSet:
-    """Sentinel type for annotations, useful when None is not viable.
+    """
+    Sentinel type for annotations, useful when None is not viable.
 
     Use like this::
 

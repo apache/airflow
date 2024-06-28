@@ -48,7 +48,8 @@ class TaskInstanceKey(NamedTuple):
 
     @property
     def key(self) -> TaskInstanceKey:
-        """For API-compatibly with TaskInstance.
+        """
+        For API-compatibly with TaskInstance.
 
         Returns self
         """

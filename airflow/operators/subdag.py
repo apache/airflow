@@ -136,7 +136,8 @@ class SubDagOperator(BaseSensorOperator):
         return dag_runs[0] if dag_runs else None
 
     def _reset_dag_run_and_task_instances(self, dag_run: DagRun, execution_date: datetime) -> None:
-        """Set task instance states to allow for execution.
+        """
+        Set task instance states to allow for execution.
 
         The state of the DAG run will be set to RUNNING, and failed task
         instances to ``None`` for scheduler to pick up.

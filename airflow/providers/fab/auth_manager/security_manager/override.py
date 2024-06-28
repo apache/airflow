@@ -1638,7 +1638,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.get_session.query(self.user_model).all()
 
     def update_user_auth_stat(self, user, success=True):
-        """Update user authentication stats.
+        """
+        Update user authentication stats.
 
         This is done upon successful/unsuccessful authentication attempts.
 
@@ -2185,7 +2186,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return wraps
 
     def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
-        """There are different OAuth APIs with different ways to retrieve user info.
+        """
+        There are different OAuth APIs with different ways to retrieve user info.
 
         All providers have different ways to retrieve user info.
         """
@@ -2353,7 +2355,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 return _provider.get("token_key", "oauth_token")
 
     def get_oauth_token_secret_name(self, provider):
-        """Get the ``token_secret`` name for the oauth provider.
+        """
+        Get the ``token_secret`` name for the oauth provider.
 
         If none is configured, defaults to ``oauth_secret``. This is configured
         using ``OAUTH_PROVIDERS`` and ``token_secret``.
@@ -2499,7 +2502,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """
 
     def _rotate_session_id(self):
-        """Rotate the session ID.
+        """
+        Rotate the session ID.
 
         We need to do this upon successful authentication when using the
         database session backend.
@@ -2667,7 +2671,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_user_permission_resources(
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
-        """Get resource names with a certain action name that a user has access to.
+        """
+        Get resource names with a certain action name that a user has access to.
 
         Mainly used to fetch all menu permissions on a single db call, will also
         check public permissions and builtin roles

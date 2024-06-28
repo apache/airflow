@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``pid`` field to ``TaskInstance``.
+"""
+Add ``pid`` field to ``TaskInstance``.
 
 Revision ID: 5e7d17757c7a
 Revises: 8504051e801b

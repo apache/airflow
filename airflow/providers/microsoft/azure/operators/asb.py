@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 
 class AzureServiceBusCreateQueueOperator(BaseOperator):
-    """Create a Azure Service Bus queue under a Service Bus Namespace.
+    """
+    Create a Azure Service Bus queue under a Service Bus Namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -84,7 +85,8 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
 
 
 class AzureServiceBusSendMessageOperator(BaseOperator):
-    """Send Message or batch message to the Service Bus queue.
+    """
+    Send Message or batch message to the Service Bus queue.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -126,7 +128,8 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
 
 
 class AzureServiceBusReceiveMessageOperator(BaseOperator):
-    """Receive a batch of messages at once in a specified Queue name.
+    """
+    Receive a batch of messages at once in a specified Queue name.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -169,7 +172,8 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
 
 
 class AzureServiceBusDeleteQueueOperator(BaseOperator):
-    """Delete the Queue in the Azure Service Bus namespace.
+    """
+    Delete the Queue in the Azure Service Bus namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -204,7 +208,8 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
 
 
 class AzureServiceBusTopicCreateOperator(BaseOperator):
-    """Create an Azure Service Bus Topic under a Service Bus Namespace.
+    """
+    Create an Azure Service Bus Topic under a Service Bus Namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -325,7 +330,8 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
 
 
 class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
-    """Create an Azure Service Bus Topic Subscription under a Service Bus Namespace.
+    """
+    Create an Azure Service Bus Topic Subscription under a Service Bus Namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -431,7 +437,8 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
 
 
 class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
-    """Update an Azure ServiceBus Topic Subscription under a ServiceBus Namespace.
+    """
+    Update an Azure ServiceBus Topic Subscription under a ServiceBus Namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -490,7 +497,8 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
 
 
 class ASBReceiveSubscriptionMessageOperator(BaseOperator):
-    """Receive a Batch messages from a Service Bus Subscription under specific Topic.
+    """
+    Receive a Batch messages from a Service Bus Subscription under specific Topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -541,7 +549,8 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
 
 
 class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
-    """Delete the topic subscription in the Azure ServiceBus namespace.
+    """
+    Delete the topic subscription in the Azure ServiceBus namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -579,7 +588,8 @@ class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
 
 
 class AzureServiceBusTopicDeleteOperator(BaseOperator):
-    """Delete the topic in the Azure Service Bus namespace.
+    """
+    Delete the topic in the Azure Service Bus namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

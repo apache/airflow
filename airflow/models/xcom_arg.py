@@ -55,7 +55,8 @@ MapCallables = Sequence[Union[Callable[[Any], Any], str]]
 
 
 class XComArg(ResolveMixin, DependencyMixin):
-    """Reference to an XCom value pushed from another operator.
+    """
+    Reference to an XCom value pushed from another operator.
 
     The implementation supports::
 
@@ -102,7 +103,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @staticmethod
     def iter_xcom_references(arg: Any) -> Iterator[tuple[Operator, str]]:
-        """Return XCom references in an arbitrary value.
+        """
+        Return XCom references in an arbitrary value.
 
         Recursively traverse ``arg`` and look for XComArg instances in any
         collection objects, and instances with ``template_fields`` set.
@@ -121,7 +123,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @staticmethod
     def apply_upstream_relationship(op: Operator, arg: Any):
-        """Set dependency for XComArgs.
+        """
+        Set dependency for XComArgs.
 
         This looks for XComArg objects in ``arg`` "deeply" (looking inside
         collections objects and classes decorated with ``template_fields``), and
@@ -194,7 +197,8 @@ class XComArg(ResolveMixin, DependencyMixin):
         return ConcatXComArg([self, *others])
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        """Inspect length of pushed value for task-mapping.
+        """
+        Inspect length of pushed value for task-mapping.
 
         This is used to determine how many task instances the scheduler should
         create for a downstream using this XComArg for task-mapping.
@@ -205,7 +209,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
-        """Pull XCom value.
+        """
+        Pull XCom value.
 
         This should only be called during ``op.execute()`` with an appropriate
         context (e.g. generated from ``TaskInstance.get_template_context()``).
@@ -275,7 +280,8 @@ def _get_task_map_length(
 
 
 class PlainXComArg(XComArg):
-    """Reference to one single XCom without any additional semantics.
+    """
+    Reference to one single XCom without any additional semantics.
 
     This class should not be accessed directly, but only through XComArg. The
     class inheritance chain and ``__new__`` is implemented in this slightly
@@ -308,7 +314,8 @@ class PlainXComArg(XComArg):
         return PlainXComArg(operator=self.operator, key=item)
 
     def __iter__(self):
-        """Override iterable protocol to raise error explicitly.
+        """
+        Override iterable protocol to raise error explicitly.
 
         The default ``__iter__`` implementation in Python calls ``__getitem__``
         with 0, 1, 2, etc. until it hits an ``IndexError``. This does not work
@@ -501,7 +508,8 @@ class _MapResult(Sequence):
 
 
 class MapXComArg(XComArg):
-    """An XCom reference with ``map()`` call(s) applied.
+    """
+    An XCom reference with ``map()`` call(s) applied.
 
     This is based on an XComArg, but also applies a series of "transforms" that
     convert the pulled XCom value.
@@ -575,7 +583,8 @@ class _ZipResult(Sequence):
 
 
 class ZipXComArg(XComArg):
-    """An XCom reference with ``zip()`` applied.
+    """
+    An XCom reference with ``zip()`` applied.
 
     This is constructed from multiple XComArg instances, and presents an
     iterable that "zips" them together like the built-in ``zip()`` (and
@@ -656,7 +665,8 @@ class _ConcatResult(Sequence):
 
 
 class ConcatXComArg(XComArg):
-    """Concatenating multiple XCom references into one.
+    """
+    Concatenating multiple XCom references into one.
 
     This is done by calling ``concat()`` on an XComArg to combine it with
     others. The effect is similar to Python's :func:`itertools.chain`, but the

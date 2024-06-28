@@ -129,6 +129,10 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
     serialized = dataset_timetable.serialize()
     assert serialized == {
         "timetable": "mock_serialized_timetable",
+        "dataset_condition": {
+            "__type": "dataset_all",
+            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
+        },
     }
 
 
@@ -141,7 +145,13 @@ def test_deserialization(monkeypatch: Any) -> None:
     monkeypatch.setattr(
         "airflow.serialization.serialized_objects.decode_timetable", lambda x: MockTimetable()
     )
-    mock_serialized_data = {"timetable": "mock_serialized_timetable", "datasets": [{"uri": "test_dataset"}]}
+    mock_serialized_data = {
+        "timetable": "mock_serialized_timetable",
+        "dataset_condition": {
+            "__type": "dataset_all",
+            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
+        },
+    }
     deserialized = DatasetOrTimeSchedule.deserialize(mock_serialized_data)
     assert isinstance(deserialized, DatasetOrTimeSchedule)
 

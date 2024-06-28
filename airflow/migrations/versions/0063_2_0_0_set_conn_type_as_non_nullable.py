@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Set ``conn_type`` as non-nullable.
+"""
+Set ``conn_type`` as non-nullable.
 
 Revision ID: 8f966b9c467a
 Revises: 3c20cacc0044

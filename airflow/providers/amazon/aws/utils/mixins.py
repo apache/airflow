@@ -101,7 +101,8 @@ class AwsHookParams(NamedTuple):
 
 
 class AwsBaseHookMixin(Generic[AwsHookType]):
-    """Mixin class for AWS Operators, Sensors, etc.
+    """
+    Mixin class for AWS Operators, Sensors, etc.
 
     .. warning::
         Only for internal usage, this class might be changed, renamed or removed in the future

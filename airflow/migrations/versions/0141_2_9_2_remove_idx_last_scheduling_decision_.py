@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Remove ``idx_last_scheduling_decision`` index on last_scheduling_decision in dag_run table.
+"""
+Remove ``idx_last_scheduling_decision`` index on last_scheduling_decision in dag_run table.
 
 Revision ID: bff083ad727d
 Revises: 1949afb29106

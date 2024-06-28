@@ -34,7 +34,8 @@ if TYPE_CHECKING:
 
 
 class TaskMapVariant(enum.Enum):
-    """Task map variant.
+    """
+    Task map variant.
 
     Possible values are **dict** (for a key-value mapping) and **list** (for an
     ordered value sequence).
@@ -45,7 +46,8 @@ class TaskMapVariant(enum.Enum):
 
 
 class TaskMap(TaskInstanceDependencies):
-    """Model to track dynamic task-mapping information.
+    """
+    Model to track dynamic task-mapping information.
 
     This is currently only populated by an upstream TaskInstance pushing an
     XCom that's pulled by a downstream for mapping purposes.

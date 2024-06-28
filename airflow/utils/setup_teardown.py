@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class BaseSetupTeardownContext:
-    """Context manager for setup/teardown tasks.
+    """
+    Context manager for setup/teardown tasks.
 
     :meta private:
     """

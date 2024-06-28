@@ -45,7 +45,8 @@ __version__ = 1
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
-    """Encode a Pendulum Timezone for serialization.
+    """
+    Encode a Pendulum Timezone for serialization.
 
     Airflow only supports timezone objects that implements Pendulum's Timezone
     interface. We try to keep as much information as possible to make conversion

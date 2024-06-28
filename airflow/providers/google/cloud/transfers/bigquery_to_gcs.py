@@ -272,7 +272,8 @@ class BigQueryToGCSOperator(BaseOperator):
             job.result(timeout=self.result_timeout, retry=self.result_retry)
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+        """
+        Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add has_import_errors column to DagModel.
+"""
+Add has_import_errors column to DagModel.
 
 Revision ID: be2bfac3da23
 Revises: 7b2661a43ba3

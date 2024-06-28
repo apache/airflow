@@ -159,7 +159,8 @@ class ConnectionAccessor:
 
 @attrs.define()
 class OutletEventAccessor:
-    """Wrapper to access an outlet dataset event in template.
+    """
+    Wrapper to access an outlet dataset event in template.
 
     :meta private:
     """
@@ -168,7 +169,8 @@ class OutletEventAccessor:
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
-    """Lazy mapping of outlet dataset event accessors.
+    """
+    Lazy mapping of outlet dataset event accessors.
 
     :meta private:
     """
@@ -189,7 +191,8 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
 
 
 class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
-    """List-like interface to lazily access DatasetEvent rows.
+    """
+    List-like interface to lazily access DatasetEvent rows.
 
     :meta private:
     """
@@ -205,7 +208,8 @@ class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
 
 @attrs.define(init=False)
 class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
-    """Lazy mapping for inlet dataset events accessors.
+    """
+    Lazy mapping for inlet dataset events accessors.
 
     :meta private:
     """
@@ -256,7 +260,8 @@ def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInA
 
 
 class Context(MutableMapping[str, Any]):
-    """Jinja2 template context for task rendering.
+    """
+    Jinja2 template context for task rendering.
 
     This is a mapping (dict-like) class that can lazily emit warnings when
     (and only when) deprecated context keys are accessed.
@@ -287,7 +292,8 @@ class Context(MutableMapping[str, Any]):
         return repr(self._context)
 
     def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """Pickle the context as a dict.
+        """
+        Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,
         instead of using ``items()``, to trigger deprecation warnings.
@@ -348,7 +354,8 @@ class Context(MutableMapping[str, Any]):
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
-    """Merge parameters into an existing context.
+    """
+    Merge parameters into an existing context.
 
     Like ``dict.update()`` , this take the same parameters, and updates
     ``context`` in-place.
@@ -363,7 +370,8 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """Update context after task unmapping.
+    """
+    Update context after task unmapping.
 
     Since ``get_template_context()`` is called before unmapping, the context
     contains information about the mapped task. We need to do some in-place
@@ -378,7 +386,8 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-    """Create a context by copying items under selected keys in ``source``.
+    """
+    Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
@@ -392,7 +401,8 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
 
 
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
-    """Create a mapping that wraps deprecated entries in a lazy object proxy.
+    """
+    Create a mapping that wraps deprecated entries in a lazy object proxy.
 
     This further delays deprecation warning to until when the entry is actually
     used, instead of when it's accessed in the context. The result is useful for

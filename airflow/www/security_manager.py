@@ -80,7 +80,8 @@ if TYPE_CHECKING:
 
 
 class AirflowSecurityManagerV2(LoggingMixin):
-    """Custom security manager, which introduces a permission model adapted to Airflow.
+    """
+    Custom security manager, which introduces a permission model adapted to Airflow.
 
     It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.
     """
@@ -139,7 +140,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
         return is_authorized_method(action_name, resource_pk, user)
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
-        """Perform the required steps when initializing airflow for standalone mode.
+        """
+        Perform the required steps when initializing airflow for standalone mode.
 
         If necessary, returns the username and password to be printed in the console for users to log in.
         """

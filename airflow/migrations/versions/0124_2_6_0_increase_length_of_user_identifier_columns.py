@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase length of user identifier columns in ``ab_user`` and ``ab_register_user`` tables.
+"""
+Increase length of user identifier columns in ``ab_user`` and ``ab_register_user`` tables.
 
 Revision ID: 98ae134e6fff
 Revises: 6abdffdd4815

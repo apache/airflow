@@ -133,7 +133,8 @@ def kubernetes_task(
     multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Kubernetes operator decorator.
+    """
+    Kubernetes operator decorator.
 
     This wraps a function to be executed in K8s using KubernetesPodOperator.
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be

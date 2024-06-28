@@ -161,7 +161,8 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
-        """Delete all triggers that have no tasks dependent on them.
+        """
+        Delete all triggers that have no tasks dependent on them.
 
         Triggers have a one-to-many relationship to task instances, so we need
         to clean those up first. Afterwards we can drop the triggers not
@@ -295,7 +296,8 @@ class Trigger(Base):
 
     @classmethod
     def get_sorted_triggers(cls, capacity: int, alive_triggerer_ids: list[int] | Select, session: Session):
-        """Get sorted triggers based on capacity and alive triggerer ids.
+        """
+        Get sorted triggers based on capacity and alive triggerer ids.
 
         :param capacity: The capacity of the triggerer.
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.

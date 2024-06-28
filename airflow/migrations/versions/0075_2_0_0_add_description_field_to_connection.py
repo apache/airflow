@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add description field to ``connection`` table.
+"""
+Add description field to ``connection`` table.
 
 Revision ID: 61ec73d9401f
 Revises: 2c6edca13270
