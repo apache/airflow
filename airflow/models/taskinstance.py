@@ -1747,7 +1747,7 @@ class TaskInstance(Base, LoggingMixin):
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
-    task_owner = Column(String(256))
+    task_owner = Column(String(50))
     duration = Column(Float)
     state = Column(String(20))
     try_number = Column(Integer, default=0)
