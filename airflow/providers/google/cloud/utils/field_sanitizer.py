@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sanitizer for body fields sent via Google Cloud API.
+"""
+Sanitizer for body fields sent via Google Cloud API.
 
 The sanitizer removes fields specified from the body.
 
@@ -108,7 +109,8 @@ class GcpFieldSanitizerException(AirflowException):
 
 
 class GcpBodyFieldSanitizer(LoggingMixin):
-    """Sanitizes the body according to specification.
+    """
+    Sanitizes the body according to specification.
 
     :param sanitize_specs: array of strings that specifies which fields to remove
 

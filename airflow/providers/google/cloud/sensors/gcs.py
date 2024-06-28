@@ -575,7 +575,8 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
-        """Rely on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        Rely on trigger to throw an exception, otherwise it assumes execution was successful.
 
         Callback for when the trigger fires - returns immediately.
 

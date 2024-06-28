@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Change value column type to longblob in xcom table for mysql.
+"""
+Change value column type to longblob in xcom table for mysql.
 
 Revision ID: b4078ac230a1
 Revises: 8e1c784a4fc7

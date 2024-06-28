@@ -43,7 +43,8 @@ class FlushAction(Enum):
 
 
 class FacebookAdsReportToGcsOperator(BaseOperator):
-    """Fetch from Facebook Ads API.
+    """
+    Fetch from Facebook Ads API.
 
     This converts and saves the data as a temporary JSON file, and uploads the
     JSON to Google Cloud Storage.

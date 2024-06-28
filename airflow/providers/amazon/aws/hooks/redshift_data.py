@@ -231,7 +231,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         return pk_columns or None
 
     async def is_still_running(self, statement_id: str) -> bool:
-        """Async function to check whether the query is still running.
+        """
+        Async function to check whether the query is still running.
 
         :param statement_id: the UUID of the statement
         """
@@ -240,7 +241,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             return desc["Status"] in RUNNING_STATES
 
     async def check_query_is_finished_async(self, statement_id: str) -> bool:
-        """Async function to check statement is finished.
+        """
+        Async function to check statement is finished.
 
         It takes statement_id, makes async connection to redshift data to get the query status
         by statement_id and returns the query status.

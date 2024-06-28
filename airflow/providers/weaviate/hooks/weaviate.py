@@ -181,7 +181,8 @@ class WeaviateHook(BaseHook):
         return client.collections.create(name=name, **kwargs)
 
     def get_collection(self, name: str) -> Collection:
-        """Get a collection by name.
+        """
+        Get a collection by name.
 
         :param name: The name of the collection to get.
         """
@@ -191,7 +192,8 @@ class WeaviateHook(BaseHook):
     def delete_collections(
         self, collection_names: list[str] | str, if_error: str = "stop"
     ) -> list[str] | None:
-        """Delete all or specific collections if collection_names are provided.
+        """
+        Delete all or specific collections if collection_names are provided.
 
         :param collection_names: list of collection names to be deleted.
         :param if_error: define the actions to be taken if there is an error while deleting a collection, possible
@@ -237,7 +239,8 @@ class WeaviateHook(BaseHook):
         ),
     )
     def get_collection_configuraiton(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
-        """Get the collection configuration from Weaviate.
+        """
+        Get the collection configuration from Weaviate.
 
         :param collection_name: The collection for which to return the collection configuration.
         """
@@ -251,7 +254,8 @@ class WeaviateHook(BaseHook):
 
     @staticmethod
     def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
-        """Convert dataframe to list of dicts.
+        """
+        Convert dataframe to list of dicts.
 
         In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
         Pandas will fail, which is invalid. This function handles this scenario.
@@ -353,7 +357,8 @@ class WeaviateHook(BaseHook):
         return response
 
     def create_object(self, data_object: dict, collection_name: str, **kwargs) -> UUID | None:
-        """Create a new object.
+        """
+        Create a new object.
 
         :param data_object: Object to be added. If type is str it should be either a URL or a file.
         :param collection_name: Collection name associated with the object given.
@@ -375,7 +380,8 @@ class WeaviateHook(BaseHook):
         vector: Sequence | None = None,
         **kwargs,
     ) -> QueryReturnType | UUID | None:
-        """Get or Create a new object.
+        """
+        Get or Create a new object.
 
         Returns the object if already exists, return UUID if not
 
@@ -396,7 +402,8 @@ class WeaviateHook(BaseHook):
         return obj
 
     def get_object(self, collection_name: str, **kwargs) -> QueryReturnType:
-        """Get objects or an object from weaviate.
+        """
+        Get objects or an object from weaviate.
 
         :param kwargs: parameters to be passed to collection.query.fetch_objects()
         """
@@ -406,7 +413,8 @@ class WeaviateHook(BaseHook):
     def get_all_objects(
         self, collection_name: str, after: str | UUID | None = None, as_dataframe: bool = False, **kwargs
     ) -> list[Object] | pd.DataFrame:
-        """Get all objects from weaviate.
+        """
+        Get all objects from weaviate.
 
         if after is provided, it will be used as the starting point for the listing.
 
@@ -442,7 +450,8 @@ class WeaviateHook(BaseHook):
         return all_objects
 
     def delete_object(self, collection_name: str, uuid: UUID | str) -> bool:
-        """Delete an object from weaviate.
+        """
+        Delete an object from weaviate.
 
         :param collection_name: Collection name associated with the object given.
         :param uuid: uuid of the object to be deleted
@@ -453,7 +462,8 @@ class WeaviateHook(BaseHook):
     def update_object(
         self, collection_name: str, uuid: UUID | str, properties: Properties | None = None, **kwargs
     ) -> None:
-        """Update an object in weaviate.
+        """
+        Update an object in weaviate.
 
         :param collection_name: Collection name associated with the object given.
         :param uuid: uuid of the object to be updated
@@ -471,7 +481,8 @@ class WeaviateHook(BaseHook):
         references: ReferenceInputs | None = None,
         **kwargs,
     ) -> None:
-        """Replace an object in weaviate.
+        """
+        Replace an object in weaviate.
 
         :param collection_name: Collection name associated with the object given.
         :param uuid: uuid of the object to be updated
@@ -483,7 +494,8 @@ class WeaviateHook(BaseHook):
         collection.data.replace(uuid=uuid, properties=properties, references=references, **kwargs)
 
     def object_exists(self, collection_name: str, uuid: str | UUID) -> bool:
-        """Check if an object exists in weaviate.
+        """
+        Check if an object exists in weaviate.
 
         :param collection_name: Collection name associated with the object given.
         :param uuid: The UUID of the object that may or may not exist within Weaviate.
@@ -494,7 +506,8 @@ class WeaviateHook(BaseHook):
     def _delete_objects(
         self, uuids: list[UUID], collection_name: str, retry_attempts_per_object: int = 5
     ) -> None:
-        """Delete multiple objects.
+        """
+        Delete multiple objects.
 
         Helper function for `create_or_replace_objects()` to delete multiple objects.
 
@@ -583,7 +596,8 @@ class WeaviateHook(BaseHook):
         offset: int = 0,
         limit: int = 2000,
     ) -> dict[str, set]:
-        """Get the document to uuid map of existing objects in db.
+        """
+        Get the document to uuid map of existing objects in db.
 
         :param data: A single pandas DataFrame.
         :param document_column: The name of the property to query.
@@ -688,7 +702,8 @@ class WeaviateHook(BaseHook):
         batch_delete_error: Sequence | None = None,
         verbose: bool = False,
     ) -> Sequence[dict[str, UUID | str]]:
-        """Delete all object that belong to list of documents.
+        """
+        Delete all object that belong to list of documents.
 
         :param document_keys: list of unique documents identifiers.
         :param document_column: Column in DataFrame that identifying source document.

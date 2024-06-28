@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Increase queue name size limit.
+"""
+Increase queue name size limit.
 
 Revision ID: 004c1210f153
 Revises: 939bb1e647c8

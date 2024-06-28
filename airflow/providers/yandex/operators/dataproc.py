@@ -38,7 +38,8 @@ class InitializationAction:
 
 
 class DataprocCreateClusterOperator(BaseOperator):
-    """Creates Yandex.Cloud Data Proc cluster.
+    """
+    Creates Yandex.Cloud Data Proc cluster.
 
     :param folder_id: ID of the folder in which cluster should be created.
     :param cluster_name: Cluster name. Must be unique inside the folder.
@@ -243,7 +244,8 @@ class DataprocCreateClusterOperator(BaseOperator):
 
 
 class DataprocBaseOperator(BaseOperator):
-    """Base class for DataProc operators working with given cluster.
+    """
+    Base class for DataProc operators working with given cluster.
 
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :param cluster_id: ID of the cluster to remove. (templated)
@@ -276,7 +278,8 @@ class DataprocBaseOperator(BaseOperator):
 
 
 class DataprocDeleteClusterOperator(DataprocBaseOperator):
-    """Deletes Yandex.Cloud Data Proc cluster.
+    """
+    Deletes Yandex.Cloud Data Proc cluster.
 
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :param cluster_id: ID of the cluster to remove. (templated)
@@ -291,7 +294,8 @@ class DataprocDeleteClusterOperator(DataprocBaseOperator):
 
 
 class DataprocCreateHiveJobOperator(DataprocBaseOperator):
-    """Runs Hive job in Data Proc cluster.
+    """
+    Runs Hive job in Data Proc cluster.
 
     :param query: Hive query.
     :param query_file_uri: URI of the script that contains Hive queries. Can be placed in HDFS or S3.
@@ -339,7 +343,8 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
 
 
 class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
-    """Runs Mapreduce job in Data Proc cluster.
+    """
+    Runs Mapreduce job in Data Proc cluster.
 
     :param main_jar_file_uri: URI of jar file with job.
                               Can be placed in HDFS or S3. Can be specified instead of main_class.
@@ -396,7 +401,8 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
 
 
 class DataprocCreateSparkJobOperator(DataprocBaseOperator):
-    """Runs Spark job in Data Proc cluster.
+    """
+    Runs Spark job in Data Proc cluster.
 
     :param main_jar_file_uri: URI of jar file with job. Can be placed in HDFS or S3.
     :param main_class: Name of the main class of the job.
@@ -466,7 +472,8 @@ class DataprocCreateSparkJobOperator(DataprocBaseOperator):
 
 
 class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
-    """Runs Pyspark job in Data Proc cluster.
+    """
+    Runs Pyspark job in Data Proc cluster.
 
     :param main_python_file_uri: URI of python file with job. Can be placed in HDFS or S3.
     :param python_file_uris: URIs of python files used in the job. Can be placed in HDFS or S3.

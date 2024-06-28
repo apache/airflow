@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Drop unused TI index.
+"""
+Drop unused TI index.
 
 Revision ID: 88344c1d9134
 Revises: 10b52ebd31f7

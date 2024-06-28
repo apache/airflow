@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Validator for body fields sent via Google Cloud API.
+"""
+Validator for body fields sent via Google Cloud API.
 
 The validator performs validation of the body (being dictionary of fields) that
 is sent in the API request to Google Cloud (via ``googleclient`` API usually).
@@ -146,7 +147,8 @@ class GcpFieldValidationException(AirflowException):
 
 
 class GcpValidationSpecificationException(AirflowException):
-    """Thrown when validation specification is wrong.
+    """
+    Thrown when validation specification is wrong.
 
     This should only happen during development as ideally
      specification itself should not be invalid ;) .
@@ -177,7 +179,8 @@ EXAMPLE_VALIDATION_SPECIFICATION = [
 
 
 class GcpBodyFieldValidator(LoggingMixin):
-    """Validates correctness of request body according to specification.
+    """
+    Validates correctness of request body according to specification.
 
     The specification can describe various type of
     fields including custom validation, and union of fields. This validator is
