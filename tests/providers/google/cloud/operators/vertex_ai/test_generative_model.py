@@ -23,13 +23,12 @@ import pytest
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 vertexai = pytest.importorskip("vertexai.generative_models")
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
-    GenerateTextEmbeddingsOperator,
-    PromptLanguageModelOperator,
-    PromptMultimodalModelOperator,
-    PromptMultimodalModelWithMediaOperator,
+    GenerativeModelGenerateContentOperator,
+    TextEmbeddingModelGetEmbeddingsOperator,
+    TextGenerationModelPredictOperator,
 )
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -41,7 +40,7 @@ GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestVertexAIPromptLanguageModelOperator:
+class TestVertexAITextGenerationModelPredictOperator:
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
         prompt = "In 10 words or less, what is Apache Airflow?"
@@ -51,7 +50,7 @@ class TestVertexAIPromptLanguageModelOperator:
         top_p = 0.8
         top_k = 40
 
-        op = PromptLanguageModelOperator(
+        op = TextGenerationModelPredictOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -69,7 +68,7 @@ class TestVertexAIPromptLanguageModelOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.prompt_language_model.assert_called_once_with(
+        mock_hook.return_value.text_generation_model_predict.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=prompt,
@@ -81,13 +80,13 @@ class TestVertexAIPromptLanguageModelOperator:
         )
 
 
-class TestVertexAIGenerateTextEmbeddingsOperator:
+class TestVertexAITextEmbeddingModelGetEmbeddingsOperator:
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
         prompt = "In 10 words or less, what is Apache Airflow?"
         pretrained_model = "textembedding-gecko"
 
-        op = GenerateTextEmbeddingsOperator(
+        op = TextEmbeddingModelGetEmbeddingsOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -101,7 +100,7 @@ class TestVertexAIGenerateTextEmbeddingsOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.generate_text_embeddings.assert_called_once_with(
+        mock_hook.return_value.text_embedding_model_get_embeddings.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             prompt=prompt,
@@ -109,10 +108,11 @@ class TestVertexAIGenerateTextEmbeddingsOperator:
         )
 
 
-class TestVertexAIPromptMultimodalModelOperator:
+class TestVertexAIGenerativeModelGenerateContentOperator:
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        prompt = "In 10 words or less, what is Apache Airflow?"
+        contents = ["In 10 words or less, what is Apache Airflow?"]
+        tools = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
         pretrained_model = "gemini-pro"
         safety_settings = {
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -122,11 +122,12 @@ class TestVertexAIPromptMultimodalModelOperator:
         }
         generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
 
-        op = PromptMultimodalModelOperator(
+        op = GenerativeModelGenerateContentOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            prompt=prompt,
+            contents=contents,
+            tools=tools,
             generation_config=generation_config,
             safety_settings=safety_settings,
             pretrained_model=pretrained_model,
@@ -138,56 +139,12 @@ class TestVertexAIPromptMultimodalModelOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        mock_hook.return_value.prompt_multimodal_model.assert_called_once_with(
+        mock_hook.return_value.generative_model_generate_content.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
-            prompt=prompt,
+            contents=contents,
+            tools=tools,
             generation_config=generation_config,
             safety_settings=safety_settings,
             pretrained_model=pretrained_model,
-        )
-
-
-class TestVertexAIPromptMultimodalModelWithMediaOperator:
-    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
-    def test_execute(self, mock_hook):
-        pretrained_model = "gemini-pro-vision"
-        vision_prompt = "In 10 words or less, describe this content."
-        media_gcs_path = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
-        mime_type = "image/jpeg"
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        }
-        generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
-
-        op = PromptMultimodalModelWithMediaOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=vision_prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings,
-            pretrained_model=pretrained_model,
-            media_gcs_path=media_gcs_path,
-            mime_type=mime_type,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        op.execute(context={"ti": mock.MagicMock()})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        mock_hook.return_value.prompt_multimodal_model_with_media.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=vision_prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings,
-            pretrained_model=pretrained_model,
-            media_gcs_path=media_gcs_path,
-            mime_type=mime_type,
         )

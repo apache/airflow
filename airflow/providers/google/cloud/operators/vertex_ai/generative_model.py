@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class PromptLanguageModelOperator(GoogleCloudBaseOperator):
+class TextGenerationModelPredictOperator(GoogleCloudBaseOperator):
     """
     Uses the Vertex AI PaLM API to generate natural language text.
 
@@ -96,7 +96,7 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Submitting prompt")
-        response = self.hook.prompt_language_model(
+        response = self.hook.text_generation_model_predict(
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
@@ -108,14 +108,14 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="prompt_response", value=response)
+        self.xcom_push(context, key="model_response", value=response)
 
         return response
 
 
-class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
+class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
     """
-    Uses the Vertex AI PaLM API to generate natural language text.
+    Uses the Vertex AI Embeddings API to generate embeddings based on prompt.
 
     :param project_id: Required. The ID of the Google Cloud project that the
         service belongs to (templated).
@@ -164,7 +164,7 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Generating text embeddings")
-        response = self.hook.generate_text_embeddings(
+        response = self.hook.text_embedding_model_get_embeddings(
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
@@ -172,21 +172,21 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="prompt_response", value=response)
+        self.xcom_push(context, key="model_response", value=response)
 
         return response
 
 
-class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
+class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
     """
-    Use the Vertex AI Gemini Pro foundation model to generate natural language text.
+    Use the Vertex AI Gemini Pro foundation model to generate content.
 
     :param project_id: Required. The ID of the Google Cloud project that the
         service belongs to (templated).
+    :param contents: Required. The multi-part content of a message that a user or a program
+        gives to the generative model, in order to elicit a specific response.
     :param location: Required. The ID of the Google Cloud location that the
         service belongs to (templated).
-    :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Multi-modal model, in order to elicit a specific response (templated).
     :param generation_config: Optional. Generation configuration settings.
     :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
@@ -204,14 +204,15 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
+    template_fields = ("location", "project_id", "impersonation_chain", "contents")
 
     def __init__(
         self,
         *,
         project_id: str,
+        contents: list,
         location: str,
-        prompt: str,
+        tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
         pretrained_model: str = "gemini-pro",
@@ -222,7 +223,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
-        self.prompt = prompt
+        self.contents = contents
+        self.tools = tools
         self.generation_config = generation_config
         self.safety_settings = safety_settings
         self.pretrained_model = pretrained_model
@@ -234,97 +236,17 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        response = self.hook.prompt_multimodal_model(
+        response = self.hook.generative_model_generate_content(
             project_id=self.project_id,
             location=self.location,
-            prompt=self.prompt,
+            contents=self.contents,
+            tools=self.tools,
             generation_config=self.generation_config,
             safety_settings=self.safety_settings,
             pretrained_model=self.pretrained_model,
         )
 
         self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="prompt_response", value=response)
-
-        return response
-
-
-class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
-    """
-    Use the Vertex AI Gemini Pro foundation model to generate natural language text.
-
-    :param project_id: Required. The ID of the Google Cloud project that the
-        service belongs to (templated).
-    :param location: Required. The ID of the Google Cloud location that the
-        service belongs to (templated).
-    :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Multi-modal model, in order to elicit a specific response (templated).
-    :param generation_config: Optional. Generation configuration settings.
-    :param safety_settings: Optional. Per request settings for blocking unsafe content.
-    :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
-        supporting prompts with text-only input, including natural language
-        tasks, multi-turn text and code chat, and code generation. It can
-        output text and code.
-    :param media_gcs_path: A GCS path to a media file such as an image or a video.
-        Can be passed to the multi-modal model as part of the prompt. Used with vision models.
-    :param mime_type: Validates the media type presented by the file in the media_gcs_path.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
-
-    def __init__(
-        self,
-        *,
-        project_id: str,
-        location: str,
-        prompt: str,
-        media_gcs_path: str,
-        mime_type: str,
-        generation_config: dict | None = None,
-        safety_settings: dict | None = None,
-        pretrained_model: str = "gemini-pro-vision",
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.project_id = project_id
-        self.location = location
-        self.prompt = prompt
-        self.generation_config = generation_config
-        self.safety_settings = safety_settings
-        self.pretrained_model = pretrained_model
-        self.media_gcs_path = media_gcs_path
-        self.mime_type = mime_type
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-
-    def execute(self, context: Context):
-        self.hook = GenerativeModelHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        response = self.hook.prompt_multimodal_model_with_media(
-            project_id=self.project_id,
-            location=self.location,
-            prompt=self.prompt,
-            generation_config=self.generation_config,
-            safety_settings=self.safety_settings,
-            pretrained_model=self.pretrained_model,
-            media_gcs_path=self.media_gcs_path,
-            mime_type=self.mime_type,
-        )
-
-        self.log.info("Model response: %s", response)
-        self.xcom_push(context, key="prompt_response", value=response)
+        self.xcom_push(context, key="model_response", value=response)
 
         return response
