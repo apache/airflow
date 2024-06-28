@@ -123,6 +123,7 @@ class BaseExecutor(LoggingMixin):
     job_id: None | int | str = None
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
+    task_context_logger: TaskContextLogger
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()

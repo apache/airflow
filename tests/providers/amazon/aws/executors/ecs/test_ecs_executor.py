@@ -25,7 +25,7 @@ import time
 from functools import partial
 from typing import Callable
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 import yaml
@@ -160,6 +160,7 @@ def mock_executor(set_env_vars) -> AwsEcsExecutor:
     run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
     ecs_mock.run_task.return_value = run_task_ret_val
     executor.ecs = ecs_mock
+    executor.task_context_logger = Mock()
 
     return executor
 
@@ -517,12 +518,17 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers.get_all_arns()) == 0
         assert len(mock_executor.pending_tasks) == 0
 
-        assert len(caplog.messages) == 3
+        calls = []
         for i in range(2):
-            assert (
-                f"ECS task {airflow_keys[i]} has failed a maximum of 3 times. Marking as failed"
-                == caplog.messages[i]
+            calls.append(
+                call(
+                    "ECS task %s has failed a maximum of %s times. Marking as failed",
+                    airflow_keys[i],
+                    3,
+                    ti=airflow_keys[i],
+                )
             )
+        mock_executor.task_context_logger.error.assert_has_calls(calls)
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor, caplog):
@@ -600,11 +606,12 @@ class TestAwsEcsExecutor:
         RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[0]
         assert mock_executor.ecs.run_task.call_args_list[0].kwargs == RUN_TASK_KWARGS
 
-        assert len(caplog.messages) == 2
-
-        assert (
-            f"ECS task {airflow_keys[0]} has failed a maximum of 3 times. Marking as failed"
-            == caplog.messages[0]
+        assert len(caplog.messages) == 1
+        mock_executor.task_context_logger.error.assert_called_once_with(
+            "ECS task %s has failed a maximum of %s times. Marking as failed",
+            airflow_keys[0],
+            3,
+            ti=airflow_keys[0],
         )
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
@@ -704,11 +711,17 @@ class TestAwsEcsExecutor:
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
 
         mock_executor.sync_running_tasks()
+        calls = []
         for i in range(2):
-            assert (
-                f"Airflow task {airflow_keys[i]} has failed a maximum of 2 times. Marking as failed"
-                in caplog.messages[i]
+            calls.append(
+                call(
+                    "Airflow task %s has failed a maximum of %s times. Marking as failed",
+                    airflow_keys[i],
+                    2,
+                    ti=airflow_keys[i],
+                )
             )
+        mock_executor.task_context_logger.error.assert_has_calls(calls)
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
