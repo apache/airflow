@@ -59,11 +59,6 @@ class GenerativeModelHook(GoogleBaseHook):
         model = GenerativeModel(pretrained_model)
         return model
 
-    # def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
-    #     """Return a Generative Model Part object."""
-    #     part = Part.from_uri(content_gcs_path, mime_type=content_mime_type)
-    #     return part
-
     @GoogleBaseHook.fallback_to_default_project_id
     def text_generation_model_predict(
         self,
