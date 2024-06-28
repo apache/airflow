@@ -21,7 +21,7 @@ from traceback import format_exception
 from typing import TYPE_CHECKING, Any, Iterable
 
 from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
-from sqlalchemy.orm import joinedload, relationship
+from sqlalchemy.orm import joinedload, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -75,7 +75,7 @@ class Trigger(Base):
         uselist=False,
     )
 
-    task_instance = relationship("TaskInstance", back_populates="trigger", lazy="joined", uselist=False)
+    task_instance = relationship("TaskInstance", back_populates="trigger", lazy="selectin", uselist=False)
 
     def __init__(
         self,
@@ -152,7 +152,7 @@ class Trigger(Base):
             select(cls)
             .where(cls.id.in_(ids))
             .options(
-                joinedload(cls.task_instance)
+                selectinload(cls.task_instance)
                 .joinedload(TaskInstance.trigger)
                 .joinedload(Trigger.triggerer_job)
             )
