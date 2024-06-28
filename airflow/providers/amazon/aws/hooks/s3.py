@@ -526,7 +526,7 @@ class S3Hook(AwsBaseHook):
                 if re.match(pattern=key, string=k["Key"]):
                     return True
             return False
-        if await self.get_head_object_async(client, key, bucket_name):
+        return bool(await self.get_head_object_async(client, key, bucket_name))
             return True
         else:
             return False
