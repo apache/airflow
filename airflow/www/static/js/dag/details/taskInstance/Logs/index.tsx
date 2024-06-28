@@ -269,21 +269,22 @@ const Logs = ({
       ) : (
         !! parsedLogs && (
           <>
+          <Box flex="1" overflow="auto" maxHeight="60vh">
             <LogBlock
               parsedLogs={parsedLogs}
               wrap={wrap}
               tryNumber={selectedTryNumber}
               unfoldedGroups={unfoldedLogGroups}
               setUnfoldedLogGroup={setUnfoldedLogGroup}
-          />
-            <Box>
+            />
+            <Box my={3}>
+              {/*Temporary fix adding overflow (for long logs). Compoentizing Loggin will fix it. Will do later*/}
               <Text as="span">Log Page Number</Text>
-              <Flex flexWrap="wrap">
-                {/* TODO: Replace [0,1] with API call to get the log size -> # required pages */}
-                {[0, 1].map((index) => (
+              <Flex flexWrap="wrap" my={2}>
+                {/* TODO: Replace [1,2] with API call to get the log size -> # required pages */}
+                {[1, 2].map((index) => (
                   <ButtonGroup size="sm">
                     <Button
-                      key={index}
                       variant={selectedTryNumber === index ? "solid" : "ghost"}
                       colorScheme="blue"
                       onClick={() => setSelectedTryNumber(index)}
@@ -295,7 +296,8 @@ const Logs = ({
                 ))}
               </Flex>
             </Box>
-          </>
+          </Box>
+        </>
         )
       )}
     </>
