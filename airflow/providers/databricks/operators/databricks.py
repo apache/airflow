@@ -36,7 +36,7 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     WorkflowRunMetadata,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import _normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -182,6 +182,17 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     raise AirflowException(error_message)
 
 
+def _handle_overridden_json_params(operator):
+    for key, value in operator.overridden_json_params.items():
+        if value is not None:
+            operator.json[key] = value
+
+
+def normalise_json_content(operator):
+    if operator.json:
+        operator.json = _normalise_json_content(operator.json)
+
+
 class DatabricksJobRunLink(BaseOperatorLink):
     """Constructs a link to monitor a Databricks Job Run."""
 
@@ -284,7 +295,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
-        self._overridden_json_params = {
+        self.overridden_json_params = {
             "name": name,
             "description": description,
             "tags": tags,
@@ -311,15 +322,12 @@ class DatabricksCreateJobsOperator(BaseOperator):
         )
 
     def _setup_and_validate_json(self):
-        for key, value in self._overridden_json_params.items():
-            if value is not None:
-                self.json[key] = value
+        _handle_overridden_json_params(self)
 
         if "name" not in self.json:
             raise AirflowException("Missing required parameter: name")
 
-        if self.json:
-            self.json = normalise_json_content(self.json)
+        normalise_json_content(self)
 
     def execute(self, context: Context) -> int:
         self._setup_and_validate_json()
@@ -330,7 +338,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self._hook.reset_job(str(job_id), self.json)
         if (access_control_list := self.json.get("access_control_list")) is not None:
             acl_json = {"access_control_list": access_control_list}
-            self._hook.update_job_permission(job_id, normalise_json_content(acl_json))
+            self._hook.update_job_permission(job_id, _normalise_json_content(acl_json))
 
         return job_id
 
@@ -503,7 +511,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
-        self._overridden_json_params = {
+        self.overridden_json_params = {
             "tasks": tasks,
             "spark_jar_task": spark_jar_task,
             "notebook_task": notebook_task,
@@ -539,9 +547,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def _setup_and_validate_json(self):
-        for key, value in self._overridden_json_params.items():
-            if value is not None:
-                self.json[key] = value
+        _handle_overridden_json_params(self)
 
         if "run_name" not in self.json or self.json["run_name"] is None:
             self.json["run_name"] = self.task_id
@@ -555,8 +561,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         ):
             raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
 
-        if self.json:
-            self.json = normalise_json_content(self.json)
+        normalise_json_content(self)
 
     def execute(self, context: Context):
         self._setup_and_validate_json()
@@ -569,7 +574,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
             self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del self.json["pipeline_task"]["pipeline_name"]
-        json_normalised = normalise_json_content(self.json)
+        json_normalised = _normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
@@ -605,7 +610,7 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
     def execute(self, context):
         hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
-        json_normalised = normalise_json_content(self.json)
+        json_normalised = _normalise_json_content(self.json)
         self.run_id = hook.submit_run(json_normalised)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
@@ -805,7 +810,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.deferrable = deferrable
         self.repair_run = repair_run
         self.cancel_previous_runs = cancel_previous_runs
-        self._overridden_json_params = {
+        self.overridden_json_params = {
             "job_id": job_id,
             "job_name": job_name,
             "notebook_params": notebook_params,
@@ -833,15 +838,12 @@ class DatabricksRunNowOperator(BaseOperator):
         )
 
     def _setup_and_validate_json(self):
-        for key, value in self._overridden_json_params.items():
-            if value is not None:
-                self.json[key] = value
+        _handle_overridden_json_params(self)
 
         if "job_id" in self.json and "job_name" in self.json:
             raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
 
-        if self.json:
-            self.json = normalise_json_content(self.json)
+        normalise_json_content(self)
 
     def execute(self, context: Context):
         self._setup_and_validate_json()
