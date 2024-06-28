@@ -19,9 +19,11 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
+from shutil import rmtree
 from typing import NamedTuple
 
 from in_container_utils import click, console, run_command
@@ -540,6 +542,15 @@ def install_airflow_and_providers(
             shell=True,
             check=False,
         )
+        import importlib.util
+
+        spec = importlib.util.find_spec("airflow")
+        if spec is None or spec.origin is None:
+            console.print("[red]Airflow not found - cannot mount sources")
+            sys.exit(1)
+        airflow_path = Path(spec.origin).parent
+        rmtree(airflow_path / "providers", ignore_errors=True)
+        os.symlink("/opt/airflow/airflow/providers", (airflow_path / "providers").as_posix())
     console.print("\n[green]Done!")
 
 
