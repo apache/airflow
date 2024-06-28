@@ -37,13 +37,14 @@ def get_ga_output(name: str, value: Any) -> str:
     return f"{output_name}={printed_value}"
 
 
-def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
+def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 60) -> bool:
     """
     Downloads a file from GitHub repository of Apache Airflow
 
     :param tag: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
+    :param timeout: timeout in seconds for the download request, default is 60 seconds
     :return: whether the file was successfully downloaded (False if the file is missing or error occurred)
     """
     import requests
@@ -51,16 +52,20 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
     url = f"https://raw.githubusercontent.com/apache/airflow/{tag}/{path}"
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
-        response = requests.get(url)
-        if response.status_code == 404:
-            get_console().print(f"[warning]The {url} has not been found. Skipping")
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 404:
+                get_console().print(f"[warning]The {url} has not been found. Skipping")
+                return False
+            if response.status_code != 200:
+                get_console().print(
+                    f"[error]{url} could not be downloaded. Status code {response.status_code}"
+                )
+                return False
+            output_file.write_bytes(response.content)
+        except requests.Timeout:
+            get_console().print(f"[error]The request to {url} timed out after {timeout} seconds.")
             return False
-        if response.status_code != 200:
-            get_console().print(
-                f"[error]The {url} could not be downloaded. Status code {response.status_code}"
-            )
-            return False
-        output_file.write_bytes(response.content)
     get_console().print(f"[success]Downloaded {url} to {output_file}")
     return True
 
