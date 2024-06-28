@@ -92,3 +92,4 @@ class TestTaskDoneTrigger:
 
         assert response.payload["status"] == "success"
         assert response.payload["task_arn"] == "my_task_arn"
+        assert response.payload["cluster"] == "cluster"
