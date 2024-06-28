@@ -82,7 +82,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDataset, Dataset, DatasetAll
+from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -103,7 +103,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -3299,6 +3299,8 @@ class DAG(LoggingMixin):
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
 
+        outlet_dataset_aliases: list[DatasetAliasModel] = []
+
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
         # if there are now *any*, we add them to the above data structures, and
@@ -3314,7 +3316,14 @@ class DAG(LoggingMixin):
                     input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
-                dataset_outlets = [x for x in task.outlets or [] if isinstance(x, Dataset)]
+                dataset_outlets: list[Dataset] = []
+                dataset_alias_outlets: list[DatasetAlias] = []
+                for outlet in task.outlets:
+                    if isinstance(outlet, Dataset):
+                        dataset_outlets.append(outlet)
+                    elif isinstance(outlet, DatasetAlias):
+                        dataset_alias_outlets.append(outlet)
+
                 if not dataset_outlets:
                     if curr_outlet_references:
                         this_task_outlet_refs = [
@@ -3327,6 +3336,10 @@ class DAG(LoggingMixin):
                 for d in dataset_outlets:
                     outlet_references[(task.dag_id, task.task_id)].add(d.uri)
                     outlet_datasets[DatasetModel.from_public(d)] = None
+
+                for d_a in dataset_alias_outlets:
+                    outlet_dataset_aliases.append(DatasetAliasModel.from_public(d_a))
+
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 
@@ -3350,6 +3363,19 @@ class DAG(LoggingMixin):
 
         del new_datasets
         del all_datasets
+
+        # store dataset aliases
+        new_dataset_aliases: list[DatasetAliasModel] = []
+        for dataset_alias in outlet_dataset_aliases:
+            stored_dataset_alias = session.scalar(
+                select(DatasetAliasModel).where(DatasetAlias.name == dataset_alias.name).limit(1)
+            )
+            if not stored_dataset_alias:
+                new_dataset_aliases.append(dataset_alias)
+        dataset_manager.create_dataset_aliases(dataset_alias_models=new_dataset_aliases, session=session)
+
+        del new_dataset_aliases
+        del outlet_dataset_aliases
 
         # reconcile dag-schedule-on-dataset references
         for dag_id, uri_list in dag_references.items():
