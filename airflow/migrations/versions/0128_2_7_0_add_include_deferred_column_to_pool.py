@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add include_deferred column to pool.
+"""
+add include_deferred column to pool.
 
 Revision ID: 405de8318b3a
 Revises: 788397e78828

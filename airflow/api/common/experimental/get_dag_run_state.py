@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 @deprecated(reason="Use DagRun().get_state() instead", version="2.2.4", category=RemovedInAirflow3Warning)
 def get_dag_run_state(dag_id: str, execution_date: datetime) -> dict[str, str]:
-    """Return the Dag Run state identified by the given dag_id and execution_date.
+    """
+    Return the Dag Run state identified by the given dag_id and execution_date.
 
     :param dag_id: DAG id
     :param execution_date: execution date

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``max_active_runs`` column to ``dag_model`` table.
+"""
+Add ``max_active_runs`` column to ``dag_model`` table.
 
 Revision ID: 092435bf5d12
 Revises: 97cdd93827b8

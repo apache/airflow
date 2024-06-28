@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):
-    """Insert a new document into the specified Cosmos database and collection.
+    """
+    Insert a new document into the specified Cosmos database and collection.
 
     Both the database and collection will be created automatically if they do
     not already exist.

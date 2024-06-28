@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add cascade to dag_tag foreign key.
+"""
+Add cascade to dag_tag foreign key.
 
 Revision ID: 3c94c427fdf6
 Revises: 1de7bc13c950

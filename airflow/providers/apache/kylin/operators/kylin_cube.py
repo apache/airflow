@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 
 class KylinCubeOperator(BaseOperator):
-    """Submit request about Kylin build/refresh/merge and track job status.
+    """
+    Submit request about Kylin build/refresh/merge and track job status.
 
     For more detail information in
     `Apache Kylin <http://kylin.apache.org/>`_

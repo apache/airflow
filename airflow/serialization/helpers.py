@@ -26,7 +26,8 @@ from airflow.utils.log.secrets_masker import redact
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
-    """Return a serializable representation of the templated field.
+    """
+    Return a serializable representation of the templated field.
 
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.

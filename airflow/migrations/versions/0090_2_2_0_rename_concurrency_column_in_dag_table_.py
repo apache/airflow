@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``.
+"""
+Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``.
 
 Revision ID: 30867afad44a
 Revises: e9304a3141f0

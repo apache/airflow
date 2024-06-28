@@ -144,7 +144,8 @@ class _TrinoToGCSTrinoCursorAdapter:
 
 
 class TrinoToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from TrinoDB to Google Cloud Storage in JSON, CSV or Parquet format.
+    """
+    Copy data from TrinoDB to Google Cloud Storage in JSON, CSV or Parquet format.
 
     :param trino_conn_id: Reference to a specific Trino hook.
     """

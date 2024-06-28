@@ -33,7 +33,8 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 class CloudFunctionsHook(GoogleBaseHook):
-    """Google Cloud Functions APIs.
+    """
+    Google Cloud Functions APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -61,7 +62,8 @@ class CloudFunctionsHook(GoogleBaseHook):
 
     @staticmethod
     def _full_location(project_id: str, location: str) -> str:
-        """Retrieve full location of the function.
+        """
+        Retrieve full location of the function.
 
         :param project_id: Google Cloud Project ID where the function belongs.
         :param location: The location where the function is created.
@@ -71,7 +73,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         return f"projects/{project_id}/locations/{location}"
 
     def get_conn(self) -> build:
-        """Retrieve the connection to Cloud Functions.
+        """
+        Retrieve the connection to Cloud Functions.
 
         :return: Google Cloud Function services object.
         """
@@ -83,7 +86,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         return self._conn
 
     def get_function(self, name: str) -> dict:
-        """Get the Cloud Function with given name.
+        """
+        Get the Cloud Function with given name.
 
         :param name: Name of the function.
         :return: A Cloud Functions object representing the function.
@@ -93,7 +97,8 @@ class CloudFunctionsHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_new_function(self, location: str, body: dict, project_id: str) -> None:
-        """Create a new function at the location specified in the body.
+        """
+        Create a new function at the location specified in the body.
 
         :param location: The location of the function.
         :param body: The body required by the Cloud Functions insert API.
@@ -113,7 +118,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
     def update_function(self, name: str, body: dict, update_mask: list[str]) -> None:
-        """Update Cloud Functions according to the specified update mask.
+        """
+        Update Cloud Functions according to the specified update mask.
 
         :param name: The name of the function.
         :param body: The body required by the cloud function patch API.
@@ -132,7 +138,8 @@ class CloudFunctionsHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def upload_function_zip(self, location: str, zip_path: str, project_id: str) -> str:
-        """Upload ZIP file with sources.
+        """
+        Upload ZIP file with sources.
 
         :param location: The location where the function is created.
         :param zip_path: The path of the valid .zip file to upload.
@@ -165,7 +172,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         return upload_url
 
     def delete_function(self, name: str) -> None:
-        """Delete the specified Cloud Function.
+        """
+        Delete the specified Cloud Function.
 
         :param name: The name of the function.
         """
@@ -182,7 +190,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> dict:
-        """Invoke a deployed Cloud Function.
+        """
+        Invoke a deployed Cloud Function.
 
         This is done synchronously and should only be used for testing purposes,
         as very limited traffic is allowed.
@@ -202,7 +211,8 @@ class CloudFunctionsHook(GoogleBaseHook):
         return response
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> dict:
-        """Wait for the named operation to complete.
+        """
+        Wait for the named operation to complete.
 
         This is used to check the status of an asynchronous call.
 

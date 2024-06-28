@@ -200,7 +200,8 @@ def _find_path_from_directory(
     ignore_file_name: str,
     ignore_rule_type: type[_IgnoreRule],
 ) -> Generator[str, None, None]:
-    """Recursively search the base path and return the list of file paths that should not be ignored.
+    """
+    Recursively search the base path and return the list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name containing regular expressions for files that should be ignored.
@@ -256,7 +257,8 @@ def find_path_from_directory(
     ignore_file_name: str,
     ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="regexp"),
 ) -> Generator[str, None, None]:
-    """Recursively search the base path for a list of file paths that should not be ignored.
+    """
+    Recursively search the base path for a list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
@@ -277,7 +279,8 @@ def list_py_file_paths(
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
     include_examples: bool | None = None,
 ) -> list[str]:
-    """Traverse a directory and look for Python files.
+    """
+    Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
     :param safe_mode: whether to use a heuristic to determine whether a file

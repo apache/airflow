@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``sensor_instance`` table.
+"""
+Add ``sensor_instance`` table.
 
 Revision ID: e38be357a868
 Revises: 8d48763f6d53

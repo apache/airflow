@@ -226,7 +226,8 @@ class TaskGroup(DAGNode):
                 yield child
 
     def add(self, task: DAGNode) -> DAGNode:
-        """Add a task to this TaskGroup.
+        """
+        Add a task to this TaskGroup.
 
         :meta private:
         """
@@ -549,7 +550,8 @@ class TaskGroup(DAGNode):
         return graph_sorted
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
-        """Return mapped task groups in the hierarchy.
+        """
+        Return mapped task groups in the hierarchy.
 
         Groups are returned from the closest to the outmost. If *self* is a
         mapped task group, it is returned first.
@@ -583,7 +585,8 @@ class TaskGroup(DAGNode):
 
 
 class MappedTaskGroup(TaskGroup):
-    """A mapped task group.
+    """
+    A mapped task group.
 
     This doesn't really do anything special, just holds some additional metadata
     for expansion later.

@@ -68,6 +68,20 @@ def test_vm_metadata_creds(mock):
     mock.assert_called_once()
 
 
+@patch("ydb.iam.auth.BaseJWTCredentials.from_content")
+def test_service_account_json_creds(mock):
+    mock.return_value = MAGIC_CONST
+    c = Connection(conn_type="ydb", host="localhost")
+
+    credentials = get_credentials_from_connection(
+        TEST_ENDPOINT, TEST_DATABASE, c, {"service_account_json": "my_json"}
+    )
+    assert credentials == MAGIC_CONST
+    mock.assert_called_once()
+
+    assert mock.call_args.args == ("my_json",)
+
+
 @patch("ydb.iam.auth.BaseJWTCredentials.from_file")
 def test_service_account_json_path_creds(mock):
     mock.return_value = MAGIC_CONST
@@ -79,8 +93,7 @@ def test_service_account_json_path_creds(mock):
     assert credentials == MAGIC_CONST
     mock.assert_called_once()
 
-    assert len(mock.call_args.args) == 2
-    assert mock.call_args.args[1] == "my_path"
+    assert mock.call_args.args == ("my_path",)
 
 
 def test_creds_priority():
@@ -93,6 +106,7 @@ def test_creds_priority():
             TEST_DATABASE,
             c,
             {
+                "service_account_json": "my_json",
                 "service_account_json_path": "my_path",
                 "use_vm_metadata": True,
                 "token": "my_token",
@@ -110,6 +124,7 @@ def test_creds_priority():
             TEST_DATABASE,
             c,
             {
+                "service_account_json": "my_json",
                 "service_account_json_path": "my_path",
                 "use_vm_metadata": True,
                 "token": "my_token",
@@ -127,6 +142,7 @@ def test_creds_priority():
             TEST_DATABASE,
             c,
             {
+                "service_account_json": "my_json",
                 "service_account_json_path": "my_path",
                 "use_vm_metadata": True,
             },
@@ -134,7 +150,23 @@ def test_creds_priority():
         assert credentials == MAGIC_CONST
         mock.assert_called_once()
 
-    # 4. vm metadata
+    # 4. service account json
+    with patch("ydb.iam.auth.BaseJWTCredentials.from_content") as mock:
+        c = Connection(conn_type="ydb", host="localhost")
+        mock.return_value = MAGIC_CONST
+        credentials = get_credentials_from_connection(
+            TEST_ENDPOINT,
+            TEST_DATABASE,
+            c,
+            {
+                "service_account_json": "my_json",
+                "use_vm_metadata": True,
+            },
+        )
+        assert credentials == MAGIC_CONST
+        mock.assert_called_once()
+
+    # 5. vm metadata
     with patch("ydb.iam.auth.MetadataUrlCredentials") as mock:
         c = Connection(conn_type="ydb", host="localhost")
         mock.return_value = MAGIC_CONST
@@ -149,7 +181,7 @@ def test_creds_priority():
         assert credentials == MAGIC_CONST
         mock.assert_called_once()
 
-    # 5. anonymous
+    # 6. anonymous
     with patch("ydb.AnonymousCredentials") as mock:
         c = Connection(conn_type="ydb", host="localhost")
         mock.return_value = MAGIC_CONST

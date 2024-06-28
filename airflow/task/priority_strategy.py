@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 
 
 class PriorityWeightStrategy(ABC):
-    """Priority weight strategy interface.
+    """
+    Priority weight strategy interface.
 
     This feature is experimental and subject to change at any time.
 
@@ -46,7 +47,8 @@ class PriorityWeightStrategy(ABC):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PriorityWeightStrategy:
-        """Deserialize a priority weight strategy from data.
+        """
+        Deserialize a priority weight strategy from data.
 
         This is called when a serialized DAG is deserialized. ``data`` will be whatever
         was returned by ``serialize`` during DAG serialization. The default
@@ -55,7 +57,8 @@ class PriorityWeightStrategy(ABC):
         return cls(**data)  # type: ignore[call-arg]
 
     def serialize(self) -> dict[str, Any]:
-        """Serialize the priority weight strategy for JSON encoding.
+        """
+        Serialize the priority weight strategy for JSON encoding.
 
         This is called during DAG serialization to store priority weight strategy information
         in the database. This should return a JSON-serializable dict that will be fed into
@@ -124,7 +127,8 @@ airflow_priority_weight_strategies_classes = {
 def validate_and_load_priority_weight_strategy(
     priority_weight_strategy: str | PriorityWeightStrategy | None,
 ) -> PriorityWeightStrategy:
-    """Validate and load a priority weight strategy.
+    """
+    Validate and load a priority weight strategy.
 
     Returns the priority weight strategy if it is valid, otherwise raises an exception.
 

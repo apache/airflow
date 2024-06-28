@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Fix MySQL not null constraint.
+"""
+Fix MySQL not null constraint.
 
 Revision ID: f23433877c24
 Revises: 05f30312d566

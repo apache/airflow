@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add index for ``dag_id`` column in ``job`` table.
+"""
+Add index for ``dag_id`` column in ``job`` table.
 
 Revision ID: 587bdf053233
 Revises: c381b21cb7e4

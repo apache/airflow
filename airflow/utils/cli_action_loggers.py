@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
 
 
 def register_pre_exec_callback(action_logger):
-    """Register more action_logger function callback for pre-execution.
+    """
+    Register more action_logger function callback for pre-execution.
 
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
@@ -52,7 +53,8 @@ def register_pre_exec_callback(action_logger):
 
 
 def register_post_exec_callback(action_logger):
-    """Register more action_logger function callback for post-execution.
+    """
+    Register more action_logger function callback for post-execution.
 
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
@@ -66,7 +68,8 @@ def register_post_exec_callback(action_logger):
 
 
 def on_pre_execution(**kwargs):
-    """Call callbacks before execution.
+    """
+    Call callbacks before execution.
 
     Note that any exception from callback will be logged but won't be propagated.
 
@@ -82,7 +85,8 @@ def on_pre_execution(**kwargs):
 
 
 def on_post_execution(**kwargs):
-    """Call callbacks after execution.
+    """
+    Call callbacks after execution.
 
     As it's being called after execution, it can capture status of execution,
     duration, etc. Note that any exception from callback will be logged but

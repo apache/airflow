@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``dag_run`` table.
+"""
+Add ``dag_run`` table.
 
 Revision ID: 1b38cef5b76e
 Revises: 502898887f84
