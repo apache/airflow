@@ -1361,14 +1361,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _update_state(dag: DAG, dag_run: DagRun):
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
-            if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number < 1:
+            if (
+                dag.timetable.periodic
+                and not dag_run.external_trigger
+                and dag_run.run_type != DagRunType.BACKFILL_JOB
+                and dag_run.clear_number < 1
+            ):
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
                 # execution on DagModel.next_dagrun_create_after. We should add
                 # a field on DagRun for this instead of relying on the run
                 # always happening immediately after the data interval.
                 # We only publish these metrics for scheduled dag runs and only
-                # when ``external_trigger`` is *False* and ``clear_number`` is 0.
+                # when ``external_trigger`` is *False*, `run_type` is not backfill
+                # and ``clear_number`` is 0.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
