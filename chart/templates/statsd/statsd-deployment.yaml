@@ -104,8 +104,17 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
-          {{- with .Values.statsd.env }}
-          env: {{- toYaml . | nindent 12 }}
+          env:
+          {{- if .Values.statsd.env }}
+          {{- toYaml .Values.statsd.env | nindent 12 }}
+          {{- end }}
+          {{- if .Values.config.metrics.metrics_allow_list }}
+            - name: AIRFLOW__METRICS__METRICS_ALLOW_LIST
+              value: "{{ .Values.config.metrics.metrics_allow_list }}"
+          {{- end }}
+          {{- if .Values.config.metrics.metrics_block_list }}
+            - name: AIRFLOW__METRICS__METRICS_BLOCK_LIST
+              value: "{{ .Values.config.metrics.metrics_block_list }}"
           {{- end }}
           ports:
             - name: statsd-ingest
