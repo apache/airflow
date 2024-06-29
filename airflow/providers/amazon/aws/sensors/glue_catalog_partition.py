@@ -76,12 +76,16 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         database_name: str = "default",
         poke_interval: int = 60 * 3,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name

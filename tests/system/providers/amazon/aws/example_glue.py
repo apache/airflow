@@ -152,7 +152,7 @@ with DAG(
         task_id="wait_for_catalog_partition",
         table_name="input",
         database_name=glue_db_name,
-        expression="category='mixed'"
+        expression="category='mixed'",
     )
     # [END howto_sensor_glue_catalog_partition]
 
