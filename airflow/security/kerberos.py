@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Any
 
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
@@ -65,13 +66,13 @@ def get_kerberos_principle(principal: str | None) -> str:
     return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
 
 
-def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True) -> int | None:
+def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True) -> int | Any:
     """
     Renew kerberos token from keytab.
 
     :param principal: principal
     :param keytab: keytab file
-    :return: int | None
+    :return: int | Any
     """
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
