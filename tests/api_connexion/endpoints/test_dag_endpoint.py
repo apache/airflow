@@ -46,6 +46,7 @@ def current_file_token(url_safe_serializer) -> str:
 
 DAG_ID = "test_dag"
 TASK_ID = "op1"
+TASK_ID2 = "op2"
 DAG2_ID = "test_dag2"
 DAG3_ID = "test_dag3"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
@@ -83,7 +84,8 @@ def configured_app(minimal_app_for_api):
         params={"foo": 1},
         tags=["example"],
     ) as dag:
-        EmptyOperator(task_id=TASK_ID)
+        EmptyOperator(task_id=TASK_ID, params={"foo": "bar"})
+        EmptyOperator(task_id=TASK_ID2)
 
     with DAG(DAG2_ID, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
         EmptyOperator(task_id=TASK_ID)
@@ -699,6 +701,200 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         expected.update({"last_parsed": response.json["last_parsed"]})
         assert response.json == expected
+
+    def test_should_response_200_with_include_tasks_false(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint(self.dag_id)
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/details?include_tasks=false", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+        last_parsed = response.json["last_parsed"]
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
+            "dag_run_timeout": None,
+            "dataset_expression": None,
+            "default_view": None,
+            "description": None,
+            "doc_md": "details",
+            "end_date": None,
+            "fileloc": "/tmp/dag.py",
+            "file_token": current_file_token,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
+            "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
+            "orientation": "LR",
+            "owners": [],
+            "params": {
+                "foo": {
+                    "__class": "airflow.models.param.Param",
+                    "description": None,
+                    "schema": {},
+                    "value": 1,
+                }
+            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
+        }
+        assert response.json == expected
+
+    def test_should_response_200_with_include_tasks_true(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint(self.dag_id)
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/details?include_tasks=true", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+        last_parsed = response.json["last_parsed"]
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag",
+            "dag_display_name": "test_dag",
+            "dag_run_timeout": None,
+            "dataset_expression": None,
+            "default_view": None,
+            "description": None,
+            "doc_md": "details",
+            "end_date": None,
+            "fileloc": "/tmp/dag.py",
+            "file_token": current_file_token,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
+            "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
+            "orientation": "LR",
+            "owners": [],
+            "params": {
+                "foo": {
+                    "__class": "airflow.models.param.Param",
+                    "description": None,
+                    "schema": {},
+                    "value": 1,
+                }
+            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "tasks": [
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {
+                        "foo": {
+                            "__class": "airflow.models.param.Param",
+                            "value": "bar",
+                            "description": None,
+                            "schema": {},
+                        }
+                    },
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00+00:00",
+                    "task_id": TASK_ID,
+                    "task_display_name": TASK_ID,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                },
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-16T00:00:00+00:00",
+                    "task_id": TASK_ID2,
+                    "task_display_name": TASK_ID2,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                },
+            ],
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
+        }
+        assert response.json == expected
+
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")

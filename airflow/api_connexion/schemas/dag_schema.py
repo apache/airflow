@@ -151,6 +151,21 @@ class DAGDetailSchema(DAGSchema):
         params = obj.params
         return {k: v.dump() for k, v in params.items()}
 
+class DAGDetailSchemaWithTasksInfo(DAGDetailSchema):
+    """DAG details with task information."""
+
+    tasks = fields.Method("get_tasks_info", dump_only=True)
+    @staticmethod
+    def get_tasks_info(obj: DAG):
+        from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema_without_subdag
+        from operator import attrgetter
+        tasks = obj.task_dict.values()
+        try:
+            tasks = sorted(tasks, key=attrgetter("task_id".lstrip("-")), reverse=("task_id"[0:1] == "-"))
+        except AttributeError as err:
+            raise BadRequest(detail=str(err))
+        task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))
+        return task_collection_schema_without_subdag.dump(task_collection)['tasks']
 
 class DAGCollection(NamedTuple):
     """List of DAGs with metadata."""
