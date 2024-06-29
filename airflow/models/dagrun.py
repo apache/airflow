@@ -44,7 +44,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import declared_attr, joinedload, lazyload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 
 from airflow import settings
@@ -533,12 +533,18 @@ class DagRun(Base, LoggingMixin):
         run_id: str | None = None,
         task_ids: list[str] | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
+        dag_run_option: Literal["lazy", "joined"] = "joined",
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Return the task instances for this dag run."""
+        """
+        Return the task instances for this dag run.
+
+        :meta private:
+        """
+        option_callable = joinedload if dag_run_option == "joined" else lazyload
         tis = (
             select(TI)
-            .options(joinedload(TI.dag_run))
+            .options(option_callable(TI.dag_run))
             .where(
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
@@ -615,6 +621,7 @@ class DagRun(Base, LoggingMixin):
     def get_task_instances(
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
+        dag_run_option: Literal["lazy", "joined"] = "joined",
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
@@ -625,7 +632,12 @@ class DagRun(Base, LoggingMixin):
         """
         task_ids = self.dag.task_ids if self.dag and self.dag.partial else None
         return DagRun.fetch_task_instances(
-            dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_ids=task_ids,
+            state=state,
+            dag_run_option=dag_run_option,
+            session=session,
         )
 
     @provide_session
@@ -1295,7 +1307,8 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
+    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]:
+        ...
 
     @overload
     def _get_task_creator(
@@ -1303,7 +1316,8 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
+    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]:
+        ...
 
     def _get_task_creator(
         self,
