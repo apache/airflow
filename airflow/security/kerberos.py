@@ -139,12 +139,12 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
     return 0
 
 
-def perform_krb181_workaround(principal: str):
+def perform_krb181_workaround(principal: str) -> int:
     """
     Workaround for Kerberos 1.8.1.
 
     :param principal: principal name
-    :return: None
+    :return: int
     """
     cmdv: list[str] = [
         conf.get_mandatory_value("kerberos", "kinit_path"),
