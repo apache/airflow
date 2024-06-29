@@ -38,7 +38,8 @@ if TYPE_CHECKING:
 
 
 class RedshiftCreateClusterOperator(BaseOperator):
-    """Creates a new cluster with the specified parameters.
+    """
+    Creates a new cluster with the specified parameters.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

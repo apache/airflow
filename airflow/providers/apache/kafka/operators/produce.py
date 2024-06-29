@@ -41,7 +41,8 @@ def acked(err, msg):
 
 
 class ProduceToTopicOperator(BaseOperator):
-    """An operator that produces messages to a Kafka topic.
+    """
+    An operator that produces messages to a Kafka topic.
 
     Registers a producer to a kafka topic and publishes messages to the log.
 

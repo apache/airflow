@@ -77,7 +77,8 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """Auto generate run_id and logical_date if they are not provided.
+        """
+        Auto generate run_id and logical_date if they are not provided.
 
         For compatibility, if `execution_date` is submitted, it is converted
         to `logical_date`.

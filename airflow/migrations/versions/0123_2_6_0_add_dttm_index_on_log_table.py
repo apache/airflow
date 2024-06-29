@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add dttm index on log table.
+"""
+add dttm index on log table.
 
 Revision ID: 6abdffdd4815
 Revises: 290244fb8b83

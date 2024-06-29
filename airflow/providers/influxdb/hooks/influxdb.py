@@ -41,7 +41,8 @@ if TYPE_CHECKING:
 
 
 class InfluxDBHook(BaseHook):
-    """Interact with InfluxDB.
+    """
+    Interact with InfluxDB.
 
     Performs a connection to InfluxDB and retrieves client.
 
@@ -67,17 +68,13 @@ class InfluxDBHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
-        from wtforms.validators import InputRequired
 
         return {
-            "token": StringField(
-                lazy_gettext("Token"), widget=BS3TextFieldWidget(), default="", validators=[InputRequired()]
-            ),
+            "token": StringField(lazy_gettext("Token"), widget=BS3TextFieldWidget(), default=""),
             "org": StringField(
                 lazy_gettext("Organization Name"),
                 widget=BS3TextFieldWidget(),
                 default="",
-                validators=[InputRequired()],
             ),
         }
 
@@ -106,7 +103,8 @@ class InfluxDBHook(BaseHook):
         return self.client
 
     def query(self, query) -> list[FluxTable]:
-        """Run the query.
+        """
+        Run the query.
 
         Note: The bucket name should be included in the query.
 
@@ -119,7 +117,8 @@ class InfluxDBHook(BaseHook):
         return query_api.query(query)
 
     def query_to_df(self, query) -> pd.DataFrame:
-        """Run the query and return a pandas dataframe.
+        """
+        Run the query and return a pandas dataframe.
 
         Note: The bucket name should be included in the query.
 
@@ -132,7 +131,8 @@ class InfluxDBHook(BaseHook):
         return query_api.query_data_frame(query)
 
     def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value, synchronous=False):
-        """Write a Point to the bucket specified.
+        """
+        Write a Point to the bucket specified.
 
         Example: ``Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)``
         """

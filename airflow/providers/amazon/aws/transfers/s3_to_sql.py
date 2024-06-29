@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 
 class S3ToSqlOperator(BaseOperator):
-    """Load Data from S3 into a SQL Database.
+    """
+    Load Data from S3 into a SQL Database.
 
     You need to provide a parser function that takes a filename as an input
     and returns an iterable of rows

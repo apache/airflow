@@ -136,7 +136,8 @@ class DataSyncHook(AwsBaseHook):
     def create_task(
         self, source_location_arn: str, destination_location_arn: str, **create_task_kwargs
     ) -> str:
-        """Create a Task between the specified source and destination LocationArns.
+        """
+        Create a Task between the specified source and destination LocationArns.
 
         .. seealso::
             - :external+boto3:py:meth:`DataSync.Client.create_task`
@@ -155,7 +156,8 @@ class DataSyncHook(AwsBaseHook):
         return task["TaskArn"]
 
     def update_task(self, task_arn: str, **update_task_kwargs) -> None:
-        """Update a Task.
+        """
+        Update a Task.
 
         .. seealso::
             - :external+boto3:py:meth:`DataSync.Client.update_task`
@@ -166,7 +168,8 @@ class DataSyncHook(AwsBaseHook):
         self.get_conn().update_task(TaskArn=task_arn, **update_task_kwargs)
 
     def delete_task(self, task_arn: str) -> None:
-        """Delete a Task.
+        """
+        Delete a Task.
 
         .. seealso::
             - :external+boto3:py:meth:`DataSync.Client.delete_task`

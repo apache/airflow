@@ -24,7 +24,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
 class SecretsManagerHook(AwsBaseHook):
-    """Interact with Amazon SecretsManager Service.
+    """
+    Interact with Amazon SecretsManager Service.
 
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("secretsmanager") <SecretsManager.Client>`.
@@ -40,7 +41,8 @@ class SecretsManagerHook(AwsBaseHook):
         super().__init__(client_type="secretsmanager", *args, **kwargs)
 
     def get_secret(self, secret_name: str) -> str | bytes:
-        """Retrieve secret value from AWS Secrets Manager as a str or bytes.
+        """
+        Retrieve secret value from AWS Secrets Manager as a str or bytes.
 
         The value reflects format it stored in the AWS Secrets Manager.
 
@@ -60,7 +62,8 @@ class SecretsManagerHook(AwsBaseHook):
         return secret
 
     def get_secret_as_dict(self, secret_name: str) -> dict:
-        """Retrieve secret value from AWS Secrets Manager as a dict.
+        """
+        Retrieve secret value from AWS Secrets Manager as a dict.
 
         :param secret_name: name of the secrets.
         :return: dict with the information about the secrets

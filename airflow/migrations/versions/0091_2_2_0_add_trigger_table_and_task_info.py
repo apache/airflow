@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Adds ``trigger`` table and deferrable operator columns to task instance.
+"""
+Adds ``trigger`` table and deferrable operator columns to task instance.
 
 Revision ID: 54bebd308c5f
 Revises: 30867afad44a

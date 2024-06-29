@@ -301,7 +301,8 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
 
 
 class ListPipelineJobOperator(GoogleCloudBaseOperator):
-    """Lists PipelineJob in a Location.
+    """
+    Lists PipelineJob in a Location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

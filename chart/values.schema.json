@@ -3930,6 +3930,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     }
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into create user job pod (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into create user job",
                     "type": "array",
@@ -4271,6 +4279,14 @@
                             }
                         }
                     ]
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into migrate database job (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",

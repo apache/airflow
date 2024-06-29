@@ -94,7 +94,8 @@ class VerticaToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, vertica_type):
-        """Manually hack Vertica-Python type mapping.
+        """
+        Manually hack Vertica-Python type mapping.
 
         The stock datatype.py does not provide the full type mapping access.
 

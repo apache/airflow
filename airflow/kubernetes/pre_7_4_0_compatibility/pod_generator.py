@@ -66,7 +66,8 @@ alphanum_lower = string.ascii_lowercase + string.digits
 
 
 def rand_str(num):
-    """Generate random lowercase alphanumeric string of length num.
+    """
+    Generate random lowercase alphanumeric string of length num.
 
     :meta private:
     """
@@ -74,7 +75,8 @@ def rand_str(num):
 
 
 def add_pod_suffix(pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
-    """Add random string to pod name while staying under max length.
+    """
+    Add random string to pod name while staying under max length.
 
     :param pod_name: name of the pod
     :param rand_len: length of the random string to append

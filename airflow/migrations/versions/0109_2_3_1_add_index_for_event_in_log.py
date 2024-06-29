@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add index for ``event`` column in ``log`` table.
+"""
+Add index for ``event`` column in ``log`` table.
 
 Revision ID: 1de7bc13c950
 Revises: b1b348e02d07

@@ -33,7 +33,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def cache_token_decorator(get_subject_token_method):
-    """Cache calls to ``SubjectTokenSupplier`` instances' ``get_token_supplier`` methods.
+    """
+    Cache calls to ``SubjectTokenSupplier`` instances' ``get_token_supplier`` methods.
 
     Different instances of a same SubjectTokenSupplier class with the same attributes
     share the OIDC token cache.
@@ -48,7 +49,8 @@ def cache_token_decorator(get_subject_token_method):
 
     @wraps(get_subject_token_method)
     def wrapper(supplier_instance: CacheTokenSupplier, *args, **kwargs) -> str:
-        """Obeys the interface set by ``SubjectTokenSupplier`` for ``get_subject_token`` methods.
+        """
+        Obeys the interface set by ``SubjectTokenSupplier`` for ``get_subject_token`` methods.
 
         :param supplier_instance: the SubjectTokenSupplier instance whose get_subject_token method is being decorated
         :return: The token string

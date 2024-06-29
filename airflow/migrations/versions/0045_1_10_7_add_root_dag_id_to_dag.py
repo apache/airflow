@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``root_dag_id`` to ``DAG``.
+"""
+Add ``root_dag_id`` to ``DAG``.
 
 Revision ID: b3b105409875
 Revises: d38e04c12aa2

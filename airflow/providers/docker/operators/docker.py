@@ -63,7 +63,8 @@ def stringify(line: str | bytes):
 
 
 class DockerOperator(BaseOperator):
-    """Execute a command inside a docker container.
+    """
+    Execute a command inside a docker container.
 
     By default, a temporary directory is
     created on the host and mounted into a container to allow storing files
@@ -464,7 +465,8 @@ class DockerOperator(BaseOperator):
                 self.cli.remove_container(self.container["Id"], force=True)
 
     def _attempt_to_retrieve_result(self):
-        """Attempt to pull the result from the expected file.
+        """
+        Attempt to pull the result from the expected file.
 
         This uses Docker's ``get_archive`` function. If the file is not yet
         ready, *None* is returned.
@@ -510,7 +512,8 @@ class DockerOperator(BaseOperator):
 
     @staticmethod
     def format_command(command: list[str] | str | None) -> list[str] | str | None:
-        """Retrieve command(s).
+        """
+        Retrieve command(s).
 
         If command string starts with ``[``, the string is treated as a Python
         literal and parsed into a list of commands.
@@ -533,7 +536,8 @@ class DockerOperator(BaseOperator):
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:
-        r"""Parse environment variables from the string.
+        r"""
+        Parse environment variables from the string.
 
         :param env_str: environment variables in the ``{key}={value}`` format,
             separated by a ``\n`` (newline)

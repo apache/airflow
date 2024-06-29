@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Change default ``pool_slots`` to ``1``.
+"""
+Change default ``pool_slots`` to ``1``.
 
 Revision ID: 8646922c8a04
 Revises: 449b4072c2da
