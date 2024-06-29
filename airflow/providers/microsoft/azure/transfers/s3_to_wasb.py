@@ -33,12 +33,47 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
     """
     Operator to move data from and AWS S3 Bucket to Microsoft Azure Blob Storage.
 
-    A similar class exists to move data from Microsoft Azure Blob Storage to an AWS S3 Bucket, and lives in the
-    airflow/providers/amazon/aws/transfers/azure_blob_to_s3.py file
+    A similar class exists to move data from Microsoft Azure Blob Storage to an AWS S3 Bucket, and lives in
+    the airflow/providers/amazon/aws/transfers/azure_blob_to_s3.py file
 
     Either an explicit S3 key can be provided, or a prefix containing the files that are to be transferred to
     Azure blob storage. The same holds for a Blob name; an explicit name can be passed, or a Blob prefix can
     be provided for the file to be stored to
+
+    .. seealso:
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator::SFTPToWasbOperator`
+
+    :param aws_conn_id: ID for the AWS S3 connection to use.
+    :param wasb_conn_id: ID for the Azure Blob Storage connection to use.
+    :param s3_bucket: The name of the AWS S3 bucket that an object (or objects)  would be transferred from.
+        (templated)
+    :param container_name: The name of the Azure Storage Blob container an object (or objects) would be
+        transferred to. (templated)
+    :param s3_prefix: Prefix string that filters any S3 objects that begin with this prefix. (templated)
+    :param s3_key: An explicit S3 key (object) to be transferred. (templated)
+    :param blob_prefix: Prefix string that would provide a path in the Azure Storage Blob container for an
+        object (or objects) to be moved to. (templated)
+    :param blob_name: An explicit blob name that an object would be transferred to. This can only be used
+        if a single file is being moved. If there are multiple files in an S3 bucket that are to be moved
+        to a single Azure blob, an exception will be raised. (templated)
+    :param create_container: True if a container should be created if it did not already exist, False
+        otherwise.
+    :param replace: If a blob exists in the container and replace takes a value of true, it will be
+        overwritten. If replace is False and a blob exists in the container, the file will NOT be
+        overwritten.
+    :param s3_verify: Whether or not to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :param s3_extra_args: kwargs to pass to S3Hook.
+    :param wasb_extra_args: kwargs to pass to WasbHook.
     """
 
     template_fields: Sequence[str] = (
@@ -137,6 +172,10 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             # name, and add to the list of files to move
             s3_keys: list[str] = self.s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_prefix)
             files_to_move = [s3_key.replace(f"{self.s3_prefix}/", "", 1) for s3_key in s3_keys]
+
+            # Now, make sure that there are not too many files to move to a single Azure blob
+            if self.blob_name and len(files_to_move) > 1:
+                raise Exception(f"{len(files_to_move)} cannot be moved to a single Azure Blob.")
 
         if not self.replace:
             # Only grab the files from S3 that are not in Azure Blob already. This will prevent any files that

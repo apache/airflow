@@ -273,6 +273,28 @@ class TestS3ToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    def test__get_files_to_move__s3_prefix_blob_name_without_replace_empty_destination(
+        self, wasb_mock_hook, s3_mock_hook
+    ):
+        # Set the list files that the S3Hook should return
+        s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix=PREFIX,
+            container_name=CONTAINER_NAME,
+            blob_name="TEST/TEST1.csv",
+        )
+
+        # This should throw an exception, since more than a single S3 object is attempted to move to a single
+        # Azure blob
+        with pytest.raises(Exception):
+            operator.get_files_to_move()
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     def test__move_file(self, wasb_mock_hook, s3_mock_hook):
         # Only a single S3 key is provided, and there are no blobs in the container. This means that this file
         # should be moved, and the move_file method will be executed
