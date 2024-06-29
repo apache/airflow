@@ -214,7 +214,7 @@ ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/AMD64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
