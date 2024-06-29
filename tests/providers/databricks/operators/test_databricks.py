@@ -223,6 +223,7 @@ ACCESS_CONTROL_LIST = [
         "permission_level": "CAN_MANAGE",
     }
 ]
+JOB_PARAMS = [{"name": "param1", "default": "value1"}]
 
 
 def mock_dict(d: dict):
@@ -448,6 +449,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
+                "parameters": [],
             }
         )
         db_mock_class.assert_called_once_with(
@@ -502,6 +504,7 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
+                "parameters": [],
             }
         )
         db_mock_class.assert_called_once_with(
@@ -583,6 +586,58 @@ class TestDatabricksCreateJobsOperator:
         )
 
         db_mock.update_job_permission.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_create_job_with_job_parameter(self, db_mock_class):
+        """
+        Test create job with job parameters.
+        """
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": TASKS,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+            "access_control_list": ACCESS_CONTROL_LIST,
+            "parameters": JOB_PARAMS,
+        }
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = None
+
+        op.execute({})
+
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tags": TAGS,
+                "tasks": TASKS,
+                "job_clusters": JOB_CLUSTERS,
+                "email_notifications": EMAIL_NOTIFICATIONS,
+                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+                "timeout_seconds": TIMEOUT_SECONDS,
+                "schedule": SCHEDULE,
+                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+                "git_source": GIT_SOURCE,
+                "access_control_list": ACCESS_CONTROL_LIST,
+                "parameters": JOB_PARAMS,
+            }
+        )
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+            caller="DatabricksCreateJobsOperator",
+        )
+
+        db_mock.create_job.assert_called_once_with(expected)
 
 
 class TestDatabricksSubmitRunOperator:

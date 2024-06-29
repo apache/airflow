@@ -328,6 +328,12 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if "name" not in self.json:
             raise AirflowException("Missing required parameter: name")
         job_id = self._hook.find_job_id_by_name(self.json["name"])
+        if not self.json.get("parameters") and self.params:
+            job_params = self.params.items() if self.params.items() else {}
+            param_list = []
+            for k, v in job_params:
+                param_list.append({"name": k, "default": v})
+            self.json["parameters"] = param_list
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
