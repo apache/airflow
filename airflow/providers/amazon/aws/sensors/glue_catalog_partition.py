@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
@@ -29,7 +28,6 @@ from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -62,6 +60,7 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         show up in the AWS Glue Catalog.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
+
     aws_hook_class = GlueCatalogHook
 
     template_fields: Sequence[str] = (
