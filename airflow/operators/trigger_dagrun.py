@@ -49,6 +49,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
+XCOM_DAG_ID = "trigger_dag_id"
 XCOM_RUN_ID = "trigger_run_id"
 
 
@@ -69,13 +70,24 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        # Fetch the correct dag_run_id for the triggerED dag which is
-        # stored in xcom during execution of the triggerING task.
+        # Fetch the correct dag id and run id for the triggerED dag
+        # which is stored in xcom during execution of the triggerING task.
+        dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
-        query = {
-            "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
-            "dag_run_id": triggered_dag_run_id,
-        }
+
+        old_trigger_dag_id: str | None = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
+        if (
+            isinstance(old_trigger_dag_id, str)
+            and old_trigger_dag_id.startswith("{{")
+            and old_trigger_dag_id.endswith("}}")
+        ):
+            old_trigger_dag_id = None
+
+        # Includes the dag id from the XCom during execution or the one passed into the operator
+        # for backwards compatibility. If the dag id is templated, the old trigger dag id will
+        # be set to None so the button in the UI will be grayed out until the dag is can be
+        # retrieved from the XCom
+        query = {"dag_id": dag_id or old_trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)
 
 
@@ -226,6 +238,7 @@ class TriggerDagRunOperator(BaseOperator):
         # TODO: Logical date as xcom stored only for backwards compatibility. Remove in Airflow 3.0
         ti = context["task_instance"]
         ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
+        ti.xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:

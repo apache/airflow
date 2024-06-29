@@ -61,6 +61,7 @@ class TestSqlAlchemySettings:
             pool_size=5,
             isolation_level="READ COMMITTED",
             future=True,
+            json_serializer=settings._json_serializer,
         )
 
     @patch("airflow.settings.setup_event_handlers")
@@ -89,6 +90,7 @@ class TestSqlAlchemySettings:
                 poolclass=NullPool,
                 encoding="utf-8",
                 future=True,
+                json_serializer=settings._json_serializer,
                 **engine_args,
             )
 
