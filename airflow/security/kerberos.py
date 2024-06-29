@@ -65,13 +65,13 @@ def get_kerberos_principle(principal: str | None) -> str:
     return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
 
 
-def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
+def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True) -> int | None:
     """
     Renew kerberos token from keytab.
 
     :param principal: principal
     :param keytab: keytab file
-    :return: None
+    :return: int | None
     """
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
