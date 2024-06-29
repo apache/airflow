@@ -26,6 +26,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.sensors.base import BaseSensorOperator
@@ -34,9 +35,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GlueCatalogPartitionSensor(BaseSensorOperator):
+class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
     """
     Waits for a partition to show up in AWS Glue Catalog.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:GlueCatalogPartitionSensor`
 
     :param table_name: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
@@ -57,6 +62,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         show up in the AWS Glue Catalog.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
+    aws_hook_class = GlueCatalogHook
 
     template_fields: Sequence[str] = (
         "database_name",
@@ -70,19 +76,16 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         database_name: str = "default",
         poke_interval: int = 60 * 3,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
-        super().__init__(poke_interval=poke_interval, **kwargs)
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
+        super().__init__(**kwargs)
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
+        self.poke_interval = poke_interval
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> Any:
@@ -93,6 +96,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
                     table_name=self.table_name,
                     expression=self.expression,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
                     waiter_delay=int(self.poke_interval),
                 ),
                 method_name="execute_complete",
@@ -126,7 +130,3 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
     def get_hook(self) -> GlueCatalogHook:
         """Get the GlueCatalogHook."""
         return self.hook
-
-    @cached_property
-    def hook(self) -> GlueCatalogHook:
-        return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
