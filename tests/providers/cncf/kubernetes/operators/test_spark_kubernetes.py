@@ -30,6 +30,7 @@ from kubernetes.client import models as k8s
 
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectStatus
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
@@ -345,6 +346,49 @@ class TestSparkKubernetesOperator:
             plural="sparkapplications",
             version="v1beta2",
         )
+
+    def test_application_in_prolonged_not_running_state(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_prolonged_not_running_state"
+        # Create a list of application states that will cause the operator to wait for a some time.
+        # Each time when application state is not RUNNING, the operator will call check_pod_start_failure
+        # function. We assert that this function is called the same number of times as the number of not RUNNING states.
+        application_states_dicts = []
+        expected_count_of_calls_check_pod_start_failure = 0
+        for app_state in TEST_APPLICATION_STATES_DICTS:
+            num_states_to_add = 1
+            if app_state["status"]["applicationState"]["state"] != CustomObjectStatus.RUNNING:
+                # If the state is not RUNNING, we will duplicate it to prolong the waiting time
+                num_states_to_add = 2
+                expected_count_of_calls_check_pod_start_failure += num_states_to_add
+            for _ in range(num_states_to_add):
+                application_states_dicts.append(copy.deepcopy(app_state))
+        mock_get_namespaced_custom_object_status.side_effect = application_states_dicts
+
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
+        TEST_K8S_DICT["metadata"]["name"] = task_name
+        mock_create_namespaced_crd.assert_called_with(
+            body=TEST_K8S_DICT,
+            group="sparkoperator.k8s.io",
+            namespace="default",
+            plural="sparkapplications",
+            version="v1beta2",
+        )
+        assert mock_check_pod_start_failure.call_count == expected_count_of_calls_check_pod_start_failure
 
     def test_env(
         self,
