@@ -57,7 +57,7 @@ def _get_databricks_task_id(task: BaseOperator) -> str:
     :param task: The task to get the databricks task ID for.
     :return: The databricks task ID.
     """
-    return f"{task.dag_id}__" + task.task_id.replace(".", "__")
+    return f"{task.dag_id}__{task.task_id.replace('.', '__')}"
 
 
 def get_databricks_task_ids(
@@ -83,7 +83,7 @@ def get_databricks_task_ids(
 
 
 @provide_session
-def _get_dagrun(dag: DAG, run_id, session=None) -> DagRun:
+def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun:
     """
     Retrieve the DagRun object associated with the specified DAG and run_id.
 
@@ -98,7 +98,7 @@ def _get_dagrun(dag: DAG, run_id, session=None) -> DagRun:
 @provide_session
 def _clear_task_instances(dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session=None):
     dag = airflow_app.dag_bag.get_dag(dag_id)
-    log.debug("task_ids to clear", str(task_ids))
+    log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
     tis_to_clear = [ti for ti in dr.get_task_instances() if _get_databricks_task_id(ti) in task_ids]
     clear_task_instances(tis_to_clear, session)
@@ -175,12 +175,12 @@ def _get_launch_task_key(current_task_key: TaskInstanceKey, task_id: str) -> Tas
             run_id=current_task_key.run_id,
             try_number=current_task_key.try_number,
         )
-    else:
-        return current_task_key
+
+    return current_task_key
 
 
 @provide_session
-def get_task_instance(operator, dttm, session: Session = NEW_SESSION):
+def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSION) -> TaskInstance:
     dag_id = operator.dag.dag_id
     dag_run = DagRun.find(dag_id, execution_date=dttm)[0]
     ti = (
@@ -281,7 +281,7 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         )
 
     @classmethod
-    def get_task_group_children(cls, task_group):
+    def get_task_group_children(cls, task_group: TaskGroup) -> dict[str, DAGNode]:
         """
         Given a TaskGroup, return children which are Tasks, inspecting recursively any TaskGroups within.
 
@@ -415,7 +415,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
         return redirect(return_url)
 
     @staticmethod
-    def _get_return_url(dag_id, view):
+    def _get_return_url(dag_id: str, view) -> str:
         return f"/dags/{dag_id}/{view}"
 
 
