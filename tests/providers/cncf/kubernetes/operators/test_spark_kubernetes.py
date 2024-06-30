@@ -164,6 +164,12 @@ TEST_APPLICATION_DICT = {
     },
 }
 
+TEST_APPLICATION_STATES_DICTS = [
+    {"status": {"applicationState": {"state": "PENDING_SUBMISSION"}}},
+    {"status": {"applicationState": {"state": "SUBMITTED"}}},
+    {"status": {"applicationState": {"state": "RUNNING"}}},
+]
+
 
 def create_context(task):
     dag = DAG(dag_id="dag")
@@ -194,6 +200,9 @@ def create_context(task):
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name")
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+@patch(
+    "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.CustomObjectLauncher.check_pod_start_failure"
+)
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperator:
@@ -227,6 +236,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -238,6 +248,7 @@ class TestSparkKubernetesOperator:
     ):
         task_name = "default_yaml"
         mock_create_job_name.return_value = task_name
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         op = SparkKubernetesOperator(
             application_file=data_file("spark/application_test.yaml").as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
@@ -256,6 +267,7 @@ class TestSparkKubernetesOperator:
 
         task_name = "default_json"
         mock_create_job_name.return_value = task_name
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         op = SparkKubernetesOperator(
             application_file=data_file("spark/application_test.json").as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
@@ -276,6 +288,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -287,6 +300,7 @@ class TestSparkKubernetesOperator:
     ):
         task_name = "default_yaml_template"
         mock_create_job_name.return_value = task_name
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         op = SparkKubernetesOperator(
             application_file=data_file("spark/application_template.yaml").as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
@@ -307,6 +321,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -317,6 +332,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "default_yaml_template"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
 
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
@@ -334,6 +350,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -344,6 +361,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "default_env"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         # test env vars
         job_spec["kubernetes"]["env_vars"] = {"TEST_ENV_1": "VALUE1"}
@@ -378,6 +396,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -388,6 +407,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "default_volume"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         volumes = [
             k8s.V1Volume(
@@ -424,6 +444,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -434,6 +455,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "test_pull_secret"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         job_spec["kubernetes"]["image_pull_secrets"] = "secret1,secret2"
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
@@ -445,6 +467,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -455,6 +478,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "test_affinity"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         job_spec["kubernetes"]["affinity"] = k8s.V1Affinity(
             node_affinity=k8s.V1NodeAffinity(
@@ -499,6 +523,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -515,6 +540,7 @@ class TestSparkKubernetesOperator:
             effect="NoSchedule",
         )
         task_name = "test_tolerations"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         job_spec["kubernetes"]["tolerations"] = [toleration]
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
@@ -526,6 +552,7 @@ class TestSparkKubernetesOperator:
         self,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
+        mock_check_pod_start_failure,
         mock_cleanup,
         mock_create_job_name,
         mock_get_kube_client,
@@ -536,6 +563,7 @@ class TestSparkKubernetesOperator:
         data_file,
     ):
         task_name = "test_get_logs_from_driver"
+        mock_get_namespaced_custom_object_status.side_effect = TEST_APPLICATION_STATES_DICTS
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
