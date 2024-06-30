@@ -108,7 +108,7 @@ def _repair_task(
     databricks_conn_id: str,
     databricks_run_id: int,
     tasks_to_repair: list[str],
-    log: logging.Logger,
+    logger: logging.Logger,
 ) -> int:
     """
     Repair a Databricks task using the Databricks API.
@@ -119,13 +119,14 @@ def _repair_task(
     :param databricks_conn_id: The Databricks connection ID.
     :param databricks_run_id: The Databricks run ID.
     :param tasks_to_repair: A list of Databricks task IDs to repair.
+    :param logger: The logger to use for logging.
     :return: None
     """
     hook = DatabricksHook(databricks_conn_id=databricks_conn_id)
 
     repair_history_id = hook.get_latest_repair_id(databricks_run_id)
-    log.debug("Latest repair ID is %s", repair_history_id)
-    log.debug(
+    logger.debug("Latest repair ID is %s", repair_history_id)
+    logger.debug(
         "Sending repair query for tasks %s on run %s",
         tasks_to_repair,
         databricks_run_id,
@@ -405,7 +406,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
             databricks_conn_id=databricks_conn_id,
             databricks_run_id=databricks_run_id,
             tasks_to_repair=tasks_to_repair.split(","),
-            log=self.log,
+            logger=self.log,
         )
         self.log.info("Repairing databricks job query for run %s sent", databricks_run_id)
 
