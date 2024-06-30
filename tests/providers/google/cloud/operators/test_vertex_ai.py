@@ -1922,7 +1922,11 @@ class TestVertexAICreateBatchPredictionJobOperator:
             batch_size=TEST_BATCH_SIZE,
         )
         context = {"ti": mock.MagicMock()}
-        op.execute(context=context)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The 'sync' parameter is deprecated and will be removed after 28.08.2024.",
+        ):
+            op.execute(context=context)
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_batch_prediction_job.assert_called_once_with(
@@ -1976,7 +1980,10 @@ class TestVertexAICreateBatchPredictionJobOperator:
             deferrable=True,
         )
         context = {"ti": mock.MagicMock()}
-        with pytest.raises(TaskDeferred) as exception_info:
+        with pytest.raises(TaskDeferred) as exception_info, pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The 'sync' parameter is deprecated and will be removed after 28.08.2024.",
+        ):
             op.execute(context=context)
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -2302,7 +2309,11 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             max_trial_count=15,
             parallel_trial_count=3,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_hyperparameter_tuning_job.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -2353,7 +2364,11 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             parallel_trial_count=3,
             deferrable=True,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
         mock_defer.assert_called_once()
 
     @pytest.mark.db_test
@@ -2374,7 +2389,10 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             parallel_trial_count=3,
             deferrable=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
+        ):
             op.execute(context={"ti": mock.MagicMock()})
 
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
