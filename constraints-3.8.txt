@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-30T08:24:29.311056
+# This constraints file was automatically generated on 2024-06-30T18:18:41.444793
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -365,7 +365,7 @@ google-cloud-videointelligence==2.13.3
 google-cloud-vision==3.7.2
 google-cloud-workflows==1.14.3
 google-crc32c==1.5.0
-google-re2==1.1.20240601
+google-re2==1.1.20240701
 google-resumable-media==2.7.1
 googleapis-common-protos==1.63.2
 graphql-core==3.2.3
@@ -666,7 +666,7 @@ spython==0.3.13
 sqlalchemy-bigquery==1.11.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.7.0
-sqlalchemy_drill==1.1.4
+sqlalchemy_drill==1.1.5
 sqlparse==0.5.0
 sshtunnel==0.4.0
 stack-data==0.6.3
