@@ -395,7 +395,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
         run_id = request.values.get("run_id").replace(
             " ", "+"
         )  # get run id separately since we need to modify it
-        if tasks_to_repair == "":
+        if not tasks_to_repair:
             # If there are no tasks to repair, we return.
             flash("No tasks to repair. Not sending repair request.")
             return redirect(return_url)
