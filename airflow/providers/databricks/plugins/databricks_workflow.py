@@ -52,7 +52,8 @@ airflow_app = cast(AirflowApp, current_app)
 
 
 def _get_databricks_task_id(task: BaseOperator) -> str:
-    """Get the databricks task ID using dag_id and task_id. removes illegal characters.
+    """
+    Get the databricks task ID using dag_id and task_id. removes illegal characters.
 
     :param task: The task to get the databricks task ID for.
     :return: The databricks task ID.
