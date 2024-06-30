@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -74,7 +75,6 @@ class StandardTaskRunner(BaseTaskRunner):
         else:
             # Start a new process group
             set_new_process_group()
-            import signal
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -180,9 +180,9 @@ class StandardTaskRunner(BaseTaskRunner):
 
         if self._rc is None:
             # Something else reaped it before we had a chance, so let's just "guess" at an error code.
-            self._rc = -9
+            self._rc = -signal.SIGKILL
 
-        if self._rc == -9:
+        if self._rc == -signal.SIGKILL:
             self.log.error(
                 (
                     "Job %s was killed before it finished (likely due to running out of memory)",
