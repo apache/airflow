@@ -55,14 +55,11 @@ class GlueCrawlerSensor(AwsBaseSensor[GlueCrawlerHook]):
 
     aws_hook_class = GlueCrawlerHook
 
-    template_fields: Sequence[str] = aws_template_fields("crawler_name",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "crawler_name",
+    )
 
-    def __init__(
-        self,
-        *,
-        crawler_name: str,
-        **kwargs
-    ) -> None:
+    def __init__(self, *, crawler_name: str, **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
         self.success_statuses = "SUCCEEDED"

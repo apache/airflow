@@ -64,7 +64,9 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
 
     aws_hook_class = GlueCrawlerHook
 
-    template_fields: Sequence[str] = aws_template_fields("config",)
+    template_fields: Sequence[str] = aws_template_fields(
+        "config",
+    )
     ui_color = "#ededed"
 
     def __init__(

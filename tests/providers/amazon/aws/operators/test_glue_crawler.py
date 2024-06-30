@@ -90,7 +90,6 @@ mock_config = {
 
 
 class TestGlueCrawlerOperator:
-
     @pytest.fixture
     def mock_conn(self) -> Generator[BaseAwsConnection, None, None]:
         with mock.patch.object(GlueCrawlerHook, "get_conn") as _conn:
@@ -107,12 +106,14 @@ class TestGlueCrawlerOperator:
         self.op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
 
     def test_init(self):
-        op = GlueCrawlerOperator(task_id="test_glue_crawler_operator",
-                                 aws_conn_id="fake-conn-id",
-                                 region_name="eu-west-2",
-                                 verify=True,
-                                 botocore_config={"read_timeout": 42},
-                                 config=mock_config)
+        op = GlueCrawlerOperator(
+            task_id="test_glue_crawler_operator",
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-2",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+            config=mock_config,
+        )
 
         assert op.hook.client_type == "glue"
         assert op.hook.resource_type is None
@@ -122,8 +123,7 @@ class TestGlueCrawlerOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-        op = GlueCrawlerOperator(task_id="test_glue_crawler_operator",
-                                 config=mock_config)
+        op = GlueCrawlerOperator(task_id="test_glue_crawler_operator", config=mock_config)
 
         assert op.hook.aws_conn_id == "aws_default"
         assert op.hook._region_name is None
