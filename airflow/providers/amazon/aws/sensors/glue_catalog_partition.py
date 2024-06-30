@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -49,21 +50,27 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``.
         See https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html
         #aws-glue-api-catalog-partitions-GetPartitions
-    :param aws_conn_id: ID of the Airflow connection where
-        credentials and extra configuration are stored
-    :param region_name: Optional aws region name (example: us-east-1). Uses region from connection
-        if not specified.
     :param database_name: The name of the catalog database where the partitions reside.
     :param poke_interval: Time in seconds that the job should wait in
         between each tries
     :param deferrable: If true, then the sensor will wait asynchronously for the partition to
         show up in the AWS Glue Catalog.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     aws_hook_class = GlueCatalogHook
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "database_name",
         "table_name",
         "expression",
@@ -75,16 +82,12 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         database_name: str = "default",
         poke_interval: int = 60 * 3,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
@@ -101,6 +104,8 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     waiter_delay=int(self.poke_interval),
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.timeout),
