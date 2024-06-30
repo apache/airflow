@@ -167,7 +167,8 @@ class _BigQueryOperatorsEncryptionConfigurationMixin:
 class BigQueryCheckOperator(
     _BigQueryDbHookMixin, SQLCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
 ):
-    """Performs checks against BigQuery.
+    """
+    Performs checks against BigQuery.
 
     This operator expects a SQL query that returns a single row. Each value on
     that row is evaluated using a Python ``bool`` cast. If any of the values
@@ -319,7 +320,8 @@ class BigQueryCheckOperator(
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Act as a callback for when the trigger fires.
+        """
+        Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -335,7 +337,8 @@ class BigQueryCheckOperator(
 class BigQueryValueCheckOperator(
     _BigQueryDbHookMixin, SQLValueCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
 ):
-    """Perform a simple value check using sql code.
+    """
+    Perform a simple value check using sql code.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -465,7 +468,8 @@ class BigQueryValueCheckOperator(
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Act as a callback for when the trigger fires.
+        """
+        Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -625,7 +629,8 @@ class BigQueryIntervalCheckOperator(
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Act as a callback for when the trigger fires.
+        """
+        Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -1173,7 +1178,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
-        """Act as a callback for when the trigger fires.
+        """
+        Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -1190,7 +1196,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
-    """Executes BigQuery SQL queries in a specific BigQuery database.
+    """
+    Executes BigQuery SQL queries in a specific BigQuery database.
 
     This operator is deprecated. Please use
     :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
@@ -1409,7 +1416,8 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
-    """Creates a new table in the specified BigQuery dataset, optionally with schema.
+    """
+    Creates a new table in the specified BigQuery dataset, optionally with schema.
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
@@ -1658,7 +1666,8 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
-    """Create a new external table with data from Google Cloud Storage.
+    """
+    Create a new external table with data from Google Cloud Storage.
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
@@ -1953,7 +1962,8 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
-    """Delete an existing dataset from your Project in BigQuery.
+    """
+    Delete an existing dataset from your Project in BigQuery.
 
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
 
@@ -2028,7 +2038,8 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
-    """Create a new dataset for your Project in BigQuery.
+    """
+    Create a new dataset for your Project in BigQuery.
 
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
 
@@ -2151,7 +2162,8 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
-    """Get the dataset specified by ID.
+    """
+    Get the dataset specified by ID.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2215,7 +2227,8 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
-    """Retrieve the list of tables in the specified dataset.
+    """
+    Retrieve the list of tables in the specified dataset.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2278,7 +2291,8 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
-    """Patch a dataset for your Project in BigQuery.
+    """
+    Patch a dataset for your Project in BigQuery.
 
     This operator is deprecated. Please use
     :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`
@@ -2342,7 +2356,8 @@ class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
-    """Update a table for your Project in BigQuery.
+    """
+    Update a table for your Project in BigQuery.
 
     Use ``fields`` to specify which fields of table to update. If a field
     is listed in ``fields`` and is ``None`` in table, it will be deleted.
@@ -2429,7 +2444,8 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
-    """Update a dataset for your Project in BigQuery.
+    """
+    Update a dataset for your Project in BigQuery.
 
     Use ``fields`` to specify which fields of dataset to update. If a field
     is listed in ``fields`` and is ``None`` in dataset, it will be deleted.
@@ -2511,7 +2527,8 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
-    """Delete a BigQuery table.
+    """
+    Delete a BigQuery table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2569,7 +2586,8 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
-    """Upsert to a BigQuery table.
+    """
+    Upsert to a BigQuery table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2646,7 +2664,8 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
-    """Update BigQuery Table Schema.
+    """
+    Update BigQuery Table Schema.
 
     Updates fields on a table schema based on contents of the supplied schema_fields_updates
     parameter. The supplied schema does not need to be complete, if the field
@@ -2756,7 +2775,8 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
 
 
 class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMixin):
-    """Execute a BigQuery job.
+    """
+    Execute a BigQuery job.
 
     Waits for the job to complete and returns job id.
     This operator work in the following way:
@@ -3005,7 +3025,8 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             self._handle_job_error(job)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
-        """Act as a callback for when the trigger fires.
+        """
+        Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.

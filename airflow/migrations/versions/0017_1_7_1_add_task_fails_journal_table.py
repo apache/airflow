@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``task_fail`` table.
+"""
+Add ``task_fail`` table.
 
 Revision ID: 64de9cddf6c9
 Revises: 211e584da130

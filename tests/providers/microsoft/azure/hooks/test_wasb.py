@@ -615,3 +615,33 @@ class TestWasbHook:
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."
+
+    @pytest.mark.parametrize(
+        "conn_id_str",
+        [
+            "wasb_test_key",
+            "pub_read_id",
+            "pub_read_id_without_host",
+            "azure_test_connection_string",
+            "azure_shared_key_test",
+            "ad_conn_id",
+            "managed_identity_conn_id",
+            "sas_conn_id",
+            "extra__wasb__sas_conn_id",
+            "http_sas_conn_id",
+            "extra__wasb__http_sas_conn_id",
+        ],
+    )
+    def test_extract_account_name_from_connection(self, conn_id_str, mocked_blob_service_client):
+        expected_account_name = "testname"
+        if conn_id_str == "azure_test_connection_string":
+            mocked_blob_service_client.from_connection_string().account_name = expected_account_name
+        else:
+            mocked_blob_service_client.return_value.account_name = expected_account_name
+
+        wasb_hook = WasbHook(wasb_conn_id=conn_id_str)
+        account_name = wasb_hook.get_conn().account_name
+
+        assert (
+            account_name == expected_account_name
+        ), f"Expected account name {expected_account_name} but got {account_name}"

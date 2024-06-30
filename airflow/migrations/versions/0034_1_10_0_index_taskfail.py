@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Create index on ``task_fail`` table.
+"""
+Create index on ``task_fail`` table.
 
 Revision ID: 9635ae0956e7
 Revises: 856955da8476

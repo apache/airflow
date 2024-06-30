@@ -23,7 +23,8 @@ from airflow.utils.types import NOTSET
 
 
 class ConnectionExtraConfig:
-    """Helper class for rom Connection Extra.
+    """
+    Helper class for rom Connection Extra.
 
     :param conn_type: Hook connection type.
     :param conn_id: Connection ID uses for appropriate error messages.
@@ -37,7 +38,8 @@ class ConnectionExtraConfig:
         self.extra = extra or {}
 
     def get(self, field, default: Any = NOTSET):
-        """Get specified field from Connection Extra.
+        """
+        Get specified field from Connection Extra.
 
         :param field: Connection extra field name.
         :param default: If specified then use as default value if field not present in Connection Extra.
@@ -70,7 +72,8 @@ class ConnectionExtraConfig:
             return default
 
     def getint(self, field, default: Any = NOTSET) -> Any:
-        """Get specified field from Connection Extra and evaluate as integer.
+        """
+        Get specified field from Connection Extra and evaluate as integer.
 
         :param field: Connection extra field name.
         :param default: If specified then use as default value if field not present in Connection Extra.

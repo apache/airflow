@@ -60,6 +60,17 @@ def validate_key(k: str, max_length: int = 250):
         )
 
 
+def validate_instance_args(instance: object, expected_arg_types: dict[str, Any]) -> None:
+    """Validate that the instance has the expected types for the arguments."""
+    for arg_name, expected_arg_type in expected_arg_types.items():
+        instance_arg_value = getattr(instance, arg_name, None)
+        if instance_arg_value is not None and not isinstance(instance_arg_value, expected_arg_type):
+            raise TypeError(
+                f"'{arg_name}' has an invalid type {type(instance_arg_value)} with value "
+                f"{instance_arg_value}, expected type is {expected_arg_type}"
+            )
+
+
 def validate_group_key(k: str, max_length: int = 200):
     """Validate value used as a group key."""
     if not isinstance(k, str):
@@ -256,7 +267,8 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
 def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
-    """Render a Jinja2 template with given Airflow context.
+    """
+    Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
     input context into dict eagerly many times, which triggers deprecation
@@ -370,7 +382,8 @@ def prune_dict(val: Any, mode="strict"):
 
 
 def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    """Ensure *kwargs1* and *kwargs2* do not contain common keys.
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
 
     :raises TypeError: If common keys are found.
     """

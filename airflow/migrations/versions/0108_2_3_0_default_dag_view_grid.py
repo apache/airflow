@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Update dag.default_view to grid.
+"""
+Update dag.default_view to grid.
 
 Revision ID: b1b348e02d07
 Revises: 75d5ed6c2b43

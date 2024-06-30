@@ -41,7 +41,8 @@ SECTION = "common.io"
 
 
 def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
-    """Return whether or not this path is relative to the other path.
+    """
+    Return whether or not this path is relative to the other path.
 
     This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8.
     """
@@ -56,7 +57,8 @@ def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
 
 
 def _get_compression_suffix(compression: str) -> str:
-    """Return the compression suffix for the given compression.
+    """
+    Return the compression suffix for the given compression.
 
     :raises ValueError: if the compression is not supported
     """
@@ -83,7 +85,8 @@ def _get_threshold() -> int:
 
 
 class XComObjectStorageBackend(BaseXCom):
-    """XCom backend that stores data in an object store or database depending on the size of the data.
+    """
+    XCom backend that stores data in an object store or database depending on the size of the data.
 
     If the value is larger than the configured threshold, it will be stored in an object store.
     Otherwise, it will be stored in the database. If it is stored in an object store, the path
@@ -93,7 +96,8 @@ class XComObjectStorageBackend(BaseXCom):
 
     @staticmethod
     def _get_full_path(data: str) -> ObjectStoragePath:
-        """Get the path from stored value.
+        """
+        Get the path from stored value.
 
         :raises ValueError: if the key is not relative to the configured path
         :raises TypeError: if the url is not a valid url or cannot be split
@@ -149,7 +153,8 @@ class XComObjectStorageBackend(BaseXCom):
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:
-        """Deserializes the value from the database or object storage.
+        """
+        Deserializes the value from the database or object storage.
 
         Compression is inferred from the file extension.
         """

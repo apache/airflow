@@ -459,11 +459,13 @@ class ShellParams:
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
 
-    @cached_property
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
-        passed to it.
+        passed to it. We cannot cache this property because it can be run few times after modifying shell
+        params - for example when we first run "pull" on images before tests anda then run tests - each
+        separately with different test types.
 
         This is the only place where you need to add environment variables if you want to pass them to
         docker or docker-compose.

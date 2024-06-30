@@ -20,6 +20,14 @@
 Changelog
 ---------
 
+1.2.2
+.....
+
+Misc
+~~~~
+
+* ``Bump openai minimum version to openai (#40110)``
+
 1.2.1
 .....
 

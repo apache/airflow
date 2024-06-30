@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+8.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Scheduler restarting due to too many completed pods in cluster (#40183)``
+
+Misc
+~~~~
+
+* ``Bump minimum kubernetes lib version to kubernetes 29.0.0 (#40253)``
+
 8.3.1
 .....
 

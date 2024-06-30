@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add indexes on dag_id column in referencing tables.
+"""
+Add indexes on dag_id column in referencing tables.
 
 Revision ID: 0fd0c178cbe8
 Revises: 686269002441

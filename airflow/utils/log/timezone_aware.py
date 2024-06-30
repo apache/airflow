@@ -22,7 +22,8 @@ from airflow.utils import timezone
 
 
 class TimezoneAware(logging.Formatter):
-    """Override time-formatting methods to include UTC offset.
+    """
+    Override time-formatting methods to include UTC offset.
 
     Since Airflow parses the logs to perform time conversion, UTC offset is
     critical information. This formatter ensures ``%(asctime)s`` is formatted
@@ -34,7 +35,8 @@ class TimezoneAware(logging.Formatter):
     default_tz_format = "%z"
 
     def formatTime(self, record, datefmt=None):
-        """Format time in record.
+        """
+        Format time in record.
 
         This returns the creation time of the specified LogRecord in ISO 8601
         date and time format in the local time zone.

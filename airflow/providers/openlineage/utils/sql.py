@@ -85,7 +85,8 @@ def get_table_schemas(
     in_query: str | None,
     out_query: str | None,
 ) -> tuple[list[Dataset], list[Dataset]]:
-    """Query database for table schemas.
+    """
+    Query database for table schemas.
 
     Uses provided hook. Responsibility to provide queries for this function is on particular extractors.
     If query for input or output table isn't provided, the query is skipped.
@@ -111,7 +112,8 @@ def get_table_schemas(
 
 
 def parse_query_result(cursor) -> list[TableSchema]:
-    """Fetch results from DB-API 2.0 cursor and creates list of table schemas.
+    """
+    Fetch results from DB-API 2.0 cursor and creates list of table schemas.
 
     For each row it creates :class:`TableSchema`.
     """
@@ -155,7 +157,7 @@ def create_information_schema_query(
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
     """Create query for getting table schemas from information schema."""
-    metadata = MetaData(sqlalchemy_engine)
+    metadata = MetaData()
     select_statements = []
     # Don't iterate over tables hierarchy, just pass it to query single information schema table
     if use_flat_cross_db_query:

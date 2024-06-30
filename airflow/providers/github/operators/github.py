@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 
 class GithubOperator(BaseOperator):
-    """Interact and perform actions on GitHub API.
+    """
+    Interact and perform actions on GitHub API.
 
     This operator is designed to use GitHub's Python SDK: https://github.com/PyGithub/PyGithub
 

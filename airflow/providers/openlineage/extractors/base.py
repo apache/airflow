@@ -41,7 +41,8 @@ class OperatorLineage:
 
 
 class BaseExtractor(ABC, LoggingMixin):
-    """Abstract base extractor class.
+    """
+    Abstract base extractor class.
 
     This is used mostly to maintain support for custom extractors.
     """
@@ -55,7 +56,8 @@ class BaseExtractor(ABC, LoggingMixin):
     @classmethod
     @abstractmethod
     def get_operator_classnames(cls) -> list[str]:
-        """Get a list of operators that extractor works for.
+        """
+        Get a list of operators that extractor works for.
 
         This is an abstract method that subclasses should implement. There are
         operators that work very similarly and one extractor can cover.
@@ -77,7 +79,8 @@ class DefaultExtractor(BaseExtractor):
 
     @classmethod
     def get_operator_classnames(cls) -> list[str]:
-        """Assign this extractor to *no* operators.
+        """
+        Assign this extractor to *no* operators.
 
         Default extractor is chosen not on the classname basis, but
         by existence of get_openlineage_facets method on operator.

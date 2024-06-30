@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+4.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix for typing in telegram provider (#40258)``
+* ``Fix typing in telegram provider (#40255)``
+
 4.5.1
 .....
 

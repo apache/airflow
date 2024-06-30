@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add indices on ``xcom`` table.
+"""
+Add indices on ``xcom`` table.
 
 Revision ID: 8504051e801b
 Revises: 4addfa1236f1

@@ -25,7 +25,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DbtCloudRunJobTrigger(BaseTrigger):
-    """Trigger to make an HTTP call to dbt and get the status for the job.
+    """
+    Trigger to make an HTTP call to dbt and get the status for the job.
 
     This is done with run id in polling interval of time.
 

@@ -35,14 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.9.0
+.....
+
+Latest change: 2024-06-21
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`fbcee8d01b <https://github.com/apache/airflow/commit/fbcee8d01bddd100d9335404796a40247a6c6487>`_  2024-06-21   ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
+`4fbdd07c13 <https://github.com/apache/airflow/commit/4fbdd07c1392eed517ed2af000aae2c2c3f5b3f6>`_  2024-06-20   ``fix: sqa deprecations for airflow providers (#39293)``
+`1a8d12ffe5 <https://github.com/apache/airflow/commit/1a8d12ffe50c947583c6419d4e952d0f59461135>`_  2024-06-14   ``openlineage: execute extraction and message sending in separate process (#40078)``
+`6f4098487d <https://github.com/apache/airflow/commit/6f4098487d3629ab4c99de05a503fc1b511c7300>`_  2024-06-14   ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+`fa65a20d4a <https://github.com/apache/airflow/commit/fa65a20d4a9a3625a7cc2642f29604747cc942a1>`_  2024-06-13   ``local task job: add timeout, to not kill on_task_instance_success listener prematurely (#39890)``
+`f0b51cdacc <https://github.com/apache/airflow/commit/f0b51cdacc6155e4e4495a88109a01decab9e201>`_  2024-06-12   ``openlineage: add some debug logging around sql parser call sites (#40200)``
+`1a613030e6 <https://github.com/apache/airflow/commit/1a613030e669ec8e8b0be893038da3a3ca1de9c9>`_  2024-06-06   ``Add task SLA and queued datetime information to AirflowRunFacet (#40091)``
+`c202c07f67 <https://github.com/apache/airflow/commit/c202c07f67173718c736d95de22185b65b25b580>`_  2024-06-05   ``Introduce AirflowJobFacet and AirflowStateRunFacet (#39520)``
+`aba8def5f3 <https://github.com/apache/airflow/commit/aba8def5f3b4e9477daa195a685c73a9e130349d>`_  2024-05-29   ``Add error stacktrace to OpenLineage task event (#39813)``
+`22305477bb <https://github.com/apache/airflow/commit/22305477bb056cb7a77af59f4dc906ff8a20583d>`_  2024-05-28   ``Use UUIDv7 for OpenLineage runIds (#39889)``
+=================================================================================================  ===========  ===================================================================================================
+
 1.8.0
 .....
 
-Latest change: 2024-05-21
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `9532cc7a6c <https://github.com/apache/airflow/commit/9532cc7a6c12097a1b50c0cb2c6aa410901d5181>`_  2024-05-21   ``fix: Prevent error when extractor can't be imported (#39736)``
 `b7671ef5ab <https://github.com/apache/airflow/commit/b7671ef5ab2946c68a4f2011a587fb30f3510f94>`_  2024-05-21   ``Re-configure ORM in spawned OpenLineage process in scheduler. (#39735)``
 `a81504e316 <https://github.com/apache/airflow/commit/a81504e316ad6dc6884df1855670e2c40dbfef1b>`_  2024-05-21   ``chore: Update conf retrieval docstring and adjust pool_size (#39721)``
