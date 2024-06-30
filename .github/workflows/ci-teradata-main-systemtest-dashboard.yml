@@ -120,8 +120,9 @@ jobs:
               python report_generate_index_html.py
               mkdir teradata_report
               cp index.html teradata_report/index.html
-      - run: echo Upload airflow teradata system test report
-      - uses: actions/upload-artifact@v4
+      - name: Upload airflow teradata system test report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: airflow-system-test-report
           path: |
