@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-06-29T19:27:55.346506
+# This constraints file was automatically generated on 2024-06-30T08:24:29.921775
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -456,7 +456,7 @@ microsoft-kiota-http==1.3.1
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.3.0
-moto==5.0.9
+moto==5.0.10
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.29.0
@@ -722,7 +722,7 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.2
-uv==0.2.17
+uv==0.2.18
 validators==0.28.3
 vertica-python==1.3.8
 vine==5.1.0
