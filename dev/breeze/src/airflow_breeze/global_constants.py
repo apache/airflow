@@ -366,6 +366,7 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "RNHTTR",
     "ryanahamilton",
     "ryw",
     "saguziel",
