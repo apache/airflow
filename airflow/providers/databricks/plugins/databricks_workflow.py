@@ -96,7 +96,7 @@ def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun
 
 
 @provide_session
-def _clear_task_instances(dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session=None):
+def _clear_task_instances(dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None) -> None:
     dag = airflow_app.dag_bag.get_dag(dag_id)
     log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
