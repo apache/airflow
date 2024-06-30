@@ -168,9 +168,6 @@
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_delete_pipeline_job
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_get_pipeline_job
 - tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_list_pipeline_jobs
-- tests/providers/google/cloud/operators/test_automl.py::TestAutoMLTrainModelOperator::test_execute
-- tests/providers/google/cloud/operators/test_datapipeline.py::TestCreateDataPipelineOperator::test_execute
-- tests/providers/google/cloud/operators/test_datapipeline.py::TestRunDataPipelineOperator::test_execute
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHadoopOperator::test_execute
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_builder
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_execute
