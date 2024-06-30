@@ -21,7 +21,7 @@ from traceback import format_exception
 from typing import TYPE_CHECKING, Any, Iterable
 
 from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
-from sqlalchemy.orm import joinedload, relationship, selectinload
+from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
