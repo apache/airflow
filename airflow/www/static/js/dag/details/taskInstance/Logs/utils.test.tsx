@@ -38,7 +38,7 @@ const mockTaskLog = `
 [2022-06-04 00:00:01,921] {dagbag.py:507} INFO - Filling up the DagBag from /files/dags/test_ui_grid.py
 [2022-06-04 00:00:01,964] {task_command.py:377} INFO - Running <TaskInstance: test_ui_grid.section_1.get_entry_group scheduled__2022-06-03T00:00:00+00:00 [running]> on host 5d28cfda3219
 [2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=*** AIRFLOW_CTX_DAG_ID=test_ui_grid
-[2024-07-01 00:00:02,010] {taskinstance.py:1548} INFO - Url parsing test => "https://apple.com", "https://google.com" 
+[2024-07-01 00:00:02,010] {taskinstance.py:1548} INFO - Url parsing test => "https://apple.com", "https://google.com"
 `;
 
 describe("Test Logs Utils.", () => {
