@@ -92,11 +92,16 @@ def _get_dagrun(dag: DAG, run_id: str, session: Session | None = None) -> DagRun
     :param session: The SQLAlchemy session to use for the query. If None, uses the default session.
     :return: The DagRun object associated with the specified DAG and run_id.
     """
+    if not session:
+        raise AirflowException("Session not provided.")
+
     return session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).first()
 
 
 @provide_session
-def _clear_task_instances(dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None) -> None:
+def _clear_task_instances(
+    dag_id: str, run_id: str, task_ids: list[str], log: logging.Logger, session: Session | None = None
+) -> None:
     dag = airflow_app.dag_bag.get_dag(dag_id)
     log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
@@ -282,14 +287,14 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         )
 
     @classmethod
-    def get_task_group_children(cls, task_group: TaskGroup) -> dict[str, DAGNode]:
+    def get_task_group_children(cls, task_group: TaskGroup) -> dict[str, BaseOperator]:
         """
         Given a TaskGroup, return children which are Tasks, inspecting recursively any TaskGroups within.
 
         :param task_group: An Airflow TaskGroup
         :return: Dictionary that contains Task IDs as keys and Tasks as values.
         """
-        children = {}
+        children: dict[str, Any] = {}
         for child_id, child in task_group.children.items():
             if isinstance(child, TaskGroup):
                 child_children = cls.get_task_group_children(child)
