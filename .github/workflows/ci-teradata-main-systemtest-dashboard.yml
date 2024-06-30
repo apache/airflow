@@ -65,6 +65,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: ci-teradata-main-systemtest-dashboard.yml
+          workflow_conclusion: completed
           name: airflow-system-test-report
           path: .
       - name: "Display content of report csv"
