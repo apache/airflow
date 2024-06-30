@@ -429,7 +429,13 @@ repair_databricks_package = {
 
 
 class DatabricksWorkflowPlugin(AirflowPlugin):
-    """Databricks Workflows plugin for Airflow."""
+    """
+    Databricks Workflows plugin for Airflow.
+
+    .. seealso::
+        For more information on how to use this plugin, take a look at the guide:
+        :ref:`howto/plugin:DatabricksWorkflowPlugin`
+    """
 
     name = "databricks_workflow"
     operator_extra_links = [
