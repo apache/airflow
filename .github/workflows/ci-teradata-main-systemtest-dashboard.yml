@@ -67,6 +67,9 @@ jobs:
           workflow: ci-teradata-main-systemtest-dashboard.yml
           name: airflow-system-test-report
           path: .
+      - name: "Display content of report csv"
+        run: |
+          cat reporttest.csv
       - name: "Define CSAE env name"
         id: define-environment-name
         run: |
@@ -120,6 +123,7 @@ jobs:
               python report_generate_index_html.py
               mkdir teradata_report
               cp index.html teradata_report/index.html
+              cat reporttest.csv
       - name: Upload airflow teradata system test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -127,6 +131,7 @@ jobs:
           name: airflow-system-test-report
           path: |
             reporttest.csv
+            report_test.xml
       - name: "Build GITHUB Page for Teradata Airflow Provider System Tests Report"
         if: always()
         uses: actions/jekyll-build-pages@v1

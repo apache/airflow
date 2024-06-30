@@ -48,7 +48,7 @@ for system_test_file in system_test_files:
             if row[3] is not None:
                 try:
                     datetime_object = datetime.strptime(row[3], '%Y-%m-%d') # Getting date object from date str
-                    record.rundate = datetime_object.strftime('%m/%d/%Y') # Converting to US - MM-DD-YYYY format
+                    record.rundate = datetime_object.strftime('%m-%d-%Y') # Converting to US - MM-DD-YYYY format
                 except ValueError:
                     print(ValueError)
             if row[1] == 'S':
