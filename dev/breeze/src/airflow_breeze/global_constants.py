@@ -224,7 +224,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 
 
 def get_default_platform_machine() -> str:
-    machine = platform.uname().machine
+    machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
     machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
@@ -366,6 +366,7 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "RNHTTR",
     "ryanahamilton",
     "ryw",
     "saguziel",
