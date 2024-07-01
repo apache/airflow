@@ -32,6 +32,7 @@ from urllib.parse import urljoin
 
 import pendulum
 
+from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
@@ -127,17 +128,36 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
             yield timestamp, idx, line
 
 
+def split_log_to_messages(log: str) -> list[str]:
+    log_messages: list[str] = []
+
+    msg: list[str] = []
+    for line in log.split("\n"):  # do not remove \r symbols
+        if settings.LOG_FORMAT_RE_PATTERN_COMPILED.match(line) is not None:
+            if len(msg) != 0:
+                log_messages.append("\n".join(msg))
+            msg = []
+        msg.append(line)
+
+    if len(msg) != 0:
+        log_messages.append("\n".join(msg))
+    return log_messages
+
+
 def _interleave_logs(*logs):
     records = []
     for log in logs:
-        records.extend(_parse_timestamps_in_log_file(log.splitlines()))
+        records.extend(_parse_timestamps_in_log_file(split_log_to_messages(log)))
     last = None
     for _, _, v in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
     ):
-        if v != last:  # dedupe
+        if settings.LOG_FORMAT_DEDUPLICATE_LOGS:
+            if v != last:  # dedupe
+                yield v
+            last = v
+        else:
             yield v
-        last = v
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:

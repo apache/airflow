@@ -29,6 +29,7 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
+import re2
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -80,6 +81,9 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
 LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
+LOG_FORMAT_RE_PATTERN = conf.get("logging", "log_format_re_pattern")
+LOG_FORMAT_RE_PATTERN_COMPILED = re2.compile(LOG_FORMAT_RE_PATTERN)
+LOG_FORMAT_DEDUPLICATE_LOGS = conf.getboolean("logging", "log_format_deduplicate_logs")
 
 SQL_ALCHEMY_CONN: str | None = None
 PLUGINS_FOLDER: str | None = None
