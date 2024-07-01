@@ -717,10 +717,19 @@ class TestCliDags:
         mock_yesno.assert_not_called()
         dag_command.dag_unpause(args)
 
-    def test_pause_non_existing_dag_error(self):
+    def test_pause_non_existing_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
-        with pytest.raises(AirflowException):
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_pause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No unpaused DAGs were found"
+
+    def test_unpause_non_existing_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_unpause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No paused DAGs were found"
 
     def test_unpause_already_unpaused_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])

@@ -87,6 +87,7 @@ Committers
 - Qingping Hou (@houqp)
 - Ry Walker (@ryw)
 - Ryan Hamilton (@ryanahamilton)
+- Ryan Hatter (@RNHTTR)
 - Siddharth "Sid" Anand (@r39132)
 - Sumit Maheshwari (@msumit)
 - Tao Feng (@feng-tao)

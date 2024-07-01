@@ -449,7 +449,7 @@ const Details = ({
             </TabPanel>
           )}
           {isDag && (
-            <TabPanel height="100%" width="100%">
+            <TabPanel height="100%" width="100%" overflow="auto">
               <Calendar />
             </TabPanel>
           )}
