@@ -366,6 +366,8 @@ DAG_ARGS_EXPECTED_TYPES = {
     "dag_display_name": str,
 }
 
+SANITIZED_DOC_MD_TEXT = "[[ Riksy Jinja template detected & removed ]]"
+
 
 @functools.total_ordering
 class DAG(LoggingMixin):
@@ -768,10 +770,18 @@ class DAG(LoggingMixin):
 
         validate_instance_args(self, DAG_ARGS_EXPECTED_TYPES)
 
+    def sanitize_doc_md(self, doc_md: str) -> str:
+        import re
+
+        jinja_regex = r"\{\{.*?\}\}"
+        sanitized_doc_md = re.sub(jinja_regex, SANITIZED_DOC_MD_TEXT, doc_md)
+        return sanitized_doc_md
+
     def get_doc_md(self, doc_md: str | None) -> str | None:
         if doc_md is None:
             return doc_md
 
+        doc_md = self.sanitize_doc_md(doc_md)
         env = self.get_template_env(force_sandboxed=True)
 
         if not doc_md.endswith(".md"):

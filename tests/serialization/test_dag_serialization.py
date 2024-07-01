@@ -49,7 +49,7 @@ from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, Seria
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, SANITIZED_DOC_MD_TEXT
 from airflow.models.dagbag import DagBag
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
@@ -2822,3 +2822,49 @@ def test_mapped_task_with_operator_extra_links_property():
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]
+
+
+class TestDagDocMd:
+    def test_dag_doc_md_safe(self):
+        doc_md = "### Simple DAG"
+        expected = doc_md
+        dag = DAG(
+            dag_id="simple_dag",
+            default_args={
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+                "max_retry_delay": timedelta(minutes=10),
+                "depends_on_past": False,
+                "sla": timedelta(seconds=100),
+            },
+            start_date=datetime(2019, 8, 1),
+            is_paused_upon_creation=False,
+            doc_md=doc_md,
+        )
+
+        actual = dag.doc_md
+        assert actual == expected
+
+    def test_dag_doc_md_unsafe(self):
+        command = "hostname"
+        doc_md = (
+            f"{{ ''.__class__.__mro__[-1].__subclasses__()[138].__init__.__globals__['__builtins__']["
+            "'__import__']('subprocess').check_output('%s') }}" % command
+        )
+        expected = SANITIZED_DOC_MD_TEXT
+        dag = DAG(
+            dag_id="simple_dag",
+            default_args={
+                "retries": 1,
+                "retry_delay": timedelta(minutes=5),
+                "max_retry_delay": timedelta(minutes=10),
+                "depends_on_past": False,
+                "sla": timedelta(seconds=100),
+            },
+            start_date=datetime(2019, 8, 1),
+            is_paused_upon_creation=False,
+            doc_md=doc_md,
+        )
+
+        actual = dag.doc_md
+        assert actual == expected
