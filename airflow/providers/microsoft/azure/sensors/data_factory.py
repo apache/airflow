@@ -123,7 +123,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
 
-    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+    def execute_complete(self, _: Context, event: dict[str, str]) -> None:
         """
         Return immediately - callback for when the trigger fires.
 

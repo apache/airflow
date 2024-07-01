@@ -32,6 +32,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     get_field,
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
+from airflow.providers.microsoft.azure.utils import AzureEndpoint, AzureCloud
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -65,8 +66,20 @@ class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
             extras, "resource_group_name"
         )
         factory_name = operator.factory_name or get_field(extras, "factory_name")  # type: ignore
+
+        azure_cloud: AzureCloud = AzureCloud.AzureGlobal
+
+        try:
+            operator = get_field(extras, "cloudOperator", strict=True)
+            if operator == "AzureChina":
+                azure_cloud = AzureCloud.AzureChinaCloud
+            elif operator == "AzureUS":
+                azure_cloud = AzureCloud.AzureUSGovernment
+        except KeyError:
+            pass
+
         url = (
-            f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
+            f"{AzureEndpoint.get_adf_endpoint(azure_cloud)}/en-us/monitoring/pipelineruns/{run_id}"
             f"?factory=/subscriptions/{subscription_id}/"
             f"resourceGroups/{resource_group_name}/providers/Microsoft.DataFactory/"
             f"factories/{factory_name}"
@@ -233,7 +246,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                     stacklevel=2,
                 )
 
-    def execute_complete(self, context: Context, event: dict[str, str]) -> None:
+    def execute_complete(self, _: Context, event: dict[str, str]) -> None:
         """
         Return immediately - callback for when the trigger fires.
 
