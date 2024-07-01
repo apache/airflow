@@ -309,6 +309,9 @@ If release name contains chart name it will be used as a full name.
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
     {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
   {{- end }}
+  {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
+  lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
+  {{- end }}
 {{- end }}
 
 {{/* This helper will change when customers deploy a new image */}}

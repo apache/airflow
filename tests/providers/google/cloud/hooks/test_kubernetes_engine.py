@@ -29,12 +29,9 @@ from kubernetes.client.models import V1Deployment, V1DeploymentStatus
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
-    GKECustomResourceHook,
-    GKEDeploymentHook,
     GKEHook,
-    GKEJobHook,
-    GKEPodAsyncHook,
-    GKEPodHook,
+    GKEKubernetesAsyncHook,
+    GKEKubernetesHook,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -176,7 +173,7 @@ class TestGKEHookClient:
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
-        result = self.gke_hook.get_conn()
+        result = self.gke_hook.get_cluster_manager_client()
         mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.gke_hook._client == result
@@ -343,7 +340,7 @@ class TestGKEHook:
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
-        self.gke_hook.get_conn()
+        self.gke_hook.get_cluster_manager_client()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO
@@ -429,7 +426,7 @@ class TestGKEDeploymentHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEDeploymentHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):
@@ -499,7 +496,7 @@ class TestGKEPodAsyncHook:
 
     @pytest.fixture
     def async_hook(self):
-        return GKEPodAsyncHook(
+        return GKEKubernetesAsyncHook(
             cluster_url=CLUSTER_URL,
             ssl_ca_cert=SSL_CA_CERT,
             gcp_conn_id=GCP_CONN_ID,
@@ -507,7 +504,7 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
     async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
         self.make_mock_awaitable(read_namespace_pod_mock)
@@ -521,7 +518,7 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
     async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
         self.make_mock_awaitable(delete_namespaced_pod)
@@ -536,7 +533,7 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
     async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
@@ -594,7 +591,7 @@ class TestGKEPodHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEPodHook(
+            self.gke_hook = GKEKubernetesHook(
                 gcp_conn_id="test",
                 impersonation_chain=IMPERSONATE_CHAIN,
                 ssl_ca_cert=None,
@@ -656,12 +653,12 @@ class TestGKEPodHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            gke_hook = GKEPodHook(
+            gke_hook = GKEKubernetesHook(
                 gcp_conn_id="test",
                 impersonation_chain=IMPERSONATE_CHAIN,
                 ssl_ca_cert=None,
                 cluster_url=None,
-                disable_tcp_keepalive=disable_tcp_keepalive,
+                enable_tcp_keepalive=not disable_tcp_keepalive,
             )
         gke_hook.get_credentials = self._get_credentials
 
@@ -675,7 +672,7 @@ class TestGKEJobHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEJobHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):
@@ -720,7 +717,7 @@ class TestGKECustomResourceHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKECustomResourceHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):

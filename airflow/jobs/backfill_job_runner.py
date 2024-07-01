@@ -313,9 +313,12 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 and ti.state in self.STATES_COUNT_AS_RUNNING
             ):
                 msg = (
-                    f"Executor reports task instance {ti} finished ({state}) although the task says its "
-                    f"{ti.state}. Was the task killed externally? Info: {info}"
+                    f"The executor reported that the task instance {ti} finished with state {state}, "
+                    f"but the task instance's state attribute is {ti.state}. "
+                    "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally"
                 )
+                if info is not None:
+                    msg += f" Extra info: {info}"
                 self.log.error(msg)
                 ti.handle_failure(error=msg)
                 continue

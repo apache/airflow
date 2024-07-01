@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.operators.datapipeline import (
-    CreateDataPipelineOperator,
-    RunDataPipelineOperator,
+from airflow.providers.google.cloud.operators.dataflow import (
+    DataflowCreatePipelineOperator,
+    DataflowRunPipelineOperator,
 )
 
 TASK_ID = "test-datapipeline-operators"
@@ -58,7 +58,7 @@ class TestCreateDataPipelineOperator:
         """
         Creates a mock create datapipeline operator to be used in testing.
         """
-        return CreateDataPipelineOperator(
+        return DataflowCreatePipelineOperator(
             task_id="test_create_datapipeline",
             body=TEST_BODY,
             project_id=TEST_PROJECT_ID,
@@ -89,11 +89,11 @@ class TestRunDataPipelineOperator:
     @pytest.fixture
     def run_operator(self):
         """
-        Create a RunDataPipelineOperator instance with test data
+        Create a DataflowRunPipelineOperator instance with test data
         """
-        return RunDataPipelineOperator(
+        return DataflowRunPipelineOperator(
             task_id=TASK_ID,
-            data_pipeline_name=TEST_DATA_PIPELINE_NAME,
+            pipeline_name=TEST_DATA_PIPELINE_NAME,
             project_id=TEST_PROJECT_ID,
             location=TEST_LOCATION,
             gcp_conn_id=TEST_GCP_CONN_ID,
