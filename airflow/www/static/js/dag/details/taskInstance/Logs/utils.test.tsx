@@ -137,7 +137,7 @@ describe("Test Logs Utils.", () => {
   });
 
   test("parseLogs function with quoted urls", () => {
-    const { parsedLogs, fileSources } = parseLogs(
+    const { parsedLogs } = parseLogs(
       mockTaskLog,
       null,
       [LogLevel.INFO, LogLevel.WARNING],
@@ -146,7 +146,11 @@ describe("Test Logs Utils.", () => {
     );
 
     const lines = parsedLogs!.split("\n");
-    expect(lines[lines.length-1]).toContain("<a href=\"https://apple.com\" target=\"_blank\" style=\"color: blue; text-decoration: underline;\">https://apple.com</a>")
-    expect(lines[lines.length-1]).toContain("<a href=\"https://google.com\" target=\"_blank\" style=\"color: blue; text-decoration: underline;\">https://google.com</a>")
-  })
+    expect(lines[lines.length - 1]).toContain(
+      '<a href="https://apple.com" target="_blank" style="color: blue; text-decoration: underline;">https://apple.com</a>'
+    );
+    expect(lines[lines.length - 1]).toContain(
+      '<a href="https://google.com" target="_blank" style="color: blue; text-decoration: underline;">https://google.com</a>'
+    );
+  });
 });
