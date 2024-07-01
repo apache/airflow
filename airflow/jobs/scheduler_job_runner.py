@@ -1946,7 +1946,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _check_and_activate_dagrun_scheduling(self, session: Session = NEW_SESSION):
         tis = session.scalars(select(TI).where(TI.state == TaskInstanceState.UP_FOR_RETRY)).all()
         self.log.debug("Checking for DagRuns ready for scheduling")
-        drs = []
+        drs = set()
         for ti in tis:
             if ti.dag_run in drs:
                 continue
@@ -1959,5 +1959,5 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not ti.is_premature:
                 ti.dag_run.activate_scheduling()
                 session.merge(ti.dag_run)
-                drs.append(ti.dag_run)
+                drs.add(ti.dag_run)
         session.flush()

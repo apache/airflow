@@ -29,7 +29,6 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -43,12 +42,10 @@ airflow_version = "2.10.0"
 def upgrade():
     """Apply Rename dagrun.last_scheduling_decision."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("next_schedulable", UtcDateTime(), default=timezone.utcnow()))
-        batch_op.drop_column("last_scheduling_decision")
+        batch_op.add_column(sa.Column("next_schedulable", UtcDateTime()))
 
 
 def downgrade():
     """Unapply Rename dagrun.last_scheduling_decision."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("last_scheduling_decision", sa.TIMESTAMP(), nullable=True))
         batch_op.drop_column("next_schedulable")

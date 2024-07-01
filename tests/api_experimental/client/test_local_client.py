@@ -154,6 +154,7 @@ class TestLocalClient:
                 "data_interval_end": EXECDATE + pendulum.duration(hours=1),
                 "end_date": None,
                 "external_trigger": True,
+                "last_scheduling_decision": None,
                 "logical_date": EXECDATE,
                 "run_type": DagRunType.MANUAL,
                 "start_date": None,
