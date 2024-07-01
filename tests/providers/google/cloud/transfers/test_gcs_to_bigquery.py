@@ -1913,6 +1913,28 @@ class TestAsyncGCSToBigQueryOperator:
 
         bq_hook.return_value.insert_job.assert_has_calls(calls)
 
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_execute_complete_reassigns_job_id(self, bq_hook):
+        """Assert that we use job_id from event after deferral."""
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            deferrable=True,
+            job_id=None,
+        )
+        generated_job_id = "123456"
+
+        assert operator.job_id is None
+
+        operator.execute_complete(
+            context=MagicMock(),
+            event={"status": "success", "message": "Job completed", "job_id": generated_job_id},
+        )
+        assert operator.job_id == generated_job_id
+
     def create_context(self, task):
         dag = DAG(dag_id="dag")
         logical_date = datetime(2022, 1, 1, 0, 0, 0)
