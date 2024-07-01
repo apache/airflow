@@ -2204,6 +2204,97 @@
                         "additionalProperties": false
                     }
                 },
+                "placeHolder": {
+                    "description": "Creates place holders with lower priority class for workers.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable PlaceHolder for Kubernetes Executor Workers.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "replicas": {
+                            "description": "Quantity of place holder slots.",
+                            "type": "integer",
+                            "default": 2
+                        },
+                        "placeHolderPriority": {
+                            "description": "Value for PriorityClass of PlaceHolder: should be lower than worker PC",
+                            "type": [
+                                "null",
+                                "integer"
+                            ],
+                            "default": null
+                        },
+                        "labels": {
+                            "description": "Labels to add to the placeholder objects and pods.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null,
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to PlaceHolder Deployment.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null,
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to PlaceHolder pods.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null,
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "podDisruptionBudget": {
+                            "description": "Default",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "config": {
+                                    "description": "Disruption budget configuration.",
+                                    "type": [
+                                        "null",
+                                        "object"
+                                    ],
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "maxUnavailable": {
+                                            "description": "Max unavailable pods for scheduler.",
+                                            "type": [
+                                                "integer",
+                                                "string"
+                                            ],
+                                            "default": 1
+                                        },
+                                        "minAvailable": {
+                                            "description": "Min available pods for scheduler.",
+                                            "type": [
+                                                "integer",
+                                                "string"
+                                            ],
+                                            "default": 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 "volumeClaimTemplates": {
                     "description": "Specify additional volume claim template for workers.",
                     "type": "array",
