@@ -87,6 +87,7 @@ class TestPodTemplateFile:
                         "knownHosts": None,
                     }
                 },
+                "extraEnvFrom": [{"secretRef": {"name": "proxy-config"}}],
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -98,6 +99,7 @@ class TestPodTemplateFile:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
+            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},

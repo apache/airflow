@@ -950,7 +950,8 @@
             "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
             "type": [
                 "null",
-                "string"
+                "string",
+                "array"
             ],
             "x-docsSection": "Airflow",
             "default": null,
