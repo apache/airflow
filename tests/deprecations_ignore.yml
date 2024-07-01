@@ -196,6 +196,10 @@
 - tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAICreateHyperparameterTuningJobOperator::test_execute
 - tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAIDeleteAutoMLTrainingJobOperator::test_execute
 - tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAIDeleteCustomTrainingJobOperator::test_execute
+- tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py::TestVertexAIPromptLanguageModelOperator::test_execute
+- tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py::TestVertexAIGenerateTextEmbeddingsOperator::test_execute
+- tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py::TestVertexAIPromptMultimodalModelOperator::test_execute
+- tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py::TestVertexAIPromptMultimodalModelWithMediaOperator::test_execute
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_connections_prefix_none_value
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri_non_existent_key
