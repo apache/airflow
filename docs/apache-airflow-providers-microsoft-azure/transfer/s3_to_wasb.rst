@@ -42,7 +42,7 @@ Operators
 Transfer Data from Amazon S3 to Blob Storage
 ============================================
 
-To copy data from an Amazon AWS S3 Bucket to an Azure Blob Storage container, you can use
+To copy data from an Amazon AWS S3 Bucket to an Azure Blob Storage container, the following operator can be used:
 :class:`~airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3ToWasbOperator`
 
 Example usage:
