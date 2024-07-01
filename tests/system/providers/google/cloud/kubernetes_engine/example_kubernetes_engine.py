@@ -41,7 +41,14 @@ GCP_LOCATION = "europe-north1-a"
 CLUSTER_NAME = f"gke-{ENV_ID}".replace("_", "-")
 
 # [START howto_operator_gcp_gke_create_cluster_definition]
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
+CLUSTER = {
+    "name": CLUSTER_NAME,
+    "node_pools": [
+        {
+            "initial_node_count": 1,
+        },
+    ],
+}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
 

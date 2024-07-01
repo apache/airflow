@@ -42,8 +42,15 @@ GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-west3"
 CLUSTER_NAME = f"gke-kueue-{ENV_ID}".replace("_", "-")
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1, "autopilot": {"enabled": True}}
-
+CLUSTER = {
+    "name": CLUSTER_NAME,
+    "node_pools": [
+        {
+            "initial_node_count": 1,
+        },
+    ],
+    "autopilot": {"enabled": True},
+}
 flavor_conf = """
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
