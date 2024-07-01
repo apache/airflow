@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Callable
 
 from airflow.decorators.base import TaskDecorator
 from airflow.decorators.bash import bash_task
@@ -67,7 +67,7 @@ class TaskDecoratorCollection:
     sensor = staticmethod(sensor_task)
     bash = staticmethod(bash_task)
 
-    __call__: Any = python  # Alias '@task' to '@task.python'.
+    __call__ = python  # Alias '@task' to '@task.python'.
 
     def __getattr__(self, name: str) -> TaskDecorator:
         """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
