@@ -29,11 +29,7 @@ from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, g
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
-    GenerateTextEmbeddingsOperator,
     GenerativeModelGenerateContentOperator,
-    PromptLanguageModelOperator,
-    PromptMultimodalModelOperator,
-    PromptMultimodalModelWithMediaOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
     TextGenerationModelPredictOperator,
 )
@@ -68,52 +64,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "generative_model"],
 ) as dag:
-    # [START how_to_cloud_vertex_ai_prompt_language_model_operator]
-    prompt_language_model_task = PromptLanguageModelOperator(
-        task_id="prompt_language_model_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        prompt=PROMPT,
-        pretrained_model=LANGUAGE_MODEL,
-    )
-    # [END how_to_cloud_vertex_ai_prompt_language_model_operator]
-
-    # [START how_to_cloud_vertex_ai_generate_text_embeddings_operator]
-    generate_text_embeddings_task = GenerateTextEmbeddingsOperator(
-        task_id="generate_text_embeddings_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        prompt=PROMPT,
-        pretrained_model=TEXT_EMBEDDING_MODEL,
-    )
-    # [END how_to_cloud_vertex_ai_generate_text_embeddings_operator]
-
-    # [START how_to_cloud_vertex_ai_prompt_multi_modal_model_operator]
-    prompt_multimodal_model_task = PromptMultimodalModelOperator(
-        task_id="prompt_multimodal_model_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        prompt=PROMPT,
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
-        pretrained_model=MULTIMODAL_MODEL,
-    )
-    # [END how_to_cloud_vertex_ai_prompt_multi_modal_model_operator]
-
-    # [START how_to_cloud_vertex_ai_prompt_multi_modal_model_with_media_operator]
-    prompt_multimodal_model_with_media_task = PromptMultimodalModelWithMediaOperator(
-        task_id="prompt_multimodal_model_with_media_task",
-        project_id=PROJECT_ID,
-        location=REGION,
-        prompt=VISION_PROMPT,
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
-        pretrained_model=MULTIMODAL_VISION_MODEL,
-        media_gcs_path=MEDIA_GCS_PATH,
-        mime_type=MIME_TYPE,
-    )
-    # [END how_to_cloud_vertex_ai_prompt_multi_modal_model_with_media_operator]
-
     # [START how_to_cloud_vertex_ai_text_generation_model_predict_operator]
     predict_task = TextGenerationModelPredictOperator(
         task_id="predict_task",
