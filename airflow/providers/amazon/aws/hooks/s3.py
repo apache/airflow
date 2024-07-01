@@ -62,6 +62,12 @@ from airflow.utils.helpers import chunks
 logger = logging.getLogger(__name__)
 
 
+# Explicit value that would remove ACLs from a copy
+# No conflicts with Canned ACLs:
+#   https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl
+NO_ACL = "no-acl"
+
+
 def provide_bucket_name(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
@@ -1282,9 +1288,12 @@ class S3Hook(AwsBaseHook):
             It should be omitted when `dest_bucket_key` is provided as a full s3:// url.
         :param source_version_id: Version ID of the source object (OPTIONAL)
         :param acl_policy: The string to specify the canned ACL policy for the
-            object to be copied which is private by default.
+            object to be copied which is private by default. It is possible to remove
+            ACL by submitting "no-acl" explicitly
         """
         acl_policy = acl_policy or "private"
+        if acl_policy != NO_ACL:
+            kwargs["ACL"] = acl_policy
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
@@ -1296,7 +1305,7 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
         )
         return response
 
