@@ -77,6 +77,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             "conf": {"start": "stop"},
             "data_interval_end": None,
             "data_interval_start": None,
+            "last_scheduling_decision": None,
             "run_type": "manual",
             "note": None,
         }
@@ -170,6 +171,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "conf": {"start": "stop"},
                     "data_interval_end": None,
                     "data_interval_start": None,
+                    "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
                 },
@@ -185,6 +187,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "conf": {},
                     "data_interval_end": None,
                     "data_interval_start": None,
+                    "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
                 },

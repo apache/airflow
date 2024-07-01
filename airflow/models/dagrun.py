@@ -133,8 +133,10 @@ class DagRun(Base, LoggingMixin):
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
+    # No longer used, but kept for backwards compatibility
+    last_scheduling_decision = Column(UtcDateTime)
     # When next a scheduler would attempt to schedule TIs for this DagRun
-    next_schedulable = Column(UtcDateTime, default=timezone.utcnow())
+    next_schedulable = Column(UtcDateTime, default=timezone.utcnow)
     dag_hash = Column(String(32))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on

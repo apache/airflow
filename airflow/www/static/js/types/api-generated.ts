@@ -1192,6 +1192,8 @@ export interface components {
        * @description The end of the interval the DAG run covers.
        */
       data_interval_end?: string | null;
+      /** Format: date-time */
+      last_scheduling_decision?: string | null;
       /** @enum {string} */
       run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
       state?: components["schemas"]["DagState"];
