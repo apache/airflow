@@ -170,10 +170,10 @@ class ConsumeFromTopicOperator(BaseOperator):
 
             if self.apply_function:
                 for m in msgs:
-                    apply_callable(m)
+                    apply_callable(m, context=context)
 
             if self.apply_function_batch:
-                apply_callable(msgs)
+                apply_callable(msgs, context=context)
 
             if self.commit_cadence == "end_of_batch":
                 self.log.info("committing offset at %s", self.commit_cadence)
