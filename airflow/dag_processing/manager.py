@@ -476,8 +476,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         return self._run_parsing_loop()
 
-    def _scan_stale_dags(self):
-        """Scan at fix internal DAGs which are no longer present in files."""
+    def _purge_stale_dags(self):
+        """Scan at purge internal DAGs which are no longer present in files."""
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
         if elapsed_time_since_refresh > self.parsing_cleanup_interval:
@@ -600,7 +600,9 @@ class DagFileProcessorManager(LoggingMixin):
 
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
-            self._scan_stale_dags()
+
+            if conf.getboolean("core", "purge_stale_dags", fallback=True):
+                self._purge_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
             refreshed_dag_dir = self._refresh_dag_dir()
 

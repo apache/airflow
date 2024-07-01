@@ -616,7 +616,7 @@ class TestDagProcessorJobRunner:
         )
         assert session_delete.call_args[0][0].fileloc == parsing_request.fileloc
 
-    def test_scan_stale_dags(self):
+    def test_purge_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
         DagModel.last_parsed_time is not updated.
@@ -669,7 +669,7 @@ class TestDagProcessorJobRunner:
             )
             assert serialized_dag_count == 1
 
-            manager.processor._scan_stale_dags()
+            manager.processor._purge_stale_dags()
 
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
@@ -692,7 +692,7 @@ class TestDagProcessorJobRunner:
             ("scheduler", "stale_dag_threshold"): "50",
         }
     )
-    def test_scan_stale_dags_standalone_mode(self):
+    def test_purge_stale_dags_standalone_mode(self):
         """
         Ensure only dags from current dag_directory are updated
         """
@@ -740,7 +740,7 @@ class TestDagProcessorJobRunner:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 2
 
-            manager.processor._scan_stale_dags()
+            manager.processor._purge_stale_dags()
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
@@ -1409,6 +1409,147 @@ class TestDagProcessorJobRunner:
             dag1_sla1,
             dag1_req2,
         ]
+
+    @conf_vars({("core", "purge_stale_dags"): "False"})
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_disable_purge_stale_dags(self):
+        """
+        Test disable purge_stale_dags.
+        """
+        manager = DagProcessorJobRunner(
+            job=Job(),
+            processor=DagFileProcessorManager(
+                dag_directory=TEST_DAG_FOLDER,
+                max_runs=1,
+                processor_timeout=timedelta(minutes=10),
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=True,
+            ),
+        )
+
+        test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
+
+        assert not conf.getboolean("core", "purge_stale_dags")
+
+        with create_session() as session:
+            # Add stale DAG to the DB
+            dag = dagbag.get_dag("test_example_bash_operator")
+            dag.last_parsed_time = timezone.utcnow()
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag)
+
+            # Add DAG to the file_parsing_stats
+            stat = DagFileStat(
+                num_dags=1,
+                import_errors=0,
+                last_finish_time=timezone.utcnow() + timedelta(hours=1),
+                last_duration=timedelta(seconds=1),
+                run_count=1,
+            )
+            manager.processor._file_paths = [test_dag_path]
+            manager.processor._file_stats[test_dag_path] = stat
+
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert active_dag_count == 1
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 1
+
+            manager.processor._run_parsing_loop()
+
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert active_dag_count == 1
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 1
+
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_enable_purge_stale_dags(self):
+        """
+        Test enable purge_stale_dags with the default variable.
+        """
+        manager = DagProcessorJobRunner(
+            job=Job(),
+            processor=DagFileProcessorManager(
+                dag_directory=TEST_DAG_FOLDER,
+                max_runs=1,
+                processor_timeout=timedelta(minutes=10),
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=True,
+            ),
+        )
+
+        test_dag_path = str(TEST_DAG_FOLDER / "test_example_bash_operator.py")
+        dagbag = DagBag(test_dag_path, read_dags_from_db=False, include_examples=False)
+
+        assert conf.getboolean("core", "purge_stale_dags")
+
+        with create_session() as session:
+            # Add stale DAG to the DB
+            dag = dagbag.get_dag("test_example_bash_operator")
+            dag.last_parsed_time = timezone.utcnow()
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag)
+
+            # Add DAG to the file_parsing_stats
+            stat = DagFileStat(
+                num_dags=1,
+                import_errors=0,
+                last_finish_time=timezone.utcnow() + timedelta(hours=1),
+                last_duration=timedelta(seconds=1),
+                run_count=1,
+            )
+            manager.processor._file_paths = [test_dag_path]
+            manager.processor._file_stats[test_dag_path] = stat
+
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert active_dag_count == 1
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 1
+
+            manager.processor._run_parsing_loop()
+
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert active_dag_count == 0
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 0
 
 
 def _wait_for_processor_agent_to_complete_in_async_mode(processor_agent: DagFileProcessorAgent):
