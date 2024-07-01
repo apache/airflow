@@ -948,9 +948,12 @@ class DagRun(Base, LoggingMixin):
 
         tis = list(_filter_tis_and_exclude_removed(self.get_dag(), tis))
 
-        unfinished_tis = [t for t in tis if t.state in State.unfinished]
+        unfinished_tis = [t for t in tis if t.state in State.unfinished if not t.blocked_by_upstream]
         finished_tis = [t for t in tis if t.state in State.finished]
-        if unfinished_tis:
+        blocked_tis = [t for t in tis if t.blocked_by_upstream]
+
+        def _decide_on_tis(task_instances: Sequence[TI]):
+            unfinished_tis = task_instances
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
             schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
@@ -966,6 +969,14 @@ class DagRun(Base, LoggingMixin):
                 new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
+
+            return schedulable_tis, changed_tis, unfinished_tis
+
+        if unfinished_tis:
+            schedulable_tis, changed_tis, unfinished_tis = _decide_on_tis(unfinished_tis)
+        elif not unfinished_tis and finished_tis:
+            schedulable_tis, changed_tis, unfinished_tis = _decide_on_tis(blocked_tis)
+            unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
         else:
             schedulable_tis = []
             changed_tis = False

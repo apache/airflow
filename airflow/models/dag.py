@@ -3001,6 +3001,8 @@ class DAG(LoggingMixin):
                         s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
                 session.commit()
+                # #unblock blocked tasks
+                session.query(TaskInstance).update({"blocked_by_upstream": False})
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
                 scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}

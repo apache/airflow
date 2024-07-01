@@ -3684,6 +3684,7 @@ class TestTaskInstance:
             "next_method": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
+            "blocked_by_upstream": False,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
