@@ -586,6 +586,58 @@ Interacting with a Generative Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To prompt a language model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+This operator is deprecated. Please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_prompt_language_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_prompt_language_model_operator]
+
+To generate text embeddings you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+This operator is deprecated. Please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_generate_text_embeddings_operator]
+    :end-before: [END how_to_cloud_vertex_ai_generate_text_embeddings_operator]
+
+To prompt a multi-modal model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+This operator is deprecated. Please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_prompt_multi_modal_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_prompt_multi_modal_model_operator]
+
+To prompt a multi-modal model with media you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+This operator is deprecated. Please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_prompt_multi_modal_model_with_media_operator]
+    :end-before: [END how_to_cloud_vertex_ai_prompt_multi_modal_model_with_media_operator]
+
+To generate a prediction via language model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
 
