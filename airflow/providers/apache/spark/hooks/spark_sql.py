@@ -32,7 +32,7 @@ class SparkSqlHook(BaseHook):
     This hook is a wrapper around the spark-sql binary; requires the "spark-sql" binary to be in the PATH.
 
     :param sql: The SQL query to execute
-    :param conf: arbitrary Spark configuration property
+    :param conf: arbitrary Spark configuration properties
     :param conn_id: connection_id string
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
         (Default: all the available cores on the worker)
@@ -82,7 +82,7 @@ class SparkSqlHook(BaseHook):
     def __init__(
         self,
         sql: str,
-        conf: str | None = None,
+        conf: dict[str, Any] | None = None,
         conn_id: str = default_conn_name,
         total_executor_cores: int | None = None,
         executor_cores: int | None = None,
@@ -143,7 +143,7 @@ class SparkSqlHook(BaseHook):
         """
         connection_cmd = ["spark-sql"]
         if self._conf:
-            for conf_el in self._conf.split(","):
+            for conf_el in self._conf:
                 connection_cmd += ["--conf", conf_el]
         if self._total_executor_cores:
             connection_cmd += ["--total-executor-cores", str(self._total_executor_cores)]

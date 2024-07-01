@@ -38,7 +38,7 @@ class SparkSqlOperator(BaseOperator):
         :ref:`howto/operator:SparkSqlOperator`
 
     :param sql: The SQL query to execute. (templated)
-    :param conf: arbitrary Spark configuration property
+    :param conf: arbitrary Spark configuration properties
     :param conn_id: connection_id string
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all
         executors (Default: all the available cores on the worker)
@@ -63,7 +63,7 @@ class SparkSqlOperator(BaseOperator):
         self,
         *,
         sql: str,
-        conf: str | None = None,
+        conf: dict[str, Any] | None = None,
         conn_id: str = "spark_sql_default",
         total_executor_cores: int | None = None,
         executor_cores: int | None = None,
