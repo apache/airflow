@@ -1288,8 +1288,7 @@ class S3Hook(AwsBaseHook):
             It should be omitted when `dest_bucket_key` is provided as a full s3:// url.
         :param source_version_id: Version ID of the source object (OPTIONAL)
         :param acl_policy: The string to specify the canned ACL policy for the
-            object to be copied which is private by default. It is possible to remove
-            ACL by submitting "no-acl" explicitly
+            object to be copied which is private by default.
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
