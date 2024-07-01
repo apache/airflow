@@ -73,8 +73,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -138,8 +137,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -212,8 +210,7 @@ jobs:
     if: inputs.skip-provider-tests != 'true'
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
