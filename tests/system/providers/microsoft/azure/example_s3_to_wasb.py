@@ -65,7 +65,7 @@ with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catch
         encrypt=False,
     )
 
-    # [START howto_s3_to_howto_s3_to_wasbwasb]
+    # [START howto_s3_to_wasb]
     s3_to_wasb = S3ToAzureBlobStorageOperator(
         task_id="s3_to_wasb",
         s3_bucket=s3_bucket_name,
