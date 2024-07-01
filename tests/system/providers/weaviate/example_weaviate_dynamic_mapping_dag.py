@@ -81,7 +81,7 @@ def example_weaviate_dynamic_mapping_dag():
 
     (
         create_weaviate_collection.expand(
-            data=[["example1", "none"], ["example2", Configure.Vectorizer.text2vec_openai()]]
+            data=[["example1", None], ["example2", Configure.Vectorizer.text2vec_openai()]]
         )
         >> perform_ingestion
         >> delete_weaviate_collection.expand(collection_name=["example1", "example2"])
