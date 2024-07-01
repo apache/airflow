@@ -431,9 +431,7 @@ DEPENDENCIES = [
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "flask-caching>=2.0.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
-    "flask-session>=0.4.0,<0.6",
+    "flask-session==0.8.0",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.

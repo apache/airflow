@@ -16,9 +16,42 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
+import msgspec
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
-from flask_session.sessions import SqlAlchemySessionInterface
+from flask_session.sqlalchemy import SqlAlchemySessionInterface
+from markupsafe import Markup
+
+MARKUP_TYPE_CODE = 100
+
+
+def enc_hook(obj: Any) -> Any:
+    if isinstance(obj, Markup):
+        return msgspec.msgpack.Ext(MARKUP_TYPE_CODE, str(obj).encode())
+
+    raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
+
+
+def ext_hook(code: int, data: memoryview) -> Any:
+    if code == MARKUP_TYPE_CODE:
+        msg = data.tobytes().decode()
+        return Markup(msg)
+    else:
+        raise NotImplementedError(f"Extension type code {code} is not supported")
+
+
+class _MsgSpecSerializer:
+    def __init__(self):
+        self.encoder = msgspec.msgpack.Encoder(enc_hook=enc_hook)
+        self.decoder = msgspec.msgpack.Decoder(ext_hook=ext_hook)
+
+    def encode(self, session):
+        return self.encoder.encode(session)
+
+    def decode(self, serialized_data):
+        return self.decoder.decode(serialized_data)
 
 
 class SessionExemptMixin:
@@ -36,6 +69,13 @@ class SessionExemptMixin:
 class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInterface):
     """Session interface that exempts some routes and stores session data in the database."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.serializer = _MsgSpecSerializer()
+
 
 class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):
     """Session interface that exempts some routes and stores session data in a signed cookie."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
