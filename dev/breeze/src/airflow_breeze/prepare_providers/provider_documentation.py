@@ -99,6 +99,26 @@ Initial version of the provider.
 """
 
 
+short_hash_to_type_dict = {}
+
+
+class TypeOfChange(Enum):
+    DOCUMENTATION = "d"
+    BUGFIX = "b"
+    FEATURE = "f"
+    BREAKING_CHANGE = "x"
+    SKIP = "s"
+
+
+precedence_order = {
+    TypeOfChange.SKIP: 0,
+    TypeOfChange.DOCUMENTATION: 1,
+    TypeOfChange.BUGFIX: 2,
+    TypeOfChange.FEATURE: 3,
+    TypeOfChange.BREAKING_CHANGE: 4,
+}
+
+
 class Change(NamedTuple):
     """Stores details about commits"""
 
@@ -111,12 +131,10 @@ class Change(NamedTuple):
     pr: str | None
 
 
-class TypeOfChange(Enum):
-    DOCUMENTATION = "d"
-    BUGFIX = "b"
-    FEATURE = "f"
-    BREAKING_CHANGE = "x"
-    SKIP = "s"
+def get_most_impactful_change(changes):
+    changes_types = list(changes.values())
+    changes_enum = [TypeOfChange(change) for change in changes_types]
+    return max(changes_enum, key=lambda change: precedence_order[change])
 
 
 class ClassifiedChanges:
@@ -702,7 +720,20 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+            change_table_len = len(list_of_list_of_changes[0])
+            c = 0
+            global short_hash_to_type_dict
+            while c < change_table_len:
+                print("Define type of change for: ", list_of_list_of_changes[0][c].short_hash)
+                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                # update the type of change for every object
+                short_hash_to_type_dict[list_of_list_of_changes[0][c].short_hash] = type_of_change
+                c += 1
+
+            print("type dict", short_hash_to_type_dict)
+            most_impactful = get_most_impactful_change(short_hash_to_type_dict)
+            print("most_impactful is", most_impactful)
+            type_of_change = most_impactful
             if type_of_change == TypeOfChange.SKIP:
                 raise PrepareReleaseDocsUserSkippedException()
             get_console().print(
@@ -735,6 +766,7 @@ def update_release_notes(
         )
     else:
         answer = Answer.YES
+
     if answer == Answer.NO:
         type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
         if type_of_change == TypeOfChange.SKIP:
@@ -825,17 +857,15 @@ def _get_changes_classified(
     """
     classified_changes = ClassifiedChanges()
     for change in changes:
-        # Special cases
-        if "bump minimum Airflow version in providers" in change.message.lower():
+        type_of_change = short_hash_to_type_dict[change.short_hash]
+        print("typeof change", type_of_change)
+        if type_of_change == TypeOfChange.DOCUMENTATION:
             classified_changes.misc.append(change)
-        # General cases
-        elif "fix" in change.message.lower():
+        elif type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
-        elif "misc" in change.message.lower():
-            classified_changes.misc.append(change)
-        elif "add" in change.message.lower() and maybe_with_new_features:
+        elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)
-        elif "breaking" in change.message.lower() and with_breaking_changes:
+        elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
         else:
             classified_changes.other.append(change)
@@ -850,11 +880,15 @@ def _generate_new_changelog(
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
 ):
+    print("IN THIS FUNCTION!!!!")
     latest_version = provider_details.versions[0]
     current_changelog = provider_details.changelog_path.read_text()
     current_changelog_lines = current_changelog.splitlines()
     insertion_index, append = _find_insertion_index_for_version(current_changelog_lines, latest_version)
     new_context = deepcopy(context)
+
+    print("append?", append)
+
     if append:
         if not changes:
             get_console().print(

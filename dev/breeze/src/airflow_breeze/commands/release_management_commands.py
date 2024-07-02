@@ -660,6 +660,11 @@ def prepare_provider_documentation(
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
+                get_console().print(
+                    "End of Updating documentation for the latest release version.",
+                    with_breaking_changes,
+                    maybe_with_new_features,
+                )
             with ci_group(
                 f"Updates changelog for last release of package '{provider_id}'",
                 skip_printing_title=only_min_version_update,
