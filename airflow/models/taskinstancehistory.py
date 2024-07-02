@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, text
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
@@ -45,7 +47,49 @@ class TaskInstanceHistory(Base):
     run_id = Column(StringID(), nullable=False)
     map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
+    # TODO: duplicate TI table in TIhistory and use pre-commit hook to keep both in sync.
+    trigger_id = Column(Integer)
     # The rest of the columns are kept in sync with TaskInstance, added at the bottom of this file
+
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="and_(DagRun.run_id==TaskInstanceHistory.run_id,DagRun.dag_id==TaskInstanceHistory.dag_id)",
+        foreign_keys=[run_id, dag_id],
+        viewonly=True,
+        lazy="joined",
+    )
+
+    execution_date = association_proxy("dag_run", "execution_date")
+
+    rendered_task_instance_fields = relationship(
+        "RenderedTaskInstanceFields",
+        primaryjoin="and_(RenderedTaskInstanceFields.task_id==TaskInstanceHistory.task_id, RenderedTaskInstanceFields.run_id==TaskInstanceHistory.run_id,"
+        "RenderedTaskInstanceFields.dag_id==TaskInstanceHistory.dag_id, RenderedTaskInstanceFields.map_index==TaskInstanceHistory.map_index)",
+        uselist=False,
+        foreign_keys=[dag_id, task_id, run_id, map_index],
+        viewonly=True,
+        lazy="joined",
+    )
+    trigger = relationship(
+        "Trigger",
+        uselist=False,
+        primaryjoin="Trigger.id==TaskInstanceHistory.trigger_id",
+        viewonly=True,
+        foreign_keys=trigger_id,
+        lazy="joined",
+    )
+
+    triggerer_job = association_proxy("trigger", "triggerer_job")
+
+    task_instance_note = relationship(
+        "TaskInstanceNote",
+        primaryjoin="and_(TaskInstanceNote.dag_id==TaskInstanceHistory.dag_id, TaskInstanceNote.task_id==TaskInstanceHistory.task_id,"
+        "TaskInstanceNote.run_id==TaskInstanceHistory.run_id, TaskInstanceNote.map_index==TaskInstanceHistory.map_index)",
+        uselist=False,
+        foreign_keys=[dag_id, task_id, run_id, map_index],
+        viewonly=True,
+    )
+    note = association_proxy("task_instance_note", "content")
 
     def __init__(
         self,
