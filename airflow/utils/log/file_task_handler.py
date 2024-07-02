@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
     from airflow.models import DagRun
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -256,9 +256,7 @@ class FileTaskHandler(logging.Handler):
             filename = render_template_to_string(jinja_tpl, context)
         return dag_run, ti, str_tpl, filename
 
-    def _render_filename(
-        self, ti: TaskInstance | TaskInstancePydantic, try_number: int
-    ) -> str:
+    def _render_filename(self, ti: TaskInstance | TaskInstancePydantic, try_number: int) -> str:
         """Return the worker log filename."""
         dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
         if filename:
