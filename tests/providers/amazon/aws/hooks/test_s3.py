@@ -35,6 +35,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
+    NO_ACL,
     S3Hook,
     provide_bucket_name,
     unify_bucket_name_and_key,
@@ -989,6 +990,42 @@ class TestAwsS3Hook:
         )
         assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
         assert len(response["Grants"]) == 1
+
+    @mock_aws
+    def test_copy_object_no_acl(
+        self,
+        s3_bucket,
+    ):
+        mock_hook = S3Hook()
+
+        with mock.patch.object(
+            S3Hook,
+            "get_conn",
+        ) as patched_get_conn:
+            mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket, acl_policy=NO_ACL)
+
+            # Check we're not passing ACLs
+            patched_get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket="airflow-test-s3-bucket",
+                Key="my_key3",
+                CopySource={"Bucket": "airflow-test-s3-bucket", "Key": "my_key", "VersionId": None},
+            )
+            patched_get_conn.reset_mock()
+
+            mock_hook.copy_object(
+                "my_key",
+                "my_key3",
+                s3_bucket,
+                s3_bucket,
+            )
+
+            # Check the default is "private"
+            patched_get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket="airflow-test-s3-bucket",
+                Key="my_key3",
+                CopySource={"Bucket": "airflow-test-s3-bucket", "Key": "my_key", "VersionId": None},
+                ACL="private",
+            )
 
     @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):
