@@ -455,15 +455,6 @@ Breeze on POSIX-compliant systems (Linux, MacOS) can be automatically installed 
 ``breeze`` with it and setting up autocomplete.
 
 
-Troubleshooting
----------------
-
-If you are experiencing bad interpreter errors
-``zsh: /Users/eladkal/.local/bin/breeze: bad interpreter: /Users/eladkal/.local/pipx/venvs/apache-airflow-breeze/bin/python: no such file or directory``
-
-try to run ``pipx list`` to view which packages has bad interpreter (it can be more than just breeze, for example  pre-commit)
-you can fix these errors by running ``pipx reinstall-all``
-
 Uninstalling Breeze
 -------------------
 
