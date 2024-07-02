@@ -89,6 +89,7 @@
                                 "azure",
                                 "dbt",
                                 "gcp",
+                                "gdc",
                                 "gmp",
                                 "google",
                                 "kafka",

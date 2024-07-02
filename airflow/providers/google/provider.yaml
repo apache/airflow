@@ -428,6 +428,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataproc_metastore.rst
     tags: [gcp]
+  - integration-name: Google Dataproc GDC
+    external-doc-url: https://cloud.google.com/distributed-cloud/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/gdc/dataprocgdc.rst
+    tags: [gdc]
   - integration-name: Google Dataproc
     external-doc-url: https://cloud.google.com/dataproc/
     how-to-guide:
@@ -602,6 +607,9 @@ operators:
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.operators.dataproc
+  - integration-name: Google Dataproc GDC
+    python-modules:
+      - airflow.providers.google.gdc.operators.dataprocgdc
   - integration-name: Google Datastore
     python-modules:
       - airflow.providers.google.cloud.operators.datastore
@@ -734,6 +742,9 @@ sensors:
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
+  - integration-name: Google Dataproc GDC
+    python-modules:
+      - airflow.providers.google.gdc.sensors.dataprocgdc
   - integration-name: Google Dataproc Metastore
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc_metastore
