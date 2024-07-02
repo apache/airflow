@@ -200,7 +200,7 @@ TEST_VERSION_ALIASES = ["new-alias"]
 
 TEST_TEMPLATE_PATH = "test_template_path"
 
-SYNC_DEPRECATION_WARNING = "The 'sync' parameter is deprecated and will be removed after 01.10.2024."
+SYNC_DEPRECATION_WARNING = "The 'sync' parameter is deprecated and will be removed after {}."
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -235,7 +235,9 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+        ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -324,7 +326,9 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+        ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -406,7 +410,9 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+            ):
                 task.execute(context={"ti": mock.MagicMock()})
         assert isinstance(
             exc.value.trigger, CustomContainerTrainingJobTrigger
@@ -505,7 +511,9 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+        ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -596,7 +604,9 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+        ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -680,7 +690,9 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+            ):
                 task.execute(context={"ti": mock.MagicMock()})
         assert isinstance(
             exc.value.trigger, CustomPythonPackageTrainingJobTrigger
@@ -774,7 +786,9 @@ class TestVertexAICreateCustomTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+        ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
@@ -858,7 +872,9 @@ class TestVertexAICreateCustomTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+        ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -935,7 +951,9 @@ class TestVertexAICreateCustomTrainingJobOperator:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
+            ):
                 task.execute(context={"ti": mock.MagicMock()})
         assert isinstance(
             exc.value.trigger, CustomTrainingJobTrigger
@@ -1924,7 +1942,7 @@ class TestVertexAICreateBatchPredictionJobOperator:
         context = {"ti": mock.MagicMock()}
         with pytest.warns(
             AirflowProviderDeprecationWarning,
-            match="The 'sync' parameter is deprecated and will be removed after 28.08.2024.",
+            match=SYNC_DEPRECATION_WARNING.format("28.08.2024"),
         ):
             op.execute(context=context)
 
@@ -1982,7 +2000,7 @@ class TestVertexAICreateBatchPredictionJobOperator:
         context = {"ti": mock.MagicMock()}
         with pytest.raises(TaskDeferred) as exception_info, pytest.warns(
             AirflowProviderDeprecationWarning,
-            match="The 'sync' parameter is deprecated and will be removed after 28.08.2024.",
+            match=SYNC_DEPRECATION_WARNING.format("28.08.2024"),
         ):
             op.execute(context=context)
 
@@ -2311,7 +2329,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
         )
         with pytest.warns(
             AirflowProviderDeprecationWarning,
-            match="The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
+            match=SYNC_DEPRECATION_WARNING.format("01.09.2024"),
         ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -2366,7 +2384,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
         )
         with pytest.warns(
             AirflowProviderDeprecationWarning,
-            match="The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
+            match=SYNC_DEPRECATION_WARNING.format("01.09.2024"),
         ):
             op.execute(context={"ti": mock.MagicMock()})
         mock_defer.assert_called_once()
@@ -2391,7 +2409,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
         )
         with pytest.raises(AirflowException), pytest.warns(
             AirflowProviderDeprecationWarning,
-            match="The 'sync' parameter is deprecated and will be removed after 01.09.2024.",
+            match=SYNC_DEPRECATION_WARNING.format("01.09.2024"),
         ):
             op.execute(context={"ti": mock.MagicMock()})
 
