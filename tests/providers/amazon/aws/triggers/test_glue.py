@@ -99,6 +99,28 @@ class TestGlueCatalogPartitionSensorTrigger:
 
         assert response is True
 
+    def test_serialization(self):
+        trigger = GlueCatalogPartitionTrigger(
+            database_name="test_database",
+            table_name="test_table",
+            expression="id=12",
+            aws_conn_id="fake_conn_id",
+            region_name="eu-west-2",
+            verify=True,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.glue.GlueCatalogPartitionTrigger"
+        assert kwargs == {
+            "database_name": "test_database",
+            "table_name": "test_table",
+            "expression": "id=12",
+            "waiter_delay": 60,
+            "aws_conn_id": "fake_conn_id",
+            "region_name": "eu-west-2",
+            "verify": True,
+            "botocore_config": None,
+        }
+
 
 class TestGlueDataQualityEvaluationRunCompletedTrigger:
     EXPECTED_WAITER_NAME = "data_quality_ruleset_evaluation_run_complete"

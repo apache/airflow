@@ -107,7 +107,7 @@ class TestCloudSecretManagerBackend:
 
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=connections_prefix)
         secret_id = secrets_manager_backend.build_path(connections_prefix, CONN_ID, SEP)
-        returned_uri = secrets_manager_backend.get_conn_uri(conn_id=CONN_ID)
+        returned_uri = secrets_manager_backend.get_conn_value(conn_id=CONN_ID)
         assert CONN_URI == returned_uri
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
@@ -131,7 +131,7 @@ class TestCloudSecretManagerBackend:
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=CONNECTIONS_PREFIX)
         secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
         with caplog.at_level(level=logging.DEBUG, logger=secrets_manager_backend.client.log.name):
-            assert secrets_manager_backend.get_conn_uri(conn_id=CONN_ID) is None
+            assert secrets_manager_backend.get_conn_value(conn_id=CONN_ID) is None
             assert secrets_manager_backend.get_connection(conn_id=CONN_ID) is None
             assert re.search(
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
@@ -226,7 +226,7 @@ class TestCloudSecretManagerBackend:
                 secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=None)
 
                 mock_is_valid_prefix_sep.assert_not_called()
-                assert secrets_manager_backend.get_conn_uri(conn_id=CONN_ID) is None
+                assert secrets_manager_backend.get_conn_value(conn_id=CONN_ID) is None
                 mock_get_secret.assert_not_called()
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")

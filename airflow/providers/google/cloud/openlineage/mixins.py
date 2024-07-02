@@ -67,7 +67,17 @@ class _BigQueryOpenLineageMixin:
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if not self.job_id:
+            if hasattr(self, "log"):
+                self.log.warning("No BigQuery job_id was found by OpenLineage.")
             return OperatorLineage()
+
+        if not self.hook:
+            from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            )
 
         run_facets: dict[str, BaseFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery")

@@ -535,8 +535,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     MISSING_EXAMPLES_FOR_CLASSES = {
         # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
-        # Glue Catalog sensor difficult to test
-        "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
     }
 
     DEPRECATED_CLASSES = {
