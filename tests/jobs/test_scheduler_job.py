@@ -509,6 +509,55 @@ class TestSchedulerJob:
         scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_not_called()
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_sets_next_schedulable_for_finished_tasks_dr(
+        self, mock_stats_incr, mock_task_callback, dag_maker, session
+    ):
+        mock_stats_incr.reset_mock()
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+        self.job_runner.processor_agent = mock.MagicMock()
+
+        with dag_maker():
+            op1 = BashOperator(task_id="task1", bash_command="echo 1")
+            op2 = BashOperator(task_id="task2", bash_command="echo 1")
+            op3 = BashOperator(task_id="task3", bash_command="echo 1")
+            op4 = BashOperator(task_id="task4", bash_command="echo 1")
+            op1 >> [op2, op3, op4]
+        dr = dag_maker.create_dagrun()
+        assert dr.next_schedulable
+        ti1 = dr.get_task_instance(task_id="task1")
+        ti1.state = TaskInstanceState.RUNNING
+        session.merge(ti1)
+        dr.update_state()
+        session.flush()
+        dr = session.scalar(select(DagRun))
+        # assert that next_schedulable has been nullified
+        assert not dr.next_schedulable
+
+        mock_stats_incr.reset_mock()
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+        self.job_runner.processor_agent = mock.MagicMock()
+        ti1.state = TaskInstanceState.SUCCESS
+        session.merge(ti1)
+        session.flush()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+
+        self.job_runner._process_executor_events(session=session)
+        dr = session.scalar(select(DagRun))
+        # assert that next_schedulable has been set since TI run succeeded
+        assert dr.next_schedulable
+
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
         task_id_1 = "dummy_task"
@@ -3949,6 +3998,10 @@ class TestSchedulerJob:
 
         with create_session() as session:
             self.job_runner._create_dag_runs([dag_model], session)
+            dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).first()
+            dr.next_schedulable = timezone.utcnow()
+            session.merge(dr)
+            session.flush()
             self.job_runner._start_queued_dagruns(session)
 
         dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).first()
@@ -5101,6 +5154,43 @@ class TestSchedulerJob:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
 
+    def test_activate_dagrun_when_retry_datetime_is_reached(self, dag_maker, time_machine, session):
+        time_machine.move_to("2024-06-24 12:56:35", tick=False)
+        with dag_maker():
+            task = BashOperator(
+                task_id="test",
+                bash_command="exit 1",
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=-3),  # negative to trigger immediate retry
+            )
+
+        def run_with_error(ti):
+            with contextlib.suppress(AirflowException):
+                ti.run()
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        run_with_error(ti)
+        assert ti.state == State.UP_FOR_RETRY
+        session.flush()
+
+        dr = session.query(DagRun).one()
+        assert not dr.next_schedulable
+
+        scheduler_job = Job(executor=MockExecutor())
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        self.job_runner.processor_agent = mock.MagicMock()
+
+        self.job_runner._check_and_activate_dagrun_scheduling(session)
+
+        session.flush()
+
+        dr = session.query(DagRun).one()
+        assert dr.next_schedulable
+
     @mock.patch.object(settings, "USE_JOB_SCHEDULE", False)
     def run_scheduler_until_dagrun_terminal(self):
         """
@@ -5331,7 +5421,7 @@ class TestSchedulerJob:
             execution_date=datetime.datetime(2022, 1, 1),
             run_type=DagRunType.SCHEDULED,
         )
-        scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
+        scheduled_run.next_schedulable = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
         ti = scheduled_run.get_task_instances()[0]
         ti.set_state(TaskInstanceState.RUNNING)
         dm = DagModel.get_dagmodel(dag.dag_id)
@@ -5352,14 +5442,14 @@ class TestSchedulerJob:
         # TI still running, DagRun left in running
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.RUNNING
-        prior_last_scheduling_decision = scheduled_run.last_scheduling_decision
+        prior_next_schedulable = scheduled_run.next_schedulable
 
         # Make sure we don't constantly try dagruns over and over
         self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.RUNNING
-        # last_scheduling_decision is bumped by update_state, so check that to determine if we tried again
-        assert prior_last_scheduling_decision == scheduled_run.last_scheduling_decision
+        # next_schedulable is bumped by task_instances_scheduling_decision, so check that to determine if we tried again
+        assert prior_next_schedulable == scheduled_run.next_schedulable
 
         # Once the TI is in a terminal state though, DagRun goes to success
         ti.set_state(TaskInstanceState.SUCCESS)
@@ -5375,7 +5465,7 @@ class TestSchedulerJob:
 
         # Backfill run
         backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
-        backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
+        backfill_run.next_schedulable = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
         ti = backfill_run.get_task_instances()[0]
         ti.set_state(TaskInstanceState.SUCCESS)
         dm = DagModel.get_dagmodel(dag.dag_id)

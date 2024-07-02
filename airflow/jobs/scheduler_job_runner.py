@@ -722,6 +722,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
+            if ti.state in State.finished:
+                ti.dag_run.activate_scheduling()
+
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
@@ -901,7 +904,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
+                .having(DagRun.next_schedulable <= func.max(TI.updated_at))
                 .group_by(DagRun)
             )
             for dag_run in paused_runs:
@@ -978,6 +981,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 conf.getfloat("scheduler", "parsing_cleanup_interval"),
                 self._cleanup_stale_dags,
             )
+        timers.call_regular_interval(5, self._check_and_activate_dagrun_scheduling)
 
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
@@ -1850,3 +1854,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             _executor_to_tis[ExecutorLoader.load_executor(executor)].append(ti)
 
         return _executor_to_tis
+
+    @provide_session
+    def _check_and_activate_dagrun_scheduling(self, session: Session = NEW_SESSION):
+        tis = session.scalars(select(TI).where(TI.state == TaskInstanceState.UP_FOR_RETRY)).all()
+        self.log.debug("Checking for DagRuns ready for scheduling")
+        drs = set()
+        for ti in tis:
+            if ti.dag_run in drs:
+                continue
+            # Get task from the Serialized DAG
+            try:
+                dag = self.dagbag.get_dag(ti.dag_id)
+                ti.task = dag.get_task(ti.task_id)
+            except Exception:
+                continue
+            if not ti.is_premature:
+                ti.dag_run.activate_scheduling()
+                session.merge(ti.dag_run)
+                drs.add(ti.dag_run)
+        session.flush()

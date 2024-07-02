@@ -478,6 +478,8 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
+        if not dag_run_state:
+            ti.dag_run.activate_scheduling()
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
@@ -552,9 +554,11 @@ def clear_task_instances(
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
                 if dag_run_state == DagRunState.QUEUED:
-                    dr.last_scheduling_decision = None
+                    dr.activate_scheduling()
                     dr.start_date = None
                     dr.clear_number += 1
+            else:
+                dr.activate_scheduling()
     session.flush()
 
 
@@ -3245,6 +3249,7 @@ class TaskInstance(Base, LoggingMixin):
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
+            ti.dag_run.deactivate_scheduling()
 
         return {
             "ti": ti,
