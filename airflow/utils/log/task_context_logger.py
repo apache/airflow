@@ -23,11 +23,10 @@ from copy import copy
 from logging import Logger
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import create_session
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
