@@ -31,7 +31,7 @@ const updateTheme = (isDark) => {
 };
 const initTheme = () => {
   const isDark = getJsonFromStorage(STORAGE_THEME_KEY);
-  if (isDark !== null) updateTheme(isDark);
+  updateTheme(isDark);
 };
 const toggleTheme = () => {
   const isDark = getJsonFromStorage(STORAGE_THEME_KEY);

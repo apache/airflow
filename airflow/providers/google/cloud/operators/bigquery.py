@@ -3038,6 +3038,8 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             self.task_id,
             event["message"],
         )
+        # Save job_id as an attribute to be later used by listeners
+        self.job_id = event.get("job_id")
         return self.job_id
 
     def on_kill(self) -> None:

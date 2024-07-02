@@ -74,7 +74,7 @@ export const parseLogs = (
   const ansiUp = new AnsiUp();
   ansiUp.url_allowlist = {};
 
-  const urlRegex = /((https?:\/\/|http:\/\/)[^\s]+)/g;
+  const urlRegex = /((https?:\/\/|http:\/\/)(?:(?!&#x27;|&quot;)[^\s])+)/g;
   // Detect log groups which can be collapsed
   // Either in Github like format '::group::<group name>' to '::endgroup::'
   // see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines

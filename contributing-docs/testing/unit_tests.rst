@@ -1104,13 +1104,13 @@ directly to the container.
 2. Enter breeze environment by selecting the appropriate airflow version and choosing
    ``providers-and-tests`` option for ``--mount-sources`` flag.
 
-.. code-block::bash
+.. code-block:: bash
 
   breeze shell --use-airflow-version 2.9.1 --mount-sources providers-and-tests
 
 3. You can then run tests as usual:
 
-.. code-block::bash
+.. code-block:: bash
 
    pytest tests/providers/<provider>/test.py
 

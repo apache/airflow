@@ -1691,6 +1691,32 @@ class TestBigQueryInsertJobOperator:
             "%s completed with response %s ", "insert_query_job", "Job completed"
         )
 
+    def test_bigquery_insert_job_operator_execute_complete_reassigns_job_id(self):
+        """Assert that we use job_id from event after deferral."""
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+        job_id = "123456"
+
+        operator = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=None,  # We are not passing anything here on purpose
+            project_id=TEST_GCP_PROJECT_ID,
+            deferrable=True,
+        )
+
+        returned_job_id = operator.execute_complete(
+            context=MagicMock(),
+            event={"status": "success", "message": "Job completed", "job_id": job_id},
+        )
+        assert returned_job_id == job_id
+        assert operator.job_id == job_id
+
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_with_job_id_generate(

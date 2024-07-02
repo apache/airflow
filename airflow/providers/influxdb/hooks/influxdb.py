@@ -68,17 +68,13 @@ class InfluxDBHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
-        from wtforms.validators import InputRequired
 
         return {
-            "token": StringField(
-                lazy_gettext("Token"), widget=BS3TextFieldWidget(), default="", validators=[InputRequired()]
-            ),
+            "token": StringField(lazy_gettext("Token"), widget=BS3TextFieldWidget(), default=""),
             "org": StringField(
                 lazy_gettext("Organization Name"),
                 widget=BS3TextFieldWidget(),
                 default="",
-                validators=[InputRequired()],
             ),
         }
 
