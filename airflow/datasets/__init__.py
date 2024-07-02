@@ -160,6 +160,13 @@ class BaseDataset:
 
 
 @attr.define()
+class DatasetAlias:
+    """A represeation of datasets to be created during the runtime."""
+
+    name: str
+
+
+@attr.define()
 class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 

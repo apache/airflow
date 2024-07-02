@@ -34,11 +34,39 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+
+class DatasetAliasModel(Base):
+    """
+    A table to store dataset alias.
+
+    :param uri: a string that uniquely identifies the dataset alias
+    """
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(
+        String(length=3000).with_variant(
+            String(
+                length=3000,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    __tablename__ = "dataset_alias"
+
+    @classmethod
+    def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
+        return cls(name=obj.name)
 
 
 class DatasetModel(Base):

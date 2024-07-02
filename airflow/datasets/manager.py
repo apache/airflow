@@ -26,7 +26,13 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+)
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -57,6 +63,12 @@ class DatasetManager(LoggingMixin):
 
         for dataset_model in dataset_models:
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
+
+    def create_dataset_aliases(self, dataset_alias_models: list[DatasetAliasModel], session: Session) -> None:
+        """Create new dataset aliases."""
+        for dataset_alias_model in dataset_alias_models:
+            session.add(dataset_alias_model)
+        session.flush()
 
     @classmethod
     @internal_api_call
