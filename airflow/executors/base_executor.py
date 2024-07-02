@@ -291,7 +291,8 @@ class BaseExecutor(LoggingMixin):
                     continue
                 # Otherwise, we give up and remove the task from the queue.
                 self.task_context_logger.error(
-                    "could not queue task %s (still running after %d attempts)",
+                    "Could not queue task %s (still running after %d attempts). It generally means that the "
+                    "task has been killed externally and not yet been marked as failed.",
                     key,
                     attempt.total_tries,
                     ti=ti,
