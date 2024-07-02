@@ -22,6 +22,8 @@ from weaviate.collections.classes.config import Configure
 
 from airflow.decorators import dag, task, teardown
 
+COLLECTION_NAME = "QuestionWithOpenAIVectorizerUsingHook"
+
 
 @dag(
     schedule=None,
@@ -41,7 +43,7 @@ def example_weaviate_dag_using_hook():
 
         weaviate_hook = WeaviateHook()
         weaviate_hook.create_collection(
-            "QuestionWithOpenAIVectorizerUsingHook",
+            COLLECTION_NAME,
             description="Information from a Jeopardy! question",
             properties=[
                 Property(name="question", description="The question", data_type=DataType.TEXT),
@@ -86,7 +88,7 @@ def example_weaviate_dag_using_hook():
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        weaviate_hook.batch_data("QuestionWithOpenAIVectorizerUsingHook", data)
+        weaviate_hook.batch_data(COLLECTION_NAME, data)
 
     @task(trigger_rule="all_done")
     def batch_data_with_vectors(data: list):
@@ -106,7 +108,7 @@ def example_weaviate_dag_using_hook():
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_collections(["QuestionWithOpenAIVectorizerUsingHook"])
+        weaviate_hook.delete_collections([COLLECTION_NAME])
 
     @teardown
     @task
