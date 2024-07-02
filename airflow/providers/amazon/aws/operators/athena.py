@@ -175,7 +175,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 f"query_execution_id is {self.query_execution_id}."
             )
 
-        # Save output location from API response for later use in OpenLineage.
+        # Save output location from API response for later use by listeners
         self.output_location = self.hook.get_output_location(self.query_execution_id)
 
         return self.query_execution_id
@@ -185,6 +185,11 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+
+        # Save some attributes to be later used by listeners
+        self.query_execution_id = event["value"]
+        self.output_location = self.hook.get_output_location(event["value"])
+
         return event["value"]
 
     def on_kill(self) -> None:
@@ -215,7 +220,12 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         In addition to CTAS query, query and calculation results are stored in S3 location.
         For that reason additional output is attached with this location.
         """
-        from openlineage.client.facet import ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+        from openlineage.client.facet import (
+            ExternalQueryRunFacet,
+            ExtractionError,
+            ExtractionErrorRunFacet,
+            SqlJobFacet,
+        )
         from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -230,6 +240,10 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             return OperatorLineage(job_facets=job_facets)
 
         run_facets: dict[str, BaseFacet] = {}
+        if self.query_execution_id:
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=self.query_execution_id, source="awsathena"
+            )
         if parse_result.errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=len(self.query) if isinstance(self.query, list) else 1,
@@ -301,7 +315,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 )
             }
             fields = [
-                SchemaField(name=column["Name"], type=column["Type"], description=column["Comment"])
+                SchemaField(name=column["Name"], type=column["Type"], description=column.get("Comment"))
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]
             if fields:
