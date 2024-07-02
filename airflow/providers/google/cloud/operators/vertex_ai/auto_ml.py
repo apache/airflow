@@ -656,9 +656,9 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting Auto ML training pipeline: %s", self.training_pipeline)
+            self.log.info("Deleting Auto ML training pipeline: %s", self.training_pipeline_id)
             training_pipeline_operation = hook.delete_training_pipeline(
-                training_pipeline=self.training_pipeline,
+                training_pipeline=self.training_pipeline_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -668,7 +668,7 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
             self.log.info("Training pipeline was deleted.")
         except NotFound:
-            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
+            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline_id)
 
 
 class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
