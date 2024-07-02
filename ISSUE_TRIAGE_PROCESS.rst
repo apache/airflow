@@ -260,6 +260,21 @@ as long as the ``needs-triage`` label remains the triage team will keep an eye o
 if it needs to be accepted or closed/converted to Github Discussion.
 ``needs-triage`` label may also be applied manually by committers if they think a further action from the triage team is required.
 
+**area Label**
+
+``area:providers`` must be present for any provider issue. The ``provider:x`` is specifying the exact provider.
+We have ``provider:x`` for any provider that we own.
+``area:helm-chart`` must be for any helm chart issue.
+``area:core`` must be for any core issue. Additional labels like ``area:scheduler``, ``area:UI`` is specifying the exact
+core area relevant.
+
+This method allow us to quickly filter issues by the 3 major components of our code base: core, providers and helm-chart.
+
+**affected version Label**
+
+The ``affected_version:x`` is mandatory for core issues thus it always comes with ``area:core`` label.
+When issue is reproducible on multiple Airflow versions we apply only the latest version with the label.
+
 **Good First Issue**
 
 Issues which are relatively straight forward to solve, will be tagged with
