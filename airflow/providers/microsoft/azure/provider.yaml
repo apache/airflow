@@ -174,6 +174,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/msgraph.rst
     tags: [azure]
+  - integration-name: Microsoft Power BI
+    external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -206,6 +209,9 @@ operators:
   - integration-name: Microsoft Graph API
     python-modules:
       - airflow.providers.microsoft.azure.operators.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.powerbi
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -266,6 +272,9 @@ hooks:
   - integration-name: Microsoft Graph API
     python-modules:
       - airflow.providers.microsoft.azure.hooks.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.powerbi
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
@@ -328,6 +337,8 @@ connection-types:
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook
+    connection-type: powerbi
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
@@ -338,6 +349,7 @@ logging:
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
   - airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink
+  - airflow.providers.microsoft.azure.operators.powerbi.PowerBILink
 
 config:
   azure_remote_logging:
