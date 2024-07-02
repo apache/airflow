@@ -35,7 +35,7 @@ class TestGetTaskRunner:
     def test_should_have_valid_imports(self, import_path):
         assert import_string(import_path) is not None
 
-    @mock.patch("airflow.utils.log.task_context_logger.ensure_ti")
+    @mock.patch("airflow.utils.log.file_task_handler.ensure_ti")
     @mock.patch("airflow.task.task_runner.base_task_runner.subprocess")
     @mock.patch("airflow.task.task_runner._TASK_RUNNER_NAME", "StandardTaskRunner")
     def test_should_support_core_task_runner(self, mock_subprocess, mock_ensure_ti):
