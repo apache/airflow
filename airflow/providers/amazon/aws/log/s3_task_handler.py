@@ -140,7 +140,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         """
         return self.hook.check_for_key(remote_log_location)
 
-    def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
+    def s3_read(
+        self, remote_log_location: str, return_error: bool = False, page_number: int | None = None
+    ) -> str:
         """
         Return the log found at the remote_log_location or '' if no logs are found or there is an error.
 
@@ -150,7 +152,13 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :return: the log found at the remote_log_location
         """
         try:
-            return self.hook.read_key(remote_log_location)
+            range: str = None
+            if page_number is not None:
+                page_size = 1024 * 100  # TODO: Create config for page_size
+                start_byte = (page_number - 1) * page_size
+                end_byte = start_byte + page_size - 1
+                range = f"bytes={start_byte}-{end_byte}"
+            return self.hook.read_key(remote_log_location, range=range)
         except Exception as error:
             msg = f"Could not read logs from {remote_log_location} with error: {error}"
             self.log.exception(msg)

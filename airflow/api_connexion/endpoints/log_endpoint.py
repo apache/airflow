@@ -50,6 +50,7 @@ def get_log(
     task_try_number: int,
     full_content: bool = False,
     map_index: int = -1,
+    page_number: int | None = None,
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -103,7 +104,9 @@ def get_log(
     # return_type would be either the above two or None
     logs: Any
     if return_type == "application/json" or return_type is None:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
+        logs, metadata = task_log_reader.read_log_chunks(
+            ti, task_try_number, metadata, page_number=page_number
+        )
         logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
