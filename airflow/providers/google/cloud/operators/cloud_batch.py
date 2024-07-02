@@ -86,7 +86,9 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
-        job = hook.submit_batch_job(job_name=self.job_name, job=self.job, region=self.region)
+        job = hook.submit_batch_job(
+            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+        )
 
         if not self.deferrable:
             completed_job = hook.wait_for_job(
