@@ -772,20 +772,13 @@ class DAG(LoggingMixin):
         if doc_md is None:
             return doc_md
 
-        env = self.get_template_env(force_sandboxed=True)
-
-        if not doc_md.endswith(".md"):
-            template = jinja2.Template(doc_md)
-        else:
+        if doc_md.endswith(".md"):
             try:
-                template = env.get_template(doc_md)
-            except jinja2.exceptions.TemplateNotFound:
-                return f"""
-                # Templating Error!
-                Not able to find the template file: `{doc_md}`.
-                """
+                return open(doc_md).read()
+            except FileNotFoundError:
+                return doc_md
 
-        return template.render()
+        return doc_md
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
         """

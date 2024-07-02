@@ -80,10 +80,6 @@
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_pause_cluster
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster
 - tests/providers/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster_exception
-- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_conn_value_broken_field_mode
-- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_conn_value_broken_field_mode_extra_words_added
-- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_connection_broken_field_mode_extra_allows_nested_json
-- tests/providers/amazon/aws/secrets/test_secrets_manager.py::TestSecretsManagerBackend::test_get_connection_broken_field_mode_url_encoding
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_exception
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
 - tests/providers/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
@@ -182,9 +178,6 @@
 - tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri_non_existent_key
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_cron
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_datetime
-- tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_execute
-- tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_execute_with_gzip
-- tests/providers/google/cloud/transfers/test_azure_fileshare_to_gcs.py::TestAzureFileShareToGCSOperator::test_init
 - tests/providers/google/cloud/transfers/test_bigquery_to_postgres.py::TestBigQueryToPostgresOperator::test_execute_good_request_to_bq
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_copy_files_into_a_folder
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_last_modified_time
@@ -204,5 +197,4 @@
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_last_modified_time_with_all_true_cond
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_last_modified_time_with_one_true_cond
 - tests/providers/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_no_last_modified_time
-- tests/providers/microsoft/azure/hooks/test_adx.py::TestAzureDataExplorerHook::test_backcompat_prefix_works
 - tests/providers/microsoft/psrp/hooks/test_psrp.py::TestPsrpHook::test_invoke_cmdlet_deprecated_kwargs
