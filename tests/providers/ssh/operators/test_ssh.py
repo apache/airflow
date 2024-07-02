@@ -192,13 +192,17 @@ class TestSSHOperator:
         assert task.get_pty == get_pty_out
 
     def test_ssh_client_managed_correctly(self):
-        # Ensure connection gets closed once (via context_manager)
+        # Ensure connection gets closed once (via context_manager) using on_kill
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command="ls",
         )
-        task.execute()
+
+        with mock.patch.object(task, "on_kill") as on_kill:
+            task.execute()
+            task.on_kill.assert_called_once()
+
         self.hook.get_conn.assert_called_once()
         self.hook.get_conn.return_value.__exit__.assert_called_once()
 
