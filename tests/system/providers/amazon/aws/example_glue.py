@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
+from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
@@ -49,7 +50,7 @@ ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 # Example csv data used as input to the example AWS Glue Job.
-EXAMPLE_CSV = """
+EXAMPLE_CSV = """product,value
 apple,0.5
 milk,2.5
 bread,4.0
@@ -115,7 +116,7 @@ with DAG(
     upload_csv = S3CreateObjectOperator(
         task_id="upload_csv",
         s3_bucket=bucket_name,
-        s3_key="input/input.csv",
+        s3_key="input/category=mixed/input.csv",
         data=EXAMPLE_CSV,
         replace=True,
     )
@@ -145,6 +146,15 @@ with DAG(
     )
     # [END howto_sensor_glue_crawler]
     wait_for_crawl.timeout = 500
+
+    # [START howto_sensor_glue_catalog_partition]
+    wait_for_catalog_partition = GlueCatalogPartitionSensor(
+        task_id="wait_for_catalog_partition",
+        table_name="input",
+        database_name=glue_db_name,
+        expression="category='mixed'",
+    )
+    # [END howto_sensor_glue_catalog_partition]
 
     # [START howto_operator_glue]
     submit_glue_job = GlueJobOperator(
@@ -210,7 +220,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 
