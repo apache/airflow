@@ -1,1 +1,0 @@
-Fixed ``BaseSensorOperator`` with exponential backoff and reschedule mode by estimating try number based on ``run_duration``; previously, sensors had a fixed reschedule interval.

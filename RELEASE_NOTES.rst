@@ -21,6 +21,58 @@
 
 .. towncrier release notes start
 
+Airflow 2.9.3 (2024-07-02)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Time unit for ``scheduled_duration`` and ``queued_duration`` changed.
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``scheduled_duration`` and ``queued_duration`` metrics are now emitted in milliseconds instead of seconds.
+
+By convention all statsd metrics should be emitted in milliseconds, this is later expected in e.g. prometheus' statsd-exporter. (#37936)
+
+
+
+Bug Fixes
+"""""""""
+- Fix calendar view scroll (#40458)
+- Validating provider description for urls in provider list view (#40475)
+- Fix compatibility with old MySQL 8.0 (#40314)
+- Fix dag (un)pausing won't work on environment where dag files are missing (#40345)
+- Extra being passed to SQLalchemy (#40391)
+- Handle unsupported operand int + str when value of tag is int (job_id) (#40407)
+- Fix TriggeredDagRunOperator triggered link (#40336)
+- Add ``[webserver]update_fab_perms`` to deprecated configs (#40317)
+- Swap dag run link from legacy graph to grid with graph tab (#40241)
+- Change ``httpx`` to ``requests`` in ``file_task_handler`` (#39799)
+- Fix import future annotations in venv jinja template (#40208)
+- Ensures DAG params order regardless of backend (#40156)
+- Fix highlight of example code in dags.rst (#40114)
+- Use a join for TI notes in TI batch API endpoint (#40028)
+- Improve trigger UI for string array format validation (#39993)
+- Disable jinja2 rendering for doc_md (#40522)
+- Fixed ``BaseSensorOperator`` with exponential backoff and reschedule mode by estimating try number based on ``run_duration``; previously, sensors had a fixed reschedule interval. (#39823)
+
+Doc Only Changes
+""""""""""""""""
+- Add notes about passing secrets via environment variables (#40519)
+- Revamp some confusing log messages (#40334)
+- Add more precise description of maskiing sensitive field names (#40512)
+- Add slightly more detailed guidance about upgrading to the docs (#40227)
+- Metrics allow_list complete example (#40120)
+- Add warning to deprecated api docs that access control isn't applied (#40129)
+- Simpler command to check local scheduler is alive (#40074)
+
+Miscellaneous
+"""""""""""""
+- Upgrade build installers and dependencies (#40177)
+- Bump braces from 3.0.2 to 3.0.3 in /airflow/www (#40180)
+
+
+
 Airflow 2.9.2 (2024-06-10)
 --------------------------
 
