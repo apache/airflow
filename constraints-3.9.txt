@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-01T17:13:24.539850
+# This constraints file was automatically generated on 2024-07-02T06:39:58.239930
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -595,7 +595,7 @@ python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.4.3
 pyzmq==26.0.3
-qdrant-client==1.9.2
+qdrant-client==1.10.0
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.0.7
@@ -689,7 +689,7 @@ towncrier==23.11.0
 tqdm==4.66.4
 traitlets==5.14.3
 trino==0.328.0
-trove-classifiers==2024.5.22
+trove-classifiers==2024.7.1
 twine==5.1.1
 typed-ast==1.5.5
 types-Deprecated==1.2.9.20240311
