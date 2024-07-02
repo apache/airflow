@@ -27,7 +27,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
@@ -43,12 +42,12 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [START howto_operator_gce_args_common]
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "cloud_compute"
 
-LOCATION = "europe-west1-b"
-REGION = "europe-west1"
+LOCATION = "europe-west2-b"
+REGION = "europe-west2"
 GCE_INSTANCE_NAME = "instance-compute-test"
 SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
 TEMPLATE_NAME = "instance-template"
@@ -104,7 +103,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "compute"],
 ) as dag:
     # [START howto_operator_gce_insert]
     gce_instance_insert = ComputeEngineInsertInstanceOperator(
@@ -184,9 +183,9 @@ with DAG(
         project_id=PROJECT_ID,
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_stop]
-    gce_instance_stop.trigger_rule = TriggerRule.ALL_DONE
 
     # Duplicate stop for idempotence testing
     # [START howto_operator_gce_stop_no_project_id]
@@ -194,9 +193,9 @@ with DAG(
         task_id="gcp_compute_stop_task_2",
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_stop_no_project_id]
-    gce_instance_stop2.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gce_set_machine_type]
     gce_set_machine_type = ComputeEngineSetMachineTypeOperator(
@@ -223,43 +222,46 @@ with DAG(
         task_id="gcp_compute_delete_instance_task",
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_no_project_id]
-    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gce_delete_no_project_id]
     gce_instance_delete2 = ComputeEngineDeleteInstanceOperator(
         task_id="gcp_compute_delete_instance_task_2",
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_no_project_id]
-    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gce_delete_new_template_no_project_id]
     gce_instance_template_delete = ComputeEngineDeleteInstanceTemplateOperator(
         task_id="gcp_compute_delete_template_task",
         resource_id=TEMPLATE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_new_template_no_project_id]
-    gce_instance_template_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    chain(
-        gce_instance_insert,
-        gce_instance_insert2,
-        gce_instance_delete,
-        gce_instance_template_insert,
-        gce_instance_template_insert2,
-        gce_instance_insert_from_template,
-        gce_instance_insert_from_template2,
-        gce_instance_start,
-        gce_instance_start2,
-        gce_instance_stop,
-        gce_instance_stop2,
-        gce_set_machine_type,
-        gce_set_machine_type2,
-        gce_instance_delete2,
-        gce_instance_template_delete,
+    (
+        # TEST SETUP
+        gce_instance_insert
+        >> gce_instance_insert2
+        # TEST BODY
+        >> gce_instance_delete
+        >> gce_instance_template_insert
+        >> gce_instance_template_insert2
+        >> gce_instance_insert_from_template
+        >> gce_instance_insert_from_template2
+        >> gce_instance_start
+        >> gce_instance_start2
+        >> gce_instance_stop
+        >> gce_instance_stop2
+        >> gce_set_machine_type
+        >> gce_set_machine_type2
+        # TEST TEARDOWN
+        >> gce_instance_delete2
+        >> gce_instance_template_delete
     )
 
     # ### Everything below this line is not part of example ###
