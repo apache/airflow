@@ -98,7 +98,6 @@ Changelog
 Initial version of the provider.
 """
 
-
 short_hash_to_type_dict = {}
 
 
@@ -110,6 +109,8 @@ class TypeOfChange(Enum):
     SKIP = "s"
 
 
+# defines the precedence order for provider version bumps
+# BREAKING_CHANGE > FEATURE > BUGFIX > DOCUMENTATION > SKIP
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
@@ -721,18 +722,25 @@ def update_release_notes(
             raise PrepareReleaseDocsNoChangesException()
         else:
             change_table_len = len(list_of_list_of_changes[0])
-            c = 0
+            table_iter = 0
             global short_hash_to_type_dict
-            while c < change_table_len:
-                print("Define type of change for: ", list_of_list_of_changes[0][c].short_hash)
+            while table_iter < change_table_len:
+                get_console().print()
+                get_console().print(
+                    f"[green]Define the type of change for "
+                    f"{list_of_list_of_changes[0][table_iter].short_hash} "
+                    f"by referring to the above table"
+                )
                 type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
-                # update the type of change for every object
-                short_hash_to_type_dict[list_of_list_of_changes[0][c].short_hash] = type_of_change
-                c += 1
+                # update the type of change for every short_hash in the global dict
+                short_hash_to_type_dict[list_of_list_of_changes[0][table_iter].short_hash] = type_of_change
+                table_iter += 1
+                print()
 
-            print("type dict", short_hash_to_type_dict)
             most_impactful = get_most_impactful_change(short_hash_to_type_dict)
-            print("most_impactful is", most_impactful)
+            get_console().print(
+                f"[info]The version will be bumped because of " f"{most_impactful} kind of change"
+            )
             type_of_change = most_impactful
             if type_of_change == TypeOfChange.SKIP:
                 raise PrepareReleaseDocsUserSkippedException()
@@ -844,21 +852,22 @@ def _find_insertion_index_for_version(content: list[str], version: str) -> tuple
 def _get_changes_classified(
     changes: list[Change], with_breaking_changes: bool, maybe_with_new_features: bool
 ) -> ClassifiedChanges:
-    """Pre-classifies changes based on commit message, it's wildly guessing now,
+    """
+    Pre-classifies changes based on their type_of_change attribute derived based on release manager's call.
 
-    The classification also includes the decision made by the release manager when classifying the release.
+    The classification is based on the decision made by the release manager when classifying the release.
+    If we switch to semantic commits, this process could be automated. This list is still supposed to be
+    manually reviewed and re-classified by the release manager if needed.
 
-    However, if we switch to semantic commits, it could be automated. This list
-    is supposed to be manually reviewed and re-classified by release manager
-    anyway.
-
-    :param changes: list of changes
-    :return: list of changes classified semi-automatically to the fix/feature/breaking/other buckets
+    :param changes: list of changes to be classified
+    :param with_breaking_changes: whether to include breaking changes in the classification
+    :param maybe_with_new_features: whether to include new features in the classification
+    :return: ClassifiedChanges object containing changes classified into fixes, features, breaking changes,
+    misc.
     """
     classified_changes = ClassifiedChanges()
     for change in changes:
         type_of_change = short_hash_to_type_dict[change.short_hash]
-        print("typeof change", type_of_change)
         if type_of_change == TypeOfChange.DOCUMENTATION:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.BUGFIX:
@@ -880,15 +889,11 @@ def _generate_new_changelog(
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
 ):
-    print("IN THIS FUNCTION!!!!")
     latest_version = provider_details.versions[0]
     current_changelog = provider_details.changelog_path.read_text()
     current_changelog_lines = current_changelog.splitlines()
     insertion_index, append = _find_insertion_index_for_version(current_changelog_lines, latest_version)
     new_context = deepcopy(context)
-
-    print("append?", append)
-
     if append:
         if not changes:
             get_console().print(
