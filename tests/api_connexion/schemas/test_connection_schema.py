@@ -167,7 +167,7 @@ class TestConnectionSchema:
             schema="testschema",
             port=80,
             password="test-password",
-            extra="{'key':'string'}",
+            extra='{"key": "string"}',
         )
         session.add(connection_model)
         session.commit()
@@ -181,7 +181,7 @@ class TestConnectionSchema:
             "login": "login",
             "schema": "testschema",
             "port": 80,
-            "extra": "{'key':'string'}",
+            "extra": '{"key": "string"}',
         }
 
     def test_deserialize(self):
