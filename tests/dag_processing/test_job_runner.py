@@ -81,7 +81,7 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         writable.send("abc")
         writable.close()
         self._waitable_handle = readable
-        self._result = 0, 0
+        self._result = 0, 0, 0
 
     def start(self):
         pass
@@ -270,7 +270,7 @@ class TestDagProcessorJobRunner:
         mock_processor.terminate.side_effect = None
 
         manager.processor._processors["missing_file.txt"] = mock_processor
-        manager.processor._file_stats["missing_file.txt"] = DagFileStat(0, 0, None, None, 0)
+        manager.processor._file_stats["missing_file.txt"] = DagFileStat(0, 0, None, None, 0, 0)
 
         manager.processor.set_file_paths(["abc.txt"])
         assert manager.processor._processors == {}
@@ -549,7 +549,7 @@ class TestDagProcessorJobRunner:
         # let's say the DAG was just parsed 10 seconds before the Freezed time
         last_finish_time = freezed_base_time - timedelta(seconds=10)
         manager.processor._file_stats = {
-            "file_1.py": DagFileStat(1, 0, last_finish_time, timedelta(seconds=1.0), 1),
+            "file_1.py": DagFileStat(1, 0, last_finish_time, timedelta(seconds=1.0), 1, 1),
         }
         with time_machine.travel(freezed_base_time):
             manager.processor.set_file_paths(dag_files)
@@ -651,6 +651,7 @@ class TestDagProcessorJobRunner:
                 last_finish_time=timezone.utcnow() + timedelta(hours=1),
                 last_duration=1,
                 run_count=1,
+                last_num_of_db_queries=1,
             )
             manager.processor._file_paths = [test_dag_path]
             manager.processor._file_stats[test_dag_path] = stat
@@ -733,6 +734,7 @@ class TestDagProcessorJobRunner:
                 last_finish_time=timezone.utcnow() + timedelta(hours=1),
                 last_duration=1,
                 run_count=1,
+                last_num_of_db_queries=1,
             )
             manager.processor._file_paths = [test_dag_path]
             manager.processor._file_stats[test_dag_path] = stat

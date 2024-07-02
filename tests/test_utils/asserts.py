@@ -22,12 +22,15 @@ import re
 import traceback
 from collections import Counter
 from contextlib import contextmanager
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import event
 
 # Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 log = logging.getLogger(__name__)
 
@@ -91,17 +94,30 @@ class CountQueries:
     not be included.
     """
 
-    def __init__(self, *, stacklevel: int = 1, stacklevel_from_module: str | None = None):
+    def __init__(
+        self,
+        *,
+        stacklevel: int = 1,
+        stacklevel_from_module: str | None = None,
+        session: Session | None = None,
+    ):
         self.result: Counter[str] = Counter()
         self.stacklevel = stacklevel
         self.stacklevel_from_module = stacklevel_from_module
+        self.session = session
 
     def __enter__(self):
-        event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        if self.session:
+            event.listen(self.session, "do_orm_execute", self.after_cursor_execute)
+        else:
+            event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
     def __exit__(self, type_, value, tb):
-        event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+        if self.session:
+            event.remove(self.session, "do_orm_execute", self.after_cursor_execute)
+        else:
+            event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         log.debug("Queries count: %d", sum(self.result.values()))
 
     def after_cursor_execute(self, *args, **kwargs):
@@ -125,6 +141,7 @@ def assert_queries_count(
     margin: int = 0,
     stacklevel: int = 5,
     stacklevel_from_module: str | None = None,
+    session: Session | None = None,
 ):
     """
     Asserts that the number of queries is as expected with the margin applied
@@ -136,7 +153,9 @@ def assert_queries_count(
     :param stacklevel: limits the output stack trace to that numbers of frame
     :param stacklevel_from_module: Filter stack trace from specific module
     """
-    with count_queries(stacklevel=stacklevel, stacklevel_from_module=stacklevel_from_module) as result:
+    with count_queries(
+        stacklevel=stacklevel, stacklevel_from_module=stacklevel_from_module, session=session
+    ) as result:
         yield None
 
     count = sum(result.values())
