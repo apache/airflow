@@ -22,7 +22,7 @@ from weaviate.collections.classes.config import Configure
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
-collection_name = "Weaviate_with_vectorizer_example_collection"
+COLLECTION_NAME = "Weaviate_with_vectorizer_example_collection"
 
 
 @dag(
@@ -47,7 +47,7 @@ def example_weaviate_vectorizer_dag():
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
         weaviate_hook.create_collection(
-            collection_name,
+            COLLECTION_NAME,
             vectorizer_config=Configure.Vectorizer.text2vec_openai(),
         )
 
@@ -65,7 +65,7 @@ def example_weaviate_vectorizer_dag():
     perform_ingestion = WeaviateIngestOperator(
         task_id="perform_ingestion",
         conn_id="weaviate_default",
-        collection_name=collection_name,
+        collection_name=COLLECTION_NAME,
         input_data=data_to_ingest["return_value"],
     )
 
@@ -91,7 +91,7 @@ def example_weaviate_vectorizer_dag():
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_collections([collection_name])
+        weaviate_hook.delete_collections([COLLECTION_NAME])
 
     create_weaviate_collection() >> perform_ingestion >> query_weaviate() >> delete_weaviate_collection()
 
