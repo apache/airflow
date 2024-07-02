@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-02T17:29:28.915344
+# This constraints file was automatically generated on 2024-07-02T22:27:25.942329
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -317,7 +317,7 @@ gitdb==4.0.11
 google-ads==24.1.0
 google-analytics-admin==0.22.7
 google-api-core==2.19.1
-google-api-python-client==2.135.0
+google-api-python-client==2.136.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.31.0
@@ -468,7 +468,7 @@ multidict==6.0.5
 mypy-boto3-appflow==1.34.0
 mypy-boto3-rds==1.34.135
 mypy-boto3-redshift-data==1.34.0
-mypy-boto3-s3==1.34.120
+mypy-boto3-s3==1.34.138
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.0.0
