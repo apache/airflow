@@ -27,6 +27,11 @@ import type { Task } from "src/types";
 
 import renderTaskRows from "./renderTaskRows";
 
+const selectedTaskInstances = [{}];
+const onAddSelectedTask = jest.fn();
+const onAddSelectedTaskBlock = jest.fn();
+const clearSelectionTasks = jest.fn();
+
 describe("Test renderTaskRows", () => {
   test("Renders name and task instance", () => {
     const task: Task = {
@@ -70,7 +75,16 @@ describe("Test renderTaskRows", () => {
     };
 
     const { queryByTestId, getByText } = render(
-      <>{renderTaskRows({ task, dagRunIds: ["run1"] })}</>,
+      <>
+        {renderTaskRows({
+          task,
+          dagRunIds: ["run1"],
+          selectedTaskInstances,
+          onAddSelectedTask,
+          onAddSelectedTaskBlock,
+          clearSelectionTasks,
+        })}
+      </>,
       { wrapper: TableWrapper }
     );
 
@@ -95,7 +109,16 @@ describe("Test renderTaskRows", () => {
     };
 
     const { queryByTestId, getByText } = render(
-      <>{renderTaskRows({ task, dagRunIds: [] })}</>,
+      <>
+        {renderTaskRows({
+          task,
+          dagRunIds: [],
+          selectedTaskInstances,
+          onAddSelectedTask,
+          onAddSelectedTaskBlock,
+          clearSelectionTasks,
+        })}
+      </>,
       { wrapper: TableWrapper }
     );
 
@@ -127,7 +150,16 @@ describe("Test renderTaskRows", () => {
     };
 
     const { queryByTestId, getByText } = render(
-      <>{renderTaskRows({ task, dagRunIds: ["run1"] })}</>,
+      <>
+        {renderTaskRows({
+          task,
+          dagRunIds: ["run1"],
+          selectedTaskInstances,
+          onAddSelectedTask,
+          onAddSelectedTaskBlock,
+          clearSelectionTasks,
+        })}
+      </>,
       { wrapper: TableWrapper }
     );
 

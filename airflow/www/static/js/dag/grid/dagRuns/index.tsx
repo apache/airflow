@@ -31,7 +31,7 @@ import {
 
 import { useGridData } from "src/api";
 import { getDuration, formatDuration } from "src/datetime_utils";
-import useSelection from "src/dag/useSelection";
+import useSelection, { SelectionProps } from "src/dag/useSelection";
 import type { DagRun, Task } from "src/types";
 
 import DagRunBar from "./Bar";
@@ -82,6 +82,7 @@ interface Props {
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
   isGridCollapsed?: boolean;
+  selectedTaskInstances?: SelectionProps[];
 }
 
 const DagRuns = ({
@@ -89,6 +90,7 @@ const DagRuns = ({
   openGroupIds,
   onToggleGroups,
   isGridCollapsed,
+  selectedTaskInstances,
 }: Props) => {
   const {
     data: { dagRuns },
@@ -170,7 +172,11 @@ const DagRuns = ({
               index={index}
               totalRuns={runs.length}
               max={max}
-              isSelected={run.runId === selected.runId && !isGridCollapsed}
+              isSelected={
+                !isGridCollapsed &&
+                !!selectedTaskInstances &&
+                selectedTaskInstances.some((ti) => ti && ti.runId === run.runId)
+              }
               onSelect={onSelect}
             />
           ))}
