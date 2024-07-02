@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny, _sanitize_uri
+from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny, _sanitize_uri, is_uri_normalized
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -447,14 +447,21 @@ def test_datasets_expression_error(expression: Callable[[], None], error: str) -
     assert str(info.value) == error
 
 
-def mock_get_uri_normalizer(normalized_scheme):
+def _mock_get_uri_normalizer_always_incorrect(normalized_scheme):
     def normalizer(uri):
         raise ValueError("Incorrect URI format")
 
     return normalizer
 
 
-@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+def _mock_get_uri_normalizer_always_correct(normalized_scheme):
+    def normalizer(uri):
+        return uri
+
+    return normalizer
+
+
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_always_incorrect)
 @patch("airflow.datasets.warnings.warn")
 def test__sanitize_uri_raises_warning(mock_warn):
     _sanitize_uri("postgres://localhost:5432/database.schema.table")
@@ -463,10 +470,25 @@ def test__sanitize_uri_raises_warning(mock_warn):
     assert "In Airflow 3, this will raise an exception." in msg
 
 
-@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_always_incorrect)
 @conf_vars({("core", "strict_dataset_uri_validation"): "True"})
 def test__sanitize_uri_raises_exception():
     with pytest.raises(ValueError) as e_info:
         _sanitize_uri("postgres://localhost:5432/database.schema.table")
     assert isinstance(e_info.value, ValueError)
     assert str(e_info.value) == "Incorrect URI format"
+
+
+@patch("airflow.datasets._get_uri_normalizer", lambda x: None)
+def test_is_uri_normalized_no_normalizer_found():
+    assert is_uri_normalized("any_uri_without_normalizer_defined") is False
+
+
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_always_incorrect)
+def test_is_uri_normalized_invalid_uri():
+    assert is_uri_normalized("any_uri_not_aip60_compliant") is False
+
+
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_always_correct)
+def test_is_uri_normalized_valid_uri():
+    assert is_uri_normalized("valid_aip60_uri") is True

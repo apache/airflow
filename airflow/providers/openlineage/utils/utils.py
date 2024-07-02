@@ -21,6 +21,7 @@ import datetime
 import json
 import logging
 import re
+import urllib.parse
 from contextlib import redirect_stdout, suppress
 from functools import wraps
 from io import StringIO
@@ -54,6 +55,10 @@ from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.run import Dataset as OpenLineageDataset
+
+    from airflow.datasets import Dataset
+    from airflow.hooks.base import BaseHook
     from airflow.models import DagRun, TaskInstance
 
 
@@ -576,3 +581,34 @@ def should_use_external_connection(hook) -> bool:
     if not _IS_AIRFLOW_2_10_OR_HIGHER:
         return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
     return True
+
+
+def translate_airflow_dataset(dataset: Dataset, hook: type[BaseHook]) -> OpenLineageDataset | None:
+    """
+    Convert a Dataset with an AIP-60 compliant URI to an OpenLineageDataset.
+
+    This function returns None if no URI normalizer is defined, no dataset converter is found or
+    some core Airflow changes are missing and ImportError is raised.
+    """
+    try:
+        from airflow.datasets import is_uri_normalized
+        from airflow.providers_manager import ProvidersManager
+
+        dataset_to_openlineage_converters = ProvidersManager().dataset_to_openlineage_converters
+    except (ImportError, AttributeError):
+        return None
+
+    if not is_uri_normalized(dataset.uri):
+        return None
+
+    parsed = urllib.parse.urlsplit(dataset.uri)
+    normalized_scheme = parsed.scheme.lower()
+
+    if normalized_scheme == "file":
+        from openlineage.client.run import Dataset as OpenLineageDataset
+
+        return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)
+
+    if (airflow_to_ol_converter := dataset_to_openlineage_converters.get(normalized_scheme)) is not None:
+        return airflow_to_ol_converter(dataset=dataset, hook=hook)
+    return None

@@ -91,6 +91,9 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
+    from openlineage.client.run import Dataset as OpenLineageDataset
+
+    from airflow.datasets import Dataset
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.typing_compat import Literal
@@ -426,6 +429,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
         self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
+        self._dataset_to_openlineage_converters: dict[
+            str, Callable[[Dataset, type[BaseHook]], OpenLineageDataset]
+        ] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -527,6 +533,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
         self._discover_dataset_uri_handlers()
+
+    @provider_info_cache("dataset_to_openlineage_converters")
+    def initialize_providers_dataset_to_openlineage_converters(self):
+        self.initialize_providers_list()
+        self._discover_dataset_to_openlineage_converters()
 
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
@@ -893,6 +904,18 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 elif not (handler := _correctness_check(provider_package, handler_path, provider)):
                     continue
                 self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
+
+    def _discover_dataset_to_openlineage_converters(self) -> None:
+        for provider_package, provider in self._provider_dict.items():
+            for handler_info in provider.data.get("dataset-uris", []):
+                try:
+                    schemes = handler_info["schemes"]
+                    converter_path = handler_info["to_openlineage_converter"]
+                except KeyError:
+                    continue
+                if not (converter := _correctness_check(provider_package, converter_path, provider)):
+                    continue
+                self._dataset_to_openlineage_converters.update((scheme, converter) for scheme in schemes)
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -1293,6 +1316,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
         self.initialize_providers_dataset_uri_handlers()
         return self._dataset_uri_handlers
+
+    @property
+    def dataset_to_openlineage_converters(self) -> dict[str, Callable]:
+        self.initialize_providers_dataset_to_openlineage_converters()
+        return self._dataset_to_openlineage_converters
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:

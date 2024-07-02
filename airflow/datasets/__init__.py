@@ -121,6 +121,23 @@ def coerce_to_uri(value: str | Dataset) -> str:
     return _sanitize_uri(str(value))
 
 
+def is_uri_normalized(uri: str) -> bool:
+    """Check if URI is AIP-60 compliant.
+
+    URI is considered AIP-60 compliant / normalized when:
+    - there is a normalizer defined for given scheme
+    - normalizer do not throw any errors when parsing the URI
+    """
+    parsed = urllib.parse.urlsplit(uri)
+    if (normalizer := _get_uri_normalizer(parsed.scheme.lower())) is None:
+        return False
+    try:
+        normalizer(parsed)
+    except ValueError:
+        return False
+    return True
+
+
 class BaseDataset:
     """
     Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
