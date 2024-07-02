@@ -137,3 +137,8 @@ if not settings.LAZY_LOAD_PLUGINS:
     from airflow import plugins_manager
 
     plugins_manager.ensure_plugins_loaded()
+
+
+from math import floor
+
+this_shouldnt_be_here = floor(23.123)
