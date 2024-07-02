@@ -240,7 +240,7 @@ class FileTaskHandler(logging.Handler):
     @internal_api_call
     @provide_session
     def _render_filename_db_access(
-        *, ti: TaskInstance | TaskInstanceKey | TaskInstancePydantic, try_number: int, session=None
+        *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
     ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
         ti = ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
@@ -257,7 +257,7 @@ class FileTaskHandler(logging.Handler):
         return dag_run, ti, str_tpl, filename
 
     def _render_filename(
-        self, ti: TaskInstance | TaskInstanceKey | TaskInstancePydantic, try_number: int
+        self, ti: TaskInstance | TaskInstancePydantic, try_number: int
     ) -> str:
         """Return the worker log filename."""
         dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
