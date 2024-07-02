@@ -333,7 +333,7 @@ class CustomObjectLauncher(LoggingMixin):
             except Exception:
                 pass
             raise AirflowException(f"Spark Job Failed. Error stack: {err}")
-        return driver_state == CustomObjectStatus.SUBMITTED
+        return driver_state != CustomObjectStatus.RUNNING
 
     def check_pod_start_failure(self):
         try:
