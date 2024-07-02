@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
@@ -29,18 +27,14 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data.type_defs import GetStatementResultResponseTypeDef
-
     from airflow.utils.context import Context
-
 
 class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     """
     Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
-
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:RedshiftDataOperator`
-
     :param database: the name of the database
     :param sql: the SQL statement or list of  SQL statement to run
     :param cluster_identifier: unique identifier of a cluster
@@ -67,7 +61,6 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
-
     aws_hook_class = RedshiftDataHook
     template_fields = aws_template_fields(
         "cluster_identifier",
@@ -110,63 +103,64 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.statement_name = statement_name
         self.with_event = with_event
         self.wait_for_completion = wait_for_completion
-        if poll_interval > 0:
-            self.poll_interval = poll_interval
-        else:
-            self.log.warning(
-                "Invalid poll_interval:",
-                poll_interval,
-            )
+        self.poll_interval = max(poll_interval, 1)
         self.return_sql_result = return_sql_result
         self.statement_id: str | None = None
         self.deferrable = deferrable
 
-    def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
-        """Execute a statement against Amazon Redshift."""
+    def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | str:
         self.log.info("Executing statement: %s", self.sql)
 
-        # Set wait_for_completion to False so that it waits for the status in the deferred task.
-        wait_for_completion = self.wait_for_completion
-        if self.deferrable and self.wait_for_completion:
-            self.wait_for_completion = False
+  
+    wait_for_completion = self.wait_for_completion
+    if self.deferrable and self.wait_for_completion:
+        self.wait_for_completion = False
 
-        self.statement_id = self.hook.execute_query(
-            database=self.database,
-            sql=self.sql,
-            cluster_identifier=self.cluster_identifier,
-            workgroup_name=self.workgroup_name,
-            db_user=self.db_user,
-            parameters=self.parameters,
-            secret_arn=self.secret_arn,
-            statement_name=self.statement_name,
-            with_event=self.with_event,
-            wait_for_completion=wait_for_completion,
-            poll_interval=self.poll_interval,
-        )
+ 
+    if isinstance(self.sql, str):
+        self.sql = [self.sql]
 
-        if self.deferrable:
-            is_finished = self.hook.check_query_is_finished(self.statement_id)
-            if not is_finished:
-                self.defer(
-                    timeout=self.execution_timeout,
-                    trigger=RedshiftDataTrigger(
-                        statement_id=self.statement_id,
-                        task_id=self.task_id,
-                        poll_interval=self.poll_interval,
-                        aws_conn_id=self.aws_conn_id,
-                        region_name=self.region_name,
-                        verify=self.verify,
-                        botocore_config=self.botocore_config,
-                    ),
-                    method_name="execute_complete",
-                )
+    self.statement_id = self.hook.execute_query(
+        database=self.database,
+        sql=self.sql,
+        cluster_identifier=self.cluster_identifier,
+        workgroup_name=self.workgroup_name,
+        db_user=self.db_user,
+        parameters=self.parameters,
+        secret_arn=self.secret_arn,
+        statement_name=self.statement_name,
+        with_event=self.with_event,
+        wait_for_completion=wait_for_completion,
+        poll_interval=self.poll_interval,
+    )
 
-        if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=self.statement_id)
-            self.log.debug("Statement result: %s", result)
-            return result
-        else:
-            return self.statement_id
+    if self.deferrable:
+        is_finished = self.hook.check_query_is_finished(self.statement_id)
+        if not is_finished:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=RedshiftDataTrigger(
+                    statement_id=self.statement_id,
+                    task_id=self.task_id,
+                    poll_interval=self.poll_interval,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+            )
+
+    if self.return_sql_result:
+        results = []
+        for i in range(1, len(self.sql) + 1):
+            sub_statement_id = f"{self.statement_id}:{i}"
+            result = self.hook.conn.get_statement_result(Id=sub_statement_id)
+            results.append(result)
+            self.log.debug("Statement result for %s: %s", sub_statement_id, result)
+        return results
+    else:
+        return self.statement_id
 
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None
@@ -183,9 +177,13 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
         self.log.info("%s completed successfully.", self.task_id)
         if self.return_sql_result:
-            result = self.hook.conn.get_statement_result(Id=statement_id)
-            self.log.debug("Statement result: %s", result)
-            return result
+            results = []
+            for i in range(1, len(self.sql) + 1):
+                sub_statement_id = f"{statement_id}:{i}"
+                result = self.hook.conn.get_statement_result(Id=sub_statement_id)
+                results.append(result)
+                self.log.debug("Statement result for %s: %s", sub_statement_id, result)
+            return results
 
         return statement_id
 
