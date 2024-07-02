@@ -60,19 +60,7 @@ $("#tags_filter").select2({
 
 $("#tags_filter").on("change", (e) => {
   e.preventDefault();
-  const query = new URLSearchParams(window.location.search);
-  const tags = $(e.target).select2("val");
-  if (tags.length) {
-    if (query.has("tags")) query.delete("tags");
-    tags.forEach((value) => {
-      query.append("tags", value);
-    });
-  } else {
-    query.delete("tags");
-    query.set("reset_tags", "reset");
-  }
-  if (query.has("page")) query.delete("page");
-  window.location = `${DAGS_INDEX}?${query.toString()}`;
+  applyTagFilter();
 });
 
 $("#tags_form").on("reset", (e) => {
@@ -82,6 +70,16 @@ $("#tags_form").on("reset", (e) => {
   if (query.has("page")) query.delete("page");
   query.set("reset_tags", "reset");
   window.location = `${DAGS_INDEX}?${query.toString()}`;
+});
+
+$("#use_and_checkbox").change((e) => {
+  e.preventDefault();
+  applyTagFilter();
+  if ($("#use_and_checkbox").is(":checked")) {
+    localStorage.setItem("andLogicCheckbox", "true");
+  } else {
+    localStorage.removeItem("andLogicCheckbox");
+  }
 });
 
 $("#dag_query").on("keypress", (e) => {
@@ -154,6 +152,26 @@ const diameter = 25;
 const circleMargin = 4;
 const strokeWidth = 2;
 const strokeWidthHover = 6;
+
+function applyTagFilter() {
+  const query = new URLSearchParams(window.location.search);
+  const tags = $("#tags_filter").select2("val");
+  const useAnd = $("#use_and_checkbox").is(":checked");
+  if (tags.length) {
+    if (query.has("tags")) query.delete("tags");
+    tags.forEach((value) => {
+      query.append("tags", value);
+    });
+  } else {
+    query.delete("tags");
+    query.set("reset_tags", "reset");
+  }
+  if (query.has("page")) query.delete("page");
+  query.set("use_and", useAnd.toString());
+  if (useAnd) query.set("use_and", useAnd.toString());
+  else query.delete("use_and");
+  window.location = `${DAGS_INDEX}?${query.toString()}`;
+}
 
 function blockedHandler(error, json) {
   $.each(json, function handleBlock() {
@@ -454,6 +472,11 @@ function startOrStopRefresh() {
   }
 }
 
+function initAndCheckbox() {
+  const isDisabled = localStorage.getItem("andLogicCheckbox");
+  $("#use_and_checkbox").prop("checked", isDisabled);
+}
+
 function initAutoRefresh() {
   const isDisabled = localStorage.getItem("dagsDisableAutoRefresh");
   $("#auto_refresh").prop("checked", !isDisabled);
@@ -474,6 +497,7 @@ document.addEventListener("visibilitychange", handleVisibilityChange);
 
 $(window).on("load", () => {
   initAutoRefresh();
+  initAndCheckbox();
 
   $("body").on("mouseover", ".has-svg-tooltip", (e) => {
     const elem = e.target;

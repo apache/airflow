@@ -244,6 +244,7 @@ def generate_pages(
     status=None,
     tags=None,
     window=7,
+    use_and=None,
     sorting_key=None,
     sorting_direction=None,
 ):
