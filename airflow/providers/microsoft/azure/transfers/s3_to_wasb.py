@@ -29,6 +29,32 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+# Create three custom exception that are
+class TooManyFilesToMoveException(Exception):
+    """Custom exception thrown when attempting to move multiple files from S3 to a single Azure Blob."""
+
+    def __init__(self, number_of_files: int):
+        # Call the parent constructor with a simple message
+        message: str = f"{number_of_files} cannot be moved to a single Azure Blob."
+        super().__init__(message)
+
+
+class InvalidAzureBlobParameters(Exception):
+    """Custom exception raised when neither a blob_prefix or blob_name are passed to the operator."""
+
+    def __init__(self):
+        message: str = "One of blob_name or blob_prefix must be provided."
+        super().__init__(message)
+
+
+class InvalidKeyComponents(Exception):
+    """Custom exception raised when neither a full_path or file_name + prefix are provided to _create_key."""
+
+    def __init__(self):
+        message = "Either full_path of prefix and file_name must not be None"
+        super().__init__(message)
+
+
 class S3ToAzureBlobStorageOperator(BaseOperator):
     """
     Operator to move data from and AWS S3 Bucket to Microsoft Azure Blob Storage.
@@ -134,11 +160,11 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         return WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
 
     def execute(self, context: Context) -> list[str]:
-        """Method called when task is executed in a DAG."""
+        """Execute logic below when operator is executed as a task."""
         self.log.info(
-            f"Getting list of files in the Bucket: {self.s3_bucket}Getting file: {self.s3_key}"
-            if self.s3_key
-            else f"Getting files from: {self.s3_prefix}"
+            "Getting %s from %s" if self.s3_key else "Getting all files start with %s from %s",
+            self.s3_key if self.s3_key else self.s3_prefix,
+            self.s3_bucket,
         )
 
         # Pull a list of files to move from S3 to Azure Blob storage
@@ -175,7 +201,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
 
             # Now, make sure that there are not too many files to move to a single Azure blob
             if self.blob_name and len(files_to_move) > 1:
-                raise Exception(f"{len(files_to_move)} cannot be moved to a single Azure Blob.")
+                raise TooManyFilesToMoveException(len(files_to_move))
 
         if not self.replace:
             # Only grab the files from S3 that are not in Azure Blob already. This will prevent any files that
@@ -194,7 +220,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
                     container_name=self.container_name, prefix=self.blob_prefix
                 )
             else:
-                raise Exception("One of blob_name or blob_prefix must be provided.")
+                raise InvalidAzureBlobParameters
 
             # This conditional block only does one thing - it alters the elements in the files_to_move list.
             # This list is being trimmed to remove the existing files in the Azure Blob (as mentioned above)
@@ -237,4 +263,4 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         elif prefix and file_name:
             return f"{prefix}/{file_name}"
         else:
-            raise Exception("Either full_path of prefix and file_name must not be None")
+            raise InvalidKeyComponents
