@@ -795,6 +795,7 @@
     ],
     "plugins": [],
     "cross-providers-deps": [
+      "amazon",
       "google",
       "oracle",
       "sftp"
