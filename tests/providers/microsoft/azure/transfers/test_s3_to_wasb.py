@@ -24,15 +24,44 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.providers.microsoft.azure.transfers.s3_to_wasb import S3ToAzureBlobStorageOperator
+from airflow.providers.microsoft.azure.transfers.s3_to_wasb import (
+    InvalidKeyComponents,
+    S3ToAzureBlobStorageOperator,
+    TooManyFilesToMoveException,
+)
 
 TASK_ID = "test-s3-to-azure-blob-operator"
-AWS_CONN_ID = "test-conn-id"
 S3_BUCKET = "test-bucket"
 CONTAINER_NAME = "test-container"
 PREFIX = "TEST"
 TEMPFILE_NAME = "test-tempfile"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
+
+# Args to be used for a parametrized set of tests that handles an S3 prefix and a WASB prefix beign passed to
+# the operator, before executing the move_files() method
+BOTH_PREFIX_ARGS = [
+    # s3_existing files, wasb_existing_files, returned_files, s3_prefix, wasb_prefix, replace
+    (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from below
+    (MOCK_FILES, MOCK_FILES[1:], [MOCK_FILES[0]], PREFIX, PREFIX, False),  # Task 2 from below
+    (MOCK_FILES, MOCK_FILES[1:], MOCK_FILES, PREFIX, PREFIX, True),  # Task 3 from below
+]
+
+# Args to be used for a parametrized set of tests that handles a single S3 and a single Azure blob name
+# being passed to the operator, before executing the move_files() method
+BOTH_KEY_ARGS = [
+    # azure_file_exists, returned_files, replace
+    (False, ["TEST1.csv"], False),  # Task 4 from below
+    (True, [], False),  # Task 5 from below
+    (True, ["TEST1.csv"], True),  # Task 6 from below
+]
+
+# Args to be used for a parametrized set of tests that handles a single S3 key and an WASB prefix being
+# passed to the operator, before executing the move_files() method
+S3_KEY_WASB_PREFIX_ARGS = [
+    # wasb_existing_files, returned_files
+    ([], ["TEST1.csv"]),  # Task 8 from below
+    (["TEST1.csv"], []),  # Task 9 from below
+]
 
 # Here are some of the tests that need to be run (for the get_files_to_move() function)
 # 1. Prefix with no existing files, without replace                           [DONE]
@@ -48,6 +77,9 @@ MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 # Other tests that need to be run
 # - Test __init__                                                             [DONE]
 # - Test execute()                                                            [DONE]
+# - Test S3 prefix being passed to an Azure Blob name                         [DONE]
+# - Test move_file()                                                          [DONE]
+# - Test _create_key()                                                        [DONE]
 
 
 @mock_aws
@@ -58,7 +90,6 @@ class TestS3ToAzureBlobStorageOperator:
         # default parameters that are configured
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
-            aws_conn_id="test-conn-id",
             s3_bucket=S3_BUCKET,
             s3_prefix=PREFIX,
             container_name=CONTAINER_NAME,
@@ -69,7 +100,7 @@ class TestS3ToAzureBlobStorageOperator:
         # ... is None is used to validate if a value is None, while not ... is used to evaluate if a value
         # is False
         assert operator.task_id == TASK_ID
-        assert operator.aws_conn_id == AWS_CONN_ID
+        assert operator.aws_conn_id == "aws_default"
         assert operator.wasb_conn_id == "wasb_default"
         assert operator.s3_bucket == S3_BUCKET
         assert operator.container_name == CONTAINER_NAME
@@ -118,132 +149,62 @@ class TestS3ToAzureBlobStorageOperator:
     # which heavily drives the successful execution of the operator
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_files_to_move__prefix_without_replace_empty_destination(self, wasb_mock_hook, s3_mock_hook):
-        # Set the list files that the S3Hook should return, as well as the list of files that are returned
-        # when the get_blobs_list_recursive method is called using the WasbHook. In this scenario, the
-        # destination is empty, meaning that the full list should be returned
-        s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
-
-        # For testing, we're using a few default values. The most notable are the s3_conn_id and the
-        # wasb_conn_id
-        operator = S3ToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            s3_bucket=S3_BUCKET,
-            s3_prefix=PREFIX,
-            container_name=CONTAINER_NAME,
-            blob_prefix=PREFIX,
-        )
-        uploaded_files = operator.get_files_to_move()
-        assert sorted(uploaded_files) == sorted(MOCK_FILES)
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_files_to_move___prefix_without_replace_populated_destination(
-        self, wasb_mock_hook, s3_mock_hook
+    @pytest.mark.parametrize(  # Please see line 37 above for args used for parametrization
+        "s3_existing_files,wasb_existing_files,returned_files,s3_prefix,blob_prefix,replace", BOTH_PREFIX_ARGS
+    )
+    def test_get_files_to_move__both_prefix(
+        self,
+        wasb_mock_hook,
+        s3_mock_hook,
+        s3_existing_files,
+        wasb_existing_files,
+        returned_files,
+        s3_prefix,
+        blob_prefix,
+        replace,
     ):
         # Set the list files that the S3Hook should return
-        s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES[1:]
+        s3_mock_hook.return_value.list_keys.return_value = s3_existing_files
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = wasb_existing_files
 
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
-            s3_prefix=PREFIX,
+            s3_prefix=s3_prefix,
             container_name=CONTAINER_NAME,
-            blob_prefix=PREFIX,
+            blob_prefix=blob_prefix,
+            replace=replace,
         )
         # Placing an empty "context" object here (using None)
         uploaded_files = operator.get_files_to_move()
-        assert sorted(uploaded_files) == sorted([MOCK_FILES[0]])
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_files_to_move__prefix_with_replace_populated_destination(
-        self, wasb_mock_hook, s3_mock_hook
-    ):
-        # Set the list files that the S3Hook should return
-        s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES[1:]
-
-        operator = S3ToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            s3_bucket=S3_BUCKET,
-            s3_prefix=PREFIX,
-            container_name=CONTAINER_NAME,
-            blob_prefix=PREFIX,
-            replace=True,
-        )
-        # Placing an empty "context" object here (using None)
-        uploaded_files = operator.get_files_to_move()
-
-        # Since the replace parameter is being set to True, all the files that are present in the S3 bucket
-        # will be moved to the Azure Blob, even though there are existing files in the Azure Blob
-        assert sorted(uploaded_files) == sorted(MOCK_FILES)
+        assert sorted(uploaded_files) == sorted(returned_files)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_file_to_move__key_without_replace_empty_destination(self, wasb_mock_hook):
+    @pytest.mark.parametrize("azure_file_exists,returned_files,replace", BOTH_KEY_ARGS)
+    def test_get_file_to_move__both_key(self, wasb_mock_hook, azure_file_exists, returned_files, replace):
         # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
-        # single key is being passed, rather than a prefix). Here, there is no file present in the container,
-        # so the file SHOULD be moved
-        wasb_mock_hook.return_value.check_for_blob.return_value = False
+        # single key is being passed, rather than a prefix). Testing when a single S3 key is being moved to
+        # a deterministic Blob name in the operator
+        wasb_mock_hook.return_value.check_for_blob.return_value = azure_file_exists
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
             s3_key="TEST/TEST1.csv",
             container_name=CONTAINER_NAME,
             blob_name="TEST/TEST1.csv",
+            replace=replace,
         )
-        # Placing an empty "context" object here (using None)
         uploaded_files = operator.get_files_to_move()
 
         # Only the file name should be returned, rather than the entire blob name
-        assert sorted(uploaded_files) == sorted(["TEST1.csv"])
+        assert sorted(uploaded_files) == sorted(returned_files)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_file_to_move__key_without_replace_populated_destination(self, wasb_mock_hook):
-        # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
-        # single key is being passed, rather than a prefix). Here, there IS a file present in the container,
-        # so the file should NOT be moved
-        wasb_mock_hook.return_value.check_for_blob.return_value = True
-        operator = S3ToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            s3_bucket=S3_BUCKET,
-            s3_key="TEST/TEST1.csv",
-            container_name=CONTAINER_NAME,
-            blob_name="TEST/TEST1.csv",
-        )
-        # Placing an empty "context" object here (using None)
-        uploaded_files = operator.get_files_to_move()
-
-        # Only the file name should be returned, rather than the entire blob name
-        assert sorted(uploaded_files) == sorted([])
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_file_to_move__key_with_replace_populated_destination(self, wasb_mock_hook):
-        # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
-        # single key is being passed, rather than a prefix). Here, there IS a file present in the container,
-        # and the value of replace is True, so the file SHOULD be moved
-        wasb_mock_hook.return_value.check_for_blob.return_value = True  # Denoting presence of file in WASB
-        operator = S3ToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            s3_bucket=S3_BUCKET,
-            s3_key="TEST/TEST1.csv",
-            container_name=CONTAINER_NAME,
-            blob_name="TEST/TEST1.csv",
-            replace=True,
-        )
-        # Placing an empty "context" object here (using None)
-        uploaded_files = operator.get_files_to_move()
-
-        # Only the file name should be returned, rather than the entire blob name
-        assert sorted(uploaded_files) == sorted(["TEST1.csv"])
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_files_to_move__s3_key_blob_prefix_without_replace_empty_destination(self, wasb_mock_hook):
+    @pytest.mark.parametrize("wasb_existing_files,returned_files", S3_KEY_WASB_PREFIX_ARGS)
+    def test_get_files_to_move__s3_key_wasb_prefix(self, wasb_mock_hook, wasb_existing_files, returned_files):
         # A single S3 key is being used to move to a file to a container using a prefix. The files being
         # returned should take the same name as the file key that was passed to s3_key
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
+        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = wasb_existing_files
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
@@ -252,24 +213,7 @@ class TestS3ToAzureBlobStorageOperator:
             blob_prefix=PREFIX,
         )
         uploaded_files = operator.get_files_to_move()
-        assert sorted(uploaded_files) == sorted(["TEST1.csv"])
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    def test__get_files_to_move__s3_key_blob_prefix_without_replace_populated_destination(
-        self, wasb_mock_hook
-    ):
-        # A single S3 key is being used to move to a file to a container using a prefix. Since replace is
-        # set to False, and the name of the file is present in the container, no file should be returned
-        wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = ["TEST1.csv"]
-        operator = S3ToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            s3_bucket=S3_BUCKET,
-            s3_key="TEST/TEST1.csv",
-            container_name=CONTAINER_NAME,
-            blob_prefix=PREFIX,
-        )
-        uploaded_files = operator.get_files_to_move()
-        assert sorted(uploaded_files) == sorted([])
+        assert sorted(uploaded_files) == sorted(returned_files)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
@@ -290,7 +234,7 @@ class TestS3ToAzureBlobStorageOperator:
 
         # This should throw an exception, since more than a single S3 object is attempted to move to a single
         # Azure blob
-        with pytest.raises(Exception):
+        with pytest.raises(TooManyFilesToMoveException):
             operator.get_files_to_move()
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
@@ -329,5 +273,5 @@ class TestS3ToAzureBlobStorageOperator:
         # 3. Test with no full path, and a missing file name
         assert S3ToAzureBlobStorageOperator._create_key("TEST/TEST1.csv", None, None) == "TEST/TEST1.csv"
         assert S3ToAzureBlobStorageOperator._create_key(None, "TEST", "TEST1.csv") == "TEST/TEST1.csv"
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidKeyComponents):
             S3ToAzureBlobStorageOperator._create_key(None, "TEST", None)

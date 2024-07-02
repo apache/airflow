@@ -65,7 +65,7 @@ with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catch
         encrypt=False,
     )
 
-    # [START howto_s3_to_wasb]
+    # [START howto_transfer_s3_to_wasb]
     s3_to_wasb = S3ToAzureBlobStorageOperator(
         task_id="s3_to_wasb",
         s3_bucket=s3_bucket_name,
@@ -75,7 +75,7 @@ with DAG(dag_id=DAG_ID, start_date=datetime(2024, 1, 1), schedule="@once", catch
         trigger_rule=TriggerRule.ALL_DONE,
         replace=True,
     )
-    # [END howto_s3_to_wasb]
+    # [END howto_transfer_s3_to_wasb]
 
     # Part of tear down, remove all the objects at the S3_PREFIX
     remove_s3_object = S3DeleteObjectsOperator(
