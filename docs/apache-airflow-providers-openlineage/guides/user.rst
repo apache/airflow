@@ -271,7 +271,7 @@ serializing only a few known attributes, we exclude certain non-serializable ele
 Custom Extractors
 ^^^^^^^^^^^^^^^^^
 
-If you use :ref:`custom Extractors <custom_extractors:openlineage>` feature, register the extractors by passing
+To use :ref:`custom Extractors <custom_extractors:openlineage>` feature, register the extractors by passing
 a string of semicolon separated Airflow Operators full import paths to ``extractors`` option in Airflow configuration.
 
 .. code-block:: ini
@@ -285,6 +285,24 @@ a string of semicolon separated Airflow Operators full import paths to ``extract
 .. code-block:: ini
 
   AIRFLOW__OPENLINEAGE__EXTRACTORS='full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass'
+
+Custom Facets
+^^^^^^^^^^^^^
+
+To use :ref:`custom run facets <custom_facets:openlineage>` feature, register the custom facet functions by passing
+a string of semicolon separated full import paths to ``custom_facet_functions`` option in Airflow configuration.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    custom_facet_functions = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
+
+``AIRFLOW__OPENLINEAGE__CUSTOM_FACET_FUNCTIONS`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__CUSTOM_FACET_FUNCTIONS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
 
 Enabling OpenLineage on DAG/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
