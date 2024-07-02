@@ -49,7 +49,7 @@ class TestSparkSqlHook:
         "num_executors": 10,
         "verbose": True,
         "sql": " /path/to/sql/file.sql ",
-        "conf": "key=value,PROP=VALUE",
+        "conf": {"key": "value", "PROP": "VALUE"},
     }
 
     @classmethod
@@ -77,8 +77,8 @@ class TestSparkSqlHook:
         assert self._config["sql"].strip() == sql_path
 
         # Check if all config settings are there
-        for key_value in self._config["conf"].split(","):
-            k, v = key_value.split("=")
+        for k, v in self._config["conf"]:
+
             assert f"--conf {k}={v}" in cmd
 
         if self._config["verbose"]:
