@@ -23,13 +23,44 @@ from copy import copy
 from logging import Logger
 from typing import TYPE_CHECKING
 
+from sqlalchemy.orm import create_session
+
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstancekey import TaskInstanceKey
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
+    """
+    Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
+    from airflow.models.taskinstance import TaskInstance
+
+    if isinstance(ti, TaskInstance):
+        return ti
+    val = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+        .one_or_none()
+    )
+    if not val:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
+    val.try_number = ti.try_number
+    return val
 
 
 class TaskContextLogger:
@@ -57,7 +88,7 @@ class TaskContextLogger:
     def _should_enable(self) -> bool:
         if not conf.getboolean("logging", "enable_task_context_logger"):
             return False
-        if not getattr(self.task_handler, "supports_task_context_logging", False):
+        if not self.task_handler:
             logger.warning("Task handler does not support task context logging")
             return False
         logger.info("Task context logging is enabled")
@@ -78,13 +109,13 @@ class TaskContextLogger:
             assert isinstance(h, FileTaskHandler)
         return h
 
-    def _log(self, level: int, msg: str, *args, ti: TaskInstance):
+    def _log(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message to the task instance logs.
 
         :param level: the log level
         :param msg: the message to relay to task context log
-        :param ti: the task instance
+        :param ti: the task instance or the task instance key
         """
         if self.call_site_logger and self.call_site_logger.isEnabledFor(level=level):
             with suppress(Exception):
@@ -98,6 +129,9 @@ class TaskContextLogger:
 
         task_handler = copy(self.task_handler)
         try:
+            if isinstance(ti, TaskInstanceKey):
+                with create_session() as session:
+                    ti = ensure_ti(ti, session)
             task_handler.set_context(ti, identifier=self.component_name)
             if hasattr(task_handler, "mark_end_on_close"):
                 task_handler.mark_end_on_close = False
@@ -109,7 +143,7 @@ class TaskContextLogger:
         finally:
             task_handler.close()
 
-    def critical(self, msg: str, *args, ti: TaskInstance):
+    def critical(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level CRITICAL to the task instance logs.
 
@@ -118,7 +152,7 @@ class TaskContextLogger:
         """
         self._log(logging.CRITICAL, msg, *args, ti=ti)
 
-    def fatal(self, msg: str, *args, ti: TaskInstance):
+    def fatal(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level FATAL to the task instance logs.
 
@@ -127,7 +161,7 @@ class TaskContextLogger:
         """
         self._log(logging.FATAL, msg, *args, ti=ti)
 
-    def error(self, msg: str, *args, ti: TaskInstance):
+    def error(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level ERROR to the task instance logs.
 
@@ -136,7 +170,7 @@ class TaskContextLogger:
         """
         self._log(logging.ERROR, msg, *args, ti=ti)
 
-    def warn(self, msg: str, *args, ti: TaskInstance):
+    def warn(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level WARN to the task instance logs.
 
@@ -145,7 +179,7 @@ class TaskContextLogger:
         """
         self._log(logging.WARNING, msg, *args, ti=ti)
 
-    def warning(self, msg: str, *args, ti: TaskInstance):
+    def warning(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level WARNING to the task instance logs.
 
@@ -154,7 +188,7 @@ class TaskContextLogger:
         """
         self._log(logging.WARNING, msg, *args, ti=ti)
 
-    def info(self, msg: str, *args, ti: TaskInstance):
+    def info(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level INFO to the task instance logs.
 
@@ -163,7 +197,7 @@ class TaskContextLogger:
         """
         self._log(logging.INFO, msg, *args, ti=ti)
 
-    def debug(self, msg: str, *args, ti: TaskInstance):
+    def debug(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level DEBUG to the task instance logs.
 
@@ -172,7 +206,7 @@ class TaskContextLogger:
         """
         self._log(logging.DEBUG, msg, *args, ti=ti)
 
-    def notset(self, msg: str, *args, ti: TaskInstance):
+    def notset(self, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
         """
         Emit a log message with level NOTSET to the task instance logs.
 
