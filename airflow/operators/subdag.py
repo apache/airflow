@@ -38,7 +38,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -177,6 +177,7 @@ class SubDagOperator(BaseSensorOperator):
                 conf=self.conf,
                 external_trigger=True,
                 data_interval=data_interval,
+                triggered_by=DagRunTriggeredByType.OPERATOR,
             )
             self.log.info("Created DagRun: %s", dag_run.run_id)
         else:

@@ -139,7 +139,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -318,6 +318,7 @@ def _create_orm_dagrun(
     creating_job_id,
     data_interval,
     session,
+    triggered_by,
 ):
     run = DagRun(
         dag_id=dag_id,
@@ -331,6 +332,7 @@ def _create_orm_dagrun(
         dag_hash=dag_hash,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
+        triggered_by=triggered_by,
     )
     session.add(run)
     session.flush()
@@ -2977,6 +2979,7 @@ class DAG(LoggingMixin):
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
                 session=session,
                 conf=run_conf,
+                triggered_by=DagRunTriggeredByType.TEST,
                 data_interval=data_interval,
             )
 
@@ -3047,6 +3050,8 @@ class DAG(LoggingMixin):
     def create_dagrun(
         self,
         state: DagRunState,
+        *,
+        triggered_by: DagRunTriggeredByType,
         execution_date: datetime | None = None,
         run_id: str | None = None,
         start_date: datetime | None = None,
@@ -3063,10 +3068,11 @@ class DAG(LoggingMixin):
 
         Returns the dag run.
 
+        :param state: the state of the dag run
+        :param triggered_by: The entity which triggers the DagRun
         :param run_id: defines the run id for this dag run
         :param run_type: type of DagRun
         :param execution_date: the execution date of this dag run
-        :param state: the state of the dag run
         :param start_date: the date this dag run should be evaluated
         :param external_trigger: whether this dag run is externally triggered
         :param conf: Dict containing configuration/parameters to pass to the DAG
@@ -3148,6 +3154,7 @@ class DAG(LoggingMixin):
             creating_job_id=creating_job_id,
             data_interval=data_interval,
             session=session,
+            triggered_by=triggered_by,
         )
         return run
 
@@ -4284,6 +4291,7 @@ def _get_or_create_dagrun(
     execution_date: datetime,
     run_id: str,
     session: Session,
+    triggered_by: DagRunTriggeredByType,
     data_interval: tuple[datetime, datetime] | None = None,
 ) -> DagRun:
     """
@@ -4296,6 +4304,7 @@ def _get_or_create_dagrun(
     :param start_date: Start date of new run.
     :param execution_date: Logical date for finding an existing run.
     :param run_id: Run ID for the new DAG run.
+    :param triggered_by: the entity which triggers the dag_run
 
     :return: The newly created DAG run.
     """
@@ -4314,6 +4323,7 @@ def _get_or_create_dagrun(
         session=session,
         conf=conf,
         data_interval=data_interval,
+        triggered_by=triggered_by,
     )
     log.info("created dagrun %s", dr)
     return dr

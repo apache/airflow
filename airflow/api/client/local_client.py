@@ -24,6 +24,7 @@ from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
+from airflow.utils.types import DagRunTriggeredByType
 
 
 class Client(api_client.Client):
@@ -34,6 +35,7 @@ class Client(api_client.Client):
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
+            triggered_by=DagRunTriggeredByType.CLI,
             run_id=run_id,
             conf=conf,
             execution_date=execution_date,

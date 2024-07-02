@@ -33,7 +33,11 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.db import clear_db_runs
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -167,6 +171,7 @@ class TestSubDagOperator:
         subdag_task.pre_execute(context=context)
         subdag_task.execute(context=context)
         subdag_task.post_execute(context=context)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.OPERATOR} if AIRFLOW_V_2_10_PLUS else {}
 
         subdag.create_dagrun.assert_called_once_with(
             run_type=DagRunType.SCHEDULED,
@@ -175,6 +180,7 @@ class TestSubDagOperator:
             conf=None,
             state=State.RUNNING,
             external_trigger=True,
+            **triggered_by_kwargs,
         )
 
         assert 3 == subdag_task._get_dagrun.call_count
@@ -205,6 +211,7 @@ class TestSubDagOperator:
         subdag_task.pre_execute(context=context)
         subdag_task.execute(context=context)
         subdag_task.post_execute(context=context)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.OPERATOR} if AIRFLOW_V_2_10_PLUS else {}
 
         subdag.create_dagrun.assert_called_once_with(
             run_type=DagRunType.SCHEDULED,
@@ -213,6 +220,7 @@ class TestSubDagOperator:
             conf=conf,
             state=State.RUNNING,
             external_trigger=True,
+            **triggered_by_kwargs,
         )
 
         assert 3 == subdag_task._get_dagrun.call_count

@@ -31,6 +31,10 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -132,6 +136,7 @@ class TestBranchOperator:
         self.branch_1.set_upstream(self.branch_op)
         self.branch_2.set_upstream(self.branch_op)
         self.dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         dagrun = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -139,6 +144,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -159,6 +165,7 @@ class TestBranchOperator:
         self.branch_op >> self.branch_1 >> self.branch_2
         self.branch_op >> self.branch_2
         self.dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         dagrun = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -166,6 +173,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -185,6 +193,7 @@ class TestBranchOperator:
         self.branch_1.set_upstream(self.branch_op)
         self.branch_2.set_upstream(self.branch_op)
         self.dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         dr = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -192,6 +201,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -212,6 +222,7 @@ class TestBranchOperator:
         self.branch_3.set_upstream(self.branch_op)
 
         self.dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         dagrun = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -219,6 +230,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

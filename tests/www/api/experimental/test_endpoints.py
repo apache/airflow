@@ -34,7 +34,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.db import clear_db_pools
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
@@ -248,9 +252,15 @@ class TestApiExperimental(TestBase):
         execution_date = utcnow().replace(microsecond=0)
         datetime_string = quote_plus(execution_date.isoformat())
         wrong_datetime_string = quote_plus(datetime(1990, 1, 1, 1, 1, 1).isoformat())
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         # Create DagRun
-        trigger_dag(dag_id=dag_id, run_id="test_task_instance_info_run", execution_date=execution_date)
+        trigger_dag(
+            dag_id=dag_id,
+            run_id="test_task_instance_info_run",
+            execution_date=execution_date,
+            **triggered_by_kwargs,
+        )
 
         # Test Correct execution
         response = self.client.get(url_template.format(dag_id, datetime_string, task_id))
@@ -287,9 +297,15 @@ class TestApiExperimental(TestBase):
         execution_date = utcnow().replace(microsecond=0)
         datetime_string = quote_plus(execution_date.isoformat())
         wrong_datetime_string = quote_plus(datetime(1990, 1, 1, 1, 1, 1).isoformat())
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         # Create DagRun
-        trigger_dag(dag_id=dag_id, run_id="test_task_instance_info_run", execution_date=execution_date)
+        trigger_dag(
+            dag_id=dag_id,
+            run_id="test_task_instance_info_run",
+            execution_date=execution_date,
+            **triggered_by_kwargs,
+        )
 
         # Test Correct execution
         response = self.client.get(url_template.format(dag_id, datetime_string))
@@ -346,9 +362,15 @@ class TestLineageApiExperimental(TestBase):
         execution_date = utcnow().replace(microsecond=0)
         datetime_string = quote_plus(execution_date.isoformat())
         wrong_datetime_string = quote_plus(datetime(1990, 1, 1, 1, 1, 1).isoformat())
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         # create DagRun
-        trigger_dag(dag_id=dag_id, run_id="test_lineage_info_run", execution_date=execution_date)
+        trigger_dag(
+            dag_id=dag_id,
+            run_id="test_lineage_info_run",
+            execution_date=execution_date,
+            **triggered_by_kwargs,
+        )
 
         # test correct execution
         response = self.client.get(url_template.format(dag_id, datetime_string))

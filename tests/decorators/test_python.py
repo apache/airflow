@@ -40,6 +40,10 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -442,12 +446,14 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with self.dag:
             ret = return_dict(test_number)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         dr = self.dag.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -502,12 +508,14 @@ class TestAirflowTaskDecorator(BasePythonTest):
             bigger_number = add_2(test_number)
             ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         dr = self.dag.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

@@ -38,8 +38,12 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mapping import expand_mapped_task
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 DEV_NULL = "/dev/null"
 
@@ -540,12 +544,14 @@ class TestMarkDAGRun:
             assert ti.state == state
 
     def _create_test_dag_run(self, state, date):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         return self.dag1.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=state,
             start_date=date,
             execution_date=date,
             data_interval=(date, date),
+            **triggered_by_kwargs,
         )
 
     def _verify_dag_run_state(self, dag, date, state):
@@ -742,12 +748,14 @@ class TestMarkDAGRun:
 
     @provide_session
     def test_set_state_with_multiple_dagruns(self, session=None):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
         self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[0],
             data_interval=(self.execution_dates[0], self.execution_dates[0]),
             session=session,
+            **triggered_by_kwargs,
         )
         dr2 = self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -755,6 +763,7 @@ class TestMarkDAGRun:
             execution_date=self.execution_dates[1],
             data_interval=(self.execution_dates[1], self.execution_dates[1]),
             session=session,
+            **triggered_by_kwargs,
         )
         self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
@@ -762,6 +771,7 @@ class TestMarkDAGRun:
             execution_date=self.execution_dates[2],
             data_interval=(self.execution_dates[2], self.execution_dates[2]),
             session=session,
+            **triggered_by_kwargs,
         )
 
         altered = set_dag_run_state_to_success(dag=self.dag2, run_id=dr2.run_id, commit=True)

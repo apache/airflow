@@ -57,6 +57,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.db import (
     clear_db_dags,
     clear_db_pools,
@@ -66,6 +67,9 @@ from tests.test_utils.db import (
 )
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -1726,6 +1730,7 @@ class TestBackfillJob:
         prefix = "backfill_job_test_test_reset_orphaned_tasks"
         states = [State.QUEUED, State.SCHEDULED, State.NONE, State.RUNNING, State.SUCCESS]
         states_to_reset = [State.QUEUED, State.SCHEDULED, State.NONE]
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
 
         tasks = []
         with dag_maker(dag_id=prefix) as dag:
@@ -1739,7 +1744,7 @@ class TestBackfillJob:
         job_runner = BackfillJobRunner(job=job, dag=dag)
         # create dagruns
         dr1 = dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID, state=State.RUNNING)
-        dr2 = dag.create_dagrun(run_id="test2", state=State.SUCCESS)
+        dr2 = dag.create_dagrun(run_id="test2", state=State.SUCCESS, **triggered_by_kwargs)
 
         # create taskinstances and set states
         dr1_tis = []
@@ -1798,8 +1803,14 @@ class TestBackfillJob:
         job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag)
         # make two dagruns, only reset for one
-        dr1 = dag_maker.create_dagrun(state=State.SUCCESS)
-        dr2 = dag.create_dagrun(run_id="test2", state=State.RUNNING, session=session)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_2_10_PLUS else {}
+        dr1 = dag_maker.create_dagrun(state=State.SUCCESS, **triggered_by_kwargs)
+        dr2 = dag.create_dagrun(
+            run_id="test2",
+            state=State.RUNNING,
+            session=session,
+            **triggered_by_kwargs,
+        )
         ti1 = dr1.get_task_instances(session=session)[0]
         ti2 = dr2.get_task_instances(session=session)[0]
         ti1.state = State.SCHEDULED

@@ -37,7 +37,11 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.db import clear_db_pools
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -62,6 +66,7 @@ class TestLocalClient:
     def test_trigger_dag(self, mock):
         test_dag_id = "example_bash_operator"
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, EXECDATE_NOFRACTIONS)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_2_10_PLUS else {}
 
         DagBag(include_examples=True)
 
@@ -89,6 +94,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                **triggered_by_kwargs,
             )
             mock.reset_mock()
 
@@ -102,6 +108,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                **triggered_by_kwargs,
             )
             mock.reset_mock()
 
@@ -116,6 +123,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                **triggered_by_kwargs,
             )
             mock.reset_mock()
 
@@ -130,6 +138,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                **triggered_by_kwargs,
             )
             mock.reset_mock()
 
@@ -145,6 +154,7 @@ class TestLocalClient:
                 conf={},
                 run_type=DagRunType.MANUAL,
                 data_interval=(EXECDATE, EXECDATE + pendulum.duration(hours=1)),
+                **triggered_by_kwargs,
             )
             expected_dag_run = {
                 "conf": {},

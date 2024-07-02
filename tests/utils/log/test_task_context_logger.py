@@ -22,6 +22,7 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.utils.log.task_context_logger import TaskContextLogger
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,8 @@ def ti(dag_maker):
 
         nothing()
 
-    dr = dag.create_dagrun("running", run_id="abc")
+    triggered_by_kwargs = {"triggered_by": "test"} if AIRFLOW_V_2_10_PLUS else {}
+    dr = dag.create_dagrun("running", run_id="abc", **triggered_by_kwargs)
     ti = dr.get_task_instances()[0]
     return ti
 
