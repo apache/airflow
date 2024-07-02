@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use `TextGenerationModelPredictOperator`.",
+    reason="This operator is deprecated and will be removed after 01.01.2025, please use `TextGenerationModelPredictOperator`.",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptLanguageModelOperator(GoogleCloudBaseOperator):
@@ -121,7 +121,7 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use `TextEmbeddingModelGetEmbeddingsOperator`.",
+    reason="This operator is deprecated and will be removed after 01.01.2025, please use `TextEmbeddingModelGetEmbeddingsOperator`.",
     category=AirflowProviderDeprecationWarning,
 )
 class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
@@ -189,7 +189,7 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use `GenerativeModelGenerateContentOperator`.",
+    reason="This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
@@ -265,7 +265,7 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use `GenerativeModelGenerateContentOperator`.",
+    reason="This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
