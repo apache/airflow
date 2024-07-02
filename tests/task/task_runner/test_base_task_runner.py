@@ -29,7 +29,7 @@ from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 pytestmark = pytest.mark.db_test
 
 
-@pytest.mark.parametrize(["impersonation"], (("nobody",), (None,)))
+@pytest.mark.parametrize(["impersonation"], (("nobody",), ("airflow",), (None,)))
 @mock.patch("subprocess.check_call")
 @mock.patch("airflow.task.task_runner.base_task_runner.tmp_configuration_copy")
 def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, impersonation):
@@ -51,9 +51,9 @@ def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, im
 
     tmp_configuration_copy.assert_called_with(chmod=0o600, include_env=includes, include_cmds=includes)
 
-    if impersonation:
+    if impersonation == None or impersonation == "airflow":
+        subprocess_call.not_assert_called()
+    else:
         subprocess_call.assert_called_with(
             ["sudo", "chown", impersonation, "/tmp/some-string"], close_fds=True
         )
-    else:
-        subprocess_call.not_assert_called()
