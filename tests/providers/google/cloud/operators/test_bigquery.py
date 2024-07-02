@@ -2316,7 +2316,7 @@ class TestBigQueryCheckOperator:
             sql="SELECT * FROM any WHERE test_param = @test_param",
             location=TEST_DATASET_LOCATION,
             deferrable=True,
-            query_params=query_params
+            query_params=query_params,
         )
 
         ti.task.execute(MagicMock())
