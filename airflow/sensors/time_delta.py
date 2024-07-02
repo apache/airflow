@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
@@ -66,18 +66,14 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
     """
 
-    def execute(self, context: Context) -> NoReturn:
+    def execute(self, context: Context):
         target_dttm = context["data_interval_end"]
         target_dttm += self.delta
         try:
-            trigger = DateTimeTrigger(moment=target_dttm)
+            trigger = DateTimeTrigger(moment=target_dttm, end_task=True)
         except (TypeError, ValueError) as e:
             if self.soft_fail:
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
             raise
 
-        self.defer(trigger=trigger, method_name="execute_complete")
-
-    def execute_complete(self, context, event=None) -> None:
-        """Execute for when the trigger fires - return immediately."""
-        return None
+        self.defer(trigger=trigger)

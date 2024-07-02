@@ -63,7 +63,6 @@ class TestTimeSensorAsync:
 
         assert isinstance(exc_info.value.trigger, DateTimeTrigger)
         assert exc_info.value.trigger.moment == timezone.datetime(2020, 7, 7, 10)
-        assert exc_info.value.method_name == "execute_complete"
         assert exc_info.value.kwargs is None
 
     def test_target_time_aware(self):

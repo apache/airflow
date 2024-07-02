@@ -1753,7 +1753,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         *,
         trigger: BaseTrigger,
-        method_name: str,
+        method_name: str = TaskDeferred.TRIGGER_EXIT,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
     ) -> NoReturn:
@@ -1761,7 +1761,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
         This is achieved by raising a special exception (TaskDeferred)
-        which is caught in the main _execute_task wrapper.
+        which is caught in the main _execute_task wrapper.  Triggers can send execution back to task or end
+        the task instance directly. If the trigger will end the task instance itself, ``method_name`` should
+        be None; otherwise, provide the name of the method that should be used when resuming execution in
+        the task.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 

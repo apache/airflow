@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
+    from airflow.utils.state import TaskInstanceState
 
 
 class CallbackRequest:
@@ -71,6 +72,7 @@ class TaskCallbackRequest(CallbackRequest):
     :param is_failure_callback: Flag to determine whether it is a Failure Callback or Success Callback
     :param msg: Additional Message that can be used for logging to determine failure/zombie
     :param processor_subdir: Directory used by Dag Processor when parsed the dag.
+    :param task_callback_type: e.g. whether on success, on failure, on retry.
     """
 
     def __init__(
@@ -80,10 +82,12 @@ class TaskCallbackRequest(CallbackRequest):
         is_failure_callback: bool | None = True,
         processor_subdir: str | None = None,
         msg: str | None = None,
+        task_callback_type: TaskInstanceState | None = None,
     ):
         super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.simple_task_instance = simple_task_instance
         self.is_failure_callback = is_failure_callback
+        self.task_callback_type = task_callback_type
 
     def to_json(self) -> str:
         from airflow.serialization.serialized_objects import BaseSerialization

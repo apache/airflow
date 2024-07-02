@@ -72,6 +72,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
+
 
 class DagParsingStat(NamedTuple):
     """Information on processing progress."""
@@ -574,6 +576,7 @@ class DagFileProcessorManager(LoggingMixin):
                     pass
                 elif isinstance(agent_signal, CallbackRequest):
                     self._add_callback_to_queue(agent_signal)
+                    self.log.warning("_add_callback_to_queue; agent signal; %s", agent_signal)
                 else:
                     raise ValueError(f"Invalid message {type(agent_signal)}")
 
