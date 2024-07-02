@@ -668,6 +668,9 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logPages": {
+    get: operations["get_log_pages"];
+  };
   "/dags/{dag_id}/details": {
     /** The response contains many DAG attributes, so the response can be large. If possible, consider using GET /dags/{dag_id}. */
     get: operations["get_dag_details"];
@@ -4550,6 +4553,31 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  get_log_pages: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": {
+            total_pages?: number;
+          };
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /** The response contains many DAG attributes, so the response can be large. If possible, consider using GET /dags/{dag_id}. */
   get_dag_details: {
     parameters: {
@@ -5671,6 +5699,9 @@ export type GetExtraLinksVariables = CamelCasedPropertiesDeep<
 export type GetLogVariables = CamelCasedPropertiesDeep<
   operations["get_log"]["parameters"]["path"] &
     operations["get_log"]["parameters"]["query"]
+>;
+export type GetLogPagesVariables = CamelCasedPropertiesDeep<
+  operations["get_log_pages"]["parameters"]["path"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_details"]["parameters"]["path"] &

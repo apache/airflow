@@ -267,8 +267,7 @@ const Logs = ({
       {isLoading ? (
         <Spinner />
       ) : (
-        !! parsedLogs && (
-          <>
+        !!parsedLogs && (
           <Box flex="1" overflow="auto" maxHeight="60vh">
             <LogBlock
               parsedLogs={parsedLogs}
@@ -278,7 +277,7 @@ const Logs = ({
               setUnfoldedLogGroup={setUnfoldedLogGroup}
             />
             <Box my={3}>
-              {/*Temporary fix adding overflow (for long logs). Compoentizing Loggin will fix it. Will do later*/}
+              {/* Temporary fix adding overflow (for long logs). Compoentizing Loggin will fix it. Will do later */}
               <Text as="span">Log Page Number</Text>
               <Flex flexWrap="wrap" my={2}>
                 {/* TODO: Replace [1,2] with API call to get the log size -> # required pages */}
@@ -297,7 +296,6 @@ const Logs = ({
               </Flex>
             </Box>
           </Box>
-        </>
         )
       )}
     </>

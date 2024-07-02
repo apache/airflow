@@ -2012,6 +2012,33 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logPages:
+    get:
+      summary: Get total log pages
+      x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
+      operationId: get_log_pages
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_pages:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /dags/{dag_id}/details:
     parameters:
       - $ref: "#/components/parameters/DAGID"
