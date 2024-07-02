@@ -275,7 +275,7 @@ class BigQueryCheckOperator(
         """Submit a new job and get the job id for polling the status using Trigger."""
         configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
         if self.query_params:
-            configuration["query"]["queryParameters"] = query_params
+            configuration["query"]["queryParameters"] = self.query_params
 
         self.include_encryption_configuration(configuration, "query")
 
