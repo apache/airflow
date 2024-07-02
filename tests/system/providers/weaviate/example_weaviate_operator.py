@@ -26,6 +26,8 @@ from airflow.providers.weaviate.operators.weaviate import (
     WeaviateIngestOperator,
 )
 
+COLLECTION_NAME = "QuestionWithoutVectorizerUsingOperator"
+
 sample_data_with_vector = [
     {
         "Answer": "Liver",
@@ -108,7 +110,7 @@ def example_weaviate_using_operator():
 
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
-        weaviate_hook.create_collection("QuestionWithoutVectorizerUsingOperator")
+        weaviate_hook.create_collection(COLLECTION_NAME)
 
     @task(trigger_rule="all_done")
     def store_data_with_vectors_in_xcom():
@@ -118,7 +120,7 @@ def example_weaviate_using_operator():
     batch_data_with_vectors_xcom_data = WeaviateIngestOperator(
         task_id="batch_data_with_vectors_xcom_data",
         conn_id="weaviate_default",
-        collection_name="QuestionWithoutVectorizerUsingOperator",
+        collection_name=COLLECTION_NAME,
         input_data=store_data_with_vectors_in_xcom(),
         trigger_rule="all_done",
     )
@@ -128,7 +130,7 @@ def example_weaviate_using_operator():
     batch_data_with_vectors_callable_data = WeaviateIngestOperator(
         task_id="batch_data_with_vectors_callable_data",
         conn_id="weaviate_default",
-        collection_name="QuestionWithoutVectorizerUsingOperator",
+        collection_name=COLLECTION_NAME,
         input_data=get_data_with_vectors(),
         trigger_rule="all_done",
     )
@@ -255,7 +257,7 @@ def example_weaviate_using_operator():
 
         weaviate_hook.delete_collections(
             [
-                "QuestionWithoutVectorizerUsingOperator",
+                COLLECTION_NAME,
             ]
         )
 

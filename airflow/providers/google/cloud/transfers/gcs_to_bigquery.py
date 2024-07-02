@@ -461,6 +461,8 @@ class GCSToBigQueryOperator(BaseOperator):
             self.task_id,
             event["message"],
         )
+        # Save job_id as an attribute to be later used by listeners
+        self.job_id = event.get("job_id")
         return self._find_max_value_in_column()
 
     def _find_max_value_in_column(self):
@@ -757,17 +759,26 @@ class GCSToBigQueryOperator(BaseOperator):
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        table_object = self.hook.get_client(self.hook.project_id).get_table(
-            self.destination_project_dataset_table
-        )
+        if not self.hook:
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
+
+        project_id = self.project_id or self.hook.project_id
+        table_object = self.hook.get_client(project_id).get_table(self.destination_project_dataset_table)
 
         output_dataset_facets = get_facets_from_bq_table(table_object)
 
+        source_objects = (
+            self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
+        )
         input_dataset_facets = {
             "schema": output_dataset_facets["schema"],
         }
         input_datasets = []
-        for blob in sorted(self.source_objects):
+        for blob in sorted(source_objects):
             additional_facets = {}
 
             if "*" in blob:
