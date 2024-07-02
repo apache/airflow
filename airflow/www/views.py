@@ -36,7 +36,7 @@ from functools import cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
-from urllib.parse import unquote, urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlparse, urlsplit
 
 import configupdater
 import flask.json
@@ -4219,7 +4219,10 @@ class ConnectionModelView(AirflowModelView):
             if is_sensitive and field_name in extra_dictionary:
                 extra_dictionary[field_name] = SENSITIVE_FIELD_PLACEHOLDER
         # form.data is a property that builds the dictionary from fields so we have to modify the fields
-        form.extra.data = json.dumps(extra_dictionary)
+        if extra_dictionary:
+            form.extra.data = json.dumps(extra_dictionary)
+        else:
+            form.extra.data = None
 
 
 class PluginView(AirflowBaseView):
@@ -4318,6 +4321,13 @@ class ProviderView(AirflowBaseView):
         def _build_link(match_obj):
             text = match_obj.group(1)
             url = match_obj.group(2)
+
+            # parsing the url to check if ita a valid url
+            parsed_url = urlparse(url)
+            if not (parsed_url.scheme == "http" or parsed_url.scheme == "https"):
+                # returning the original raw text
+                return escape(match_obj.group(0))
+
             return Markup(f'<a href="{url}">{text}</a>')
 
         cd = escape(description)

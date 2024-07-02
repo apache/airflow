@@ -18,7 +18,7 @@
 Tasks
 =====
 
-A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`dags`, and then have upstream and downstream dependencies set between them into order to express the order they should run in.
+A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`dags`, and then have upstream and downstream dependencies set between them in order to express the order they should run in.
 
 There are three basic kinds of Task:
 
@@ -245,7 +245,12 @@ No system runs perfectly, and task instances are expected to die once in a while
 
 * *Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
   (e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
-  periodically, clean them up, and either fail or retry the task depending on its settings.
+  periodically, clean them up, and either fail or retry the task depending on its settings. Tasks can become zombies for
+  many reasons, including:
+
+    * The Airflow worker ran out of memory and was OOMKilled.
+    * The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
+    * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 * *Undead tasks* are tasks that are *not* supposed to be running but are, often caused when you manually edit Task
   Instances via the UI. Airflow will find them periodically and terminate them.

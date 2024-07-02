@@ -50,7 +50,7 @@ def upgrade():
             TABLE_NAME        = 'connection' AND
             CONSTRAINT_NAME   = 'unique_conn_id' AND
             CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
-            drop constraint unique_conn_id','select 1');
+            DROP INDEX unique_conn_id','select 1');
 
         prepare stmt from @var;
         execute stmt;
@@ -65,7 +65,7 @@ def upgrade():
                     TABLE_NAME        = 'connection' AND
                     CONSTRAINT_NAME   = 'connection_conn_id_uq' AND
                     CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
-                    drop constraint connection_conn_id_uq','select 1');
+                    DROP INDEX connection_conn_id_uq','select 1');
 
                 prepare stmt from @var;
                 execute stmt;
@@ -127,7 +127,7 @@ def upgrade():
                             TABLE_NAME        = 'dag_run' AND
                             CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_uq' AND
                             CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                            drop constraint dag_run_dag_id_execution_date_uq','select 1');
+                            DROP INDEX dag_run_dag_id_execution_date_uq','select 1');
 
                         prepare stmt from @var;
                         execute stmt;
@@ -141,7 +141,7 @@ def upgrade():
                             TABLE_NAME        = 'dag_run' AND
                             CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_uq' AND
                             CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                            drop constraint dag_run_dag_id_run_id_uq','select 1');
+                            DROP INDEX dag_run_dag_id_run_id_uq','select 1');
 
                         prepare stmt from @var;
                         execute stmt;
@@ -156,7 +156,7 @@ def upgrade():
                                     TABLE_NAME        = 'dag_run' AND
                                     CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_key' AND
                                     CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                                    drop constraint dag_run_dag_id_execution_date_key','select 1');
+                                    DROP INDEX dag_run_dag_id_execution_date_key','select 1');
 
                                 prepare stmt from @var;
                                 execute stmt;
@@ -170,7 +170,7 @@ def upgrade():
                                 TABLE_NAME        = 'dag_run' AND
                                 CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_key' AND
                                 CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                                drop constraint dag_run_dag_id_run_id_key','select 1');
+                                DROP INDEX dag_run_dag_id_run_id_key','select 1');
 
                             prepare stmt from @var;
                             execute stmt;

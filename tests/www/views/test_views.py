@@ -22,6 +22,7 @@ import re
 from unittest import mock
 
 import pytest
+from markupsafe import Markup
 
 from airflow.configuration import (
     initialize_config,
@@ -31,6 +32,7 @@ from airflow.configuration import (
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import (
+    ProviderView,
     get_key_paths,
     get_safe_url,
     get_task_stats_from_query,
@@ -137,6 +139,37 @@ def test_should_list_providers_on_page_with_details(admin_client):
     check_content_in_response(beam_text, resp)
     check_content_in_response(beam_description, resp)
     check_content_in_response("Providers", resp)
+
+
+@pytest.mark.parametrize(
+    "provider_description, expected",
+    [
+        ("`Airbyte <https://airbyte.com/>`__", Markup('<a href="https://airbyte.com/">Airbyte</a>')),
+        (
+            "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).",
+            Markup(
+                'Amazon integration (including <a href="https://aws.amazon.com/">Amazon Web Services ('
+                "AWS)</a>)."
+            ),
+        ),
+        (
+            "`Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc"
+            "/>`__",
+            Markup(
+                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/">Java '
+                "Database Connectivity (JDBC)</a>"
+            ),
+        ),
+        (
+            "`click me <javascript:prompt(document.domain)>`__",
+            Markup("`click me &lt;javascript:prompt(document.domain)&gt;`__"),
+        ),
+    ],
+)
+def test__clean_description(admin_client, provider_description, expected):
+    p = ProviderView()
+    actual = p._clean_description(provider_description)
+    assert actual == expected
 
 
 def test_endpoint_should_not_be_unauthenticated(app):

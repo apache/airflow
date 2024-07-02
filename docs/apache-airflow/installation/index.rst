@@ -141,7 +141,7 @@ More details:  :doc:`/installation/installing-from-pypi`
   diagnose and solve.
 * You have :doc:`/start` where you can see an example of Quick Start with running Airflow
   locally which you can use to start Airflow quickly for local testing and development.
-  However, this is just for inspiration. Do not expect this docker-compose is ready for production installation,
+  However, this is just for inspiration. Do not expect :doc:`/start` is ready for production installation,
   you need to build your own production-ready deployment if you follow this approach.
 
 **Where to ask for help**

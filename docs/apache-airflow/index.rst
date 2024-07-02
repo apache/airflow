@@ -151,6 +151,7 @@ so coding will always be required.
     public-airflow-interface
     best-practices
     faq
+    troubleshooting
     Release Policies <release-process>
     release_notes
     privacy_notice

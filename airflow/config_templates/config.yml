@@ -1033,7 +1033,8 @@ metrics:
         If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+      or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
@@ -1046,7 +1047,8 @@ metrics:
         If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+      or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     statsd_on:
       description: |
@@ -1277,8 +1279,8 @@ api:
   options:
     enable_experimental_api:
       description: |
-        Enables the deprecated experimental API. Please note that these APIs do not have access control.
-        The authenticated user has full access.
+        Enables the deprecated experimental API. Please note that these API endpoints do not have
+        access control. An authenticated user has full access.
 
         .. warning::
 
@@ -1878,16 +1880,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    update_fab_perms:
-      description: |
-        Update FAB permissions and sync security manager roles
-        on webserver startup
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
@@ -1957,24 +1949,6 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    auth_rate_limited:
-      description: |
-        Boolean for enabling rate limiting on authentication endpoints.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
-    auth_rate_limit:
-      description: |
-        Rate limit for authentication endpoints.
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: "5 per 40 second"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
