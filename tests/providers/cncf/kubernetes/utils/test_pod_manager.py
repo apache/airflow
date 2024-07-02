@@ -557,7 +557,7 @@ class TestPodManager:
     def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
         """test when invalid json is retrieved from xcom sidecar container."""
         with pytest.raises(JSONDecodeError):
-            xcom_json = """{"a": "tru"""
+            xcom_json = """{"a": "tru"""  # codespell:ignore tru
             mock_pod = MagicMock()
             mock_exec_pod_command.return_value = xcom_json
             self.pod_manager.extract_xcom(pod=mock_pod)
