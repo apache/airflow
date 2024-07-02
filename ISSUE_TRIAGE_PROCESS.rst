@@ -272,9 +272,10 @@ This method allow us to quickly filter issues by the 3 major components of our c
 
 **affected version Label**
 
-The ``affected_version:x`` is mandatory for core issues thus it always comes with ``area:core`` label.
-When issue is reproducible on multiple Airflow versions we apply only the latest version with the label.
 The ``affected_version:x`` will never be present with ``kind:feature`` as feature requests are not related to specific Airflow version.
+For bugs, The ``affected_version:x`` is expected to be used with core issues thus normally it appears with ``area:core`` label.
+When issue is reproducible on multiple Airflow versions we apply only the latest version with the label.
+This policy is best effort, we should try to have as little exceptions as possible.
 
 **Good First Issue**
 
