@@ -3497,6 +3497,7 @@ class TestTaskInstance:
             "map_index": -1,
             "start_date": run_date + datetime.timedelta(days=1),
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
+            "task_owner": "airflow",
             "duration": 1.234,
             "state": State.SUCCESS,
             "try_number": 1,
@@ -3546,6 +3547,7 @@ class TestTaskInstance:
         mock_task = mock.MagicMock()
         mock_task.task_id = expected_values["task_id"]
         mock_task.dag_id = expected_values["dag_id"]
+        mock_task.owner = expected_values["task_owner"]
 
         ti = TI(task=mock_task, run_id="test")
         ti.refresh_from_db()
