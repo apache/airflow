@@ -286,23 +286,23 @@ a string of semicolon separated Airflow Operators full import paths to ``extract
 
   AIRFLOW__OPENLINEAGE__EXTRACTORS='full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass'
 
-Custom Facets
-^^^^^^^^^^^^^
+Custom Run Facets
+^^^^^^^^^^^^^^^^^
 
-To use :ref:`custom run facets <custom_facets:openlineage>` feature, register the custom facet functions by passing
-a string of semicolon separated full import paths to ``custom_facet_functions`` option in Airflow configuration.
+To inject :ref:`custom run facets <custom_facets:openlineage>`, register the custom run facet functions by passing
+a string of semicolon separated full import paths to ``custom_run_facets`` option in Airflow configuration.
 
 .. code-block:: ini
 
     [openlineage]
     transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
-    custom_facet_functions = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
+    custom_run_facets = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
 
-``AIRFLOW__OPENLINEAGE__CUSTOM_FACET_FUNCTIONS`` environment variable is an equivalent.
+``AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS`` environment variable is an equivalent.
 
 .. code-block:: ini
 
-  AIRFLOW__OPENLINEAGE__CUSTOM_FACET_FUNCTIONS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
+  AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
 
 Enabling OpenLineage on DAG/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

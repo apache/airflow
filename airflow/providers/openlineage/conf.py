@@ -87,9 +87,9 @@ def custom_extractors() -> set[str]:
 
 
 @cache
-def custom_facet_functions() -> set[str]:
-    """[openlineage] custom_facet_functions."""
-    option = conf.get(_CONFIG_SECTION, "custom_facet_functions", fallback="")
+def custom_run_facets() -> set[str]:
+    """[openlineage] custom_run_facets."""
+    option = conf.get(_CONFIG_SECTION, "custom_run_facets", fallback="")
     return set(
         custom_facet_function.strip()
         for custom_facet_function in option.split(";")

@@ -105,9 +105,9 @@ config:
         example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
         default: ~
         version_added: ~
-      custom_facet_functions:
+      custom_run_facets:
         description: |
-          Register custom facet functions, that return facets to append as run facets, by passing a string of semicolon separated full import paths.
+          Register custom run facet functions by passing a string of semicolon separated full import paths.
         type: string
         example: full.path.to.custom_facet_function;full.path.to.another_custom_facet_function
         default: ''
