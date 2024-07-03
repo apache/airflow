@@ -17,9 +17,7 @@
 # under the License.
 
 
-"""
-Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations.
-"""
+"""Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations."""
 
 from __future__ import annotations
 
@@ -48,7 +46,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_custom_job_operations"
+DAG_ID = "vertex_ai_custom_job_operations"
 REGION = "us-central1"
 PACKAGE_DISPLAY_NAME = f"train-housing-py-package-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"py-package-housing-model-{ENV_ID}"
@@ -143,14 +141,14 @@ with DAG(
     create_custom_python_package_training_job_deferrable = CreateCustomPythonPackageTrainingJobOperator(
         task_id="python_package_task_deferrable",
         staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
-        display_name=f"{PACKAGE_DISPLAY_NAME}_DEF",
+        display_name=f"{PACKAGE_DISPLAY_NAME}-def",
         python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
         python_module_name=PYTHON_MODULE_NAME,
         container_uri=CONTAINER_URI,
         model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
         # run params
         dataset_id=tabular_dataset_id,
-        model_display_name=f"{MODEL_DISPLAY_NAME}_DEF",
+        model_display_name=f"{MODEL_DISPLAY_NAME}-def",
         replica_count=REPLICA_COUNT,
         machine_type=MACHINE_TYPE,
         accelerator_type=ACCELERATOR_TYPE,
