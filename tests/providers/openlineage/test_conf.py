@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.openlineage.conf import (
     _is_true,
     _safe_int_convert,
@@ -28,6 +29,7 @@ from airflow.providers.openlineage.conf import (
     custom_extractors,
     dag_state_change_process_pool_size,
     disabled_operators,
+    include_full_task_info,
     is_disabled,
     is_source_enabled,
     namespace,
@@ -52,6 +54,7 @@ _CONFIG_OPTION_DISABLED = "disabled"
 _VAR_URL = "OPENLINEAGE_URL"
 _CONFIG_OPTION_SELECTIVE_ENABLE = "selective_enable"
 _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE = "dag_state_change_process_pool_size"
+_CONFIG_OPTION_INCLUDE_FULL_TASK_INFO = "include_full_task_info"
 
 _BOOL_PARAMS = (
     ("1", True),
@@ -487,3 +490,33 @@ def test_dag_state_change_process_pool_size(var_string, expected):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
         result = dag_state_change_process_pool_size()
         assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("var", "expected"),
+    (
+        ("False", False),
+        ("True", True),
+        ("t", True),
+        ("true", True),
+    ),
+)
+def test_include_full_task_info_reads_config(var, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var}):
+        assert include_full_task_info() is expected
+
+
+@pytest.mark.parametrize(
+    "var",
+    [
+        "a",
+        "asdf",
+        "31",
+        "",
+        " ",
+    ],
+)
+def test_include_full_task_info_raises_exception(var):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var}):
+        with pytest.raises(AirflowConfigException):
+            include_full_task_info()

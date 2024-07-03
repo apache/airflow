@@ -272,6 +272,25 @@ class TaskInfo(InfoJsonEncodable):
     }
 
 
+class TaskInfoComplete(TaskInfo):
+    """Defines encoding BaseOperator/AbstractOperator object to JSON used when user enables full task info."""
+
+    includes = []
+    excludes = [
+        "_BaseOperator__instantiated",
+        "_dag",
+        "_hook",
+        "_log",
+        "_outlets",
+        "_inlets",
+        "_lock_for_execution",
+        "handler",
+        "params",
+        "python_callable",
+        "retry_delay",
+    ]
+
+
 class TaskGroupInfo(InfoJsonEncodable):
     """Defines encoding TaskGroup object to JSON."""
 
@@ -300,7 +319,7 @@ def get_airflow_run_facet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
             taskInstance=TaskInstanceInfo(task_instance),
-            task=TaskInfo(task),
+            task=TaskInfoComplete(task) if conf.include_full_task_info() else TaskInfo(task),
             taskUuid=task_uuid,
         )
     }
