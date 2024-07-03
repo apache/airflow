@@ -21,7 +21,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 
 
-def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict:
+def _normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict:
     """
     Normalize content or all values of content if it is a dict to a string.
 
@@ -33,7 +33,7 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
     The only one exception is when we have boolean values, they can not be converted
     to string type because databricks does not understand 'True' or 'False' values.
     """
-    normalise = normalise_json_content
+    normalise = _normalise_json_content
     if isinstance(content, (str, bool)):
         return content
     elif isinstance(content, (int, float)):

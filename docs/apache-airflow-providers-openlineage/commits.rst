@@ -38,11 +38,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.9.0
 .....
 
-Latest change: 2024-06-21
+Latest change: 2024-06-28
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`57fb776408 <https://github.com/apache/airflow/commit/57fb7764088a795ef38c149f2cdf5329aabf649b>`_  2024-06-28   ``fix: scheduler crashing with OL provider on airflow standalone (#40459)``
+`322130ed82 <https://github.com/apache/airflow/commit/322130ed827902c8ac5ecbd48d1afbaee3afaa13>`_  2024-06-27   ``nit: fix logging level (#40461)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+`d1a8d3f916 <https://github.com/apache/airflow/commit/d1a8d3f916eb21c0ea73f1fe0b8abf9e97e641a9>`_  2024-06-24   ``fix: provide stack trace under proper key in OL facet (#40372)``
+`a1e6e598ed <https://github.com/apache/airflow/commit/a1e6e598ed834f0a3d63d0215b73df04e9c12dbc>`_  2024-06-24   ``Revert "fix: scheduler crashing with OL provider on airflow standalone (#40353)" (#40402)``
+`5df3c4efab <https://github.com/apache/airflow/commit/5df3c4efab3bf4e2e6943b986e96e9912d6195e3>`_  2024-06-23   ``Add few removed Task properties in AirflowRunFacet (#40371)``
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `fbcee8d01b <https://github.com/apache/airflow/commit/fbcee8d01bddd100d9335404796a40247a6c6487>`_  2024-06-21   ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
 `4fbdd07c13 <https://github.com/apache/airflow/commit/4fbdd07c1392eed517ed2af000aae2c2c3f5b3f6>`_  2024-06-20   ``fix: sqa deprecations for airflow providers (#39293)``
 `1a8d12ffe5 <https://github.com/apache/airflow/commit/1a8d12ffe50c947583c6419d4e952d0f59461135>`_  2024-06-14   ``openlineage: execute extraction and message sending in separate process (#40078)``
