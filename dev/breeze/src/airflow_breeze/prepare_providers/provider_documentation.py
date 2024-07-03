@@ -138,6 +138,12 @@ def get_most_impactful_change(changes):
     return max(changes_enum, key=lambda change: precedence_order[change])
 
 
+def format_message_for_classification(message):
+    num = re.search(r"#(\d+)", message).group(1)
+    new_message = re.sub(r"#(\d+)", f"https://github.com/apache/airflow/pull/{num}", message)
+    return new_message
+
+
 class ClassifiedChanges:
     """Stores lists of changes classified automatically"""
 
@@ -726,10 +732,13 @@ def update_release_notes(
             global short_hash_to_type_dict
             while table_iter < change_table_len:
                 get_console().print()
+                formatted_message = format_message_for_classification(
+                    list_of_list_of_changes[0][table_iter].message_without_backticks
+                )
                 get_console().print(
                     f"[green]Define the type of change for "
-                    f"{list_of_list_of_changes[0][table_iter].short_hash} "
-                    f"by referring to the above table"
+                    f"`{formatted_message}`"
+                    f" by referring to the above table[/]"
                 )
                 type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
                 # update the type of change for every short_hash in the global dict
@@ -739,7 +748,7 @@ def update_release_notes(
 
             most_impactful = get_most_impactful_change(short_hash_to_type_dict)
             get_console().print(
-                f"[info]The version will be bumped because of " f"{most_impactful} kind of change"
+                f"[info]The version will be bumped because of {most_impactful} kind of change"
             )
             type_of_change = most_impactful
             if type_of_change == TypeOfChange.SKIP:
