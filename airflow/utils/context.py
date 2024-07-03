@@ -167,16 +167,12 @@ class OutletEventAccessor:
     """
 
     _raw_key: str | Dataset | DatasetAlias
-    extra: dict[str, Any] | None
+    extra: dict[str, Any]
     dataset_action: dict
 
     def __init__(self, extra, *, raw_key: str | Dataset | DatasetAlias) -> None:
-        if not extra:
-            extra = {}
-        self.extra = extra
-
         self._raw_key = raw_key
-
+        self.extra = extra if extra else {}
         self.dataset_action = {}
 
     def __str__(self) -> str:
@@ -234,8 +230,8 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     @provide_session
     def __init__(self, task_instance=None, *, session: Session = NEW_SESSION) -> None:
         self._dict: dict[str, OutletEventAccessor] = {}
-        self.session = session
         self._task_instnace = task_instance
+        self.session = session
 
     def __str__(self) -> str:
         return f"OutletEventAccessors(_dict={self._dict})"

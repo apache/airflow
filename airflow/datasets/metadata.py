@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 
-from airflow.datasets import coerce_to_uri
+from airflow.datasets import DatasetAlias, coerce_to_uri
 
 if TYPE_CHECKING:
-    from airflow.datasets import Dataset, DatasetAlias
+    from airflow.datasets import Dataset
 
 
 @attrs.define(init=False)
@@ -33,7 +33,7 @@ class Metadata:
 
     uri: str
     extra: dict[str, Any]
-    alias: DatasetAlias | str | list[DatasetAlias | str] | None
+    alias: list[DatasetAlias | str] | None
 
     def __init__(
         self,
@@ -43,4 +43,8 @@ class Metadata:
     ) -> None:
         self.uri = coerce_to_uri(target)
         self.extra = extra
-        self.alias = alias
+
+        if isinstance(alias, (DatasetAlias, str)):
+            self.alias = [alias]
+        else:
+            self.alias = alias

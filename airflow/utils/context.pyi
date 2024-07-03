@@ -32,7 +32,7 @@ from pendulum import DateTime
 from sqlalchemy.orm import Session
 
 from airflow.configuration import AirflowConfigParser
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -43,6 +43,7 @@ from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
+from airflow.utils.session import NEW_SESSION
 
 KNOWN_CONTEXT_KEYS: set[str]
 
@@ -59,12 +60,18 @@ class ConnectionAccessor:
 
 class OutletEventAccessor:
     def __init__(self, *, extra: dict[str, Any]) -> None: ...
+    def add(
+        self, dataset: Dataset | str, extra: dict[str, Any] | None = None, *, session: Session = NEW_SESSION
+    ) -> None: ...
+    _raw_key: str | Dataset | DatasetAlias
     extra: dict[str, Any]
+    dataset_action: dict
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
+    def __init__(self, task_instance=None, *, session: Session = NEW_SESSION) -> None: ...
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor: ...
+    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor: ...
 
 class InletEventsAccessor(Sequence[DatasetEvent]):
     @overload

@@ -262,7 +262,8 @@ class ExecutionCallableRunner:
                 self.outlet_events[metadata.uri].extra.update(metadata.extra)
 
                 if metadata.alias:
-                    self.outlet_events[metadata.alias].add(metadata.uri, extra=metadata.extra)
+                    for alias in metadata.alias:
+                        self.outlet_events[alias].add(metadata.uri, extra=metadata.extra)
 
                 continue
             self.logger.warning("Ignoring unknown data of %r received from task", type(metadata))
