@@ -704,17 +704,11 @@ class TestAwsEcsExecutor:
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
 
         mock_executor.sync_running_tasks()
-        calls = []
         for i in range(2):
-            calls.append(
-                call(
-                    "Airflow task %s has failed a maximum of %s times. Marking as failed",
-                    airflow_keys[i],
-                    2,
-                    ti=airflow_keys[i],
-                )
+            assert (
+                f"Airflow task {airflow_keys[i]} has failed a maximum of 2 times. Marking as failed"
+                in caplog.messages[i]
             )
-        mock_executor.task_context_logger.error.assert_has_calls(calls)
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")

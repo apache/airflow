@@ -320,11 +320,10 @@ class AwsEcsExecutor(BaseExecutor):
                 )
             )
         else:
-            self.task_context_logger.error(
+            self.log.error(
                 "Airflow task %s has failed a maximum of %s times. Marking as failed",
                 task_key,
                 failure_count,
-                ti=task_key,
             )
             self.fail(task_key)
         self.active_workers.pop_by_key(task_key)

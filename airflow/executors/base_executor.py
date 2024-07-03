@@ -155,7 +155,7 @@ class BaseExecutor(LoggingMixin):
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
         else:
-            self.task_context_logger.error("could not queue task %s", task_instance.key, ti=task_instance)
+            self.log.error("could not queue task %s", task_instance.key)
 
     def queue_task_instance(
         self,
