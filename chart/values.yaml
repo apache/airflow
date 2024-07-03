@@ -342,7 +342,7 @@ extraSecrets: {}
 #   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
-#   'proxy-configs':
+#   'proxy-config':
 #     stringData: |
 #        HTTP_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
 #        HTTPS_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
@@ -2660,11 +2660,11 @@ dags:
     # For backwards compatibility, wait will be used if it is specified.
     period: 5s
     wait: ~
-    # add variables from secret into gitSync containers, such proxy-configs
+    # add variables from secret into gitSync containers, such proxy-config
     envFrom: ~
     # envFrom: |
     #   - secretRef:
-    #       name: 'proxy-configs'
+    #       name: 'proxy-config'
 
     containerName: git-sync
     uid: 65533

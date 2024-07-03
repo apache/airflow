@@ -8538,8 +8538,8 @@
                             ],
                             "default": null,
                             "examples": [
-                                "- secretRef:\n    name: 'proxy-configs",
-                                "- configMapRef:\n    name: 'proxy-configs"
+                                "- secretRef:\n    name: 'proxy-config",
+                                "- configMapRef:\n    name: 'proxy-config"
                             ]
                         },
                         "resources": {
