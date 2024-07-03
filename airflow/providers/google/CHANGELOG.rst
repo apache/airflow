@@ -27,10 +27,20 @@
 Changelog
 ---------
 
+10.21.0
+.......
+
+.. note::
+
+  The change  ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)`` has
+  been reverted as it turned out to break too much existing workflows. The behavior of the
+  ``GCSToGCSOperator`` has been restored to the previous behavior.
+
 10.20.0
 .......
 
 .. note::
+
   The ``GCSToGCSOperator`` now retains the nested folder structure when moving or copying a single
   object, aligning its behavior with the behavior for multiple objects. If this change impacts your
   workflows, you may need to adjust your ``source_object`` parameter to include the full path up to
@@ -40,6 +50,11 @@ Changelog
   ``source_object='folder/nested_folder/second_nested_folder/'`` and specify
   ``destination_object='folder/nested_folder/'``. This would move the file to ``'folder/nested_folder/file'``
   instead of the fixed behavior of moving it to ``'folder/nested_folder/second_nested_folder/file'``.
+
+.. warning::
+
+  The change above has been reverted in the 10.21.0 release. The behavior of the
+  ``GCSToGCSOperator`` has been restored to the previous behavior.
 
 Features
 ~~~~~~~~
