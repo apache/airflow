@@ -2248,8 +2248,9 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
     running_state = mock.MagicMock(**metadata, **{"status.phase": "Running"})
     succeeded_state = mock.MagicMock(**metadata, **{"status.phase": "Succeeded"})
-    read_pod_status_mock = mocked_hook.return_value.core_v1_client.read_namespaced_pod_status
-    read_pod_status_mock.side_effect = [
+    mocked_hook.return_value.get_pod.return_value = running_state
+    read_pod_mock = mocked_hook.return_value.core_v1_client.read_namespaced_pod
+    read_pod_mock.side_effect = [
         running_state,
         running_state,
         succeeded_state,
@@ -2275,7 +2276,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
         mock_extract_xcom.assert_not_called()
 
     # check if it waits for the pod to complete
-    assert read_pod_status_mock.call_count == 3
+    assert read_pod_mock.call_count == 3
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()
@@ -2291,8 +2292,9 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
     running_state = mock.MagicMock(**metadata, **{"status.phase": "Running"})
     failed_state = mock.MagicMock(**metadata, **{"status.phase": "Failed"})
-    read_pod_status_mock = mocked_hook.return_value.core_v1_client.read_namespaced_pod_status
-    read_pod_status_mock.side_effect = [
+    mocked_hook.return_value.get_pod.return_value = running_state
+    read_pod_mock = mocked_hook.return_value.core_v1_client.read_namespaced_pod
+    read_pod_mock.side_effect = [
         running_state,
         running_state,
         failed_state,
@@ -2316,15 +2318,15 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     ti_mock.xcom_push.assert_not_called()
 
     if do_xcom_push:
-        # assert that the xcom are not extracted if do_xcom_push is False
+        # assert that the xcom are not extracted if do_xcom_push is Fale
         mock_extract_xcom.assert_called_once()
     else:
-        # but that it is extracted when do_xcom_push is true because the sidecar
+        # but that it is extracted when do_xcom_push is true because the sidecare
         # needs to be terminated
         mock_extract_xcom.assert_not_called()
 
     # check if it waits for the pod to complete
-    assert read_pod_status_mock.call_count == 3
+    assert read_pod_mock.call_count == 3
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()

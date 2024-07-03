@@ -65,10 +65,6 @@ class PodLaunchFailedException(AirflowException):
     """When pod launching fails in KubernetesPodOperator."""
 
 
-class ResourceNotReadyException(AirflowException):
-    """When pod or cluster has not reached a ready state."""
-
-
 def should_retry_start_pod(exception: BaseException) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying."""
     if isinstance(exception, ApiException):
@@ -607,10 +603,6 @@ class PodManager(LoggingMixin):
             self.log.info("Waiting for container '%s' state to be completed", container_name)
             time.sleep(1)
 
-    @tenacity.retry(
-        retry=tenacity.retry_if_exception_type(ResourceNotReadyException),
-        wait=tenacity.wait_fixed(2),
-    )
     def await_pod_completion(
         self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
     ) -> V1Pod:
@@ -622,18 +614,15 @@ class PodManager(LoggingMixin):
         :param container_name: name of the container within the pod
         :return: tuple[State, str | None]
         """
-        remote_pod = self._client.read_namespaced_pod_status(pod.metadata.name, pod.metadata.namespace)
-        self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
-
-        if any(
-            [
-                remote_pod.status.phase in PodPhase.terminal_states,
-                istio_enabled and container_is_completed(remote_pod, container_name),
-            ]
-        ):
-            return self.read_pod(pod)
-
-        raise ResourceNotReadyException
+        while True:
+            remote_pod = self.read_pod(pod)
+            if remote_pod.status.phase in PodPhase.terminal_states:
+                break
+            if istio_enabled and container_is_completed(remote_pod, container_name):
+                break
+            self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
+            time.sleep(2)
+        return remote_pod
 
     def parse_log_line(self, line: str) -> tuple[DateTime | None, str]:
         """
