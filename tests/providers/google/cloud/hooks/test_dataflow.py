@@ -1509,7 +1509,7 @@ class TestDataflowJob:
                     (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING),
                 ],
                 None,
-                True
+                True,
             ),
             (
                 [
@@ -1518,7 +1518,7 @@ class TestDataflowJob:
                     (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING),
                 ],
                 True,
-                False
+                False,
             ),
             # BATCH
             (
@@ -1528,7 +1528,7 @@ class TestDataflowJob:
                     (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING),
                 ],
                 False,
-                True
+                True,
             ),
             (
                 [
@@ -1537,7 +1537,7 @@ class TestDataflowJob:
                     (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING),
                 ],
                 None,
-                False
+                False,
             ),
             (
                 [
@@ -1546,7 +1546,7 @@ class TestDataflowJob:
                     (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_DONE),
                 ],
                 None,
-                True
+                True,
             ),
         ],
     )
