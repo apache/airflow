@@ -40,10 +40,11 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import Dataset, coerce_to_uri
+from airflow.datasets import Dataset, DatasetAlias, coerce_to_uri
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -157,7 +158,7 @@ class ConnectionAccessor:
             return default_conn
 
 
-@attrs.define()
+@attrs.define(init=False)
 class OutletEventAccessor:
     """
     Wrapper to access an outlet dataset event in template.
@@ -165,7 +166,50 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    extra: dict[str, Any]
+    _raw_key: str | Dataset | DatasetAlias
+    extra: dict[str, Any] | None
+    dataset_action: dict
+
+    def __init__(self, extra=dict[str, Any] | None, *, raw_key: str | Dataset | DatasetAlias) -> None:
+        if not extra:
+            extra = {}
+        self.extra = extra
+
+        self._raw_key = raw_key
+
+        self.dataset_action = {}
+
+    def __str__(self) -> str:
+        return f"OutletEventAccessor(_raw_key={self._raw_key}, extra={self.extra}, dataset_action={self.dataset_action})"
+
+    @provide_session
+    def add(
+        self, dataset: Dataset | str, extra: dict[str, Any] | None = None, *, session: Session = NEW_SESSION
+    ) -> None:
+        from airflow.models.dataset import DatasetAliasModel
+
+        if isinstance(dataset, str):
+            dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1))
+        elif isinstance(dataset, Dataset):
+            dataset_obj = dataset
+        else:
+            return
+
+        if isinstance(self._raw_key, str):
+            dataset_alias_obj = session.scalar(
+                select(DatasetAliasModel).where(DatasetAliasModel.name == self._raw_key).limit(1)
+            )
+            if not dataset_alias_obj:
+                return
+        elif isinstance(self._raw_key, DatasetAlias):
+            dataset_alias_obj = self._raw_key
+        else:
+            return
+
+        if extra:
+            dataset_obj.extra = extra
+
+        self.dataset_action = {"dataset": dataset_obj, "dataset_alias": dataset_alias_obj}
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
@@ -175,8 +219,14 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     :meta private:
     """
 
-    def __init__(self) -> None:
+    @provide_session
+    def __init__(self, task_instance=None, *, session: Session = NEW_SESSION) -> None:
         self._dict: dict[str, OutletEventAccessor] = {}
+        self.session = session
+        self._task_instnace = task_instance
+
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
@@ -184,10 +234,16 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor:
-        if (uri := coerce_to_uri(key)) not in self._dict:
-            self._dict[uri] = OutletEventAccessor({})
-        return self._dict[uri]
+    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
+        if isinstance(key, DatasetAlias):
+            dict_key = DatasetAlias.name
+        else:
+            dict_key = coerce_to_uri(key)
+
+        if dict_key not in self._dict:
+            self._dict[dict_key] = OutletEventAccessor(extra={}, raw_key=key)
+
+        return self._dict[dict_key]
 
 
 class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):

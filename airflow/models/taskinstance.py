@@ -71,7 +71,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
@@ -91,6 +91,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
+from airflow.models.dataset import DatasetModel
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
@@ -1080,7 +1081,7 @@ def _get_template_context(
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
-        "outlet_events": OutletEventAccessors(),
+        "outlet_events": OutletEventAccessors(task_instance),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -2918,6 +2919,17 @@ class TaskInstance(Base, LoggingMixin):
                     extra=events[obj].extra,
                     session=session,
                 )
+            elif isinstance(obj, DatasetAlias):
+                actions = events[obj].dataset_action
+                if actions:
+                    obj = DatasetModel.from_public(actions["dataset"])
+                    # TODO: add dataset to DB if not exists
+                    dataset_manager.register_dataset_change(
+                        task_instance=self,
+                        dataset=obj,
+                        extra=events[obj].extra,
+                        session=session,
+                    )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
