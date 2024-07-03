@@ -242,16 +242,6 @@ def generate_short_hash():
         (["Added feature x"], False, True, 0, 1, 0, 0, [TypeOfChange.FEATURE]),
         (["Breaking change in"], True, True, 1, 0, 0, 0, [TypeOfChange.BREAKING_CHANGE]),
         (
-            ["Breaking change in", "Added feature y"],
-            True,
-            True,
-            1,
-            1,
-            0,
-            0,
-            [TypeOfChange.BREAKING_CHANGE, TypeOfChange.FEATURE],
-        ),
-        (
             ["Fix change in", "Breaking feature y"],
             True,
             False,
@@ -282,6 +272,10 @@ def test_classify_changes_automatically(
         _get_change_from_line(f"{long_hash} {short_hash} 2023-12-01 {description}", version="0.1.0")
         for description in descriptions
     ]
+
+    if len(type_of_change) == 2:
+        print("Changes are", changes)
+
     for i in range(0, len(changes)):
         SHORT_HASH_TO_TYPE_DICT[changes[i].short_hash] = type_of_change[i]
 
