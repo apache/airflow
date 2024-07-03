@@ -85,9 +85,9 @@ class TestPodTemplateFile:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": [{"secretRef": {"name": "proxy-config"}}],
                     }
                 },
-                "extraEnvFrom": [{"secretRef": {"name": "proxy-config"}}],
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,

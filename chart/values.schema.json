@@ -8537,6 +8537,19 @@
                                 }
                             ]
                         },
+                        "envFrom": {
+                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
+                            "type": [
+                                "null",
+                                "string",
+                                "array"
+                            ],
+                            "default": null,
+                            "examples": [
+                                "- secretRef:\n    name: 'proxy-configs",
+                                "- configMapRef:\n    name: 'proxy-configs"
+                            ]
+                        },
                         "resources": {
                             "description": "Resources on workers git-sync sidecar",
                             "type": "object",

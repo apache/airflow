@@ -77,10 +77,10 @@ class TestGitSyncSchedulerTest:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": [{"secretRef": {"name": "proxy-config"}}],
                     },
                     "persistence": {"enabled": True},
                 },
-                "extraEnvFrom": [{"secretRef": {"name": "proxy-config"}}],
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -139,10 +139,10 @@ class TestGitSyncSchedulerTest:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": [{"secretRef": {"name": "proxy-config"}}],
                     },
                     "persistence": {"enabled": True},
                 },
-                "extraEnvFrom": [{"secretRef": {"name": "proxy-config"}}],
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
