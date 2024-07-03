@@ -17,20 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GlueCrawlerSensor(BaseSensorOperator):
+class GlueCrawlerSensor(AwsBaseSensor[GlueCrawlerHook]):
     """
     Waits for an AWS Glue crawler to reach any of the statuses below.
 
@@ -41,19 +41,27 @@ class GlueCrawlerSensor(BaseSensorOperator):
         :ref:`howto/sensor:GlueCrawlerSensor`
 
     :param crawler_name: The AWS Glue crawler unique name
-    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
-        If this is None or empty then the default boto3 behaviour is used. If
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("crawler_name",)
+    aws_hook_class = GlueCrawlerHook
 
-    def __init__(self, *, crawler_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
+    template_fields: Sequence[str] = aws_template_fields(
+        "crawler_name",
+    )
+
+    def __init__(self, *, crawler_name: str, **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
-        self.aws_conn_id = aws_conn_id
         self.success_statuses = "SUCCEEDED"
         self.errored_statuses = ("FAILED", "CANCELLED")
 
@@ -79,7 +87,3 @@ class GlueCrawlerSensor(BaseSensorOperator):
     def get_hook(self) -> GlueCrawlerHook:
         """Return a new or pre-existing GlueCrawlerHook."""
         return self.hook
-
-    @cached_property
-    def hook(self) -> GlueCrawlerHook:
-        return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)

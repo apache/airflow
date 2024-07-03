@@ -99,16 +99,21 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         database_name: str,
         table_name: str,
         expression: str = "",
+        waiter_delay: int = 60,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
-        waiter_delay: int = 60,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         self.database_name = database_name
         self.table_name = table_name
         self.expression = expression
+        self.waiter_delay = waiter_delay
+
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.waiter_delay = waiter_delay
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -121,12 +126,19 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
                 "waiter_delay": self.waiter_delay,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     @cached_property
     def hook(self) -> GlueCatalogHook:
-        return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return GlueCatalogHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def poke(self, client: Any) -> bool:
         if "." in self.table_name:
