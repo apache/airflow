@@ -199,7 +199,7 @@ class TestSSHOperator:
             command="ls",
         )
 
-        with mock.patch.object(task, "on_kill") as on_kill:
+        with mock.patch.object(task, "on_kill"):
             task.execute()
             task.on_kill.assert_called_once()
 
