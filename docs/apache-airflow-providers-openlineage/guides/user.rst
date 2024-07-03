@@ -246,6 +246,28 @@ full import paths of Airflow Operators to disable as ``disabled_for_operators`` 
 
   AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS='airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
 
+Full Task Info
+^^^^^^^^^^^^^^
+
+By default, OpenLineage integration's AirflowRunFacet - attached on START event for every task instance event - does
+not contain full serialized task information (parameters to given operator), but only includes selected parameters.
+
+However, we allow users to set OpenLineage integration to include full task information. By doing this, rather than
+serializing only few known attributes, we operate in exclude mode - and exclude certain non-serializable elements.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    include_full_task_info = true
+
+``AIRFLOW__OPENLINEAGE__INCLUDE_FULL_TASK_INFO`` environment variable is an equivalent.
+
+.. warning::
+
+  By setting this variable to true, OpenLineage integration does not control the size of event you sent. It can potentially include elements weighting megabytes in size, depending on the size of data you pass to the task.
+
+
 Custom Extractors
 ^^^^^^^^^^^^^^^^^
 
