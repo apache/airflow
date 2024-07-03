@@ -408,8 +408,19 @@ class GCSToGCSOperator(BaseOperator):
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
                 raise AirflowException(msg)
+        if len(objects) == 1 and objects[0][-1] != "/":
+            self._copy_file(hook=hook, source_object=objects[0])
         elif len(objects):
             self._copy_multiple_objects(hook=hook, source_objects=objects, prefix=prefix)
+
+    def _copy_file(self, hook, source_object):
+        destination_object = self.destination_object or source_object
+        if self.destination_object and self.destination_object[-1] == "/":
+            file_name = source_object.split("/")[-1]
+            destination_object += file_name
+        self._copy_single_object(
+            hook=hook, source_object=source_object, destination_object=destination_object
+        )
 
     def _copy_multiple_objects(self, hook, source_objects, prefix):
         # Check whether the prefix is a root directory for all the rest of objects.
@@ -430,12 +441,7 @@ class GCSToGCSOperator(BaseOperator):
                 destination_object = source_obj
             else:
                 file_name_postfix = source_obj.replace(base_path, "", 1)
-
-                destination_object = (
-                    self.destination_object.rstrip("/")[0 : self.destination_object.rfind("/")]
-                    + "/"
-                    + file_name_postfix
-                )
+                destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
 
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
