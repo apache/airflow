@@ -24,42 +24,15 @@ from logging import Logger
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.utils.log.file_task_handler import _ensure_ti
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.log.file_task_handler import FileTaskHandler
 
 logger = logging.getLogger(__name__)
-
-
-def ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
-    """
-    Given TI | TIKey, return a TI object.
-
-    Will raise exception if no TI is found in the database.
-    """
-    from airflow.models.taskinstance import TaskInstance
-
-    if isinstance(ti, TaskInstance):
-        return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.task_id == ti.task_id,
-            TaskInstance.dag_id == ti.dag_id,
-            TaskInstance.run_id == ti.run_id,
-            TaskInstance.map_index == ti.map_index,
-        )
-        .one_or_none()
-    )
-    if not val:
-        raise AirflowException(f"Could not find TaskInstance for {ti}")
-    val.try_number = ti.try_number
-    return val
 
 
 class TaskContextLogger:
@@ -130,7 +103,7 @@ class TaskContextLogger:
         try:
             if isinstance(ti, TaskInstanceKey):
                 with create_session() as session:
-                    ti = ensure_ti(ti, session)
+                    ti = _ensure_ti(ti, session)
             task_handler.set_context(ti, identifier=self.component_name)
             if hasattr(task_handler, "mark_end_on_close"):
                 task_handler.mark_end_on_close = False

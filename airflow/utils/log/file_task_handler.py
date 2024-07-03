@@ -34,13 +34,12 @@ import pendulum
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
-from airflow.utils.log.task_context_logger import ensure_ti
 from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 
@@ -49,6 +48,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -139,6 +139,32 @@ def _interleave_logs(*logs):
         if v != last:  # dedupe
             yield v
         last = v
+
+
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
+    """
+    Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
+    from airflow.models.taskinstance import TaskInstance
+
+    if isinstance(ti, TaskInstance):
+        return ti
+    val = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+        .one_or_none()
+    )
+    if not val:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
+    val.try_number = ti.try_number
+    return val
 
 
 class FileTaskHandler(logging.Handler):
@@ -242,7 +268,7 @@ class FileTaskHandler(logging.Handler):
     def _render_filename_db_access(
         *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
     ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
-        ti = ensure_ti(ti, session)
+        ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
         template = dag_run.get_log_template(session=session).filename
         str_tpl, jinja_tpl = parse_template_string(template)
