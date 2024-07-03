@@ -98,7 +98,7 @@ Changelog
 Initial version of the provider.
 """
 
-short_hash_to_type_dict = {}
+SHORT_HASH_TO_TYPE_DICT = {}
 
 
 class TypeOfChange(Enum):
@@ -729,7 +729,7 @@ def update_release_notes(
         else:
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
-            global short_hash_to_type_dict
+            global SHORT_HASH_TO_TYPE_DICT
             while table_iter < change_table_len:
                 get_console().print()
                 formatted_message = format_message_for_classification(
@@ -742,11 +742,11 @@ def update_release_notes(
                 )
                 type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
                 # update the type of change for every short_hash in the global dict
-                short_hash_to_type_dict[list_of_list_of_changes[0][table_iter].short_hash] = type_of_change
+                SHORT_HASH_TO_TYPE_DICT[list_of_list_of_changes[0][table_iter].short_hash] = type_of_change
                 table_iter += 1
                 print()
 
-            most_impactful = get_most_impactful_change(short_hash_to_type_dict)
+            most_impactful = get_most_impactful_change(SHORT_HASH_TO_TYPE_DICT)
             get_console().print(
                 f"[info]The version will be bumped because of {most_impactful} kind of change"
             )
@@ -877,8 +877,8 @@ def _get_changes_classified(
     classified_changes = ClassifiedChanges()
     for change in changes:
         type_of_change = None
-        if change.short_hash in short_hash_to_type_dict:
-            type_of_change = short_hash_to_type_dict[change.short_hash]
+        if change.short_hash in SHORT_HASH_TO_TYPE_DICT:
+            type_of_change = SHORT_HASH_TO_TYPE_DICT[change.short_hash]
         if type_of_change == TypeOfChange.DOCUMENTATION:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.BUGFIX:
