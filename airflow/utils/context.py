@@ -186,14 +186,26 @@ class OutletEventAccessor:
     def add(
         self, dataset: Dataset | str, extra: dict[str, Any] | None = None, *, session: Session = NEW_SESSION
     ) -> None:
+        from airflow.datasets.manager import dataset_manager
         from airflow.models.dataset import DatasetAliasModel
 
         if isinstance(dataset, str):
-            dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1))
+            dataset_uri = dataset
         elif isinstance(dataset, Dataset):
-            dataset_obj = dataset
+            dataset_uri = dataset.uri
         else:
             return
+
+        dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset_uri).limit(1))
+        if not dataset_obj:
+            if isinstance(dataset, str):
+                dataset_obj = DatasetModel(uri=dataset_uri, extra=extra)
+            elif isinstance(dataset, Dataset):
+                dataset_obj = DatasetModel.from_public(dataset)
+            else:
+                return
+
+            dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
 
         if isinstance(self._raw_key, str):
             dataset_alias_obj = session.scalar(
@@ -236,7 +248,7 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
 
     def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
         if isinstance(key, DatasetAlias):
-            dict_key = DatasetAlias.name
+            dict_key = key.name
         else:
             dict_key = coerce_to_uri(key)
 
