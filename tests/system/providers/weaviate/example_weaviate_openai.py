@@ -26,6 +26,8 @@ from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
+COLLECTION_NAME = "Weaviate_openai_example_collection"
+
 
 @dag(
     schedule=None,
@@ -46,7 +48,7 @@ def example_weaviate_openai():
         """
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
-        weaviate_hook.create_collection("Weaviate_example_collection", "None")
+        weaviate_hook.create_collection(COLLECTION_NAME)
 
     @setup
     @task
@@ -76,7 +78,7 @@ def example_weaviate_openai():
     perform_ingestion = WeaviateIngestOperator(
         task_id="perform_ingestion",
         conn_id="weaviate_default",
-        collection_name="Weaviate_example_collection",
+        collection_name=COLLECTION_NAME,
         input_data=update_vector_data_in_json["return_value"],
     )
 
@@ -93,11 +95,8 @@ def example_weaviate_openai():
         query_vector = ti.xcom_pull(task_ids="embed_query", key="return_value")
         weaviate_hook = WeaviateHook()
         properties = ["question", "answer", "category"]
-        response = weaviate_hook.query_with_vector(query_vector, "Weaviate_example_collection", *properties)
-        assert (
-            "In 1953 Watson & Crick built a model"
-            in response["data"]["Get"]["Weaviate_example_collection"][0]["question"]
-        )
+        response = weaviate_hook.query_with_vector(query_vector, COLLECTION_NAME, properties)
+        assert "In 1953 Watson & Crick built a model" in response.objects[0].properties["question"]
 
     @teardown
     @task
@@ -108,7 +107,7 @@ def example_weaviate_openai():
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_collections(["Weaviate_example_collection"])
+        weaviate_hook.delete_collections([COLLECTION_NAME])
 
     (
         create_weaviate_collection()

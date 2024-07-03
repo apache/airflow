@@ -365,7 +365,7 @@ Should show the status of current KinD cluster.
    Note, that this command by default uses ``--use-uv`` flag to use ``uv`` to build the image instead of
    ``pip``. This is much faster (50% faster) to rebuild the image and iterate with your code but if you
    built your PROD image without ``--use-uv`` flag the first build might be a bit longer. You can also switch
-   to using a ``pip`` based image by specifyin ``--no-use-uv`` flag together with ``--rebuid-base-image``.
+   to using a ``pip`` based image by specifying ``--no-use-uv`` flag together with ``--rebuid-base-image``.
 
 .. code-block:: bash
 

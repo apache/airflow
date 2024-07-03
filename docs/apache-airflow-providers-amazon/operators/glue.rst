@@ -29,6 +29,11 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Operators
 ---------
 
@@ -171,6 +176,20 @@ reaches a terminal state you can use :class:`~airflow.providers.amazon.aws.senso
     :dedent: 4
     :start-after: [START howto_sensor_glue_data_quality_rule_recommendation_run]
     :end-before: [END howto_sensor_glue_data_quality_rule_recommendation_run]
+
+.. _howto/sensor:GlueCatalogPartitionSensor:
+
+Wait on an AWS Glue Catalog Partition
+======================================
+
+To wait for a partition to show up in AWS Glue Catalog until it
+reaches a terminal state you can use :class:`~airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor`
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_glue_catalog_partition]
+    :end-before: [END howto_sensor_glue_catalog_partition]
 
 Reference
 ---------

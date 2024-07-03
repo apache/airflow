@@ -238,7 +238,10 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Task exited with return code %s (task deferral)", return_code)
             _set_task_deferred_context_var()
         else:
-            self.log.info("Task exited with return code %s", return_code)
+            message = f"Task exited with return code {return_code}"
+            if return_code == -signal.SIGKILL:
+                message += "For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#LocalTaskJob-killed"
+            self.log.info(message)
 
         if not (self.task_instance.test_mode or is_deferral):
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):

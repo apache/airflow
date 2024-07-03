@@ -51,7 +51,9 @@ class TestCloudBatchSubmitJobOperator:
 
         assert completed_job["name"] == JOB_NAME
 
-        mock.return_value.submit_batch_job.assert_called_with(job_name=JOB_NAME, job=JOB, region=REGION)
+        mock.return_value.submit_batch_job.assert_called_with(
+            job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
+        )
         mock.return_value.wait_for_job.assert_called()
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)

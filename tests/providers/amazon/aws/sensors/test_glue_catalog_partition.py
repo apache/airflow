@@ -122,3 +122,28 @@ class TestGlueCatalogPartitionSensor:
         message = f"Trigger error: event is {event}"
         with pytest.raises(expected_exception, match=message):
             op.execute_complete(context={}, event=event)
+
+    def test_init(self):
+        default_op_kwargs = {
+            "task_id": "test_task",
+            "table_name": "test_table",
+        }
+
+        sensor = GlueCatalogPartitionSensor(**default_op_kwargs)
+        assert sensor.hook.aws_conn_id == "aws_default"
+        assert sensor.hook._region_name is None
+        assert sensor.hook._verify is None
+        assert sensor.hook._config is None
+
+        sensor = GlueCatalogPartitionSensor(
+            **default_op_kwargs,
+            aws_conn_id=None,
+            region_name="eu-west-2",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+        assert sensor.hook.aws_conn_id is None
+        assert sensor.hook._region_name == "eu-west-2"
+        assert sensor.hook._verify is True
+        assert sensor.hook._config is not None
+        assert sensor.hook._config.read_timeout == 42
