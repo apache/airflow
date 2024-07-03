@@ -31,6 +31,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_git_log_command,
     _verify_changelog_exists,
     get_version_tag,
+    SHORT_HASH_TO_TYPE_DICT
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
