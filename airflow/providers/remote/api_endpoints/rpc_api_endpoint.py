@@ -25,10 +25,6 @@ from uuid import uuid4
 
 from flask import Response
 
-from airflow.jobs.job import Job, most_recent_job
-from airflow.models.taskinstance import _record_task_map_for_downstreams
-from airflow.models.xcom_arg import _get_task_map_length
-from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -39,94 +35,15 @@ log = logging.getLogger(__name__)
 
 
 @functools.lru_cache
-def _initialize_map() -> dict[str, Callable]:
-    # TODO Trim down functions really needed by remote worker / rebase from AIP-44
-    from airflow.cli.commands.task_command import _get_ti_db_access
-    from airflow.dag_processing.manager import DagFileProcessorManager
-    from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.datasets.manager import DatasetManager
-    from airflow.models import Trigger, Variable, XCom
-    from airflow.models.dag import DAG, DagModel
-    from airflow.models.dagrun import DagRun
-    from airflow.models.dagwarning import DagWarning
-    from airflow.models.serialized_dag import SerializedDagModel
-    from airflow.models.taskinstance import (
-        TaskInstance,
-        _add_log,
-        _defer_task,
-        _get_template_context,
-        _handle_failure,
-        _handle_reschedule,
-        _update_rtif,
-        _xcom_pull,
-    )
+def _initialize_method_map() -> dict[str, Callable]:
+    from airflow.api_internal.endpoints.rpc_api_endpoint import initialize_method_map
     from airflow.providers.remote.models.remote_job import RemoteJob
     from airflow.providers.remote.models.remote_worker import RemoteWorker
-    from airflow.secrets.metastore import MetastoreBackend
-    from airflow.utils.cli_action_loggers import _default_action_log_internal
-    from airflow.utils.log.file_task_handler import FileTaskHandler
 
+    internal_api_functions = initialize_method_map().values()
     functions: list[Callable] = [
-        _default_action_log_internal,
-        _defer_task,
-        _get_template_context,
-        _get_ti_db_access,
-        _get_task_map_length,
-        _update_rtif,
-        _orig_start_date,
-        _handle_failure,
-        _handle_reschedule,
-        _add_log,
-        _xcom_pull,
-        _record_task_map_for_downstreams,
-        DagFileProcessor.update_import_errors,
-        DagFileProcessor.manage_slas,
-        DagFileProcessorManager.deactivate_stale_dags,
-        DagModel.deactivate_deleted_dags,
-        DagModel.get_paused_dag_ids,
-        DagModel.get_current,
-        DagFileProcessorManager.clear_nonexistent_import_errors,
-        DagWarning.purge_inactive_dag_warnings,
-        DatasetManager.register_dataset_change,
-        FileTaskHandler._render_filename_db_access,
-        Job._add_to_db,
-        Job._fetch_from_db,
-        Job._kill,
-        Job._update_heartbeat,
-        Job._update_in_db,
-        most_recent_job,
-        MetastoreBackend._fetch_connection,
-        MetastoreBackend._fetch_variable,
-        XCom.get_value,
-        XCom.get_one,
-        XCom.get_many,
-        XCom.clear,
-        XCom.set,
-        Variable.set,
-        Variable.update,
-        Variable.delete,
-        DAG.fetch_callback,
-        DAG.fetch_dagrun,
-        DagRun.fetch_task_instances,
-        DagRun.get_previous_dagrun,
-        DagRun.get_previous_scheduled_dagrun,
-        DagRun.fetch_task_instance,
-        DagRun._get_log_template,
-        SerializedDagModel.get_serialized_dag,
-        TaskInstance._check_and_change_state_before_execution,
-        TaskInstance.get_task_instance,
-        TaskInstance._get_dagrun,
-        TaskInstance._set_state,
-        TaskInstance.save_to_db,
-        TaskInstance._schedule_downstream_tasks,
-        TaskInstance._clear_xcom_data,
-        Trigger.from_object,
-        Trigger.bulk_fetch,
-        Trigger.clean_unused,
-        Trigger.submit_event,
-        Trigger.submit_failure,
-        Trigger.ids_for_triggerer,
-        Trigger.assign_unassigned,
+        # TODO Trim down functions really needed by remote worker / rebase from AIP-44
+        *internal_api_functions,
         # Additional things from Remote Executor
         RemoteJob.reserve_task,
         RemoteJob.set_state,
@@ -151,7 +68,7 @@ def remote_worker_api(body: dict[str, Any]) -> APIResponse:
     if json_rpc != "2.0":
         return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
 
-    methods_map = _initialize_map()
+    methods_map = _initialize_method_map()
     method_name = body.get("method")
     if method_name not in methods_map:
         return log_and_build_error_response(message=f"Unrecognized method: {method_name}.", status=400)
