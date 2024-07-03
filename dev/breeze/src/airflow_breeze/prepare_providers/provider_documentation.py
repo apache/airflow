@@ -879,7 +879,8 @@ def _get_changes_classified(
         type_of_change = None
         if change.short_hash in SHORT_HASH_TO_TYPE_DICT:
             type_of_change = SHORT_HASH_TO_TYPE_DICT[change.short_hash]
-        print("For the dict ", SHORT_HASH_TO_TYPE_DICT, " the type is ", type_of_change)
+        if len(changes) == 2:
+            print("THE DICT is", SHORT_HASH_TO_TYPE_DICT)
         if type_of_change == TypeOfChange.DOCUMENTATION:
             classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.BUGFIX:
