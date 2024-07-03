@@ -291,10 +291,10 @@ class BaseExecutor(LoggingMixin):
                     continue
                 # Otherwise, we give up and remove the task from the queue.
                 self.task_context_logger.error(
-                    "Failed to queue task %s after %d attempts; executor reports task is currently "
-                    "running.",
+                    "Could not queue task %s as it is seen as still running after %d attempts (tried for %d seconds). It looks like it was killed externally. Look for external reasons why it has been killed (likely a bug or deployment issue).",
                     key,
                     attempt.total_tries,
+                    RunningRetryAttemptType.MIN_SECONDS,
                     ti=ti,
                 )
                 del self.attempts[key]
