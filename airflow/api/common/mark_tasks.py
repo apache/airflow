@@ -147,7 +147,7 @@ def set_state(
 
     sub_dag_run_ids = list(
         _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
-    )
+    ) if not state == TaskInstanceState.SKIPPED else []
 
     # now look for the task instances that are affected
 
