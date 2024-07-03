@@ -301,7 +301,9 @@ class SSHHook(BaseHook):
                 client.load_system_host_keys()
 
             if self.no_host_key_check:
-                self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+                self.log.warning(
+                    "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
+                )
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
                 # to avoid BadHostKeyException, skip loading and saving host keys
                 known_hosts = os.path.expanduser("~/.ssh/known_hosts")
