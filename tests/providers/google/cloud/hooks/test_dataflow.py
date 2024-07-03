@@ -1507,14 +1507,18 @@ class TestDataflowJob:
                     (None, DataflowJobStatus.JOB_STATE_QUEUED),
                     (None, DataflowJobStatus.JOB_STATE_PENDING),
                     (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING),
-                ], None, True
+                ],
+                None,
+                True
             ),
             (
                 [
                     (None, DataflowJobStatus.JOB_STATE_QUEUED),
                     (None, DataflowJobStatus.JOB_STATE_PENDING),
                     (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING),
-                ], True, False
+                ],
+                True,
+                False
             ),
             # BATCH
             (
@@ -1522,26 +1526,32 @@ class TestDataflowJob:
                     (None, DataflowJobStatus.JOB_STATE_QUEUED),
                     (None, DataflowJobStatus.JOB_STATE_PENDING),
                     (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING),
-                ], False, True
+                ],
+                False,
+                True
             ),
             (
                 [
                     (None, DataflowJobStatus.JOB_STATE_QUEUED),
                     (None, DataflowJobStatus.JOB_STATE_PENDING),
                     (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING),
-                ], None, False
+                ],
+                None,
+                False
             ),
             (
                 [
                     (None, DataflowJobStatus.JOB_STATE_QUEUED),
                     (None, DataflowJobStatus.JOB_STATE_PENDING),
                     (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_DONE),
-                ], None, True
+                ],
+                None,
+                True
             ),
         ],
     )
     def test_check_dataflow_job_state_without_job_type_changed_on_terminal_state(
-        self, jobs,wait_until_finished, expected_result
+        self, jobs, wait_until_finished, expected_result
     ):
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
