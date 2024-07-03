@@ -266,15 +266,12 @@ def test_classify_changes_automatically(
     from airflow_breeze.prepare_providers.provider_documentation import SHORT_HASH_TO_TYPE_DICT
 
     """Test simple automated classification of the changes based on their single-line description."""
-    long_hash = generate_long_hash()
-    short_hash = generate_short_hash()
     changes = [
-        _get_change_from_line(f"{long_hash} {short_hash} 2023-12-01 {description}", version="0.1.0")
+        _get_change_from_line(
+            f"{generate_long_hash()} {generate_short_hash()} 2023-12-01 {description}", version="0.1.0"
+        )
         for description in descriptions
     ]
-
-    if len(type_of_change) == 2:
-        print("Changes are", changes)
 
     for i in range(0, len(changes)):
         SHORT_HASH_TO_TYPE_DICT[changes[i].short_hash] = type_of_change[i]
