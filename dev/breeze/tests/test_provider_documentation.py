@@ -251,7 +251,16 @@ def generate_short_hash():
             0,
             [TypeOfChange.BREAKING_CHANGE, TypeOfChange.FEATURE],
         ),
-        (["Fix change in", "Breaking feature y"], True, False, 1, 0, 1, 0, [TypeOfChange.BUGFIX, None]),
+        (
+            ["Fix change in", "Breaking feature y"],
+            True,
+            False,
+            1,
+            0,
+            1,
+            0,
+            [TypeOfChange.BUGFIX, TypeOfChange.BREAKING_CHANGE],
+        ),
     ],
 )
 def test_classify_changes_automatically(
