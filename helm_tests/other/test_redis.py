@@ -143,7 +143,7 @@ class TestRedis:
         self.assert_broker_url_env(k8s_obj_by_key)
 
     @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
-    def test_redis_by_chart_password_secret_name_missing_broker_url_secret_name(self, executor):
+    def test_redis_by_chart_password_secret_name_missing_broker_url_secret_name_and_broker_url_cmd(self, executor):
         with pytest.raises(CalledProcessError):
             render_chart(
                 RELEASE_NAME_REDIS,
