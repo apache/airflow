@@ -165,6 +165,9 @@ class DatasetAlias:
 
     name: str
 
+    def __str__(self) -> str:
+        return f"DatasetAlias(name={self.name})"
+
 
 @attr.define()
 class Dataset(os.PathLike, BaseDataset):
