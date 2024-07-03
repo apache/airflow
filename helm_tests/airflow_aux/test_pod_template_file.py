@@ -85,7 +85,7 @@ class TestPodTemplateFile:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
-                        "envFrom": [{"secretRef": {"name": "proxy-config"}}],
+                        "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
                     }
                 },
             },

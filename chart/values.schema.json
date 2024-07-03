@@ -950,8 +950,7 @@
             "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
             "type": [
                 "null",
-                "string",
-                "array"
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null,
@@ -8533,8 +8532,7 @@
                             "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
                             "type": [
                                 "null",
-                                "string",
-                                "array"
+                                "string"
                             ],
                             "default": null,
                             "examples": [
