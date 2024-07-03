@@ -31,7 +31,6 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_git_log_command,
     _verify_changelog_exists,
     get_version_tag,
-    SHORT_HASH_TO_TYPE_DICT
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -265,6 +264,8 @@ def test_classify_changes_automatically(
     other_count: int,
     type_of_change: TypeOfChange,
 ):
+    from airflow_breeze.prepare_providers.provider_documentation import SHORT_HASH_TO_TYPE_DICT
+
     """Test simple automated classification of the changes based on their single-line description."""
     long_hash = generate_long_hash()
     short_hash = generate_short_hash()
@@ -272,7 +273,6 @@ def test_classify_changes_automatically(
         _get_change_from_line(f"{long_hash} {short_hash} 2023-12-01 {description}", version="0.1.0")
         for description in descriptions
     ]
-    global SHORT_HASH_TO_TYPE_DICT
     for i in range(0, len(changes)):
         SHORT_HASH_TO_TYPE_DICT[changes[i].short_hash] = type_of_change[i]
 
