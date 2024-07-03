@@ -81,7 +81,7 @@ def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
 
 
 @pytest.mark.db_test
-@mock.patch("airflow.utils.log.task_context_logger.ensure_ti")
+@mock.patch("airflow.utils.log.task_context_logger._ensure_ti")
 @pytest.mark.parametrize("supported", [True, False])
 def test_task_context_log_with_task_instance_key(mock_ensure_ti, ti, mock_handler, supported):
     mock_handler.supports_task_context_logging = supported
