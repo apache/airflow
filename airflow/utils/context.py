@@ -170,7 +170,7 @@ class OutletEventAccessor:
     extra: dict[str, Any] | None
     dataset_action: dict
 
-    def __init__(self, extra=dict[str, Any] | None, *, raw_key: str | Dataset | DatasetAlias) -> None:
+    def __init__(self, extra, *, raw_key: str | Dataset | DatasetAlias) -> None:
         if not extra:
             extra = {}
         self.extra = extra
