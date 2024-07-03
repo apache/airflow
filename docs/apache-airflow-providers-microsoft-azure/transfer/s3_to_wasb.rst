@@ -50,8 +50,8 @@ Example usage:
 .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_s3_to_wasb.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_s3_to_wasb]
-    :end-before: [END howto_s3_to_wasb]
+    :start-after: [START howto_transfer_s3_to_wasb]
+    :end-before: [END howto_transfer_s3_to_wasb]
 
 Reference
 ---------
