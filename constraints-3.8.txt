@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-03T12:21:15.395634
+# This constraints file was automatically generated on 2024-07-04T09:33:01.889265
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -79,7 +79,7 @@ aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.13.2
 alibabacloud-adb20211201==2.0.0
-alibabacloud-tea==0.3.8
+alibabacloud-tea==0.3.9
 alibabacloud_credentials==0.3.4
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.1
@@ -197,7 +197,7 @@ asn1crypto==1.5.1
 astroid==2.15.8
 asttokens==2.4.1
 async-timeout==4.0.3
-asyncssh==2.14.2
+asyncssh==2.15.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.14
 attrs==23.2.0
@@ -245,7 +245,7 @@ cachetools==5.3.3
 cassandra-driver==3.29.1
 cattrs==23.2.3
 celery==5.4.0
-certifi==2024.6.2
+certifi==2024.7.4
 cffi==1.16.0
 cfgv==3.4.0
 cfn-lint==1.5.0
@@ -323,7 +323,7 @@ google-api-python-client==2.136.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.31.0
-google-cloud-aiplatform==1.57.0
+google-cloud-aiplatform==1.58.0
 google-cloud-appengine-logging==1.4.3
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
@@ -485,7 +485,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.35.9
+openai==1.35.10
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.17.1
@@ -522,7 +522,7 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.0
 pickleshare==0.7.5
-pinecone-client==4.1.1
+pinecone-client==4.1.2
 pinecone-plugin-interface==0.0.7
 pinotdb==5.3.0
 pipdeptree==2.23.0
@@ -557,8 +557,8 @@ pyasn1==0.5.1
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.20.0
-pydantic==2.8.0
-pydantic_core==2.20.0
+pydantic==2.8.2
+pydantic_core==2.20.1
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.9
@@ -704,7 +704,7 @@ types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==2.0.0.20240423
-types-docutils==0.21.0.20240423
+types-docutils==0.21.0.20240704
 types-paramiko==3.4.0.20240423
 types-protobuf==5.27.0.20240626
 types-pyOpenSSL==24.1.0.20240425
@@ -713,7 +713,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240425
 types-requests==2.31.0.6
-types-setuptools==70.1.0.20240627
+types-setuptools==70.2.0.20240704
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
