@@ -231,9 +231,11 @@ class TestPodManager:
             while True:
                 yield pod_info_succeeded
 
+        self.mock_kube_client.read_namespaced_pod_status.side_effect = pod_state_gen()
         self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
         mock_response = mock.MagicMock(stream=mock.MagicMock(return_value=iter(())))
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock_response
+
         self.pod_manager.fetch_container_logs(mock.sentinel, "base")
 
     def test_monitor_pod_logs_failures_non_fatal(self):
@@ -250,6 +252,7 @@ class TestPodManager:
                 yield pod_info_succeeded
 
         self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
+        self.mock_kube_client.read_namespaced_pod_status.side_effect = pod_state_gen()
 
         def pod_log_gen():
             while True:
@@ -410,7 +413,8 @@ class TestPodManager:
     def test_start_pod_raises_informative_error_on_timeout(self):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
-        self.mock_kube_client.read_namespaced_pod.return_value = pod_response
+        self.mock_kube_client.read_namespaced_pod_status.return_value = pod_response
+
         expected_msg = "Check the pod events in kubernetes"
         mock_pod = MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
@@ -430,7 +434,7 @@ class TestPodManager:
             while True:
                 yield pod_info_succeeded
 
-        self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
+        self.mock_kube_client.read_namespaced_pod_status.side_effect = pod_state_gen()
         startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do nothing
         mock_pod = MagicMock()
         self.pod_manager.await_pod_start(
@@ -444,8 +448,8 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
         mock_pod = MagicMock()
-        self.pod_manager.read_pod = mock.MagicMock(return_value=mock_pod)
-        self.pod_manager.container_is_running(None, "base")
+        self.mock_kube_client.read_namespaced_pod_status.return_value = mock_pod
+        self.pod_manager.container_is_running(mock_pod, "base")
         container_is_running_mock.assert_called_with(pod=mock_pod, container_name="base")
 
     @pytest.mark.parametrize("follow", [True, False])
