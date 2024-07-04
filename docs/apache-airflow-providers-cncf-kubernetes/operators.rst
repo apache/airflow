@@ -278,6 +278,15 @@ Example:
         callbacks=MyCallback,
     )
 
+Passing secrets
+^^^^^^^^^^^^^^^
+
+Never use environment variables to pass secrets (for example connection authentication information) to
+Kubernetes Pod Operator. Such environment variables will be visible to anyone who has access
+to see and describe PODs in Kubernetes. Instead, pass your secrets via native Kubernetes ``Secrets`` or
+use Connections and Variables from Airflow. For the latter, you need to have ``apache-airflow`` package
+installed in your image in the same version as airflow you run your Kubernetes Pod Operator from).
+
 Reference
 ^^^^^^^^^
 For further information, look at:
