@@ -405,7 +405,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         if not get_auth_manager().batch_is_authorized_dag(requests):
             raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
-        dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+        dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
     states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
