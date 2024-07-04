@@ -1695,9 +1695,9 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline)
+            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline_id)
             training_pipeline_operation = hook.delete_training_pipeline(
-                training_pipeline=self.training_pipeline,
+                training_pipeline=self.training_pipeline_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1707,11 +1707,11 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
             self.log.info("Training pipeline was deleted.")
         except NotFound:
-            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
+            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline_id)
         try:
-            self.log.info("Deleting custom job: %s", self.custom_job)
+            self.log.info("Deleting custom job: %s", self.custom_job_id)
             custom_job_operation = hook.delete_custom_job(
-                custom_job=self.custom_job,
+                custom_job=self.custom_job_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1721,7 +1721,7 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=custom_job_operation)
             self.log.info("Custom job was deleted.")
         except NotFound:
-            self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
+            self.log.info("The Custom Job ID %s does not exist.", self.custom_job_id)
 
 
 class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):

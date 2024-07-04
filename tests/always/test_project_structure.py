@@ -417,8 +417,11 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job."
-        "GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
