@@ -23,6 +23,7 @@ from glob import glob
 from pathlib import Path
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+ACCEPTED_NON_INIT_DIRS = ["adr", "doc", "templates"]
 
 
 def check_dir_init_file(provider_files: list[str]) -> None:
@@ -32,7 +33,7 @@ def check_dir_init_file(provider_files: list[str]) -> None:
             continue
         path = Path(candidate_path)
         if path.is_dir() and not (path / "__init__.py").exists():
-            if path.name != "adr" and path.name != "doc":
+            if path.name not in ACCEPTED_NON_INIT_DIRS:
                 missing_init_dirs.append(path)
 
     if missing_init_dirs:
