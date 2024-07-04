@@ -428,7 +428,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     display_answers = "/".join(type_of_changes_array) + "/q"
     while True:
         get_console().print(
-            "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
+            "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
             f"change, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
@@ -727,6 +727,13 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
+            answer = user_confirm(
+                "Is there any change in the set for this provider that is not 'doc-only'? 'n' means all "
+                "changes are doc-only. 'y' means there are changes apart from doc-only"
+            )
+            if answer == Answer.NO:
+                _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
+                return with_breaking_changes, maybe_with_new_features
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
             global SHORT_HASH_TO_TYPE_DICT
@@ -758,9 +765,7 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
-            if type_of_change == TypeOfChange.DOCUMENTATION:
-                _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
-            elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+            if type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
                 with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
                     provider_package_id=provider_package_id, type_of_change=type_of_change
                 )
@@ -879,16 +884,16 @@ def _get_changes_classified(
         type_of_change = None
         if change.short_hash in SHORT_HASH_TO_TYPE_DICT:
             type_of_change = SHORT_HASH_TO_TYPE_DICT[change.short_hash]
-        if type_of_change == TypeOfChange.DOCUMENTATION:
-            classified_changes.misc.append(change)
-        elif type_of_change == TypeOfChange.BUGFIX:
+
+        if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
         else:
-            classified_changes.other.append(change)
+            # for the changes we do not have a category for, add it to misc
+            classified_changes.misc.append(change)
     return classified_changes
 
 
