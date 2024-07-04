@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from openlineage.client.facet import (
+    ExternalQueryRunFacet,
     SchemaDatasetFacet,
     SchemaField,
     SqlJobFacet,
@@ -264,6 +265,24 @@ class TestAthenaOperator:
             query_execution_id=ATHENA_QUERY_ID,
         )
 
+    def test_execute_complete_reassigns_query_execution_id_after_deferring(self):
+        """Assert that we use query_execution_id from event after deferral."""
+
+        operator = AthenaOperator(
+            task_id="test_athena_operator",
+            query="SELECT * FROM TEST_TABLE",
+            database="TEST_DATABASE",
+            deferrable=True,
+        )
+        assert operator.query_execution_id is None
+
+        query_execution_id = "123456"
+        operator.execute_complete(
+            context=None,
+            event={"status": "success", "value": query_execution_id},
+        )
+        assert operator.query_execution_id == query_execution_id
+
     @mock.patch.object(AthenaHook, "region_name", new_callable=mock.PropertyMock)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_operator_openlineage_data(self, mock_conn, mock_region_name):
@@ -285,6 +304,7 @@ class TestAthenaOperator:
             max_polling_attempts=3,
             dag=self.dag,
         )
+        op.query_execution_id = "12345"  # Mocking what will be available after execution
 
         expected_lineage = OperatorLineage(
             inputs=[
@@ -365,5 +385,6 @@ class TestAthenaOperator:
                     query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
                 )
             },
+            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
         )
-        assert op.get_openlineage_facets_on_start() == expected_lineage
+        assert op.get_openlineage_facets_on_complete(None) == expected_lineage
