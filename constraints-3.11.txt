@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-04T09:33:01.860332
+# This constraints file was automatically generated on 2024-07-04T11:32:56.413951
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -557,7 +557,7 @@ pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.9
 pyenchant==3.2.2
-pyexasol==0.25.2
+pyexasol==0.26.0
 pygraphviz==1.13
 pyiceberg==0.6.1
 pyjsparser==2.7.1
@@ -719,7 +719,7 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.2
-uv==0.2.18
+uv==0.2.21
 validators==0.28.3
 vertica-python==1.3.8
 vine==5.1.0
