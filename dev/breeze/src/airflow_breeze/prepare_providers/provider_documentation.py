@@ -728,8 +728,7 @@ def update_release_notes(
             raise PrepareReleaseDocsNoChangesException()
         else:
             answer = user_confirm(
-                "Is there any change in the set for this provider that is not 'doc-only'? 'n' means all "
-                "changes are doc-only. 'y' means there are changes apart from doc-only"
+                f"Do you want to release the provider: {provider_package_id} with 'doc-only'?"
             )
             if answer == Answer.NO:
                 _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
