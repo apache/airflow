@@ -28,7 +28,6 @@ from sqlalchemy.orm import joinedload
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
-from airflow.api_connexion.schemas.task_instance_schema import task_instance_log_page_schema
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
@@ -36,6 +35,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, u
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -152,9 +152,13 @@ def get_log_pages(
     if ti is None:
         raise NotFound(title="TaskInstance not found")
 
+    # Check if the task instance state is terminal
+    if ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED}:
+        return {"total_pages": 1}
+
     # Fetch s3 log content length
     s3_hook = S3Hook()
-    log_key = f"{dag_id}/{dag_run_id}/{task_id}/log.txt"  # Is this the correct key pattern?
+    log_key = f"{dag_id}/{dag_run_id}/{task_id}/log.txt"  # Is this the correct log key name?
     page_size_kb = 100  # Hardcoded page size in KB for now
     page_size_bytes = page_size_kb * 1024
 
@@ -164,4 +168,4 @@ def get_log_pages(
     except Exception as e:
         raise BadRequest(f"Error fetching log content length: {e}")
 
-    return task_instance_log_page_schema.dump({"total_pages": total_pages})
+    return {"total_pages": total_pages}
