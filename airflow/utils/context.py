@@ -166,13 +166,13 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    _raw_key: str | Dataset | DatasetAlias
     extra: dict[str, Any]
+    _raw_key: str | Dataset | DatasetAlias
     dataset_action: dict
 
     def __init__(self, extra, *, raw_key: str | Dataset | DatasetAlias) -> None:
-        self._raw_key = raw_key
         self.extra = extra if extra else {}
+        self._raw_key = raw_key
         self.dataset_action = {}
 
     def __str__(self) -> str:
@@ -194,12 +194,11 @@ class OutletEventAccessor:
 
         dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset_uri).limit(1))
         if not dataset_obj:
-            if isinstance(dataset, str):
-                dataset_obj = DatasetModel(uri=dataset_uri, extra=extra)
-            elif isinstance(dataset, Dataset):
-                dataset_obj = DatasetModel.from_public(dataset)
-            else:
-                return
+            dataset_obj = (
+                DatasetModel.from_public(dataset)
+                if isinstance(dataset, Dataset)
+                else DatasetModel(uri=dataset_uri, extra=extra)
+            )
 
             dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
 
@@ -227,11 +226,8 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     :meta private:
     """
 
-    @provide_session
-    def __init__(self, task_instance=None, *, session: Session = NEW_SESSION) -> None:
+    def __init__(self) -> None:
         self._dict: dict[str, OutletEventAccessor] = {}
-        self._task_instnace = task_instance
-        self.session = session
 
     def __str__(self) -> str:
         return f"OutletEventAccessors(_dict={self._dict})"
@@ -243,10 +239,7 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
         return len(self._dict)
 
     def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
-        if isinstance(key, DatasetAlias):
-            dict_key = key.name
-        else:
-            dict_key = coerce_to_uri(key)
+        dict_key = key.name if isinstance(key, DatasetAlias) else coerce_to_uri(key)
 
         if dict_key not in self._dict:
             self._dict[dict_key] = OutletEventAccessor(extra={}, raw_key=key)

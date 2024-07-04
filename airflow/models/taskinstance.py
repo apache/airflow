@@ -1081,7 +1081,7 @@ def _get_template_context(
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
         "data_interval_start": timezone.coerce_datetime(data_interval.start),
-        "outlet_events": OutletEventAccessors(task_instance),
+        "outlet_events": OutletEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
         "execution_date": logical_date,
@@ -2923,7 +2923,6 @@ class TaskInstance(Base, LoggingMixin):
                 actions = events[obj].dataset_action
                 if actions:
                     obj = DatasetModel.from_public(actions["dataset"])
-                    # TODO: add dataset to DB if not exists
                     dataset_manager.register_dataset_change(
                         task_instance=self,
                         dataset=obj,
