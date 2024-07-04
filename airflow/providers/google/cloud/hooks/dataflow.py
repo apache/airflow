@@ -419,32 +419,34 @@ class _DataflowJobsController(LoggingMixin):
         current_state = job["currentState"]
         is_streaming = job.get("type") == DataflowJobType.JOB_TYPE_STREAMING
 
-        if self._expected_terminal_state is None:
-            if is_streaming:
-                self._expected_terminal_state = DataflowJobStatus.JOB_STATE_RUNNING
-            else:
-                self._expected_terminal_state = DataflowJobStatus.JOB_STATE_DONE
-        else:
-            terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
-            if self._expected_terminal_state not in terminal_states:
-                raise AirflowException(
-                    f"Google Cloud Dataflow job's expected terminal state "
-                    f"'{self._expected_terminal_state}' is invalid."
-                    f" The value should be any of the following: {terminal_states}"
-                )
-            elif is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DONE:
-                raise AirflowException(
-                    "Google Cloud Dataflow job's expected terminal state cannot be "
-                    "JOB_STATE_DONE while it is a streaming job"
-                )
-            elif not is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DRAINED:
-                raise AirflowException(
-                    "Google Cloud Dataflow job's expected terminal state cannot be "
-                    "JOB_STATE_DRAINED while it is a batch job"
-                )
+        current_expected_state = self._expected_terminal_state
 
-        if current_state == self._expected_terminal_state:
-            if self._expected_terminal_state == DataflowJobStatus.JOB_STATE_RUNNING:
+        if current_expected_state is None:
+            if is_streaming:
+                current_expected_state = DataflowJobStatus.JOB_STATE_RUNNING
+            else:
+                current_expected_state = DataflowJobStatus.JOB_STATE_DONE
+
+        terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
+        if current_expected_state not in terminal_states:
+            raise AirflowException(
+                f"Google Cloud Dataflow job's expected terminal state "
+                f"'{current_expected_state}' is invalid."
+                f" The value should be any of the following: {terminal_states}"
+            )
+        elif is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DONE:
+            raise AirflowException(
+                "Google Cloud Dataflow job's expected terminal state cannot be "
+                "JOB_STATE_DONE while it is a streaming job"
+            )
+        elif not is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DRAINED:
+            raise AirflowException(
+                "Google Cloud Dataflow job's expected terminal state cannot be "
+                "JOB_STATE_DRAINED while it is a batch job"
+            )
+
+        if current_state == current_expected_state:
+            if current_expected_state == DataflowJobStatus.JOB_STATE_RUNNING:
                 return not self._wait_until_finished
             return True
 
@@ -454,7 +456,7 @@ class _DataflowJobsController(LoggingMixin):
         self.log.debug("Current job: %s", job)
         raise AirflowException(
             f"Google Cloud Dataflow job {job['name']} is in an unexpected terminal state: {current_state}, "
-            f"expected terminal state: {self._expected_terminal_state}"
+            f"expected terminal state: {current_expected_state}"
         )
 
     def wait_for_done(self) -> None:
