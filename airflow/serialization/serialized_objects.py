@@ -266,7 +266,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     elif isinstance(raw_key, DatasetAlias):
         serialized_raw_key = {"__type": DAT.DATASET_ALIAS, "name": raw_key.name}
     elif isinstance(raw_key, str):
-        serialized_raw_key = raw_key
+        serialized_raw_key = {"__type": "str", "value": raw_key}
     else:
         raise ValueError(f"serialization not implemented for {raw_key}")
     return {
@@ -278,11 +278,12 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     raw_key = var["_raw_key"]
-    if "__type" not in raw_key:
-        _raw_key = raw_key
-    elif raw_key["__type"] == DAT.DATASET:
+    raw_key_type = raw_key["__tpe"]
+    if raw_key_type == "str":
+        _raw_key = raw_key["value"]
+    elif raw_key_type == DAT.DATASET:
         _raw_key = Dataset(uri=raw_key["uri"], extra=raw_key["extra"])
-    elif raw_key["__type"] == DAT.DATASET_ALIAS:
+    elif raw_key_type == DAT.DATASET_ALIAS:
         _raw_key = DatasetAlias(name=raw_key["name"])
     else:
         raise ValueError(f"deserialization not implemented for {raw_key}")
