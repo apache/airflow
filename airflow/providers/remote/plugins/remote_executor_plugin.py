@@ -26,7 +26,7 @@ from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
 from airflow.auth.managers.models.resource_details import AccessView
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -102,7 +102,7 @@ class RemoteWorkerHosts(BaseView):
 
 
 # Check if RemoteExecutor is actually loaded
-REMOTE_EXECUTOR_ACTIVE = "RemoteExecutor" in str(ExecutorLoader.get_executor_names())
+REMOTE_EXECUTOR_ACTIVE = conf.getboolean("remote", "api_enabled")
 
 
 class RemoteExecutorPlugin(AirflowPlugin):
