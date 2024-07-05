@@ -78,9 +78,7 @@ class TestDataprocGDCSparkSubmitKrmOperator:
             "metadata": {"name": "spark-app", "creationTimestamp": "2024-01-01T00:00:00Z"}
         }
 
-    @patch(
-        "airflow.providers.google.gdc.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator.on_kill"
-    )
+    @patch("airflow.providers.google.gdc.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator.on_kill")
     @patch("airflow.providers.google.gdc.operators.dataprocgdc.Watch.stream")
     @patch("airflow.providers.google.gdc.operators.dataprocgdc._load_body_to_dict")
     @patch("airflow.providers.google.gdc.operators.dataprocgdc.KubernetesHook")

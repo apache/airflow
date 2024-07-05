@@ -65,7 +65,7 @@ create the task using the following:
     )
 
 
-Create an App envrionment to a GDC cluster
+Create an App environment to a GDC cluster
 ------------------------------------------
 
 * :class:`~airflow.providers.google.gdc.operators.dataprocgdc.DataprocGdcCreateAppEnvironmentKrmOperator`

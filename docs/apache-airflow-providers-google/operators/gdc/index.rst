@@ -17,17 +17,16 @@
 
 
 
-Google Operators
-================
+Google Cloud Operators
+======================
+
 
 .. toctree::
     :maxdepth: 1
+    :glob:
 
-    cloud/index
-    firebase/firestore
-    gdc/index
-    marketing_platform/index
-    suite/sheets
-    ads
-    transfer/index
-    leveldb/leveldb
+    *
+
+.. note::
+    You can learn how to use Google Cloud integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/providers-google/|version|/tests/system/providers/google/gdc>`_ of the particular example DAGs.
