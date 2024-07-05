@@ -251,3 +251,21 @@ class TestDbApiHook:
     def test_placeholder_config_from_extra(self):
         dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
         assert dbapi_hook.placeholder == "?"
+
+    @pytest.mark.db_test
+    def test_placeholder_config_from_extra_when_not_in_default_sql_placeholders(self):
+        dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "{}"}})
+        assert dbapi_hook.placeholder == "%s"
+        dbapi_hook.log.warning.assert_called_with(
+            "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+            "and got ignored. Falling back to the default placeholder '%s'.",
+            "{}",
+            "default_conn_id",
+            DbApiHook._placeholder)
+
+    @pytest.mark.db_test
+    def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        for number_of_invocations in range(0, 10):
+            assert dbapi_hook.placeholder == "%s"
+        assert dbapi_hook.connection_invocations == 1

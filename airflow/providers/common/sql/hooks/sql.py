@@ -20,6 +20,7 @@ import contextlib
 import warnings
 from contextlib import closing, contextmanager
 from datetime import datetime
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -181,16 +182,18 @@ class DbApiHook(BaseHook):
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
 
-    @property
+    @cached_property
     def placeholder(self):
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn_id = getattr(self, self.conn_name_attr)
+        conn = self.get_connection(conn_id)
         placeholder = conn.extra_dejson.get("placeholder")
         if placeholder in SQL_PLACEHOLDERS:
             return placeholder
         self.log.warning(
-            "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+            "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
             "and got ignored. Falling back to the default placeholder '%s'.",
             placeholder,
+            conn_id,
             self._placeholder,
         )
         return self._placeholder

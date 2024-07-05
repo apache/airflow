@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -44,12 +45,17 @@ def mock_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None):
 
     class MockedHook(hook_class):
         conn_name_attr = "test_conn_id"
+        log = mock.MagicMock(spec=logging.Logger)
+        connection_invocations = 0
 
         @classmethod
         def get_connection(cls, conn_id: str):
+            cls.connection_invocations += 1
             return connection
 
         def get_conn(self):
             return conn
 
-    return MockedHook(**hook_params)
+    hook = MockedHook(**hook_params)
+    hook.log.setLevel(logging.DEBUG)
+    return hook
