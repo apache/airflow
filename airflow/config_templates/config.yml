@@ -1076,7 +1076,7 @@ metrics:
       default: ""
     metrics_consistency_on:
       description: |
-        Enables metrics onsistency across all metrics loggers (ex: timer and timing metrics).
+        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
 
         .. warning::
 
