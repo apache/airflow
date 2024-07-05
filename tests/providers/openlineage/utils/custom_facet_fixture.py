@@ -59,3 +59,7 @@ def get_another_test_facet(task_instance: TaskInstance):
 
 def return_type_is_not_dict(task_instance: TaskInstance):
     return "return type is not dict"
+
+
+def get_custom_facet_throws_exception(task_instance: TaskInstance):
+    raise Exception("fake exception from custom fcet function")

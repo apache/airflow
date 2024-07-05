@@ -619,3 +619,16 @@ def test_get_custom_facets_with_wrong_return_type_function(mock_custom_facet_fun
     )
     result = get_custom_facets(sample_ti)
     assert result == {}
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={"tests.providers.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
+)
+def test_get_custom_facets_with_exception(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}
