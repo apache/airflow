@@ -194,7 +194,7 @@ class DbApiHook(BaseHook):
             if placeholder in SQL_PLACEHOLDERS:
                 return placeholder
             self.log.warning(
-              "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
                 "and got ignored. Falling back to the default placeholder '%s'.",
                 placeholder,
                 self.conn_id,
