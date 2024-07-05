@@ -524,6 +524,21 @@ def test_get_custom_facets_with_function_definition(mock_custom_facet_funcs):
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
     return_value={
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+    },
+)
+def test_get_custom_facets_with_return_value_as_none(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=BashOperator(task_id="test-task", bash_command="exit 0;", dag=DAG("test-dag")),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={
         "invalid_function",
         "tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
         "tests.providers.openlineage.utils.custom_facet_fixture.return_type_is_not_dict",

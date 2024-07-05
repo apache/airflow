@@ -17,6 +17,9 @@ class MyCustomRunFacet(BaseFacet):
 
 
 def get_additional_test_facet(task_instance: TaskInstance):
+    operator_name = task_instance.task.operator_name
+    if operator_name == "BashOperator":
+        return None
     job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
     return {
         "additional_run_facet": attrs.asdict(
