@@ -184,7 +184,7 @@ class DbApiHook(BaseHook):
         )
 
     def get_conn_id(self) -> str:
-        return getattr(self, self.conn_name_attr)
+        return self.get_conn_id()
 
     @cached_property
     def placeholder(self):

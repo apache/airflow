@@ -144,7 +144,7 @@ class TeradataHook(DbApiHook):
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         conn_config = {
             "host": conn.host or "localhost",
             "dbs_port": conn.port or "1025",
@@ -176,7 +176,7 @@ class TeradataHook(DbApiHook):
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Return a connection object using sqlalchemy."""
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         link = f"teradatasql://{conn.login}:{conn.password}@{conn.host}"
         connection = sqlalchemy.create_engine(link)
         return connection
