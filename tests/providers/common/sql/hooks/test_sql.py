@@ -263,8 +263,11 @@ class TestDbApiHook:
         with caplog.at_level(logging.WARNING, logger="airflow.providers.common.sql.hooks.test_sql"):
             dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "!"}})
             assert dbapi_hook.placeholder == "%s"
-            assert "Placeholder '!' defined in Connection 'default_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' " \
-                   f"and got ignored. Falling back to the default placeholder '{DbApiHook._placeholder}'." in caplog.text
+            assert (
+                "Placeholder '!' defined in Connection 'default_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                f"and got ignored. Falling back to the default placeholder '{DbApiHook._placeholder}'."
+                in caplog.text
+            )
 
     @pytest.mark.db_test
     def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(self):
