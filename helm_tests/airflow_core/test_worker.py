@@ -1066,7 +1066,7 @@ class TestWorkerKedaAutoScaler:
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
 
-    def test_mysql_db_backend_keda(self):
+    def test_mysql_db_backend_keda_worker(self):
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql"}},
