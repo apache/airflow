@@ -336,6 +336,9 @@ class ExecutorLoader:
         if InternalApiConfig.get_use_internal_api():
             return
 
+        if executor.__name__ == REMOTE_EXECUTOR:
+            return
+
         from airflow.settings import engine
 
         # SQLite only works with single threaded executors
