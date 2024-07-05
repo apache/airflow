@@ -263,13 +263,23 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
-        waiter_delay: int | None | ArgNotSet = NOTSET,
-        waiter_countdown: int = 25 * 60,
-        waiter_check_interval_seconds: int = 60,
+        waiter_max_attempts: int | None = None,
+        waiter_delay: int | None = None,
+        waiter_countdown: int | None = None,
+        waiter_check_interval_seconds: int | None = None,
         **kwargs: Any,
     ):
-        if waiter_max_attempts is NOTSET:
+        if waiter_check_interval_seconds:
+            warnings.warn(
+                "The parameter `waiter_check_interval_seconds` has been deprecated to "
+                "standardize naming conventions.  Please `use waiter_delay instead`.  In the "
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            waiter_check_interval_seconds = 60
+        if waiter_countdown:
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
@@ -277,16 +287,10 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
-        if waiter_delay is NOTSET:
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to "
-                "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = waiter_check_interval_seconds
+            # waiter_countdown defaults to never timing out, which is not supported
+            # by boto waiters, so we will set it here to "a very long time" for now.
+            waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
+
         super().__init__(**kwargs)
         self.editor_id = editor_id
         self.relative_path = relative_path
@@ -298,8 +302,8 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.cluster_id = cluster_id
         self.aws_conn_id = aws_conn_id
-        self.waiter_max_attempts = waiter_max_attempts
-        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts or 25
+        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
         self.master_instance_security_group_id = master_instance_security_group_id
 
     def execute(self, context: Context):
@@ -387,13 +391,23 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
-        waiter_delay: int | None | ArgNotSet = NOTSET,
-        waiter_countdown: int = 25 * 60,
-        waiter_check_interval_seconds: int = 60,
+        waiter_max_attempts: int | None = None,
+        waiter_delay: int | None = None,
+        waiter_countdown: int | None = None,
+        waiter_check_interval_seconds: int | None = None,
         **kwargs: Any,
     ):
-        if waiter_max_attempts is NOTSET:
+        if waiter_check_interval_seconds:
+            warnings.warn(
+                "The parameter `waiter_check_interval_seconds` has been deprecated to "
+                "standardize naming conventions.  Please `use waiter_delay instead`.  In the "
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            waiter_check_interval_seconds = 60
+        if waiter_countdown:
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
@@ -401,22 +415,16 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
-        if waiter_delay is NOTSET:
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to "
-                "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = waiter_check_interval_seconds
+            # waiter_countdown defaults to never timing out, which is not supported
+            # by boto waiters, so we will set it here to "a very long time" for now.
+            waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
+
         super().__init__(**kwargs)
         self.notebook_execution_id = notebook_execution_id
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
-        self.waiter_max_attempts = waiter_max_attempts
-        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts or 25
+        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
 
     def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -617,6 +625,14 @@ class EmrContainerOperator(BaseOperator):
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_polling_attempts,
+                )
+                if self.max_polling_attempts
+                else EmrContainerTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -734,10 +750,20 @@ class EmrCreateJobFlowOperator(BaseOperator):
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
         waiter_countdown: int | None = None,
-        waiter_check_interval_seconds: int = 60,
+        waiter_check_interval_seconds: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
+        if waiter_check_interval_seconds:
+            warnings.warn(
+                "The parameter `waiter_check_interval_seconds` has been deprecated to "
+                "standardize naming conventions.  Please `use waiter_delay instead`.  In the "
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            waiter_check_interval_seconds = 60
         if waiter_countdown:
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
@@ -749,15 +775,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             # waiter_countdown defaults to never timing out, which is not supported
             # by boto waiters, so we will set it here to "a very long time" for now.
             waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
-        if waiter_check_interval_seconds:
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to "
-                "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = waiter_check_interval_seconds
+
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
@@ -765,7 +783,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.region_name = region_name
         self.wait_for_completion = wait_for_completion
         self.waiter_max_attempts = waiter_max_attempts or 60
-        self.waiter_delay = waiter_delay or 30
+        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
         self.deferrable = deferrable
 
     @cached_property
@@ -812,8 +830,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 trigger=EmrCreateJobFlowTrigger(
                     job_flow_id=self._job_flow_id,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.waiter_delay,
-                    max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart

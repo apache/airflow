@@ -51,6 +51,10 @@ resource utilization while the job is running.
 When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
 track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
 
+When ``retry_from_failure`` is True, we retry the run for a job from the point of failure,
+if the run failed. Otherwise we trigger a new run.
+For more information on the retry logic, reference the
+`API documentation <https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job>`__.
 
 While ``schema_override`` and ``steps_override`` are explicit, optional parameters for the
 ``DbtCloudRunJobOperator``, custom run configurations can also be passed to the operator using the

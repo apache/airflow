@@ -64,7 +64,6 @@ from airflow.security.permissions import (
     RESOURCE_XCOM,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 
@@ -77,13 +76,12 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.auth.managers.models.base_user import BaseUser
 
 
 class AirflowSecurityManagerV2(LoggingMixin):
-    """Custom security manager, which introduces a permission model adapted to Airflow.
+    """
+    Custom security manager, which introduces a permission model adapted to Airflow.
 
     It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.
     """
@@ -142,7 +140,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
         return is_authorized_method(action_name, resource_pk, user)
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
-        """Perform the required steps when initializing airflow for standalone mode.
+        """
+        Perform the required steps when initializing airflow for standalone mode.
 
         If necessary, returns the username and password to be printed in the console for users to log in.
         """
@@ -167,9 +166,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
             )(baseview.blueprint)
 
     @cached_property
-    @provide_session
     def _auth_manager_is_authorized_map(
-        self, session: Session = NEW_SESSION
+        self,
     ) -> dict[str, Callable[[str, str | None, BaseUser | None], bool]]:
         """
         Return the map associating a FAB resource name to the corresponding auth manager is_authorized_ API.
@@ -178,6 +176,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
         """
         auth_manager = get_auth_manager()
         methods = get_method_from_fab_action_map()
+
+        session = self.appbuilder.session
 
         def get_connection_id(resource_pk):
             if not resource_pk:
@@ -226,7 +226,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 return None
             variable = session.scalar(select(Variable).where(Variable.id == resource_pk).limit(1))
             if not variable:
-                raise AirflowException("Connection not found")
+                raise AirflowException("Variable not found")
             return variable.key
 
         return {

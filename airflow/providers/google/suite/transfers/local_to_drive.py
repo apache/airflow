@@ -31,7 +31,8 @@ if TYPE_CHECKING:
 
 
 class LocalFilesystemToGoogleDriveOperator(BaseOperator):
-    """Upload a list of files to a Google Drive folder.
+    """
+    Upload a list of files to a Google Drive folder.
 
     This operator uploads a list of local files to a Google Drive folder.
     The local files can optionally be deleted after upload.

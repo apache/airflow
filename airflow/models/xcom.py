@@ -147,7 +147,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         map_index: int = -1,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Store an XCom value.
+        """
+        Store an XCom value.
 
         A deprecated form of this function accepts ``execution_date`` instead of
         ``run_id``. The two arguments are mutually exclusive.
@@ -174,12 +175,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         execution_date: datetime.datetime,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Store an XCom value.
+        """
+        Store an XCom value.
 
         :sphinx-autoapi-skip:
         """
 
     @classmethod
+    @internal_api_call
     @provide_session
     def set(
         cls,
@@ -193,7 +196,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         run_id: str | None = None,
         map_index: int = -1,
     ) -> None:
-        """Store an XCom value.
+        """
+        Store an XCom value.
 
         :sphinx-autoapi-skip:
         """
@@ -282,7 +286,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         key: str | None = None,
         session: Session = NEW_SESSION,
     ) -> Any:
-        """Retrieve an XCom value for a task instance.
+        """
+        Retrieve an XCom value for a task instance.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
         from the XCom backend). Use :meth:`get_many` if you want the "shortened"
@@ -318,7 +323,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         map_index: int | None = None,
         session: Session = NEW_SESSION,
     ) -> Any | None:
-        """Retrieve an XCom value, optionally meeting certain criteria.
+        """
+        Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
         from the XCom backend). Use :meth:`get_many` if you want the "shortened"
@@ -360,7 +366,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
     ) -> Any | None:
-        """Retrieve an XCom value, optionally meeting certain criteria.
+        """
+        Retrieve an XCom value, optionally meeting certain criteria.
 
         :sphinx-autoapi-skip:
         """
@@ -379,7 +386,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> Any | None:
-        """Retrieve an XCom value, optionally meeting certain criteria.
+        """
+        Retrieve an XCom value, optionally meeting certain criteria.
 
         :sphinx-autoapi-skip:
         """
@@ -434,7 +442,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         limit: int | None = None,
         session: Session = NEW_SESSION,
     ) -> Query:
-        """Composes a query to get one or more XCom entries.
+        """
+        Composes a query to get one or more XCom entries.
 
         This function returns an SQLAlchemy query of full XCom objects. If you
         just want one stored value, use :meth:`get_one` instead.
@@ -472,7 +481,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         limit: int | None = None,
         session: Session = NEW_SESSION,
     ) -> Query:
-        """Composes a query to get one or more XCom entries.
+        """
+        Composes a query to get one or more XCom entries.
 
         :sphinx-autoapi-skip:
         """
@@ -492,7 +502,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         *,
         run_id: str | None = None,
     ) -> Query:
-        """Composes a query to get one or more XCom entries.
+        """
+        Composes a query to get one or more XCom entries.
 
         :sphinx-autoapi-skip:
         """
@@ -576,7 +587,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         map_index: int | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Clear all XCom data from the database for the given task instance.
+        """
+        Clear all XCom data from the database for the given task instance.
 
         A deprecated form of this function accepts ``execution_date`` instead of
         ``run_id``. The two arguments are mutually exclusive.
@@ -599,7 +611,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         task_id: str,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Clear all XCom data from the database for the given task instance.
+        """
+        Clear all XCom data from the database for the given task instance.
 
         :sphinx-autoapi-skip:
         """
@@ -616,7 +629,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> None:
-        """Clear all XCom data from the database for the given task instance.
+        """
+        Clear all XCom data from the database for the given task instance.
 
         :sphinx-autoapi-skip:
         """
@@ -716,7 +730,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):
-    """List-like interface to lazily access XCom values.
+    """
+    List-like interface to lazily access XCom values.
 
     :meta private:
     """
@@ -731,7 +746,8 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
 
 def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> None:
-    """Patch a custom ``serialize_value`` to accept the modern signature.
+    """
+    Patch a custom ``serialize_value`` to accept the modern signature.
 
     To give custom XCom backends more flexibility with how they store values, we
     now forward all params passed to ``XCom.set`` to ``XCom.serialize_value``.
@@ -770,7 +786,8 @@ def _get_function_params(function) -> list[str]:
 
 
 def resolve_xcom_backend() -> type[BaseXCom]:
-    """Resolve custom XCom class.
+    """
+    Resolve custom XCom class.
 
     Confirm that custom XCom class extends the BaseXCom.
     Compare the function signature of the custom XCom serialize_value to the base XCom serialize_value.

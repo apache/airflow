@@ -178,8 +178,9 @@ class MSGraphAsyncOperator(BaseOperator):
                 event["response"] = result
 
                 try:
-                    self.trigger_next_link(response, method_name=self.pull_execute_complete.__name__)
+                    self.trigger_next_link(response=response, method_name=self.execute_complete.__name__)
                 except TaskDeferred as exception:
+                    self.results = self.pull_xcom(context=context)
                     self.append_result(
                         result=result,
                         append_result_as_list_if_absent=True,
@@ -188,7 +189,6 @@ class MSGraphAsyncOperator(BaseOperator):
                     raise exception
 
                 self.append_result(result=result)
-                self.log.debug("results: %s", self.results)
 
                 return self.results
         return None
@@ -198,8 +198,6 @@ class MSGraphAsyncOperator(BaseOperator):
         result: Any,
         append_result_as_list_if_absent: bool = False,
     ):
-        self.log.debug("value: %s", result)
-
         if isinstance(self.results, list):
             if isinstance(result, list):
                 self.results.extend(result)
@@ -214,30 +212,43 @@ class MSGraphAsyncOperator(BaseOperator):
             else:
                 self.results = result
 
+    def pull_xcom(self, context: Context) -> list:
+        map_index = context["ti"].map_index
+        value = list(
+            context["ti"].xcom_pull(
+                key=self.key,
+                task_ids=self.task_id,
+                dag_id=self.dag_id,
+                map_indexes=map_index,
+            )
+            or []
+        )
+
+        if map_index:
+            self.log.info(
+                "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s' and map_index %s: %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                map_index,
+                value,
+            )
+        else:
+            self.log.info(
+                "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                value,
+            )
+
+        return value
+
     def push_xcom(self, context: Context, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
             self.log.info("Pushing XCom with key '%s': %s", self.key, value)
             self.xcom_push(context=context, key=self.key, value=value)
-
-    def pull_execute_complete(self, context: Context, event: dict[Any, Any] | None = None) -> Any:
-        self.results = list(
-            self.xcom_pull(
-                context=context,
-                task_ids=self.task_id,
-                dag_id=self.dag_id,
-                key=self.key,
-            )
-            or []
-        )
-        self.log.info(
-            "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
-            self.task_id,
-            self.dag_id,
-            self.key,
-            self.results,
-        )
-        return self.execute_complete(context, event)
 
     @staticmethod
     def paginate(operator: MSGraphAsyncOperator, response: dict) -> tuple[Any, dict[str, Any] | None]:

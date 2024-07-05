@@ -77,7 +77,7 @@ apache-airflow-providers-snowflake package
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 5.5.0
+Release: 5.5.2
 
 Provider package
 ----------------
@@ -97,14 +97,17 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-=======================================  ==================
+=======================================  =========================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  =========================================
 ``apache-airflow``                       ``>=2.7.0``
 ``apache-airflow-providers-common-sql``  ``>=1.10.0``
-``snowflake-connector-python``           ``>=2.7.8``
-``snowflake-sqlalchemy``                 ``>=1.1.0``
-=======================================  ==================
+``pandas``                               ``>=2.1.2,<2.2; python_version >= "3.9"``
+``pandas``                               ``>=1.5.3,<2.2; python_version < "3.9"``
+``pyarrow``                              ``>=14.0.1``
+``snowflake-connector-python``           ``>=3.7.1``
+``snowflake-sqlalchemy``                 ``>=1.4.0``
+=======================================  =========================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -132,5 +135,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-snowflake 5.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-snowflake 5.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-snowflake 5.5.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-snowflake 5.5.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-5.5.2-py3-none-any.whl.sha512>`__)

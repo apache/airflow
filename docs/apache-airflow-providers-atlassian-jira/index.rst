@@ -69,7 +69,7 @@ apache-airflow-providers-atlassian-jira package
 `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
 
-Release: 2.6.0
+Release: 2.6.1
 
 Provider package
 ----------------
@@ -89,10 +89,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-========================  =====================
+========================  ==================
 PIP package               Version required
-========================  =====================
+========================  ==================
 ``apache-airflow``        ``>=2.7.0``
-``atlassian-python-api``  ``>=1.14.2,!=3.41.6``
-``beautifulsoup4``
-========================  =====================
+``atlassian-python-api``  ``>3.41.10``
+========================  ==================

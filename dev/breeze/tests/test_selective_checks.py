@@ -30,13 +30,20 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     GithubEvents,
 )
-from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES, SelectiveChecks
+from airflow_breeze.utils.packages import get_available_packages
+from airflow_breeze.utils.selective_checks import (
+    ALL_CI_SELECTIVE_TEST_TYPES,
+    ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+    SelectiveChecks,
+)
 
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
+LIST_OF_ALL_PROVIDER_TESTS = " ".join(f"Providers[{provider}]" for provider in get_available_packages())
+
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
@@ -114,6 +121,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": None,
+                    "providers-test-types-list-as-string": None,
+                    "separate-test-types-list-as-string": None,
                     "needs-mypy": "false",
                     "mypy-folders": "[]",
                 },
@@ -139,6 +148,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always Providers[fab]",
+                    "providers-test-types-list-as-string": "Providers[fab]",
+                    "separate-test-types-list-as-string": "API Always Providers[fab]",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
@@ -164,6 +175,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Operators",
+                    "providers-test-types-list-as-string": "",
+                    "separate-test-types-list-as-string": "Always Operators",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
@@ -190,6 +203,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
                     "ExternalPython Operators PythonVenv",
+                    "providers-test-types-list-as-string": "",
+                    "separate-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
+                    "ExternalPython Operators PythonVenv",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
@@ -215,6 +231,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Serialization",
+                    "providers-test-types-list-as-string": "",
+                    "separate-test-types-list-as-string": "Always Serialization",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
@@ -245,6 +263,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always Providers[amazon] "
                     "Providers[common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "providers-test-types-list-as-string": "Providers[amazon] "
+                    "Providers[common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "separate-test-types-list-as-string": "API Always Providers[amazon] Providers[common.sql] "
+                    "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
+                    "Providers[postgres]",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers']",
                 },
@@ -271,6 +294,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Providers[apache.beam] Providers[google]",
+                    "providers-test-types-list-as-string": "Providers[apache.beam] Providers[google]",
+                    "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-folders": "['providers']",
                 },
@@ -297,6 +322,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": None,
+                    "providers-test-types-list-as-string": None,
                     "needs-mypy": "false",
                     "mypy-folders": "[]",
                 },
@@ -326,6 +352,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Providers[amazon] "
+                    "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
+                    "providers-test-types-list-as-string": "Providers[amazon] "
                     "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-folders": "['providers']",
@@ -359,6 +387,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always "
                     "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http] Providers[amazon]",
+                    "providers-test-types-list-as-string": "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http] Providers[amazon]",
+                    "separate-test-types-list-as-string": "Always Providers[airbyte] Providers[amazon] "
+                    "Providers[apache.livy] Providers[dbt.cloud] "
+                    "Providers[dingding] Providers[discord] Providers[http]",
                     "needs-mypy": "true",
                     "mypy-folders": "['providers']",
                 },
@@ -389,6 +421,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
+                    "providers-test-types-list-as-string": "Providers[airbyte,http]",
                     "needs-mypy": "true",
                     "mypy-folders": "['providers']",
                 },
@@ -420,6 +453,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always",
+                    "providers-test-types-list-as-string": "",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
@@ -446,6 +480,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "true",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -472,6 +507,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "true",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -483,7 +519,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql openlineage postgres salesforce ssh",
+                "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -499,7 +535,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Always Providers[amazon] "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,"
-                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh] Providers[google]",
+                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
@@ -533,7 +569,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql openlineage postgres salesforce ssh",
+                "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -549,7 +585,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[amazon] "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,"
-                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh] Providers[google]",
+                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
@@ -766,9 +802,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['12', '13', '14', '15', '16']",
                     "python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
-                    "kubernetes-versions": "['v1.26.14', 'v1.27.11', 'v1.28.7', 'v1.29.2']",
-                    "kubernetes-versions-list-as-string": "v1.26.14 v1.27.11 v1.28.7 v1.29.2",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.14 3.9-v1.27.11 3.10-v1.28.7 3.11-v1.29.2 3.12-v1.26.14",
+                    "kubernetes-versions": "['v1.26.15', 'v1.27.13', 'v1.28.9', 'v1.29.4', 'v1.30.0']",
+                    "kubernetes-versions-list-as-string": "v1.26.15 v1.27.13 v1.28.9 v1.29.4 v1.30.0",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.15 3.9-v1.27.13 3.10-v1.28.9 3.11-v1.29.4 3.12-v1.30.0",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -778,6 +814,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -799,9 +836,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['12']",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.14']",
-                    "kubernetes-versions-list-as-string": "v1.26.14",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
+                    "kubernetes-versions": "['v1.26.15']",
+                    "kubernetes-versions-list-as-string": "v1.26.15",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -811,6 +848,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -832,9 +870,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['12']",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.14']",
-                    "kubernetes-versions-list-as-string": "v1.26.14",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
+                    "kubernetes-versions": "['v1.26.15']",
+                    "kubernetes-versions-list-as-string": "v1.26.15",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -844,6 +882,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -866,9 +905,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['16']",
                     "python-versions": "['3.12']",
                     "python-versions-list-as-string": "3.12",
-                    "kubernetes-versions": "['v1.29.2']",
-                    "kubernetes-versions-list-as-string": "v1.29.2",
-                    "kubernetes-combos-list-as-string": "3.12-v1.29.2",
+                    "kubernetes-versions": "['v1.30.0']",
+                    "kubernetes-versions-list-as-string": "v1.30.0",
+                    "kubernetes-combos-list-as-string": "3.12-v1.30.0",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -878,6 +917,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -900,9 +940,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.14']",
-                    "kubernetes-versions-list-as-string": "v1.26.14",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
+                    "kubernetes-versions": "['v1.26.15']",
+                    "kubernetes-versions-list-as-string": "v1.26.15",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -912,6 +952,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -931,9 +972,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.14']",
-                    "kubernetes-versions-list-as-string": "v1.26.14",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.14",
+                    "kubernetes-versions": "['v1.26.15']",
+                    "kubernetes-versions-list-as-string": "v1.26.15",
+                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -943,6 +984,11 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "separate-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
+                    "CLI Core ExternalPython Operators Other PlainAsserts "
+                    + LIST_OF_ALL_PROVIDER_TESTS
+                    + " PythonVenv Serialization WWW",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -1504,7 +1550,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
-                "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica",
+                "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
         ),

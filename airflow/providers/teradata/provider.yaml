@@ -22,9 +22,12 @@ description: |
     `Teradata <https://www.teradata.com/>`__
 
 state: ready
-source-date-epoch: 1715384492
+source-date-epoch: 1719054575
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.3.0
+  - 2.2.0
+  - 2.1.1
   - 2.1.0
   - 2.0.0
 
@@ -34,11 +37,20 @@ dependencies:
   - teradatasqlalchemy>=17.20.0.0
   - teradatasql>=17.20.0.28
 
+additional-extras:
+  - name: microsoft.azure
+    dependencies:
+      - apache-airflow-providers-microsoft-azure
+  - name: amazon
+    dependencies:
+      - apache-airflow-providers-amazon
+
 integrations:
   - integration-name: Teradata
     external-doc-url: https://www.teradata.com/
     how-to-guide:
       - /docs/apache-airflow-providers-teradata/operators/teradata.rst
+      - /docs/apache-airflow-providers-teradata/operators/compute_cluster.rst
     logo: /integration-logos/teradata/Teradata.png
     tags: [software]
 
@@ -46,6 +58,7 @@ operators:
   - integration-name: Teradata
     python-modules:
       - airflow.providers.teradata.operators.teradata
+      - airflow.providers.teradata.operators.teradata_compute_cluster
 
 hooks:
   - integration-name: Teradata
@@ -57,7 +70,20 @@ transfers:
     target-integration-name: Teradata
     python-module: airflow.providers.teradata.transfers.teradata_to_teradata
     how-to-guide: /docs/apache-airflow-providers-teradata/operators/teradata_to_teradata.rst
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Teradata
+    python-module: airflow.providers.teradata.transfers.azure_blob_to_teradata
+    how-to-guide: /docs/apache-airflow-providers-teradata/operators/azure_blob_to_teradata.rst
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Teradata
+    python-module: airflow.providers.teradata.transfers.s3_to_teradata
+    how-to-guide: /docs/apache-airflow-providers-teradata/operators/s3_to_teradata.rst
 
 connection-types:
   - hook-class-name: airflow.providers.teradata.hooks.teradata.TeradataHook
     connection-type: teradata
+
+triggers:
+  - integration-name: Teradata
+    python-modules:
+      - airflow.providers.teradata.triggers.teradata_compute_cluster

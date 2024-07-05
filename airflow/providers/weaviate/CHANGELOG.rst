@@ -20,6 +20,46 @@
 Changelog
 ---------
 
+2.0.0
+......
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+   * We bumped the minimum version of weaviate-client to 4.4.0. Many of the concepts and methods have been changed. We suggest you read `Migrate from v3 to v4 <https://weaviate.io/developers/weaviate/client-libraries/python/v3_v4_migration>`_ before you upgrade to this version
+
+* Add columns ``Port``, ``gRPC host``, ``gRPC port``  and ``Use https``, ``Use a secure channel for the underlying gRPC API`` options  to the Weaviate connection. The default values from Airflow providers may not be suitable for using Weaviate correctly, so we recommend explicitly specifying these values.
+* Update ``WeaviateIngestOperator`` and ``WeaviateDocumentIngestOperator`` to use ``WeaviateHook`` with ``weaviate-client`` v4 API. The major changes are changing argument ``class_name`` to ``collection_name`` and removing ``batch_params``.
+* Update ``WeaviateHook`` to utilize ``weaviate-client`` v4 API. The implementation has been extensively changed. We recommend reading `Migrate from v3 to v4 <https://weaviate.io/developers/weaviate/client-libraries/python/v3_v4_migration>`_ to understand the changes on the Weaviate side before using the updated ``WeaviateHook``.
+* Migrate the following ``WeaviateHook`` public methods to v4 API: ``test_connections``, ``query_with_vector``, ``create_object``, ``get_object``, ``delete_object``, ``update_object``, ``replace_object``, ``object_exists``, ``batch_data``, ``get_or_create_object``, ``create_or_replace_document_objects``
+* Rename ``WeaviateHook`` public methods ``update_schema`` as ``update_collection_configuration``, ``create_class`` as ``create_collection``, ``get_schema`` as ``get_collection_configuraiton``, ``delete_classes`` as ``delete_collections`` and ``query_without_vector`` as ``query_with_text``.
+* Remove the following ``WeaviateHook`` public methods: ``validate_object``, ``update_schema``, ``create_schema``, ``delete_all_schema``, ``check_subset_of_schema``
+* Remove deprecated method ``WeaviateHook.get_client``
+* Remove unused argument ``retry_status_codes`` in ``WeaviateHook.__init__``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
+* ``Fix mypy problems in new waeviate client (#40330)``
+
+1.4.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 1.4.0
 .....
 

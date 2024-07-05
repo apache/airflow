@@ -24,11 +24,11 @@ from unittest import mock
 import pytest
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import BaseOperatorLink
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
 
@@ -62,7 +62,8 @@ class FooBarLink(BaseOperatorLink):
 
 
 class DummyTestOperator(BaseOperator):
-    operator_extra_links = (
+    # We need to ignore type check here due to 2.7 compatibility import
+    operator_extra_links = (  # type: ignore[assignment]
         RaiseErrorLink(),
         NoResponseLink(),
         FooBarLink(),

@@ -56,6 +56,7 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServiceListOperationsOperator,
     CloudDataTransferServicePauseOperationOperator,
     CloudDataTransferServiceResumeOperationOperator,
+    CloudDataTransferServiceRunJobOperator,
     CloudDataTransferServiceS3ToGCSOperator,
     CloudDataTransferServiceUpdateJobOperator,
     TransferJobPreprocessor,
@@ -491,6 +492,61 @@ class TestGcpStorageTransferJobDeleteOperator:
     def test_job_delete_should_throw_ex_when_name_none(self):
         with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
             CloudDataTransferServiceDeleteJobOperator(job_name="", task_id="task-id")
+
+
+class TestGcpStorageTransferJobRunOperator:
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    def test_job_run(self, mock_hook):
+        mock_hook.return_value.run_transfer_job.return_value = VALID_OPERATION
+        op = CloudDataTransferServiceRunJobOperator(
+            job_name=JOB_NAME,
+            project_id=GCP_PROJECT_ID,
+            task_id="task-id",
+            google_impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        result = op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version="v1",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.run_transfer_job.assert_called_once_with(
+            job_name=JOB_NAME, project_id=GCP_PROJECT_ID
+        )
+        assert result == VALID_OPERATION
+
+    # Setting all the operator's input parameters as templated dag_ids
+    # (could be anything else) just to test if the templating works for all
+    # fields
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    def test_job_run_with_templates(self, _, create_task_instance_of_operator):
+        dag_id = "test_job_run_with_templates"
+        ti = create_task_instance_of_operator(
+            CloudDataTransferServiceRunJobOperator,
+            dag_id=dag_id,
+            job_name="{{ dag.dag_id }}",
+            project_id="{{ dag.dag_id }}",
+            gcp_conn_id="{{ dag.dag_id }}",
+            api_version="{{ dag.dag_id }}",
+            google_impersonation_chain="{{ dag.dag_id }}",
+            task_id=TASK_ID,
+        )
+        ti.render_templates()
+        assert dag_id == ti.task.job_name
+        assert dag_id == ti.task.project_id
+        assert dag_id == ti.task.gcp_conn_id
+        assert dag_id == ti.task.api_version
+        assert dag_id == ti.task.google_impersonation_chain
+
+    def test_job_run_should_throw_ex_when_name_none(self):
+        op = CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
+        with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
+            op.execute(context=mock.MagicMock())
 
 
 class TestGpcStorageTransferOperationsGetOperator:

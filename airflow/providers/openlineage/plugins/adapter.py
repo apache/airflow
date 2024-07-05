@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import uuid
+import traceback
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
@@ -35,13 +35,19 @@ from openlineage.client.facet import (
     SourceCodeLocationJobFacet,
 )
 from openlineage.client.run import Job, Run, RunEvent, RunState
+from openlineage.client.uuid import generate_static_uuid
 
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
-from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
+from airflow.providers.openlineage.utils.utils import (
+    OpenLineageRedactor,
+    get_airflow_state_run_facet,
+)
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.models.dagrun import DagRun
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
@@ -110,20 +116,31 @@ class OpenLineageAdapter(LoggingMixin):
             return yaml.safe_load(config_file)
 
     @staticmethod
-    def build_dag_run_id(dag_id, dag_run_id):
-        return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{conf.namespace()}.{dag_id}.{dag_run_id}"))
+    def build_dag_run_id(dag_id: str, execution_date: datetime) -> str:
+        return str(
+            generate_static_uuid(
+                instant=execution_date,
+                data=f"{conf.namespace()}.{dag_id}".encode(),
+            )
+        )
 
     @staticmethod
-    def build_task_instance_run_id(dag_id, task_id, execution_date, try_number):
+    def build_task_instance_run_id(
+        dag_id: str,
+        task_id: str,
+        try_number: int,
+        execution_date: datetime,
+    ):
         return str(
-            uuid.uuid3(
-                uuid.NAMESPACE_URL,
-                f"{conf.namespace()}.{dag_id}.{task_id}.{execution_date}.{try_number}",
+            generate_static_uuid(
+                instant=execution_date,
+                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}".encode(),
             )
         )
 
     def emit(self, event: RunEvent):
-        """Emit OpenLineage event.
+        """
+        Emit OpenLineage event.
 
         :param event: Event to be emitted.
         :return: Redacted Event.
@@ -263,6 +280,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
+        error: str | BaseException | None = None,
     ) -> RunEvent:
         """
         Emit openlineage event of type FAIL.
@@ -274,7 +292,22 @@ class OpenLineageAdapter(LoggingMixin):
         :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param error: error
         """
+        error_facet = {}
+        if error:
+            stack_trace = None
+            if isinstance(error, BaseException) and error.__traceback__:
+                import traceback
+
+                stack_trace = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
+
+            error_facet = {
+                "errorMessage": ErrorMessageRunFacet(
+                    message=str(error), programmingLanguage="python", stackTrace=stack_trace
+                )
+            }
+
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=end_time,
@@ -283,7 +316,7 @@ class OpenLineageAdapter(LoggingMixin):
                 job_name=job_name,
                 parent_job_name=parent_job_name,
                 parent_run_id=parent_run_id,
-                run_facets=task.run_facets,
+                run_facets={**task.run_facets, **error_facet},
             ),
             job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
@@ -298,49 +331,89 @@ class OpenLineageAdapter(LoggingMixin):
         msg: str,
         nominal_start_time: str,
         nominal_end_time: str,
+        job_facets: dict[str, BaseFacet] | None = None,  # Custom job facets
     ):
-        event = RunEvent(
-            eventType=RunState.START,
-            eventTime=dag_run.start_date.isoformat(),
-            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
-            run=self._build_run(
-                run_id=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
-                job_name=dag_run.dag_id,
-                nominal_start_time=nominal_start_time,
-                nominal_end_time=nominal_end_time,
-            ),
-            inputs=[],
-            outputs=[],
-            producer=_PRODUCER,
-        )
-        self.emit(event)
+        try:
+            event = RunEvent(
+                eventType=RunState.START,
+                eventTime=dag_run.start_date.isoformat(),
+                job=self._build_job(
+                    job_name=dag_run.dag_id,
+                    job_type=_JOB_TYPE_DAG,
+                    job_description=dag_run.dag.description if dag_run.dag else None,
+                    owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
+                    job_facets=job_facets,
+                ),
+                run=self._build_run(
+                    run_id=self.build_dag_run_id(
+                        dag_id=dag_run.dag_id,
+                        execution_date=dag_run.execution_date,
+                    ),
+                    job_name=dag_run.dag_id,
+                    nominal_start_time=nominal_start_time,
+                    nominal_end_time=nominal_end_time,
+                ),
+                inputs=[],
+                outputs=[],
+                producer=_PRODUCER,
+            )
+            self.emit(event)
+        except BaseException:
+            # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
+            # This ensures that any unexpected exceptions are logged for debugging purposes.
+            # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
+            self.log.warning("Failed to emit DAG started event: \n %s", traceback.format_exc())
 
     def dag_success(self, dag_run: DagRun, msg: str):
-        event = RunEvent(
-            eventType=RunState.COMPLETE,
-            eventTime=dag_run.end_date.isoformat(),
-            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
-            run=Run(runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id)),
-            inputs=[],
-            outputs=[],
-            producer=_PRODUCER,
-        )
-        self.emit(event)
+        try:
+            event = RunEvent(
+                eventType=RunState.COMPLETE,
+                eventTime=dag_run.end_date.isoformat(),
+                job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
+                run=Run(
+                    runId=self.build_dag_run_id(
+                        dag_id=dag_run.dag_id,
+                        execution_date=dag_run.execution_date,
+                    ),
+                    facets={**get_airflow_state_run_facet(dag_run)},
+                ),
+                inputs=[],
+                outputs=[],
+                producer=_PRODUCER,
+            )
+            self.emit(event)
+        except BaseException:
+            # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
+            # This ensures that any unexpected exceptions are logged for debugging purposes.
+            # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
+            self.log.warning("Failed to emit DAG success event: \n %s", traceback.format_exc())
 
     def dag_failed(self, dag_run: DagRun, msg: str):
-        event = RunEvent(
-            eventType=RunState.FAIL,
-            eventTime=dag_run.end_date.isoformat(),
-            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
-            run=Run(
-                runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
-                facets={"errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python")},
-            ),
-            inputs=[],
-            outputs=[],
-            producer=_PRODUCER,
-        )
-        self.emit(event)
+        try:
+            event = RunEvent(
+                eventType=RunState.FAIL,
+                eventTime=dag_run.end_date.isoformat(),
+                job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
+                run=Run(
+                    runId=self.build_dag_run_id(
+                        dag_id=dag_run.dag_id,
+                        execution_date=dag_run.execution_date,
+                    ),
+                    facets={
+                        "errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python"),
+                        **get_airflow_state_run_facet(dag_run),
+                    },
+                ),
+                inputs=[],
+                outputs=[],
+                producer=_PRODUCER,
+            )
+            self.emit(event)
+        except BaseException:
+            # Catch all exceptions to prevent ProcessPoolExecutor from silently swallowing them.
+            # This ensures that any unexpected exceptions are logged for debugging purposes.
+            # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
+            self.log.warning("Failed to emit DAG failed event: \n %s", traceback.format_exc())
 
     @staticmethod
     def _build_run(

@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import pendulum
+from weaviate.collections.classes.config import Configure
 
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
-class_name = "Weaviate_with_vectorizer_example_class"
+COLLECTION_NAME = "Weaviate_with_vectorizer_example_collection"
 
 
 @dag(
@@ -37,19 +38,18 @@ def example_weaviate_vectorizer_dag():
 
     @setup
     @task
-    def create_weaviate_class():
+    def create_weaviate_collection():
         """
-        Example task to create class without any Vectorizer. You're expected to provide custom vectors for your data.
+        Example task to create collection without any Vectorizer. You're expected to provide custom vectors for your data.
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
-        class_obj = {
-            "class": class_name,
-            "vectorizer": "text2vec-openai",
-        }
-        weaviate_hook.create_class(class_obj)
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
+        weaviate_hook.create_collection(
+            COLLECTION_NAME,
+            vectorizer_config=Configure.Vectorizer.text2vec_openai(),
+        )
 
     @setup
     @task
@@ -65,7 +65,7 @@ def example_weaviate_vectorizer_dag():
     perform_ingestion = WeaviateIngestOperator(
         task_id="perform_ingestion",
         conn_id="weaviate_default",
-        class_name=class_name,
+        collection_name=COLLECTION_NAME,
         input_data=data_to_ingest["return_value"],
     )
 
@@ -75,26 +75,25 @@ def example_weaviate_vectorizer_dag():
 
         weaviate_hook = WeaviateHook()
         properties = ["question", "answer", "category"]
-        response = weaviate_hook.query_without_vector(
-            "biology", "Weaviate_with_vectorizer_example_class", *properties
+        response = weaviate_hook.query_with_text(
+            "biology", "Weaviate_with_vectorizer_example_collection", properties=properties
         )
-        assert "In 1953 Watson & Crick built a model" in response["data"]["Get"][class_name][0]["question"]
+        assert "In 1953 Watson & Crick built a model" in response.objects[0].properties["question"]
 
     @teardown
     @task
-    def delete_weaviate_class():
+    def delete_weaviate_collection():
         """
-        Example task to delete a weaviate class
+        Example task to delete a weaviate collection
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_classes([class_name])
+        weaviate_hook.delete_collections([COLLECTION_NAME])
 
-    delete_weaviate_class = delete_weaviate_class()
-    create_weaviate_class() >> perform_ingestion >> query_weaviate() >> delete_weaviate_class
+    create_weaviate_collection() >> perform_ingestion >> query_weaviate() >> delete_weaviate_collection()
 
 
 example_weaviate_vectorizer_dag()

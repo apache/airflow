@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+4.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix for typing in telegram provider (#40258)``
+* ``Fix typing in telegram provider (#40255)``
+
+4.5.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 4.5.0
 .....
 

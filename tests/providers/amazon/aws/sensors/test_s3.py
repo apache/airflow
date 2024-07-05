@@ -22,10 +22,12 @@ from unittest import mock
 
 import pytest
 import time_machine
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
 
@@ -284,6 +286,145 @@ class TestS3KeySensor:
         message = "error"
         with pytest.raises(expected_exception, match=message):
             op.execute_complete(context={}, event={"status": "error", "message": message})
+
+    @mock_aws
+    def test_custom_metadata_default_return_vals(self):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "Size" not in f:
+                    return False
+            return True
+
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="test-bucket")
+        hook.load_string(
+            bucket_name="test-bucket",
+            key="test-key",
+            string_data="test-body",
+        )
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["Size"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["Content"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is False
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+
+    @mock_aws
+    def test_custom_metadata_default_custom_vals(self):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "LastModified" not in f or "ETag" not in f or "Size" in f:
+                    return False
+            return True
+
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="test-bucket")
+        hook.load_string(
+            bucket_name="test-bucket",
+            key="test-key",
+            string_data="test-body",
+        )
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["LastModified", "ETag"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+
+    @mock_aws
+    def test_custom_metadata_all_attributes(self):
+        def check_fn(files: list) -> bool:
+            hook = S3Hook()
+            metadata_keys = set(hook.head_object(bucket_name="test-bucket", key="test-key").keys())
+            test_data_keys = set(files[0].keys())
+
+            return test_data_keys == metadata_keys
+
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="test-bucket")
+        hook.load_string(
+            bucket_name="test-bucket",
+            key="test-key",
+            string_data="test-body",
+        )
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["*"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata")
+    def test_custom_metadata_wildcard(self, mock_file_metadata, mock_head_object):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "ETag" not in f or "MissingMeta" not in f:
+                    return False
+            return True
+
+        op = S3KeySensor(
+            task_id="test-head-metadata",
+            bucket_key=["s3://test-bucket/test-key*"],
+            metadata_keys=["MissingMeta", "ETag"],
+            check_fn=check_fn,
+            wildcard_match=True,
+        )
+
+        mock_file_metadata.return_value = [{"Key": "test-key", "ETag": 0}]
+        mock_head_object.return_value = {"MissingMeta": 0, "ContentLength": 100}
+        assert op.poke(None) is True
+        mock_head_object.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata")
+    def test_custom_metadata_wildcard_all_attributes(self, mock_file_metadata, mock_head_object):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "ContentLength" not in f or "MissingMeta" not in f:
+                    return False
+            return True
+
+        op = S3KeySensor(
+            task_id="test-head-metadata",
+            bucket_key=["s3://test-bucket/test-key*"],
+            metadata_keys=["*"],
+            check_fn=check_fn,
+            wildcard_match=True,
+        )
+
+        mock_file_metadata.return_value = [{"Key": "test-key", "ETag": 0}]
+        mock_head_object.return_value = {"MissingMeta": 0, "ContentLength": 100}
+        assert op.poke(None) is True
+        mock_head_object.assert_called_once()
+
+        mock_head_object.return_value = {"MissingMeta": 0}
+        assert op.poke(None) is False
 
 
 class TestS3KeysUnchangedSensor:

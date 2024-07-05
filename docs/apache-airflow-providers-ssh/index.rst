@@ -68,7 +68,7 @@ apache-airflow-providers-ssh package
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 3.11.0
+Release: 3.11.2
 
 Provider package
 ----------------
@@ -92,6 +92,6 @@ The minimum Apache Airflow version supported by this provider package is ``2.7.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.7.0``
-``paramiko``        ``>=2.6.0``
+``paramiko``        ``>=2.9.0``
 ``sshtunnel``       ``>=0.3.2``
 ==================  ==================

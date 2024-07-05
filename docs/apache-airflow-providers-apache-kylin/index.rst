@@ -76,7 +76,7 @@ apache-airflow-providers-apache-kylin package
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 3.6.0
+Release: 3.6.2
 
 Provider package
 ----------------
@@ -100,5 +100,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.7.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.7.0``
-``kylinpy``         ``>=2.6``
+``kylinpy``         ``>=2.7.0``
 ==================  ==================

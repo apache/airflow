@@ -31,13 +31,14 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, NoReturn, TypeVar
 
 from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.filesystem import FSHook
 from airflow.hooks.package_index import PackageIndexHook
+from airflow.typing_compat import ParamSpec
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -50,6 +51,9 @@ if sys.version_info >= (3, 9):
     from importlib.resources import files as resource_files
 else:
     from importlib_resources import files as resource_files
+
+PS = ParamSpec("PS")
+RT = TypeVar("RT")
 
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
@@ -261,11 +265,6 @@ class ConnectionFormWidgetInfo(NamedTuple):
     is_sensitive: bool
 
 
-T = TypeVar("T", bound=Callable)
-
-logger = logging.getLogger(__name__)
-
-
 def log_debug_import_from_sources(class_name, e, provider_package):
     """Log debug imports from sources."""
     log.debug(
@@ -362,7 +361,7 @@ def _correctness_check(provider_package: str, class_name: str, provider_info: Pr
 
 # We want to have better control over initialization of parameters and be able to debug and test it
 # So we add our own decorator
-def provider_info_cache(cache_name: str) -> Callable[[T], T]:
+def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, NoReturn]], Callable[PS, None]]:
     """
     Decorate and cache provider info.
 
@@ -370,23 +369,26 @@ def provider_info_cache(cache_name: str) -> Callable[[T], T]:
     :param cache_name: Name of the cache
     """
 
-    def provider_info_cache_decorator(func: T):
+    def provider_info_cache_decorator(func: Callable[PS, NoReturn]) -> Callable[PS, None]:
         @wraps(func)
-        def wrapped_function(*args, **kwargs):
+        def wrapped_function(*args: PS.args, **kwargs: PS.kwargs) -> None:
             providers_manager_instance = args[0]
+            if TYPE_CHECKING:
+                assert isinstance(providers_manager_instance, ProvidersManager)
+
             if cache_name in providers_manager_instance._initialized_cache:
                 return
             start_time = perf_counter()
-            logger.debug("Initializing Providers Manager[%s]", cache_name)
+            log.debug("Initializing Providers Manager[%s]", cache_name)
             func(*args, **kwargs)
             providers_manager_instance._initialized_cache[cache_name] = True
-            logger.debug(
+            log.debug(
                 "Initialization of Providers Manager[%s] took %.2f seconds",
                 cache_name,
                 perf_counter() - start_time,
             )
 
-        return cast(T, wrapped_function)
+        return wrapped_function
 
     return provider_info_cache_decorator
 
@@ -521,7 +523,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_filesystems()
 
     @provider_info_cache("dataset_uris")
-    def initializa_providers_dataset_uri_handlers(self):
+    def initialize_providers_dataset_uri_handlers(self):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
         self._discover_dataset_uri_handlers()
@@ -1289,7 +1291,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @property
     def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initializa_providers_dataset_uri_handlers()
+        self.initialize_providers_dataset_uri_handlers()
         return self._dataset_uri_handlers
 
     @property

@@ -73,6 +73,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from kubernetes.client.models import V1Job, V1Pod
+    from pendulum import DateTime
 
     from airflow.utils.context import Context
 
@@ -773,16 +774,16 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 
-    def invoke_defer_method(self):
+    def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
             trigger=GKEStartPodTrigger(
-                pod_name=self.pod.metadata.name,
-                pod_namespace=self.pod.metadata.namespace,
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
                 trigger_start_time=trigger_start_time,
-                cluster_url=self._cluster_url,
-                ssl_ca_cert=self._ssl_ca_cert,
+                cluster_url=self._cluster_url,  # type: ignore[arg-type]
+                ssl_ca_cert=self._ssl_ca_cert,  # type: ignore[arg-type]
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
                 cluster_context=self.cluster_context,
@@ -792,6 +793,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 on_finish_action=self.on_finish_action,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                logging_interval=self.logging_interval,
+                last_log_time=last_log_time,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
@@ -802,7 +805,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self._cluster_url = kwargs["cluster_url"]
         self._ssl_ca_cert = kwargs["ssl_ca_cert"]
 
-        return super().execute_complete(context, event, **kwargs)
+        return super().trigger_reentry(context, event)
 
 
 class GKEStartJobOperator(KubernetesJobOperator):

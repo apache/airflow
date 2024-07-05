@@ -45,7 +45,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -84,7 +83,8 @@ CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
 
 
 def _generate_temporary_run_id() -> str:
-    """Generate a ``run_id`` for a DAG run that will be created temporarily.
+    """
+    Generate a ``run_id`` for a DAG run that will be created temporarily.
 
     This is used mostly by ``airflow task test`` to create a DAG run that will
     be deleted after the task is run.
@@ -99,7 +99,8 @@ def _get_dag_run(
     exec_date_or_run_id: str | None = None,
     session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
-    """Try to retrieve a DAG run from a string representing either a run ID or logical date.
+    """
+    Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:
 
@@ -177,7 +178,7 @@ def _get_ti_db_access(
 
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    if needs_expansion(task):
+    if task.get_needs_expansion():
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
@@ -228,10 +229,10 @@ def _get_ti(
         pool=pool,
         create_if_necessary=create_if_necessary,
     )
-    # setting ti.task is necessary for AIP-44 since the task object does not serialize perfectly
-    # if we update the serialization logic for Operator to also serialize the dag object on it,
-    # then this would not be necessary;
-    ti.task = task
+
+    # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
+    # is the original task object and not the result of the round trip
+    ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
 
@@ -674,7 +675,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
             else:
                 ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True, raise_on_defer=True)
     except TaskDeferred as defer:
-        ti.defer_task(defer=defer, session=session)
+        ti.defer_task(exception=defer, session=session)
         log.info("[TASK TEST] running trigger in line")
 
         event = _run_inline_trigger(defer.trigger)

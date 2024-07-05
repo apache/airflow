@@ -35,14 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.2
+.....
+
+Latest change: 2024-05-22
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`61710518ab <https://github.com/apache/airflow/commit/61710518abf5a59e45201f8ff8850c104f12c903>`_  2024-05-22   ``fix: OpenLineage in FileTransferOperator for Airflow 2.8 (#39755)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  =====================================================================
+
 1.3.1
 .....
 
-Latest change: 2024-04-02
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `62f948cd30 <https://github.com/apache/airflow/commit/62f948cd309f4adeb6b15a2b634a66bfc87159cc>`_  2024-04-02   ``Improve XComObjectStorageBackend implementation (#38608)``
 `0371ea8f4e <https://github.com/apache/airflow/commit/0371ea8f4e6b53580a0c0ed3cd553b800028d53d>`_  2024-03-29   ``Rename to XComObjectStorageBackend (#38607)``
 `2227414489 <https://github.com/apache/airflow/commit/2227414489877cb19cceac16aa3cc2be89a31a60>`_  2024-03-27   ``Turn common.io xcom exception into OptionalProviderFeatureException (#38543)``

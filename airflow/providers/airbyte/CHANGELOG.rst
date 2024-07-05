@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Faster 'airflow_version' imports (#39552)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 3.8.0
 .....
 

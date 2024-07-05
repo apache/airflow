@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""AWS Batch services.
+"""
+AWS Batch services.
 
 .. seealso::
 
@@ -54,7 +55,8 @@ if TYPE_CHECKING:
 
 
 class BatchOperator(BaseOperator):
-    """Execute a job on AWS Batch.
+    """
+    Execute a job on AWS Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -65,6 +67,7 @@ class BatchOperator(BaseOperator):
     :param job_queue: the queue name on AWS Batch
     :param overrides: DEPRECATED, use container_overrides instead with the same value.
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
+    :param ecs_properties_override: the `ecsPropertiesOverride` parameter for boto3 (templated)
     :param node_overrides: the `nodeOverrides` parameter for boto3 (templated)
     :param share_identifier: The share identifier for the job. Don't specify this parameter if the job queue
         doesn't have a scheduling policy.
@@ -112,6 +115,7 @@ class BatchOperator(BaseOperator):
         "job_queue",
         "container_overrides",
         "array_properties",
+        "ecs_properties_override",
         "node_overrides",
         "parameters",
         "retry_strategy",
@@ -124,6 +128,7 @@ class BatchOperator(BaseOperator):
     template_fields_renderers = {
         "container_overrides": "json",
         "parameters": "json",
+        "ecs_properties_override": "json",
         "node_overrides": "json",
         "retry_strategy": "json",
     }
@@ -160,6 +165,7 @@ class BatchOperator(BaseOperator):
         overrides: dict | None = None,  # deprecated
         container_overrides: dict | None = None,
         array_properties: dict | None = None,
+        ecs_properties_override: dict | None = None,
         node_overrides: dict | None = None,
         share_identifier: str | None = None,
         scheduling_priority_override: int | None = None,
@@ -201,14 +207,13 @@ class BatchOperator(BaseOperator):
                 stacklevel=2,
             )
 
+        self.ecs_properties_override = ecs_properties_override
         self.node_overrides = node_overrides
         self.share_identifier = share_identifier
         self.scheduling_priority_override = scheduling_priority_override
         self.array_properties = array_properties
         self.parameters = parameters or {}
-        self.retry_strategy = retry_strategy or {}
-        if not self.retry_strategy.get("attempts", None):
-            self.retry_strategy["attempts"] = 1
+        self.retry_strategy = retry_strategy
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
@@ -233,7 +238,8 @@ class BatchOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> str | None:
-        """Submit and monitor an AWS Batch job.
+        """
+        Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -284,7 +290,8 @@ class BatchOperator(BaseOperator):
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
     def submit_job(self, context: Context):
-        """Submit an AWS Batch job.
+        """
+        Submit an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -298,6 +305,8 @@ class BatchOperator(BaseOperator):
             self.log.info("AWS Batch job - container overrides: %s", self.container_overrides)
         if self.array_properties:
             self.log.info("AWS Batch job - array properties: %s", self.array_properties)
+        if self.ecs_properties_override:
+            self.log.info("AWS Batch job - ECS properties: %s", self.ecs_properties_override)
         if self.node_overrides:
             self.log.info("AWS Batch job - node properties: %s", self.node_overrides)
 
@@ -309,6 +318,7 @@ class BatchOperator(BaseOperator):
             "parameters": self.parameters,
             "tags": self.tags,
             "containerOverrides": self.container_overrides,
+            "ecsPropertiesOverride": self.ecs_properties_override,
             "nodeOverrides": self.node_overrides,
             "retryStrategy": self.retry_strategy,
             "shareIdentifier": self.share_identifier,
@@ -336,7 +346,8 @@ class BatchOperator(BaseOperator):
         )
 
     def monitor_job(self, context: Context):
-        """Monitor an AWS Batch job.
+        """
+        Monitor an AWS Batch job.
 
         This can raise an exception or an AirflowTaskTimeout if the task was
         created with ``execution_timeout``.
@@ -428,7 +439,8 @@ class BatchOperator(BaseOperator):
 
 
 class BatchCreateComputeEnvironmentOperator(BaseOperator):
-    """Create an AWS Batch compute environment.
+    """
+    Create an AWS Batch compute environment.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

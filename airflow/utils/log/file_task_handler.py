@@ -86,7 +86,7 @@ def _set_task_deferred_context_var():
 
 def _fetch_logs_from_service(url, log_relative_path):
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
-    import httpx
+    import requests
 
     from airflow.utils.jwt_signer import JWTSigner
 
@@ -96,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
-    response = httpx.get(
+    response = requests.get(
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
@@ -141,7 +141,8 @@ def _interleave_logs(*logs):
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
-    """Given TI | TIKey, return a TI object.
+    """
+    Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """
@@ -362,7 +363,11 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
-        is_in_running_or_deferred = ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        is_in_running_or_deferred = ti.state in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
+        is_up_for_retry = ti.state == TaskInstanceState.UP_FOR_RETRY
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -377,7 +382,7 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if is_in_running_or_deferred and not executor_messages and not remote_logs:
+        if (is_in_running_or_deferred or is_up_for_retry) and not executor_messages and not remote_logs:
             # While task instance is still running and we don't have either executor nor remote logs, look for served logs
             # This is for cases when users have not setup remote logging nor shared drive for logs
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
@@ -570,9 +575,9 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            from httpx import UnsupportedProtocol
+            from requests.exceptions import InvalidSchema
 
-            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")

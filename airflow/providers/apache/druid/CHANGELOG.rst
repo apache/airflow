@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass SSL arg to all requests in DruidOperator (#39066)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 3.10.0
 ......
 

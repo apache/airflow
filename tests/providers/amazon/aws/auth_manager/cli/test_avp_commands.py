@@ -23,9 +23,12 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.providers.amazon.aws.auth_manager.cli.avp_commands import init_avp, update_schema
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 from tests.test_utils.config import conf_vars
 
 mock_boto3 = Mock()
+
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Test requires Airflow 2.8+")
 
 
 @pytest.mark.db_test

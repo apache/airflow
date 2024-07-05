@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pendulum
 import pytest
 
@@ -73,8 +75,8 @@ def make_dag_runs(dag_maker, session, time_machine):
         run_id="run_2",
         state=DagRunState.FAILED,
         run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=dag_maker.dag.next_dagrun_info(date).logical_date,
-        start_date=dag_maker.dag.next_dagrun_info(date).logical_date,
+        execution_date=date + timedelta(days=1),
+        start_date=date + timedelta(days=1),
     )
 
     run3 = dag_maker.create_dagrun(

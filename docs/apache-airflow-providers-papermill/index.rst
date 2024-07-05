@@ -77,7 +77,7 @@ apache-airflow-providers-papermill package
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.7.0
+Release: 3.7.2
 
 Provider package
 ----------------
@@ -97,11 +97,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-==================  ==================
+==================  =========================================
 PIP package         Version required
-==================  ==================
+==================  =========================================
 ``apache-airflow``  ``>=2.7.0``
 ``papermill[all]``  ``>=2.4.0``
 ``scrapbook[all]``
 ``ipykernel``
-==================  ==================
+``pandas``          ``>=2.1.2,<2.2; python_version >= "3.9"``
+``pandas``          ``>=1.5.3,<2.2; python_version < "3.9"``
+==================  =========================================

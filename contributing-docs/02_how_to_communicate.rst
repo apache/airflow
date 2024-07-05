@@ -26,7 +26,7 @@ This means that communication plays a big role in it, and this chapter is all ab
 
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Various Communication channels
 ------------------------------

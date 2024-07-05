@@ -22,9 +22,11 @@ description: |
     `Vertica <https://www.vertica.com/>`__
 
 state: ready
-source-date-epoch: 1715384495
+source-date-epoch: 1718605559
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.8.2
+  - 3.8.1
   - 3.8.0
   - 3.7.1
   - 3.7.0
@@ -52,7 +54,7 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - vertica-python>=0.5.1
+  - vertica-python>=0.6.0
 
 integrations:
   - integration-name: Vertica

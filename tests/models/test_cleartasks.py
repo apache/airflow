@@ -21,11 +21,13 @@ import datetime
 import random
 
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
@@ -174,8 +176,11 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        assert session.query(TaskInstanceHistory).count() == 0
         clear_task_instances(qry, session, dag_run_state=state, dag=dag)
         session.flush()
+        # 2 TIs were cleared so 2 history records should be created
+        assert session.query(TaskInstanceHistory).count() == 2
 
         session.refresh(dr)
 
@@ -528,6 +533,50 @@ class TestClearTasks:
             assert count_task_reschedule(ti0.task_id) == 0
             assert count_task_reschedule(ti1.task_id) == 1
 
+    @pytest.mark.parametrize(
+        ["state", "state_recorded"],
+        [
+            (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
+            (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
+            (TaskInstanceState.SKIPPED, TaskInstanceState.SKIPPED),
+            (TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.FAILED),
+            (TaskInstanceState.UP_FOR_RESCHEDULE, TaskInstanceState.FAILED),
+            (TaskInstanceState.RUNNING, TaskInstanceState.FAILED),
+            (TaskInstanceState.QUEUED, TaskInstanceState.FAILED),
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.FAILED),
+            (None, TaskInstanceState.FAILED),
+            (TaskInstanceState.RESTARTING, TaskInstanceState.FAILED),
+            (TaskInstanceState.SHUTDOWN, TaskInstanceState.FAILED),
+        ],
+    )
+    def test_task_instance_history_record(self, state, state_recorded, dag_maker):
+        """Test that task instance history record is created with approapriate state"""
+
+        with dag_maker(
+            "test_clear_task_instances",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
+        dr = dag_maker.create_dagrun(
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.state = state
+        ti1.state = state
+        session = dag_maker.session
+        session.flush()
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session, dag=dag)
+        session.flush()
+
+        session.refresh(dr)
+        ti_history = session.scalars(select(TaskInstanceHistory.state)).all()
+
+        assert [ti_history[0], ti_history[1]] == [str(state_recorded), str(state_recorded)]
+
     def test_dag_clear(self, dag_maker):
         with dag_maker(
             "test_dag_clear", start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10)
@@ -593,6 +642,7 @@ class TestClearTasks:
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             )
             ti = dr.task_instances[0]
             ti.task = task

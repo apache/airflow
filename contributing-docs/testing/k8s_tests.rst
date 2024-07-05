@@ -25,7 +25,7 @@ deploy and run the cluster tests in our repository and into Breeze development e
 KinD has a really nice ``kind`` tool that you can use to interact with the cluster. Run ``kind --help`` to
 learn more.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 K8S test environment
 --------------------
@@ -365,7 +365,7 @@ Should show the status of current KinD cluster.
    Note, that this command by default uses ``--use-uv`` flag to use ``uv`` to build the image instead of
    ``pip``. This is much faster (50% faster) to rebuild the image and iterate with your code but if you
    built your PROD image without ``--use-uv`` flag the first build might be a bit longer. You can also switch
-   to using a ``pip`` based image by specifyin ``--no-use-uv`` flag together with ``--rebuid-base-image``.
+   to using a ``pip`` based image by specifying ``--no-use-uv`` flag together with ``--rebuid-base-image``.
 
 .. code-block:: bash
 

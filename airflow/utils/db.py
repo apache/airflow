@@ -118,7 +118,7 @@ _REVISION_HEADS_MAP = {
     "2.8.1": "88344c1d9134",
     "2.9.0": "1949afb29106",
     "2.9.2": "686269002441",
-    "2.10.0": "c4602ba06b4b",
+    "2.10.0": "d482b7261ff9",
 }
 
 
@@ -741,6 +741,16 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="ydb_default",
+            conn_type="ydb",
+            host="grpc://localhost",
+            port=2135,
+            extra={"database": "/local"},
+        ),
+        session,
+    )
 
 
 def _get_flask_db(sql_database_uri):
@@ -935,7 +945,8 @@ def _reserialize_dags(*, session: Session) -> None:
 
 @provide_session
 def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
-    """Synchronize log template configs with table.
+    """
+    Synchronize log template configs with table.
 
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
@@ -1909,7 +1920,8 @@ def get_sqla_model_classes():
 
 
 def get_query_count(query_stmt: Select, *, session: Session) -> int:
-    """Get count of a query.
+    """
+    Get count of a query.
 
     A SELECT COUNT() FROM is issued against the subquery built from the
     given statement. The ORDER BY clause is stripped from the statement
@@ -1923,7 +1935,8 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
 
 
 def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
-    """Check whether there is at least one row matching a query.
+    """
+    Check whether there is at least one row matching a query.
 
     A SELECT 1 FROM is issued against the subquery built from the given
     statement. The ORDER BY clause is stripped from the statement since it's
@@ -1936,7 +1949,8 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
 
 
 def exists_query(*where: ClauseElement, session: Session) -> bool:
-    """Check whether there is at least one row matching given clauses.
+    """
+    Check whether there is at least one row matching given clauses.
 
     This does a SELECT 1 WHERE ... LIMIT 1 and check the result.
 
@@ -1948,7 +1962,8 @@ def exists_query(*where: ClauseElement, session: Session) -> bool:
 
 @attrs.define(slots=True)
 class LazySelectSequence(Sequence[T]):
-    """List-like interface to lazily access a database model query.
+    """
+    List-like interface to lazily access a database model query.
 
     The intended use case is inside a task execution context, where we manage an
     active SQLAlchemy session in the background.
@@ -1990,7 +2005,8 @@ class LazySelectSequence(Sequence[T]):
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
-        """Rebuild a textual statement into an ORM-configured SELECT statement.
+        """
+        Rebuild a textual statement into an ORM-configured SELECT statement.
 
         This should do something like ``select(field).from_statement(stmt)`` to
         reconfigure ORM information to the textual SQL statement.
@@ -2093,7 +2109,8 @@ class LazySelectSequence(Sequence[T]):
 
 
 def _coerce_index(value: Any) -> int | None:
-    """Check slice attribute's type and convert it to int.
+    """
+    Check slice attribute's type and convert it to int.
 
     See CPython documentation on this:
     https://docs.python.org/3/reference/datamodel.html#object.__index__
@@ -2106,7 +2123,8 @@ def _coerce_index(value: Any) -> int | None:
 
 
 def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
-    """Check slice content and convert it for SQL.
+    """
+    Check slice content and convert it for SQL.
 
     See CPython documentation on this:
     https://docs.python.org/3/reference/datamodel.html#slice-objects

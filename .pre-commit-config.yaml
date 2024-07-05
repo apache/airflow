@@ -18,7 +18,7 @@
 default_stages: [commit, push]
 default_language_version:
   python: python3
-  node: 21.6.1
+  node: 22.2.0
 minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
@@ -211,7 +211,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.16.0
+    rev: 1.18.0
     hooks:
       - id: blacken-docs
         name: Run black on Python code blocks in documentation files
@@ -224,7 +224,7 @@ repos:
         alias: blacken-docs
         additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -297,7 +297,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
+    rev: v2.3.0
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -335,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.4.3"]
+        additional_dependencies: ["ruff==0.4.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.4.3"]
+        additional_dependencies: ["ruff==0.4.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -437,21 +437,21 @@ repos:
         files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.2', 'tabulate']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0', 'tabulate']
       - id: check-hatch-build-order
         name: Check order of dependencies in hatch_build.py
         language: python
         files: ^hatch_build.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.2']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.2']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -1090,7 +1090,7 @@ repos:
         name: TS types generation / ESLint / Prettier against UI files
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
+        files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/www_lint.py
         additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
         pass_filenames: false

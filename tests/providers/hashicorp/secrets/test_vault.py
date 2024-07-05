@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 
@@ -57,7 +58,11 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        ):
+            returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -92,7 +97,11 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_conn_uri(conn_id="airflow/test_postgres")
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        ):
+            returned_uri = test_client.get_conn_uri(conn_id="airflow/test_postgres")
         assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -237,7 +246,11 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_conn_uri(conn_id=conn_id)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        ):
+            returned_uri = test_client.get_conn_uri(conn_id=conn_id)
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(**expected_args)
         assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
@@ -268,7 +281,11 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         assert "custom" == test_client.vault_client.auth_mount_point
-        returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        ):
+            returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="airflow", path="connections/test_postgres"
         )
@@ -300,7 +317,11 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        assert test_client.get_conn_uri(conn_id="test_mysql") is None
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        ):
+            assert test_client.get_conn_uri(conn_id="test_mysql") is None
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             mount_point="airflow", path="connections/test_mysql", version=None, raise_on_deleted_version=True
         )
@@ -571,7 +592,7 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        assert test_client.get_conn_uri(conn_id="test") is None
+        assert test_client.get_connection(conn_id="test") is None
         mock_hvac.Client.assert_not_called()
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

@@ -98,9 +98,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     kube_client, self.resource_version, self.scheduler_job_id, self.kube_config
                 )
             except ReadTimeoutError:
-                self.log.warning(
-                    "There was a timeout error accessing the Kube API. Retrying request.", exc_info=True
-                )
+                self.log.info("Kubernetes watch timed out waiting for events. Restarting watch.")
                 time.sleep(1)
             except Exception:
                 self.log.exception("Unknown error in KubernetesJobWatcher. Failing")
@@ -141,7 +139,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
-        kwargs = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+        kwargs: dict[str, Any] = {
+            "label_selector": f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True",
+        }
         if resource_version:
             kwargs["resource_version"] = resource_version
         if kube_config.kube_client_request_args:
@@ -149,6 +149,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version: str | None = None
+
+        # For info about k8s timeout settings see
+        # https://github.com/kubernetes-client/python/blob/v29.0.0/examples/watch/timeout-settings.md
+        # and https://github.com/kubernetes-client/python/blob/v29.0.0/kubernetes/client/api_client.py#L336-L339
+        client_timeout = 30
+        server_conn_timeout = 3600
+        kwargs["_request_timeout"] = client_timeout
+        kwargs["timeout_seconds"] = server_conn_timeout
 
         for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
             task = event["object"]
@@ -224,7 +232,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.kube_config.worker_pod_pending_fatal_container_state_reasons
                 and "status" in event["raw_object"]
             ):
-                self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
                 # Init containers and base container statuses to check.
                 # Skipping the other containers statuses check.
                 container_statuses_to_check = []
@@ -244,10 +251,18 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 and container_status_state["waiting"]["message"] == "pull QPS exceeded"
                             ):
                                 continue
+                            self.log.error(
+                                "Event: %s has container %s with fatal reason %s",
+                                pod_name,
+                                container_status["name"],
+                                container_status_state["waiting"]["reason"],
+                            )
                             self.watcher_queue.put(
                                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
                             )
                             break
+                else:
+                    self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
@@ -258,14 +273,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
             # send it along to the scheduler once.
-            # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
-            # a deletion timestamp, we've already seen the initial Succeeded event and sent it
-            # along to the scheduler.
-            if (
-                event["type"] == "DELETED"
-                or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
-                or pod.metadata.deletion_timestamp
-            ):
+            # If our event type is DELETED, or the pod has a deletion timestamp, we've already
+            # seen the initial Succeeded event and sent it along to the scheduler.
+            if event["type"] == "DELETED" or pod.metadata.deletion_timestamp:
                 self.log.info(
                     "Skipping event for Succeeded pod %s - event for this pod already sent to executor",
                     pod_name,

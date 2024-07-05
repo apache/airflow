@@ -249,7 +249,6 @@ def get_available_packages(
     """
     Return provider ids for all packages that are available currently (not suspended).
 
-    :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
     :param include_not_ready: whether the not-ready packages should be included
@@ -419,6 +418,9 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         # `apache-airflow>=2.9.0.dev0` and not `apache-airflow>=2.9.0` because both packages are
         # released together and >= 2.9.0 is not correct reference for 2.9.0.dev0 version of Airflow.
         prefix, version = install_clause.split(">=")
+        # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
+        if "," in version:
+            version = version.split(",")[0]
         from packaging.version import Version
 
         base_version = Version(version).base_version
@@ -443,7 +445,9 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
         dependencies = get_provider_requirements(provider_id)
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
-    install_requires = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
+    install_requires = [
+        apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
+    ]
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 
@@ -524,6 +528,9 @@ def get_min_airflow_version(provider_id: str) -> str:
     for dependency in provider_details.dependencies:
         if dependency.startswith("apache-airflow>="):
             current_min_airflow_version = dependency.split(">=")[1]
+            # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
+            if "," in current_min_airflow_version:
+                current_min_airflow_version = current_min_airflow_version.split(",")[0]
             if PackagingVersion(current_min_airflow_version) > PackagingVersion(MIN_AIRFLOW_VERSION):
                 min_airflow_version = current_min_airflow_version
     return min_airflow_version

@@ -39,34 +39,37 @@ if TYPE_CHECKING:
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
-# Clear all Environment Variables that might have side effect,
-# For example, defined in /files/airflow-breeze-config/variables.env
-_AIRFLOW_CONFIG_PATTERN = re.compile(r"^AIRFLOW__(.+)__(.+)$")
-_KEEP_CONFIGS_SETTINGS: dict[str, dict[str, set[str]]] = {
-    # Keep always these configurations
-    "always": {
-        "database": {"sql_alchemy_conn"},
-        "core": {"sql_alchemy_conn"},
-        "celery": {"result_backend", "broker_url"},
-    },
-    # Keep per enabled integrations
-    "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
-    "kerberos": {"kerberos": {"*"}},
-}
-_ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
-_KEEP_CONFIGS: dict[str, set[str]] = {}
-for keep_settings_key in ("always", *_ENABLED_INTEGRATIONS):
-    if keep_settings := _KEEP_CONFIGS_SETTINGS.get(keep_settings_key):
-        for section, options in keep_settings.items():
-            if section not in _KEEP_CONFIGS:
-                _KEEP_CONFIGS[section] = options
-            else:
-                _KEEP_CONFIGS[section].update(options)
-for env_key in os.environ.copy():
-    if m := _AIRFLOW_CONFIG_PATTERN.match(env_key):
-        section, option = m.group(1).lower(), m.group(2).lower()
-        if not (ko := _KEEP_CONFIGS.get(section)) or not ("*" in ko or option in ko):
-            del os.environ[env_key]
+keep_env_variables = "--keep-env-variables" in sys.argv
+
+if not keep_env_variables:
+    # Clear all Environment Variables that might have side effect,
+    # For example, defined in /files/airflow-breeze-config/variables.env
+    _AIRFLOW_CONFIG_PATTERN = re.compile(r"^AIRFLOW__(.+)__(.+)$")
+    _KEEP_CONFIGS_SETTINGS: dict[str, dict[str, set[str]]] = {
+        # Keep always these configurations
+        "always": {
+            "database": {"sql_alchemy_conn"},
+            "core": {"sql_alchemy_conn"},
+            "celery": {"result_backend", "broker_url"},
+        },
+        # Keep per enabled integrations
+        "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
+        "kerberos": {"kerberos": {"*"}},
+    }
+    _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
+    _KEEP_CONFIGS: dict[str, set[str]] = {}
+    for keep_settings_key in ("always", *_ENABLED_INTEGRATIONS):
+        if keep_settings := _KEEP_CONFIGS_SETTINGS.get(keep_settings_key):
+            for section, options in keep_settings.items():
+                if section not in _KEEP_CONFIGS:
+                    _KEEP_CONFIGS[section] = options
+                else:
+                    _KEEP_CONFIGS[section].update(options)
+    for env_key in os.environ.copy():
+        if m := _AIRFLOW_CONFIG_PATTERN.match(env_key):
+            section, option = m.group(1).lower(), m.group(2).lower()
+            if not (ko := _KEEP_CONFIGS.get(section)) or not ("*" in ko or option in ko):
+                del os.environ[env_key]
 
 SUPPORTED_DB_BACKENDS = ("sqlite", "postgres", "mysql")
 
@@ -231,6 +234,12 @@ def pytest_addoption(parser: pytest.Parser):
         "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
     )
     group.addoption(
+        "--keep-env-variables",
+        action="store_true",
+        dest="keep_env_variables",
+        help="do not clear environment variables that might have side effect while running tests",
+    )
+    group.addoption(
         "--skip-db-tests",
         action="store_true",
         dest="skip_db_tests",
@@ -334,14 +343,19 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
+    from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_10_PLUS
 
-    db.resetdb(use_migration_files=True)
+    if AIRFLOW_V_2_10_PLUS:
+        db.resetdb(use_migration_files=True)
+    else:
+        db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     init_appbuilder(flask_app)
-    get_auth_manager().init()
+    if AIRFLOW_V_2_8_PLUS:
+        get_auth_manager().init()
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -1001,10 +1015,14 @@ def create_dummy_dag(dag_maker):
         with_dagrun_type=DagRunType.SCHEDULED,
         **kwargs,
     ):
+        op_kwargs = {}
+        from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
+
+        if AIRFLOW_V_2_9_PLUS:
+            op_kwargs["task_display_name"] = task_display_name
         with dag_maker(dag_id, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
-                task_display_name=task_display_name,
                 max_active_tis_per_dag=max_active_tis_per_dag,
                 max_active_tis_per_dagrun=max_active_tis_per_dagrun,
                 executor_config=executor_config or {},
@@ -1015,6 +1033,7 @@ def create_dummy_dag(dag_maker):
                 email=email,
                 pool=pool,
                 trigger_rule=trigger_rule,
+                **op_kwargs,
             )
         if with_dagrun_type is not None:
             dag_maker.create_dagrun(run_type=with_dagrun_type)
@@ -1166,11 +1185,17 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
+    from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
+
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)
 
-    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
-    fab_logger.setLevel(logging.WARNING)
+    if AIRFLOW_V_2_9_PLUS:
+        fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+        fab_logger.setLevel(logging.WARNING)
+    else:
+        fab_logger = logging.getLogger("airflow.www.fab_security")
+        fab_logger.setLevel(logging.WARNING)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -1256,9 +1281,11 @@ def initialize_providers_manager():
 def close_all_sqlalchemy_sessions():
     from sqlalchemy.orm import close_all_sessions
 
-    close_all_sessions()
+    with suppress(Exception):
+        close_all_sessions()
     yield
-    close_all_sessions()
+    with suppress(Exception):
+        close_all_sessions()
 
 
 @pytest.fixture
@@ -1290,6 +1317,20 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
+
+
+@pytest.fixture
+def airflow_root_path() -> Path:
+    import airflow
+
+    return Path(airflow.__path__[0]).parent
+
+
+# This constant is set to True if tests are run with Airflow installed from Packages rather than running
+# the tests within Airflow sources. While most tests in CI are run using Airflow sources, there are
+# also compatibility tests that only use `tests` package and run against installed packages of Airflow in
+# for supported Airflow versions.
+RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES = not (Path(__file__).parents[1] / "airflow" / "__init__.py").exists()
 
 
 if TYPE_CHECKING:

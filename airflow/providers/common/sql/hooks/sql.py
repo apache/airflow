@@ -187,15 +187,16 @@ class DbApiHook(BaseHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
         placeholder = conn.extra_dejson.get("placeholder")
-        if placeholder in SQL_PLACEHOLDERS:
-            return placeholder
-        self.log.warning(
-            "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
-            "and got ignored. Falling back to the default placeholder '%s'.",
-            placeholder,
-            conn_id,
-            self._placeholder,
-        )
+        if placeholder:
+          if placeholder in SQL_PLACEHOLDERS:
+              return placeholder
+          self.log.warning(
+              "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+              "and got ignored. Falling back to the default placeholder '%s'.",
+              placeholder,
+              conn_id,
+              self._placeholder,
+          )
         return self._placeholder
 
     def get_conn(self):
@@ -365,7 +366,8 @@ class DbApiHook(BaseHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Run a command or a list of commands.
+        """
+        Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
         execute sequentially.
@@ -458,7 +460,8 @@ class DbApiHook(BaseHook):
             return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
-        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
+        """
+        Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
         transform the result of an SQL command (typically returned by cursor methods) into a common
@@ -507,7 +510,8 @@ class DbApiHook(BaseHook):
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn) -> bool:
-        """Get autocommit setting for the provided connection.
+        """
+        Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting. True if ``autocommit`` is set
@@ -566,7 +570,8 @@ class DbApiHook(BaseHook):
         executemany=False,
         **kwargs,
     ):
-        """Insert a collection of tuples into a table.
+        """
+        Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
         done in a new transaction.
@@ -581,13 +586,6 @@ class DbApiHook(BaseHook):
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
         """
-        if executemany:
-            warnings.warn(
-                "executemany parameter is deprecated, override supports_executemany instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         nb_rows = 0
         with self._create_autocommit_connection() as conn:
             conn.commit()

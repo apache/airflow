@@ -26,6 +26,51 @@
 Changelog
 ---------
 
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksTaskOperator (#40013)``
+* ``Add DatabricksWorkflowTaskGroup (#39771)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: optional include of user names in 'list_jobs' (#40178)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Lower log levels from INFO to DEBUG to reduce log verbosity - Databricks provider auth (#39941)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add deferrable support to 'DatabricksNotebookOperator' (#39295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``get all failed tasks errors in when exception raised in DatabricksCreateJobsOperator (#39354)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Better typing for BaseOperator 'defer' (#39742)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 6.4.0
 .....
 

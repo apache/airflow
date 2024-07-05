@@ -35,14 +35,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.12.1
+......
+
+Latest change: 2024-05-27
+
+=================================================================================================  ===========  =========================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================
+`aec3f80278 <https://github.com/apache/airflow/commit/aec3f802783c42f8544c631d08e3b226d41cdc39>`_  2024-05-27   ``Bump docker version to 7.1.0 (#39839)``
+=================================================================================================  ===========  =========================================
+
+3.12.0
+......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`39269d6a71 <https://github.com/apache/airflow/commit/39269d6a71f9696cbe0053e23fb965a59ca555c7>`_  2024-05-22   ``Limit requests in botocore upgrade test (#39747)``
+`1da7f1f433 <https://github.com/apache/airflow/commit/1da7f1f4339241c0a0aa59e158c4cd480c1b2ddf>`_  2024-05-21   ``Pin requests due to incompatibility with docker-py (#39740)``
+`77a6b4f419 <https://github.com/apache/airflow/commit/77a6b4f41917e05009c34fd9be9b7fa4192a11bc>`_  2024-05-18   ``Add args to docker service ContainerSpec (#39464)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`377a915cdc <https://github.com/apache/airflow/commit/377a915cdcb647159e5e134305f510e66cd64a02>`_  2024-05-04   ``Add support to define Resources on DockerSwarmOperator (#39027)``
+=================================================================================================  ===========  ===================================================================
+
 3.11.0
 ......
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 =================================================================================================  ===========  =======================================================================
 

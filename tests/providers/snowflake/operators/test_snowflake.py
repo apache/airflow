@@ -26,10 +26,10 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
-    SnowflakeOperator,
     SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
 )
@@ -68,7 +68,9 @@ class TestSnowflakeOperator:
             dummy VARCHAR(50)
         );
         """
-        operator = SnowflakeOperator(task_id="basic_snowflake", sql=sql, dag=self.dag, do_xcom_push=False)
+        operator = SQLExecuteQueryOperator(
+            task_id="basic_snowflake", sql=sql, dag=self.dag, do_xcom_push=False, conn_id="snowflake_default"
+        )
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -77,16 +79,18 @@ class TestSnowflakeOperatorForParams:
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
     def test_overwrite_params(self, mock_base_op):
         sql = "Select * from test_table"
-        SnowflakeOperator(
+        SQLExecuteQueryOperator(
             sql=sql,
             task_id="snowflake_params_check",
-            snowflake_conn_id="snowflake_default",
-            warehouse="test_warehouse",
-            database="test_database",
-            role="test_role",
-            schema="test_schema",
-            authenticator="oath",
-            session_parameters={"QUERY_TAG": "test_tag"},
+            conn_id="snowflake_default",
+            hook_params={
+                "warehouse": "test_warehouse",
+                "database": "test_database",
+                "role": "test_role",
+                "schema": "test_schema",
+                "authenticator": "oath",
+                "session_parameters": {"QUERY_TAG": "test_tag"},
+            },
         )
         mock_base_op.assert_called_once_with(
             conn_id="snowflake_default",

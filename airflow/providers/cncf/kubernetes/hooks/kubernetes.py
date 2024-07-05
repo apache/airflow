@@ -476,7 +476,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         namespace: str = "default",
         **kwargs,
     ) -> V1Deployment:
-        """Get status of existing Deployment.
+        """
+        Get status of existing Deployment.
 
         :param name: Name of Deployment to retrieve
         :param namespace: Deployment namespace
@@ -521,7 +522,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return resp
 
     def get_job(self, job_name: str, namespace: str) -> V1Job:
-        """Get Job of specified name and namespace.
+        """
+        Get Job of specified name and namespace.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
@@ -530,7 +532,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
-        """Get job with status of specified name and namespace.
+        """
+        Get job with status of specified name and namespace.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
@@ -541,7 +544,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         )
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
-        """Block job of specified name and namespace until it is complete or failed.
+        """
+        Block job of specified name and namespace until it is complete or failed.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
@@ -557,14 +561,16 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             sleep(job_poll_interval)
 
     def list_jobs_all_namespaces(self) -> V1JobList:
-        """Get list of Jobs from all namespaces.
+        """
+        Get list of Jobs from all namespaces.
 
         :return: V1JobList object
         """
         return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
 
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
-        """Get list of Jobs from dedicated namespace.
+        """
+        Get list of Jobs from dedicated namespace.
 
         :param namespace: Namespace of the Job.
         :return: V1JobList object
@@ -572,7 +578,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
 
     def is_job_complete(self, job: V1Job) -> bool:
-        """Check whether the given job is complete (with success or fail).
+        """
+        Check whether the given job is complete (with success or fail).
 
         :return: Boolean indicating that the given job is complete.
         """
@@ -593,7 +600,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @staticmethod
     def is_job_failed(job: V1Job) -> str | bool:
-        """Check whether the given job is failed.
+        """
+        Check whether the given job is failed.
 
         :return: Error message if the job is failed, and False otherwise.
         """
@@ -605,7 +613,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @staticmethod
     def is_job_successful(job: V1Job) -> str | bool:
-        """Check whether the given job is completed successfully..
+        """
+        Check whether the given job is completed successfully..
 
         :return: Error message if the job is failed, and False otherwise.
         """
@@ -810,7 +819,8 @@ class AsyncKubernetesHook(KubernetesHook):
         return job
 
     async def wait_until_job_complete(self, name: str, namespace: str, poll_interval: float = 10) -> V1Job:
-        """Block job of specified name and namespace until it is complete or failed.
+        """
+        Block job of specified name and namespace until it is complete or failed.
 
         :param name: Name of Job to fetch.
         :param namespace: Namespace of the Job.

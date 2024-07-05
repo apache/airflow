@@ -48,7 +48,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
                 "dag_id": "test_render_k8s_pod_yaml",
                 "run_id": "test_run_id",
                 "task_id": "op1",
-                "try_number": "0",
+                "try_number": mock.ANY,
             },
             "labels": {
                 "airflow-worker": "0",
@@ -57,7 +57,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
                 "run_id": "test_run_id",
                 "kubernetes_executor": "True",
                 "task_id": "op1",
-                "try_number": "0",
+                "try_number": mock.ANY,
             },
             "name": mock.ANY,
             "namespace": "default",

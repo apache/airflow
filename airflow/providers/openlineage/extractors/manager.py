@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import TYPE_CHECKING, Iterator
 
 from airflow.providers.openlineage import conf
@@ -24,20 +23,17 @@ from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLine
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
+from airflow.providers.openlineage.utils.utils import (
+    get_unknown_source_attribute_run_facet,
+    try_import_from_string,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from openlineage.client.run import Dataset
 
     from airflow.lineage.entities import Table
     from airflow.models import Operator
-
-
-def try_import_from_string(string):
-    with suppress(ImportError):
-        return import_string(string)
 
 
 def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
@@ -61,10 +57,15 @@ class ExtractorManager(LoggingMixin):
                 self.extractors[operator_class] = extractor
 
         for extractor_path in conf.custom_extractors():
-            extractor: type[BaseExtractor] = try_import_from_string(extractor_path)
+            extractor: type[BaseExtractor] | None = try_import_from_string(extractor_path)
+            if not extractor:
+                self.log.warning(
+                    "OpenLineage is unable to import custom extractor `%s`; will ignore it.", extractor_path
+                )
+                continue
             for operator_class in extractor.get_operator_classnames():
                 if operator_class in self.extractors:
-                    self.log.debug(
+                    self.log.warning(
                         "Duplicate OpenLineage custom extractor found for `%s`. "
                         "`%s` will be used instead of `%s`",
                         operator_class,

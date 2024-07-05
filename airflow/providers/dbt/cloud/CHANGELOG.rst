@@ -28,10 +28,46 @@
 Changelog
 ---------
 
-main
+3.9.0
 .....
 
-In Airflow 2.10.0, we fix the way try_number works, so that it no longer returns different values depending on task instance state.  Importantly, after the task is done, it no longer shows current_try + 1. Thus in 3.8.1 we patch this provider to fix try_number references so they no longer adjust for the old, bad behavior.
+Features
+~~~~~~~~
+
+* ``Add 'retry_from_failure' parameter to DbtCloudRunJobOperator (#38868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DbtCloudRunJobOperator' to Use Correct Status Parameters for 'reuse_existing_run' (#40048)``
+
+3.8.1
+.....
+
+.. warning::
+  You need to take action on this note only if you are running Airflow>=2.10.0
+  In Airflow 2.10.0, we fix the way try_number works, so that it no longer returns different values depending
+  on task instance state.  Importantly, after the task is done, it no longer shows current_try + 1.
+  Thus we patch this provider to fix try_number references so they no longer adjust for the old, bad behavior.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Scheduler to handle incrementing of try_number (#39336)``
+* ``Validate dbt 'cause' field to be less than 255 characters (#38896)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Add (optional) dependency between dbt-cloud and openlineage providers (#39366)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+
 
 3.8.0
 .....

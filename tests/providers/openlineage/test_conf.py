@@ -23,8 +23,10 @@ import pytest
 
 from airflow.providers.openlineage.conf import (
     _is_true,
+    _safe_int_convert,
     config_path,
     custom_extractors,
+    dag_state_change_process_pool_size,
     disabled_operators,
     is_disabled,
     is_source_enabled,
@@ -49,6 +51,7 @@ _VAR_DISABLED = "OPENLINEAGE_DISABLED"
 _CONFIG_OPTION_DISABLED = "disabled"
 _VAR_URL = "OPENLINEAGE_URL"
 _CONFIG_OPTION_SELECTIVE_ENABLE = "selective_enable"
+_CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE = "dag_state_change_process_pool_size"
 
 _BOOL_PARAMS = (
     ("1", True),
@@ -66,29 +69,6 @@ _BOOL_PARAMS = (
 )
 
 
-@pytest.fixture(autouse=True)
-def clear_cache():
-    config_path.cache_clear()
-    is_source_enabled.cache_clear()
-    disabled_operators.cache_clear()
-    custom_extractors.cache_clear()
-    namespace.cache_clear()
-    transport.cache_clear()
-    is_disabled.cache_clear()
-    selective_enable.cache_clear()
-    try:
-        yield
-    finally:
-        config_path.cache_clear()
-        is_source_enabled.cache_clear()
-        disabled_operators.cache_clear()
-        custom_extractors.cache_clear()
-        namespace.cache_clear()
-        transport.cache_clear()
-        is_disabled.cache_clear()
-        selective_enable.cache_clear()
-
-
 @pytest.mark.parametrize(
     ("var_string", "expected"),
     (
@@ -101,6 +81,35 @@ def clear_cache():
 )
 def test_is_true(var_string, expected):
     assert _is_true(var_string) is expected
+
+
+@pytest.mark.parametrize(
+    "input_value, expected",
+    [
+        ("123", 123),
+        (456, 456),
+        ("789", 789),
+        (0, 0),
+        ("0", 0),
+    ],
+)
+def test_safe_int_convert(input_value, expected):
+    assert _safe_int_convert(input_value, default=1) == expected
+
+
+@pytest.mark.parametrize(
+    "input_value, default",
+    [
+        ("abc", 1),
+        ("", 2),
+        (None, 3),
+        ("123abc", 4),
+        ([], 5),
+        ("1.2", 6),
+    ],
+)
+def test_safe_int_convert_erroneous_values(input_value, default):
+    assert _safe_int_convert(input_value, default) == default
 
 
 @env_vars({_VAR_CONFIG_PATH: "env_var_path"})
@@ -456,3 +465,25 @@ def test_is_disabled_empty_conf_option():
 )
 def test_is_disabled_do_not_fail_if_conf_option_missing():
     assert is_disabled() is True
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    (
+        ("1", 1),
+        ("2   ", 2),
+        ("  3", 3),
+        ("4.56", 1),  # default
+        ("asdf", 1),  # default
+        ("true", 1),  # default
+        ("false", 1),  # default
+        ("None", 1),  # default
+        ("", 1),  # default
+        (" ", 1),  # default
+        (None, 1),  # default
+    ),
+)
+def test_dag_state_change_process_pool_size(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
+        result = dag_state_change_process_pool_size()
+        assert result == expected

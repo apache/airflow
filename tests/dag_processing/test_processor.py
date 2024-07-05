@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import pathlib
 import sys
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -32,7 +33,6 @@ from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
 from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance
-from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -40,6 +40,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -67,6 +69,7 @@ INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
 TEMP_DAG_FILENAME = "temp_dag.py"
+TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
 
 
 @pytest.fixture(scope="class")
@@ -1007,6 +1010,17 @@ class TestDagFileProcessor:
             callback_requests=[],
         )
         processor.start()
+
+    def test_counter_for_last_num_of_db_queries(self):
+        dag_filepath = TEST_DAG_FOLDER / "test_dag_for_db_queries_counter.py"
+
+        with create_session() as session:
+            with assert_queries_count(
+                expected_count=94,
+                margin=10,
+                session=session,
+            ):
+                self._process_file(dag_filepath, TEST_DAG_FOLDER, session)
 
 
 class TestProcessorAgent:

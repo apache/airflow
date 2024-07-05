@@ -78,6 +78,11 @@ class S3KeySensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     :param deferrable: Run operator in the deferrable mode
     :param use_regex: whether to use regex to check bucket
+    :param metadata_keys: List of head_object attributes to gather and send to ``check_fn``.
+        Acceptable values: Any top level attribute returned by s3.head_object. Specify * to return
+        all available attributes.
+        Default value: "Size".
+        If the requested attribute is not found, the key is still included and the value is None.
     """
 
     template_fields: Sequence[str] = ("bucket_key", "bucket_name")
@@ -93,6 +98,7 @@ class S3KeySensor(BaseSensorOperator):
         verify: str | bool | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         use_regex: bool = False,
+        metadata_keys: list[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -104,14 +110,14 @@ class S3KeySensor(BaseSensorOperator):
         self.verify = verify
         self.deferrable = deferrable
         self.use_regex = use_regex
+        self.metadata_keys = metadata_keys if metadata_keys else ["Size"]
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
         self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
 
         """
-        Set variable `files` which contains a list of dict which contains only the size
-        If needed we might want to add other attributes later
+        Set variable `files` which contains a list of dict which contains attributes defined by the user
         Format: [{
             'Size': int
         }]
@@ -123,8 +129,21 @@ class S3KeySensor(BaseSensorOperator):
             if not key_matches:
                 return False
 
-            # Reduce the set of metadata to size only
-            files = [{"Size": f["Size"]} for f in key_matches]
+            # Reduce the set of metadata to requested attributes
+            files = []
+            for f in key_matches:
+                metadata = {}
+                if "*" in self.metadata_keys:
+                    metadata = self.hook.head_object(f["Key"], bucket_name)
+                else:
+                    for key in self.metadata_keys:
+                        try:
+                            metadata[key] = f[key]
+                        except KeyError:
+                            # supplied key might be from head_object response
+                            self.log.info("Key %s not found in response, performing head_object", key)
+                            metadata[key] = self.hook.head_object(f["Key"], bucket_name).get(key, None)
+                files.append(metadata)
         elif self.use_regex:
             keys = self.hook.get_file_metadata("", bucket_name)
             key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
@@ -134,7 +153,18 @@ class S3KeySensor(BaseSensorOperator):
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:
                 return False
-            files = [{"Size": obj["ContentLength"]}]
+            metadata = {}
+            if "*" in self.metadata_keys:
+                metadata = self.hook.head_object(key, bucket_name)
+
+            else:
+                for key in self.metadata_keys:
+                    # backwards compatibility with original implementation
+                    if key == "Size":
+                        metadata[key] = obj.get("ContentLength")
+                    else:
+                        metadata[key] = obj.get(key, None)
+            files = [metadata]
 
         if self.check_fn is not None:
             return self.check_fn(files)

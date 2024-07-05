@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``start_date`` and ``end_date`` in ``dag_run`` table.
+"""
+Add ``start_date`` and ``end_date`` in ``dag_run`` table.
 
 Revision ID: 4446e08588
 Revises: 561833c1c74b

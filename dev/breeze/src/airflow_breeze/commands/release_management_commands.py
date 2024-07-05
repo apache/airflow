@@ -770,7 +770,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1541,7 +1541,7 @@ def run_publish_docs_in_parallel(
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -2091,6 +2091,13 @@ def generate_issue_content_providers(
                         int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                     }
                     for linked_issue_number in linked_issue_numbers:
+                        try:
+                            _ = repo.get_issue(linked_issue_number)
+                        except UnknownObjectException:
+                            progress.console.print(
+                                f"Failed to retrieve linked issue #{linked_issue_number}: is not a issue,"
+                                f"likely a discussion is linked."
+                            )
                         progress.console.print(
                             f"Retrieving Linked issue PR#{linked_issue_number}: "
                             f"https://github.com/apache/airflow/issues/{linked_issue_number}"

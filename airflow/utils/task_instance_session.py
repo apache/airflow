@@ -52,6 +52,9 @@ def get_current_task_instance_session() -> Session:
 
 @contextlib.contextmanager
 def set_current_task_instance_session(session: Session):
+    if InternalApiConfig.get_use_internal_api():
+        yield
+        return
     global __current_task_instance_session
     if __current_task_instance_session:
         raise RuntimeError(

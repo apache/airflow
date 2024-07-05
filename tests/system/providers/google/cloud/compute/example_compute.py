@@ -40,10 +40,11 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineStopInstanceOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [START howto_operator_gce_args_common]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "cloud_compute"
 
 LOCATION = "europe-west1-b"

@@ -22,9 +22,11 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 state: ready
-source-date-epoch: 1715384489
+source-date-epoch: 1718605499
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.5.2
+  - 4.5.1
   - 4.5.0
   - 4.4.2
   - 4.4.1
@@ -51,7 +53,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - tableauserverclient
+  - tableauserverclient>=0.25
 
 integrations:
   - integration-name: Tableau

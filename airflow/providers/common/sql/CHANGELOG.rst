@@ -25,6 +25,41 @@
 Changelog
 ---------
 
+1.14.1
+......
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``standardizes template fields for 'BaseSQLOperator' and adds 'database' as a templated field (#39826)``
+
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'parameters' as template field for SqlSensor (#39588)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DbAPiHook: Don't log a warning message if placeholder is None and make sure warning message is formatted correctly (#39690)``
+
+Misc
+~~~~
+
+* ``refactor: The executemany parameter of insert_rows should not be deprecated as for some hooks we don't want to enable a system-wide supports_executemany parameter, that way we can also keep using it in dedicated situations (#39630)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Add typing for SqlSensor (#39773)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 1.13.0
 ......
 

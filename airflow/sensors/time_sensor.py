@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -40,11 +40,11 @@ class TimeSensor(BaseSensorOperator):
 
     """
 
-    def __init__(self, *, target_time, **kwargs):
+    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
         super().__init__(**kwargs)
         self.target_time = target_time
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.make_naive(timezone.utcnow(), self.dag.timezone).time() > self.target_time
 
@@ -62,7 +62,7 @@ class TimeSensorAsync(BaseSensorOperator):
         :ref:`howto/operator:TimeSensorAsync`
     """
 
-    def __init__(self, *, target_time, **kwargs):
+    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
         super().__init__(**kwargs)
         self.target_time = target_time
 
@@ -72,13 +72,13 @@ class TimeSensorAsync(BaseSensorOperator):
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> NoReturn:
         trigger = DateTimeTrigger(moment=self.target_datetime)
         self.defer(
             trigger=trigger,
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context, event=None) -> None:
         """Execute when the trigger fires - returns immediately."""
         return None

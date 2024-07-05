@@ -774,10 +774,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
                 )
                 msg = (
-                    "Executor reports task instance %s finished (%s) although the "
-                    "task says it's %s. (Info: %s) Was the task killed externally?"
+                    "The executor reported that the task instance %s finished with state %s, but the task instance's state attribute is %s. "  # noqa: RUF100, UP031, flynt
+                    "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally"
+                    % (ti, state, ti.state)
                 )
-                self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
+                if info is not None:
+                    msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
+                self._task_context_logger.error(msg, ti=ti)
 
                 # Get task from the Serialized DAG
                 try:
@@ -792,12 +795,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                        msg=msg % (ti, state, ti.state, info),
+                        msg=msg,
                         processor_subdir=ti.dag_model.processor_subdir,
                     )
                     self.job.executor.send_callback(request)
                 else:
-                    ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
+                    ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
 
@@ -1566,22 +1569,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TI.queued_by_job_id == self.job.id,
             )
         ).all()
-        try:
-            cleaned_up_task_instances = self.job.executor.cleanup_stuck_queued_tasks(
-                tis=tasks_stuck_in_queued
-            )
-            cleaned_up_task_instances = set(cleaned_up_task_instances)
-            for ti in tasks_stuck_in_queued:
-                if repr(ti) in cleaned_up_task_instances:
-                    self._task_context_logger.warning(
-                        "Marking task instance %s stuck in queued as failed. "
-                        "If the task instance has available retries, it will be retried.",
-                        ti,
-                        ti=ti,
-                    )
-        except NotImplementedError:
-            self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
-            ...
+
+        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
+            try:
+                cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
+                for ti in stuck_tis:
+                    if repr(ti) in cleaned_up_task_instances:
+                        self._task_context_logger.warning(
+                            "Marking task instance %s stuck in queued as failed. "
+                            "If the task instance has available retries, it will be retried.",
+                            ti,
+                            ti=ti,
+                        )
+            except NotImplementedError:
+                self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:

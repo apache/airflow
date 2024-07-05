@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+4.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+4.5.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 4.5.0
 .....
 

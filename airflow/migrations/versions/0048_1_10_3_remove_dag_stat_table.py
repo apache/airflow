@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove ``dag_stat`` table.
+"""
+Remove ``dag_stat`` table.
 
 Revision ID: a56c9515abdc
 Revises: c8ffec048a3b

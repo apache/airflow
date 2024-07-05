@@ -117,7 +117,8 @@ class OracleHook(DbApiHook):
         self.fetch_lobs = fetch_lobs
 
     def get_conn(self) -> oracledb.Connection:
-        """Get an Oracle connection object.
+        """
+        Get an Oracle connection object.
 
         Optional parameters for using a custom DSN connection (instead of using
         a server alias from tnsnames.ora) The dsn (data source name) is the TNS
@@ -255,7 +256,8 @@ class OracleHook(DbApiHook):
         replace: bool | None = False,
         **kwargs,
     ) -> None:
-        """Insert a collection of tuples into a table.
+        """
+        Insert a collection of tuples into a table.
 
         All data to insert are treated as one transaction. Changes from standard
         DbApiHook implementation:
@@ -321,7 +323,8 @@ class OracleHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Perform bulk inserts efficiently for Oracle DB.
+        """
+        Perform bulk inserts efficiently for Oracle DB.
 
         This uses prepared statements via `executemany()`. For best performance,
         pass in `rows` as an iterator.

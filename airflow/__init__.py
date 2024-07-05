@@ -22,6 +22,7 @@ __version__ = "2.10.0.dev0"
 import os
 import sys
 import warnings
+from typing import TYPE_CHECKING
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
@@ -81,6 +82,13 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
 }
+if TYPE_CHECKING:
+    # These objects are imported by PEP-562, however, static analyzers and IDE's
+    # have no idea about typing of these objects.
+    # Add it under TYPE_CHECKING block should help with it.
+    from airflow.models.dag import DAG
+    from airflow.models.dataset import Dataset
+    from airflow.models.xcom_arg import XComArg
 
 
 def __getattr__(name: str):
@@ -119,9 +127,9 @@ def __getattr__(name: str):
 
 
 if not settings.LAZY_LOAD_PROVIDERS:
-    from airflow import providers_manager
+    from airflow.providers_manager import ProvidersManager
 
-    manager = providers_manager.ProvidersManager()
+    manager = ProvidersManager()
     manager.initialize_providers_list()
     manager.initialize_providers_hooks()
     manager.initialize_providers_extra_links()
@@ -129,14 +137,3 @@ if not settings.LAZY_LOAD_PLUGINS:
     from airflow import plugins_manager
 
     plugins_manager.ensure_plugins_loaded()
-
-
-# This is never executed, but tricks static analyzers (PyDev, PyCharm,)
-# into knowing the types of these symbols, and what
-# they contain.
-STATICA_HACK = True
-globals()["kcah_acitats"[::-1].upper()] = False
-if STATICA_HACK:  # pragma: no cover
-    from airflow.models.dag import DAG
-    from airflow.models.dataset import Dataset
-    from airflow.models.xcom_arg import XComArg

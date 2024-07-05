@@ -26,6 +26,103 @@
 Changelog
 ---------
 
+main
+....
+
+Bug Fixes
+~~~~~~~~~
+
+* Reduce memory footprint of s3 key trigger (#40473)
+
+  * Decorator ``provide_bucket_name_async`` removed
+
+      * We do not need a separate decorator for async.  The old one is removed and users can use ``provide_bucket_name`` for coroutine functions, async iterators, and normal synchronous functions.
+
+  * Hook method ``get_file_metadata_async`` is now an async iterator
+
+    * Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
+
+  * S3KeyTrigger avoids loading all positive matches into memory in some circumstances
+
+
+8.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Comprehend Document Classifier (#40287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'importlib_metadata' import in aws utils (#40134)``
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+* ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
+8.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Overrides for AWS Batch submit_job (#39903)``
+* ``Add transfer operator S3ToDynamoDBOperator (#39654)``
+* ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
+* ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+* ``Adding Amazon Glue Data Quality Service (#39923)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Deduplicate model name in SageMakerTransformOperator (#39956)``
+* ``Fix: remove process_func from templated_fields (#39948)``
+* ``Fix aws assume role session creation when deferrable (#40051)``
+
+Misc
+~~~~
+
+* ``Resolving ECS fargate deprecated warnings (#39834)``
+* ``Resolving EMR notebook deprecated warnings (#39829)``
+* ``Bump boto min versions (#40052)``
+* ``docs: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Implement per-provider tests with lowest-direct dependency resolution (#39946)``
+   * ``Resolve aws emr deprecations in tests (#40020)``
+   * ``Prepare docs 4th wave May 2024 (#39934)``
+
+8.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Amazon Bedrock - Retrieve and RetrieveAndGenerate (#39500)``
+* ``Introduce Amazon Comprehend Service (#39592)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: empty openlineage dataset name for AthenaExtractor (#39677)``
+* ``Fix default value for aws batch operator retry strategy (#39608)``
+* ``Sagemaker trigger: pass the job name as part of the event (#39671)``
+* ``Handle task adoption for batch executor (#39590)``
+* ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+* ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
+
+Misc
+~~~~
+
+* ``Resolving EMR deprecated warnings (#39743)``
+* ``misc: add comment about remove unused code (#39748)``
+
 8.22.0
 ......
 

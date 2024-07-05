@@ -79,11 +79,21 @@ class FileTransferOperator(BaseOperator):
 
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        def _prepare_ol_dataset(path: ObjectStoragePath) -> Dataset:
+            if hasattr(path, "namespace"):
+                # namespace has been added in Airflow 2.9.0; #36410
+                return Dataset(namespace=path.namespace, name=path.key)
+            # manually recreating namespace
+            return Dataset(
+                namespace=f"{path.protocol}://{path.bucket}" if path.bucket else path.protocol,
+                name=path.key.lstrip(path.sep),
+            )
+
         src: ObjectStoragePath = self._get_path(self.src, self.source_conn_id)
         dst: ObjectStoragePath = self._get_path(self.dst, self.dst_conn_id)
 
-        input_dataset = Dataset(namespace=src.namespace, name=src.key)
-        output_dataset = Dataset(namespace=dst.namespace, name=dst.key)
+        input_dataset = _prepare_ol_dataset(src)
+        output_dataset = _prepare_ol_dataset(dst)
 
         return OperatorLineage(
             inputs=[input_dataset],

@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+4.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'retry_args' parameter to 'HttpOperator' (#40086)``
+
+4.11.1
+......
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 4.11.0
 ......
 

@@ -40,6 +40,7 @@ type TaskState =
   | "upstream_failed"
   | "skipped"
   | "deferred"
+  | "none"
   | null;
 
 interface Dag {

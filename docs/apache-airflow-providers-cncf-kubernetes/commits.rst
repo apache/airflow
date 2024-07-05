@@ -35,6 +35,60 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.2
+.....
+
+Latest change: 2024-06-16
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`bfe5fd7108 <https://github.com/apache/airflow/commit/bfe5fd71087f56610c16bca39311a4520ef7d3cf>`_  2024-06-16   ``k8s version bump (#40253)``
+`67798b2b8a <https://github.com/apache/airflow/commit/67798b2b8add1f7bbda2916c861c6958287122e9>`_  2024-06-13   ``Fix Scheduler restarting due to too many completed pods in cluster (#40183)``
+=================================================================================================  ===========  ===============================================================================
+
+8.3.1
+.....
+
+Latest change: 2024-06-07
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`35bece7dc3 <https://github.com/apache/airflow/commit/35bece7dc33537eefa328aeef6fbfb206567e8e5>`_  2024-06-07   ``Prepare docs 1st wave June 2024 (#40057)``
+`8daa53eaa5 <https://github.com/apache/airflow/commit/8daa53eaa5d64727abd7430c9f58eb8a14613db2>`_  2024-06-07   ``Avoid resetting adopted task instances when retrying for kubernetes executor (#39406)``
+`00a2843649 <https://github.com/apache/airflow/commit/00a284364906ced4d71e5109dec8f7f2f3cae076>`_  2024-06-06   ``Include fatal reason for pod pending events (#39924)``
+`0f6e31f4b9 <https://github.com/apache/airflow/commit/0f6e31f4b95059421e581d2a2b29392aab215fa4>`_  2024-06-05   ``Fix reattach_on_restart parameter for the sync mode (#39329)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`a61e789b9b <https://github.com/apache/airflow/commit/a61e789b9bdbddeb72412915f54988510961b213>`_  2024-06-04   ``Resolve common providers deprecations in tests (#40036)``
+`981ba8f005 <https://github.com/apache/airflow/commit/981ba8f00544597863448f1b951cdd8c5bc6a023>`_  2024-06-03   ``Fixes KubernetesPodTrigger failing running pods with timeout (#40019)``
+`032d27640b <https://github.com/apache/airflow/commit/032d27640b5124e8fd85ba93042b50989881895a>`_  2024-05-30   ``Refresh properties on KubernetesPodOperator on token expiration also when logging (#39789)``
+=================================================================================================  ===========  ==============================================================================================
+
+8.3.0
+.....
+
+Latest change: 2024-05-30
+
+=================================================================================================  ===========  =======================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================================
+`11f219abff <https://github.com/apache/airflow/commit/11f219abffb49ef713bac3e60121fcbf737dc95b>`_  2024-05-30   ``Prepare docs 4th wave May 2024 (#39934)``
+`53970a8d1f <https://github.com/apache/airflow/commit/53970a8d1f4d8337a6e9b9aeac25fde030432f98>`_  2024-05-28   ``Handling exception getting logs when pods finish success (#39296)``
+`e190cff272 <https://github.com/apache/airflow/commit/e190cff27299256df75b56e46e27e9932174805a>`_  2024-05-28   ``fix wrong arguments in read_namespaced_pod_log call (#39874)``
+`98c5a3a2c6 <https://github.com/apache/airflow/commit/98c5a3a2c6d1df722d56bb3748dfbc810d5952aa>`_  2024-05-27   ``Add a warning message to KPO to warn of one second interval logs duplication (#39861)``
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`610747d25a <https://github.com/apache/airflow/commit/610747d25a6153574c07624afaadcbf575aa2960>`_  2024-05-15   ``Add timeout when watching pod events in k8s executor (#39551)``
+`f57de6c183 <https://github.com/apache/airflow/commit/f57de6c1836199190ab02419aa2b9d5caee33002>`_  2024-05-14   ``Move Kubernetes cli to provider package (#39587)``
+`e3897dcbed <https://github.com/apache/airflow/commit/e3897dcbed0262b0cab7a357f8d7fbbb6c4f4eeb>`_  2024-05-13   ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`20265fe1fa <https://github.com/apache/airflow/commit/20265fe1fa19672df489973fa6692c4378c7a2b7>`_  2024-05-10   ``Add retry logic for KubernetesCreateResourceOperator and KubernetesJobOperator (#39201)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`0e6c0ab252 <https://github.com/apache/airflow/commit/0e6c0ab252ee0df900e2e1b7b04283923d1f6ce7>`_  2024-05-05   ``Replace pod_manager.read_pod_logs with client.read_namespaced_pod_log in KubernetesPodOperator._write_logs (#39112)``
+`b5153c1745 <https://github.com/apache/airflow/commit/b5153c174596bc9ee7ebb9bf0376c95edc3abc94>`_  2024-05-03   ``Fix deprecated calls in 'cncf.kubernetes' provider (#39381)``
+=================================================================================================  ===========  =======================================================================================================================
+
 8.2.0
 .....
 
@@ -43,6 +97,7 @@ Latest change: 2024-05-01
 =================================================================================================  ===========  ===============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `43b48a9ac1 <https://github.com/apache/airflow/commit/43b48a9ac1737b9dbafa706caa6f266399753521>`_  2024-05-01   ``Refresh properties on KubernetesPodOperator when k8s fails due to token expiration (#39325)``
 `97871a0378 <https://github.com/apache/airflow/commit/97871a0378be7b89e8a4aef6ede31c9a884413e8>`_  2024-05-01   ``Fix SparkKubernetesOperator when using initContainers (#38119)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``

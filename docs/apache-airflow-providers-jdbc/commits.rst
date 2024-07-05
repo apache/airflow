@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.1
+.....
+
+Latest change: 2024-05-11
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================
+
 4.3.0
 .....
 
-Latest change: 2024-04-26
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `e5bf91b7af <https://github.com/apache/airflow/commit/e5bf91b7afeb585e9e70c1708fa290c39ce8094e>`_  2024-04-26   ``Add stacklevel into the 'suppress_and_warn' warning (#39263)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `41869d3840 <https://github.com/apache/airflow/commit/41869d3840a959a8ad87e0973656606f080d8608>`_  2024-04-12   ``Suppress jaydebeapi.Error when setAutoCommit or getAutoCommit is unsupported by JDBC driver (#38707)``

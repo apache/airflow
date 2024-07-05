@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+5.11.2
+......
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+5.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: use 'sqlalchemy_url' property in 'get_uri' for postgresql provider (#38831)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 5.11.0
 ......
 

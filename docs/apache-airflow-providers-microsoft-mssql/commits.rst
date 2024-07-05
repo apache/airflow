@@ -35,14 +35,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.2
+.....
+
+Latest change: 2024-06-04
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`f0677275f9 <https://github.com/apache/airflow/commit/f0677275f9a974386193e0ff4b3469303e135447>`_  2024-05-27   ``Add 'mssql' integration tests and relocate existing unit tests (#39831)``
+=================================================================================================  ===========  ==================================================================================
+
+3.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`dc61da2509 <https://github.com/apache/airflow/commit/dc61da2509536bb509a4a2e1781ff47aa36b62b4>`_  2024-05-13   ``remove extra return (#39582)``
+`9e61daff7d <https://github.com/apache/airflow/commit/9e61daff7d271ddf3ad3e1e54f16d6af881acb67>`_  2024-05-13   ``use 'cached_property' to reuse 'get_connections' value in 'mssql' provider (#39575)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  =======================================================================================
+
 3.7.0
 .....
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``

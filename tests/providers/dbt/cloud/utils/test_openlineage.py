@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -41,8 +42,18 @@ class MockResponse:
 
 
 def emit_event(event):
-    assert event.run.facets["parent"].run["runId"] == TASK_UUID
-    assert event.run.facets["parent"].job["name"] == f"{DAG_ID}.{TASK_ID}"
+    run_id = TASK_UUID
+    name = f"{DAG_ID}.{TASK_ID}"
+    run_obj = event.run.facets["parent"].run
+    job_obj = event.run.facets["parent"].job
+    if isinstance(run_obj, dict):
+        assert run_obj["runId"] == run_id
+    else:
+        assert run_obj.runId == run_id
+    if isinstance(job_obj, dict):
+        assert job_obj["name"] == name
+    else:
+        assert job_obj.name == name
     assert event.job.namespace == "default"
     assert event.job.name.startswith("SANDBOX.TEST_SCHEMA.test_project")
 
@@ -69,11 +80,11 @@ def read_file_json(file):
 def get_dbt_artifact(*args, **kwargs):
     json_file = None
     if "catalog" in kwargs["path"]:
-        json_file = "tests/providers/dbt/cloud/test_data/catalog.json"
+        json_file = Path(__file__).parents[1] / "test_data" / "catalog.json"
     elif "manifest" in kwargs["path"]:
-        json_file = "tests/providers/dbt/cloud/test_data/manifest.json"
+        json_file = Path(__file__).parents[1] / "test_data" / "manifest.json"
     elif "run_results" in kwargs["path"]:
-        json_file = "tests/providers/dbt/cloud/test_data/run_results.json"
+        json_file = Path(__file__).parents[1] / "test_data" / "run_results.json"
 
     if json_file is not None:
         return MockResponse(read_file_json(json_file))
@@ -121,7 +132,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_operator.hook = mock_hook
 
         mock_get_job_run.return_value.json.return_value = read_file_json(
-            "tests/providers/dbt/cloud/test_data/job_run.json"
+            Path(__file__).parents[1] / "test_data" / "job_run.json"
         )
         mock_get_project.return_value.json.return_value = {
             "data": {

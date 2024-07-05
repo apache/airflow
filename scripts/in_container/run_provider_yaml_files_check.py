@@ -51,10 +51,14 @@ DEPRECATED_MODULES = [
     "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
     "airflow.providers.tabular.hooks.tabular",
+    "airflow.providers.yandex.hooks.yandexcloud_dataproc",
+    "airflow.providers.yandex.operators.yandexcloud_dataproc",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.links.dataproc.DataprocLink",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
 ]

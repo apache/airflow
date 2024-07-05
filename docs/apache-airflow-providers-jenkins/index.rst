@@ -76,7 +76,7 @@ apache-airflow-providers-jenkins package
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 3.6.0
+Release: 3.6.1
 
 Provider package
 ----------------

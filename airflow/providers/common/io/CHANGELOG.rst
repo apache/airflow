@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+1.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage in FileTransferOperator for Airflow 2.8 (#39755)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 1.3.1
 .....
 

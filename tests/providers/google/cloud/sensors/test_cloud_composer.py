@@ -17,17 +17,53 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
 from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
-from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerEnvironmentSensor
-from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+    TaskDeferred,
+)
+from airflow.providers.google.cloud.sensors.cloud_composer import (
+    CloudComposerDAGRunSensor,
+    CloudComposerEnvironmentSensor,
+)
+from airflow.providers.google.cloud.triggers.cloud_composer import (
+    CloudComposerExecutionTrigger,
+)
 
 TEST_PROJECT_ID = "test_project_id"
 TEST_OPERATION_NAME = "test_operation_name"
 TEST_REGION = "region"
+TEST_ENVIRONMENT_ID = "test_env_id"
+TEST_JSON_RESULT = lambda state: json.dumps(
+    [
+        {
+            "dag_id": "test_dag_id",
+            "run_id": "scheduled__2024-05-22T11:10:00+00:00",
+            "state": state,
+            "execution_date": "2024-05-22T11:10:00+00:00",
+            "start_date": "2024-05-22T11:20:01.531988+00:00",
+            "end_date": "2024-05-22T11:20:11.997479+00:00",
+        }
+    ]
+)
+TEST_EXEC_RESULT = lambda state: {
+    "output": [{"line_number": 1, "content": TEST_JSON_RESULT(state)}],
+    "output_end": True,
+    "exit_info": {"exit_code": 0, "error": ""},
+}
+DEPRECATION_MESSAGE = (
+    "The `CloudComposerEnvironmentSensor` operator is deprecated. "
+    "You can achieve the same functionality "
+    "by using operators in deferrable or non-deferrable mode, since every operator for Cloud "
+    "Composer will wait for the operation to complete."
+)
 
 
 class TestCloudComposerEnvironmentSensor:
@@ -37,12 +73,13 @@ class TestCloudComposerEnvironmentSensor:
         Asserts that a task is deferred and a CloudComposerExecutionTrigger will be fired
         when the CloudComposerEnvironmentSensor is executed.
         """
-        task = CloudComposerEnvironmentSensor(
-            task_id="task_id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            operation_name=TEST_OPERATION_NAME,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+            task = CloudComposerEnvironmentSensor(
+                task_id="task_id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                operation_name=TEST_OPERATION_NAME,
+            )
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(
@@ -54,25 +91,61 @@ class TestCloudComposerEnvironmentSensor:
     )
     def test_cloud_composer_existence_sensor_async_execute_failure(self, soft_fail, expected_exception):
         """Tests that an expected exception is raised in case of error event."""
-        task = CloudComposerEnvironmentSensor(
-            task_id="task_id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            operation_name=TEST_OPERATION_NAME,
-            soft_fail=soft_fail,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+            task = CloudComposerEnvironmentSensor(
+                task_id="task_id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                operation_name=TEST_OPERATION_NAME,
+                soft_fail=soft_fail,
+            )
         with pytest.raises(expected_exception, match="No event received in trigger callback"):
             task.execute_complete(context={}, event=None)
 
     def test_cloud_composer_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        task = CloudComposerEnvironmentSensor(
-            task_id="task_id",
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            operation_name=TEST_OPERATION_NAME,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+            task = CloudComposerEnvironmentSensor(
+                task_id="task_id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                operation_name=TEST_OPERATION_NAME,
+            )
         with mock.patch.object(task.log, "info"):
             task.execute_complete(
                 context={}, event={"operation_done": True, "operation_name": TEST_OPERATION_NAME}
             )
+
+
+class TestCloudComposerDAGRunSensor:
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_ready(self, mock_hook, to_dict_mode):
+        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT("success")
+
+        task = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})
+
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.ExecuteAirflowCommandResponse.to_dict")
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_wait_not_ready(self, mock_hook, to_dict_mode):
+        mock_hook.return_value.wait_command_execution_result.return_value = TEST_EXEC_RESULT("running")
+
+        task = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+
+        assert not task.poke(context={"logical_date": datetime(2024, 5, 23, 0, 0, 0)})

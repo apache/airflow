@@ -405,6 +405,7 @@ class AwsEcsExecutor(BaseExecutor):
                 except AttributeError:
                     # running_state is newly added, and only needed to support task adoption (an optional
                     # executor feature).
+                    # TODO: remove when min airflow version >= 2.9.2
                     pass
         if failure_reasons:
             self.log.error(

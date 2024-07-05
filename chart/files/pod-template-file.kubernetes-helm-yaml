@@ -50,7 +50,7 @@ spec:
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
     {{- if .Values.workers.extraInitContainers }}
-      {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
+      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
     {{- end }}
     {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
     - name: kerberos-init
@@ -180,7 +180,7 @@ spec:
         {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}
     {{- if .Values.workers.extraContainers }}
-      {{- toYaml .Values.workers.extraContainers | nindent 4 }}
+      {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
     {{- end }}
   {{- if .Values.workers.priorityClassName }}
   priorityClassName: {{ .Values.workers.priorityClassName }}

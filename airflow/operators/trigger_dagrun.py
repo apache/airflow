@@ -69,34 +69,42 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        # Fetch the correct execution date for the triggerED dag which is
+        # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
-        when = XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO)
-        query = {"dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id, "base_date": when}
+        triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
+        query = {
+            "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
+            "dag_run_id": triggered_dag_run_id,
+        }
         return build_airflow_url_with_query(query)
 
 
 class TriggerDagRunOperator(BaseOperator):
     """
-    Triggers a DAG run for a specified ``dag_id``.
+    Triggers a DAG run for a specified DAG ID.
 
-    :param trigger_dag_id: The dag_id to trigger (templated).
+    :param trigger_dag_id: The ``dag_id`` of the DAG to trigger (templated).
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
     :param conf: Configuration for the DAG run (templated).
-    :param logical_date: Logical date for the dag (templated).
-    :param reset_dag_run: Whether clear existing dag run if already exists.
-        This is useful when backfill or rerun an existing dag run.
-        This only resets (not recreates) the dag run.
-        Dag run conf is immutable and will not be reset on rerun of an existing dag run.
+    :param logical_date: Logical date for the triggered DAG (templated).
+    :param reset_dag_run: Whether clear existing DAG run if already exists.
+        This is useful when backfill or rerun an existing DAG run.
+        This only resets (not recreates) the DAG run.
+        DAG run conf is immutable and will not be reset on rerun of an existing DAG run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
-        When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
-    :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
-    :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
+        When reset_dag_run=True and dag run exists, existing DAG run will be cleared to rerun.
+    :param wait_for_completion: Whether or not wait for DAG run completion. (default: False)
+    :param poke_interval: Poke interval to check DAG run status when wait_for_completion=True.
         (default: 60)
-    :param allowed_states: List of allowed states, default is ``['success']``.
-    :param failed_states: List of failed or dis-allowed states, default is ``None``.
-    :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a dag_run already exists
+    :param allowed_states: Optional list of allowed DAG run states of the triggered DAG. This is useful when
+        setting ``wait_for_completion`` to True. Must be a valid DagRunState.
+        Default is ``[DagRunState.SUCCESS]``.
+    :param failed_states: Optional list of failed or disallowed DAG run states of the triggered DAG. This is
+        useful when setting ``wait_for_completion`` to True. Must be a valid DagRunState.
+        Default is ``[DagRunState.FAILED]``.
+    :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a DAG run of the triggered
+        DAG for the same logical date already exists.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
     :param execution_date: Deprecated parameter; same as ``logical_date``.
@@ -124,8 +132,8 @@ class TriggerDagRunOperator(BaseOperator):
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
-        allowed_states: list[str] | None = None,
-        failed_states: list[str] | None = None,
+        allowed_states: list[str | DagRunState] | None = None,
+        failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         execution_date: str | datetime.datetime | None = None,
@@ -194,7 +202,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_logical_date)
+                dag_run = e.dag_run
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.logical_date)
 
                 # Get target dag object and call clear()
                 dag_model = DagModel.get_current(self.trigger_dag_id)
@@ -203,7 +212,6 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag_run = e.dag_run
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
                 if self.skip_when_already_exists:
@@ -213,8 +221,9 @@ class TriggerDagRunOperator(BaseOperator):
                 raise e
         if dag_run is None:
             raise RuntimeError("The dag_run should be set here!")
-        # Store the execution date from the dag run (either created or found above) to
+        # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
+        # TODO: Logical date as xcom stored only for backwards compatibility. Remove in Airflow 3.0
         ti = context["task_instance"]
         ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
@@ -226,7 +235,7 @@ class TriggerDagRunOperator(BaseOperator):
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
                         states=self.allowed_states + self.failed_states,
-                        execution_dates=[parsed_logical_date],
+                        execution_dates=[dag_run.logical_date],
                         poll_interval=self.poke_interval,
                     ),
                     method_name="execute_complete",

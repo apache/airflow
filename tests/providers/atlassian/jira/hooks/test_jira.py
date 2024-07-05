@@ -24,6 +24,7 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+from tests.test_utils.compat import connection_as_json
 
 
 @pytest.fixture
@@ -46,27 +47,31 @@ class TestJiraHook:
 
         monkeypatch.setenv(
             f"AIRFLOW_CONN_{self.conn_id}".upper(),
-            Connection(
-                conn_id="jira_default",
-                conn_type="jira",
-                host="https://localhost/jira/",
-                port=443,
-                login="user",
-                password="password",
-                extra='{"verify": false, "project": "AIRFLOW"}',
-            ).as_json(),
+            connection_as_json(
+                Connection(
+                    conn_id="jira_default",
+                    conn_type="jira",
+                    host="https://localhost/jira/",
+                    port=443,
+                    login="user",
+                    password="password",
+                    extra='{"verify": false, "project": "AIRFLOW"}',
+                )
+            ),
         )
         monkeypatch.setenv(
             f"AIRFLOW_CONN_{self.conn_id_with_str_verify}".upper(),
-            Connection(
-                conn_id=self.conn_id_with_str_verify,
-                conn_type="jira",
-                host="https://localhost/jira/",
-                port=443,
-                login="user",
-                password="password",
-                extra='{"verify": "False", "project": "AIRFLOW"}',
-            ).as_json(),
+            connection_as_json(
+                Connection(
+                    conn_id=self.conn_id_with_str_verify,
+                    conn_type="jira",
+                    host="https://localhost/jira/",
+                    port=443,
+                    login="user",
+                    password="password",
+                    extra='{"verify": "False", "project": "AIRFLOW"}',
+                )
+            ),
         )
 
     def test_jira_client_connection(self, mocked_jira_client):

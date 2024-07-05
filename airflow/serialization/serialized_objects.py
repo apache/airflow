@@ -37,7 +37,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
@@ -66,11 +66,10 @@ from airflow.task.priority_strategy import (
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
 )
-from airflow.triggers.base import BaseTrigger
+from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
 from airflow.utils.docs import get_docs_url
-from airflow.utils.helpers import exactly_one
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
@@ -229,6 +228,37 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
+def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
+    """
+    Encode a dataset condition.
+
+    :meta private:
+    """
+    if isinstance(var, Dataset):
+        return {"__type": DAT.DATASET, "uri": var.uri, "extra": var.extra}
+    if isinstance(var, DatasetAll):
+        return {"__type": DAT.DATASET_ALL, "objects": [encode_dataset_condition(x) for x in var.objects]}
+    if isinstance(var, DatasetAny):
+        return {"__type": DAT.DATASET_ANY, "objects": [encode_dataset_condition(x) for x in var.objects]}
+    raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
+
+
+def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
+    """
+    Decode a previously serialized dataset condition.
+
+    :meta private:
+    """
+    dat = var["__type"]
+    if dat == DAT.DATASET:
+        return Dataset(var["uri"], extra=var["extra"])
+    if dat == DAT.DATASET_ALL:
+        return DatasetAll(*(decode_dataset_condition(x) for x in var["objects"]))
+    if dat == DAT.DATASET_ANY:
+        return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
+    raise ValueError(f"deserialization not implemented for DAT {dat!r}")
+
+
 def encode_timetable(var: Timetable) -> dict[str, Any]:
     """
     Encode a timetable instance.
@@ -369,13 +399,15 @@ _orm_to_model = {
     DagRun: DagRunPydantic,
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
+    Dataset: DatasetPydantic,
 }
-_type_to_class = {
+_type_to_class: dict[DAT, list] = {
     DAT.BASE_JOB: [JobPydantic, Job],
     DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
+    DAT.DATA_SET: [DatasetPydantic, Dataset],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
 
@@ -487,8 +519,6 @@ class BaseSerialization:
                 serialized_object[key] = encode_timetable(value)
             elif key == "weight_rule" and value is not None:
                 serialized_object[key] = encode_priority_weight_strategy(value)
-            elif key == "dataset_triggers":
-                serialized_object[key] = cls.serialize(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
@@ -553,6 +583,7 @@ class BaseSerialization:
         elif isinstance(var, MappedOperator):
             return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
+            var._needs_expansion = var.get_needs_expansion()
             return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
@@ -605,24 +636,9 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
-        elif isinstance(var, Dataset):
-            return cls._encode({"uri": var.uri, "extra": var.extra}, type_=DAT.DATASET)
-        elif isinstance(var, DatasetAll):
-            return cls._encode(
-                [
-                    cls.serialize(x, strict=strict, use_pydantic_models=use_pydantic_models)
-                    for x in var.objects
-                ],
-                type_=DAT.DATASET_ALL,
-            )
-        elif isinstance(var, DatasetAny):
-            return cls._encode(
-                [
-                    cls.serialize(x, strict=strict, use_pydantic_models=use_pydantic_models)
-                    for x in var.objects
-                ],
-                type_=DAT.DATASET_ANY,
-            )
+        elif isinstance(var, BaseDataset):
+            serialized_dataset = encode_dataset_condition(var)
+            return cls._encode(serialized_dataset, type_=serialized_dataset.pop("__type"))
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
@@ -738,26 +754,15 @@ class BaseSerialization:
         elif type_ == DAT.DATASET:
             return Dataset(**var)
         elif type_ == DAT.DATASET_ANY:
-            return DatasetAny(*(cls.deserialize(x) for x in var))
+            return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
         elif type_ == DAT.DATASET_ALL:
-            return DatasetAll(*(cls.deserialize(x) for x in var))
+            return DatasetAll(*(decode_dataset_condition(x) for x in var["objects"]))
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
-            if type_ == DAT.BASE_JOB:
-                return JobPydantic.model_validate(var)
-            elif type_ == DAT.TASK_INSTANCE:
-                return TaskInstancePydantic.model_validate(var)
-            elif type_ == DAT.DAG_RUN:
-                return DagRunPydantic.model_validate(var)
-            elif type_ == DAT.DAG_MODEL:
-                return DagModelPydantic.model_validate(var)
-            elif type_ == DAT.DATA_SET:
-                return DatasetPydantic.model_validate(var)
-            elif type_ == DAT.LOG_TEMPLATE:
-                return LogTemplatePydantic.model_validate(var)
+            return _type_to_class[type_][0].model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
         else:
@@ -836,9 +841,9 @@ class BaseSerialization:
         return class_(**kwargs)
 
     @classmethod
-    def _serialize_params_dict(cls, params: ParamsDict | dict):
-        """Serialize Params dict for a DAG or task."""
-        serialized_params = {}
+    def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
+        """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
+        serialized_params = []
         for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only.
             try:
@@ -846,7 +851,7 @@ class BaseSerialization:
             except AttributeError:
                 class_identity = ""
             if class_identity == "airflow.models.param.Param":
-                serialized_params[k] = cls._serialize_param(v)
+                serialized_params.append((k, cls._serialize_param(v)))
             else:
                 raise ValueError(
                     f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
@@ -855,10 +860,16 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: dict) -> ParamsDict:
+    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
         """Deserialize a DAG's Params dict."""
+        if isinstance(encoded_params, collections.abc.Mapping):
+            # in 2.9.2 or earlier params were serialized as JSON objects
+            encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
+        else:
+            encoded_param_pairs = encoded_params
+
         op_params = {}
-        for k, v in encoded_params.items():
+        for k, v in encoded_param_pairs:
             if isinstance(v, dict) and "__class" in v:
                 op_params[k] = cls._deserialize_param(v)
             else:
@@ -917,9 +928,7 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        if not dag.dataset_triggers:
-            return
-        for uri, _ in dag.dataset_triggers.iter_datasets():
+        for uri, _ in dag.timetable.dataset_condition.iter_datasets():
             yield DagDependency(
                 source="dataset",
                 target=dag.dag_id,
@@ -929,7 +938,8 @@ class DependencyDetector:
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
-    """A JSON serializable representation of operator.
+    """
+    A JSON serializable representation of operator.
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
@@ -1026,11 +1036,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
-        if exactly_one(op.start_trigger is not None, op.next_method is not None):
-            raise AirflowException("start_trigger and next_method should both be set.")
-
-        serialize_op["start_trigger"] = op.start_trigger.serialize() if op.start_trigger else None
-        serialize_op["next_method"] = op.next_method
+        serialize_op["start_trigger_args"] = (
+            op.start_trigger_args.serialize() if op.start_trigger_args else None
+        )
+        serialize_op["start_from_trigger"] = op.start_from_trigger
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1094,7 +1103,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: dict[str, Any]) -> None:
-        """Populate operator attributes with serialized values.
+        """
+        Populate operator attributes with serialized values.
 
         This covers simple attributes that don't reference other things in the
         DAG. Setting references (such as ``op.dag`` and task dependencies) is
@@ -1184,6 +1194,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls.deserialize(value) for arg, value in v.items()}
             elif k in {"expand_input", "op_kwargs_expand_input"}:
                 v = _ExpandInputRef(v["type"], cls.deserialize(v["value"]))
+            elif k == "operator_class":
+                v = {k_: cls.deserialize(v_, use_pydantic_models=True) for k_, v_ in v.items()}
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1199,7 +1211,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
-            # TODO: refactor deserialization of BaseOperator and MappedOperaotr (split it out), then check
+            # TODO: refactor deserialization of BaseOperator and MappedOperator (split it out), then check
             # could go away.
             if not hasattr(op, k):
                 setattr(op, k, None)
@@ -1212,20 +1224,16 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
-        # Deserialize start_trigger
-        serialized_start_trigger = encoded_op.get("start_trigger")
-        if serialized_start_trigger:
-            trigger_cls_name, trigger_kwargs = serialized_start_trigger
-            trigger_cls = import_string(trigger_cls_name)
-            start_trigger = trigger_cls(**trigger_kwargs)
-            setattr(op, "start_trigger", start_trigger)
-        else:
-            setattr(op, "start_trigger", None)
-        setattr(op, "next_method", encoded_op.get("next_method", None))
+        start_trigger_args = None
+        if encoded_op.get("start_trigger_args", None):
+            start_trigger_args = StartTriggerArgs(**encoded_op.get("start_trigger_args", None))
+        setattr(op, "start_trigger_args", start_trigger_args)
+        setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
-        """Handle DAG references on an operator.
+        """
+        Handle DAG references on an operator.
 
         The operator should have been mostly populated earlier by calling
         ``populate_operator``. This function further fixes object references
@@ -1284,8 +1292,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 end_date=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
-                start_trigger=None,
-                next_method=None,
+                start_trigger_args=encoded_op.get("start_trigger_args", None),
+                start_from_trigger=encoded_op.get("start_from_trigger", False),
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
@@ -1569,8 +1577,6 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k == "dataset_triggers":
-                v = cls.deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)

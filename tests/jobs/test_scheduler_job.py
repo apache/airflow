@@ -400,10 +400,10 @@ class TestSchedulerJob:
             full_filepath=dag.fileloc,
             simple_task_instance=mock.ANY,
             processor_subdir=None,
-            msg="Executor reports task instance "
+            msg="The executor reported that the task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
-            "finished (failed) although the task says it's queued. (Info: None) "
-            "Was the task killed externally?",
+            "finished with state failed, but the task instance's state attribute is queued. "
+            "Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#task-state-changed-externally",
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
         scheduler_job.executor.callback_sink.reset_mock()
@@ -1809,24 +1809,41 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
-    def test_fail_stuck_queued_tasks(self, dag_maker, session):
-        with dag_maker("test_fail_stuck_queued_tasks"):
+    def test_fail_stuck_queued_tasks(self, dag_maker, session, mock_executors):
+        with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
             op1 = EmptyOperator(task_id="op1")
+            op2 = EmptyOperator(task_id="op2", executor="default_exec")
+            op3 = EmptyOperator(task_id="op3", executor="secondary_exec")
 
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
+        ti1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti2 = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti3 = dr.get_task_instance(task_id=op3.task_id, session=session)
+        for ti in [ti1, ti2, ti3]:
+            ti.state = State.QUEUED
+            ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
-        executor = MagicMock()
-        executor.cleanup_stuck_queued_tasks = mock.MagicMock()
-        scheduler_job = Job(executor=executor)
+        scheduler_job = Job()
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
         job_runner._task_queued_timeout = 300
 
-        job_runner._fail_tasks_stuck_in_queued()
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
+            # correct object for the given input executor name.
+            loader_mock.side_effect = lambda *x: {
+                ("default_exec",): mock_executors[0],
+                (None,): mock_executors[0],
+                ("secondary_exec",): mock_executors[1],
+            }[x]
+            job_runner._fail_tasks_stuck_in_queued()
 
-        job_runner.job.executor.cleanup_stuck_queued_tasks.assert_called_once()
+        # Default executor is called for ti1 (no explicit executor override uses default) and ti2 (where we
+        # explicitly marked that for execution by the default executor)
+        try:
+            mock_executors[0].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti1, ti2])
+        except AssertionError:
+            mock_executors[0].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti2, ti1])
+        mock_executors[1].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti3])
 
     def test_fail_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
         with dag_maker("test_fail_stuck_queued_tasks"):

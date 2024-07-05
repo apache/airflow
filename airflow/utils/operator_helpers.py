@@ -130,7 +130,8 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
 
 
 class KeywordParameters:
-    """Wrapper representing ``**kwargs`` to a callable.
+    """
+    Wrapper representing ``**kwargs`` to a callable.
 
     The actual ``kwargs`` can be obtained by calling either ``unpacking()`` or
     ``serializing()``. They behave almost the same and are only different if
@@ -219,7 +220,8 @@ def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
 
 
 class ExecutionCallableRunner:
-    """Run an execution callable against a task context and given arguments.
+    """
+    Run an execution callable against a task context and given arguments.
 
     If the callable is a simple function, this simply calls it with the supplied
     arguments (including the context). If the callable is a generator function,

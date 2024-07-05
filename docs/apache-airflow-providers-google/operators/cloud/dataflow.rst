@@ -39,6 +39,10 @@ There are several ways to run a Dataflow pipeline depending on your environment,
   This is the fastest way to start a pipeline, but because of its frequent problems with system dependencies,
   it may cause problems. See: :ref:`howto/operator:DataflowCreateJavaJobOperator`,
   :ref:`howto/operator:DataflowCreatePythonJobOperator` for more detailed information.
+  Developer can also create a pipeline by passing its structure in a JSON format and then run it to create
+  a Job.
+  See: :ref:`howto/operator:DataflowCreatePipelineOperator` and :ref:`howto/operator:DataflowRunPipelineOperator`
+  for more detailed information.
 - **Templated pipeline**: The programmer can make the pipeline independent of the environment by preparing
   a template that will then be run on a machine managed by Google. This way, changes to the environment
   won't affect your pipeline. There are two types of the templates:
@@ -62,6 +66,40 @@ in the Google Cloud documentation.
 
 Starting Non-templated pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/operator:DataflowCreatePipelineOperator:
+.. _howto/operator:DataflowRunPipelineOperator:
+
+JSON-formatted pipelines
+""""""""""""""""""""""""
+A new pipeline can be created by passing its structure in a JSON format. See
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePipelineOperator`
+This will create a new pipeline that will be visible on Dataflow Pipelines UI.
+
+Here is an example of how you can create a Dataflow Pipeline by running DataflowCreatePipelineOperator:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_pipeline.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_create_dataflow_pipeline]
+   :end-before: [END howto_operator_create_dataflow_pipeline]
+
+To run a newly created pipeline you can use
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowRunPipelineOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_pipeline.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_dataflow_pipeline]
+    :end-before: [END howto_operator_run_dataflow_pipeline]
+
+Once called, the DataflowRunPipelineOperator will return the Google Cloud
+`Dataflow Job <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
+created by running the given pipeline.
+
+For further information regarding the API usage, see
+`Data Pipelines API REST Resource <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines#Pipeline>`__
+in the Google Cloud documentation.
 
 To create a new pipeline using the source file (JAR in Java or Python file) use
 the create job operators. The source file can be located on GCS or on the local filesystem.
@@ -285,6 +323,20 @@ Provide ``job_id`` to stop a specific job, or ``job_name_prefix`` to stop all jo
 
 See: `Stopping a running pipeline
 <https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline>`_.
+
+.. _howto/operator:DataflowDeletePipelineOperator:
+
+Deleting a pipeline
+^^^^^^^^^^^^^^^^^^^
+To delete a Dataflow pipeline you can use
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowDeletePipelineOperator`.
+Here is an example how you can use this operator:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_pipeline.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_delete_dataflow_pipeline]
+    :end-before: [END howto_operator_delete_dataflow_pipeline]
 
 .. _howto/operator:DataflowJobStatusSensor:
 .. _howto/operator:DataflowJobMetricsSensor:

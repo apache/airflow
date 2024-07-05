@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import nullcontext
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
@@ -24,9 +25,11 @@ import pytest
 from google.cloud.logging import Resource
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverTaskHandler
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -81,21 +84,26 @@ def test_should_use_configured_log_name(mock_client, mock_get_creds_and_project_
     mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
     try:
-        with conf_vars(
-            {
-                ("logging", "remote_logging"): "True",
-                ("logging", "remote_base_log_folder"): "stackdriver://host/path",
-            }
-        ):
-            importlib.reload(airflow_local_settings)
-            settings.configure_logging()
+        # this is needed for Airflow 2.8 and below where default settings are triggering warning on
+        # extra "name" in the configuration of stackdriver handler. As of Airflow 2.9 this warning is not
+        # emitted.
+        context_manager = nullcontext() if AIRFLOW_V_2_9_PLUS else pytest.warns(RemovedInAirflow3Warning)
+        with context_manager:
+            with conf_vars(
+                {
+                    ("logging", "remote_logging"): "True",
+                    ("logging", "remote_base_log_folder"): "stackdriver://host/path",
+                }
+            ):
+                importlib.reload(airflow_local_settings)
+                settings.configure_logging()
 
-            logger = logging.getLogger("airflow.task")
-            handler = logger.handlers[0]
-            assert isinstance(handler, StackdriverTaskHandler)
-            with mock.patch.object(handler, "transport_type") as transport_type_mock:
-                logger.error("foo")
-                transport_type_mock.assert_called_once_with(mock_client.return_value, "path")
+                logger = logging.getLogger("airflow.task")
+                handler = logger.handlers[0]
+                assert isinstance(handler, StackdriverTaskHandler)
+                with mock.patch.object(handler, "transport_type") as transport_type_mock:
+                    logger.error("foo")
+                    transport_type_mock.assert_called_once_with(mock_client.return_value, "path")
     finally:
         importlib.reload(airflow_local_settings)
         settings.configure_logging()

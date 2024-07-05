@@ -77,6 +77,10 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      providers-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
+      separate-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
@@ -118,6 +122,7 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
+      testable-integrations: ${{ steps.selective-checks.outputs.testable-integrations }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
@@ -315,6 +320,7 @@ jobs:
       providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
 
   tests-helm:
     name: "Helm tests"
@@ -451,8 +457,11 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      separate-test-types-list-as-string: >-
+        ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -467,14 +476,13 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      testable-integrations: ${{ needs.build-info.outputs.testable-integrations }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      is-airflow-runner: ${{ needs.build-info.outputs.is-airflow-runner }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
@@ -607,7 +615,6 @@ jobs:
       - tests-postgres
       - tests-non-db
       - tests-integration
-      - tests-special
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}

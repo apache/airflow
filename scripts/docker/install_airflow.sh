@@ -35,6 +35,16 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
+    # Remove mysql from extras if client is not going to be installed
+    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
+        echo "${COLOR_YELLOW}MYSQL client installation is disabled. Extra 'mysql' installations were therefore omitted.${COLOR_RESET}"
+    fi
+    # Remove postgres from extras if client is not going to be installed
+    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
+        echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
+    fi
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
@@ -51,16 +61,6 @@ function install_airflow() {
         echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
         echo
         exit 1
-    fi
-    # Remove mysql from extras if client is not going to be installed
-    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
-        echo "${COLOR_YELLOW}MYSQL client installation is disabled. Extra 'mysql' installations were therefore omitted.${COLOR_RESET}"
-    fi
-    # Remove postgres from extras if client is not going to be installed
-    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
-        echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
     if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo

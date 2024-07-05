@@ -86,7 +86,7 @@
         {% endfor -%}
       </select>
     {% elif form_details.schema and "array" in form_details.schema.type %}
-      {% if "items" in form_details.schema and form_details.schema.items %}
+      {% if "items" in form_details.schema and form_details.schema["items"] and ("type" not in form_details.schema["items"] or "string" not in form_details.schema["items"]["type"]) %}
       <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="advancedarray" rows="6"
         {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
         {%- if form_details.value is sequence %}

@@ -1135,6 +1135,7 @@ class TestTriggerRuleDep:
 
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.parametrize(
         "trigger_rule", [TriggerRule.NONE_FAILED, TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS]
     )

@@ -35,14 +35,45 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.2
+.....
+
+Latest change: 2024-06-07
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`80522b91bb <https://github.com/apache/airflow/commit/80522b91bb9802a6de6546ca9796a46cc1894f07>`_  2024-06-07   ``catch sentry flush if exception happens in _execute_in_fork finally block (#40060)``
+`73d02e0f21 <https://github.com/apache/airflow/commit/73d02e0f219216910297548d6ec8bd13f523865c>`_  2024-06-05   ``Add PID and return code to _execute_in_fork logging (#40058)``
+`f4c90f71b9 <https://github.com/apache/airflow/commit/f4c90f71b9c709e4bff80d2d0e184fb90f1a288f>`_  2024-06-04   ``Fixing exception types to include TypeError, which is what is raised in (#40012)``
+=================================================================================================  ===========  ======================================================================================
+
+3.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`7b588b4dd9 <https://github.com/apache/airflow/commit/7b588b4dd97ee719b9574c2f9b948b7a5a837968>`_  2024-05-22   ``misc: add comment about remove unused code (#39748)``
+`e3897dcbed <https://github.com/apache/airflow/commit/e3897dcbed0262b0cab7a357f8d7fbbb6c4f4eeb>`_  2024-05-13   ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`a74b5f0694 <https://github.com/apache/airflow/commit/a74b5f069481e1a2339cfd95e137619b16390906>`_  2024-05-06   ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+=================================================================================================  ===========  ===========================================================================
+
 3.7.0
 .....
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 =================================================================================================  ===========  =======================================================================
 

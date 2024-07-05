@@ -41,6 +41,7 @@ from airflow.providers.elasticsearch.log.es_response import ElasticSearchRespons
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -89,7 +90,8 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """Given TI | TIKey, return a TI object.
+    """
+    Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """
@@ -152,7 +154,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
-        index_patterns: str | None = conf.get("elasticsearch", "index_patterns", fallback="_all"),
+        index_patterns: str = conf.get("elasticsearch", "index_patterns"),
+        index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
         filename_template: str | None = None,
@@ -184,6 +187,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.host_field = host_field
         self.offset_field = offset_field
         self.index_patterns = index_patterns
+        self.index_patterns_callable = index_patterns_callable
         self.context_set = False
 
         self.formatter: logging.Formatter
@@ -212,6 +216,19 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             raise ValueError(f"'{host}' is not a valid URL.")
 
         return host
+
+    def _get_index_patterns(self, ti: TaskInstance | None) -> str:
+        """
+        Get index patterns by calling index_patterns_callable, if provided, or the configured index_patterns.
+
+        :param ti: A TaskInstance object or None.
+        """
+        if self.index_patterns_callable:
+            self.log.debug("Using index_patterns_callable: %s", self.index_patterns_callable)
+            index_pattern_callable_obj = import_string(self.index_patterns_callable)
+            return index_pattern_callable_obj(ti)
+        self.log.debug("Using index_patterns: %s", self.index_patterns)
+        return self.index_patterns
 
     def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         from airflow.models.taskinstance import TaskInstanceKey
@@ -302,7 +319,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        response = self._es_read(log_id, offset)
+        response = self._es_read(log_id, offset, ti)
         if response is not None and response.hits:
             logs_by_host = self._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
@@ -372,12 +389,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return hit.message
 
-    def _es_read(self, log_id: str, offset: int | str) -> ElasticSearchResponse | None:
+    def _es_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> ElasticSearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
         :param log_id: the log_id of the log to read.
         :param offset: the offset start to read log from.
+        :param ti: the task instance object
 
         :meta private:
         """
@@ -388,16 +406,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             }
         }
 
+        index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=self.index_patterns, query=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
         except NotFoundError as e:
-            self.log.exception("The target index pattern %s does not exist", self.index_patterns)
+            self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
 
         if max_log_line != 0:
             try:
                 res = self.client.search(
-                    index=self.index_patterns,
+                    index=index_patterns,
                     query=query,
                     sort=[self.offset_field],
                     size=self.MAX_LINE_PER_PAGE,

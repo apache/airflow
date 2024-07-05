@@ -58,7 +58,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
     # boto3 have native aync support and we move away from aio aiobotocore
     "aiobotocore": [
-        "aiobotocore>=2.7.0",
+        "aiobotocore>=2.9.0",
     ],
     "async": [
         "eventlet>=0.33.3",
@@ -248,7 +248,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.4.3",
+        "ruff==0.4.5",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -258,7 +258,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
-        "jmespath",
+        "jmespath>=0.7.0",
         "pytest-asyncio>=0.23.6",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
@@ -411,7 +411,7 @@ DEPENDENCIES = [
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
-    "asgiref",
+    "asgiref>=2.3.0",
     "attrs>=22.1.0",
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
@@ -424,25 +424,26 @@ DEPENDENCIES = [
     # The usage was added in #30596, seemingly only to override and improve the default error message.
     # Either revert that change or find another way, preferably without using connexion internals.
     # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.10.0,<3.0",
+    "connexion[flask]>=2.14.2,<3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=39.0.0",
+    "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "flask-caching>=1.5.0",
+    "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
     "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=0.15",
+    "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2,<2.3",
+    "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
-    "google-re2>=1.0",
+    'google-re2>=1.0;python_version<"3.12"',
+    'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
-    "httpx",
+    "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299
@@ -450,7 +451,7 @@ DEPENDENCIES = [
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
-    "lazy-object-proxy",
+    "lazy-object-proxy>=1.2.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
@@ -459,24 +460,26 @@ DEPENDENCIES = [
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.15.0",
-    "opentelemetry-exporter-otlp",
-    "packaging>=14.0",
+    "opentelemetry-exporter-otlp>=1.15.0",
+    "packaging>=22.0",
     "pathspec>=0.9.0",
-    "pendulum>=2.1.2,<4.0",
-    "pluggy>=1.0",
-    "psutil>=4.2.0",
+    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
+    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    "pluggy>=1.5.0",
+    "psutil>=5.8.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
-    "python-dateutil>=2.3",
+    "python-dateutil>=2.7.0",
     "python-nvd3>=0.15.0",
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.
     "requests>=2.27.0,<3",
+    "requests-toolbelt>=0.4.0",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=12.4.4",
-    "setproctitle>=1.1.8",
+    "setproctitle>=1.3.3",
     # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
@@ -484,12 +487,12 @@ DEPENDENCIES = [
     "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "tabulate>=0.7.5",
-    "tenacity>=6.2.0,!=8.2.0",
+    "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
     # We should remove this dependency when Providers are limited to Airflow 2.7+
     # as we replaced the usage of unicodecsv with csv in Airflow 2.7
     # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
+    # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
     # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
     "universal-pathlib>=0.2.2",
@@ -845,6 +848,18 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         # via build_data (or so it seem) so we need to modify internal _optional_dependencies
         # field in core.metadata until this is possible
         self.metadata.core._optional_dependencies = self.optional_dependencies
+
+        # Add entrypoints dynamically for all provider packages, in editable build
+        # else they will not be found by plugin manager
+        if version != "standard":
+            entry_points = self.metadata.core._entry_points or {}
+            plugins = entry_points.get("airflow.plugins") or {}
+            for provider in PROVIDER_DEPENDENCIES.values():
+                for plugin in provider["plugins"]:
+                    plugin_class: str = plugin["plugin-class"]
+                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[::-1]
+            entry_points["airflow.plugins"] = plugins
+            self.metadata.core._entry_points = entry_points
 
     def _add_devel_ci_dependencies(self, deps: list[str], python_exclusion: str) -> None:
         """

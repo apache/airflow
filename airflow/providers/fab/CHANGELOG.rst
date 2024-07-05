@@ -20,6 +20,37 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add CSRF protection to "/logout" (#40145)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Upgrade to FAB 4.5.0 (#39851)``
+* ``fix: sqa deprecations for airflow providers (#39293)``
+* ``Add '[webserver]update_fab_perms' to deprecated configs (#40317)``
+
+1.1.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Simplify action name retrieval in FAB auth manager (#39358)``
+* ``Add 'jmespath' as an explicit dependency (#39350)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
 1.1.0
 .....
 

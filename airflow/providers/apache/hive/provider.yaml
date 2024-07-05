@@ -22,9 +22,11 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 state: ready
-source-date-epoch: 1715384401
+source-date-epoch: 1718603836
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.1.2
+  - 8.1.1
   - 8.1.0
   - 8.0.0
   - 7.0.1
@@ -76,9 +78,12 @@ dependencies:
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
   # In addition FAB also limit sqlalchemy to < 2.0
-  - pandas>=1.2.5,<2.2
+  - pandas>=2.1.2,<2.2;python_version>="3.9"
+  - pandas>=1.5.3,<2.2;python_version<"3.9"
+
   - pyhive[hive_pure_sasl]>=0.7.0
-  - thrift>=0.9.2
+  - thrift>=0.11.0
+  - jmespath>=0.7.0
 
 integrations:
   - integration-name: Apache Hive

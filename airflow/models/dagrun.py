@@ -51,7 +51,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred, TaskNotFound
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
@@ -109,7 +109,8 @@ def _creator_note(val):
 
 
 class DagRun(Base, LoggingMixin):
-    """Invocation instance of a DAG.
+    """
+    Invocation instance of a DAG.
 
     A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
     external trigger (i.e. manual runs).
@@ -269,7 +270,8 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState) -> None:
-        """Change the state of the DagRan.
+        """
+        Change the state of the DagRan.
 
         Changes to attributes are implemented in accordance with the following table
         (rows represent old states, columns represent new states):
@@ -1010,7 +1012,8 @@ class DagRun(Base, LoggingMixin):
         )
 
         def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
-            """Try to expand the ti, if needed.
+            """
+            Try to expand the ti, if needed.
 
             If the ti needs expansion, newly created task instances are
             returned as well as the original ti.
@@ -1100,7 +1103,8 @@ class DagRun(Base, LoggingMixin):
         )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: list[TI]) -> None:
-        """Emit the true scheduling delay stats.
+        """
+        Emit the true scheduling delay stats.
 
         The true scheduling delay stats is defined as the time when the first
         task in DAG starts minus the expected DAG run datetime.
@@ -1412,7 +1416,8 @@ class DagRun(Base, LoggingMixin):
             session.rollback()
 
     def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
-        """Check if task increased or reduced in length and handle appropriately.
+        """
+        Check if task increased or reduced in length and handle appropriately.
 
         Task instances that do not already exist are created and returned if
         possible. Expansion only happens if all upstreams are ready; otherwise
@@ -1538,19 +1543,11 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
-            elif (
-                ti.task.start_trigger is not None
-                and ti.task.next_method is not None
-                and not ti.task.on_execute_callback
-                and not ti.task.on_success_callback
-                and not ti.task.outlets
-            ):
+            elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
+                ti.start_date = timezone.utcnow()
                 if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                     ti.try_number += 1
-                ti.defer_task(
-                    defer=TaskDeferred(trigger=ti.task.start_trigger, method_name=ti.task.next_method),
-                    session=session,
-                )
+                ti.defer_task(exception=None, session=session)
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
@@ -1597,6 +1594,7 @@ class DagRun(Base, LoggingMixin):
                         start_date=timezone.utcnow(),
                         end_date=timezone.utcnow(),
                         duration=0,
+                        try_number=TI.try_number + 1,
                     )
                     .execution_options(
                         synchronize_session=False,

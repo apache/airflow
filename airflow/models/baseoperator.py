@@ -41,6 +41,7 @@ from typing import (
     Callable,
     Collection,
     Iterable,
+    NoReturn,
     Sequence,
     TypeVar,
     Union,
@@ -94,7 +95,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import validate_instance_args, validate_key
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -115,7 +116,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.types import ArgNotSet
 
@@ -520,6 +521,47 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
 
+# TODO: The following mapping is used to validate that the arguments passed to the BaseOperator are of the
+#  correct type. This is a temporary solution until we find a more sophisticated method for argument
+#  validation. One potential method is to use `get_type_hints` from the typing module. However, this is not
+#  fully compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
+#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
+#  manual type-checking method.
+BASEOPERATOR_ARGS_EXPECTED_TYPES = {
+    "task_id": str,
+    "email": (str, Iterable),
+    "email_on_retry": bool,
+    "email_on_failure": bool,
+    "retries": int,
+    "retry_exponential_backoff": bool,
+    "depends_on_past": bool,
+    "ignore_first_depends_on_past": bool,
+    "wait_for_past_depends_before_skipping": bool,
+    "wait_for_downstream": bool,
+    "priority_weight": int,
+    "queue": str,
+    "pool": str,
+    "pool_slots": int,
+    "trigger_rule": str,
+    "run_as_user": str,
+    "task_concurrency": int,
+    "map_index_template": str,
+    "max_active_tis_per_dag": int,
+    "max_active_tis_per_dagrun": int,
+    "executor": str,
+    "do_xcom_push": bool,
+    "multiple_outputs": bool,
+    "doc": str,
+    "doc_md": str,
+    "doc_json": str,
+    "doc_yaml": str,
+    "doc_rst": str,
+    "task_display_name": str,
+    "logger_name": str,
+    "allow_nested_operators": bool,
+}
+
+
 @total_ordering
 class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     r"""
@@ -818,8 +860,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    start_trigger: BaseTrigger | None = None
-    next_method: str | None = None
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     def __init__(
         self,
@@ -1077,6 +1119,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
+        validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
+
     def __eq__(self, other):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
@@ -1172,14 +1216,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """Get inlet definitions on this task.
+        """
+        Get inlet definitions on this task.
 
         :meta private:
         """
         return self.inlets
 
     def get_outlet_defs(self):
-        """Get outlet definitions on this task.
+        """
+        Get outlet definitions on this task.
 
         :meta private:
         """
@@ -1353,7 +1399,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         This mutates the attributes in-place and is irreversible.
 
@@ -1537,7 +1584,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def is_setup(self) -> bool:
-        """Whether the operator is a setup task.
+        """
+        Whether the operator is a setup task.
 
         :meta private:
         """
@@ -1545,7 +1593,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @is_setup.setter
     def is_setup(self, value: bool) -> None:
-        """Setter for is_setup property.
+        """
+        Setter for is_setup property.
 
         :meta private:
         """
@@ -1555,7 +1604,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def is_teardown(self) -> bool:
-        """Whether the operator is a teardown task.
+        """
+        Whether the operator is a teardown task.
 
         :meta private:
         """
@@ -1678,8 +1728,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_teardown",
                     "on_failure_fail_dagrun",
                     "map_index_template",
-                    "start_trigger",
-                    "next_method",
+                    "start_trigger_args",
+                    "_needs_expansion",
+                    "start_from_trigger",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1705,7 +1756,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         method_name: str,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
-    ):
+    ) -> NoReturn:
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
@@ -1731,7 +1782,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" operator from the current operator.
+        """
+        Get the "normal" operator from the current operator.
 
         Since a BaseOperator is not mapped to begin with, this simply returns
         the original operator.

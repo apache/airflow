@@ -24,6 +24,7 @@ from confluent_kafka import Producer
 from airflow.models import Connection
 
 # Import Hook
+from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.utils import db
 
@@ -68,3 +69,5 @@ class TestConsumerHook:
         msg = consumer.consume()
 
         assert msg[0].value() == b"test_message"
+        hook = KafkaAdminClientHook(kafka_config_id="kafka_d")
+        hook.delete_topic(topics=[TOPIC])

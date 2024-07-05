@@ -28,10 +28,12 @@ description: |
 # For providers until we think it should be released.
 state: ready
 
-source-date-epoch: 1715384432
+source-date-epoch: 1718604369
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.2.0
+  - 1.1.1
   - 1.1.0
   - 1.0.4
   - 1.0.3
@@ -47,10 +49,10 @@ dependencies:
   # Every time we update FAB version here, please make sure that you review the classes and models in
   # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
   # In particular, make sure any breaking changes, for example any new methods, are accounted for.
-  - flask-appbuilder==4.4.1
+  - flask-appbuilder==4.5.0
   - flask-login>=0.6.2
   - google-re2>=1.0
-  - jmespath
+  - jmespath>=0.7.0
 
 config:
   fab:
@@ -59,14 +61,14 @@ config:
       auth_rate_limited:
         description: |
           Boolean for enabling rate limiting on authentication endpoints.
-        version_added: 1.0.0
+        version_added: 1.0.2
         type: boolean
         example: ~
         default: "True"
       auth_rate_limit:
         description: |
           Rate limit for authentication endpoints.
-        version_added: 2.6.0
+        version_added: 1.0.2
         type: string
         example: ~
         default: "5 per 40 second"
@@ -74,7 +76,7 @@ config:
         description: |
           Update FAB permissions and sync security manager roles
           on webserver startup
-        version_added: 1.10.7
+        version_added: 1.0.2
         type: string
         example: ~
         default: "True"

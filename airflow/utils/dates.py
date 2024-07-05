@@ -44,7 +44,8 @@ def date_range(
     num: int | None = None,
     delta: str | timedelta | relativedelta | None = None,
 ) -> list[datetime]:
-    """Get a list of dates in the specified range, separated by delta.
+    """
+    Get a list of dates in the specified range, separated by delta.
 
     .. code-block:: pycon
         >>> from airflow.utils.dates import date_range
@@ -140,7 +141,8 @@ def round_time(
     delta: str | timedelta | relativedelta,
     start_date: datetime = timezone.make_aware(datetime.min),
 ):
-    """Return ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
+    """
+    Return ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
 
     .. code-block:: pycon
 
@@ -223,7 +225,8 @@ TimeUnit = Literal["days", "hours", "minutes", "seconds"]
 
 
 def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
-    """Determine the most appropriate time unit for given durations (in seconds).
+    """
+    Determine the most appropriate time unit for given durations (in seconds).
 
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
@@ -254,7 +257,8 @@ def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Col
 
 
 def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
-    """Get a datetime object representing *n* days ago.
+    """
+    Get a datetime object representing *n* days ago.
 
     By default the time is set to midnight.
     """
@@ -272,3 +276,8 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
 def parse_execution_date(execution_date_str):
     """Parse execution date string to datetime object."""
     return timezone.parse(execution_date_str)
+
+
+def datetime_to_nano(datetime) -> int:
+    """Convert datetime to nanoseconds."""
+    return int(datetime.timestamp() * 1000000000)
