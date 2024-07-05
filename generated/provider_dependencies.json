@@ -7,7 +7,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "http"
+      "http",
+      "openlineage"
     ],
     "excluded-python-versions": [],
     "state": "ready"
