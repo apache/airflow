@@ -37,32 +37,6 @@ PREFIX = "TEST"
 TEMPFILE_NAME = "test-tempfile"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
-# Args to be used for a parametrized set of tests that handles an S3 prefix and a WASB prefix beign passed to
-# the operator, before executing the move_files() method
-BOTH_PREFIX_ARGS = [
-    # s3_existing files, wasb_existing_files, returned_files, s3_prefix, wasb_prefix, replace
-    (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from below
-    (MOCK_FILES, MOCK_FILES[1:], [MOCK_FILES[0]], PREFIX, PREFIX, False),  # Task 2 from below
-    (MOCK_FILES, MOCK_FILES[1:], MOCK_FILES, PREFIX, PREFIX, True),  # Task 3 from below
-]
-
-# Args to be used for a parametrized set of tests that handles a single S3 and a single Azure blob name
-# being passed to the operator, before executing the move_files() method
-BOTH_KEY_ARGS = [
-    # azure_file_exists, returned_files, replace
-    (False, ["TEST1.csv"], False),  # Task 4 from below
-    (True, [], False),  # Task 5 from below
-    (True, ["TEST1.csv"], True),  # Task 6 from below
-]
-
-# Args to be used for a parametrized set of tests that handles a single S3 key and an WASB prefix being
-# passed to the operator, before executing the move_files() method
-S3_KEY_WASB_PREFIX_ARGS = [
-    # wasb_existing_files, returned_files
-    ([], ["TEST1.csv"]),  # Task 8 from below
-    (["TEST1.csv"], []),  # Task 9 from below
-]
-
 # Here are some of the tests that need to be run (for the get_files_to_move() function)
 # 1. Prefix with no existing files, without replace                           [DONE]
 # 2. Prefix with existing files, without replace                              [DONE]
@@ -150,7 +124,13 @@ class TestS3ToAzureBlobStorageOperator:
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     @pytest.mark.parametrize(  # Please see line 37 above for args used for parametrization
-        "s3_existing_files,wasb_existing_files,returned_files,s3_prefix,blob_prefix,replace", BOTH_PREFIX_ARGS
+        "s3_existing_files,wasb_existing_files,returned_files,s3_prefix,blob_prefix,replace",
+        [
+            # s3_existing files, wasb_existing_files, returned_files, s3_prefix, wasb_prefix, replace
+            (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from above
+            (MOCK_FILES, MOCK_FILES[1:], [MOCK_FILES[0]], PREFIX, PREFIX, False),  # Task 2 from above
+            (MOCK_FILES, MOCK_FILES[1:], MOCK_FILES, PREFIX, PREFIX, True),  # Task 3 from above
+        ],
     )
     def test_get_files_to_move__both_prefix(
         self,
@@ -180,7 +160,15 @@ class TestS3ToAzureBlobStorageOperator:
         assert sorted(uploaded_files) == sorted(returned_files)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    @pytest.mark.parametrize("azure_file_exists,returned_files,replace", BOTH_KEY_ARGS)
+    @pytest.mark.parametrize(
+        "azure_file_exists,returned_files,replace",
+        [
+            # azure_file_exists, returned_files, replace
+            (False, ["TEST1.csv"], False),  # Task 4 from above
+            (True, [], False),  # Task 5 from above
+            (True, ["TEST1.csv"], True),  # Task 6 from above
+        ],
+    )
     def test_get_file_to_move__both_key(self, wasb_mock_hook, azure_file_exists, returned_files, replace):
         # Different than above, able to remove the mocking of the list_keys method for the S3 hook (since a
         # single key is being passed, rather than a prefix). Testing when a single S3 key is being moved to
@@ -200,7 +188,14 @@ class TestS3ToAzureBlobStorageOperator:
         assert sorted(uploaded_files) == sorted(returned_files)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
-    @pytest.mark.parametrize("wasb_existing_files,returned_files", S3_KEY_WASB_PREFIX_ARGS)
+    @pytest.mark.parametrize(
+        "wasb_existing_files,returned_files",
+        [
+            # wasb_existing_files, returned_files
+            ([], ["TEST1.csv"]),  # Task 8 from above
+            (["TEST1.csv"], []),  # Task 9 from above
+        ],
+    )
     def test_get_files_to_move__s3_key_wasb_prefix(self, wasb_mock_hook, wasb_existing_files, returned_files):
         # A single S3 key is being used to move to a file to a container using a prefix. The files being
         # returned should take the same name as the file key that was passed to s3_key
