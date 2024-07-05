@@ -456,7 +456,7 @@ in which case you will have to make your own `custom facets <https://openlineage
 More on creating custom facets can be found `here <https://openlineage.io/blog/extending-with-facets/>`_.
 
 Custom Run Facets
------------------
+=================
 
 You can inject your own custom facets in the lineage event's run facet using the ``custom_run_facets`` Airflow configuration.
 
@@ -536,6 +536,7 @@ a string of semicolon separated full import path to the functions.
 
 .. note::
 
+    - The custom facet functions are only executed at the start of the TaskInstance and added to the OpenLineage START event.
     - Duplicate functions if registered, will be executed only once.
     - When duplicate custom facet keys are returned by different functions, the last processed function will be added to the lineage event.
 
