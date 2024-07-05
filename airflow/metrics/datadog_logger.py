@@ -139,7 +139,7 @@ class SafeDogStatsdLogger:
         if self.metrics_validator.test(stat):
             if isinstance(dt, datetime.timedelta):
                 if metrics_consistency_on:
-                    dt = dt.total_seconds() * 1000
+                    dt = dt.total_seconds() * 1000.0
                 else:
                     warnings.warn(
                         "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
