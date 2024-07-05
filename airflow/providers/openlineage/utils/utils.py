@@ -97,7 +97,7 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
                     custom_facet_func,
                 )
                 continue
-            facet: dict[str, BaseFacet] = func(task_instance)
+            facet: dict | None = func(task_instance)
             if facet and isinstance(facet, dict):
                 duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
                 if duplicate_facet_keys:
