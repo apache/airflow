@@ -32,17 +32,14 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.exceptions import (
-    AirflowException as AirflowException,
-    AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
-)
+from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
+
+from pandas import DataFrame as DataFrame
+from sqlalchemy.engine import URL as URL
+
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
-from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import URL as URL
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
@@ -64,8 +61,7 @@ class DbApiHook(BaseHook):
     descriptions: Incomplete
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
 
-    @property
-    def conn_id(self) -> str: ...
+    def get_conn_id(self) -> str: ...
     @property
     def placeholder(self): ...
     def get_conn(self): ...

@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
+
 T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
@@ -182,13 +183,12 @@ class DbApiHook(BaseHook):
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
 
-    @property
-    def conn_id(self) -> str:
+    def get_conn_id(self) -> str:
         return getattr(self, self.conn_name_attr)
 
     @cached_property
     def placeholder(self):
-        conn = self.get_connection(self.conn_id)
+        conn = self.get_connection(self.get_conn_id())
         placeholder = conn.extra_dejson.get("placeholder")
         if placeholder:
             if placeholder in SQL_PLACEHOLDERS:
@@ -197,14 +197,14 @@ class DbApiHook(BaseHook):
                 "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
                 "and got ignored. Falling back to the default placeholder '%s'.",
                 placeholder,
-                self.conn_id,
+                self.get_conn_id(),
                 self._placeholder,
             )
         return self._placeholder
 
     def get_conn(self):
         """Return a connection object."""
-        db = self.get_connection(self.conn_id)
+        db = self.get_connection(self.get_conn_id())
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
@@ -213,7 +213,7 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
-        conn = self.get_connection(self.conn_id)
+        conn = self.get_connection(self.get_conn_id())
         conn.schema = self.__schema or conn.schema
         return conn.get_uri()
 
@@ -508,7 +508,7 @@ class DbApiHook(BaseHook):
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
-                self.conn_id,
+                self.get_conn_id(),
             )
         conn.autocommit = autocommit
 
