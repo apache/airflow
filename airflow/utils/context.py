@@ -44,7 +44,6 @@ from airflow.datasets import Dataset, DatasetAlias, coerce_to_uri
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -178,13 +177,7 @@ class OutletEventAccessor:
     def __str__(self) -> str:
         return f"OutletEventAccessor(_raw_key={self._raw_key}, extra={self.extra}, dataset_action={self.dataset_action})"
 
-    @provide_session
-    def add(
-        self, dataset: Dataset | str, extra: dict[str, Any] | None = None, *, session: Session = NEW_SESSION
-    ) -> None:
-        from airflow.datasets.manager import dataset_manager
-        from airflow.models.dataset import DatasetAliasModel
-
+    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
         if isinstance(dataset, str):
             dataset_uri = dataset
         elif isinstance(dataset, Dataset):
@@ -192,31 +185,17 @@ class OutletEventAccessor:
         else:
             return
 
-        dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset_uri).limit(1))
-        if not dataset_obj:
-            dataset_obj = (
-                DatasetModel.from_public(dataset)
-                if isinstance(dataset, Dataset)
-                else DatasetModel(uri=dataset_uri, extra=extra)
-            )
-
-            dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
-
         if isinstance(self._raw_key, str):
-            dataset_alias_obj = session.scalar(
-                select(DatasetAliasModel).where(DatasetAliasModel.name == self._raw_key).limit(1)
-            )
-            if not dataset_alias_obj:
-                return
+            dataset_alias_name = self._raw_key
         elif isinstance(self._raw_key, DatasetAlias):
-            dataset_alias_obj = self._raw_key
+            dataset_alias_name = self._raw_key.name
         else:
             return
 
         if extra:
-            dataset_obj.extra = extra
+            self.extra = extra
 
-        self.dataset_action = {"dataset": dataset_obj, "dataset_alias": dataset_alias_obj}
+        self.dataset_action = {"dataset_uri": dataset_uri, "dataset_alias_name": dataset_alias_name}
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):

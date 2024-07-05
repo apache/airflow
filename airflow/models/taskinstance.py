@@ -2921,12 +2921,22 @@ class TaskInstance(Base, LoggingMixin):
                 )
             elif isinstance(obj, DatasetAlias):
                 actions = events[obj].dataset_action
+
                 if actions:
-                    obj = DatasetModel.from_public(actions["dataset"])
+                    dataset_uri = actions["dataset_uri"]
+                    extra = events[obj].extra
+
+                    dataset_obj = session.scalar(
+                        select(DatasetModel).where(DatasetModel.uri == dataset_uri).limit(1)
+                    )
+                    if not dataset_obj:
+                        dataset_obj = DatasetModel(uri=dataset_uri, extra=extra)
+                        dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
+
                     dataset_manager.register_dataset_change(
                         task_instance=self,
-                        dataset=obj,
-                        extra=events[obj].extra,
+                        dataset=dataset_obj,
+                        extra=extra,
                         session=session,
                     )
 

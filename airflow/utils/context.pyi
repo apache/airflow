@@ -43,7 +43,6 @@ from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
-from airflow.utils.session import NEW_SESSION
 
 KNOWN_CONTEXT_KEYS: set[str]
 
@@ -60,11 +59,9 @@ class ConnectionAccessor:
 
 class OutletEventAccessor:
     def __init__(self, *, extra: dict[str, Any]) -> None: ...
-    def add(
-        self, dataset: Dataset | str, extra: dict[str, Any] | None = None, *, session: Session = NEW_SESSION
-    ) -> None: ...
-    _raw_key: str | Dataset | DatasetAlias
+    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
+    _raw_key: str | Dataset | DatasetAlias
     dataset_action: dict
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):

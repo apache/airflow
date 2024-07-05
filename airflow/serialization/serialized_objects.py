@@ -37,7 +37,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
@@ -257,6 +257,39 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
     if dat == DAT.DATASET_ANY:
         return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
+
+
+def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
+    raw_key = var._raw_key
+    if isinstance(raw_key, Dataset):
+        serialized_raw_key = {"__type": DAT.DATASET, "uri": raw_key.uri, "extra": raw_key.extra}
+    elif isinstance(raw_key, DatasetAlias):
+        serialized_raw_key = {"__type": DAT.DATASET_ALIAS, "name": raw_key.name}
+    elif isinstance(raw_key, str):
+        serialized_raw_key = raw_key
+    else:
+        raise ValueError(f"serialization not implemented for {raw_key}")
+    return {
+        "extra": var.extra,
+        "dataset_action": var.dataset_action,
+        "_raw_key": serialized_raw_key,
+    }
+
+
+def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
+    raw_key = var["_raw_key"]
+    if "__type" not in raw_key:
+        _raw_key = raw_key
+    elif raw_key["__type"] == DAT.DATASET:
+        _raw_key = Dataset(uri=raw_key["uri"], extra=raw_key["extra"])
+    elif raw_key["__type"] == DAT.DATASET_ALIAS:
+        _raw_key = DatasetAlias(name=raw_key["name"])
+    else:
+        raise ValueError(f"deserialization not implemented for {raw_key}")
+
+    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=_raw_key)
+    outlet_event_accessor.dataset_action = var["dataset_action"]
+    return outlet_event_accessor
 
 
 def encode_timetable(var: Timetable) -> dict[str, Any]:
@@ -573,7 +606,7 @@ class BaseSerialization:
             )
         elif isinstance(var, OutletEventAccessor):
             return cls._encode(
-                cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
+                encode_outlet_event_accessor(var),
                 type_=DAT.DATASET_EVENT_ACCESSOR,
             )
         elif isinstance(var, DAG):
@@ -713,7 +746,7 @@ class BaseSerialization:
             d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
             return d
         elif type_ == DAT.DATASET_EVENT_ACCESSOR:
-            return OutletEventAccessor(extra=cls.deserialize(var))
+            return decode_outlet_event_accessor(var)
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
