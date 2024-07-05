@@ -29,9 +29,11 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.decorators import task
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_runs
@@ -58,6 +60,11 @@ def configured_app(minimal_app_for_api):
 
     delete_user(app, username="test")
     delete_user(app, username="test_no_permissions")
+
+
+@pytest.fixture(scope="module")
+def bucket_name():
+    return "test_log_page_bucket"
 
 
 class TestGetLog:
@@ -388,3 +395,100 @@ class TestGetLog:
         )
         assert response.status_code == 404
         assert response.json["title"] == "TaskInstance not found"
+
+
+class TestLogPageFunctionality:
+    DAG_ID = "dag_for_testing_log_page_endpoint"
+    RUN_ID = "dag_run_id_for_testing_log_page_endpoint"
+    TASK_ID = "task_for_testing_log_page_endpoint"
+    TRY_NUMBER = 1
+
+    default_time = "2020-06-10T20:00:00+00:00"
+
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app, dag_maker, session) -> None:
+        self.app = configured_app
+        self.client = self.app.test_client()
+
+        with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
+            EmptyOperator(task_id=self.TASK_ID)
+
+        dr = dag_maker.create_dagrun(
+            run_id=self.RUN_ID,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+
+        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+
+        for ti in dr.task_instances:
+            ti.try_number = 1
+            ti.hostname = "localhost"
+
+        self.ti = dr.task_instances[0]
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_should_return_1_page_for_non_terminal_state(self, session):
+        # Update the task instance to a non-terminal state
+        ti = (
+            session.query(TaskInstance)
+            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
+            .first()
+        )
+        ti.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        # Make the API call
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
+            query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        # Check the response
+        assert response.status_code == 200
+        assert response.json == {"total_pages": 1}
+
+    def test_should_return_multiple_pages_for_large_log(self, tmp_path, session):
+        # Update the task instance to a terminal state
+        ti = (
+            session.query(TaskInstance)
+            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
+            .first()
+        )
+        ti.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        # Create a large log file (300 KB)
+        log_content = "A" * 300 * 1024  # 300 KB of 'A's
+        log_file_path = (
+            tmp_path
+            / f"dag_id={self.DAG_ID}"
+            / f"run_id={self.RUN_ID}"
+            / f"task_id={self.TASK_ID}"
+            / "attempt=1.log"
+        )
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_path.write_text(log_content)
+
+        # Mock the S3Hook to return the size of the large log file
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.s3.S3Hook.get_content_length"
+        ) as mock_get_content_length:
+            mock_get_content_length.return_value = len(log_content)
+
+            # Make the API call
+            response = self.client.get(
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
+                query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
+                headers={"Accept": "application/json"},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+
+            # Check the response
+            assert response.status_code == 200
+            assert response.json == {"total_pages": 3}

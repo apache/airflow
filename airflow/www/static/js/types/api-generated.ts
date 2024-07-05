@@ -4563,6 +4563,12 @@ export interface operations {
         /** The task ID. */
         task_id: components["parameters"]["TaskID"];
       };
+      query: {
+        /** The name of the bucket. */
+        bucket_name: string;
+        /** The key parameter. */
+        key: string;
+      };
     };
     responses: {
       /** Success. */
@@ -5701,7 +5707,8 @@ export type GetLogVariables = CamelCasedPropertiesDeep<
     operations["get_log"]["parameters"]["query"]
 >;
 export type GetLogPagesVariables = CamelCasedPropertiesDeep<
-  operations["get_log_pages"]["parameters"]["path"]
+  operations["get_log_pages"]["parameters"]["path"] &
+    operations["get_log_pages"]["parameters"]["query"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_details"]["parameters"]["path"] &

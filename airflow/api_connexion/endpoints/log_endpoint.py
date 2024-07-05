@@ -130,6 +130,7 @@ def get_log_pages(
     dag_run_id: str,
     task_id: str,
     bucket_name: str,
+    key: str,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get total number of log pages for a specific task instance."""
@@ -148,24 +149,28 @@ def get_log_pages(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
+
     ti = session.scalar(query)
     if ti is None:
         raise NotFound(title="TaskInstance not found")
 
     # Check if the task instance state is terminal
+    if ti.state is None:
+        raise BadRequest("TaskInstance state is None")
+
     if ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED}:
         return {"total_pages": 1}
 
     # Fetch s3 log content length
     s3_hook = S3Hook()
-    log_key = f"{dag_id}/{dag_run_id}/{task_id}/log.txt"  # Is this the correct log key name?
+    log_key = f"{dag_id}/{dag_run_id}/{task_id}/{key}"  # Updated to use key parameter
     page_size_kb = 100  # Hardcoded page size in KB for now
     page_size_bytes = page_size_kb * 1024
 
     try:
         content_length = s3_hook.get_content_length(key=log_key, bucket_name=bucket_name)
         total_pages = ceil(content_length / page_size_bytes)
-    except Exception as e:
-        raise BadRequest(f"Error fetching log content length: {e}")
+    except Exception:
+        raise BadRequest("Error fetching log content length")
 
     return {"total_pages": total_pages}

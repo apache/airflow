@@ -2022,6 +2022,18 @@ paths:
         - $ref: "#/components/parameters/DAGID"
         - $ref: "#/components/parameters/DAGRunID"
         - $ref: "#/components/parameters/TaskID"
+        - name: bucket_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The name of the bucket.
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The key parameter.
       responses:
         "200":
           description: Success.
