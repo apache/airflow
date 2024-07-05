@@ -266,7 +266,8 @@ class TestDbApiHook:
             "and got ignored. Falling back to the default placeholder '%s'.",
             "{}",
             "default_conn_id",
-            DbApiHook._placeholder)
+            DbApiHook._placeholder,
+        )
 
     @pytest.mark.db_test
     def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(self):
