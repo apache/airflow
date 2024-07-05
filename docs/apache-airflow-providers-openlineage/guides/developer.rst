@@ -473,7 +473,7 @@ Writing a custom facet function
 
 - **Input arguments:** The function should accept the ``TaskInstance`` as an input argument.
 - **Function body:** Perform the logic needed to generate the custom facet. The custom facet should inherit from the ``BaseFacet`` for the ``_producer`` and ``_schemaURL`` to be automatically added for the facet.
-- **Return value:** The custom facet to be added to the lineage event. Return type should be ``None`` or ``dict``. You may choose to return ``None`` or ``{}``, if you do not want to add custom facets for certain criteria.
+- **Return value:** The custom facet to be added to the lineage event. Return type should be ``dict[str, dict]`` or ``None``. You may choose to return ``None``, if you do not want to add custom facets for certain criteria.
 
 **Example custom facet function**
 
@@ -497,10 +497,10 @@ Writing a custom facet function
         cluster: str
 
 
-    def get_my_custom_facet(task_instance: TaskInstance):
+    def get_my_custom_facet(task_instance: TaskInstance) -> dict[str, dict] | None:
         operator_name = task_instance.task.operator_name
         if operator_name == "BashOperator":
-            return None
+            return
         job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
         return {
             "additional_run_facet": attrs.asdict(

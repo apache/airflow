@@ -16,10 +16,10 @@ class MyCustomRunFacet(BaseFacet):
     cluster: str
 
 
-def get_additional_test_facet(task_instance: TaskInstance):
+def get_additional_test_facet(task_instance: TaskInstance) -> dict[str, dict] | None:
     operator_name = task_instance.task.operator_name
     if operator_name == "BashOperator":
-        return None
+        return
     job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
     return {
         "additional_run_facet": attrs.asdict(
