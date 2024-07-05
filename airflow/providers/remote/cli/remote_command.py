@@ -25,7 +25,10 @@ from datetime import datetime
 from subprocess import Popen
 from time import sleep
 
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.cli_config import ARG_VERBOSE, ActionCommand, Arg
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.remote.models.remote_job import RemoteJob
 from airflow.providers.remote.models.remote_worker import RemoteWorker, RemoteWorkerState
 from airflow.utils import cli as cli_utils
@@ -41,16 +44,27 @@ def _hostname() -> str:
         return os.uname()[1]
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 def worker(args):
     """Start Airflow Remote worker."""
+    api_url = conf.get("remote", "api_url")
+    if not api_url:
+        raise SystemExit("Error: API URL is not configured, please correct configuration.")
+    logger.info("Starting worker with API endpoint %s", api_url)
+    InternalApiConfig.force_api_access(api_url)
+
     hostname: str = args.remote_hostname
     queues = args.queues.split(",") if args.queues else None
     concurrency: int = args.concurrency
     jobs: list[RemoteJob] = []
     processes: list[Popen] = []
     some_activity = False
-    last_heartbeat = RemoteWorker.register_worker(hostname, RemoteWorkerState.STARTING, queues).last_update
+    try:
+        last_heartbeat = RemoteWorker.register_worker(
+            hostname, RemoteWorkerState.STARTING, queues
+        ).last_update
+    except AirflowException:
+        raise SystemExit("Error: API endpoint is not ready, please set [remote] api_enabled=True.")
 
     drain_worker = [False]
 

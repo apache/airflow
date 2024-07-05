@@ -45,10 +45,17 @@ config:
       This section only applies if you are using the RemoteExecutor in
       ``[core]`` section above
     options:
-      identity_secret:
+      api_enabled:
         description: |
-          Secret that need to be passed to remote worker in order to accept calls.
+          Flag if the plugin endpoint is enabled to serve remote workers.
+        version_added: ~
+        type: boolean
+        example: "True"
+        default: "False"
+      api_url:
+        description: |
+          URL endpoint on which the Airflow code remote API is accessible from remote worker.
         version_added: ~
         type: string
-        example: ~
+        example: https://airflow.hosting.org/remote_worker/v1/rpcapi
         default: ~
