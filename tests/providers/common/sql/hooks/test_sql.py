@@ -272,6 +272,6 @@ class TestDbApiHook:
     @pytest.mark.db_test
     def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(self):
         dbapi_hook = mock_hook(DbApiHook)
-        for number_of_invocations in range(0, 10):
+        for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
