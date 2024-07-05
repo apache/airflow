@@ -29,6 +29,12 @@ from airflow.typing_compat import Protocol
 DeltaType = Union[int, float, datetime.timedelta]
 
 metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=False)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 class TimerProtocol(Protocol):
@@ -124,11 +130,6 @@ class Timer(TimerProtocol):
             if metrics_consistency_on:
                 self.duration = 1000.0 * (time.perf_counter() - self._start_time)  # Convert to milliseconds.
             else:
-                warnings.warn(
-                    "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
                 self.duration = time.perf_counter() - self._start_time
         if send and self.real_timer:
             self.real_timer.stop()

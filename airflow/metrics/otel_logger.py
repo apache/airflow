@@ -73,6 +73,12 @@ DEFAULT_METRIC_NAME_PREFIX = "airflow"
 DEFAULT_METRIC_NAME_DELIMITER = "."
 
 metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=False)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def full_name(name: str, *, prefix: str = DEFAULT_METRIC_NAME_PREFIX) -> str:
@@ -280,11 +286,6 @@ class SafeOtelLogger:
                 if metrics_consistency_on:
                     dt = dt.total_seconds() * 1000.0
                 else:
-                    warnings.warn(
-                        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
                     dt = dt.total_seconds()
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
 

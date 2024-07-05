@@ -43,6 +43,12 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=False)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 class SafeDogStatsdLogger:
@@ -141,11 +147,6 @@ class SafeDogStatsdLogger:
                 if metrics_consistency_on:
                     dt = dt.total_seconds() * 1000.0
                 else:
-                    warnings.warn(
-                        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
                     dt = dt.total_seconds()
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags_list)
         return None

@@ -1080,7 +1080,7 @@ metrics:
 
         .. warning::
 
-          It is enabled by default from Airflow 3 onwards.
+          It is enabled by default from Airflow 3.
       version_added: 2.10.0
       type: string
       example: ~
