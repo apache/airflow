@@ -432,7 +432,6 @@ class TestLogPageFunctionality:
         clear_db_runs()
 
     def test_should_return_1_page_for_non_terminal_state(self, session):
-        # Update the task instance to a non-terminal state
         ti = (
             session.query(TaskInstance)
             .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
@@ -441,7 +440,6 @@ class TestLogPageFunctionality:
         ti.state = TaskInstanceState.RUNNING
         session.commit()
 
-        # Make the API call
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
             query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
@@ -449,12 +447,10 @@ class TestLogPageFunctionality:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        # Check the response
         assert response.status_code == 200
         assert response.json == {"total_pages": 1}
 
     def test_should_return_multiple_pages_for_large_log(self, tmp_path, session):
-        # Update the task instance to a terminal state
         ti = (
             session.query(TaskInstance)
             .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
@@ -463,7 +459,6 @@ class TestLogPageFunctionality:
         ti.state = TaskInstanceState.SUCCESS
         session.commit()
 
-        # Create a large log file (300 KB)
         log_content = "A" * 300 * 1024  # 300 KB of 'A's
         log_file_path = (
             tmp_path
@@ -475,13 +470,11 @@ class TestLogPageFunctionality:
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
         log_file_path.write_text(log_content)
 
-        # Mock the S3Hook to return the size of the large log file
         with mock.patch(
             "airflow.providers.amazon.aws.hooks.s3.S3Hook.get_content_length"
         ) as mock_get_content_length:
             mock_get_content_length.return_value = len(log_content)
 
-            # Make the API call
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
                 query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
@@ -489,6 +482,5 @@ class TestLogPageFunctionality:
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            # Check the response
             assert response.status_code == 200
             assert response.json == {"total_pages": 3}
