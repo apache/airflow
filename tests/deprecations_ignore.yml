@@ -27,10 +27,6 @@
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
 
 
-# Serialization
-- tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_custom_dep_detector
-
-
 # WWW
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success_with_capital_state_parameter
