@@ -201,7 +201,7 @@ class DbApiHook(BaseHook):
 
     def get_conn(self):
         """Return a connection object."""
-        db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
+        db = self.get_connection(getattr(self, self.conn_name_attr))
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
