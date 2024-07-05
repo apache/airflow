@@ -40,6 +40,7 @@ from airflow.exceptions import (
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
+from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
 from sqlalchemy.engine import URL as URL
 from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
@@ -65,7 +66,7 @@ class DbApiHook(BaseHook):
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
 
     def get_conn_id(self) -> str: ...
-    @property
+    @cached_property
     def placeholder(self): ...
     def get_conn(self): ...
     def get_uri(self) -> str: ...
