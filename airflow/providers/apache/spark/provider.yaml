@@ -108,3 +108,5 @@ connection-types:
 task-decorators:
   - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
     name: pyspark
+  - class-name: airflow.providers.apache.spark.decorators.pyspark_submit.pyspark_submit_task
+    name: pyspark_submit
