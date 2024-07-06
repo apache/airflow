@@ -2639,6 +2639,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
+            tags=tags,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
