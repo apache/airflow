@@ -242,7 +242,8 @@ class YDBHook(DbApiHook):
         return cell
 
     def bulk_upsert(self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns):
-        """BulkUpsert into database. More optimal way to insert rows into db.
+        """
+        BulkUpsert into database. More optimal way to insert rows into db.
 
         .. seealso::
 
