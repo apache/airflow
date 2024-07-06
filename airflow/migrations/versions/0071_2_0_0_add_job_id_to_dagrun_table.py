@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``creating_job_id`` to ``DagRun`` table.
+"""
+Add ``creating_job_id`` to ``DagRun`` table.
 
 Revision ID: 364159666cbd
 Revises: 52d53670a240

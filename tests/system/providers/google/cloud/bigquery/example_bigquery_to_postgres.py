@@ -53,9 +53,9 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
-DAG_ID = "example_bigquery_to_postgres"
+DAG_ID = "bigquery_to_postgres"
 
 REGION = "us-central1"
 ZONE = REGION + "-a"
@@ -63,7 +63,7 @@ NETWORK = "default"
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}".replace("-", "_")
 CONNECTION_TYPE = "postgres"
 
-BIGQUERY_DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+BIGQUERY_DATASET_NAME = f"ds_{DAG_ID}_{ENV_ID}"
 BIGQUERY_TABLE = "test_table"
 SOURCE_OBJECT_NAME = "gs://airflow-system-tests-resources/bigquery/salaries_1k.csv"
 BATCH_SIZE = 500
@@ -106,7 +106,9 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{ZONE}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                # The source image can become outdated and stop being supported by apt software packages.
+                # In that case the image version will need to be updated.
+                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
             },
         }
     ],
@@ -162,7 +164,7 @@ with DAG(
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "bigquery"],
+    tags=["example", "bigquery", "postgres"],
 ) as dag:
     create_bigquery_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_bigquery_dataset",
@@ -244,8 +246,8 @@ with DAG(
 
     setup_connection_task = setup_connection(get_public_ip_task)
 
-    create_sql_table = SQLExecuteQueryOperator(
-        task_id="create_sql_table",
+    create_pg_table = SQLExecuteQueryOperator(
+        task_id="create_pg_table",
         conn_id=CONNECTION_ID,
         sql=SQL_CREATE_TABLE,
         retries=4,
@@ -263,6 +265,38 @@ with DAG(
         replace=False,
     )
     # [END howto_operator_bigquery_to_postgres]
+
+    update_pg_table_data = SQLExecuteQueryOperator(
+        task_id="update_pg_table_data",
+        conn_id=CONNECTION_ID,
+        sql=f"UPDATE {SQL_TABLE} SET salary = salary + 0.5 WHERE salary < 10000.0",
+        retries=4,
+        retry_delay=duration(seconds=20),
+        retry_exponential_backoff=False,
+    )
+
+    create_unique_index_in_pg_table = SQLExecuteQueryOperator(
+        task_id="create_unique_index_in_pg_table",
+        conn_id=CONNECTION_ID,
+        sql=f"CREATE UNIQUE INDEX emp_salary ON {SQL_TABLE}(emp_name, salary);",
+        retries=4,
+        retry_delay=duration(seconds=20),
+        retry_exponential_backoff=False,
+        show_return_value_in_logs=True,
+    )
+
+    # [START howto_operator_bigquery_to_postgres_upsert]
+    bigquery_to_postgres_upsert = BigQueryToPostgresOperator(
+        task_id="bigquery_to_postgres_upsert",
+        postgres_conn_id=CONNECTION_ID,
+        dataset_table=f"{BIGQUERY_DATASET_NAME}.{BIGQUERY_TABLE}",
+        target_table_name=SQL_TABLE,
+        batch_size=BATCH_SIZE,
+        replace=True,
+        selected_fields=["emp_name", "salary"],
+        replace_index=["emp_name", "salary"],
+    )
+    # [END howto_operator_bigquery_to_postgres_upsert]
 
     delete_bigquery_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_bigquery_dataset",
@@ -301,16 +335,19 @@ with DAG(
     create_bigquery_dataset >> create_bigquery_table >> insert_bigquery_data
     create_gce_instance >> setup_postgres
     create_gce_instance >> get_public_ip_task >> setup_connection_task
-    [setup_postgres, setup_connection_task, create_firewall_rule] >> create_sql_table
+    [setup_postgres, setup_connection_task, create_firewall_rule] >> create_pg_table
 
     (
-        [insert_bigquery_data, create_sql_table]
+        [insert_bigquery_data, create_pg_table]
         # TEST BODY
         >> bigquery_to_postgres
+        >> update_pg_table_data
+        >> create_unique_index_in_pg_table
+        >> bigquery_to_postgres_upsert
     )
 
     # TEST TEARDOWN
-    bigquery_to_postgres >> [
+    bigquery_to_postgres_upsert >> [
         delete_bigquery_dataset,
         delete_firewall_rule,
         delete_gce_instance,

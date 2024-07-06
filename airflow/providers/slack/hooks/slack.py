@@ -368,7 +368,8 @@ class SlackHook(BaseHook):
         return channel_id
 
     def test_connection(self):
-        """Tests the Slack API connection.
+        """
+        Tests the Slack API connection.
 
         .. seealso::
             https://api.slack.com/methods/auth.test

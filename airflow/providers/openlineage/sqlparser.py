@@ -118,7 +118,8 @@ def from_table_meta(
 
 
 class SQLParser(LoggingMixin):
-    """Interface for openlineage-sql.
+    """
+    Interface for openlineage-sql.
 
     :param dialect: dialect specific to the database
     :param default_schema: schema applied to each table with no schema parsed
@@ -244,7 +245,8 @@ class SQLParser(LoggingMixin):
         sqlalchemy_engine: Engine | None = None,
         use_connection: bool = True,
     ) -> OperatorLineage:
-        """Parse SQL statement(s) and generate OpenLineage metadata.
+        """
+        Parse SQL statement(s) and generate OpenLineage metadata.
 
         Generated OpenLineage metadata contains:
 

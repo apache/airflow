@@ -316,9 +316,10 @@ class TestFileTaskLogHandler:
         else:
             mock_k8s_get_task_log.assert_not_called()
 
-    @pytest.mark.parametrize(
-        "state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RETRY]
-    )
+    # We are not testing TaskInstanceState.DEFERRED in this test because with the current testing setup,
+    # as it creates an inconsistent tests that succeeds in local but fails in CI. See https://github.com/apache/airflow/pull/39496#issuecomment-2149692239
+    # TODO: Fix the test setup so it is possible to test TaskInstanceState.DEFERRED as well.
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.UP_FOR_RETRY])
     def test__read_for_celery_executor_fallbacks_to_worker(self, state, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
         log from worker if and only if remote logs aren't found"""

@@ -16,9 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest import mock
+from unittest.mock import AsyncMock, patch
 
+import pytest
+
+from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
+from airflow.triggers.base import TriggerEvent
+from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 
 class TestGlueCrawlerCompleteTrigger:
@@ -47,3 +53,19 @@ class TestGlueCrawlerCompleteTrigger:
             "waiter_max_attempts": 1500,
             "aws_conn_id": "aws_default",
         }
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueCrawlerHook, "get_waiter")
+    @mock.patch.object(GlueCrawlerHook, "async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock()
+        crawler_name = "test_crawler"
+        trigger = GlueCrawlerCompleteTrigger(crawler_name=crawler_name)
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success", "value": None})
+        assert_expected_waiter_type(mock_get_waiter, "crawler_ready")
+        mock_get_waiter().wait.assert_called_once()

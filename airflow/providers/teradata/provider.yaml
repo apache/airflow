@@ -22,9 +22,10 @@ description: |
     `Teradata <https://www.teradata.com/>`__
 
 state: ready
-source-date-epoch: 1717051506
+source-date-epoch: 1719054575
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.3.0
   - 2.2.0
   - 2.1.1
   - 2.1.0
@@ -49,6 +50,7 @@ integrations:
     external-doc-url: https://www.teradata.com/
     how-to-guide:
       - /docs/apache-airflow-providers-teradata/operators/teradata.rst
+      - /docs/apache-airflow-providers-teradata/operators/compute_cluster.rst
     logo: /integration-logos/teradata/Teradata.png
     tags: [software]
 
@@ -56,6 +58,7 @@ operators:
   - integration-name: Teradata
     python-modules:
       - airflow.providers.teradata.operators.teradata
+      - airflow.providers.teradata.operators.teradata_compute_cluster
 
 hooks:
   - integration-name: Teradata
@@ -79,3 +82,8 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.teradata.hooks.teradata.TeradataHook
     connection-type: teradata
+
+triggers:
+  - integration-name: Teradata
+    python-modules:
+      - airflow.providers.teradata.triggers.teradata_compute_cluster

@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``executor_config`` column to ``task_instance`` table.
+"""
+Add ``executor_config`` column to ``task_instance`` table.
 
 Revision ID: 27c6a30d7c24
 Revises: 33ae817a1ff4

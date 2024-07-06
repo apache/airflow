@@ -56,6 +56,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
+    DAG_ARGS_EXPECTED_TYPES,
     DagModel,
     DagOwnerAttributes,
     DagTag,
@@ -1967,7 +1968,7 @@ class TestDag:
 
     def test_timetable_and_description_from_dataset(self):
         dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == DatasetTriggeredTimetable()
+        assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
         assert dag.schedule_interval == "Dataset"
         assert dag.timetable.description == "Triggered by datasets"
 
@@ -3273,27 +3274,25 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert "Regular DAG documentation" in dag.doc_md
 
-    def test_resolve_documentation_template_file_rendered(self, tmp_path):
+    def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
-        path = tmp_path / "testfile.md"
-        path.write_text(
-            """
+        raw_content = """
         {% if True %}
             External Markdown DAG documentation
         {% endif %}
         """
-        )
 
-        @dag_decorator(
-            "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
-        )
+        path = tmp_path / "testfile.md"
+        path.write_text(raw_content)
+
+        @dag_decorator("test-dag", start_date=DEFAULT_DATE, doc_md=str(path))
         def markdown_docs(): ...
 
         dag = markdown_docs()
         assert isinstance(dag, DAG)
         assert dag.dag_id == "test-dag"
-        assert dag.doc_md.strip() == "External Markdown DAG documentation"
+        assert dag.doc_md == raw_content
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
@@ -3926,6 +3925,18 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
     )
+
+
+def test_invalid_type_for_args():
+    with pytest.raises(TypeError):
+        DAG("invalid-default-args", max_consecutive_failed_dag_runs="not_an_int")
+
+
+@mock.patch("airflow.models.dag.validate_instance_args")
+def test_dag_init_validates_arg_types(mock_validate_instance_args):
+    dag = DAG("dag_with_expected_args")
+
+    mock_validate_instance_args.assert_called_once_with(dag, DAG_ARGS_EXPECTED_TYPES)
 
 
 class TestTaskClearingSetupTeardownBehavior:

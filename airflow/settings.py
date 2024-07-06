@@ -123,16 +123,19 @@ def _get_rich_console(file):
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Print rich and visible warnings."""
     # Delay imports until we need it
+    import re2
     from rich.markup import escape
 
+    re2_escape_regex = re2.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
-    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
+    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re2_escape_regex)}[/yellow]"
     write_console = _get_rich_console(file or sys.stderr)
     write_console.print(msg, soft_wrap=True)
 
 
 def replace_showwarning(replacement):
-    """Replace ``warnings.showwarning``, returning the original.
+    """
+    Replace ``warnings.showwarning``, returning the original.
 
     This is useful since we want to "reset" the ``showwarning`` hook on exit to
     avoid lazy-loading issues. If a warning is emitted after Python cleaned up

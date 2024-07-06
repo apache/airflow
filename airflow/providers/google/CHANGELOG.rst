@@ -27,6 +27,74 @@
 Changelog
 ---------
 
+10.21.0
+.......
+
+.. note::
+
+  The change  ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)`` has
+  been reverted as it turned out to break too much existing workflows. The behavior of the
+  ``GCSToGCSOperator`` has been restored to the previous behavior.
+
+10.20.0
+.......
+
+.. note::
+
+  The ``GCSToGCSOperator`` now retains the nested folder structure when moving or copying a single
+  object, aligning its behavior with the behavior for multiple objects. If this change impacts your
+  workflows, you may need to adjust your ``source_object`` parameter to include the full path up to
+  the folder containing your single file and specify ``destination_object`` explicitly to ignore
+  nested folders. For example, if you previously used ``source_object='folder/nested_folder/'``, to
+  move file ``'folder/nested_folder/second_nested_folder/file'`` you should now use
+  ``source_object='folder/nested_folder/second_nested_folder/'`` and specify
+  ``destination_object='folder/nested_folder/'``. This would move the file to ``'folder/nested_folder/file'``
+  instead of the fixed behavior of moving it to ``'folder/nested_folder/second_nested_folder/file'``.
+
+.. warning::
+
+  The change above has been reverted in the 10.21.0 release. The behavior of the
+  ``GCSToGCSOperator`` has been restored to the previous behavior.
+
+Features
+~~~~~~~~
+
+* ``Add generation_config and safety_settings to google cloud multimodal model operators (#40126)``
+* ``Add missing location param to 'BigQueryUpdateTableSchemaOperator' (#40237)``
+* ``Add support for external IdP OIDC token retrieval for Google Cloud Operators. (#39873)``
+* ``Add encryption_configuration parameter to BigQuery operators (#40063)``
+* ``Add default gcp_conn_id to GoogleBaseAsyncHook (#40080)``
+* ``Add ordering key option for PubSubPublishMessageOperator GCP Operator (#39955)``
+* ``Add method to get metadata from GCS blob in GCSHook (#38398)``
+* ``Add window parameters to create_auto_ml_forecasting_training_job in AutoMLHook (#39767)``
+* ``Implement CloudComposerDAGRunSensor (#40088)``
+* ``Implement 'CloudDataTransferServiceRunJobOperator' (#39154)``
+* ``Fetch intermediate log async GKEStartPod   (#39348)``
+* ``Add OpenLineage support for AzureBlobStorageToGCSOperator in google provider package (#40290)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hive_partition_sensor system test (#40023)``
+* ``Fix openai 1.32 breaking openai tests (#40110)``
+* ``Fix credentials initialization revealed by mypy version of google auth (#40108)``
+* ``Fix regular expression to exclude double quote and newline in DataflowHook (#39991)``
+* ``Fix replace parameter for BigQueryToPostgresOperator (#40278)``
+* ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)``
+
+Misc
+~~~~
+
+* ``Refactor datapipeline operators (#39716)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``openlineage: execute extraction and message sending in separate process (#40078)``
+* ``Bump minimum version of google-auth to 2.29.0 (#40190)``
+* ``Bump google-ads version to use v17 by default (#40158)``
+* ``google: move openlineage imports inside methods (#40062)``
+* ``Add job_id as template_field in DataplexGetDataQualityScanResultOperator (#40041)``
+* ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
+
 10.19.0
 .......
 

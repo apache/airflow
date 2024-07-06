@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""OS Login hooks.
+"""
+OS Login hooks.
 
 .. spelling:word-list::
     ImportSshPublicKeyResponse

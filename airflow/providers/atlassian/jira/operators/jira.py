@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 
 
 class JiraOperator(BaseOperator):
-    """JiraOperator to interact and perform action on Jira issue tracking system.
+    """
+    JiraOperator to interact and perform action on Jira issue tracking system.
 
     This operator is designed to use Atlassian Jira SDK. For more information:
     https://atlassian-python-api.readthedocs.io/jira.html

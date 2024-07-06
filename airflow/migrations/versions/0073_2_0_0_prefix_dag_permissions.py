@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Prefix DAG permissions.
+"""
+Prefix DAG permissions.
 
 Revision ID: 849da589634d
 Revises: 45ba3f1493b9

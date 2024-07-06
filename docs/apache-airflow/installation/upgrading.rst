@@ -35,7 +35,7 @@ Upgrade preparation - make a backup of DB
 
 It is highly recommended to make a backup of your metadata DB before any migration.
 If you do not have a "hot backup" capability for your DB, you should
-do it after shutting down your Airflow instances, so that the backup of is consistent.
+do it after shutting down your Airflow instances, so that the backup of your database will be consistent.
 If you did not make a backup and your migration fails, you might end-up in
 a half-migrated state and restoring DB from backup and repeating the
 migration might be the only easy way out. This can for example be caused by a broken

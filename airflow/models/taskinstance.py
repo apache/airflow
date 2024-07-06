@@ -571,7 +571,8 @@ def _xcom_pull(
     map_indexes: int | Iterable[int] | None = None,
     default: Any = None,
 ) -> Any:
-    """Pull XComs that optionally meet certain criteria.
+    """
+    Pull XComs that optionally meet certain criteria.
 
     :param key: A key for the XCom. If provided, only XComs with matching
         keys will be returned. The default key is ``'return_value'``, also
@@ -661,7 +662,8 @@ def _xcom_pull(
 
 
 def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
-    """Whether a value can be used for task mapping.
+    """
+    Whether a value can be used for task mapping.
 
     We only allow collections with guaranteed ordering, but exclude character
     sequences since that's usually not what users would expect to be mappable.
@@ -1606,15 +1608,15 @@ def _defer_task(
 
     if exception is not None:
         trigger_row = Trigger.from_object(exception.trigger)
-        trigger_kwargs = exception.kwargs
         next_method = exception.method_name
+        next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
         trigger_row = Trigger(
             classpath=ti.task.start_trigger_args.trigger_cls,
             kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
         )
-        trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
+        next_kwargs = ti.task.start_trigger_args.next_kwargs
         next_method = ti.task.start_trigger_args.next_method
         timeout = ti.task.start_trigger_args.timeout
     else:
@@ -1635,7 +1637,7 @@ def _defer_task(
     ti.state = TaskInstanceState.DEFERRED
     ti.trigger_id = trigger_row.id
     ti.next_method = next_method
-    ti.next_kwargs = trigger_kwargs or {}
+    ti.next_kwargs = next_kwargs or {}
 
     # Calculate timeout too if it was passed
     if timeout is not None:
@@ -1941,7 +1943,8 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
-        """Insert mapping.
+        """
+        Insert mapping.
 
         :meta private:
         """
@@ -2291,7 +2294,8 @@ class TaskInstance(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
-        """Clear all XCom data from the database for the task instance.
+        """
+        Clear all XCom data from the database for the task instance.
 
         If the task is unmapped, all XComs matching this task ID in the same DAG
         run are removed. If the task is mapped, only the one with matching map
@@ -3044,7 +3048,8 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+        """
+        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
@@ -3358,7 +3363,8 @@ class TaskInstance(Base, LoggingMixin):
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
     ) -> Operator:
-        """Render templates in the operator fields.
+        """
+        Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
         the unmapped, fully rendered BaseOperator. The original ``self.task``
@@ -3502,7 +3508,8 @@ class TaskInstance(Base, LoggingMixin):
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
     ) -> Any:
-        """Pull XComs that optionally meet certain criteria.
+        """
+        Pull XComs that optionally meet certain criteria.
 
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is ``'return_value'``, also
@@ -3773,7 +3780,8 @@ class TaskInstance(Base, LoggingMixin):
         *,
         session: Session,
     ) -> int | range | None:
-        """Infer the map indexes of an upstream "relevant" to this ti.
+        """
+        Infer the map indexes of an upstream "relevant" to this ti.
 
         The bulk of the logic mainly exists to solve the problem described by
         the following example, where 'val' must resolve to different values,
