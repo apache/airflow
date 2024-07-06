@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import base64
 import os
 import pickle
 import warnings
@@ -35,11 +34,6 @@ from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-def _b64_encode_file(filename):
-    with open(filename, "rb") as file_to_encode:
-        return base64.b64encode(file_to_encode.read())
 
 
 class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
