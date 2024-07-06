@@ -668,6 +668,39 @@ class TestDagProcessor:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "dagProcessor": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
+            == "test_common_label_value"
+        )
+        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
+            == "test_specific_label_value"
+        )
+
     @pytest.mark.parametrize(
         "webserver_config, should_add_volume",
         [
@@ -717,6 +750,36 @@ class TestDagProcessorLogGroomer(LogGroomerTestBase):
 
 class TestDagProcessorServiceAccount:
     """Tests DAG processor service account."""
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "dagProcessor": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/dag-processor-serviceaccount.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_common_label"] == "test_common_label_value"
+        assert "test_specific_label" in jmespath.search("metadata.labels", docs[0])
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_specific_label"] == "test_specific_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(

@@ -1803,6 +1803,9 @@ dagProcessor:
   # annotations for the dag processor deployment
   annotations: {}
 
+  # Labels specific to dag processor objects and pods
+  labels: {}
+
   podAnnotations: {}
 
   logGroomerSidecar:
