@@ -45,7 +45,8 @@ if TYPE_CHECKING:
 
 
 class RemoteJobModel(Base, LoggingMixin):
-    """A job which is queued, waiting or running on a Remote Worker.
+    """
+    A job which is queued, waiting or running on a Remote Worker.
 
     Each tuple in the database represents and describes the state of one job.
     """
