@@ -188,7 +188,15 @@ def ts_function(context):
     try:
         return context["data_interval_end"]
     except KeyError:
-        return context["dag"].following_schedule(context["execution_date"])
+        from airflow.utils import timezone
+
+        data_interval = context["dag"].infer_automated_data_interval(
+            timezone.coerce_datetime(context["execution_date"])
+        )
+        next_info = context["dag"].next_dagrun_info(data_interval, restricted=False)
+        if next_info is None:
+            return None
+        return next_info.data_interval.start
 
 
 class GCSObjectUpdateSensor(BaseSensorOperator):
