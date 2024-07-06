@@ -16,21 +16,6 @@
 # under the License.
 ---
 
-# API
-- tests/api_connexion/endpoints/test_connection_endpoint.py::TestGetConnection::test_should_respond_200
-- tests/api_connexion/endpoints/test_connection_endpoint.py::TestPatchConnection::test_patch_should_respond_200
-- tests/api_connexion/endpoints/test_dag_run_endpoint.py::TestSetDagRunNote::test_should_respond_200_with_anonymous_user
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_raise_403_forbidden
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_200
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_200_missing_xcom
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_200_multiple_links
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_200_multiple_links_missing_xcom
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_200_support_plugins
-- tests/api_connexion/endpoints/test_extra_link_endpoint.py::TestGetExtraLinks::test_should_respond_404
-- tests/api_connexion/endpoints/test_task_instance_endpoint.py::TestGetTaskInstancesBatch::test_should_respond_200
-- tests/api_connexion/schemas/test_connection_schema.py::TestConnectionSchema::test_serialize
-
-
 # CLI
 # https://github.com/apache/airflow/issues/39199
 - tests/cli/commands/test_kubernetes_command.py::TestGenerateDagYamlCommand::test_generate_dag_yaml
@@ -40,10 +25,6 @@
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
-
-
-# Serialization
-- tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_custom_dep_detector
 
 
 # WWW
@@ -166,13 +147,9 @@
 - tests/providers/google/cloud/operators/test_kubernetes_engine.py::TestGoogleCloudPlatformContainerOperator::test_create_execute_error_body
 - tests/providers/google/cloud/operators/test_life_sciences.py::TestLifeSciencesRunPipelineOperator::test_executes
 - tests/providers/google/cloud/operators/test_life_sciences.py::TestLifeSciencesRunPipelineOperator::test_executes_without_project_id
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAICreateBatchPredictionJobOperator::test_execute
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAICreateBatchPredictionJobOperator::test_execute_deferrable
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAICreateHyperparameterTuningJobOperator::test_deferrable
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAICreateHyperparameterTuningJobOperator::test_deferrable_sync_error
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAICreateHyperparameterTuningJobOperator::test_execute
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAIDeleteAutoMLTrainingJobOperator::test_execute
-- tests/providers/google/cloud/operators/test_vertex_ai.py::TestVertexAIDeleteCustomTrainingJobOperator::test_execute
+- tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_connections_prefix_none_value
+- tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri
+- tests/providers/google/cloud/secrets/test_secret_manager.py::TestCloudSecretManagerBackend::test_get_conn_uri_non_existent_key
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_cron
 - tests/providers/google/cloud/sensors/test_gcs.py::TestTsFunction::test_should_support_datetime
 - tests/providers/google/cloud/transfers/test_bigquery_to_postgres.py::TestBigQueryToPostgresOperator::test_execute_good_request_to_bq

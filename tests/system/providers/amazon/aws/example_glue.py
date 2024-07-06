@@ -207,6 +207,7 @@ with DAG(
         # TEST BODY
         crawl_s3,
         wait_for_crawl,
+        wait_for_catalog_partition,
         submit_glue_job,
         wait_for_job,
         # TEST TEARDOWN

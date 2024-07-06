@@ -32,7 +32,7 @@ Released packages
 The ``source``, ``sdist`` and ``whl`` packages released are the "official" sources of installation that you
 can use if you want to verify the origin of the packages and want to verify checksums and signatures of
 the packages. The packages are available via the
-`Official Apache Software Foundations Downloads <http://ws.apache.org/mirrors.cgi>`_
+`Official Apache Software Foundations Downloads <https://dlcdn.apache.org/>`_
 
 As of version 2.8 Airflow follows PEP 517/518 and uses ``pyproject.toml`` file to define build dependencies
 and build process and it requires relatively modern versions of packaging tools to get airflow built from
