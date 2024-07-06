@@ -672,6 +672,7 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
+                    "enabled": True,
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -685,6 +686,7 @@ class TestDagProcessor:
             values={
                 "labels": {"test_common_label": "test_common_label_value"},
                 "dagProcessor": {
+                    "enabled": True,
                     "labels": {"test_specific_label": "test_specific_label_value"},
                 },
             },
@@ -755,6 +757,7 @@ class TestDagProcessorServiceAccount:
         docs = render_chart(
             values={
                 "dagProcessor": {
+                    "enabled": True,
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -769,6 +772,7 @@ class TestDagProcessorServiceAccount:
             values={
                 "labels": {"test_common_label": "test_common_label_value"},
                 "dagProcessor": {
+                    "enabled": True,
                     "labels": {"test_specific_label": "test_specific_label_value"},
                 },
             },
