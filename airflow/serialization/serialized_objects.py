@@ -278,7 +278,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     raw_key = var["_raw_key"]
-    raw_key_type = raw_key["__tpe"]
+    raw_key_type = raw_key["__type"]
     if raw_key_type == "str":
         _raw_key = raw_key["value"]
     elif raw_key_type == DAT.DATASET:
