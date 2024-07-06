@@ -1062,6 +1062,7 @@ class DagRun(Base, LoggingMixin):
             if TYPE_CHECKING:
                 assert schedulable.task
             old_state = schedulable.state
+
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
                 self.deactivate_scheduling()

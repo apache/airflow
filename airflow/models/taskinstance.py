@@ -3276,7 +3276,6 @@ class TaskInstance(Base, LoggingMixin):
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
-            ti.dag_run.deactivate_scheduling()
 
         return {
             "ti": ti,

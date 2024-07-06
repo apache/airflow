@@ -5394,43 +5394,6 @@ class TestSchedulerJob:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
 
-    def test_activate_dagrun_when_retry_datetime_is_reached(self, dag_maker, time_machine, session):
-        time_machine.move_to("2024-06-24 12:56:35", tick=False)
-        with dag_maker():
-            task = BashOperator(
-                task_id="test",
-                bash_command="exit 1",
-                retries=1,
-                retry_delay=datetime.timedelta(seconds=-3),  # negative to trigger immediate retry
-            )
-
-        def run_with_error(ti):
-            with contextlib.suppress(AirflowException):
-                ti.run()
-
-        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-
-        ti = dr.task_instances[0]
-        ti.task = task
-
-        run_with_error(ti)
-        assert ti.state == State.UP_FOR_RETRY
-        session.flush()
-
-        dr = session.query(DagRun).one()
-        assert not dr.next_schedulable
-
-        scheduler_job = Job(executor=MockExecutor())
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-        self.job_runner.processor_agent = mock.MagicMock()
-
-        self.job_runner._check_and_activate_dagrun_scheduling(session)
-
-        session.flush()
-
-        dr = session.query(DagRun).one()
-        assert dr.next_schedulable
-
     @mock.patch.object(settings, "USE_JOB_SCHEDULE", False)
     def run_scheduler_until_dagrun_terminal(self):
         """

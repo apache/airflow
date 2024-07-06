@@ -1043,7 +1043,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 conf.getfloat("scheduler", "parsing_cleanup_interval"),
                 self._cleanup_stale_dags,
             )
-        timers.call_regular_interval(5, self._check_and_activate_dagrun_scheduling)
 
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
@@ -1142,6 +1141,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
+            self._start_deactivated_dagruns(session)
             guard.commit()
             dag_runs = self._get_next_dagruns_to_examine(DagRunState.RUNNING, session)
             # Bulk fetch the currently active dag runs for the dags we are
@@ -1484,6 +1484,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 active_runs_of_dags[dag_run.dag_id] += 1
                 _update_state(dag, dag_run)
                 dag_run.notify_dagrun_state_changed()
+
+    def _start_deactivated_dagruns(self, session: Session) -> None:
+        """Find deactivated DagRuns and decide activating them."""
+        tis = session.scalars(
+            select(TI).join(TI.dag_run).where(TI.state == TaskInstanceState.UP_FOR_RETRY)
+        ).all()
+        self.log.debug("Checking for DagRuns ready for scheduling")
+        drs = set()
+        for ti in tis:
+            if ti.dag_run in drs:
+                continue
+            # Get task from the Serialized DAG
+            try:
+                dag = self.dagbag.get_dag(ti.dag_id, session=session)
+                ti.task = dag.get_task(ti.task_id)
+            except Exception:
+                continue
+            if not ti.is_premature:
+                ti.dag_run.activate_scheduling()
+                session.merge(ti.dag_run)
+                drs.add(ti.dag_run)
 
     @retry_db_transaction
     def _schedule_all_dag_runs(
@@ -1942,22 +1963,3 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # ourselves here and the user should get some feedback about that.
             self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
             return None
-    @provide_session
-    def _check_and_activate_dagrun_scheduling(self, session: Session = NEW_SESSION):
-        tis = session.scalars(select(TI).where(TI.state == TaskInstanceState.UP_FOR_RETRY)).all()
-        self.log.debug("Checking for DagRuns ready for scheduling")
-        drs = set()
-        for ti in tis:
-            if ti.dag_run in drs:
-                continue
-            # Get task from the Serialized DAG
-            try:
-                dag = self.dagbag.get_dag(ti.dag_id)
-                ti.task = dag.get_task(ti.task_id)
-            except Exception:
-                continue
-            if not ti.is_premature:
-                ti.dag_run.activate_scheduling()
-                session.merge(ti.dag_run)
-                drs.add(ti.dag_run)
-        session.flush()
