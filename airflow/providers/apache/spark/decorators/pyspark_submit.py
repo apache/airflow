@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import os
 import pickle
 import warnings
@@ -29,6 +30,7 @@ import dill
 from airflow.configuration import conf
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.spark.decorators.pyspark import SPARK_CONTEXT_KEYS
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.python_virtualenv import write_python_script
 
@@ -63,15 +65,26 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
         op_args: Sequence | None = None,
         op_kwargs: dict | None = None,
         use_dill: bool = False,
-        expect_airflow: bool = True,
+        expect_airflow: bool = False,
         **kwargs,
     ):
         self.use_dill = use_dill
         self.expect_airflow = expect_airflow
 
+        signature = inspect.signature(python_callable)
+        parameters = [
+            param.replace(default=None) if param.name in SPARK_CONTEXT_KEYS else param
+            for param in signature.parameters.values()
+        ]
+        # mypy does not understand __signature__ attribute
+        # see https://github.com/python/mypy/issues/12472
+        python_callable.__signature__ = signature.replace(parameters=parameters)  # type: ignore[attr-defined]
+
         if kwargs.get("application"):
             if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
-                raise AirflowException("Invalid argument 'application' were passed to @task.pyspark_submit.")
+                raise AirflowException(
+                    "Invalid argument 'application' were passed to `@task.pyspark_submit`."
+                )
             warnings.warn(
                 "Invalid argument 'application' were passed to @task.pyspark_submit.",
                 UserWarning,
@@ -80,13 +93,28 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
         if kwargs.get("application_args"):
             if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
                 raise AirflowException(
-                    "Invalid argument 'application_args' were passed to @task.pyspark_submit."
+                    "Invalid argument 'application_args' were passed to `@task.pyspark_submit`."
                 )
             warnings.warn(
                 "Invalid argument 'application_args' were passed to `@task.pyspark_submit`.",
                 UserWarning,
                 stacklevel=2,
             )
+        for key in SPARK_CONTEXT_KEYS:
+            if key in kwargs:
+                if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
+                    raise AirflowException(
+                        f"Invalid key '{key}' in op_kwargs. You don't need to set it because it's a "
+                        "variable that will be automatically set within the Python process of the Spark "
+                        "job submitted via spark-submit."
+                    )
+                warnings.warn(
+                    f"Invalid key '{key}' in op_kwargs. You don't need to set it because it's a "
+                    "variable that will be automatically set within the Python process of the Spark "
+                    "job submitted via spark-submit.",
+                    UserWarning,
+                    stacklevel=2,
+                )
 
         super().__init__(
             python_callable=python_callable,
@@ -98,42 +126,63 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
     def execute(self, context: Context):
         with TemporaryDirectory() as tmp_dir:
             script_filename = os.path.join(tmp_dir, "script.py")
-            input_filename = os.path.join(tmp_dir, "script.in")
-            output_filename = os.path.join(tmp_dir, "script.out")
-            error_filename = os.path.join(tmp_dir, "script.err")
+            input_filename = os.path.join(tmp_dir, "SCRIPT__GENERATED__AIRFLOW.IN")
 
-            with open(input_filename, "w", encoding="utf-8") as file:
-                if self.op_args or self.op_kwargs:
+            if self.op_args or self.op_kwargs:
+                with open(input_filename, "wb") as file:
                     self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
+                files = (self.files or "").split(",")
+                self.files = ",".join(files + [input_filename])
+
+            parameters = inspect.signature(self.python_callable).parameters
+            use_spark_context = use_spark_session = False
+            if "sc" in parameters:
+                use_spark_context = True
+            if "spark" in parameters:
+                use_spark_session = True
 
             py_source = dedent(
-                """\
+                f"""\
+                from pyspark import SparkFiles
                 from pyspark.sql import SparkSession
-                spark = SparkSession.builder.getOrCreate()
-                sc = spark.sparkContext
+
+                # Script
+                {{python_callable_source}}
+
+                if {bool(self.op_args or self.op_kwargs)}:
+                    with open(SparkFiles.get("{os.path.basename(input_filename)}"), 'rb') as file:
+                        arg_dict = {self.pickling_library.__name__}.load(file)
+                else:
+                    arg_dict = {{default_arg_dict}}
+
+                if {use_spark_session}:
+                    arg_dict["kwargs"]["spark"] = SparkSession.builder.getOrCreate()
+                if {use_spark_context}:
+                    spark = arg_dict.get("spark") or SparkSession.builder.getOrCreate()
+                    arg_dict["kwargs"]["sc"] = spark.sparkContext
+
+                # Call
+                {self.python_callable.__name__}(*arg_dict["args"], **arg_dict["kwargs"])
+
+                # Exit
+                exit(0)
                 """
+            ).format(
+                python_callable_source=self.get_python_source(), default_arg_dict='{"args": [], "kwargs": {}}'
             )
-            py_source += self.get_python_source()
 
             write_python_script(
                 jinja_context={
-                    "op_args": self.op_args,
-                    "op_kwargs": self.op_kwargs,
+                    "op_args": None,
+                    "op_kwargs": None,
                     "pickling_library": self.pickling_library.__name__,
                     "python_callable": self.python_callable.__name__,
                     "python_callable_source": py_source,
                     "expect_airflow": self.expect_airflow,
-                    "string_args_global": False,
                 },
                 filename=script_filename,
             )
             self.application = script_filename
-            self.application_args = [
-                input_filename,
-                output_filename,
-                "--no-string-args",
-                error_filename,
-            ]
             return super().execute(context)
 
     @property
