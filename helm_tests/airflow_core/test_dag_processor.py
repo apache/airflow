@@ -772,7 +772,7 @@ class TestDagProcessorServiceAccount:
                     "labels": {"test_specific_label": "test_specific_label_value"},
                 },
             },
-            show_only=["templates/jobs/dag-processor-serviceaccount.yaml"],
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
         )
         assert "test_common_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_common_label"] == "test_common_label_value"
