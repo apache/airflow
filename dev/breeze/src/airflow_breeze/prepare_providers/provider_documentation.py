@@ -132,10 +132,8 @@ class Change(NamedTuple):
     pr: str | None
 
 
-def get_most_impactful_change(changes):
-    changes_types = list(changes.values())
-    changes_enum = [TypeOfChange(change) for change in changes_types]
-    return max(changes_enum, key=lambda change: precedence_order[change])
+def get_most_impactful_change(changes: list[TypeOfChange]):
+    return max(changes, key=lambda change: precedence_order[change])
 
 
 def format_message_for_classification(message):
@@ -736,6 +734,7 @@ def update_release_notes(
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
             global SHORT_HASH_TO_TYPE_DICT
+            type_of_current_package_changes: list[TypeOfChange] = []
             while table_iter < change_table_len:
                 get_console().print()
                 formatted_message = format_message_for_classification(
@@ -747,12 +746,12 @@ def update_release_notes(
                     f" by referring to the above table[/]"
                 )
                 type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
-                # update the type of change for every short_hash in the global dict
-                SHORT_HASH_TO_TYPE_DICT[list_of_list_of_changes[0][table_iter].short_hash] = type_of_change
+                change_hash = list_of_list_of_changes[0][table_iter].short_hash
+                SHORT_HASH_TO_TYPE_DICT[change_hash] = type_of_change
+                type_of_current_package_changes.append(type_of_change)
                 table_iter += 1
                 print()
-
-            most_impactful = get_most_impactful_change(SHORT_HASH_TO_TYPE_DICT)
+            most_impactful = get_most_impactful_change(type_of_current_package_changes)
             get_console().print(
                 f"[info]The version will be bumped because of {most_impactful} kind of change"
             )
