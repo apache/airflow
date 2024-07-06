@@ -30,11 +30,12 @@ The sole purpose of this yaml file is it to check the values file is consistent 
   {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
     {{- if .Values.redis.enabled }}
 
-      {{- if and .Values.redis.passwordSecretName }}
+      {{- if .Values.redis.passwordSecretName }}
         {{- $existedBrokerUrlCmd := false }}
         {{- range .Values.env }}
           {{- if eq .name "AIRFLOW__CELERY__BROKER_URL_CMD" }}
             {{- $existedBrokerUrlCmd = true }}
+            {{- break -}}
           {{- end }}
         {{- end }}
 
