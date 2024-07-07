@@ -72,7 +72,8 @@ Open Application UIs
 
 The operator can also be configured to generate one-time links to the application UIs and Spark stdout logs
 by passing the ``enable_application_ui_links=True`` as a parameter. Once the job starts running, these links
-are available in the Details section of the relevant Task.
+are available in the Details section of the relevant Task. If ``enable_application_ui_links=False`` then the
+links will be present but grayed out.
 
 You need to ensure you have the following IAM permissions to generate the dashboard link.
 

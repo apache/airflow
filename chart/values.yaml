@@ -1688,6 +1688,10 @@ triggerer:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
       FROM trigger
 
+    # Whether to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: false
+
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: false
