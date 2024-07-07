@@ -38,6 +38,9 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+INPUT_FILENAME = "SCRIPT__GENERATED__AIRFLOW.IN"
+
+
 class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
     custom_operator_name = "@task.pyspark_submit"
 
@@ -126,50 +129,15 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
     def execute(self, context: Context):
         with TemporaryDirectory() as tmp_dir:
             script_filename = os.path.join(tmp_dir, "script.py")
-            input_filename = os.path.join(tmp_dir, "SCRIPT__GENERATED__AIRFLOW.IN")
+            input_filename = os.path.join(tmp_dir, INPUT_FILENAME)
 
             if self.op_args or self.op_kwargs:
                 with open(input_filename, "wb") as file:
                     self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
-                files = (self.files or "").split(",")
+                files = self.files.split(",") if self.files else []
                 self.files = ",".join(files + [input_filename])
 
-            parameters = inspect.signature(self.python_callable).parameters
-            use_spark_context = use_spark_session = False
-            if "sc" in parameters:
-                use_spark_context = True
-            if "spark" in parameters:
-                use_spark_session = True
-
-            py_source = dedent(
-                f"""\
-                from pyspark import SparkFiles
-                from pyspark.sql import SparkSession
-
-                # Script
-                {{python_callable_source}}
-
-                if {bool(self.op_args or self.op_kwargs)}:
-                    with open(SparkFiles.get("{os.path.basename(input_filename)}"), 'rb') as file:
-                        arg_dict = {self.pickling_library.__name__}.load(file)
-                else:
-                    arg_dict = {{default_arg_dict}}
-
-                if {use_spark_session}:
-                    arg_dict["kwargs"]["spark"] = SparkSession.builder.getOrCreate()
-                if {use_spark_context}:
-                    spark = arg_dict.get("spark") or SparkSession.builder.getOrCreate()
-                    arg_dict["kwargs"]["sc"] = spark.sparkContext
-
-                # Call
-                {self.python_callable.__name__}(*arg_dict["args"], **arg_dict["kwargs"])
-
-                # Exit
-                exit(0)
-                """
-            ).format(
-                python_callable_source=self.get_python_source(), default_arg_dict='{"args": [], "kwargs": {}}'
-            )
+            py_source = self.get_pyspark_source()
 
             write_python_script(
                 jinja_context={
@@ -185,6 +153,45 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
             self.application = script_filename
             return super().execute(context)
 
+    def get_pyspark_source(self):
+        py_source = self.get_python_source()
+        parameters = inspect.signature(self.python_callable).parameters
+        use_spark_context = use_spark_session = False
+        if "sc" in parameters:
+            use_spark_context = True
+        if "spark" in parameters:
+            use_spark_session = True
+
+        py_source = dedent(
+            f"""\
+            from pyspark import SparkFiles
+            from pyspark.sql import SparkSession
+
+            # Script
+            {{python_callable_source}}
+
+            # args
+            if {bool(self.op_args or self.op_kwargs)}:
+                with open(SparkFiles.get("{INPUT_FILENAME}"), "rb") as file:
+                    arg_dict = {self.pickling_library.__name__}.load(file)
+            else:
+                arg_dict = {{default_arg_dict}}
+
+            if {use_spark_session}:
+                arg_dict["kwargs"]["spark"] = SparkSession.builder.getOrCreate()
+            if {use_spark_context}:
+                spark = arg_dict.get("spark") or SparkSession.builder.getOrCreate()
+                arg_dict["kwargs"]["sc"] = spark.sparkContext
+
+            # Call
+            {self.python_callable.__name__}(*arg_dict["args"], **arg_dict["kwargs"])
+
+            # Exit
+            exit(0)
+            """
+        ).format(python_callable_source=py_source, default_arg_dict='{"args": [], "kwargs": {}}')
+        return py_source
+
     @property
     def pickling_library(self):
         if self.use_dill:
@@ -194,12 +201,12 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
 
 def pyspark_submit_task(
     python_callable: Callable | None = None,
-    multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
+    """Wrap a Python function into an Airflow task that will be run using `pyspark-submit`."""
     return task_decorator_factory(
         python_callable=python_callable,
-        multiple_outputs=multiple_outputs,
+        multiple_outputs=False,
         decorated_operator_class=_PysparkSubmitDecoratedOperator,
         **kwargs,
     )
