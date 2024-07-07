@@ -43,7 +43,7 @@ def _run_scheduler_job(args) -> None:
     job_runner = SchedulerJobRunner(
         job=Job(), subdir=process_subdir(args.subdir), num_runs=args.num_runs, do_pickle=args.do_pickle
     )
-    ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor)
+    ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor.__class__)
     InternalApiConfig.force_database_direct_access()
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):
