@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-06T10:12:30.127169
+# This constraints file was automatically generated on 2024-07-07T11:40:01.909224
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -458,7 +458,7 @@ mysql-connector-python==9.0.0
 mysqlclient==2.2.4
 neo4j==5.22.0
 networkx==3.3
-nh3==0.2.17
+nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
