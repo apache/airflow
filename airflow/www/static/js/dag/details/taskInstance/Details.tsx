@@ -17,8 +17,22 @@
  * under the License.
  */
 
+import ReactJson from "react-json-view";
+
 import React, { useEffect, useState } from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
+import {
+  Button,
+  Text,
+  Flex,
+  Spacer,
+  Table,
+  Tbody,
+  Tr,
+  Td,
+  Code,
+  Box,
+  useClipboard,
+} from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { useTIHistory } from "src/api";
@@ -129,6 +143,8 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
     state &&
     ["success", "failed", "upstream_failed", "skipped"].includes(state);
   const isOverall = (isMapped || isGroup) && "Overall ";
+
+  const { onCopy, setValue } = useClipboard("");
 
   return (
     <Box mt={3} flexGrow={1}>
@@ -319,7 +335,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
           <Text as="strong" mb={3}>
             Rendered Templates
           </Text>
-          <Table>
+          <Table variant="striped">
             <Tbody>
               {Object.keys(instance.renderedFields).map((key) => {
                 const renderedFields = instance.renderedFields as Record<
@@ -335,11 +351,49 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                       // skip
                     }
                   }
+                  const fieldStr = field as string;
+                  try {
+                    const fieldJson = JSON.parse(fieldStr);
+                    return (
+                      <Tr key={key}>
+                        <Td>{key}</Td>
+                        <Td>
+                          <Flex>
+                            <ReactJson
+                              src={fieldJson}
+                              name={false}
+                              theme="rjv-default"
+                              iconStyle="triangle"
+                              indentWidth={2}
+                              displayDataTypes={false}
+                              enableClipboard={false}
+                              style={{ backgroundColor: "inherit" }}
+                            />
+                            <Spacer />
+                            <Button
+                              aria-label="Copy"
+                              onClick={() => {
+                                console.log(fieldStr);
+                                setValue(fieldStr);
+                                onCopy();
+                              }}
+                            >
+                              Copy
+                            </Button>
+                          </Flex>
+                        </Td>
+                      </Tr>
+                    );
+                  } catch (e) {
+                    // skip
+                    console.error("oh noooooo -------------------------");
+                    console.error(e);
+                  }
                   return (
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-                        <Code fontSize="md">{field as string}</Code>
+                        <Code fontSize="md">{fieldStr}</Code>
                       </Td>
                     </Tr>
                   );
