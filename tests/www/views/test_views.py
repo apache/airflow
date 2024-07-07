@@ -149,7 +149,7 @@ def test_should_list_providers_on_page_with_details(admin_client):
     [
         (
             "`Airbyte <https://airbyte.com/>`__",
-            Markup('<a href="https://airbyte.com/" ' 'target="_blank" rel="noopener noreferrer">Airbyte</a>'),
+            Markup('<a href="https://airbyte.com/" target="_blank" rel="noopener noreferrer">Airbyte</a>'),
         ),
         (
             "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).",
