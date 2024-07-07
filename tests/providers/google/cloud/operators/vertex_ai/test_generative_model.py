@@ -79,19 +79,23 @@ class TestVertexAIPromptLanguageModelOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        op = PromptLanguageModelOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=self.prompt,
-            pretrained_model=self.pretrained_model,
-            temperature=self.temperature,
-            max_output_tokens=self.max_output_tokens,
-            top_p=self.top_p,
-            top_k=self.top_k,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Call to deprecated class PromptLanguageModelOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `TextGenerationModelPredictOperator`.\)",
+        ):
+            op = PromptLanguageModelOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=self.prompt,
+                pretrained_model=self.pretrained_model,
+                temperature=self.temperature,
+                max_output_tokens=self.max_output_tokens,
+                top_p=self.top_p,
+                top_k=self.top_k,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -128,15 +132,19 @@ class TestVertexAIGenerateTextEmbeddingsOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        op = GenerateTextEmbeddingsOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=self.prompt,
-            pretrained_model=self.pretrained_model,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Call to deprecated class GenerateTextEmbeddingsOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `TextEmbeddingModelGetEmbeddingsOperator`.\)",
+        ):
+            op = GenerateTextEmbeddingsOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=self.prompt,
+                pretrained_model=self.pretrained_model,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -178,17 +186,21 @@ class TestVertexAIPromptMultimodalModelOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        op = PromptMultimodalModelOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=self.prompt,
-            generation_config=self.generation_config,
-            safety_settings=self.safety_settings,
-            pretrained_model=self.pretrained_model,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Call to deprecated class PromptMultimodalModelOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.\)",
+        ):
+            op = PromptMultimodalModelOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=self.prompt,
+                generation_config=self.generation_config,
+                safety_settings=self.safety_settings,
+                pretrained_model=self.pretrained_model,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -236,19 +248,23 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        op = PromptMultimodalModelWithMediaOperator(
-            task_id=TASK_ID,
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=self.vision_prompt,
-            generation_config=self.generation_config,
-            safety_settings=self.safety_settings,
-            pretrained_model=self.pretrained_model,
-            media_gcs_path=self.media_gcs_path,
-            mime_type=self.mime_type,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Call to deprecated class PromptMultimodalModelWithMediaOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.\)",
+        ):
+            op = PromptMultimodalModelWithMediaOperator(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=self.vision_prompt,
+                generation_config=self.generation_config,
+                safety_settings=self.safety_settings,
+                pretrained_model=self.pretrained_model,
+                media_gcs_path=self.media_gcs_path,
+                mime_type=self.mime_type,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
