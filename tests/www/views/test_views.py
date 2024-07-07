@@ -147,20 +147,22 @@ def test_should_list_providers_on_page_with_details(admin_client):
 @pytest.mark.parametrize(
     "provider_description, expected",
     [
-        ("`Airbyte <https://airbyte.com/>`__", Markup('<a href="https://airbyte.com/">Airbyte</a>')),
+        (
+            "`Airbyte <https://airbyte.com/>`__",
+            Markup('<a href="https://airbyte.com/" target="_blank" rel="noopener noreferrer">Airbyte</a>')),
         (
             "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).",
             Markup(
-                'Amazon integration (including <a href="https://aws.amazon.com/">Amazon Web Services ('
-                "AWS)</a>)."
+                'Amazon integration (including <a href="https://aws.amazon.com/" '
+                'target="_blank" rel="noopener noreferrer">Amazon Web Services (AWS)</a>).'
             ),
         ),
         (
             "`Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc"
             "/>`__",
             Markup(
-                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/">Java '
-                "Database Connectivity (JDBC)</a>"
+                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/" '
+                'target="_blank" rel="noopener noreferrer">Java Database Connectivity (JDBC)</a>'
             ),
         ),
         (
