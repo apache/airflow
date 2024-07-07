@@ -21,7 +21,7 @@ from typing import Union
 
 import attr
 
-from airflow.datasets import Dataset, create_dataset
+from airflow.datasets import Dataset
 from airflow.hooks.base import BaseHook
 from airflow.io.store import ObjectStore
 from airflow.providers_manager import ProvidersManager
@@ -53,36 +53,73 @@ class HookLineageCollector(LoggingMixin):
         self.inputs: list[tuple[Dataset, LineageContext]] = []
         self.outputs: list[tuple[Dataset, LineageContext]] = []
 
-    @staticmethod
-    def create_dataset(dataset_kwargs: dict) -> Dataset:
-        """Create a Dataset instance from the given dataset kwargs."""
-        if "uri" in dataset_kwargs:
-            # Fallback to default factory using the provided URI
-            return create_dataset(dataset_kwargs["uri"])
+    def create_dataset(
+        self, scheme: str | None, uri: str | None, dataset_kwargs: dict | None, dataset_extra: dict | None
+    ) -> Dataset | None:
+        """
+        Create a Dataset instance using the provided parameters.
 
-        scheme: str = dataset_kwargs.pop("scheme", None)
+        This method attempts to create a Dataset instance using the given parameters.
+        It first checks if a URI is provided and falls back to using the default dataset factory
+        with the given URI if no other information is available.
+
+        If a scheme is provided but no URI, it attempts to find a dataset factory that matches
+        the given scheme. If no such factory is found, it logs an error message and returns None.
+
+        If dataset_kwargs is provided, it is used to pass additional parameters to the Dataset
+        factory. The dataset_extra parameter is also passed to the factory as an ``extra`` parameter.
+        """
+        if uri:
+            # Fallback to default factory using the provided URI
+            return Dataset(uri=uri, extra=dataset_extra)
+
         if not scheme:
-            raise ValueError(
+            self.log.debug(
                 "Missing required parameter: either 'uri' or 'scheme' must be provided to create a Dataset."
             )
+            return None
 
         dataset_factory = ProvidersManager().dataset_factories.get(scheme)
         if not dataset_factory:
-            raise ValueError(
-                f"Unsupported scheme: '{scheme}'. Please provide a valid URI to create a Dataset."
-            )
+            self.log.debug("Unsupported scheme: %s. Please provide a valid URI to create a Dataset.", scheme)
+            return None
 
-        return dataset_factory(**dataset_kwargs)
+        dataset_kwargs = dataset_kwargs or {}
+        try:
+            return dataset_factory(**dataset_kwargs, extra=dataset_extra)
+        except Exception as e:
+            self.log.debug("Failed to create dataset. Skipping. Error: %s", e)
+            return None
 
-    def add_input_dataset(self, dataset_kwargs: dict, hook: LineageContext):
+    def add_input_dataset(
+        self,
+        context: LineageContext,
+        scheme: str | None = None,
+        uri: str | None = None,
+        dataset_kwargs: dict | None = None,
+        dataset_extra: dict | None = None,
+    ):
         """Add the input dataset and its corresponding hook execution context to the collector."""
-        dataset = self.create_dataset(dataset_kwargs)
-        self.inputs.append((dataset, hook))
+        dataset = self.create_dataset(
+            scheme=scheme, uri=uri, dataset_kwargs=dataset_kwargs, dataset_extra=dataset_extra
+        )
+        if dataset:
+            self.inputs.append((dataset, context))
 
-    def add_output_dataset(self, dataset_kwargs: dict, hook: LineageContext):
+    def add_output_dataset(
+        self,
+        context: LineageContext,
+        scheme: str | None = None,
+        uri: str | None = None,
+        dataset_kwargs: dict | None = None,
+        dataset_extra: dict | None = None,
+    ):
         """Add the output dataset and its corresponding hook execution context to the collector."""
-        dataset = self.create_dataset(dataset_kwargs)
-        self.outputs.append((dataset, hook))
+        dataset = self.create_dataset(
+            scheme=scheme, uri=uri, dataset_kwargs=dataset_kwargs, dataset_extra=dataset_extra
+        )
+        if dataset:
+            self.outputs.append((dataset, context))
 
     @property
     def collected_datasets(self) -> HookLineage:
@@ -112,7 +149,9 @@ class NoOpCollector(HookLineageCollector):
     def collected_datasets(
         self,
     ) -> HookLineage:
-        self.log.warning("You should not call this as there's no reader.")
+        self.log.warning(
+            "Data lineage tracking is disabled. Register a hook lineage reader to start tracking hook lineage."
+        )
         return HookLineage([], [])
 
 
@@ -132,8 +171,10 @@ def get_hook_lineage_collector() -> HookLineageCollector:
     """Get singleton lineage collector."""
     global _hook_lineage_collector
     if not _hook_lineage_collector:
-        # is there a better why how to use noop?
-        if ProvidersManager().hook_lineage_readers:
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_hook_lineage_readers_plugins()
+        if plugins_manager.hook_lineage_reader_classes:
             _hook_lineage_collector = HookLineageCollector()
         else:
             _hook_lineage_collector = NoOpCollector()

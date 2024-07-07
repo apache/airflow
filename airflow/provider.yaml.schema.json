@@ -220,13 +220,6 @@
                 }
             }
         },
-        "hook-lineage-readers": {
-            "type": "array",
-            "description": "Hook lineage readers",
-            "items": {
-                "type": "string"
-            }
-        },
         "transfers": {
             "type": "array",
             "items": {

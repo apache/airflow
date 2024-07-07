@@ -44,11 +44,6 @@ def normalize_noop(parts: SplitResult) -> SplitResult:
     return parts
 
 
-def create_dataset(uri: str) -> Dataset:
-    """Create a dataset object from a dataset URI."""
-    return Dataset(uri=uri)
-
-
 def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
     if scheme == "file":
         return normalize_noop

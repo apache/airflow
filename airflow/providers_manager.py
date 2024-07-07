@@ -428,7 +428,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._fs_set: set[str] = set()
         self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
         self._dataset_factories: dict[str, Callable[..., Dataset]] = {}
-        self._hook_lineage_readers: set[str] = set()
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -526,16 +525,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_filesystems()
 
     @provider_info_cache("dataset_uris")
-    def initialize_providers_dataset_uri_handlers(self):
+    def initialize_providers_dataset_uri_handlers_and_factories(self):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
         self._discover_dataset_uri_handlers_and_factories()
-
-    @provider_info_cache("hook_lineage_readers")
-    def initialize_providers_hook_lineage_readers(self):
-        """Lazy initialization of providers hook lineage readers."""
-        self.initialize_providers_list()
-        self._discover_hook_lineage_readers()
 
     @provider_info_cache("hook_lineage_writers")
     @provider_info_cache("taskflow_decorators")
@@ -574,7 +567,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_notifications()
 
-    @provider_info_cache(cache_name="auth_managers")
+    @provider_info_cache("auth_managers")
     def initialize_providers_auth_managers(self):
         """Lazy initialization of providers notifications information."""
         self.initialize_providers_list()
@@ -889,33 +882,27 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._fs_set = set(sorted(self._fs_set))
 
     def _discover_dataset_uri_handlers_and_factories(self) -> None:
-        from airflow.datasets import create_dataset, normalize_noop
+        from airflow.datasets import normalize_noop
 
         for provider_package, provider in self._provider_dict.items():
             for handler_info in provider.data.get("dataset-uris", []):
                 try:
                     schemes = handler_info["schemes"]
                     handler_path = handler_info["handler"]
-                    factory_path = handler_info["factory"]
                 except KeyError:
                     continue
                 if handler_path is None:
                     handler = normalize_noop
-                if factory_path is None:
-                    factory = create_dataset
-                elif not (handler := _correctness_check(provider_package, handler_path, provider)) or not (
-                    factory := _correctness_check(provider_package, factory_path, provider)
-                ):
+                elif not (handler := _correctness_check(provider_package, handler_path, provider)):
                     continue
                 self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
+                factory_path = handler_info.get("factory")
+                if not (
+                    factory_path is not None
+                    and (factory := _correctness_check(provider_package, factory_path, provider))
+                ):
+                    continue
                 self._dataset_factories.update((scheme, factory) for scheme in schemes)
-
-    def _discover_hook_lineage_readers(self) -> None:
-        for provider_package, provider in self._provider_dict.items():
-            for hook_lineage_reader in provider.data.get("hook-lineage-readers", []):
-                if _correctness_check(provider_package, hook_lineage_reader, provider):
-                    self._hook_lineage_readers.add(hook_lineage_reader)
-        self._fs_set = set(sorted(self._fs_set))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -1314,18 +1301,13 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @property
     def dataset_factories(self) -> dict[str, Callable[..., Dataset]]:
-        self.initialize_providers_dataset_uri_handlers()
+        self.initialize_providers_dataset_uri_handlers_and_factories()
         return self._dataset_factories
 
     @property
     def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initialize_providers_dataset_uri_handlers()
+        self.initialize_providers_dataset_uri_handlers_and_factories()
         return self._dataset_uri_handlers
-
-    @property
-    def hook_lineage_readers(self) -> list[str]:
-        self.initialize_providers_hook_lineage_readers()
-        return sorted(self._hook_lineage_readers)
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
