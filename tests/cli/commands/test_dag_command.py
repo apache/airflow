@@ -435,26 +435,26 @@ class TestCliDags:
 
         start_date = DEFAULT_DATE + timedelta(days=1)
         end_date = start_date + timedelta(days=1)
-        mock_next_workday = [
+        workdays = [
             start_date,
             start_date + timedelta(days=1),
             start_date + timedelta(days=2),
         ]
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_workday_timetable",
+                "--start-date",
+                start_date.isoformat(),
+                "--end-date",
+                end_date.isoformat(),
+                "--dry-run",
+            ]
+        )
         from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
-        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=mock_next_workday):
-            cli_args = self.parser.parse_args(
-                [
-                    "dags",
-                    "backfill",
-                    "example_workday_timetable",
-                    "--start-date",
-                    start_date.isoformat(),
-                    "--end-date",
-                    end_date.isoformat(),
-                    "--dry-run",
-                ]
-            )
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=workdays):
             dag_command.dag_backfill(cli_args)
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
@@ -985,18 +985,12 @@ class TestCliDags:
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
-        start_date = DEFAULT_DATE + timedelta(days=1)
-        mock_next_workday = [
-            start_date,
-            start_date + timedelta(days=1),
-            start_date + timedelta(days=2),
-        ]
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
+        )
         from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
-        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=mock_next_workday):
-            cli_args = self.parser.parse_args(
-                ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
-            )
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
             dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
