@@ -139,7 +139,6 @@ describe("Test getDagRunLabel", () => {
     lastSchedulingDecision: "2021-11-08T21:14:19.704433+00:00",
     externalTrigger: false,
     conf: null,
-    confIsJson: false,
     note: "someRandomValue",
   } as DagRun;
 

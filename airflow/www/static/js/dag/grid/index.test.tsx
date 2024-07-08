@@ -153,7 +153,6 @@ const mockGridData = {
       note: "myCoolDagRun",
       externalTrigger: false,
       conf: null,
-      confIsJson: false,
     },
   ],
   ordering: ["dataIntervalStart"],
