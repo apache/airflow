@@ -3381,9 +3381,7 @@ class DAG(LoggingMixin):
             else:
                 new_dataset_alias_models = outlet_dataset_alias_models
 
-            dataset_manager.create_dataset_aliases(
-                dataset_alias_models=new_dataset_alias_models, session=session
-            )
+            session.add_all(new_dataset_alias_models)
 
         del new_dataset_alias_models
         del outlet_dataset_alias_models
