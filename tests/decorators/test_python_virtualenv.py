@@ -42,6 +42,7 @@ CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`clou
 _Invalid = Any
 
 
+@pytest.mark.execution_timeout(120)
 class TestPythonVirtualenvDecorator:
     @CLOUDPICKLE_MARKER
     def test_add_cloudpickle(self, dag_maker):

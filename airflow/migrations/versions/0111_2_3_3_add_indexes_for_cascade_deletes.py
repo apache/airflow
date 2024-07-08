@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add indexes for CASCADE deletes on task_instance.
+"""
+Add indexes for CASCADE deletes on task_instance.
 
 Some databases don't add indexes on the FK columns so we have to add them for performance on CASCADE deletes.
 

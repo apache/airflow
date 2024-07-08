@@ -59,3 +59,39 @@ class ComprehendPiiEntitiesDetectionJobCompletedTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return ComprehendHook(aws_conn_id=self.aws_conn_id)
+
+
+class ComprehendCreateDocumentClassifierCompletedTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a Comprehend document classifier is complete.
+
+    :param document_classifier_arn: The arn of the Comprehend document classifier.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        document_classifier_arn: str,
+        waiter_delay: int = 120,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"document_classifier_arn": document_classifier_arn},
+            waiter_name="create_document_classifier_complete",
+            waiter_args={"DocumentClassifierArn": document_classifier_arn},
+            failure_message="Comprehend create document classifier failed.",
+            status_message="Status of Comprehend create document classifier is",
+            status_queries=["DocumentClassifierProperties.Status"],
+            return_key="document_classifier_arn",
+            return_value=document_classifier_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return ComprehendHook(aws_conn_id=self.aws_conn_id)

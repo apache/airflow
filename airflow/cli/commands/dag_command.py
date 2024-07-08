@@ -29,6 +29,7 @@ import sys
 import warnings
 from typing import TYPE_CHECKING
 
+import re2
 from sqlalchemy import delete, select
 
 from airflow import settings
@@ -224,18 +225,24 @@ def dag_unpause(args) -> None:
 def set_is_paused(is_paused: bool, args) -> None:
     """Set is_paused for DAG by a given dag_id."""
     should_apply = True
-    dags = [
-        dag
-        for dag in get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
-        if is_paused != dag.get_is_paused()
-    ]
+    with create_session() as session:
+        query = select(DagModel)
 
-    if not dags:
+        if args.treat_dag_id_as_regex:
+            query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
+        else:
+            query = query.where(DagModel.dag_id == args.dag_id)
+
+        query = query.where(DagModel.is_paused != is_paused)
+
+        matched_dags = session.scalars(query).all()
+
+    if not matched_dags:
         print(f"No {'un' if is_paused else ''}paused DAGs were found")
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
-        dags_ids = [dag.dag_id for dag in dags]
+        dags_ids = [dag.dag_id for dag in matched_dags]
         question = (
             f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
             f"{','.join(dags_ids)}"
@@ -244,17 +251,11 @@ def set_is_paused(is_paused: bool, args) -> None:
         should_apply = ask_yesno(question)
 
     if should_apply:
-        dags_models = [DagModel.get_dagmodel(dag.dag_id) for dag in dags]
-        for dag_model in dags_models:
-            if dag_model is not None:
-                dag_model.set_is_paused(is_paused=is_paused)
+        for dag_model in matched_dags:
+            dag_model.set_is_paused(is_paused=is_paused)
 
         AirflowConsole().print_as(
-            data=[
-                {"dag_id": dag.dag_id, "is_paused": dag.get_is_paused()}
-                for dag in dags_models
-                if dag is not None
-            ],
+            data=[{"dag_id": dag.dag_id, "is_paused": not dag.get_is_paused()} for dag in matched_dags],
             output=args.output,
         )
     else:
@@ -605,9 +606,21 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
+    use_executor = args.use_executor
+
+    mark_success_pattern = (
+        re2.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
+    )
+
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
         dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
+    dr: DagRun = dag.test(
+        execution_date=execution_date,
+        run_conf=run_conf,
+        use_executor=use_executor,
+        mark_success_pattern=mark_success_pattern,
+        session=session,
+    )
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun

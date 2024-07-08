@@ -591,16 +591,10 @@ class TestStringifiedDAGs:
             "params",
             "_processor_dags_folder",
         }
-        compare_serialization_list = {
-            "dataset_triggers",
-        }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             actual = getattr(serialized_dag, field)
             expected = getattr(dag, field)
-            if field in compare_serialization_list:
-                actual = BaseSerialization.serialize(actual)
-                expected = BaseSerialization.serialize(expected)
             assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
@@ -1718,7 +1712,12 @@ class TestStringifiedDAGs:
                 mode="reschedule",
             )
             CustomDepOperator(task_id="hello", bash_command="hi")
-            dag = SerializedDAG.to_dict(dag)
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match=r"Use of a custom dependency detector is deprecated\. "
+                r"Support will be removed in a future release\.",
+            ):
+                dag = SerializedDAG.to_dict(dag)
             assert sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values())) == sorted(
                 [
                     {
@@ -2199,6 +2198,7 @@ class TestStringifiedDAGs:
                 trigger_cls="airflow.triggers.testing.SuccessTrigger",
                 trigger_kwargs=None,
                 next_method="execute_complete",
+                next_kwargs=None,
                 timeout=None,
             )
             start_from_trigger = False
@@ -2216,6 +2216,7 @@ class TestStringifiedDAGs:
                 trigger_cls="airflow.triggers.testing.SuccessTrigger",
                 trigger_kwargs={},
                 next_method="execute_complete",
+                next_kwargs=None,
                 timeout=None,
             )
             start_from_trigger = True
@@ -2239,6 +2240,7 @@ class TestStringifiedDAGs:
                 "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
                 "trigger_kwargs": {},
                 "next_method": "execute_complete",
+                "next_kwargs": None,
                 "timeout": None,
             }
             assert task["__var"]["start_from_trigger"] is True

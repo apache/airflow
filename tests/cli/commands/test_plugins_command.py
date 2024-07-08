@@ -21,6 +21,8 @@ import textwrap
 from contextlib import redirect_stdout
 from io import StringIO
 
+import pytest
+
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
 from airflow.hooks.base import BaseHook
@@ -28,6 +30,8 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from tests.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+pytestmark = pytest.mark.db_test
 
 
 class PluginHook(BaseHook):

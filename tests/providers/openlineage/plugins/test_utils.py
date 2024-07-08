@@ -117,6 +117,32 @@ def test_info_json_encodable():
     }
 
 
+def test_info_json_encodable_list_does_not_flatten():
+    class TestInfo(InfoJsonEncodable):
+        includes = ["alist"]
+
+    @define(slots=False)
+    class Test:
+        alist: list[str]
+
+    obj = Test(["a", "b", "c"])
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": ["a", "b", "c"]}
+
+
+def test_info_json_encodable_list_does_include_nonexisting():
+    class TestInfo(InfoJsonEncodable):
+        includes = ["exists", "doesnotexist"]
+
+    @define(slots=False)
+    class Test:
+        exists: str
+
+    obj = Test("something")
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {"exists": "something"}
+
+
 def test_is_name_redactable():
     class NotMixin:
         def __init__(self):

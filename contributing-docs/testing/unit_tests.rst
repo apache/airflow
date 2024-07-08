@@ -1104,13 +1104,13 @@ directly to the container.
 2. Enter breeze environment by selecting the appropriate airflow version and choosing
    ``providers-and-tests`` option for ``--mount-sources`` flag.
 
-.. code-block::bash
+.. code-block:: bash
 
   breeze shell --use-airflow-version 2.9.1 --mount-sources providers-and-tests
 
 3. You can then run tests as usual:
 
-.. code-block::bash
+.. code-block:: bash
 
    pytest tests/providers/<provider>/test.py
 
@@ -1439,6 +1439,29 @@ to **ignore**, e.g. set ``PYTHONWARNINGS`` environment variable to ``ignore``.
 .. code-block:: bash
 
     pytest tests/core/ --disable-capture-warnings
+
+Keep tests using environment variables
+......................................
+
+By default, all environment variables related to Airflow (starting by ``AIRFLOW__``) are all cleared before running tests
+to avoid potential side effect. However, in some scenarios you might want to disable this mechanism and keep the
+environment variables you defined to configure your Airflow environment. For example, you might want to run tests
+against a specific database configured through the environment variable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``.
+Or running tests using a specific executor to run tasks configured through ``AIRFLOW__CORE__EXECUTOR``.
+
+To keep using environment variables you defined in your environment, you need to provide ``--keep-env-variables`` as
+pytest CLI argument.
+
+.. code-block:: bash
+
+    pytest tests/core/ --keep-env-variables
+
+This parameter is also available in Breeze.
+
+.. code-block:: bash
+
+    breeze testing db-tests --keep-env-variables
+
 
 Code Coverage
 -------------

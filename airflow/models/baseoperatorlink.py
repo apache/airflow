@@ -46,7 +46,8 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
     @abstractmethod
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        """Link to external system.
+        """
+        Link to external system.
 
         Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
         supported at runtime but is deprecated.

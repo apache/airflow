@@ -523,6 +523,12 @@ labelPRBasedOnFilePath:
     - tests/providers/yandex/**/*
     - tests/system/providers/yandex/**/*
 
+  provider:ydb:
+    - airflow/providers/ydb/**/*
+    - docs/apache-airflow-providers-ydb/**/*
+    - tests/providers/ydb/**/*
+    - tests/system/providers/ydb/**/*
+
   provider:zendesk:
     - airflow/providers/zendesk/**/*
     - docs/apache-airflow-providers-zendesk/**/*

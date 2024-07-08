@@ -117,7 +117,8 @@ class OracleHook(DbApiHook):
         self.fetch_lobs = fetch_lobs
 
     def get_conn(self) -> oracledb.Connection:
-        """Get an Oracle connection object.
+        """
+        Get an Oracle connection object.
 
         Optional parameters for using a custom DSN connection (instead of using
         a server alias from tnsnames.ora) The dsn (data source name) is the TNS
@@ -255,7 +256,8 @@ class OracleHook(DbApiHook):
         replace: bool | None = False,
         **kwargs,
     ) -> None:
-        """Insert a collection of tuples into a table.
+        """
+        Insert a collection of tuples into a table.
 
         All data to insert are treated as one transaction. Changes from standard
         DbApiHook implementation:
@@ -272,8 +274,14 @@ class OracleHook(DbApiHook):
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 1000, Set greater than 0.
             Set 1 to insert each row in each single transaction
-        :param replace: Whether to replace instead of insert
+        :param replace: Whether to replace instead of insert. Currently not implemented.
         """
+        if replace:
+            warnings.warn(
+                "Using 'replace=True' does not implement any replace functionality currently.",
+                category=UserWarning,
+                stacklevel=2,
+            )
         try:
             import numpy as np
         except ImportError:
@@ -321,7 +329,8 @@ class OracleHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Perform bulk inserts efficiently for Oracle DB.
+        """
+        Perform bulk inserts efficiently for Oracle DB.
 
         This uses prepared statements via `executemany()`. For best performance,
         pass in `rows` as an iterator.

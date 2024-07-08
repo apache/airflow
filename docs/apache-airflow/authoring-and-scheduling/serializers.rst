@@ -42,7 +42,7 @@ It does not need to serialize the values in the dict, that will be taken care of
 form.
 
 Objects that are not under control of Airflow, e.g. ``numpy.int16`` will need a registered serializer and deserializer.
-Versioning is required. Primitives can be returned as can dicts. Again ``dict`` values do not need to be serialized,
+Versioning is required. Primitives, excluding ``bytes``, can be returned as can dicts. Again ``dict`` values do not need to be serialized,
 but its keys need to be of primitive form. In case you are implementing a registered serializer, take special care
 not to have circular imports. Typically, this can be avoided by using ``str`` for populating the list of serializers.
 Like so: ``serializers = ["my.company.Foo"]`` instead of ``serializers = [Foo]``.

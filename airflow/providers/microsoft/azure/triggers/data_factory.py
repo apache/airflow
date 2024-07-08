@@ -30,7 +30,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
-    """Trigger with params to run the task when the ADF Pipeline is running.
+    """
+    Trigger with params to run the task when the ADF Pipeline is running.
 
     :param run_id: The pipeline run identifier.
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
@@ -110,7 +111,8 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
 
 
 class AzureDataFactoryTrigger(BaseTrigger):
-    """Trigger when the Azure data factory pipeline job finishes.
+    """
+    Trigger when the Azure data factory pipeline job finishes.
 
     When wait_for_termination is set to False, it triggers immediately with success status.
 

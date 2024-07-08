@@ -64,3 +64,28 @@ class TestGlueCrawlerSensor:
         message = f"Status: {crawler_status}"
         with pytest.raises(expected_exception, match=message):
             self.sensor.poke(context={})
+
+    def test_base_aws_op_attributes(self):
+        op = GlueCrawlerSensor(
+            task_id="test_glue_crawler_sensor",
+            crawler_name="aws_test_glue_crawler",
+        )
+        assert op.hook.client_type == "glue"
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = GlueCrawlerSensor(
+            task_id="test_glue_crawler_sensor",
+            crawler_name="aws_test_glue_crawler",
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42

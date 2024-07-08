@@ -35,6 +35,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.2
+.....
+
+Latest change: 2024-06-16
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`bfe5fd7108 <https://github.com/apache/airflow/commit/bfe5fd71087f56610c16bca39311a4520ef7d3cf>`_  2024-06-16   ``k8s version bump (#40253)``
+`67798b2b8a <https://github.com/apache/airflow/commit/67798b2b8add1f7bbda2916c861c6958287122e9>`_  2024-06-13   ``Fix Scheduler restarting due to too many completed pods in cluster (#40183)``
+=================================================================================================  ===========  ===============================================================================
+
 8.3.1
 .....
 
@@ -43,6 +55,7 @@ Latest change: 2024-06-07
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`35bece7dc3 <https://github.com/apache/airflow/commit/35bece7dc33537eefa328aeef6fbfb206567e8e5>`_  2024-06-07   ``Prepare docs 1st wave June 2024 (#40057)``
 `8daa53eaa5 <https://github.com/apache/airflow/commit/8daa53eaa5d64727abd7430c9f58eb8a14613db2>`_  2024-06-07   ``Avoid resetting adopted task instances when retrying for kubernetes executor (#39406)``
 `00a2843649 <https://github.com/apache/airflow/commit/00a284364906ced4d71e5109dec8f7f2f3cae076>`_  2024-06-06   ``Include fatal reason for pod pending events (#39924)``
 `0f6e31f4b9 <https://github.com/apache/airflow/commit/0f6e31f4b95059421e581d2a2b29392aab215fa4>`_  2024-06-05   ``Fix reattach_on_restart parameter for the sync mode (#39329)``

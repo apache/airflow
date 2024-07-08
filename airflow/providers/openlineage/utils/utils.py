@@ -29,7 +29,9 @@ from typing import TYPE_CHECKING, Any, Iterable
 import attrs
 from deprecated import deprecated
 from openlineage.client.utils import RedactMixin
+from packaging.version import Version
 
+from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
@@ -57,6 +59,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def try_import_from_string(string: str) -> Any:
@@ -147,7 +150,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, list, tuple)):
+        if isinstance(value, (set, tuple)):
             return str(list(value))
         return value
 
@@ -211,6 +214,12 @@ class TaskInstanceInfo(InfoJsonEncodable):
     }
 
 
+class DatasetInfo(InfoJsonEncodable):
+    """Defines encoding Airflow Dataset object to JSON."""
+
+    includes = ["uri", "extra"]
+
+
 class TaskInfo(InfoJsonEncodable):
     """Defines encoding BaseOperator/AbstractOperator object to JSON."""
 
@@ -239,6 +248,9 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
+        "trigger_dag_id",
+        "external_dag_id",
+        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
@@ -252,6 +264,8 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
+        "inlets": lambda task: [DatasetInfo(inlet) for inlet in task.inlets],
+        "outlets": lambda task: [DatasetInfo(outlet) for outlet in task.outlets],
     }
 
 
@@ -357,12 +371,13 @@ def _get_parsed_dag_tree(dag: DAG) -> dict:
         # Determine the level by counting the leading spaces, assuming 4 spaces per level
         # as defined in airflow.models.dag.DAG._generate_tree_view()
         level = (len(line) - len(stripped_line)) // 4
-        # airflow.models.baseoperator.BaseOperator.__repr__ is used in DAG tree
-        # <Task({op_class}): {task_id}>
-        match = re.match(r"^<Task\((.+)\): (.*?)>$", stripped_line)
+        # airflow.models.baseoperator.BaseOperator.__repr__ or
+        # airflow.models.mappedoperator.MappedOperator.__repr__ is used in DAG tree
+        # <Task({op_class}): {task_id}> or <Mapped({op_class}): {task_id}>
+        match = re.match(r"^<(?:Task|Mapped)\(.+\): (.+)>$", stripped_line)
         if not match:
             return {}
-        current_task_id = match[2]
+        current_task_id = match[1]
 
         if level == 0:  # It's a root task
             task_dict[current_task_id] = {}
@@ -558,5 +573,7 @@ def normalize_sql(sql: str | Iterable[str]):
 
 
 def should_use_external_connection(hook) -> bool:
-    # TODO: Add checking overrides
-    return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook"]
+    # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
+    if not _IS_AIRFLOW_2_10_OR_HIGHER:
+        return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
+    return True
