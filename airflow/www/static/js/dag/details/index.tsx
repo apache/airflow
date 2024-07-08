@@ -69,6 +69,7 @@ import EventLog from "./EventLog";
 import RunDuration from "./dag/RunDuration";
 import Calendar from "./dag/Calendar";
 import RenderedK8s from "./taskInstance/RenderedK8s";
+import AllTaskDuration from "./task/AllTaskDuration";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -98,8 +99,9 @@ const tabToIndex = (tab?: string) => {
     case "run_duration":
       return 5;
     case "xcom":
-    case "calendar":
+    case "task_duration":
       return 6;
+    case "calendar":
     case "rendered_k8s":
       return 7;
     case "details":
@@ -138,10 +140,11 @@ const indexToTab = (
       if (!runId && !taskId) return "run_duration";
       return undefined;
     case 6:
-      if (!runId && !taskId) return "calendar";
+      if (!runId && !taskId) return "task_duration";
       if (isTaskInstance) return "xcom";
       return undefined;
     case 7:
+      if (!runId && !taskId) return "calendar";
       if (isTaskInstance && isK8sExecutor) return "rendered_k8s";
       return undefined;
     default:
@@ -341,6 +344,14 @@ const Details = ({
           )}
           {isDag && (
             <Tab>
+              <MdHourglassBottom size={16} />
+              <Text as="strong" ml={1}>
+                Task Duration
+              </Text>
+            </Tab>
+          )}
+          {isDag && (
+            <Tab>
               <MdEvent size={16} />
               <Text as="strong" ml={1}>
                 Calendar
@@ -450,6 +461,11 @@ const Details = ({
           {isDag && (
             <TabPanel height="100%">
               <RunDuration />
+            </TabPanel>
+          )}
+          {isDag && (
+            <TabPanel height="80%">
+              <AllTaskDuration />
             </TabPanel>
           )}
           {isDag && (
