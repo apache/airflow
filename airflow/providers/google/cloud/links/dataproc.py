@@ -273,11 +273,12 @@ class DataprocBatchLink(BaseGoogleLink):
         batch_id: str,
         project_id: str,
         region: str,
+        tags: list[str] | None = None,
     ):
         operator.xcom_push(
             context,
             key=DataprocBatchLink.key,
-            value={"batch_id": batch_id, "region": region, "project_id": project_id},
+            value={"batch_id": batch_id, "region": region, "project_id": project_id, "tags": tags},
         )
 
 
