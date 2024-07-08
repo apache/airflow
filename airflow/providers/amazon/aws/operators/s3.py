@@ -642,7 +642,7 @@ class S3FileTransformOperator(BaseOperator):
         dest_s3_key: str,
         transform_script: str | None = None,
         select_expression=None,
-        select_expr_serialization_config: dict[str,dict[str, dict]] | None = None,
+        select_expr_serialization_config: dict[str, dict[str, dict]] | None = None,
         script_args: Sequence[str] | None = None,
         source_aws_conn_id: str | None = "aws_default",
         source_verify: bool | str | None = None,
@@ -684,10 +684,10 @@ class S3FileTransformOperator(BaseOperator):
                 input_serialization = self.select_expr_serialization_config.get("input_serialization")
                 output_serialization = self.select_expr_serialization_config.get("output_serialization")
                 content = source_s3.select_key(
-                                    key=self.source_s3_key, 
-                                    expression=self.select_expression,
-                                    input_serialization=input_serialization,
-                                    output_serialization=output_serialization
+                    key=self.source_s3_key,
+                    expression=self.select_expression,
+                    input_serialization=input_serialization,
+                    output_serialization=output_serialization,
                 )
                 f_source.write(content.encode("utf-8"))
             else:

@@ -284,6 +284,8 @@ class TestS3FileTransformOperator:
     def test_execute_with_select_expression(self, mock_select_key):
         input_path, output_path = self.s3_paths()
         select_expression = "SELECT * FROM s3object s"
+        input_serialization = None
+        output_serialization = None
 
         op = S3FileTransformOperator(
             source_s3_key=input_path,
@@ -294,7 +296,12 @@ class TestS3FileTransformOperator:
         )
         op.execute(None)
 
-        mock_select_key.assert_called_once_with(key=input_path, expression=select_expression)
+        mock_select_key.assert_called_once_with(
+            key=input_path,
+            expression=select_expression,
+            input_serialization=input_serialization,
+            output_serialization=output_serialization,
+        )
 
         conn = boto3.client("s3")
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
@@ -305,21 +312,29 @@ class TestS3FileTransformOperator:
     def test_execute_with_select_expression_and_serialization_config(self, mock_select_key):
         input_path, output_path = self.s3_paths()
         select_expression = "SELECT * FROM s3object s"
+        select_expr_serialization_config = {
+            "input_serialization": {"CSV": {}},
+            "output_serialization": {"CSV": {}},
+        }
 
         op = S3FileTransformOperator(
             source_s3_key=input_path,
             dest_s3_key=output_path,
             select_expression=select_expression,
-            select_expr_serialization_config={
-                "input_serialization": {"CSV": {}},
-                "output_serialization": {"CSV": {}}
-            },
+            select_expr_serialization_config=select_expr_serialization_config,
             replace=True,
             task_id="task_id",
         )
         op.execute(None)
 
-        mock_select_key.assert_called_once_with(key=input_path, expression=select_expression)
+        input_serialization = select_expr_serialization_config.get("input_serialization")
+        output_serialization = select_expr_serialization_config.get("output_serialization")
+        mock_select_key.assert_called_once_with(
+            key=input_path,
+            expression=select_expression,
+            input_serialization=input_serialization,
+            output_serialization=output_serialization,
+        )
 
         conn = boto3.client("s3")
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
