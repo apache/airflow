@@ -108,16 +108,18 @@ class TypeOfChange(Enum):
     FEATURE = "f"
     BREAKING_CHANGE = "x"
     SKIP = "s"
+    MISC = "m"
 
 
 # defines the precedence order for provider version bumps
-# BREAKING_CHANGE > FEATURE > BUGFIX > DOCUMENTATION > SKIP
+# BREAKING_CHANGE > FEATURE > BUGFIX > MISC > DOCUMENTATION > SKIP
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
-    TypeOfChange.BUGFIX: 2,
-    TypeOfChange.FEATURE: 3,
-    TypeOfChange.BREAKING_CHANGE: 4,
+    TypeOfChange.MISC: 2,
+    TypeOfChange.BUGFIX: 3,
+    TypeOfChange.FEATURE: 4,
+    TypeOfChange.BREAKING_CHANGE: 5,
 }
 
 
@@ -428,7 +430,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
-            f"change, (s)kip, (q)uit [{display_answers}]?[/] ",
+            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -899,13 +901,14 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
+        elif type_of_change == TypeOfChange.MISC:
+            classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
         else:
-            # for the changes we do not have a category for, add it to misc
-            classified_changes.misc.append(change)
+            classified_changes.other.append(change)
     return classified_changes
 
 
