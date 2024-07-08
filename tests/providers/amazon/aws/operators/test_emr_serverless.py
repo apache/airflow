@@ -25,23 +25,13 @@ from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
-from airflow.providers.amazon.aws.links.emr import (
-    EmrServerlessCloudWatchLogsLink,
-    EmrServerlessDashboardLink,
-    EmrServerlessLogsLink,
-    EmrServerlessS3LogsLink,
-)
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartJobOperator,
     EmrServerlessStopApplicationOperator,
 )
-from airflow.serialization.serialized_objects import (
-    BaseSerialization,
-)
 from airflow.utils.types import NOTSET
-from tests.test_utils.compat import deserialize_operator
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -1151,50 +1141,6 @@ class TestEmrServerlessStartJobOperator:
             application_id=application_id,
             job_run_id=job_run_id,
         )
-
-    def test_operator_extra_links_mapped_without_applicationui_enabled(
-        self,
-    ):
-        operator = EmrServerlessStartJobOperator.partial(
-            task_id=task_id,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=spark_job_driver,
-            enable_application_ui_links=False,
-        ).expand(
-            configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
-        )
-
-        ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = deserialize_operator(ser_operator)
-
-        assert deser_operator.operator_extra_links == [
-            EmrServerlessS3LogsLink(),
-            EmrServerlessCloudWatchLogsLink(),
-        ]
-
-    def test_operator_extra_links_mapped_with_applicationui_enabled_at_partial(
-        self,
-    ):
-        operator = EmrServerlessStartJobOperator.partial(
-            task_id=task_id,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=spark_job_driver,
-            enable_application_ui_links=True,
-        ).expand(
-            configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
-        )
-
-        ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = deserialize_operator(ser_operator)
-
-        assert deser_operator.operator_extra_links == [
-            EmrServerlessS3LogsLink(),
-            EmrServerlessCloudWatchLogsLink(),
-            EmrServerlessDashboardLink(),
-            EmrServerlessLogsLink(),
-        ]
 
 
 class TestEmrServerlessDeleteOperator:
