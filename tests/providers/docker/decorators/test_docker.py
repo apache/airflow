@@ -298,9 +298,8 @@ class TestDockerDecorator:
         def f():
             raise ValueError("This task is expected to fail")
 
-        docker_operator_logger_name = (
-            "airflow.task.operators.airflow.providers.docker.decorators.docker._DockerDecoratedOperator"
-        )
+        docker_operator_logger_name = "airflow.task.operators"
+
         docker_operator_logger = logging.getLogger(docker_operator_logger_name)
         log_capture_string = StringBuffer()
         ch = logging.StreamHandler(log_capture_string)
@@ -316,9 +315,5 @@ class TestDockerDecorator:
 
         log_content = str(log_capture_string.getvalue())
         assert 'with open(sys.argv[4], "w") as file:' not in log_content
-        try:
-            last_line_of_docker_operator_log = log_content.splitlines()[-1]
-        except IndexError:
-            print(log_content)
-            raise IndexError
+        last_line_of_docker_operator_log = log_content.splitlines()[-1]
         assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
