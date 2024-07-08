@@ -96,7 +96,7 @@ GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEMPLATE_ID = "template_id"
 CLUSTER_NAME = "cluster_name"
-tags = ["tags"]
+TAGS = ["tags"]
 CONFIG = {
     "gce_cluster_config": {
         "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
@@ -2640,7 +2640,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2671,7 +2671,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             retry=RETRY,
             result_retry=RESULT_RETRY,
             timeout=TIMEOUT,
@@ -2703,7 +2703,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2723,7 +2723,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2752,7 +2752,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2782,7 +2782,7 @@ class TestDataprocCreateBatchOperator:
             batch=BATCH,
             batch_id=BATCH_ID,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2907,7 +2907,7 @@ class TestDataprocListBatchesOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             request_id=REQUEST_ID,
-            tags=tags,
+            tags=TAGS,
             impersonation_chain=IMPERSONATION_CHAIN,
             deferrable=True,
         )
