@@ -17,12 +17,19 @@
  under the License.
 #}
 
+{% set external_menu_url_prefixes = [
+  'https://github.com',
+  'https://airflow.apache.org',
+  'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com']
+%}
+
 {% macro menu_item(item) %}
   {% set url = item.get_url() %}
-  {% if 'apache' in url %}
-    <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{_(item.label)}}</a>
+  {% set prefix = "/".join(url.split("/")[:3]) %}
+  {% if prefix in external_menu_url_prefixes %}
+      <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ item.label }}</a>
   {% else %}
-    <a href="{{ url }}">{{_(item.label)}}</a>
+      <a href="{{ url }}">{{ item.label }}</a>
   {% endif %}
 {% endmacro %}
 
