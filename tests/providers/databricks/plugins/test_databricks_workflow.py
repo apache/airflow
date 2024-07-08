@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask import request
+from flask import Blueprint, request
 
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -120,7 +120,17 @@ def test_get_launch_task_key():
 
 @pytest.fixture(scope="module")
 def app():
-    return create_app(testing=True)
+    app = create_app(testing=True)
+    app.config["SERVER_NAME"] = "localhost"
+    repair_bp = Blueprint("RepairDatabricksTasks", __name__)
+
+    @repair_bp.route("/repair_databricks_job")
+    def repair():
+        return "Repair Databricks Job"
+
+    app.register_blueprint(repair_bp)
+
+    return app
 
 
 @pytest.fixture
@@ -235,7 +245,7 @@ def test_workflow_job_repair_single_failed_link(app):
                     mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="task_id"))
 
                     result = link.get_link(operator, ti_key=ti_key)
-                    assert result.startswith("/repair_databricks_job")
+                    assert result.startswith("http://localhost/repair_databricks_job")
 
 
 @pytest.fixture
