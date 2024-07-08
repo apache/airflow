@@ -21,6 +21,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
+from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 
 
@@ -38,6 +39,28 @@ class TestOutletEventAccessor:
     def test_add(self, raw_key, dataset_alias_event):
         outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={})
         outlet_event_accessor.add(Dataset("test_uri"))
+        assert outlet_event_accessor.dataset_alias_event == dataset_alias_event
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "raw_key, dataset_alias_event",
+        (
+            (
+                DatasetAlias("test_alias"),
+                DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri"),
+            ),
+            ("test_alias", DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri")),
+            (Dataset("test_uri"), None),
+        ),
+    )
+    def test_add_with_db(self, raw_key, dataset_alias_event, session):
+        dsm = DatasetModel(uri="test_uri")
+        dsam = DatasetAliasModel(name="test_alias")
+        session.add_all([dsm, dsam])
+        session.flush()
+
+        outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={})
+        outlet_event_accessor.add("test_uri")
         assert outlet_event_accessor.dataset_alias_event == dataset_alias_event
 
 
