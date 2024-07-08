@@ -610,6 +610,7 @@ class S3FileTransformOperator(BaseOperator):
     :param dest_s3_key: The key to be written from S3. (templated)
     :param transform_script: location of the executable transformation script
     :param select_expression: S3 Select expression
+    :param select_expr_serialization_config: A dictionary that contains input and output serialization configurations for S3 Select.
     :param script_args: arguments for transformation script (templated)
     :param source_aws_conn_id: source s3 connection
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -641,6 +642,7 @@ class S3FileTransformOperator(BaseOperator):
         dest_s3_key: str,
         transform_script: str | None = None,
         select_expression=None,
+        select_expr_serialization_config: dict[str,dict[str, Any]] | None = None,
         script_args: Sequence[str] | None = None,
         source_aws_conn_id: str | None = "aws_default",
         source_verify: bool | str | None = None,
@@ -659,6 +661,7 @@ class S3FileTransformOperator(BaseOperator):
         self.replace = replace
         self.transform_script = transform_script
         self.select_expression = select_expression
+        self.select_expr_serialization_config = select_expr_serialization_config or {}
         self.script_args = script_args or []
         self.output_encoding = sys.getdefaultencoding()
 
@@ -678,7 +681,14 @@ class S3FileTransformOperator(BaseOperator):
             self.log.info("Dumping S3 file %s contents to local file %s", self.source_s3_key, f_source.name)
 
             if self.select_expression is not None:
-                content = source_s3.select_key(key=self.source_s3_key, expression=self.select_expression)
+                input_serialization = self.select_expr_serialization_config.get("input_serialization")
+                output_serialization = self.select_expr_serialization_config.get("output_serialization")
+                content = source_s3.select_key(
+                                    key=self.source_s3_key, 
+                                    expression=self.select_expression,
+                                    input_serialization=input_serialization,
+                                    output_serialization=output_serialization
+                )
                 f_source.write(content.encode("utf-8"))
             else:
                 source_s3_key_object.download_fileobj(Fileobj=f_source)
