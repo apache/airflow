@@ -18,6 +18,7 @@
 #
 from __future__ import annotations
 
+import logging
 import warnings
 from unittest.mock import MagicMock
 
@@ -256,3 +257,21 @@ class TestDbApiHook:
     def test_placeholder_config_from_extra(self):
         dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "?"}})
         assert dbapi_hook.placeholder == "?"
+
+    @pytest.mark.db_test
+    def test_placeholder_config_from_extra_when_not_in_default_sql_placeholders(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="airflow.providers.common.sql.hooks.test_sql"):
+            dbapi_hook = mock_hook(DbApiHook, conn_params={"extra": {"placeholder": "!"}})
+            assert dbapi_hook.placeholder == "%s"
+            assert (
+                "Placeholder '!' defined in Connection 'default_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                f"and got ignored. Falling back to the default placeholder '{DbApiHook._placeholder}'."
+                in caplog.text
+            )
+
+    @pytest.mark.db_test
+    def test_placeholder_multiple_times_and_make_sure_connection_is_only_invoked_once(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        for _ in range(10):
+            assert dbapi_hook.placeholder == "%s"
+        assert dbapi_hook.connection_invocations == 1

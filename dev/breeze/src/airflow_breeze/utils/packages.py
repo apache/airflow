@@ -147,6 +147,11 @@ def refresh_provider_metadata_with_provider_id(provider_id: str):
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
+def clear_cache_for_provider_metadata(provider_id: str):
+    get_provider_packages_metadata.cache_clear()
+    refresh_provider_metadata_with_provider_id(provider_id)
+
+
 @lru_cache(maxsize=1)
 def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     """

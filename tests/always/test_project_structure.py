@@ -417,8 +417,11 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job."
-        "GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
@@ -535,8 +538,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     MISSING_EXAMPLES_FOR_CLASSES = {
         # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
-        # Glue Catalog sensor difficult to test
-        "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
     }
 
     DEPRECATED_CLASSES = {

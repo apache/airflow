@@ -1499,6 +1499,78 @@ class TestDataflowJob:
         assert result == expected_result
 
     @pytest.mark.parametrize(
+        "jobs, wait_until_finished, expected_result",
+        [
+            # STREAMING
+            (
+                [
+                    (None, DataflowJobStatus.JOB_STATE_QUEUED),
+                    (None, DataflowJobStatus.JOB_STATE_PENDING),
+                    (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING),
+                ],
+                None,
+                True,
+            ),
+            (
+                [
+                    (None, DataflowJobStatus.JOB_STATE_QUEUED),
+                    (None, DataflowJobStatus.JOB_STATE_PENDING),
+                    (DataflowJobType.JOB_TYPE_STREAMING, DataflowJobStatus.JOB_STATE_RUNNING),
+                ],
+                True,
+                False,
+            ),
+            # BATCH
+            (
+                [
+                    (None, DataflowJobStatus.JOB_STATE_QUEUED),
+                    (None, DataflowJobStatus.JOB_STATE_PENDING),
+                    (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING),
+                ],
+                False,
+                True,
+            ),
+            (
+                [
+                    (None, DataflowJobStatus.JOB_STATE_QUEUED),
+                    (None, DataflowJobStatus.JOB_STATE_PENDING),
+                    (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_RUNNING),
+                ],
+                None,
+                False,
+            ),
+            (
+                [
+                    (None, DataflowJobStatus.JOB_STATE_QUEUED),
+                    (None, DataflowJobStatus.JOB_STATE_PENDING),
+                    (DataflowJobType.JOB_TYPE_BATCH, DataflowJobStatus.JOB_STATE_DONE),
+                ],
+                None,
+                True,
+            ),
+        ],
+    )
+    def test_check_dataflow_job_state_without_job_type_changed_on_terminal_state(
+        self, jobs, wait_until_finished, expected_result
+    ):
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name="name-",
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=None,
+            num_retries=20,
+            multiple_jobs=True,
+            wait_until_finished=wait_until_finished,
+        )
+        result = False
+        for current_job in jobs:
+            job = {"id": "id-2", "name": "name-2", "type": current_job[0], "currentState": current_job[1]}
+            result = dataflow_job._check_dataflow_job_state(job)
+        assert result == expected_result
+
+    @pytest.mark.parametrize(
         "job_state, wait_until_finished, expected_result",
         [
             # DONE

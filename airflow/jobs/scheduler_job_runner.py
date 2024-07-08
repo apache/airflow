@@ -780,7 +780,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
+                self._task_context_logger.error(msg, ti=ti)
 
                 # Get task from the Serialized DAG
                 try:
