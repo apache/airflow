@@ -36,6 +36,28 @@ Changelog
   been reverted as it turned out to break too much existing workflows. The behavior of the
   ``GCSToGCSOperator`` has been restored to the previous behavior.
 
+Features
+~~~~~~~~
+
+* ``Update Google Cloud Generative Model Hooks/Operators to bring parity with Vertex AI API (#40484)``
+* ``DataflowStartFlexTemplateOperator. Check for Dataflow job type each check cycle. (#40584)``
+* ``Added chunk_size parameter to LocalFilesystemToGCSOperator (#40379)``
+* ``Add support for query parameters to BigQueryCheckOperator (#40558)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert "Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)" (#40577)``
+* ``fix BigQueryInsertJobOperator's return value and openlineage extraction in deferrable mode (#40457)``
+* ``fix OpenLineage extraction for GCP deferrable operators (#40521)``
+* ``fix respect project_id in CloudBatchSubmitJobOperator (#40560)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Resolve google deprecations in tests (#40629)``
+   * ``Resolve google vertex ai deprecations in tests (#40506)``
+   * ``Add notes about reverting the change in GCSToGCSOperator (#40579)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 10.20.0
 .......
 

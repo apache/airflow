@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.9.1
+.....
+
+Latest change: 2024-07-05
+
+=================================================================================================  ===========  =================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================
+`1dc582dba3 <https://github.com/apache/airflow/commit/1dc582dba32156bd48da41c0cc5d1b2ab699993b>`_  2024-07-05   ``fix openlineage parsing dag tree with MappedOperator (#40621)``
+=================================================================================================  ===========  =================================================================
+
 1.9.0
 .....
 
-Latest change: 2024-06-28
+Latest change: 2024-07-02
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`0fae73dc45 <https://github.com/apache/airflow/commit/0fae73dc459a221e7a8cc0664b8c6c94555f6337>`_  2024-07-02   ``Update docs for RC2 openlineage provider (#40551)``
 `57fb776408 <https://github.com/apache/airflow/commit/57fb7764088a795ef38c149f2cdf5329aabf649b>`_  2024-06-28   ``fix: scheduler crashing with OL provider on airflow standalone (#40459)``
 `322130ed82 <https://github.com/apache/airflow/commit/322130ed827902c8ac5ecbd48d1afbaee3afaa13>`_  2024-06-27   ``nit: fix logging level (#40461)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
