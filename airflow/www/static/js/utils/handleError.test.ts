@@ -20,9 +20,9 @@
 /* global describe, test, expect */
 
 import type { AxiosError, AxiosResponse } from "axios";
-import { getErrorDescription } from "./useErrorToast";
+import handleError from "./handleError";
 
-describe("Test getErrorDescription()", () => {
+describe("Test handleError()", () => {
   test("Returns expected results", () => {
     let description;
 
@@ -40,29 +40,29 @@ describe("Test getErrorDescription()", () => {
     axiosError.isAxiosError = true;
 
     // if response.data is defined
-    description = getErrorDescription(axiosError);
+    description = handleError(axiosError);
     expect(description).toBe("Not available for this Executor");
 
     axiosError.response.data = "";
 
     // if it is not, use the error message
-    description = getErrorDescription(axiosError);
+    description = handleError(axiosError);
     expect(description).toBe("Error message");
 
     // if error object, return the message
-    description = getErrorDescription(new Error("no no"));
+    description = handleError(new Error("no no"));
     expect(description).toBe("no no");
 
     // if string, return the string
-    description = getErrorDescription("error!");
+    description = handleError("error!");
     expect(description).toBe("error!");
 
     // if it's undefined, use a fallback
-    description = getErrorDescription(null, "fallback");
+    description = handleError(null, "fallback");
     expect(description).toBe("fallback");
 
     // use default if nothing is defined
-    description = getErrorDescription();
+    description = handleError();
     expect(description).toBe("Something went wrong.");
   });
 });

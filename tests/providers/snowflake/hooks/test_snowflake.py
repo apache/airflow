@@ -137,6 +137,7 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "True",
+                        "extra__snowflake__client_request_mfa_token": "True",
                     },
                 },
                 (
@@ -156,6 +157,7 @@ class TestPytestSnowflakeHook:
                     "user": "user",
                     "warehouse": "af_wh",
                     "insecure_mode": True,
+                    "client_request_mfa_token": True,
                 },
             ),
             (
@@ -168,6 +170,7 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "False",
+                        "extra__snowflake__client_request_mfa_token": "False",
                     },
                 },
                 (
@@ -243,6 +246,7 @@ class TestPytestSnowflakeHook:
                     "extra": {
                         **BASE_CONNECTION_KWARGS["extra"],
                         "extra__snowflake__insecure_mode": False,
+                        "extra__snowflake__client_request_mfa_token": False,
                     },
                 },
                 (

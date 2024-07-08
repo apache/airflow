@@ -182,6 +182,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--forward-credentials",
                 "--max-time",
                 "--verbose-commands",
+                "--keep-env-variables",
             ],
         },
     ],

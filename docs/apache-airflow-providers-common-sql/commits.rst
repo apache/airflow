@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.14.1
+......
+
+Latest change: 2024-06-17
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`651a6d6a68 <https://github.com/apache/airflow/commit/651a6d6a686c5091c04a2f709297d6e8e6171f90>`_  2024-06-03   ``standardizes template fields for 'BaseSQLOperator' and adds 'database' as a templated field (#39826)``
+=================================================================================================  ===========  ========================================================================================================
+
 1.14.0
 ......
 
-Latest change: 2024-05-23
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ===========================================================================================================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================================================================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `1734b15e4e <https://github.com/apache/airflow/commit/1734b15e4efb124d9a37591e22c208529241e50a>`_  2024-05-23   ``Add typing for SqlSensor (#39773)``
 `db80e5e21c <https://github.com/apache/airflow/commit/db80e5e21c113f6889ca7c3ec5236296fade013b>`_  2024-05-18   ``DbAPiHook: Don't log a warning message if placeholder is None and make sure warning message is formatted correctly (#39690)``
 `9669f51f0a <https://github.com/apache/airflow/commit/9669f51f0a1fe8992796bf1b7a2531617f68480b>`_  2024-05-15   ``refactor: The executemany parameter of insert_rows should not be deprecated as for some hooks we don't want to enable a system-wide supports_executemany parameter, that way we can also keep using it in dedicated situations (#39630)``

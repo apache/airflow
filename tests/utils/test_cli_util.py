@@ -142,7 +142,7 @@ class TestCliUtil:
             "airflow.utils.session.create_session"
         ) as mock_create_session:
             metrics = cli._build_metrics(args[1], namespace)
-            # Make it so the default_action_log doesn't actually commit the txn, by giving it a nexted txn
+            # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead
             mock_create_session.return_value = session.begin_nested()
             mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings

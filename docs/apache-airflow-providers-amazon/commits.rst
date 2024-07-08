@@ -35,14 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.25.0
+......
+
+Latest change: 2024-06-19
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`d5fb711ae0 <https://github.com/apache/airflow/commit/d5fb711ae09b06bef882a7b3b2cd20607a3671e3>`_  2024-06-19   ``Add Amazon Comprehend Document Classifier (#40287)``
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`6f4098487d <https://github.com/apache/airflow/commit/6f4098487d3629ab4c99de05a503fc1b511c7300>`_  2024-06-14   ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+`835f28c8b9 <https://github.com/apache/airflow/commit/835f28c8b9141d7c1b9c527a77ad8da7bb460d08>`_  2024-06-12   ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+`15178b6953 <https://github.com/apache/airflow/commit/15178b6953001ea7ab9e013cb5e7ede72ec6c36f>`_  2024-06-08   ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+`22bd188439 <https://github.com/apache/airflow/commit/22bd1884397cb900d1cc825467f0f21539d53fa8>`_  2024-06-08   ``Fix 'importlib_metadata' import in aws utils (#40134)``
+=================================================================================================  ===========  ====================================================================================
+
 8.24.0
 ......
 
-Latest change: 2024-06-06
+Latest change: 2024-06-07
 
 =================================================================================================  ===========  ================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================
+`35bece7dc3 <https://github.com/apache/airflow/commit/35bece7dc33537eefa328aeef6fbfb206567e8e5>`_  2024-06-07   ``Prepare docs 1st wave June 2024 (#40057)``
 `42a2b1a3bb <https://github.com/apache/airflow/commit/42a2b1a3bb6d39e29deead92d261b840854f3fb4>`_  2024-06-06   ``Fix aws assume role session creation when deferrable (#40051)``
 `06a200d5fa <https://github.com/apache/airflow/commit/06a200d5fad3d80219d1d545929ebec3cc1afb55>`_  2024-06-05   ``Bump boto min versions (#40052)``
 `99dd24b436 <https://github.com/apache/airflow/commit/99dd24b436c1a8c5f736e9784c60d469a5b2bed7>`_  2024-06-04   ``Doc-only: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``

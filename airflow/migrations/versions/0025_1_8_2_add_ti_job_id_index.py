@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Create index on ``job_id`` column in ``task_instance`` table.
+"""
+Create index on ``job_id`` column in ``task_instance`` table.
 
 Revision ID: 947454bf1dff
 Revises: bdaa763e6c56

@@ -56,6 +56,7 @@ class TestPrevDagrunDep:
             state=TaskInstanceState.SUCCESS,
             execution_date=old_task.start_date,
             run_type=DagRunType.SCHEDULED,
+            data_interval=(old_task.start_date, old_task.start_date),
         )
 
         new_task = BaseOperator(
@@ -67,11 +68,13 @@ class TestPrevDagrunDep:
         )
 
         # New DAG run will include 1st TaskInstance of new_task
+        execution_date = convert_to_utc(datetime(2016, 1, 2))
         dr = dag.create_dagrun(
             run_id="new_run",
             state=DagRunState.RUNNING,
-            execution_date=convert_to_utc(datetime(2016, 1, 2)),
+            execution_date=execution_date,
             run_type=DagRunType.SCHEDULED,
+            data_interval=(execution_date, execution_date),
         )
 
         ti = dr.get_task_instance(new_task.task_id)

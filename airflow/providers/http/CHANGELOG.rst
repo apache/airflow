@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'retry_args' parameter to 'HttpOperator' (#40086)``
+
 4.11.1
 ......
 

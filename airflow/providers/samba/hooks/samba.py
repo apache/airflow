@@ -31,7 +31,8 @@ if TYPE_CHECKING:
 
 
 class SambaHook(BaseHook):
-    """Allows for interaction with a Samba server.
+    """
+    Allows for interaction with a Samba server.
 
     The hook should be used as a context manager in order to correctly
     set up a session and disconnect open connections upon exit.

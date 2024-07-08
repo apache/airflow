@@ -20,7 +20,9 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.jdbc.operators.jdbc import JdbcOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
+JDBC_DEFAULT = "jdbc_default"
 
 
 class TestJdbcOperator:
@@ -29,7 +31,7 @@ class TestJdbcOperator:
 
     @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_execute_do_push(self, mock_get_db_hook):
-        jdbc_operator = JdbcOperator(**self.kwargs, do_xcom_push=True)
+        jdbc_operator = SQLExecuteQueryOperator(**self.kwargs, do_xcom_push=True, conn_id=JDBC_DEFAULT)
         jdbc_operator.execute(context={})
 
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -42,7 +44,7 @@ class TestJdbcOperator:
 
     @patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_execute_dont_push(self, mock_get_db_hook):
-        jdbc_operator = JdbcOperator(**self.kwargs, do_xcom_push=False)
+        jdbc_operator = SQLExecuteQueryOperator(**self.kwargs, do_xcom_push=False, conn_id=JDBC_DEFAULT)
         jdbc_operator.execute(context={})
 
         mock_get_db_hook.return_value.run.assert_called_once_with(

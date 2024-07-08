@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.12.1
+......
+
+Latest change: 2024-05-27
+
+=================================================================================================  ===========  =========================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================
+`aec3f80278 <https://github.com/apache/airflow/commit/aec3f802783c42f8544c631d08e3b226d41cdc39>`_  2024-05-27   ``Bump docker version to 7.1.0 (#39839)``
+=================================================================================================  ===========  =========================================
+
 3.12.0
 ......
 
-Latest change: 2024-05-22
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `39269d6a71 <https://github.com/apache/airflow/commit/39269d6a71f9696cbe0053e23fb965a59ca555c7>`_  2024-05-22   ``Limit requests in botocore upgrade test (#39747)``
 `1da7f1f433 <https://github.com/apache/airflow/commit/1da7f1f4339241c0a0aa59e158c4cd480c1b2ddf>`_  2024-05-21   ``Pin requests due to incompatibility with docker-py (#39740)``
 `77a6b4f419 <https://github.com/apache/airflow/commit/77a6b4f41917e05009c34fd9be9b7fa4192a11bc>`_  2024-05-18   ``Add args to docker service ContainerSpec (#39464)``

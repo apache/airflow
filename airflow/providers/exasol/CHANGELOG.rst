@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
 4.5.1
 .....
 

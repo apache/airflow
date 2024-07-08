@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.12.1
+......
+
+Misc
+~~~~
+
+* ``Bump minimum docker version to 7.1.0 (#39839)``
+
 3.12.0
 ......
 

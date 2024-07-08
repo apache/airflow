@@ -20,6 +20,14 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
 2.0.0
 .....
 

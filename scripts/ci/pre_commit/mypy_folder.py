@@ -88,7 +88,7 @@ ci_environment = os.environ.get("CI")
 if res.returncode != 0:
     if ci_environment:
         console.print(
-            "[yellow]You are running mypy with the folders selected. If you want to"
+            "[yellow]You are running mypy with the folders selected. If you want to "
             "reproduce it locally, you need to run the following command:\n"
         )
         console.print("pre-commit run --hook-stage manual mypy-<folder> --all-files\n")

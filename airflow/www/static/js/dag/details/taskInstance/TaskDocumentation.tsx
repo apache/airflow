@@ -24,8 +24,6 @@ import {
   AccordionButton,
   AccordionPanel,
   AccordionIcon,
-  Alert,
-  AlertIcon,
   Box,
   Spinner,
   Text,
@@ -33,6 +31,7 @@ import {
 
 import { useTaskDetail } from "src/api";
 import ReactMarkdown from "src/components/ReactMarkdown";
+import ErrorAlert from "src/components/ErrorAlert";
 
 interface Props {
   taskId: string;
@@ -48,12 +47,7 @@ const TaskDocumentation = ({ taskId }: Props) => {
   }
 
   if (error) {
-    return (
-      <Alert status="error" marginBottom="10px">
-        <AlertIcon />
-        An error occurred while fetching task documentation.
-      </Alert>
-    );
+    return <ErrorAlert error={error} />;
   }
 
   if (data && data.docMd) {

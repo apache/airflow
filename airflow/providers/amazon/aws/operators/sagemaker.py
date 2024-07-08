@@ -60,7 +60,8 @@ def serialize(result: dict) -> dict:
 
 
 class SageMakerBaseOperator(BaseOperator):
-    """This is the base operator for all SageMaker operators.
+    """
+    This is the base operator for all SageMaker operators.
 
     :param config: The configuration necessary to start a training job (templated)
     """

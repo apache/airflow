@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+5.6.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Resolving mysql deprecated operator warnings (#39725)``
+
 5.6.1
 .....
 
