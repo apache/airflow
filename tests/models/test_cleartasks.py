@@ -146,11 +146,11 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "next_schedulable"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
+        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
     )
-    def test_clear_task_instances_dr_state(self, state, next_schedulable, dag_maker):
+    def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """Test that DR state is set to None after clear.
-        And that DR.next_schedulable is handled OK.
+        And that DR.last_scheduling_decision is handled OK.
         start_date is also set to None
         """
         with dag_maker(
@@ -165,6 +165,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        dr.last_scheduling_decision = DEFAULT_DATE
         dr.next_schedulable = DEFAULT_DATE
         ti0.state = TaskInstanceState.SUCCESS
         ti1.state = TaskInstanceState.SUCCESS
@@ -186,12 +187,13 @@ class TestClearTasks:
 
         assert dr.state == state
         assert dr.start_date is None if state == DagRunState.QUEUED else dr.start_date
+        assert dr.last_scheduling_decision == last_scheduling
         # clearing sets the next_schedulable to the current time of clear
         assert dr.next_schedulable
 
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_clear_task_instances_on_running_dr(self, state, dag_maker):
-        """Test that DagRun state, start_date and next_schedulable
+        """Test that DagRun state, start_date and last_scheduling_decision
         are not changed after clearing TI in an unfinished DagRun.
         """
         with dag_maker(
@@ -206,6 +208,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        dr.last_scheduling_decision = DEFAULT_DATE
         # nullify next_schedulable
         dr.next_schedulable = None
         ti0.state = TaskInstanceState.SUCCESS
@@ -229,11 +232,12 @@ class TestClearTasks:
             assert dr.start_date is None
         if state == DagRunState.RUNNING:
             assert dr.start_date
+        assert dr.last_scheduling_decision == DEFAULT_DATE
         # previously None, set by clearing
         assert dr.next_schedulable
 
     @pytest.mark.parametrize(
-        ["state", "next_schedulable"],
+        ["state", "last_scheduling_decision"],
         [
             (DagRunState.SUCCESS, None),
             (DagRunState.SUCCESS, DEFAULT_DATE),
@@ -241,8 +245,8 @@ class TestClearTasks:
             (DagRunState.FAILED, DEFAULT_DATE),
         ],
     )
-    def test_clear_task_instances_on_finished_dr(self, state, next_schedulable, dag_maker):
-        """Test that DagRun state, start_date and next_schedulable
+    def test_clear_task_instances_on_finished_dr(self, state, last_scheduling_decision, dag_maker):
+        """Test that DagRun state, start_date and last_scheduling_decision
         are changed after clearing TI in a finished DagRun.
         """
         with dag_maker(
@@ -257,7 +261,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
-        dr.next_schedulable = DEFAULT_DATE
+        dr.last_scheduling_decision = dr.next_schedulable = DEFAULT_DATE
         ti0.state = TaskInstanceState.SUCCESS
         ti1.state = TaskInstanceState.SUCCESS
         session = dag_maker.session
@@ -276,8 +280,7 @@ class TestClearTasks:
 
         assert dr.state == DagRunState.QUEUED
         assert dr.start_date is None
-        # next_schedulable cannot be none
-        assert dr.next_schedulable
+        assert dr.last_scheduling_decision is None
 
     def test_clear_task_instances_without_task(self, dag_maker):
         with dag_maker(

@@ -66,7 +66,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
 
@@ -133,7 +133,7 @@ class DagRun(Base, LoggingMixin):
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
-    # No longer used, but kept for backwards compatibility
+    # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     # When next a scheduler would attempt to schedule TIs for this DagRun
     next_schedulable = Column(UtcDateTime, default=timezone.utcnow)
@@ -434,7 +434,7 @@ class DagRun(Base, LoggingMixin):
                 func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs
             )
         query = query.order_by(
-            cls.next_schedulable,
+            nulls_first(cls.last_scheduling_decision, session=session),
             cls.execution_date,
         )
 
@@ -801,6 +801,8 @@ class DagRun(Base, LoggingMixin):
             def recalculate(self) -> _UnfinishedStates:
                 return self._replace(tis=[t for t in self.tis if t.state in State.unfinished])
 
+        start_dttm = timezone.utcnow()
+        self.last_scheduling_decision = start_dttm
         with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"), Stats.timer(
             "dagrun.dependency-check", tags=self.stats_tags
         ):
@@ -1065,7 +1067,6 @@ class DagRun(Base, LoggingMixin):
 
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
-                self.deactivate_scheduling()
                 continue
             # If schedulable is not yet expanded, try doing it now. This is
             # called in two places: First and ideally in the mini scheduler at

@@ -966,7 +966,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .having(DagRun.next_schedulable <= func.max(TI.updated_at))
+                .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
                 .group_by(DagRun)
             )
             for dag_run in paused_runs:
@@ -1581,11 +1581,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
             self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
             return callback
-        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
         if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
             dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+        if not dag_run.next_schedulable:
+            return callback
+
+        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
+        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_

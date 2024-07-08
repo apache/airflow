@@ -556,6 +556,7 @@ def clear_task_instances(
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
                 if dag_run_state == DagRunState.QUEUED:
+                    dr.last_scheduling_decision = None
                     dr.activate_scheduling()
                     dr.start_date = None
                     dr.clear_number += 1
@@ -2522,6 +2523,8 @@ class TaskInstance(Base, LoggingMixin):
                 dep_status.dep_name,
                 dep_status.reason,
             )
+            if dep_status.dep_name == "Trigger Rule" and self.state != TaskInstanceState.UP_FOR_RETRY:
+                self.dag_run.deactivate_scheduling()
 
         if failed:
             return False

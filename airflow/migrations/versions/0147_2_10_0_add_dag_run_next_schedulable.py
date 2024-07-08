@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Rename dagrun.last_scheduling_decision.
+"""
+Rename dagrun.last_scheduling_decision.
 
 Revision ID: 840479e61d99
 Revises: d482b7261ff9
