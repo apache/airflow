@@ -172,7 +172,7 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
 
             # args
             if {bool(self.op_args or self.op_kwargs)}:
-                SparkSession.builder.getOrCreate()  # need spark session to use SparkFiles
+                SparkSession.builder.getOrCreate()
                 with open(SparkFiles.get("{INPUT_FILENAME}"), "rb") as file:
                     arg_dict = {self.pickling_library.__name__}.load(file)
             else:
