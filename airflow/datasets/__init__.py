@@ -167,9 +167,6 @@ class DatasetAlias:
 
     name: str
 
-    def __str__(self) -> str:
-        return f"DatasetAlias(name={self.name})"
-
 
 class DatasetAliasEvent(TypedDict):
     """A represeation of dataset event to be triggered by a dataset alias."""
