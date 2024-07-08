@@ -2509,8 +2509,11 @@ def test_operator_expand_deserialized_unmap():
 
     ser_mapped = BaseSerialization.serialize(mapped)
     deser_mapped = BaseSerialization.deserialize(ser_mapped)
+    deser_mapped.dag = None
+
     ser_normal = BaseSerialization.serialize(normal)
     deser_normal = BaseSerialization.deserialize(ser_normal)
+    deser_normal.dag = None
     assert deser_mapped.unmap(None) == deser_normal
 
 
@@ -2632,6 +2635,10 @@ def test_taskflow_expand_serde():
         "retry_delay": timedelta(seconds=30),
     }
 
+    # this dag is not pickleable in this context, so we have to simply
+    # set it to None
+    deserialized.dag = None
+
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
     # here so we don't need to duplicate tests between pickled and non-pickled
@@ -2727,6 +2734,10 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+    # this dag is not pickleable in this context, so we have to simply
+    # set it to None
+    deserialized.dag = None
 
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
