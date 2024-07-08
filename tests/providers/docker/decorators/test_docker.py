@@ -316,5 +316,9 @@ class TestDockerDecorator:
 
         log_content = str(log_capture_string.getvalue())
         assert 'with open(sys.argv[4], "w") as file:' not in log_content
-        last_line_of_docker_operator_log = log_content.splitlines()[-1]
+        try:
+            last_line_of_docker_operator_log = log_content.splitlines()[-1]
+        except IndexError:
+            print(log_content)
+            raise IndexError
         assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
