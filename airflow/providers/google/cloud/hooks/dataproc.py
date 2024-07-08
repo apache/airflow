@@ -987,7 +987,7 @@ class DataprocHook(GoogleBaseHook):
             server receives two *CreateBatchRequest* requests with the same
             ID, the second request will be ignored, and an operation created
             for the first one and stored in the backend is returned.
-        :param tags: Optional. Network tags for traffic control. 
+        :param tags: Optional. Network tags for traffic control.
         :param retry: A retry object used to retry requests. If *None*, requests
             will not be retried.
         :param timeout: The amount of time, in seconds, to wait for the request

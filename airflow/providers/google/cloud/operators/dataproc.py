@@ -2950,7 +2950,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
-    :param tags: Optional. Network tags for traffic control. 
+    :param tags: Optional. Network tags for traffic control.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param result_retry: Result retry object used to retry requests. Is used to decrease delay between
@@ -3121,7 +3121,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 project_id=project_id,
                 region=self.region,
                 batch_id=batch_id,
-                tags=tags,
+                tags=self.tags,
             )
         return Batch.to_dict(result)
 

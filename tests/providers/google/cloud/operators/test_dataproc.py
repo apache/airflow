@@ -96,6 +96,7 @@ GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEMPLATE_ID = "template_id"
 CLUSTER_NAME = "cluster_name"
+tags = ["tags"]
 CONFIG = {
     "gce_cluster_config": {
         "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
