@@ -1601,6 +1601,10 @@
                             "type": "boolean",
                             "default": true
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                        },
                         "size": {
                             "description": "Volume size for worker StatefulSet.",
                             "type": "string",
@@ -2946,6 +2950,10 @@
                             "type": "string",
                             "default": "100Gi"
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                        },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
                             "type": [
@@ -3354,6 +3362,11 @@
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
                             "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                        },
+                        "usePgbouncer": {
+                            "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 }
@@ -3922,6 +3935,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     }
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into create user job pod (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into create user job",
                     "type": "array",
@@ -4263,6 +4284,14 @@
                             }
                         }
                     ]
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into migrate database job (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",
@@ -11833,6 +11862,27 @@
                             ]
                         }
                     }
+                }
+            }
+        },
+        "persistentVolumeClaimRetentionPolicy": {
+            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
+            "type": [
+                "object",
+                "null"
+            ],
+            "default": null,
+            "additionalProperties": false,
+            "properties": {
+                "whenDeleted": {
+                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
+                    "type": "string",
+                    "default": "Retain"
+                },
+                "whenScaled": {
+                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
+                    "type": "string",
+                    "default": "Retain"
                 }
             }
         }

@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 import pendulum
+from weaviate.collections.classes.config import Configure
 
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
+
+COLLECTION_NAMES = ["Weaviate_DTM_example_collection_1", "Weaviate_DTM_example_collection_2"]
 
 
 @dag(
@@ -34,19 +37,15 @@ def example_weaviate_dynamic_mapping_dag():
 
     @setup
     @task
-    def create_weaviate_class(data):
+    def create_weaviate_collection(data):
         """
-        Example task to create class without any Vectorizer. You're expected to provide custom vectors for your data.
+        Example task to create collection without any Vectorizer. You're expected to provide custom vectors for your data.
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
-        class_obj = {
-            "class": data[0],
-            "vectorizer": data[1],
-        }
-        weaviate_hook.create_class(class_obj)
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
+        weaviate_hook.create_collection(data[0], vectorizer_config=data[1])
 
     @setup
     @task
@@ -64,28 +63,30 @@ def example_weaviate_dynamic_mapping_dag():
         task_id="perform_ingestion",
         conn_id="weaviate_default",
     ).expand(
-        class_name=["example1", "example2"],
+        collection_name=COLLECTION_NAMES,
         input_data=get_data_to_ingest["return_value"],
     )
 
     @teardown
     @task
-    def delete_weaviate_class(class_name):
+    def delete_weaviate_collection(collection_name):
         """
-        Example task to delete a weaviate class
+        Example task to delete a weaviate collection
         """
 
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_classes([class_name])
+        weaviate_hook.delete_collections([collection_name])
 
     (
-        create_weaviate_class.expand(data=[["example1", "none"], ["example2", "text2vec-openai"]])
+        create_weaviate_collection.expand(
+            data=[[COLLECTION_NAMES[0], None], [COLLECTION_NAMES[1], Configure.Vectorizer.text2vec_openai()]]
+        )
         >> perform_ingestion
-        >> delete_weaviate_class.expand(class_name=["example1", "example2"])
+        >> delete_weaviate_collection.expand(collection_name=COLLECTION_NAMES)
     )
 
 

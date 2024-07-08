@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add new field 'clear_number' to dagrun.
+"""
+add new field 'clear_number' to dagrun.
 
 Revision ID: 375a816bbbf4
 Revises: 405de8318b3a

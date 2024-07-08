@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Change ``task_instance.task_duration`` type to ``FLOAT``.
+"""
+Change ``task_instance.task_duration`` type to ``FLOAT``.
 
 Revision ID: 2e541a1dcfed
 Revises: 1b38cef5b76e

@@ -26,6 +26,25 @@
 Changelog
 ---------
 
+main
+....
+
+Bug Fixes
+~~~~~~~~~
+
+* Reduce memory footprint of s3 key trigger (#40473)
+
+  * Decorator ``provide_bucket_name_async`` removed
+
+      * We do not need a separate decorator for async.  The old one is removed and users can use ``provide_bucket_name`` for coroutine functions, async iterators, and normal synchronous functions.
+
+  * Hook method ``get_file_metadata_async`` is now an async iterator
+
+    * Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
+
+  * S3KeyTrigger avoids loading all positive matches into memory in some circumstances
+
+
 8.25.0
 ......
 

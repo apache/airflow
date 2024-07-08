@@ -3,8 +3,8 @@ INSTALL / BUILD instructions for Apache Airflow
 Basic installation of Airflow from sources and development environment setup
 ============================================================================
 
-This is a generic installation method that requires minimum standard tools to develop airflow and
-test it in a local virtual environment (using standard CPyhon installation and `pip`).
+This is a generic installation method that requires minimum standard tools to develop Airflow and
+test it in a local virtual environment (using standard CPython installation and `pip`).
 
 Depending on your system, you might need different prerequisites, but the following
 systems/prerequisites are known to work:
@@ -61,7 +61,7 @@ Once you have a suitable Python version installed, you can create a virtualenv a
 
 ## Installing Airflow locally
 
-Installing airflow locally can be done using pip - note that this will install "development" version of
+Installing Airflow locally can be done using pip - note that this will install "development" version of
 Airflow, where all providers are installed from local sources (if available), not from `pypi`.
 It will also not include pre-installed providers installed from PyPI. If you install from sources of
 just Airflow, you need to install separately each provider you want to develop. If you install

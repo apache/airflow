@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add processor_subdir column to DagModel, SerializedDagModel and CallbackRequest tables.
+"""
+Add processor_subdir column to DagModel, SerializedDagModel and CallbackRequest tables.
 
 Revision ID: ecb43d2a1842
 Revises: 1486deb605b4

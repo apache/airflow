@@ -50,6 +50,7 @@ integrations:
     external-doc-url: https://www.teradata.com/
     how-to-guide:
       - /docs/apache-airflow-providers-teradata/operators/teradata.rst
+      - /docs/apache-airflow-providers-teradata/operators/compute_cluster.rst
     logo: /integration-logos/teradata/Teradata.png
     tags: [software]
 
@@ -57,6 +58,7 @@ operators:
   - integration-name: Teradata
     python-modules:
       - airflow.providers.teradata.operators.teradata
+      - airflow.providers.teradata.operators.teradata_compute_cluster
 
 hooks:
   - integration-name: Teradata
@@ -80,3 +82,8 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.teradata.hooks.teradata.TeradataHook
     connection-type: teradata
+
+triggers:
+  - integration-name: Teradata
+    python-modules:
+      - airflow.providers.teradata.triggers.teradata_compute_cluster

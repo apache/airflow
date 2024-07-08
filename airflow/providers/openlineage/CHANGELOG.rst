@@ -39,17 +39,27 @@ Features
 * ``Introduce AirflowJobFacet and AirflowStateRunFacet (#39520)``
 * ``Use UUIDv7 for OpenLineage runIds (#39889)``
 * ``openlineage: execute extraction and message sending in separate process (#40078)``
+* ``Add few removed Task properties in AirflowRunFacet (#40371)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
-* ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
+* ``fix: scheduler crashing with OL provider on airflow standalone (#40459)``
+* ``nit: fix logging level (#40461)``
+* ``fix: provide stack trace under proper key in OL facet (#40372)``
 
 Misc
 ~~~~
 
 * ``fix: sqa deprecations for airflow providers (#39293)``
+* ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 2nd wave June 2024 (#40273)``
+   * ``fix: scheduler crashing with OL provider on airflow standalone (#40353)``
+   * ``Revert "fix: scheduler crashing with OL provider on airflow standalone (#40353)" (#40402)``
 
 1.8.0
 .....
@@ -83,7 +93,8 @@ Misc
 * ``openlineage: notify that logged exception was caught (#39493)``
 * ``chore: Add more OpenLineage logs to facilitate debugging (#39136)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add missing 'dag_state_change_process_pool_size' in 'provider.yaml'. (#39674)``
    * ``Run unit tests for Providers with airflow installed as package. (#39513)``
    * ``Reapply templates for all providers (#39554)``

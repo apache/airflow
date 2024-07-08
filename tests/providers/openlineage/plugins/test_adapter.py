@@ -457,6 +457,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
             run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source")},
             job_facets={"sql": SqlJobFacet(query="SELECT 1;")},
         ),
+        error=ValueError("Error message"),
     )
 
     assert (
@@ -476,6 +477,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                             job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
+                        "errorMessage": ErrorMessageRunFacet(
+                            message="Error message", programmingLanguage="python", stackTrace=None
+                        ),
                     },
                 ),
                 job=Job(

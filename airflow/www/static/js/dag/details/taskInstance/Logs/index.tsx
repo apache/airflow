@@ -75,10 +75,12 @@ const Logs = ({
   taskId,
   mapIndex,
   executionDate,
-  tryNumber,
+  tryNumber: finalTryNumber,
   state,
 }: Props) => {
-  const [selectedTryNumber, setSelectedTryNumber] = useState(tryNumber || 1);
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1
+  );
   const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
     []
@@ -133,8 +135,8 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (selectedTryNumber > (tryNumber || 1)) {
-      setSelectedTryNumber(tryNumber || 1);
+    if (selectedTryNumber > (finalTryNumber || 1)) {
+      setSelectedTryNumber(finalTryNumber || 1);
     }
 
     if (
@@ -148,7 +150,7 @@ const Logs = ({
     ) {
       setFileSourceFilters([]);
     }
-  }, [data, fileSourceFilters, fileSources, selectedTryNumber, tryNumber]);
+  }, [data, fileSourceFilters, fileSources, selectedTryNumber, finalTryNumber]);
 
   return (
     <>
@@ -156,16 +158,17 @@ const Logs = ({
         <Box my={1}>
           <Text>View Logs in {externalLogName} (by attempts):</Text>
           <Flex flexWrap="wrap">
-            {[...Array(tryNumber || 1)].map((_, index) => (
-              <LogLink
-                // eslint-disable-next-line react/no-array-index-key
-                key={index}
-                dagId={dagId}
-                taskId={taskId}
-                executionDate={executionDate}
-                tryNumber={index}
-              />
-            ))}
+            {Array.from({ length: finalTryNumber || 1 }, (_, i) => i + 1).map(
+              (tryNumber) => (
+                <LogLink
+                  key={tryNumber}
+                  dagId={dagId}
+                  taskId={taskId}
+                  executionDate={executionDate}
+                  tryNumber={tryNumber}
+                />
+              )
+            )}
           </Flex>
         </Box>
       )}
@@ -229,7 +232,7 @@ const Logs = ({
               taskId={taskId}
               executionDate={executionDate}
               isInternal
-              tryNumber={tryNumber}
+              tryNumber={selectedTryNumber}
               mapIndex={mapIndex}
             />
             <LinkButton href={`${logUrl}&${params.toString()}`}>

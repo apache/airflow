@@ -115,7 +115,6 @@ from airflow.security import permissions
 from airflow.settings import json
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
     ContinuousTimetable,
@@ -182,7 +181,8 @@ DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
 
 
 class InconsistentDataInterval(AirflowException):
-    """Exception raised when a model populates data interval fields incorrectly.
+    """
+    Exception raised when a model populates data interval fields incorrectly.
 
     The data interval fields should either both be None (for runs scheduled
     prior to AIP-39), or both be datetime (for runs scheduled after AIP-39 is
@@ -652,35 +652,31 @@ class DAG(LoggingMixin):
                 stacklevel=2,
             )
 
-        self.timetable: Timetable
+        if timetable is not None:
+            schedule = timetable
+        elif schedule_interval is not NOTSET:
+            schedule = schedule_interval
+
+        # Kept for compatibility. Do not use in new code.
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: BaseDataset | None = None
-        if isinstance(schedule, BaseDataset):
-            self.dataset_triggers = schedule
+
+        if isinstance(schedule, Timetable):
+            self.timetable = schedule
+            self.schedule_interval = schedule.summary
+        elif isinstance(schedule, BaseDataset):
+            self.timetable = DatasetTriggeredTimetable(schedule)
+            self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets")
-            self.dataset_triggers = DatasetAll(*schedule)
-        elif isinstance(schedule, Timetable):
-            timetable = schedule
-        elif schedule is not NOTSET and not isinstance(schedule, BaseDataset):
-            schedule_interval = schedule
-
-        if isinstance(schedule, DatasetOrTimeSchedule):
-            self.timetable = schedule
-            self.dataset_triggers = self.timetable.datasets
+            self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
-        elif self.dataset_triggers:
-            self.timetable = DatasetTriggeredTimetable()
-            self.schedule_interval = self.timetable.summary
-        elif timetable:
-            self.timetable = timetable
-            self.schedule_interval = self.timetable.summary
+        elif isinstance(schedule, ArgNotSet):
+            self.timetable = create_timetable(schedule, self.timezone)
+            self.schedule_interval = DEFAULT_SCHEDULE_INTERVAL
         else:
-            if isinstance(schedule_interval, ArgNotSet):
-                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
-            self.schedule_interval = schedule_interval
-            self.timetable = create_timetable(schedule_interval, self.timezone)
+            self.timetable = create_timetable(schedule, self.timezone)
+            self.schedule_interval = schedule
 
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
@@ -776,23 +772,17 @@ class DAG(LoggingMixin):
         if doc_md is None:
             return doc_md
 
-        env = self.get_template_env(force_sandboxed=True)
-
-        if not doc_md.endswith(".md"):
-            template = jinja2.Template(doc_md)
-        else:
+        if doc_md.endswith(".md"):
             try:
-                template = env.get_template(doc_md)
-            except jinja2.exceptions.TemplateNotFound:
-                return f"""
-                # Templating Error!
-                Not able to find the template file: `{doc_md}`.
-                """
+                return open(doc_md).read()
+            except FileNotFoundError:
+                return doc_md
 
-        return template.render()
+        return doc_md
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
-        """Check ``schedule_interval`` and ``timetable`` match.
+        """
+        Check ``schedule_interval`` and ``timetable`` match.
 
         This is done as a part of the DAG validation done before it's bagged, to
         guard against the DAG's ``timetable`` (or ``schedule_interval``) from
@@ -820,7 +810,8 @@ class DAG(LoggingMixin):
         return timetable.summary == self.timetable.summary
 
     def validate(self):
-        """Validate the DAG has a coherent setup.
+        """
+        Validate the DAG has a coherent setup.
 
         This is called by the DAG bag before bagging the DAG.
         """
@@ -956,7 +947,8 @@ class DAG(LoggingMixin):
         return [info.logical_date for info in it]
 
     def is_fixed_time_schedule(self):
-        """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
+        """
+        Figures out if the schedule has a fixed time (e.g. 3 AM every day).
 
         Detection is done by "peeking" the next two cron trigger time; if the
         two times have the same minute and hour value, the schedule is fixed,
@@ -1016,7 +1008,8 @@ class DAG(LoggingMixin):
         return self.timetable._get_prev(timezone.coerce_datetime(dttm))
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:
-        """Get the data interval of the next scheduled run.
+        """
+        Get the data interval of the next scheduled run.
 
         For compatibility, this method infers the data interval from the DAG's
         schedule if the run does not have an explicit one set, which is possible
@@ -1041,7 +1034,8 @@ class DAG(LoggingMixin):
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
     def get_run_data_interval(self, run: DagRun | DagRunPydantic) -> DataInterval:
-        """Get the data interval of this run.
+        """
+        Get the data interval of this run.
 
         For compatibility, this method infers the data interval from the DAG's
         schedule if the run does not have an explicit one set, which is possible for
@@ -1062,7 +1056,8 @@ class DAG(LoggingMixin):
         return self.infer_automated_data_interval(run.execution_date)
 
     def infer_automated_data_interval(self, logical_date: datetime) -> DataInterval:
-        """Infer a data interval for a run against this DAG.
+        """
+        Infer a data interval for a run against this DAG.
 
         This method is used to bridge runs created prior to AIP-39
         implementation, which do not have an explicit data interval. Therefore,
@@ -1097,7 +1092,8 @@ class DAG(LoggingMixin):
         *,
         restricted: bool = True,
     ) -> DagRunInfo | None:
-        """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
+        """
+        Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
         This calculates what time interval the next DagRun should operate on
         (its execution date) and when it can be scheduled, according to the
@@ -1188,7 +1184,8 @@ class DAG(LoggingMixin):
         *,
         align: bool = True,
     ) -> Iterable[DagRunInfo]:
-        """Yield DagRunInfo using this DAG's timetable between given interval.
+        """
+        Yield DagRunInfo using this DAG's timetable between given interval.
 
         DagRunInfo instances yielded if their ``logical_date`` is not earlier
         than ``earliest``, nor later than ``latest``. The instances are ordered
@@ -1332,7 +1329,8 @@ class DAG(LoggingMixin):
 
     @property
     def full_filepath(self) -> str:
-        """Full file path to the DAG.
+        """
+        Full file path to the DAG.
 
         :meta private:
         """
@@ -1439,7 +1437,8 @@ class DAG(LoggingMixin):
 
     @property
     def filepath(self) -> str:
-        """Relative file path to the DAG.
+        """
+        Relative file path to the DAG.
 
         :meta private:
         """
@@ -1798,7 +1797,8 @@ class DAG(LoggingMixin):
         *,
         session: Session = NEW_SESSION,
     ) -> list[TaskInstance]:
-        """Get ``num`` task instances before (including) ``base_date``.
+        """
+        Get ``num`` task instances before (including) ``base_date``.
 
         The returned list may contain exactly ``num`` task instances
         corresponding to any DagRunType. It can have less if there are
@@ -2930,7 +2930,8 @@ class DAG(LoggingMixin):
         """
 
         def add_logger_if_needed(ti: TaskInstance):
-            """Add a formatted logger to the task instance.
+            """
+            Add a formatted logger to the task instance.
 
             This allows all logs to surface to the command line, instead of into
             a task file. Since this is a local test run, it is much better for
@@ -3250,10 +3251,7 @@ class DAG(LoggingMixin):
             )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            if (dataset_triggers := dag.dataset_triggers) is None:
-                orm_dag.dataset_expression = None
-            else:
-                orm_dag.dataset_expression = dataset_triggers.as_expression()
+            orm_dag.dataset_expression = dag.timetable.dataset_condition.as_expression()
 
             orm_dag.processor_subdir = processor_subdir
 
@@ -3309,11 +3307,11 @@ class DAG(LoggingMixin):
         # later we'll persist them to the database.
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
-            if dag.dataset_triggers is None:
+            if not (dataset_condition := dag.timetable.dataset_condition):
                 if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
                     curr_orm_dag.schedule_dataset_references = []
             else:
-                for _, dataset in dag.dataset_triggers.iter_datasets():
+                for _, dataset in dataset_condition.iter_datasets():
                     dag_references[dag.dag_id].add(dataset.uri)
                     input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
@@ -3967,7 +3965,7 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-            if not dag_ready(dag_id, cond=ser_dag.dag.dataset_triggers, statuses=statuses):
+            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
@@ -4288,7 +4286,8 @@ def _get_or_create_dagrun(
     session: Session,
     data_interval: tuple[datetime, datetime] | None = None,
 ) -> DagRun:
-    """Create a DAG run, replacing an existing instance if needed to prevent collisions.
+    """
+    Create a DAG run, replacing an existing instance if needed to prevent collisions.
 
     This function is only meant to be used by :meth:`DAG.test` as a helper function.
 

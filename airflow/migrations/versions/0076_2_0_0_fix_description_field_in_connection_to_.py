@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Fix description field in ``connection`` to be ``text``.
+"""
+Fix description field in ``connection`` to be ``text``.
 
 Revision ID: 64a7d6477aae
 Revises: 61ec73d9401f

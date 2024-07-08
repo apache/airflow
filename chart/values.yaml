@@ -57,7 +57,7 @@ securityContexts:
   pod: {}
   containers: {}
 
-# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
+# Global container lifecycle hooks for airflow containers
 containerLifecycleHooks: {}
 
 # Airflow home directory
@@ -619,6 +619,11 @@ workers:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -811,13 +816,14 @@ scheduler:
     periodSeconds: 60
     command: ~
 
-  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
-  # livenessProbe kicks in after the startup
+  # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
     command: ~
+
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -1031,6 +1037,9 @@ createUserJob:
   # Launch additional containers into user creation job
   extraContainers: []
 
+  # Add additional init containers into user creation job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into user creation job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1130,6 +1139,9 @@ migrateDatabaseJob:
 
   # Launch additional containers into database migration job
   extraContainers: []
+
+  # Add additional init containers into migrate database job (templated).
+  extraInitContainers: []
 
   # Mount additional volumes into database migration job. It can be templated like in the following example:
   #   extraVolumes:
@@ -1252,6 +1264,8 @@ _rpcServer:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the RPC server container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1286,6 +1300,8 @@ webserver:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the webserver container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1532,6 +1548,8 @@ triggerer:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -1669,6 +1687,10 @@ triggerer:
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
       FROM trigger
+
+    # Whether to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: false
 
 # Airflow Dag Processor Config
 dagProcessor:

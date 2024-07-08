@@ -51,7 +51,8 @@ if TYPE_CHECKING:
 
 
 class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
-    """Create a PubSub topic.
+    """
+    Create a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -184,7 +185,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
 
 
 class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
-    """Create a PubSub subscription.
+    """
+    Create a PubSub subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -393,7 +395,8 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
 
 
 class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
-    """Delete a PubSub topic.
+    """
+    Delete a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -491,7 +494,8 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
 
 
 class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
-    """Delete a PubSub subscription.
+    """
+    Delete a PubSub subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -591,7 +595,8 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
 
 
 class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
-    """Publish messages to a PubSub topic.
+    """
+    Publish messages to a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

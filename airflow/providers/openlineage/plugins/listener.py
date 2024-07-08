@@ -367,7 +367,7 @@ class OpenLineageListener:
             except BaseException:
                 # Kill the process directly.
                 self._terminate_with_wait(process)
-            self.log.warning("Process with pid %s finished - parent", pid)
+            self.log.debug("Process with pid %s finished - parent", pid)
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
             configure_orm(disable_connection_pool=True)
@@ -381,7 +381,7 @@ class OpenLineageListener:
         if not self._executor:
             self._executor = ProcessPoolExecutor(
                 max_workers=conf.dag_state_change_process_pool_size(),
-                initializer=_executor_initializer(),
+                initializer=_executor_initializer,
             )
         return self._executor
 

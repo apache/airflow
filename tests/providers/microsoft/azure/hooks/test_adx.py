@@ -281,16 +281,11 @@ class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(
         "mocked_connection",
         [
-            pytest.param(
-                "a://usr:pw@host?extra__azure_data_explorer__tenant=my-tenant"
-                "&extra__azure_data_explorer__auth_method=AAD_APP",
-                id="prefix",
-            ),
             pytest.param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
         ],
-        indirect=True,
+        indirect=["mocked_connection"],
     )
-    def test_backcompat_prefix_works(self, mocked_connection):
+    def test_prefix_works(self, mocked_connection):
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
         assert hook.connection._kcsb.data_source == "host"
         assert hook.connection._kcsb.application_client_id == "usr"
@@ -307,7 +302,7 @@ class TestAzureDataExplorerHook:
         ],
         indirect=True,
     )
-    def test_backcompat_prefix_both_causes_warning(self, mocked_connection):
+    def test_prefix_both_causes_warning(self, mocked_connection):
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
         assert hook.connection._kcsb.data_source == "host"
         assert hook.connection._kcsb.application_client_id == "usr"

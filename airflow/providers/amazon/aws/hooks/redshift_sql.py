@@ -39,7 +39,8 @@ if TYPE_CHECKING:
 
 
 class RedshiftSQLHook(DbApiHook):
-    """Execute statements against Amazon Redshift.
+    """
+    Execute statements against Amazon Redshift.
 
     This hook requires the redshift_conn_id connection.
 
@@ -103,7 +104,8 @@ class RedshiftSQLHook(DbApiHook):
         return conn_params
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
-        """Retrieve a temporary password to connect to Redshift.
+        """
+        Retrieve a temporary password to connect to Redshift.
 
         Port is required. If none is provided, default is used for each service.
         """
@@ -177,7 +179,8 @@ class RedshiftSQLHook(DbApiHook):
         return create_engine(self.get_uri(), **engine_kwargs)
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
-        """Get the table's primary key.
+        """
+        Get the table's primary key.
 
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
