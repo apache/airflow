@@ -118,7 +118,7 @@ def test_get_launch_task_key():
     assert result.run_id == TASK_INSTANCE_KEY.run_id
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def app():
     app = create_app(testing=True)
     app.config["SERVER_NAME"] = "localhost"
