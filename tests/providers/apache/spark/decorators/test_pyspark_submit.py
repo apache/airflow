@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from io import StringIO
 from textwrap import dedent
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -78,7 +79,7 @@ class TestPysparkSubmitDecorator:
         mock_popen.return_value.wait.return_value = 0
 
         @task.pyspark_submit(conn_id="pyspark_local")
-        def f(a: int, b: str, c: dict = None):
+        def f(a: int, b: str, c: Any = None):
             return a, b, c
 
         ret = f(1, "2", {"c": 3})
