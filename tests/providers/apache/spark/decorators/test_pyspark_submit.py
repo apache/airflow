@@ -90,10 +90,12 @@ class TestPysparkSubmitDecorator:
             operator.execute(None)
             mock_get_pyspark_source.assert_called_once()
             pyspark_source = mock_get_pyspark_source()
-            argument_block = (
-                "if True:\n"
-                f'    with open(SparkFiles.get("{INPUT_FILENAME}"), "rb") as file:\n'
-                "        arg_dict = pickle.load(file)"
+            argument_block = dedent(
+                f"""\
+                if True:
+                    SparkSession.builder.getOrCreate()
+                    with open(SparkFiles.get("{INPUT_FILENAME}"), "rb") as file:
+                        arg_dict = pickle.load(file)"""
             )
             assert argument_block in pyspark_source
             assert operator.files
