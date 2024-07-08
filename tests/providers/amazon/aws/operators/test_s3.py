@@ -300,6 +300,31 @@ class TestS3FileTransformOperator:
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
         assert self.content == result["Body"].read()
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key", return_value="input")
+    @mock_aws
+    def test_execute_with_select_expression_and_serialization_config(self, mock_select_key):
+        input_path, output_path = self.s3_paths()
+        select_expression = "SELECT * FROM s3object s"
+
+        op = S3FileTransformOperator(
+            source_s3_key=input_path,
+            dest_s3_key=output_path,
+            select_expression=select_expression,
+            select_expr_serialization_config={
+                "input_serialization": {"CSV": {}},
+                "output_serialization": {"CSV": {}}
+            },
+            replace=True,
+            task_id="task_id",
+        )
+        op.execute(None)
+
+        mock_select_key.assert_called_once_with(key=input_path, expression=select_expression)
+
+        conn = boto3.client("s3")
+        result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
+        assert self.content == result["Body"].read()
+
     def test_get_openlineage_facets_on_start(self):
         expected_input = Dataset(
             namespace=f"s3://{self.bucket}",
