@@ -22,7 +22,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -642,7 +642,7 @@ class S3FileTransformOperator(BaseOperator):
         dest_s3_key: str,
         transform_script: str | None = None,
         select_expression=None,
-        select_expr_serialization_config: dict[str,dict[str, Any]] | None = None,
+        select_expr_serialization_config: dict[str,dict[str, dict]] | None = None,
         script_args: Sequence[str] | None = None,
         source_aws_conn_id: str | None = "aws_default",
         source_verify: bool | str | None = None,
