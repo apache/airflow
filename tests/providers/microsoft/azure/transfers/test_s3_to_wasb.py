@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from io import RawIOBase
+from io import BytesIO
 from unittest import mock
 
 import pytest
@@ -100,7 +100,7 @@ class TestS3ToAzureBlobStorageOperator:
         s3_mock_hook.return_value.list_keys.return_value = MOCK_FILES
         wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
 
-        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
+        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(b"test file contents")
         tempfile_mock.return_value.__enter__.return_value.name = TEMPFILE_NAME
 
         operator = S3ToAzureBlobStorageOperator(
@@ -238,7 +238,7 @@ class TestS3ToAzureBlobStorageOperator:
         # Only a single S3 key is provided, and there are no blobs in the container. This means that this file
         # should be moved, and the move_file method will be executed
         wasb_mock_hook.return_value.get_blobs_list_recursive.return_value = []
-        s3_mock_hook.return_value.download_file.return_value = RawIOBase(b"test file contents")
+        s3_mock_hook.return_value.download_file.return_value = BytesIO().write(b"test file contents")
 
         operator = S3ToAzureBlobStorageOperator(
             task_id=TASK_ID,
