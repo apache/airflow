@@ -271,7 +271,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
         raise ValueError(f"serialization not implemented for {raw_key}")
     return {
         "extra": var.extra,
-        "dataset_action": var.dataset_action,
+        "dataset_alias_event": var.dataset_alias_event,
         "_raw_key": serialized_raw_key,
     }
 
@@ -289,7 +289,7 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
         raise ValueError(f"deserialization not implemented for {raw_key}")
 
     outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=_raw_key)
-    outlet_event_accessor.dataset_action = var["dataset_action"]
+    outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
     return outlet_event_accessor
 
 

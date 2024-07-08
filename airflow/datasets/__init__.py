@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
 
+from airflow.typing_compat import TypedDict
+
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
@@ -167,6 +169,13 @@ class DatasetAlias:
 
     def __str__(self) -> str:
         return f"DatasetAlias(name={self.name})"
+
+
+class DatasetAliasEvent(TypedDict):
+    """A represeation of dataset event to be triggered by a dataset alias."""
+
+    source_alias_name: str
+    dest_dataset_uri: str
 
 
 @attr.define()

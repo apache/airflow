@@ -40,7 +40,7 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import Dataset, DatasetAlias, coerce_to_uri
+from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent, coerce_to_uri
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
@@ -167,15 +167,21 @@ class OutletEventAccessor:
 
     extra: dict[str, Any]
     _raw_key: str | Dataset | DatasetAlias
-    dataset_action: dict
+    dataset_alias_event: DatasetAliasEvent | None
 
-    def __init__(self, extra, *, raw_key: str | Dataset | DatasetAlias) -> None:
+    def __init__(
+        self,
+        extra,
+        *,
+        raw_key: str | Dataset | DatasetAlias,
+        dataset_alias_event: DatasetAliasEvent | None = None,
+    ) -> None:
         self.extra = extra if extra else {}
         self._raw_key = raw_key
-        self.dataset_action = {}
+        self.dataset_alias_event = dataset_alias_event
 
     def __str__(self) -> str:
-        return f"OutletEventAccessor(_raw_key={self._raw_key}, extra={self.extra}, dataset_action={self.dataset_action})"
+        return f"OutletEventAccessor(_raw_key={self._raw_key}, extra={self.extra}, dataset_alias_event={self.dataset_alias_event})"
 
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
         if isinstance(dataset, str):
@@ -195,7 +201,9 @@ class OutletEventAccessor:
         if extra:
             self.extra = extra
 
-        self.dataset_action = {"dataset_uri": dataset_uri, "dataset_alias_name": dataset_alias_name}
+        self.dataset_alias_event = DatasetAliasEvent(
+            source_alias_name=dataset_alias_name, dest_dataset_uri=dataset_uri
+        )
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):

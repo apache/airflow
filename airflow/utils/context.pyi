@@ -32,7 +32,7 @@ from pendulum import DateTime
 from sqlalchemy.orm import Session
 
 from airflow.configuration import AirflowConfigParser
-from airflow.datasets import Dataset, DatasetAlias
+from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -58,11 +58,17 @@ class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
 class OutletEventAccessor:
-    def __init__(self, extra: dict[str, Any], *, raw_key: str | Dataset | DatasetAlias) -> None: ...
+    def __init__(
+        self,
+        extra: dict[str, Any],
+        *,
+        raw_key: str | Dataset | DatasetAlias,
+        dataset_alias_event: DatasetAliasEvent | None = None,
+    ) -> None: ...
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
     _raw_key: str | Dataset | DatasetAlias
-    dataset_action: dict
+    dataset_alias_event: DatasetAliasEvent | None
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __iter__(self) -> Iterator[str]: ...

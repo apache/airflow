@@ -2920,10 +2920,10 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
             elif isinstance(obj, DatasetAlias):
-                actions = events[obj].dataset_action
+                dataset_alias_event = events[obj].dataset_alias_event
 
-                if actions:
-                    dataset_uri = actions["dataset_uri"]
+                if dataset_alias_event:
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
                     extra = events[obj].extra
 
                     dataset_obj = session.scalar(
