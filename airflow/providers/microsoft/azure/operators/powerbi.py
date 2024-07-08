@@ -17,10 +17,13 @@
 
 from __future__ import annotations
 
+import time
+import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
@@ -28,6 +31,7 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
+from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -106,29 +110,39 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
-        self.log.info("Check if a refresh is already in progress.")
-        refresh_details = self.hook.get_latest_refresh_details(
-            dataset_id=self.dataset_id, group_id=self.group_id
+        self.log.info("Executing Dataset refresh.")
+        request_id = self.hook.trigger_dataset_refresh(
+            dataset_id=self.dataset_id,
+            group_id=self.group_id,
         )
 
-        if (
-            refresh_details is None
-            or refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
-            in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES
-        ):
-            self.log.info("No pre-existing refresh found.")
-            request_id = self.hook.trigger_dataset_refresh(
-                dataset_id=self.dataset_id,
-                group_id=self.group_id,
-            )
+        # Push Dataset Refresh ID to Xcom regardless of what happen durinh the refresh
+        context["ti"].xcom_push(key="powerbi_dataset_refresh_id", value=request_id)
 
-            if self.wait_for_termination:
+        if self.wait_for_termination:
+            if self.deferrable:
+                end_time = time.time() + self.timeout
+                self.defer(
+                    trigger=PowerBITrigger(
+                        powerbi_conn_id=self.powerbi_conn_id,
+                        group_id=self.group_id,
+                        dataset_id=self.dataset_id,
+                        dataset_refresh_id=request_id,
+                        end_time=end_time,
+                        check_interval=self.check_interval,
+                        wait_for_termination=self.wait_for_termination,
+                    ),
+                    method_name=self.execute_complete.__name__,
+                )
+            else:
                 self.log.info("Waiting for dataset refresh to terminate.")
                 if self.hook.wait_for_dataset_refresh_status(
                     request_id=request_id,
                     dataset_id=self.dataset_id,
                     group_id=self.group_id,
                     expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
+                    check_interval=self.check_interval,
+                    timeout=self.timeout,
                 ):
                     self.log.info("Dataset refresh %s has completed successfully.", request_id)
                 else:
@@ -136,65 +150,36 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                         f"Dataset refresh {request_id} has failed or has been cancelled."
                     )
         else:
-            # If in-progress pre-existing refresh is found.
-            if (
-                refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
-                == PowerBIDatasetRefreshStatus.IN_PROGRESS
-            ):
-                request_id = str(refresh_details.get(PowerBIDatasetRefreshFields.REQUEST_ID.value))
-                self.log.info("Found pre-existing dataset refresh request: %s.", request_id)
-
-                if self.force_refresh or self.wait_for_termination:
-                    self.log.info("Waiting for dataset refresh %s to terminate.", request_id)
-                    if self.hook.wait_for_dataset_refresh_status(
-                        request_id=request_id,
-                        dataset_id=self.dataset_id,
-                        group_id=self.group_id,
-                        expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
-                        check_interval=self.check_interval,
-                        timeout=self.timeout,
-                    ):
-                        self.log.info(
-                            "Pre-existing dataset refresh %s has completed successfully.", request_id
-                        )
-                    else:
-                        raise PowerBIDatasetRefreshException(
-                            f"Pre-exisintg dataset refresh {request_id} has failed or has been cancelled."
-                        )
-
-                    if self.force_refresh:
-                        self.log.info("Starting new refresh.")
-                        request_id = self.hook.trigger_dataset_refresh(
-                            dataset_id=self.dataset_id,
-                            group_id=self.group_id,
-                        )
-
-                        if self.wait_for_termination:
-                            self.log.info("Waiting for dataset refresh to terminate.")
-                            if self.hook.wait_for_dataset_refresh_status(
-                                request_id=request_id,
-                                dataset_id=self.dataset_id,
-                                group_id=self.group_id,
-                                expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
-                            ):
-                                self.log.info("Dataset refresh %s has completed successfully.", request_id)
-                            else:
-                                raise PowerBIDatasetRefreshException(
-                                    f"Dataset refresh {request_id} has failed or has been cancelled."
-                                )
+            if self.deferrable is True:
+                warnings.warn(
+                    "Argument `wait_for_termination` is False and `deferrable` is True , hence "
+                    "`deferrable` parameter doesn't have any effect",
+                    UserWarning,
+                    stacklevel=2,
+                )
 
         # Retrieve refresh details after triggering refresh
         refresh_details = self.hook.get_refresh_details_by_request_id(
             dataset_id=self.dataset_id, group_id=self.group_id, request_id=request_id
         )
 
-        request_id = str(refresh_details.get(PowerBIDatasetRefreshFields.REQUEST_ID.value))
         status = str(refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value))
-        end_time = str(refresh_details.get(PowerBIDatasetRefreshFields.END_TIME.value))
         error = str(refresh_details.get(PowerBIDatasetRefreshFields.ERROR.value))
 
         # Xcom Integration
-        context["ti"].xcom_push(key="powerbi_dataset_refresh_id", value=request_id)
         context["ti"].xcom_push(key="powerbi_dataset_refresh_status", value=status)
-        context["ti"].xcom_push(key="powerbi_dataset_refresh_end_time", value=end_time)
         context["ti"].xcom_push(key="powerbi_dataset_refresh_error", value=error)
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> Any:
+        """
+        Return immediately - callback for when the trigger fires.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+            else:
+                # Push Dataset refresh status to Xcom
+                context["ti"].xcom_push(key="powerbi_dataset_refresh_status", value=event["status"])
+        self.log.info(event["message"])

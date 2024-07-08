@@ -46,14 +46,12 @@ CONFIG = {
 COMPLETED_REFRESH_DETAILS = {
     PowerBIDatasetRefreshFields.REQUEST_ID.value: "5e2d9921-e91b-491f-b7e1-e7d8db49194c",
     PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-    PowerBIDatasetRefreshFields.END_TIME.value: "2024-04-15T20:14:08.1458221Z",
     # serviceExceptionJson is not present when status is not "Failed"
 }
 
 FAILED_REFRESH_DETAILS = {
     PowerBIDatasetRefreshFields.REQUEST_ID.value: "11bf290a-346b-48b7-8973-c5df149337ff",
     PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.FAILED,
-    PowerBIDatasetRefreshFields.END_TIME.value: "2024-04-15T20:14:08.1458221Z",
     PowerBIDatasetRefreshFields.ERROR.value: '{"errorCode":"ModelRefreshFailed_CredentialsNotSpecified"}',
 }
 
@@ -105,7 +103,6 @@ def test_execute_no_wait_for_termination(mock_powerbi_hook, latest_refresh_detai
         return_value={
             PowerBIDatasetRefreshFields.REQUEST_ID.value: new_refresh_request_id,
             PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-            PowerBIDatasetRefreshFields.END_TIME.value: "2024-04-15T20:14:08.1458221Z",
             # serviceExceptionJson is not present when status is not "Failed"
         }
     )
@@ -164,7 +161,6 @@ def test_execute_wait_for_termination_preexisting_refresh_going_on(
         return_value={
             PowerBIDatasetRefreshFields.REQUEST_ID.value: new_refresh_request_id,
             PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-            PowerBIDatasetRefreshFields.END_TIME.value: "2024-04-15T20:14:08.1458221Z",
             # serviceExceptionJson is not present when status is not "Failed"
         }
     )
@@ -229,7 +225,6 @@ def test_execute_wait_for_termination_no_preexisting_refresh(
         return_value={
             PowerBIDatasetRefreshFields.REQUEST_ID.value: new_refresh_request_id,
             PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-            PowerBIDatasetRefreshFields.END_TIME.value: "2024-04-15T20:14:08.1458221Z",
             # serviceExceptionJson is not present when status is not "Failed"
         }
     )

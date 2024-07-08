@@ -287,6 +287,9 @@ triggers:
   - integration-name: Microsoft Graph API
     python-modules:
       - airflow.providers.microsoft.azure.triggers.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.powerbi
 
 transfers:
   - source-integration-name: Local

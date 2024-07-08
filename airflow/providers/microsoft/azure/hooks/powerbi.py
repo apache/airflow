@@ -17,15 +17,22 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from enum import Enum
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import requests
 from azure.identity import ClientSecretCredential
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+
+if TYPE_CHECKING:
+    from azure.core.credentials import AccessToken
+
+logger = logging.getLogger(__name__)
 
 
 class PowerBIDatasetRefreshFields(Enum):
@@ -33,7 +40,6 @@ class PowerBIDatasetRefreshFields(Enum):
 
     REQUEST_ID = "request_id"
     STATUS = "status"
-    END_TIME = "end_time"
     ERROR = "error"
 
 
@@ -96,6 +102,7 @@ class PowerBIHook(BaseHook):
         self.conn_id = powerbi_conn_id
         self._api_version = "v1.0"
         self._base_url = "https://api.powerbi.com"
+        self.cached_access_token: dict[str, str | None | int] = {"access_token": None, "expiry_time": 0}
         super().__init__()
 
     def refresh_dataset(self, dataset_id: str, group_id: str) -> str:
@@ -127,9 +134,14 @@ class PowerBIHook(BaseHook):
 
     def _get_token(self) -> str:
         """Retrieve the access token used to authenticate against the API."""
+        access_token = self.cached_access_token.get("access_token")
+        expiry_time = self.cached_access_token.get("expiry_time")
+
+        if access_token and isinstance(expiry_time, int) and expiry_time > time.time():
+            return str(access_token)
+
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
-        print(extras)
         tenant = extras.get("tenant_id", None)
 
         if not conn.login or not conn.password:
@@ -138,15 +150,19 @@ class PowerBIHook(BaseHook):
         if not tenant:
             raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
 
-        credential = ClientSecretCredential(
+        credentials = ClientSecretCredential(
             client_id=conn.login, client_secret=conn.password, tenant_id=tenant
         )
 
-        resource = "https://analysis.windows.net/powerbi/api"
+        resource = "https://analysis.windows.net/powerbi/api/.default"
 
-        access_token = credential.get_token(f"{resource}/.default")
+        raw_access_token: AccessToken = credentials.get_token(resource)
 
-        return access_token.token
+        self.cached_access_token = {
+            "access_token": raw_access_token.token,
+            "expiry_time": raw_access_token.expires_on,
+        }
+        return raw_access_token.token
 
     def get_refresh_history(
         self,
@@ -193,7 +209,6 @@ class PowerBIHook(BaseHook):
                 if str(refresh_details.get("status")) == "Unknown"
                 else str(refresh_details.get("status"))
             ),
-            PowerBIDatasetRefreshFields.END_TIME.value: str(refresh_details.get("endTime")),
             PowerBIDatasetRefreshFields.ERROR.value: str(refresh_details.get("serviceExceptionJson")),
         }
 
@@ -258,31 +273,26 @@ class PowerBIHook(BaseHook):
         :param timeout: Time in seconds to wait for a dataset to reach a terminal status or the expected status.
         :return: Boolean indicating if the dataset refresh has reached the ``expected_status`` before the timeout.
         """
-        dataset_refresh_details = self.get_refresh_details_by_request_id(
-            dataset_id=dataset_id, group_id=group_id, request_id=request_id
-        )
-        dataset_refresh_status = dataset_refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
-
         start_time = time.monotonic()
 
-        while (
-            dataset_refresh_status not in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES
-            and dataset_refresh_status != expected_status
-        ):
-            # Check if the dataset-refresh duration has exceeded the ``timeout`` configured.
-            if start_time + timeout < time.monotonic():
-                raise PowerBIDatasetRefreshException(
-                    f"Dataset refresh has not reached a terminal status after {timeout} seconds"
-                )
-
-            time.sleep(check_interval)
-
+        while start_time + timeout > time.monotonic():
             dataset_refresh_details = self.get_refresh_details_by_request_id(
                 dataset_id=dataset_id, group_id=group_id, request_id=request_id
             )
             dataset_refresh_status = dataset_refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
 
-        return dataset_refresh_status == expected_status
+            if dataset_refresh_status in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES:
+                return dataset_refresh_status == expected_status
+
+            logger.info(
+                "Current dataset refresh status is %s. Sleeping for %s",
+                dataset_refresh_status,
+                check_interval,
+            )
+            time.sleep(check_interval)
+
+        # Timeout reached
+        return False
 
     def trigger_dataset_refresh(self, *, dataset_id: str, group_id: str) -> str:
         """
@@ -321,3 +331,80 @@ class PowerBIHook(BaseHook):
         response = func(url=url, headers={"Authorization": f"Bearer {self._get_token()}"}, **kwargs)
 
         return response
+
+
+class PowerBIAsyncHook(PowerBIHook):
+    """
+    A hook to interact with Power BI asynchronously.
+
+    :param powerbi_conn_id: Airflow Connection ID that contains the connection
+        information for the Power BI account used for authentication.
+    """
+
+    default_conn_name: str = "powerbi_default"
+
+    def __init__(
+        self,
+        *,
+        powerbi_conn_id: str = default_conn_name,
+    ):
+        self.powerbi_conn_id = powerbi_conn_id
+        self._api_version = "v1.0"
+        self.helper_hook = KiotaRequestAdapterHook(
+            conn_id=self.powerbi_conn_id, api_version=self._api_version
+        )
+        super().__init__()
+
+    async def get_dataset_refresh_status(
+        self, dataset_id: str, group_id: str, dataset_refresh_id: str
+    ) -> str:
+        """
+        Retrieve the refresh status for the specified dataset refresh from the given group id.
+
+        :param dataset_id: The dataset Id.
+        :param group_id: The workspace Id.
+        :param dataset_refresh_id: The dataset refresh Id.
+
+        :return: Dataset refresh status.
+        """
+        response = await self.helper_hook.run(
+            url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
+            response_type=None,
+            path_parameters={
+                "group_id": group_id,
+                "dataset_id": dataset_id,
+            },
+            method="GET",
+        )
+        # clean the raw refresh histories fetched from the API.
+        raw_refresh_histories = response.get("value")
+        clean_refresh_histories = [
+            self.raw_to_refresh_details(refresh_history) for refresh_history in raw_refresh_histories
+        ]
+
+        for refresh_history in clean_refresh_histories:
+            if refresh_history.get(PowerBIDatasetRefreshFields.REQUEST_ID.value) == dataset_refresh_id:
+                return str(refresh_history.get(PowerBIDatasetRefreshFields.STATUS.value, "Unknown"))
+
+        raise PowerBIDatasetRefreshException(
+            f"Failed to retrieve the status of dataset refresh with Id: {dataset_refresh_id}"
+        )
+
+    async def cancel_dataset_refresh(self, dataset_id: str, group_id: str, dataset_refresh_id: str) -> None:
+        """
+        Cancel the dataset refresh.
+
+        :param dataset_id: The dataset Id.
+        :param group_id: The workspace Id.
+        :param dataset_refresh_id: The dataset refresh Id.
+        """
+        await self.helper_hook.run(
+            url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes/{dataset_refresh_id}",
+            response_type=None,
+            path_parameters={
+                "group_id": group_id,
+                "dataset_id": dataset_id,
+                "dataset_refresh_id": dataset_refresh_id,
+            },
+            method="DELETE",
+        )
