@@ -2455,6 +2455,69 @@ class TestTaskInstance:
         assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
+    def test_outlet_dataset_alias(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias("test_outlet_dataset_alias_test_case_dsa"))
+            def producer(*, outlet_events):
+                outlet_events["test_outlet_dataset_alias_test_case_dsa"].add(
+                    Dataset("test_outlet_dataset_alias_test_case_ds")
+                )
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
+            "producer"
+        ]
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == "test_outlet_dataset_alias_test_case_ds"
+        assert producer_event.extra == {}
+
+    def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
+        from airflow.datasets import DatasetAlias
+        from airflow.datasets.metadata import Metadata
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias("test_outlet_dataset_alias_through_metadata_dsa"))
+            def producer(*, outlet_events):
+                yield Metadata(
+                    "test_outlet_dataset_alias_through_metadata_ds",
+                    extra={"key": "value"},
+                    alias="test_outlet_dataset_alias_through_metadata_dsa",
+                )
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
+            "producer"
+        ]
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == "test_outlet_dataset_alias_through_metadata_ds"
+        assert producer_event.extra == {"key": "value"}
+
     def test_inlet_dataset_extra(self, dag_maker, session):
         from airflow.datasets import Dataset
 
