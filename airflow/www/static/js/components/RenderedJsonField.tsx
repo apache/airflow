@@ -27,7 +27,7 @@ interface Props {
   content: string;
 }
 
-const RenderedJsonField = ({ content }: Props) => {
+const JsonParse = (content: string) => {
   let contentJson = null;
   let contentFormatted = "";
   let isJson = false;
@@ -38,33 +38,33 @@ const RenderedJsonField = ({ content }: Props) => {
   } catch (e) {
     // skip
   }
+  return [isJson, contentJson, contentFormatted];
+};
 
+const RenderedJsonField = ({ content }: Props) => {
+  const [isJson, contentJson, contentFormatted] = JsonParse(content);
   const { onCopy, hasCopied } = useClipboard(contentFormatted);
 
-  let field = null;
-  if (isJson) {
-    field = (
-      <Flex>
-        <ReactJson
-          src={contentJson}
-          name={false}
-          theme="rjv-default"
-          iconStyle="triangle"
-          indentWidth={2}
-          displayDataTypes={false}
-          enableClipboard={false}
-          style={{ backgroundColor: "inherit" }}
-        />
-        <Spacer />
-        <Button aria-label="Copy" onClick={onCopy}>
-          {hasCopied ? "Copied!" : "Copy"}
-        </Button>
-      </Flex>
-    );
-  } else {
-    field = <Code fontSize="md">{content}</Code>;
-  }
-  return field;
+  return isJson ? (
+    <Flex>
+      <ReactJson
+        src={contentJson}
+        name={false}
+        theme="rjv-default"
+        iconStyle="triangle"
+        indentWidth={2}
+        displayDataTypes={false}
+        enableClipboard={false}
+        style={{ backgroundColor: "inherit" }}
+      />
+      <Spacer />
+      <Button aria-label="Copy" onClick={onCopy}>
+        {hasCopied ? "Copied!" : "Copy"}
+      </Button>
+    </Flex>
+  ) : (
+    <Code fontSize="md">{content}</Code>
+  );
 };
 
 export default RenderedJsonField;

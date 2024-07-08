@@ -25,7 +25,7 @@ import { ClipboardText } from "src/components/Clipboard";
 import { formatDuration, getDuration } from "src/datetime_utils";
 import Time from "src/components/Time";
 import RunTypeIcon from "src/components/RunTypeIcon";
-import RenderedJsonField from "../RenderedJsonField";
+import RenderedJsonField from "src/components/RenderedJsonField";
 
 interface Props {
   run: DagRunType;

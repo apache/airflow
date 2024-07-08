@@ -33,8 +33,8 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import TrySelector from "./TrySelector";
-import RenderedJsonField from "../RenderedJsonField";
 
 interface Props {
   gridInstance?: GridTaskInstance;
