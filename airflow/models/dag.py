@@ -67,6 +67,7 @@ from sqlalchemy import (
     Text,
     and_,
     case,
+    delete,
     func,
     not_,
     or_,
@@ -3298,7 +3299,6 @@ class DAG(LoggingMixin):
         # We can't use a set here as we want to preserve order
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
-
         outlet_dataset_alias_models: list[DatasetAliasModel] = []
 
         # here we go through dags and tasks to check for dataset references
@@ -3333,6 +3333,7 @@ class DAG(LoggingMixin):
                         ]
                         for ref in this_task_outlet_refs:
                             curr_outlet_references.remove(ref)
+
                 for d in dataset_outlets:
                     outlet_references[(task.dag_id, task.task_id)].add(d.uri)
                     outlet_datasets[DatasetModel.from_public(d)] = None
@@ -3368,8 +3369,14 @@ class DAG(LoggingMixin):
         new_dataset_alias_models: list[DatasetAliasModel] = []
         if outlet_dataset_alias_models:
             outlet_dataset_alias_names = [dataset_alias.name for dataset_alias in outlet_dataset_alias_models]
+
             stored_dataset_alias_names = session.scalars(
                 select(DatasetAliasModel.name).where(DatasetAliasModel.name.in_(outlet_dataset_alias_names))
+            ).fetchall()
+            removed_dataset_alias_names = session.scalars(
+                select(DatasetAliasModel.name).where(
+                    DatasetAliasModel.name.not_in(outlet_dataset_alias_names)
+                )
             ).fetchall()
 
             if stored_dataset_alias_names:
@@ -3380,8 +3387,12 @@ class DAG(LoggingMixin):
                 ]
             else:
                 new_dataset_alias_models = outlet_dataset_alias_models
-
             session.add_all(new_dataset_alias_models)
+
+            if removed_dataset_alias_names:
+                session.execute(
+                    delete(DatasetAliasModel).where(DatasetAliasModel.name.in_(removed_dataset_alias_names))
+                )
 
         del new_dataset_alias_models
         del outlet_dataset_alias_models
