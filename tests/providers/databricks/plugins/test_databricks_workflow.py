@@ -29,7 +29,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.plugins.databricks_workflow import (
     DatabricksWorkflowPlugin,
     RepairDatabricksTasks,
-    WorkflowJobRepairSingleFailedLink,
+    WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
     _get_dagrun,
     _get_databricks_task_id,
@@ -211,7 +211,7 @@ def test_workflow_job_run_link(app):
 
 def test_workflow_job_repair_single_failed_link(app):
     with app.app_context():
-        link = WorkflowJobRepairSingleFailedLink()
+        link = WorkflowJobRepairSingleTaskLink()
         operator = Mock()
         operator.task_group = Mock()
         operator.task_group.group_id = "group_id"

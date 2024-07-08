@@ -22,7 +22,7 @@ import os
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, cast
 
-from flask import current_app, flash, redirect, request
+from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
 
 from airflow.configuration import conf
@@ -279,13 +279,16 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
 
         tasks_str = self.get_tasks_to_run(ti_key, operator, self.log)
         self.log.debug("tasks to rerun: %s", tasks_str)
-        return (
-            f"/repair_databricks_job?dag_id={ti_key.dag_id}&"
-            f"databricks_conn_id={metadata.conn_id}&"
-            f"databricks_run_id={metadata.run_id}&"
-            f"run_id={ti_key.run_id}&"
-            f"tasks_to_repair={tasks_str}"
-        )
+
+        query_params = {
+            "dag_id": ti_key.dag_id,
+            "databricks_conn_id": metadata.conn_id,
+            "databricks_run_id": metadata.run_id,
+            "run_id": ti_key.run_id,
+            "tasks_to_repair": tasks_str,
+        }
+
+        return url_for("RepairDatabricksTasks.repair", **query_params)
 
     @classmethod
     def get_task_group_children(cls, task_group: TaskGroup) -> dict[str, BaseOperator]:
@@ -344,10 +347,10 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         ]
 
 
-class WorkflowJobRepairSingleFailedLink(BaseOperatorLink, LoggingMixin):
+class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
     """Construct a link to send a repair request for a single databricks task."""
 
-    name = "Repair a single failed task"
+    name = "Repair a single task"
 
     def get_link(
         self,
@@ -378,13 +381,14 @@ class WorkflowJobRepairSingleFailedLink(BaseOperatorLink, LoggingMixin):
             ti_key = _get_launch_task_key(ti_key, task_id=launch_task_id)
         metadata = get_xcom_result(ti_key, "return_value", ti)
 
-        return (
-            f"/repair_databricks_job?dag_id={ti_key.dag_id}&"
-            f"databricks_conn_id={metadata.conn_id}&"
-            f"databricks_run_id={metadata.run_id}&"
-            f"tasks_to_repair={_get_databricks_task_id(task)}&"
-            f"run_id={ti_key.run_id}"
-        )
+        query_params = {
+            "dag_id": ti_key.dag_id,
+            "databricks_conn_id": metadata.conn_id,
+            "databricks_run_id": metadata.run_id,
+            "run_id": ti_key.run_id,
+            "tasks_to_repair": _get_databricks_task_id(task),
+        }
+        return url_for("RepairDatabricksTasks.repair", **query_params)
 
 
 class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
@@ -447,7 +451,7 @@ class DatabricksWorkflowPlugin(AirflowPlugin):
     name = "databricks_workflow"
     operator_extra_links = [
         WorkflowJobRepairAllFailedLink(),
-        WorkflowJobRepairSingleFailedLink(),
+        WorkflowJobRepairSingleTaskLink(),
         WorkflowJobRunLink(),
     ]
     appbuilder_views = [repair_databricks_package]

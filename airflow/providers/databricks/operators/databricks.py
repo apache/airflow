@@ -36,7 +36,7 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     WorkflowRunMetadata,
 )
 from airflow.providers.databricks.plugins.databricks_workflow import (
-    WorkflowJobRepairSingleFailedLink,
+    WorkflowJobRepairSingleTaskLink,
     WorkflowJobRunLink,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
@@ -965,7 +965,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if self._databricks_workflow_task_group is not None:
             self.operator_extra_links = (
                 WorkflowJobRunLink(),
-                WorkflowJobRepairSingleFailedLink(),
+                WorkflowJobRepairSingleTaskLink(),
             )
         else:
             # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
