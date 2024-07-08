@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class JenkinsBuildSensor(BaseSensorOperator):
-    """Monitor a Jenkins job and pass when it is finished building.
+    """
+    Monitor a Jenkins job and pass when it is finished building.
 
     This is regardless of the build outcome.
 

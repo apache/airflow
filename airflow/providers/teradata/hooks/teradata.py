@@ -45,7 +45,8 @@ def _map_param(value):
 
 
 class TeradataHook(DbApiHook):
-    """General hook for interacting with Teradata SQL Database.
+    """
+    General hook for interacting with Teradata SQL Database.
 
     This module contains basic APIs to connect to and interact with Teradata SQL Database. It uses teradatasql
     client internally as a database driver for connecting to Teradata database. The config parameters like
@@ -96,7 +97,8 @@ class TeradataHook(DbApiHook):
         super().__init__(*args, schema=database, **kwargs)
 
     def get_conn(self) -> TeradataConnection:
-        """Create and return a Teradata Connection object using teradatasql client.
+        """
+        Create and return a Teradata Connection object using teradatasql client.
 
         Establishes connection to a Teradata SQL database using config corresponding to teradata_conn_id.
 
@@ -113,7 +115,8 @@ class TeradataHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Use :func:`insert_rows` instead, this is deprecated.
+        """
+        Use :func:`insert_rows` instead, this is deprecated.
 
         Insert bulk of records into Teradata SQL Database.
 

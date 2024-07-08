@@ -83,7 +83,8 @@ CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
 
 
 def _generate_temporary_run_id() -> str:
-    """Generate a ``run_id`` for a DAG run that will be created temporarily.
+    """
+    Generate a ``run_id`` for a DAG run that will be created temporarily.
 
     This is used mostly by ``airflow task test`` to create a DAG run that will
     be deleted after the task is run.
@@ -98,7 +99,8 @@ def _get_dag_run(
     exec_date_or_run_id: str | None = None,
     session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
-    """Try to retrieve a DAG run from a string representing either a run ID or logical date.
+    """
+    Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:
 

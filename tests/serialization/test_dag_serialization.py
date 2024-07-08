@@ -1712,7 +1712,12 @@ class TestStringifiedDAGs:
                 mode="reschedule",
             )
             CustomDepOperator(task_id="hello", bash_command="hi")
-            dag = SerializedDAG.to_dict(dag)
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match=r"Use of a custom dependency detector is deprecated\. "
+                r"Support will be removed in a future release\.",
+            ):
+                dag = SerializedDAG.to_dict(dag)
             assert sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values())) == sorted(
                 [
                     {

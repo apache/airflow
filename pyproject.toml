@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.5.22",
+    "trove-classifiers==2024.7.2",
 ]
 build-backend = "hatchling.build"
 
@@ -276,9 +276,9 @@ extend-select = [
     "RUF019", # Checks for unnecessary key check
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
-    "D101",
-    "D106",
+    "D1",
     "D2",
+    "D213", # Conflicts with D212.  Both can not be enabled.
     "D3",
     "D400",
     "D401",
@@ -298,9 +298,14 @@ extend-select = [
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
+    "D100", # TODO: Missing docstring in public module
+    "D102", # TODO: Missing docstring in public method
+    "D103", # TODO: Missing docstring in public function
+    "D104", # TODO: Missing docstring in public package
+    "D105", # Do not want.  See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
+    "D107", # TODO: Missing docstring in __init__
     "D203",
-    "D212",
-    "D213",
+    "D212", # Conflicts with D213.  Both can not be enabled.
     "D214",
     "D215",
     "E731", # Do not assign a lambda expression, use a def

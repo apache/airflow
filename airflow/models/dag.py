@@ -181,7 +181,8 @@ DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
 
 
 class InconsistentDataInterval(AirflowException):
-    """Exception raised when a model populates data interval fields incorrectly.
+    """
+    Exception raised when a model populates data interval fields incorrectly.
 
     The data interval fields should either both be None (for runs scheduled
     prior to AIP-39), or both be datetime (for runs scheduled after AIP-39 is
@@ -771,23 +772,17 @@ class DAG(LoggingMixin):
         if doc_md is None:
             return doc_md
 
-        env = self.get_template_env(force_sandboxed=True)
-
-        if not doc_md.endswith(".md"):
-            template = jinja2.Template(doc_md)
-        else:
+        if doc_md.endswith(".md"):
             try:
-                template = env.get_template(doc_md)
-            except jinja2.exceptions.TemplateNotFound:
-                return f"""
-                # Templating Error!
-                Not able to find the template file: `{doc_md}`.
-                """
+                return open(doc_md).read()
+            except FileNotFoundError:
+                return doc_md
 
-        return template.render()
+        return doc_md
 
     def _check_schedule_interval_matches_timetable(self) -> bool:
-        """Check ``schedule_interval`` and ``timetable`` match.
+        """
+        Check ``schedule_interval`` and ``timetable`` match.
 
         This is done as a part of the DAG validation done before it's bagged, to
         guard against the DAG's ``timetable`` (or ``schedule_interval``) from
@@ -815,7 +810,8 @@ class DAG(LoggingMixin):
         return timetable.summary == self.timetable.summary
 
     def validate(self):
-        """Validate the DAG has a coherent setup.
+        """
+        Validate the DAG has a coherent setup.
 
         This is called by the DAG bag before bagging the DAG.
         """
@@ -951,7 +947,8 @@ class DAG(LoggingMixin):
         return [info.logical_date for info in it]
 
     def is_fixed_time_schedule(self):
-        """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
+        """
+        Figures out if the schedule has a fixed time (e.g. 3 AM every day).
 
         Detection is done by "peeking" the next two cron trigger time; if the
         two times have the same minute and hour value, the schedule is fixed,
@@ -1011,7 +1008,8 @@ class DAG(LoggingMixin):
         return self.timetable._get_prev(timezone.coerce_datetime(dttm))
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:
-        """Get the data interval of the next scheduled run.
+        """
+        Get the data interval of the next scheduled run.
 
         For compatibility, this method infers the data interval from the DAG's
         schedule if the run does not have an explicit one set, which is possible
@@ -1036,7 +1034,8 @@ class DAG(LoggingMixin):
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
     def get_run_data_interval(self, run: DagRun | DagRunPydantic) -> DataInterval:
-        """Get the data interval of this run.
+        """
+        Get the data interval of this run.
 
         For compatibility, this method infers the data interval from the DAG's
         schedule if the run does not have an explicit one set, which is possible for
@@ -1057,7 +1056,8 @@ class DAG(LoggingMixin):
         return self.infer_automated_data_interval(run.execution_date)
 
     def infer_automated_data_interval(self, logical_date: datetime) -> DataInterval:
-        """Infer a data interval for a run against this DAG.
+        """
+        Infer a data interval for a run against this DAG.
 
         This method is used to bridge runs created prior to AIP-39
         implementation, which do not have an explicit data interval. Therefore,
@@ -1092,7 +1092,8 @@ class DAG(LoggingMixin):
         *,
         restricted: bool = True,
     ) -> DagRunInfo | None:
-        """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
+        """
+        Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
         This calculates what time interval the next DagRun should operate on
         (its execution date) and when it can be scheduled, according to the
@@ -1183,7 +1184,8 @@ class DAG(LoggingMixin):
         *,
         align: bool = True,
     ) -> Iterable[DagRunInfo]:
-        """Yield DagRunInfo using this DAG's timetable between given interval.
+        """
+        Yield DagRunInfo using this DAG's timetable between given interval.
 
         DagRunInfo instances yielded if their ``logical_date`` is not earlier
         than ``earliest``, nor later than ``latest``. The instances are ordered
@@ -1327,7 +1329,8 @@ class DAG(LoggingMixin):
 
     @property
     def full_filepath(self) -> str:
-        """Full file path to the DAG.
+        """
+        Full file path to the DAG.
 
         :meta private:
         """
@@ -1434,7 +1437,8 @@ class DAG(LoggingMixin):
 
     @property
     def filepath(self) -> str:
-        """Relative file path to the DAG.
+        """
+        Relative file path to the DAG.
 
         :meta private:
         """
@@ -1793,7 +1797,8 @@ class DAG(LoggingMixin):
         *,
         session: Session = NEW_SESSION,
     ) -> list[TaskInstance]:
-        """Get ``num`` task instances before (including) ``base_date``.
+        """
+        Get ``num`` task instances before (including) ``base_date``.
 
         The returned list may contain exactly ``num`` task instances
         corresponding to any DagRunType. It can have less if there are
@@ -2925,7 +2930,8 @@ class DAG(LoggingMixin):
         """
 
         def add_logger_if_needed(ti: TaskInstance):
-            """Add a formatted logger to the task instance.
+            """
+            Add a formatted logger to the task instance.
 
             This allows all logs to surface to the command line, instead of into
             a task file. Since this is a local test run, it is much better for
@@ -4280,7 +4286,8 @@ def _get_or_create_dagrun(
     session: Session,
     data_interval: tuple[datetime, datetime] | None = None,
 ) -> DagRun:
-    """Create a DAG run, replacing an existing instance if needed to prevent collisions.
+    """
+    Create a DAG run, replacing an existing instance if needed to prevent collisions.
 
     This function is only meant to be used by :meth:`DAG.test` as a helper function.
 

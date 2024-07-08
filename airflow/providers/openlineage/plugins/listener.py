@@ -62,6 +62,18 @@ def _get_try_number_success(val):
     return val.try_number - 1
 
 
+def _executor_initializer():
+    """
+    Initialize worker processes for the executor used for DagRun listener.
+
+    This function must be picklable, so it cannot be defined as an inner method or local function.
+
+    Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
+    the Airflow database.
+    """
+    settings.configure_orm()
+
+
 class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
@@ -355,7 +367,7 @@ class OpenLineageListener:
             except BaseException:
                 # Kill the process directly.
                 self._terminate_with_wait(process)
-            self.log.warning("Process with pid %s finished - parent", pid)
+            self.log.debug("Process with pid %s finished - parent", pid)
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
             configure_orm(disable_connection_pool=True)
@@ -366,16 +378,10 @@ class OpenLineageListener:
 
     @property
     def executor(self) -> ProcessPoolExecutor:
-        # Executor for dag_run listener
-        def initializer():
-            # Re-configure the ORM engine as there are issues with multiple processes
-            # if process calls Airflow DB.
-            settings.configure_orm()
-
         if not self._executor:
             self._executor = ProcessPoolExecutor(
                 max_workers=conf.dag_state_change_process_pool_size(),
-                initializer=initializer,
+                initializer=_executor_initializer,
             )
         return self._executor
 

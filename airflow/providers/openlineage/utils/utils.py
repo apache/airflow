@@ -371,12 +371,13 @@ def _get_parsed_dag_tree(dag: DAG) -> dict:
         # Determine the level by counting the leading spaces, assuming 4 spaces per level
         # as defined in airflow.models.dag.DAG._generate_tree_view()
         level = (len(line) - len(stripped_line)) // 4
-        # airflow.models.baseoperator.BaseOperator.__repr__ is used in DAG tree
-        # <Task({op_class}): {task_id}>
-        match = re.match(r"^<Task\((.+)\): (.*?)>$", stripped_line)
+        # airflow.models.baseoperator.BaseOperator.__repr__ or
+        # airflow.models.mappedoperator.MappedOperator.__repr__ is used in DAG tree
+        # <Task({op_class}): {task_id}> or <Mapped({op_class}): {task_id}>
+        match = re.match(r"^<(?:Task|Mapped)\(.+\): (.+)>$", stripped_line)
         if not match:
             return {}
-        current_task_id = match[2]
+        current_task_id = match[1]
 
         if level == 0:  # It's a root task
             task_dict[current_task_id] = {}

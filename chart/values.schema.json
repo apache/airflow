@@ -3362,6 +3362,11 @@
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
                             "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                        },
+                        "usePgbouncer": {
+                            "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 }
@@ -3930,6 +3935,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     }
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into create user job pod (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into create user job",
                     "type": "array",
@@ -4271,6 +4284,14 @@
                             }
                         }
                     ]
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into migrate database job (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",
