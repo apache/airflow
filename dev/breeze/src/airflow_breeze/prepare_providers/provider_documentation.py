@@ -706,6 +706,7 @@ def update_release_notes(
     with_breaking_changes = False
     maybe_with_new_features = False
     original_provider_yaml_content: str | None = None
+    marked_for_release = False
     if not reapply_templates_only:
         if proceed:
             if non_interactive:
@@ -717,6 +718,7 @@ def update_release_notes(
                     f"Provider {provider_package_id} with "
                     f"version: {current_release_version} marked for release. Proceed?"
                 )
+                marked_for_release = answer == Answer.YES
             if answer == Answer.NO:
                 get_console().print(
                     f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
@@ -787,10 +789,10 @@ def update_release_notes(
 
     provider_details = get_provider_details(provider_package_id)
     current_release_version = provider_details.versions[0]
-    if not non_interactive:
+    if (not non_interactive) and (not marked_for_release):
         answer = user_confirm(
             f"Do you want to leave the version for {provider_package_id} with version: "
-            f"{current_release_version} as is?"
+            f"{current_release_version} as is for the release?"
         )
     else:
         answer = Answer.YES
