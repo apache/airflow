@@ -22,7 +22,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence, Any
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
