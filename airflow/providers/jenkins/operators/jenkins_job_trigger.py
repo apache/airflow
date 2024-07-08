@@ -38,7 +38,7 @@ JenkinsRequest = Mapping[str, Any]
 ParamType = Union[str, dict, list, None]
 
 
-def git jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest:
+def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest:
     """
     Create a Jenkins request from a raw request.
 
