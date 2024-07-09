@@ -661,6 +661,7 @@ class TestPodTemplateFile:
         }
 
     def test_safe_to_evict_annotation_other_services(self):
+        """Workers' safeToEvict value should not overwrite safeToEvict value of other services."""
         docs = render_chart(
             values={
                 "workers": {"safeToEvict": False},
