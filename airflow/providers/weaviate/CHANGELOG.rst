@@ -23,7 +23,6 @@ Changelog
 2.0.0
 ......
 
-
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -46,7 +45,10 @@ Breaking changes
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix mypy problems in new waeviate client (#40330)``
+* ``Fix mypy problems in new weaviate client (#40330)``
+
+1.4.2
+.....
 
 Misc
 ~~~~
