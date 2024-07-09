@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
     Column,
@@ -94,9 +94,9 @@ class RemoteWorker(BaseModelPydantic, LoggingMixin):
 
     worker_name: str
     state: RemoteWorkerState
-    queues: list[str] | None
+    queues: Optional[List[str]]  # noqa: UP006,UP007 - prevent Sphinx failing
     first_online: datetime
-    last_update: datetime | None = None
+    last_update: Optional[datetime] = None  # noqa: UP007 - prevent Sphinx failing
     jobs_active: int
     jobs_taken: int
     jobs_success: int

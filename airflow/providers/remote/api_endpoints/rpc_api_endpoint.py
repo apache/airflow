@@ -62,7 +62,7 @@ def log_and_build_error_response(message, status):
 
 
 def remote_worker_api(body: dict[str, Any]) -> APIResponse:
-    """Handle Remote Worker API /remote_worker/v1/rpcapi endpoint."""
+    """Handle Remote Worker API `/remote_worker/v1/rpcapi` endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
