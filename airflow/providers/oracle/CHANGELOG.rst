@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.10.3
+......
+
+Misc
+~~~~
+
+* ``Warn user about unused replace parameter in insert_rows (OracleHook) (#39408)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 3.10.2
 ......
 

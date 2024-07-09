@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.2.0
+......
+
+Latest change: 2024-07-08
+
+=================================================================================================  ===========  ===========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================
+`03b1840e18 <https://github.com/apache/airflow/commit/03b1840e18ba8c1055522fc6e8f81a23230c573d>`_  2024-07-08   ``S3 to wasb (#40511)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  ===========================================================
+
 10.1.2
 ......
 
-Latest change: 2024-06-20
+Latest change: 2024-06-22
 
 =================================================================================================  ===========  ========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `d9d09638a5 <https://github.com/apache/airflow/commit/d9d09638a5a57ec48e2ed791f248a55202f29869>`_  2024-06-20   ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
 `e7052d4244 <https://github.com/apache/airflow/commit/e7052d42440070e77eb6ff1cea41550f368f77c9>`_  2024-06-18   ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
 `9b394a7229 <https://github.com/apache/airflow/commit/9b394a7229484914d80fffeeb7c2d109cd58cc02>`_  2024-06-18   ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
