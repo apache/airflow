@@ -60,14 +60,14 @@ class ConnectionAccessor:
 class OutletEventAccessor:
     def __init__(
         self,
-        extra: dict[str, Any],
         *,
+        extra: dict[str, Any],
         raw_key: str | Dataset | DatasetAlias,
         dataset_alias_event: DatasetAliasEvent | None = None,
     ) -> None: ...
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
-    _raw_key: str | Dataset | DatasetAlias
+    raw_key: str | Dataset | DatasetAlias
     dataset_alias_event: DatasetAliasEvent | None
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):

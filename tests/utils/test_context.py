@@ -71,5 +71,5 @@ class TestOutletEventAccessors:
         assert len(outlet_event_accessors) == 0
         outlet_event_accessor = outlet_event_accessors[key]
         assert len(outlet_event_accessors) == 1
-        assert outlet_event_accessor._raw_key == key
+        assert outlet_event_accessor.raw_key == key
         assert outlet_event_accessor.extra == {}

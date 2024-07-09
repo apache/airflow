@@ -157,7 +157,7 @@ class ConnectionAccessor:
             return default_conn
 
 
-@attrs.define(init=False)
+@attrs.define()
 class OutletEventAccessor:
     """
     Wrapper to access an outlet dataset event in template.
@@ -165,23 +165,9 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    extra: dict[str, Any]
-    _raw_key: str | Dataset | DatasetAlias
-    dataset_alias_event: DatasetAliasEvent | None
-
-    def __init__(
-        self,
-        extra,
-        *,
-        raw_key: str | Dataset | DatasetAlias,
-        dataset_alias_event: DatasetAliasEvent | None = None,
-    ) -> None:
-        self.extra = extra if extra else {}
-        self._raw_key = raw_key
-        self.dataset_alias_event = dataset_alias_event
-
-    def __str__(self) -> str:
-        return f"OutletEventAccessor(_raw_key={self._raw_key}, extra={self.extra}, dataset_alias_event={self.dataset_alias_event})"
+    raw_key: str | Dataset | DatasetAlias
+    extra: dict[str, Any] = attrs.Factory(dict)
+    dataset_alias_event: DatasetAliasEvent | None = None
 
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
         if isinstance(dataset, str):
@@ -191,10 +177,10 @@ class OutletEventAccessor:
         else:
             return
 
-        if isinstance(self._raw_key, str):
-            dataset_alias_name = self._raw_key
-        elif isinstance(self._raw_key, DatasetAlias):
-            dataset_alias_name = self._raw_key.name
+        if isinstance(self.raw_key, str):
+            dataset_alias_name = self.raw_key
+        elif isinstance(self.raw_key, DatasetAlias):
+            dataset_alias_name = self.raw_key.name
         else:
             return
 

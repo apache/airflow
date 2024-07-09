@@ -236,6 +236,8 @@ def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
     """
     if isinstance(var, Dataset):
         return {"__type": DAT.DATASET, "uri": var.uri, "extra": var.extra}
+    if isinstance(var, DatasetAlias):
+        return {"__type": DAT.DATASET_ALIAS, "name": var.name}
     if isinstance(var, DatasetAll):
         return {"__type": DAT.DATASET_ALL, "objects": [encode_dataset_condition(x) for x in var.objects]}
     if isinstance(var, DatasetAny):
@@ -260,7 +262,7 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
-    raw_key = var._raw_key
+    raw_key = var.raw_key
     if isinstance(raw_key, Dataset):
         serialized_raw_key = {"__type": DAT.DATASET, "uri": raw_key.uri, "extra": raw_key.extra}
     elif isinstance(raw_key, DatasetAlias):
@@ -272,23 +274,23 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     return {
         "extra": var.extra,
         "dataset_alias_event": var.dataset_alias_event,
-        "_raw_key": serialized_raw_key,
+        "raw_key": serialized_raw_key,
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
-    raw_key = var["_raw_key"]
+    raw_key = var["raw_key"]
     raw_key_type = raw_key["__type"]
     if raw_key_type == "str":
-        _raw_key = raw_key["value"]
+        raw_key = raw_key["value"]
     elif raw_key_type == DAT.DATASET:
-        _raw_key = Dataset(uri=raw_key["uri"], extra=raw_key["extra"])
+        raw_key = Dataset(uri=raw_key["uri"], extra=raw_key["extra"])
     elif raw_key_type == DAT.DATASET_ALIAS:
-        _raw_key = DatasetAlias(name=raw_key["name"])
+        raw_key = DatasetAlias(name=raw_key["name"])
     else:
         raise ValueError(f"deserialization not implemented for {raw_key}")
 
-    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=_raw_key)
+    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=raw_key)
     outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
     return outlet_event_accessor
 
@@ -787,6 +789,8 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
+        elif type_ == DAT.DATASET_ALIAS:
+            return DatasetAlias(**var)
         elif type_ == DAT.DATASET_ANY:
             return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
         elif type_ == DAT.DATASET_ALL:

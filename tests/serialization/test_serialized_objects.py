@@ -151,7 +151,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a._raw_key == b._raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
+    return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
 
 
 @pytest.mark.parametrize(
