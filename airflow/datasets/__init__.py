@@ -162,10 +162,18 @@ class BaseDataset:
 
 
 @attr.define()
-class DatasetAlias:
-    """A represeation of datasets to be created during the runtime."""
+class DatasetAlias(BaseDataset):
+    """A represeation of dataset alias which is used to create dataset during the runtime."""
 
     name: str
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, DatasetAlias):
+            return self.name == other.name
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class DatasetAliasEvent(TypedDict):
