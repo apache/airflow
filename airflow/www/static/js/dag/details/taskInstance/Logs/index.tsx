@@ -28,6 +28,7 @@ import { useTimezone } from "src/context/timezone";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import MultiSelect from "src/components/MultiSelect";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { useTaskInstance } from "src/api";
 
 import LogLink from "./LogLink";
 import { LogLevel, logLevelColorMapping, parseLogs } from "./utils";
@@ -74,10 +75,12 @@ const Logs = ({
   taskId,
   mapIndex,
   executionDate,
-  tryNumber,
+  tryNumber: finalTryNumber,
   state,
 }: Props) => {
-  const [selectedTryNumber, setSelectedTryNumber] = useState(tryNumber || 1);
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1
+  );
   const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
     []
@@ -87,6 +90,13 @@ const Logs = ({
   >([]);
   const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
+
+  const { data: taskInstance } = useTaskInstance({
+    dagId,
+    dagRunId,
+    taskId: taskId || "",
+    mapIndex,
+  });
 
   const { data, isLoading } = useTaskLog({
     dagId,
@@ -125,8 +135,8 @@ const Logs = ({
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (selectedTryNumber > (tryNumber || 1)) {
-      setSelectedTryNumber(tryNumber || 1);
+    if (selectedTryNumber > (finalTryNumber || 1)) {
+      setSelectedTryNumber(finalTryNumber || 1);
     }
 
     if (
@@ -140,7 +150,7 @@ const Logs = ({
     ) {
       setFileSourceFilters([]);
     }
-  }, [data, fileSourceFilters, fileSources, selectedTryNumber, tryNumber]);
+  }, [data, fileSourceFilters, fileSources, selectedTryNumber, finalTryNumber]);
 
   return (
     <>
@@ -148,27 +158,28 @@ const Logs = ({
         <Box my={1}>
           <Text>View Logs in {externalLogName} (by attempts):</Text>
           <Flex flexWrap="wrap">
-            {[...Array(tryNumber || 1)].map((_, index) => (
-              <LogLink
-                // eslint-disable-next-line react/no-array-index-key
-                key={index}
-                dagId={dagId}
-                taskId={taskId}
-                executionDate={executionDate}
-                tryNumber={index}
-              />
-            ))}
+            {Array.from({ length: finalTryNumber || 1 }, (_, i) => i + 1).map(
+              (tryNumber) => (
+                <LogLink
+                  key={tryNumber}
+                  dagId={dagId}
+                  taskId={taskId}
+                  executionDate={executionDate}
+                  tryNumber={tryNumber}
+                />
+              )
+            )}
           </Flex>
         </Box>
       )}
       <Box>
-        <TrySelector
-          taskId={taskId}
-          runId={dagRunId}
-          mapIndex={mapIndex}
-          selectedTryNumber={selectedTryNumber}
-          onSelectTryNumber={setSelectedTryNumber}
-        />
+        {!!taskInstance && (
+          <TrySelector
+            taskInstance={taskInstance}
+            selectedTryNumber={selectedTryNumber}
+            onSelectTryNumber={setSelectedTryNumber}
+          />
+        )}
         <Flex my={1} justifyContent="space-between" flexWrap="wrap">
           <Flex alignItems="center" flexGrow={1} mr={10}>
             <Box width="100%" mr={2}>
@@ -221,7 +232,7 @@ const Logs = ({
               taskId={taskId}
               executionDate={executionDate}
               isInternal
-              tryNumber={tryNumber}
+              tryNumber={selectedTryNumber}
               mapIndex={mapIndex}
             />
             <LinkButton href={`${logUrl}&${params.toString()}`}>

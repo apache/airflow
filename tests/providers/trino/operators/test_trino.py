@@ -19,17 +19,16 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
 from openlineage.client.run import Dataset
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
-from airflow.providers.trino.operators.trino import TrinoOperator
 
 TRINO_CONN_ID = "test_trino"
 TASK_ID = "test_trino_task"
+TRINO_DEFAULT = "trino_default"
 
 
 class TestTrinoOperator:
@@ -37,13 +36,12 @@ class TestTrinoOperator:
     def test_execute(self, mock_get_db_hook):
         """Asserts that the run method is called when a TrinoOperator task is executed"""
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated class *"):
-            op = TrinoOperator(
-                task_id=TASK_ID,
-                sql="SELECT 1;",
-                trino_conn_id=TRINO_CONN_ID,
-                handler=list,
-            )
+        op = SQLExecuteQueryOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1;",
+            conn_id=TRINO_CONN_ID,
+            handler=list,
+        )
         op.execute(None)
 
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -68,12 +66,9 @@ def test_execute_openlineage_events():
 
     dbapi_hook = TrinoHookForTests()
 
-    class TrinoOperatorForTest(TrinoOperator):
-        def get_db_hook(self):
-            return dbapi_hook
-
     sql = "SELECT name FROM tpch.sf1.customer LIMIT 3"
-    op = TrinoOperatorForTest(task_id="trino-operator", sql=sql)
+    op = SQLExecuteQueryOperator(task_id="trino-operator", sql=sql, conn_id=TRINO_DEFAULT)
+    op._hook = dbapi_hook
     rows = [
         (DB_SCHEMA_NAME, "customer", "custkey", 1, "bigint", DB_NAME),
         (DB_SCHEMA_NAME, "customer", "name", 2, "varchar(25)", DB_NAME),
@@ -83,7 +78,7 @@ def test_execute_openlineage_events():
         (DB_SCHEMA_NAME, "customer", "acctbal", 6, "double", DB_NAME),
     ]
     dbapi_hook.get_connection.return_value = Connection(
-        conn_id="trino_default",
+        conn_id=TRINO_DEFAULT,
         conn_type="trino",
         host="trino",
         port=8080,

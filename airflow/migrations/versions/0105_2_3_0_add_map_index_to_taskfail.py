@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add map_index to TaskFail.
+"""
+Add map_index to TaskFail.
 
 Drop index idx_task_fail_dag_task_date
 Add run_id and map_index

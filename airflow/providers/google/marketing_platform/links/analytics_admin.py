@@ -29,7 +29,8 @@ BASE_LINK = "https://analytics.google.com/analytics/web/"
 
 
 class GoogleAnalyticsBaseLink(BaseOperatorLink):
-    """Base class for Google Analytics links.
+    """
+    Base class for Google Analytics links.
 
     :meta private:
     """

@@ -132,7 +132,8 @@ class Templater(LoggingMixin):
         jinja_env: jinja2.Environment | None = None,
         seen_oids: set[int] | None = None,
     ) -> Any:
-        """Render a templated string.
+        """
+        Render a templated string.
 
         If *content* is a collection holding multiple templated strings, strings
         in the collection will be templated recursively.

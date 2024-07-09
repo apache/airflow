@@ -27,7 +27,6 @@ from uuid import uuid4
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
-from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
@@ -1259,91 +1258,12 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "configuration_overrides": "json",
     }
 
-    @property
-    def operator_extra_links(self):
-        """
-        Dynamically add extra links depending on the job type and if they're enabled.
-
-        If S3 or CloudWatch monitoring configurations exist, add links directly to the relevant consoles.
-        Only add dashboard links if they're explicitly enabled. These are one-time links that any user
-        can access, but expire on first click or one hour, whichever comes first.
-        """
-        op_extra_links = []
-
-        if isinstance(self, MappedOperator):
-            operator_class = self.operator_class
-            enable_application_ui_links = self.partial_kwargs.get(
-                "enable_application_ui_links"
-            ) or self.expand_input.value.get("enable_application_ui_links")
-            job_driver = self.partial_kwargs.get("job_driver", {}) or self.expand_input.value.get(
-                "job_driver", {}
-            )
-            configuration_overrides = self.partial_kwargs.get(
-                "configuration_overrides"
-            ) or self.expand_input.value.get("configuration_overrides")
-
-            # Configuration overrides can either be a list or a dictionary, depending on whether it's passed in as partial or expand.
-            if isinstance(configuration_overrides, list):
-                if any(
-                    [
-                        operator_class.is_monitoring_in_job_override(
-                            self=operator_class,
-                            config_key="s3MonitoringConfiguration",
-                            job_override=job_override,
-                        )
-                        for job_override in configuration_overrides
-                    ]
-                ):
-                    op_extra_links.extend([EmrServerlessS3LogsLink()])
-                if any(
-                    [
-                        operator_class.is_monitoring_in_job_override(
-                            self=operator_class,
-                            config_key="cloudWatchLoggingConfiguration",
-                            job_override=job_override,
-                        )
-                        for job_override in configuration_overrides
-                    ]
-                ):
-                    op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
-            else:
-                if operator_class.is_monitoring_in_job_override(
-                    self=operator_class,
-                    config_key="s3MonitoringConfiguration",
-                    job_override=configuration_overrides,
-                ):
-                    op_extra_links.extend([EmrServerlessS3LogsLink()])
-                if operator_class.is_monitoring_in_job_override(
-                    self=operator_class,
-                    config_key="cloudWatchLoggingConfiguration",
-                    job_override=configuration_overrides,
-                ):
-                    op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
-
-        else:
-            operator_class = self
-            enable_application_ui_links = self.enable_application_ui_links
-            configuration_overrides = self.configuration_overrides
-            job_driver = self.job_driver
-
-            if operator_class.is_monitoring_in_job_override(
-                "s3MonitoringConfiguration", configuration_overrides
-            ):
-                op_extra_links.extend([EmrServerlessS3LogsLink()])
-            if operator_class.is_monitoring_in_job_override(
-                "cloudWatchLoggingConfiguration", configuration_overrides
-            ):
-                op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
-
-        if enable_application_ui_links:
-            op_extra_links.extend([EmrServerlessDashboardLink()])
-            if isinstance(job_driver, list):
-                if any("sparkSubmit" in ind_job_driver for ind_job_driver in job_driver):
-                    op_extra_links.extend([EmrServerlessLogsLink()])
-            elif "sparkSubmit" in job_driver:
-                op_extra_links.extend([EmrServerlessLogsLink()])
-
-        return tuple(op_extra_links)
+    operator_extra_links = (
+        EmrServerlessS3LogsLink(),
+        EmrServerlessCloudWatchLogsLink(),
+        EmrServerlessDashboardLink(),
+        EmrServerlessLogsLink(),
+    )
 
     def __init__(
         self,

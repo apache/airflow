@@ -99,10 +99,10 @@ const InstanceBar = ({
       openDelay={hoverDelay}
     >
       <Flex
-        width={`${width + queuedWidth}px`}
         position="absolute"
         top="4px"
         left={`${offsetMargin}px`}
+        transition="left 0.5s"
         cursor="pointer"
         pointerEvents="auto"
         onClick={() => {
@@ -117,6 +117,7 @@ const InstanceBar = ({
             state="queued"
             width={`${queuedWidth}px`}
             borderRightRadius={0}
+            transition="width 0.5s"
             // The normal queued color is too dark when next to the actual task's state
             opacity={0.6}
           />
@@ -128,6 +129,7 @@ const InstanceBar = ({
               : instance.state
           }
           width={`${width}px`}
+          transition="width 0.5s"
           borderLeftRadius={
             instance.state !== "queued" && hasValidQueuedDttm ? 0 : undefined
           }

@@ -53,7 +53,8 @@ def _create_dagruns(
     state: DagRunState,
     run_type: DagRunType,
 ) -> Iterable[DagRun]:
-    """Infers from data intervals which DAG runs need to be created and does so.
+    """
+    Infers from data intervals which DAG runs need to be created and does so.
 
     :param dag: The DAG to create runs for.
     :param infos: List of logical dates and data intervals to evaluate.
@@ -144,8 +145,12 @@ def set_state(
     confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids, session=session))
     confirmed_dates = [info.logical_date for info in confirmed_infos]
 
-    sub_dag_run_ids = list(
-        _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
+    sub_dag_run_ids = (
+        list(
+            _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
+        )
+        if not state == TaskInstanceState.SKIPPED
+        else []
     )
 
     # now look for the task instances that are affected
@@ -211,7 +216,8 @@ def _iter_subdag_run_ids(
     commit: bool,
     confirmed_infos: Iterable[_DagRunInfo],
 ) -> Iterator[str]:
-    """Go through subdag operators and create dag runs.
+    """
+    Go through subdag operators and create dag runs.
 
     We only work within the scope of the subdag. A subdag does not propagate to
     its parent DAG, but parent propagates to subdags.
@@ -250,7 +256,8 @@ def verify_dagruns(
     session: SASession,
     current_task: Operator,
 ):
-    """Verify integrity of dag_runs.
+    """
+    Verify integrity of dag_runs.
 
     :param dag_runs: dag runs to verify
     :param commit: whether dag runs state should be updated

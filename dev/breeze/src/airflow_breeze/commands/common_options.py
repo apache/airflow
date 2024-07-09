@@ -105,8 +105,9 @@ option_backend = click.option(
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
-    help="Database backend to use. If 'none' is selected, breeze starts with invalid DB configuration "
-    "and no database and any attempts to connect to Airflow DB will fail.",
+    help="Database backend to use. If 'none' is chosen, "
+    "Breeze will start with an invalid database configuration, meaning there will be no database "
+    "available, and any attempts to connect to the Airflow database will fail.",
     envvar="BACKEND",
 )
 option_builder = click.option(

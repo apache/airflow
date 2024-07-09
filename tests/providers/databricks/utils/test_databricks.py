@@ -21,7 +21,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import _normalise_json_content, validate_trigger_event
 
 RUN_ID = 1
 RUN_PAGE_URL = "run-page-url"
@@ -46,7 +46,7 @@ class TestDatabricksOperatorSharedFunctions:
             "test_list": ["1", "1.0", "a", "b"],
             "test_tuple": ["1", "1.0", "a", "b"],
         }
-        assert normalise_json_content(test_json) == expected
+        assert _normalise_json_content(test_json) == expected
 
     def test_validate_trigger_event_success(self):
         event = {

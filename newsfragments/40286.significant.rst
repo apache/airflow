@@ -1,0 +1,1 @@
+Support for OpenTelemetry Metrics is no longer "Experimental"

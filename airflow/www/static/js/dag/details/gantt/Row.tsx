@@ -72,29 +72,27 @@ const Row = ({
       >
         {!!instance && (
           <InstanceBar
-            instance={{ ...instance, queuedWhen: instance.queuedDttm }}
+            instance={{
+              ...instance,
+              queuedWhen: instance.queuedDttm,
+              dagRunId: instance.runId,
+            }}
             task={task}
             ganttWidth={ganttWidth}
             ganttStartDate={ganttStartDate}
             ganttEndDate={ganttEndDate}
           />
         )}
-        {(tiHistory || [])
-          .filter(
-            (ti) =>
-              ti.startDate !== instance?.startDate && // @ts-ignore
-              moment(ti.startDate).isAfter(ganttStartDate)
-          )
-          .map((ti) => (
-            <InstanceBar
-              key={`${taskId}-${ti.tryNumber}`}
-              instance={ti}
-              task={task}
-              ganttWidth={ganttWidth}
-              ganttStartDate={ganttStartDate}
-              ganttEndDate={ganttEndDate}
-            />
-          ))}
+        {(tiHistory || []).map((ti) => (
+          <InstanceBar
+            key={`${taskId}-${ti.tryNumber}`}
+            instance={ti}
+            task={task}
+            ganttWidth={ganttWidth}
+            ganttStartDate={ganttStartDate}
+            ganttEndDate={ganttEndDate}
+          />
+        ))}
       </Box>
       {isOpen &&
         !!task.children &&
