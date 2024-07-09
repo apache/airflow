@@ -25,7 +25,7 @@ import time
 from functools import partial
 from typing import Callable
 from unittest import mock
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, call
 
 import pytest
 import yaml
@@ -160,7 +160,6 @@ def mock_executor(set_env_vars) -> AwsEcsExecutor:
     run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
     ecs_mock.run_task.return_value = run_task_ret_val
     executor.ecs = ecs_mock
-    executor.task_context_logger = Mock()
 
     return executor
 
@@ -463,8 +462,11 @@ class TestAwsEcsExecutor:
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
 
+    @mock.patch.object(AwsEcsExecutor, "send_message_to_task_logs")
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_tasks_fail(self, _, mock_executor):
+    def test_attempt_task_runs_attempts_when_tasks_fail(
+        self, _, mock_send_message_to_task_logs, mock_executor
+    ):
         """
         Test case when all tasks fail to run.
 
@@ -517,6 +519,7 @@ class TestAwsEcsExecutor:
         for i in range(2):
             calls.append(
                 call(
+                    logging.ERROR,
                     "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
                     airflow_keys[i],
                     3,
@@ -524,10 +527,13 @@ class TestAwsEcsExecutor:
                     ti=airflow_keys[i],
                 )
             )
-        mock_executor.task_context_logger.error.assert_has_calls(calls)
+        mock_send_message_to_task_logs.assert_has_calls(calls)
 
+    @mock.patch.object(AwsEcsExecutor, "send_message_to_task_logs")
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor):
+    def test_attempt_task_runs_attempts_when_some_tasks_fal(
+        self, _, mock_send_message_to_task_logs, mock_executor
+    ):
         """
         Test case when one task fail to run, and a new task gets queued.
 
@@ -599,7 +605,8 @@ class TestAwsEcsExecutor:
         RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[0]
         assert mock_executor.ecs.run_task.call_args_list[0].kwargs == RUN_TASK_KWARGS
 
-        mock_executor.task_context_logger.error.assert_called_once_with(
+        mock_send_message_to_task_logs.assert_called_once_with(
+            logging.ERROR,
             "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
             airflow_keys[0],
             3,

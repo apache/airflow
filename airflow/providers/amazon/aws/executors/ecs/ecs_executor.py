@@ -23,6 +23,7 @@ Each Airflow task gets delegated out to an Amazon ECS Task.
 
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict, deque
 from copy import deepcopy
@@ -384,7 +385,8 @@ class AwsEcsExecutor(BaseExecutor):
                     )
                     self.pending_tasks.append(ecs_task)
                 else:
-                    self.task_context_logger.error(
+                    self.send_message_to_task_logs(
+                        logging.ERROR,
                         "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
                         task_key,
                         attempt_number,
@@ -393,7 +395,9 @@ class AwsEcsExecutor(BaseExecutor):
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
-                self.task_context_logger.error("ECS RunTask Response: %s", run_task_response, ti=task_key)
+                self.send_message_to_task_logs(
+                    logging.ERROR, "ECS RunTask Response: %s", run_task_response, ti=task_key
+                )
                 raise EcsExecutorException(
                     "No failures and no ECS tasks provided in response. This should never happen."
                 )

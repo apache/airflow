@@ -23,6 +23,7 @@ import sys
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
@@ -123,7 +124,6 @@ class BaseExecutor(LoggingMixin):
     job_id: None | int | str = None
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
-    task_context_logger: TaskContextLogger
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -132,10 +132,6 @@ class BaseExecutor(LoggingMixin):
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
-        self.task_context_logger: TaskContextLogger = TaskContextLogger(
-            component_name="Executor",
-            call_site_logger=self.log,
-        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
@@ -290,7 +286,8 @@ class BaseExecutor(LoggingMixin):
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
                 # Otherwise, we give up and remove the task from the queue.
-                self.task_context_logger.error(
+                self.send_message_to_task_logs(
+                    logging.ERROR,
                     "could not queue task %s (still running after %d attempts).",
                     key,
                     attempt.total_tries,
@@ -520,6 +517,16 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @cached_property
+    def _task_context_logger(self) -> TaskContextLogger:
+        return TaskContextLogger(
+            component_name="Executor",
+            call_site_logger=self.log,
+        )
+
+    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+        self._task_context_logger._log(level, msg, *args, ti=ti)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
