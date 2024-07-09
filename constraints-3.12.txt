@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-09T09:34:40.875467
+# This constraints file was automatically generated on 2024-07-09T11:12:48.684920
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -713,7 +713,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.291.0
 yarl==1.9.4
-ydb==3.13.0
+ydb==3.13.1
 zeep==4.2.1
 zenpy==2.0.49
 zipp==3.19.2
