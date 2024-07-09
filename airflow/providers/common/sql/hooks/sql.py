@@ -574,6 +574,7 @@ class DbApiHook(BaseHook):
         replace=False,
         *,
         executemany=False,
+        autocommit=False,
         **kwargs,
     ):
         """
@@ -593,7 +594,7 @@ class DbApiHook(BaseHook):
             have same number of column names, but leads to better performance.
         """
         nb_rows = 0
-        with self._create_autocommit_connection() as conn:
+        with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
                 if self.supports_executemany or executemany:
