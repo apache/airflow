@@ -56,9 +56,6 @@ def generate_dag_processor_airflow_diagram():
         graph_attr=graph_attr,
         edge_attr=edge_attr,
     ):
-        with Cluster("Organization DB", graph_attr={"bgcolor": "#D0BBCC", "fontsize": "22"}):
-            metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
-
         with Cluster(
             "Common Organization Airflow Deployment", graph_attr={"bgcolor": "lightgrey", "fontsize": "22"}
         ):
@@ -69,6 +66,9 @@ def generate_dag_processor_airflow_diagram():
                 executor_1 - Edge(color="black", style="dashed", reverse=True) - schedulers
                 executor_2 - Edge(color="black", style="dashed", reverse=True) - schedulers
 
+            with Cluster("Organization DB", graph_attr={"bgcolor": "#D0BBCC", "fontsize": "22"}):
+                metadata_db = Custom("Metadata DB", DATABASE_IMAGE.as_posix())
+
             with Cluster("UI"):
                 webservers = Custom("Webserver(s)", PYTHON_MULTIPROCESS_LOGO.as_posix())
                 auth_manager = Custom("Auth\nManager", PYTHON_MULTIPROCESS_LOGO.as_posix())
@@ -78,6 +78,13 @@ def generate_dag_processor_airflow_diagram():
             )
 
             organization_config_file = Custom("Config\nFile\nCommon\nOrganization", CONFIG_FILE.as_posix())
+
+            internal_api = Custom("Task SDK\nGRPC API", PYTHON_MULTIPROCESS_LOGO.as_posix())
+            (
+                internal_api
+                >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n\n\n")
+                >> metadata_db
+            )
 
         organization_deployment_manager = User("Deployment Manager\nOrganization")
 
@@ -191,19 +198,35 @@ def generate_dag_processor_airflow_diagram():
 
         (
             dag_processors_1
-            >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n")
-            >> metadata_db
+            >> Edge(color="red", style="dotted", reverse=True, label="GRPC\nHTTPS\n\n")
+            >> internal_api
         )
-        (workers_1 >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n") >> metadata_db)
-        (triggerer_1 >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n") >> metadata_db)
+        (
+            workers_1
+            >> Edge(color="red", style="dotted", reverse=True, label="GRPC\nHTTPS\n\n")
+            >> internal_api
+        )
+        (
+            triggerer_1
+            >> Edge(color="red", style="dotted", reverse=True, label="GRPC\nHTTPS\n\n")
+            >> internal_api
+        )
 
         (
             dag_processors_2
-            >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n")
-            >> metadata_db
+            >> Edge(color="red", style="dotted", reverse=True, label="GRPC\nHTTPS\n\n")
+            >> internal_api
         )
-        (workers_2 >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n") >> metadata_db)
-        (triggerer_2 >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n") >> metadata_db)
+        (
+            workers_2
+            >> Edge(color="red", style="dotted", reverse=True, label="GRPC\nHTTPS\n\n")
+            >> internal_api
+        )
+        (
+            triggerer_2
+            >> Edge(color="red", style="dotted", reverse=True, label="GRPC\nHTTPS\n\n")
+            >> internal_api
+        )
 
         dag_files_1 >> Edge(color="brown", style="solid", label="sync\n\n") >> workers_1
         dag_files_1 >> Edge(color="brown", style="solid", label="sync\n\n") >> dag_processors_1
@@ -218,6 +241,8 @@ def generate_dag_processor_airflow_diagram():
         schedulers - Edge(style="invis") - organization_plugins_and_packages
         metadata_db - Edge(style="invis") - executor_1
         metadata_db - Edge(style="invis") - executor_2
+        workers_1 - Edge(style="invis") - operations_user_1
+        workers_2 - Edge(style="invis") - operations_user_2
 
         external_organization_identity_system - Edge(style="invis") - organization_admin
 
