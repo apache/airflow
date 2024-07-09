@@ -549,6 +549,7 @@ sensors:
 dataset-uris:
   - schemes: [s3]
     handler: null
+    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3

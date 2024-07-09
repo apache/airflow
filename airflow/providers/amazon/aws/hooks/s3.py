@@ -41,6 +41,8 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
 
@@ -1111,6 +1113,10 @@ class S3Hook(AwsBaseHook):
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
+        get_hook_lineage_collector().add_input_dataset({"scheme": "file", "path": filename}, self)
+        get_hook_lineage_collector().add_output_dataset(
+            {"scheme": "s3", "bucket": bucket_name, "key": key}, self
+        )
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1251,6 +1257,10 @@ class S3Hook(AwsBaseHook):
             ExtraArgs=extra_args,
             Config=self.transfer_config,
         )
+        # No input because file_obj can be anything - handle in calling function if possible
+        get_hook_lineage_collector().add_output_dataset(
+            {"scheme": "s3", "bucket": bucket_name, "key": key}, self
+        )
 
     def copy_object(
         self,
@@ -1305,6 +1315,12 @@ class S3Hook(AwsBaseHook):
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
             Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
+        )
+        get_hook_lineage_collector().add_input_dataset(
+            {"scheme": "s3", "bucket": source_bucket_name, "key": source_bucket_key}, self
+        )
+        get_hook_lineage_collector().add_output_dataset(
+            {"scheme": "s3", "bucket": dest_bucket_name, "key": dest_bucket_key}, self
         )
         return response
 
@@ -1425,6 +1441,10 @@ class S3Hook(AwsBaseHook):
 
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
+            get_hook_lineage_collector().add_output_dataset(
+                {"scheme": "file", "path": file_path if file_path.is_absolute() else file_path.absolute()},
+                self,
+            )
             file = open(file_path, "wb")
         else:
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
@@ -1435,7 +1455,9 @@ class S3Hook(AwsBaseHook):
                 ExtraArgs=self.extra_args,
                 Config=self.transfer_config,
             )
-
+        get_hook_lineage_collector().add_input_dataset(
+            {"scheme": "s3", "bucket": bucket_name, "key": key}, self
+        )
         return file.name
 
     def generate_presigned_url(

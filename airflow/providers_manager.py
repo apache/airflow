@@ -524,10 +524,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_filesystems()
 
-    @provider_info_cache("dataset_uris")
+    # @provider_info_cache("dataset_uris")
     def initialize_providers_dataset_uri_handlers_and_factories(self):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
+        logging.getLogger(__name__).error("asdf")
         self._discover_dataset_uri_handlers_and_factories()
 
     @provider_info_cache("hook_lineage_writers")
@@ -884,13 +885,17 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def _discover_dataset_uri_handlers_and_factories(self) -> None:
         from airflow.datasets import normalize_noop
 
+        log.error("?????")
         for provider_package, provider in self._provider_dict.items():
             for handler_info in provider.data.get("dataset-uris", []):
+                log.error("HANDLER INFO: %s", handler_info)
                 try:
                     schemes = handler_info["schemes"]
                     handler_path = handler_info["handler"]
                 except KeyError:
                     continue
+
+                log.error("WENT FORWARD WITH %s %s %s", schemes, handler_path, factory_path)
                 if handler_path is None:
                     handler = normalize_noop
                 elif not (handler := _correctness_check(provider_package, handler_path, provider)):
@@ -901,8 +906,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     factory_path is not None
                     and (factory := _correctness_check(provider_package, factory_path, provider))
                 ):
-                    continue
-                self._dataset_factories.update((scheme, factory) for scheme in schemes)
+                    self._dataset_factories.update((scheme, factory) for scheme in schemes)
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -1301,7 +1305,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @property
     def dataset_factories(self) -> dict[str, Callable[..., Dataset]]:
+        self.log.error("PRE")
         self.initialize_providers_dataset_uri_handlers_and_factories()
+        self.log.error("????")
         return self._dataset_factories
 
     @property

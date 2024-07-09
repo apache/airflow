@@ -57,6 +57,7 @@
     "cross-providers-deps": [
       "apache.hive",
       "cncf.kubernetes",
+      "common.compat",
       "common.sql",
       "exasol",
       "ftp",

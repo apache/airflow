@@ -27,8 +27,10 @@ from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath
 from upath.registry import get_upath_class
 
-from airflow.io.store import attach
+from airflow.io.store import ObjectStore, attach
 from airflow.io.utils.stat import stat_result
+from airflow.lineage.hook import get_hook_lineage_collector
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if typing.TYPE_CHECKING:
     from fsspec import AbstractFileSystem
@@ -37,6 +39,57 @@ if typing.TYPE_CHECKING:
 PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 
 default = "file"
+
+
+class TrackingFileWrapper(LoggingMixin):
+    """Wrapper that tracks file operations to intercept lineage."""
+
+    def __init__(self, path: ObjectStoragePath, obj):
+        super().__init__()
+        self._path: ObjectStoragePath = path
+        self._obj = obj
+
+    def __getattr__(self, name):
+        attr = getattr(self._obj, name)
+        if callable(attr):
+            # If the attribute is a method, wrap it in another method to intercept the call
+            def wrapper(*args, **kwargs):
+                self.log.error("Calling method: %s", name)
+                if name == "read":
+                    get_hook_lineage_collector().add_input_dataset(
+                        {"uri": f"{self._path.protocol}://{self._path.path}"},
+                        ObjectStore(
+                            self._path.protocol,
+                            conn_id=self._path.storage_options.get("conn_id"),
+                            fs=self._path.fs,
+                        ),
+                    )
+                elif name == "write":
+                    get_hook_lineage_collector().add_output_dataset(
+                        {"uri": f"{self._path.protocol}://{self._path.path}"},
+                        ObjectStore(
+                            self._path.protocol,
+                            conn_id=self._path.storage_options.get("conn_id"),
+                            fs=self._path.fs,
+                        ),
+                    )
+                result = attr(*args, **kwargs)
+                return result
+
+            return wrapper
+        return attr
+
+    def __getitem__(self, key):
+        # Intercept item access
+        self.log.error("Accessing item: %s", key)
+        return self._obj[key]
+
+    def __enter__(self):
+        self._obj.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._obj.__exit__(exc_type, exc_val, exc_tb)
 
 
 class ObjectStoragePath(CloudPath):
@@ -121,7 +174,7 @@ class ObjectStoragePath(CloudPath):
     def open(self, mode="r", **kwargs):
         """Open the file pointed to by this path."""
         kwargs.setdefault("block_size", kwargs.pop("buffering", None))
-        return self.fs.open(self.path, mode=mode, **kwargs)
+        return TrackingFileWrapper(self, self.fs.open(self.path, mode=mode, **kwargs))
 
     def stat(self) -> stat_result:  # type: ignore[override]
         """Call ``stat`` and return the result."""
