@@ -851,7 +851,8 @@ def user_dag_level_access_with_ti_edit(acl_app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("example_bash_operator")),
+            (permissions.ACTION_CAN_EDIT, permissions.resource_name("example_bash_operator")),
+            # (permissions.ACTION_CAN_CREATE, permissions.resource_name("example_bash_operator", permissions.RESOURCE_DAG_RUN)),
         ],
     ) as user:
         yield user
@@ -877,6 +878,18 @@ def test_success_edit_ti_with_dag_level_access_only(client_dag_level_access_with
         past="false",
     )
     resp = client_dag_level_access_with_ti_edit.post("/success", data=form, follow_redirects=True)
+    check_content_in_response("Marked success on 1 task instances", resp)
+
+
+def test_trigger_dag_run_with_dag_level_access_only(client_dag_level_access_with_ti_edit):
+    form = dict(
+        dag_run_id=DEFAULT_RUN_ID,
+        upstream="false",
+        downstream="false",
+        future="false",
+        past="false",
+    )
+    resp = client_dag_level_access_with_ti_edit.post("/dags/example_bash_operator/dagRuns", data=form, follow_redirects=True)
     check_content_in_response("Marked success on 1 task instances", resp)
 
 

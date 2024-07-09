@@ -64,6 +64,20 @@ def configured_app(minimal_app_for_api):
     )
     create_user(
         app,  # type: ignore
+        username="test_no_dag_run_create_permission",
+        role_name="Test",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+    create_user(
+        app,  # type: ignore
         username="test_dag_view_only",
         role_name="TestViewDags",
         permissions=[
@@ -91,7 +105,10 @@ def configured_app(minimal_app_for_api):
     )
     app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_ID",
-        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+        access_control={"TestGranularDag": {
+            permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
+            permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}
+        }},
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
@@ -1330,6 +1347,16 @@ class TestPostDagRun(TestDagRunEndpoint):
         )
         assert response.status_code == 400
         assert "Invalid input for param" in response.json["detail"]
+
+    def test_raises_permission_error(self):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={"conf": {"validated_number": 5000}},  # DAG param must be between 1 and 10
+            environ_overrides={"REMOTE_USER": "test_no_dag_run_create_permission"},
+        )
+        assert response.status_code == 403
+        # assert "Invalid input for param" in response.json["detail"]
 
     @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
     def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):

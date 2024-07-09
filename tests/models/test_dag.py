@@ -2605,10 +2605,12 @@ my_postgres_conn:
         outdated_permissions = {
             "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
             "role2": {permissions.DEPRECATED_ACTION_CAN_DAG_READ, permissions.DEPRECATED_ACTION_CAN_DAG_EDIT},
+            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
         }
         updated_permissions = {
-            "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
-            "role2": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+            "role1": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+            "role2": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
         }
 
         with pytest.warns(DeprecationWarning):

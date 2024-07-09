@@ -105,7 +105,7 @@ def _clear_db_dag_and_runs():
 
 
 def _delete_dag_permissions(dag_id, security_manager):
-    dag_resource_name = permissions.resource_name_for_dag(dag_id)
+    dag_resource_name = permissions.resource_name(dag_id)
     for dag_action_name in security_manager.DAG_ACTIONS:
         security_manager.delete_permission(dag_action_name, dag_resource_name)
 
@@ -897,7 +897,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+        dag_resource_name = permissions.resource_name(dag.dag_id)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) not in all_perms
         assert ("can_edit", dag_resource_name) not in all_perms
@@ -908,13 +908,13 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     collect_dags_from_db_mock.assert_called_once_with()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+        dag_resource_name = permissions.resource_name(dag.dag_id)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
 
     security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name_for_dag("has_access_control"),
+        permissions.resource_name("has_access_control"),
         access_control,
     )
 

@@ -145,7 +145,7 @@ def user_single_dag(app):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-            (permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_FILTER_DAG_IDS[0])),
+            (permissions.ACTION_CAN_READ, permissions.resource_name(TEST_FILTER_DAG_IDS[0])),
         ],
     )
 
@@ -170,7 +170,7 @@ def user_single_dag_edit(app):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("filter_test_1")),
+            (permissions.ACTION_CAN_EDIT, permissions.resource_name("filter_test_1")),
         ],
     )
 
