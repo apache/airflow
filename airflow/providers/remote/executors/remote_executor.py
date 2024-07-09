@@ -29,6 +29,8 @@ from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    import argparse
+
     from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
@@ -117,3 +119,12 @@ class RemoteExecutor(BaseExecutor):
                 subcommands=REMOTE_COMMANDS,
             ),
         ]
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx.
+
+    :meta private:
+    """
+    return RemoteExecutor._get_parser()
