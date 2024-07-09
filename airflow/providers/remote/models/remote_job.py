@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from ast import literal_eval
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
     Column,
@@ -104,10 +104,10 @@ class RemoteJob(BaseModelPydantic, LoggingMixin):
     try_number: int
     state: TaskInstanceState
     queue: str
-    command: list[str]
+    command: List[str]  # noqa: UP006 - prevent Sphinx failing
     queued_dttm: datetime
-    remote_worker: str | None
-    last_update: datetime | None
+    remote_worker: Optional[str]  # noqa: UP007 - prevent Sphinx failing
+    last_update: Optional[datetime]  # noqa: UP007 - prevent Sphinx failing
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property

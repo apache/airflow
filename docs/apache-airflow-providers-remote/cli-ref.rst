@@ -19,6 +19,6 @@ Remote Executor Commands
 ------------------------
 
 .. argparse::
-   :module: airflow.providers.celery.executors.remote_executor
+   :module: airflow.providers.remote.executors.remote_executor
    :func: _get_parser
    :prog: airflow

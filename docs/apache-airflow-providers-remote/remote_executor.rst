@@ -20,6 +20,14 @@ Remote Executor
 
 .. note::
 
+    The Remote Provider Package is an experimental preview. Features and stability is limited
+    and needs to be improved over time. Target is to have full support in Airflow 3.
+    Once Airflow 3 support contains Remote Provider, maintenance of the Airflow 2 package will
+    be dis-continued.
+
+
+.. note::
+
     As of Airflow 2.10.0, you can install the ``remote`` provider package to use this executor.
     This can be done by installing ``apache-airflow-providers-remote`` or by installing Airflow
     with the ``remote`` extra: ``pip install 'apache-airflow[remote]'``.
@@ -35,7 +43,7 @@ Here are a few imperative requirements for your workers:
 
 - ``airflow`` needs to be installed, and the CLI needs to be in the path
 - Airflow configuration settings should be homogeneous across the cluster
-- Operators that are executed on the worker need to have their dependencies
+- Operators that are executed on the remote worker need to have their dependencies
   met in that context. Please take a look to the respective provider package
   documentations
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
@@ -70,7 +78,7 @@ is included in the provider package as install on the webserver and use the
 
 Some caveats:
 
-- Make sure to specify the Airflow backen and credentials in the remote worker configuration.
+- Make sure to specify the Airflow backend and credentials in the remote worker configuration.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
@@ -107,7 +115,7 @@ Architecture
             scheduler->database
         }
 
-        subgraph remote worker {
+        subgraph remote_worker_subgraph {
             label="Remote site";
             remote_worker[label="Remote Worker"]
             remote_dag[label="DAG files (Remote)"]
@@ -127,7 +135,7 @@ Airflow consist of several components:
 * **Database** - Contains information about the status of tasks, DAGs, Variables, connections, etc.
 
 
-.. _celery_executor:queue:
+.. _remote_executor:queue:
 
 Queues
 ------

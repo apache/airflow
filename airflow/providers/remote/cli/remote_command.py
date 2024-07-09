@@ -53,7 +53,7 @@ def worker(args):
     logger.info("Starting worker with API endpoint %s", api_url)
     InternalApiConfig.force_api_access(api_url)
 
-    hostname: str = args.remote_hostname
+    hostname: str = args.remote_hostname or _hostname()
     queues = args.queues.split(",") if args.queues else None
     concurrency: int = args.concurrency
     jobs: list[RemoteJob] = []
@@ -132,7 +132,6 @@ ARG_QUEUES = Arg(
 ARG_REMOTE_HOSTNAME = Arg(
     ("-H", "--remote-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
-    default=_hostname(),
 )
 REMOTE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
