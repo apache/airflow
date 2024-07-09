@@ -776,8 +776,8 @@ def get_task_instance_try_details(
             orm_object.run_id == dag_run_id,
             orm_object.task_id == task_id,
             orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
         )
-        query = query.where(orm_object.map_index == map_index)
 
         query = (
             query.join(orm_object.dag_run)
