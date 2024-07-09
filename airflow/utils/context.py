@@ -40,7 +40,7 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent, coerce_to_uri
+from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent, extract_event_key
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
@@ -212,12 +212,10 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
         return len(self._dict)
 
     def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
-        dict_key = key.name if isinstance(key, DatasetAlias) else coerce_to_uri(key)
-
-        if dict_key not in self._dict:
-            self._dict[dict_key] = OutletEventAccessor(extra={}, raw_key=key)
-
-        return self._dict[dict_key]
+        event_key = extract_event_key(key)
+        if event_key not in self._dict:
+            self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
+        return self._dict[event_key]
 
 
 class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
@@ -265,7 +263,7 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
             if not isinstance(dataset, Dataset):
                 raise IndexError(key)
         else:
-            dataset = self._datasets[coerce_to_uri(key)]
+            dataset = self._datasets[extract_event_key(key)]
         return LazyDatasetEventSelectSequence.from_select(
             select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri == dataset.uri),
             order_by=[DatasetEvent.timestamp],

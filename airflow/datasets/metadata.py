@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 
-from airflow.datasets import DatasetAlias, coerce_to_uri
+from airflow.datasets import DatasetAlias, extract_event_key
 
 if TYPE_CHECKING:
     from airflow.datasets import Dataset
@@ -41,7 +41,7 @@ class Metadata:
         extra: dict[str, Any],
         aliases: DatasetAlias | str | list[DatasetAlias | str] | None = None,
     ) -> None:
-        self.uri = coerce_to_uri(target)
+        self.uri = extract_event_key(target)
         self.extra = extra
 
         if aliases is None:

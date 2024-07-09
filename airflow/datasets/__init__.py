@@ -108,16 +108,20 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
-def coerce_to_uri(value: str | Dataset) -> str:
+def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     """
-    Coerce a user input into a sanitized URI.
+    Extract the key of an inlet or an outlet event.
 
     If the input value is a string, it is treated as a URI and sanitized. If the
     input is a :class:`Dataset`, the URI it contains is considered sanitized and
-    returned directly.
+    returned directly. If the input is a :class:`DatasetAlias`, the name it contains
+    will be returned directly.
 
     :meta private:
     """
+    if isinstance(value, DatasetAlias):
+        return value.name
+
     if isinstance(value, Dataset):
         return value.uri
     return _sanitize_uri(str(value))
