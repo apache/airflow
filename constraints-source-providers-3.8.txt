@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-09T11:05:37.294878
+# This constraints file was automatically generated on 2024-07-09T17:04:27.965235
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -341,7 +341,7 @@ mergedeep==1.3.4
 methodtools==0.4.7
 microsoft-kiota-abstractions==1.3.3
 microsoft-kiota-authentication-azure==1.0.0
-microsoft-kiota-http==1.3.1
+microsoft-kiota-http==1.3.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.3.0
@@ -372,7 +372,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.35.10
+openai==1.35.11
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.17.1
@@ -529,7 +529,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.11.0
-snowflake-sqlalchemy==1.5.3
+snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.5
 sphinx-airflow-theme==0.0.12
