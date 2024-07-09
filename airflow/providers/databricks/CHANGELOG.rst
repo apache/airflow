@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make Databricks operators' json parameter compatible with XComs, Jinja expression values (#40471)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug/fix support azure managed identities in Databricks operator (#40332)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 6.6.0
 .....
 

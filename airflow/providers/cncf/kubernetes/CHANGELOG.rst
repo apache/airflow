@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+8.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Solve failing KPO task with task decorator and imported typing elements (#40642)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 8.3.2
 .....
 
