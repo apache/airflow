@@ -1688,6 +1688,9 @@ webserver:
             When using ``gevent`` you might also want to set the ``_AIRFLOW_PATCH_GEVENT``
             environment variable to ``"1"`` to make sure gevent patching is done as early as possible.
 
+            Be careful to set ``_AIRFLOW_PATCH_GEVENT`` only on webserver as gevent patching may
+            affect the scheduler behavior via the ``multiprocessing`` sockets module.
+
             See related Issues / PRs for more details:
 
             * https://github.com/benoitc/gunicorn/issues/2796
