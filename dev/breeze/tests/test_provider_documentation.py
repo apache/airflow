@@ -236,11 +236,12 @@ def generate_short_hash():
 
 @pytest.mark.parametrize(
     "descriptions, with_breaking_changes, maybe_with_new_features,"
-    "breaking_count, feature_count, bugfix_count, other_count, type_of_change",
+    "breaking_count, feature_count, bugfix_count, other_count, misc_count, type_of_change",
     [
-        (["Added feature x"], True, True, 0, 1, 0, 0, [TypeOfChange.FEATURE]),
-        (["Added feature x"], False, True, 0, 1, 0, 0, [TypeOfChange.FEATURE]),
-        (["Breaking change in"], True, True, 1, 0, 0, 0, [TypeOfChange.BREAKING_CHANGE]),
+        (["Added feature x"], True, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
+        (["Added feature x"], False, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
+        (["Breaking change in"], True, True, 1, 0, 0, 0, 0, [TypeOfChange.BREAKING_CHANGE]),
+        (["Misc change in"], False, False, 0, 0, 0, 0, 1, [TypeOfChange.MISC]),
         (
             ["Fix change in", "Breaking feature y"],
             True,
@@ -248,6 +249,7 @@ def generate_short_hash():
             1,
             0,
             1,
+            0,
             0,
             [TypeOfChange.BUGFIX, TypeOfChange.BREAKING_CHANGE],
         ),
@@ -261,6 +263,7 @@ def test_classify_changes_automatically(
     feature_count: int,
     bugfix_count: int,
     other_count: int,
+    misc_count: int,
     type_of_change: TypeOfChange,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import SHORT_HASH_TO_TYPE_DICT
@@ -283,3 +286,5 @@ def test_classify_changes_automatically(
     assert len(classified_changes.features) == feature_count
     assert len(classified_changes.fixes) == bugfix_count
     assert len(classified_changes.other) == other_count
+    assert len(classified_changes.other) == other_count
+    assert len(classified_changes.misc) == misc_count
