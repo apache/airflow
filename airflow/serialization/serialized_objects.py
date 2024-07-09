@@ -263,33 +263,15 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
-    if isinstance(raw_key, Dataset):
-        serialized_raw_key = {"__type": DAT.DATASET, "uri": raw_key.uri, "extra": raw_key.extra}
-    elif isinstance(raw_key, DatasetAlias):
-        serialized_raw_key = {"__type": DAT.DATASET_ALIAS, "name": raw_key.name}
-    elif isinstance(raw_key, str):
-        serialized_raw_key = {"__type": "str", "value": raw_key}
-    else:
-        raise ValueError(f"serialization not implemented for {raw_key}")
     return {
         "extra": var.extra,
         "dataset_alias_event": var.dataset_alias_event,
-        "raw_key": serialized_raw_key,
+        "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
-    raw_key = var["raw_key"]
-    raw_key_type = raw_key["__type"]
-    if raw_key_type == "str":
-        raw_key = raw_key["value"]
-    elif raw_key_type == DAT.DATASET:
-        raw_key = Dataset(uri=raw_key["uri"], extra=raw_key["extra"])
-    elif raw_key_type == DAT.DATASET_ALIAS:
-        raw_key = DatasetAlias(name=raw_key["name"])
-    else:
-        raise ValueError(f"deserialization not implemented for {raw_key}")
-
+    raw_key = BaseSerialization.deserialize(var["raw_key"])
     outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=raw_key)
     outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
     return outlet_event_accessor
