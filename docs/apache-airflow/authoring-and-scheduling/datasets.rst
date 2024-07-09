@@ -382,6 +382,42 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
     ):
         ...
 
+
+Dynamic data events emitting through DatasetAlias
+---------------------------------------------------------------
+A dataset alias can be used to emit dataset events of datasets with association to the aliases. Downstreams can depend on resolved dataset. This feature allows you to define complex dependencies for DAG executions based on dataset updates.
+
+How to use DatasetAlias
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``DatasetAlias`` has one single argument ``name`` that uniquely identifies the dataset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
+
+The following example create a dataset event against the S3 URI ``f"s3://bucket/my-task/{ds}"`` normally with extra information ``extra``.
+
+**Emit a dataset event during task execution through outlet_events**
+
+.. code-block:: python
+
+    from airflow.datasets import DatasetAlias
+
+
+    @task(outlets=[DatasetAlias("my-task-outputs")])
+    def my_task_with_outlet_events(*, ds, outlet_events):
+        outlet_events["my-task-outputs"].add(Dataset(f"s3://bucket/my-task/{ds}"), extra={"k": "v"})
+
+
+**Emit a dataset event during task execution through yielding Metadata**
+
+.. code-block:: python
+
+    from airflow.datasets.metadata import Metadata
+
+
+    @task(outlets=[DatasetAlias("my-task-outputs")])
+    def my_task_with_metadata(*, ds):
+        s3_dataset = Dataset(f"s3://bucket/my-task/{ds}")
+        yield Metadata(s3_dataset, extra={"k": "v"}, aliases="my-task-outputs")
+
 Combining dataset and time-based schedules
 ------------------------------------------
 
