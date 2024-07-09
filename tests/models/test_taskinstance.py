@@ -2496,7 +2496,7 @@ class TestTaskInstance:
                 yield Metadata(
                     "test_outlet_dataset_alias_through_metadata_ds",
                     extra={"key": "value"},
-                    alias="test_outlet_dataset_alias_through_metadata_dsa",
+                    aliases="test_outlet_dataset_alias_through_metadata_dsa",
                 )
 
             producer()

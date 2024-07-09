@@ -33,18 +33,20 @@ class Metadata:
 
     uri: str
     extra: dict[str, Any]
-    alias: list[DatasetAlias | str] | None
+    aliases: list[DatasetAlias | str]
 
     def __init__(
         self,
         target: str | Dataset,
         extra: dict[str, Any],
-        alias: DatasetAlias | str | list[DatasetAlias | str] | None = None,
+        aliases: DatasetAlias | str | list[DatasetAlias | str] | None = None,
     ) -> None:
         self.uri = coerce_to_uri(target)
         self.extra = extra
 
-        if isinstance(alias, (DatasetAlias, str)):
-            self.alias = [alias]
+        if aliases is None:
+            self.aliases = []
+        elif isinstance(aliases, (DatasetAlias, str)):
+            self.aliases = [aliases]
         else:
-            self.alias = alias
+            self.aliases = aliases
