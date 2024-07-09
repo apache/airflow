@@ -3962,7 +3962,7 @@ class TestSchedulerJob:
 
         def dict_from_obj(obj):
             """Get dict of column attrs from SqlAlchemy object."""
-            return {k.key: getattr(obj, k) for k in obj.__mapper__.column_attrs}
+            return {k.key: obj.__dict__.get(k) for k in obj.__mapper__.column_attrs}
 
         # dag should be triggered since it only depends on dataset1, it's been queued and dataset events landed after DAG was created.
         created_run = session.query(DagRun).filter(DagRun.dag_id == consumer_dag.dag_id).one()
