@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.7.0
+.....
+
+Latest change: 2024-07-02
+
+=================================================================================================  ===========  =====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================================
+`4fb2140f39 <https://github.com/apache/airflow/commit/4fb2140f393b6332903fb833151c2ce8a9c66fe2>`_  2024-07-02   ``Make Databricks operators' json parameter compatible with XComs, Jinja expression values (#40471)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+`de5c751cff <https://github.com/apache/airflow/commit/de5c751cff70e1651431d5f6535ab9669cd928aa>`_  2024-06-22   ``Bug/fix support azure managed identities in Databricks operator (#40332)``
+=================================================================================================  ===========  =====================================================================================================
+
 6.6.0
 .....
 
-Latest change: 2024-06-17
+Latest change: 2024-06-22
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
 `a1f9b7de28 <https://github.com/apache/airflow/commit/a1f9b7de28a75d1a401bb0053e7b9b703ea88fbb>`_  2024-06-14   ``Databricks: stop including user names in 'list_jobs' (#40178)``
 `68bd42a7ff <https://github.com/apache/airflow/commit/68bd42a7ffc3d2828b1ac4102e65944429d34012>`_  2024-06-04   ``Add DatabricksTaskOperator (#40013)``
