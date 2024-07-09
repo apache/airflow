@@ -38,6 +38,9 @@ Changelog
   Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
   S3KeyTrigger avoids loading all positive matches into memory in some circumstances
 
+.. note::
+  This release contains significant resources utilization improvements for async sessions
+
 Features
 ~~~~~~~~
 
@@ -56,6 +59,7 @@ Misc
 
 * ``Use base aws classes in AWS Glue Data Catalog Sensors (#40492)``
 * ``Use base aws classes in AWS Glue Crawlers Operators/Sensors/Triggers (#40504)``
+* ``Share data loader to across asyncio boto sessions (#40658)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

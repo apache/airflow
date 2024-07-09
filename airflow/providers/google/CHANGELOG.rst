@@ -43,6 +43,7 @@ Features
 * ``DataflowStartFlexTemplateOperator. Check for Dataflow job type each check cycle. (#40584)``
 * ``Added chunk_size parameter to LocalFilesystemToGCSOperator (#40379)``
 * ``Add support for query parameters to BigQueryCheckOperator (#40558)``
+* ``Add link button to dataproc job in DataprocCreateBatchOperator (#40643)``
 
 Bug Fixes
 ~~~~~~~~~

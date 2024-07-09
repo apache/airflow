@@ -30,6 +30,11 @@ Changelog
 3.12.2
 ......
 
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerOperator TaskFlow - correct argyments in python command (#39620)``
+
 Misc
 ~~~~
 

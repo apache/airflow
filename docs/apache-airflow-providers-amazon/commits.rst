@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.26.0
 ......
 
-Latest change: 2024-07-06
+Latest change: 2024-07-08
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`d2b61976a4 <https://github.com/apache/airflow/commit/d2b61976a4f8f73286906e2a6884d836a11fe4fb>`_  2024-07-08   ``Share data loader to across asyncio boto sessions (#40658)``
 `c72920af3b <https://github.com/apache/airflow/commit/c72920af3be5f0590c832d23633acbf4765e9eb3>`_  2024-07-06   ``Do not dynamically determine op links for emr serverless (#40627)``
 `b7d0bf9800 <https://github.com/apache/airflow/commit/b7d0bf9800974e2029a777e20417e3498e665503>`_  2024-07-04   ``fix OpenLineage extraction for AthenaOperator (#40545)``
 `8e04ef088f <https://github.com/apache/airflow/commit/8e04ef088fd2c817800f53b69bff1ac0680ac8b5>`_  2024-07-02   ``Be able to remove ACL in S3 hook's copy_object (#40518)``

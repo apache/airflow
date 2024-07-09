@@ -45,11 +45,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.21.0
 .......
 
-Latest change: 2024-07-07
+Latest change: 2024-07-08
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`f12714d0c7 <https://github.com/apache/airflow/commit/f12714d0c7d0f6a8a5d7b6b6910c23dce4d8c71a>`_  2024-07-08   ``Update dataproc.py (#40643)``
 `be271827e0 <https://github.com/apache/airflow/commit/be271827e04d91ef65fbf51eb2d2f105482177db>`_  2024-07-07   ``Resolve google deprecations in tests (#40629)``
 `9c9706730c <https://github.com/apache/airflow/commit/9c9706730c06c1f4eecd5e72efa5cac1a8d95d83>`_  2024-07-04   ``Update Google Cloud Generative Model Hooks/Operators to bring parity with Vertex AI API (#40484)``
 `93488d09f9 <https://github.com/apache/airflow/commit/93488d09f9754d7652824f2fe43743d6f9cd4b08>`_  2024-07-04   ``DataflowStartFlexTemplateOperator. Check for Dataflow job type each check cycle. (#40584)``
