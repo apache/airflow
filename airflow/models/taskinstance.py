@@ -2909,6 +2909,7 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task
 
+        uri_to_extras_and_aliases_mapping: dict[str, list[tuple[dict[str, Any], str]]] = defaultdict(list)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
@@ -2925,20 +2926,23 @@ class TaskInstance(Base, LoggingMixin):
                 if dataset_alias_event:
                     dataset_uri = dataset_alias_event["dest_dataset_uri"]
                     extra = events[obj].extra
-
-                    dataset_obj = session.scalar(
-                        select(DatasetModel).where(DatasetModel.uri == dataset_uri).limit(1)
+                    uri_to_extras_and_aliases_mapping[dataset_uri].append(
+                        (extra, dataset_alias_event["source_alias_name"])
                     )
-                    if not dataset_obj:
-                        dataset_obj = DatasetModel(uri=dataset_uri, extra=extra)
-                        dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
 
-                    dataset_manager.register_dataset_change(
-                        task_instance=self,
-                        dataset=dataset_obj,
-                        extra=extra,
-                        session=session,
-                    )
+        for uri, extras_and_aliases in uri_to_extras_and_aliases_mapping.items():
+            dataset_extra = {}
+            for extra, _ in extras_and_aliases:
+                dataset_extra.update(extra)
+
+            dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
+            if dataset_obj:
+                dataset_manager.register_dataset_change(
+                    task_instance=self,
+                    dataset=dataset_obj,
+                    extra=dataset_extra,
+                    session=session,
+                )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
