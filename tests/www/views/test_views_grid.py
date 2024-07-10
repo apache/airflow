@@ -34,14 +34,13 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
-from airflow.utils.session import create_session
-from airflow.www.views import _safe_parse_datetime, dag_to_grid, get_date_time_num_runs_dag_runs_form_data
+from airflow.www.views import dag_to_grid
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
-   
+
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 

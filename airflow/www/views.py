@@ -272,7 +272,6 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 
     default_dag_run = conf.getint("webserver", "default_dag_run_display_number")
     num_runs = www_request.args.get("num_runs", default=default_dag_run, type=int)
-        
 
     # When base_date has been rounded up because of the DateTimeField widget, we want
     # to use the execution_date as the starting point for our query just to ensure a

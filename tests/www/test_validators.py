@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 from unittest import mock
+
 import pytest
 
 from airflow.www import validators
 
-    
+
 class TestGreaterEqualThan:
     def setup_method(self):
         self.form_field_mock = mock.MagicMock(data="2017-05-06")
@@ -119,6 +120,7 @@ class TestValidJson:
                 message="Invalid JSON: {}",
             )
 
+
 class TestValidKey:
     def setup_method(self):
         self.form_field_mock = mock.MagicMock(data="valid_key")
@@ -163,4 +165,3 @@ class TestReadOnly:
         validator = validators.ReadOnly()
         assert validator(self.form_mock, self.form_read_only_field_mock) is None
         assert self.form_read_only_field_mock.flags.readonly is True
-        
