@@ -1008,7 +1008,7 @@
     "deps": [
       "apache-airflow-providers-postgres>=5.7.1",
       "apache-airflow>=2.7.0",
-      "pgvector>=0.2.3,<=0.2.5"
+      "pgvector!=0.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
