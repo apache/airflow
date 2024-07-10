@@ -862,8 +862,8 @@ class DAG(LoggingMixin):
         updated_access_control = {}
         for role, perms in access_control.items():
             updated_access_control[role] = updated_access_control.get(role, {})
-            if isinstance(perms, set):
-                updated_access_control[role][permissions.RESOURCE_DAG] = perms
+            if isinstance(perms, (set, list)):
+                updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
             else:
                 updated_access_control[role] = perms
             if permissions.RESOURCE_DAG in updated_access_control[role]:

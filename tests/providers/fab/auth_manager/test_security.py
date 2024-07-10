@@ -23,7 +23,7 @@ import json
 import logging
 import os
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import patch, call
 
 import pytest
 import time_machine
@@ -881,7 +881,7 @@ def test_correct_roles_have_perms_to_read_config(security_manager):
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
-    access_control = {"Public": {permissions.ACTION_CAN_READ}}
+    access_control = {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
 
     collect_dags_from_db_mock = mock.Mock()
     dagbag_mock = mock.Mock()
@@ -913,9 +913,13 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
 
-    security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name("has_access_control"),
-        access_control,
+    security_manager._sync_dag_view_permissions.assert_has_calls(
+        (call(permissions.resource_name("has_access_control"),
+             access_control,
+             permissions.RESOURCE_DAG),
+        call(permissions.resource_name("has_access_control"),
+             access_control,
+             permissions.RESOURCE_DAG_RUN))
     )
 
     del dagbag_mock.dags["has_access_control"]
@@ -1123,6 +1127,7 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     create_user(app, "TeSt")
     assert security_manager.find_user("Test")
     users = security_manager.get_all_users()
+    print(users)
     assert len(users) == 1
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text

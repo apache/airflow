@@ -91,6 +91,6 @@ def resource_name(root_dag_id: str, resource: str = RESOURCE_DAG) -> str:
     """
     if root_dag_id in ACTIONS_BY_RESOURCE.keys():
         return root_dag_id
-    if root_dag_id.startswith(ACTIONS_BY_RESOURCE[resource]['prefix']):
+    if root_dag_id.startswith(tuple(RESOURCE_BY_PREFIX.keys())):
         return root_dag_id
     return f"{ACTIONS_BY_RESOURCE[resource]['prefix']}{root_dag_id}"

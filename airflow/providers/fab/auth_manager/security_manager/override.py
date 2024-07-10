@@ -1066,7 +1066,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, set[str]]] | None = None,
+        access_control: dict[str, dict[str, Collection[str]] | Collection[str]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1095,13 +1095,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     dag_resource_name,
                 )
 
-    def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, dict[str, set[str]]], resource_name: str) -> None:
+    def _sync_dag_view_permissions(self, dag_id: str,
+                                   access_control: dict[str, dict[str, Collection[str]] | Collection[str]],
+                                   resource_name: str = permissions.RESOURCE_DAG) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :param access_control: a dict where each key is a role name and
             each value is a set() of action names (e.g. {'can_read'})
+            or the value can be a dict where each key is a resource name and
+            each value is a set() of action names (e.g., {'DAG Runs': {'can_read'}})
         """
         dag_resource_name = permissions.resource_name(dag_id, resource_name)
 
@@ -1139,6 +1143,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"The access_control mapping for DAG '{dag_id}' includes a role named "
                     f"'{rolename}', but that role does not exist"
                 )
+
+            if isinstance(action_values, (set, list)):
+                action_values = {
+                    permissions.RESOURCE_DAG: set(action_values)
+                }
 
             for resource, actions in action_values.items():
                 if resource != resource_name:
