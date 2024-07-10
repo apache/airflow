@@ -70,6 +70,19 @@ if TYPE_CHECKING:
 
     from airflow.models.connection import Connection  # Avoid circular imports.
 
+_loader = botocore.loaders.Loader()
+"""
+botocore data loader to be used with async sessions
+
+By default, a botocore session creates and caches an instance of JSONDecoder which
+consumes a lot of memory.  This issue was reported here https://github.com/boto/botocore/issues/3078.
+In the context of triggers which use boto sessions, this can result in excessive
+memory usage and as a result reduced capacity on the triggerer.  We can reduce
+memory footprint by sharing the loader instance across the sessions.
+
+:meta private:
+"""
+
 
 class BaseSessionFactory(LoggingMixin):
     """
@@ -155,7 +168,9 @@ class BaseSessionFactory(LoggingMixin):
     def get_async_session(self):
         from aiobotocore.session import get_session as async_get_session
 
-        return async_get_session()
+        session = async_get_session()
+        session.register_component("data_loader", _loader)
+        return session
 
     def create_session(
         self, deferrable: bool = False

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import fnmatch
+import inspect
 import os
 import re
 from datetime import datetime, timedelta
@@ -57,13 +58,13 @@ class S3KeySensor(BaseSensorOperator):
         refers to this bucket
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
-    :param check_fn: Function that receives the list of the S3 objects,
+    :param check_fn: Function that receives the list of the S3 objects with the context values,
         and returns a boolean:
         - ``True``: the criteria is met
         - ``False``: the criteria isn't met
         **Example**: Wait for any S3 object size more than 1 megabyte  ::
 
-            def check_fn(files: List) -> bool:
+            def check_fn(files: List, **kwargs) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in files)
     :param aws_conn_id: a reference to the s3 connection
     :param verify: Whether to verify SSL certificates for S3 connection.
@@ -112,7 +113,7 @@ class S3KeySensor(BaseSensorOperator):
         self.use_regex = use_regex
         self.metadata_keys = metadata_keys if metadata_keys else ["Size"]
 
-    def _check_key(self, key):
+    def _check_key(self, key, context: Context):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
         self.log.info("Poking for key : s3://%s/%s", bucket_name, key)
 
@@ -167,15 +168,20 @@ class S3KeySensor(BaseSensorOperator):
             files = [metadata]
 
         if self.check_fn is not None:
+            # For backwards compatibility, check if the function takes a context argument
+            signature = inspect.signature(self.check_fn)
+            if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
+                return self.check_fn(files, **context)
+            # Otherwise, just pass the files
             return self.check_fn(files)
 
         return True
 
     def poke(self, context: Context):
         if isinstance(self.bucket_key, str):
-            return self._check_key(self.bucket_key)
+            return self._check_key(self.bucket_key, context=context)
         else:
-            return all(self._check_key(key) for key in self.bucket_key)
+            return all(self._check_key(key, context=context) for key in self.bucket_key)
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""

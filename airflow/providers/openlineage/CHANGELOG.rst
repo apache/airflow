@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+1.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix openlineage parsing dag tree with MappedOperator (#40621)``
+
 1.9.0
 .....
 

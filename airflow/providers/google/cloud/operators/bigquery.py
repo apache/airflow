@@ -222,6 +222,12 @@ class BigQueryCheckOperator(
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: (Deferrable mode only) polling period in seconds to
         check for the status of job.
+    :param query_params: a list of dictionary containing query parameter types and
+        values, passed to BigQuery. The structure of dictionary should look like
+        'queryParameters' in Google BigQuery Jobs API:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
+        For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
+        'parameterValue': { 'value': 'romeoandjuliet' } }]. (templated)
     """
 
     template_fields: Sequence[str] = (
@@ -229,6 +235,7 @@ class BigQueryCheckOperator(
         "gcp_conn_id",
         "impersonation_chain",
         "labels",
+        "query_params",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -246,6 +253,7 @@ class BigQueryCheckOperator(
         encryption_configuration: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
+        query_params: list | None = None,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
@@ -257,6 +265,7 @@ class BigQueryCheckOperator(
         self.encryption_configuration = encryption_configuration
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.query_params = query_params
 
     def _submit_job(
         self,
@@ -265,6 +274,8 @@ class BigQueryCheckOperator(
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
         configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
+        if self.query_params:
+            configuration["query"]["queryParameters"] = self.query_params
 
         self.include_encryption_configuration(configuration, "query")
 
@@ -2944,6 +2955,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
 
         try:
             self.log.info("Executing: %s'", self.configuration)
+            # Create a job
             job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
         except Conflict:
             # If the job already exists retrieve it
@@ -2952,17 +2964,23 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 location=self.location,
                 job_id=self.job_id,
             )
-            if job.state in self.reattach_states:
-                # We are reattaching to a job
-                job._begin()
-                self._handle_job_error(job)
-            else:
-                # Same job configuration so we need force_rerun
+
+            if job.state not in self.reattach_states:
+                # Same job configuration, so we need force_rerun
                 raise AirflowException(
                     f"Job with id: {self.job_id} already exists and is in {job.state} state. If you "
                     f"want to force rerun it consider setting `force_rerun=True`."
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
+
+            else:
+                # Job already reached state DONE
+                if job.state == "DONE":
+                    raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+
+                # We are reattaching to a job
+                self.log.info("Reattaching to existing Job in state %s", job.state)
+                self._handle_job_error(job)
 
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],

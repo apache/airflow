@@ -24,7 +24,7 @@ from unittest.mock import ANY, MagicMock
 
 import pandas as pd
 import pytest
-from google.cloud.bigquery import DEFAULT_RETRY
+from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
 from google.cloud.exceptions import Conflict
 from openlineage.client.facet import ErrorMessageRunFacet, ExternalQueryRunFacet, SqlJobFacet
 from openlineage.client.run import Dataset
@@ -1395,7 +1395,7 @@ class TestBigQueryInsertJobOperator:
         job = MagicMock(
             job_id=real_job_id,
             error_result=False,
-            state="PENDING",
+            state="RUNNING",
             done=lambda: False,
         )
         mock_hook.return_value.get_job.return_value = job
@@ -1407,7 +1407,7 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID,
-            reattach_states={"PENDING"},
+            reattach_states={"PENDING", "RUNNING"},
         )
         result = op.execute(context=MagicMock())
 
@@ -1423,6 +1423,41 @@ class TestBigQueryInsertJobOperator:
         )
 
         assert result == real_job_id
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_reattach_to_done_state(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        mock_hook.return_value.insert_job.side_effect = Conflict("any")
+        job = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+            state="DONE",
+            done=lambda: False,
+        )
+        mock_hook.return_value.get_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            reattach_states={"PENDING"},
+        )
+        with pytest.raises(AirflowException):
+            # Not possible to reattach to any state if job is already DONE
+            op.execute(context=MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_force_rerun(self, mock_hook):
@@ -2291,6 +2326,35 @@ class TestBigQueryCheckOperator:
 
         ti.task.execute(MagicMock())
         mock_defer.assert_not_called()
+        mock_validate_records.assert_called_once_with((1, 2, 3))
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator._validate_records")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_bigquery_check_operator_query_parameters_passing(
+        self, mock_hook, mock_validate_records, create_task_instance_of_operator
+    ):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        query_params = [ScalarQueryParameter("test_param", "INT64", 1)]
+
+        mocked_job = MagicMock(job_id=real_job_id, error_result=False)
+        mocked_job.result.return_value = iter([(1, 2, 3)])  # mock rows generator
+        mock_hook.return_value.insert_job.return_value = mocked_job
+        mock_hook.return_value.insert_job.return_value.running.return_value = False
+
+        ti = create_task_instance_of_operator(
+            BigQueryCheckOperator,
+            dag_id="dag_id",
+            task_id="bq_check_operator_query_params_job",
+            sql="SELECT * FROM any WHERE test_param = @test_param",
+            location=TEST_DATASET_LOCATION,
+            deferrable=True,
+            query_params=query_params,
+        )
+
+        ti.task.execute(MagicMock())
         mock_validate_records.assert_called_once_with((1, 2, 3))
 
     @pytest.mark.db_test
