@@ -1199,6 +1199,7 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
 
     def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
         decision = dr.task_instance_scheduling_decisions(session=session)
+        session.query(TaskInstance).update({"blocked_by_upstream": False})
         return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
 
     # Initial decision.

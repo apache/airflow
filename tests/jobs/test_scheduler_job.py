@@ -4432,6 +4432,7 @@ class TestSchedulerJob:
         session.refresh(run2)
         assert run2.state == State.RUNNING
         self.job_runner._schedule_dag_run(run2, session)
+        session.flush()
         run2_ti = run2.get_task_instance(task1.task_id, session)
         assert run2_ti.state == State.SCHEDULED
 
@@ -5459,9 +5460,9 @@ class TestSchedulerJob:
 
         # Schedule TaskInstances
         self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
         with create_session() as session:
             tis = session.query(TaskInstance).all()
-
         dags = self.job_runner.dagbag.dags.values()
         assert ["test_only_empty_tasks"] == [dag.dag_id for dag in dags]
         assert 6 == len(tis)
@@ -5484,11 +5485,11 @@ class TestSchedulerJob:
                 assert start_date is None
                 assert end_date is None
                 assert duration is None
-
+        session.query(TaskInstance).update({TaskInstance.blocked_by_upstream: False})
         self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
         with create_session() as session:
             tis = session.query(TaskInstance).all()
-
         assert 6 == len(tis)
         assert {
             ("test_task_a", "success"),

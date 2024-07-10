@@ -1092,6 +1092,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
         "run_after_loop": {
             "custom_operator_name": None,
@@ -1127,6 +1128,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
         "run_this_last": {
             "custom_operator_name": None,
@@ -1162,6 +1164,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
         "runme_0": {
             "custom_operator_name": None,
@@ -1197,6 +1200,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
         "runme_1": {
             "custom_operator_name": None,
@@ -1232,6 +1236,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
         "runme_2": {
             "custom_operator_name": None,
@@ -1267,6 +1272,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
         "this_will_skip": {
             "custom_operator_name": None,
@@ -1302,5 +1308,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "blocked_by_upstream": False,
         },
     }
