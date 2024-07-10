@@ -462,7 +462,3 @@ class DeserializingResultError(ValueError):
 
 class UnknownExecutorException(ValueError):
     """Raised when an attempt is made to load an executor which is not configured."""
-
-
-class DestDatasetNotFound(AirflowNotFoundException):
-    """Raised when a Dataset to be aliased by a DatasetAlias does not exists."""

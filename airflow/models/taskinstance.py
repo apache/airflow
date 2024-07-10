@@ -82,7 +82,6 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunNotFound,
-    DestDatasetNotFound,
     RemovedInAirflow3Warning,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -2937,15 +2936,17 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_extra.update(extra)
 
             dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
-            if dataset_obj:
-                dataset_manager.register_dataset_change(
-                    task_instance=self,
-                    dataset=dataset_obj,
-                    extra=dataset_extra,
-                    session=session,
-                )
-            else:
-                raise DestDatasetNotFound(f"Dataset(uri={uri}) does not exists")
+            if not dataset_obj:
+                dataset_obj = DatasetModel(uri=uri, extra=dataset_extra)
+                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
+                self.log.warning('Created a new Dataset(uri="%s") as it did not exists.', uri)
+
+            dataset_manager.register_dataset_change(
+                task_instance=self,
+                dataset=dataset_obj,
+                extra=dataset_extra,
+                session=session,
+            )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""

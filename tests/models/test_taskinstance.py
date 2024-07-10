@@ -47,7 +47,6 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
-    DestDatasetNotFound,
     RemovedInAirflow3Warning,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -2572,7 +2571,9 @@ class TestTaskInstance:
 
             @task(outlets=DatasetAlias("test_outlet_dataset_alias_dataset_not_exists_dsa"))
             def producer(*, outlet_events):
-                outlet_events["test_outlet_dataset_alias_dataset_not_exists_dsa"].add(Dataset("not_exists"))
+                outlet_events["test_outlet_dataset_alias_dataset_not_exists_dsa"].add(
+                    Dataset("did_not_exists"), extra={"key": "value"}
+                )
 
             producer()
 
@@ -2580,9 +2581,18 @@ class TestTaskInstance:
 
         for ti in dr.get_task_instances(session=session):
             ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
 
-            with pytest.raises(DestDatasetNotFound, match='Dataset(uri="not_exists") does not exists'):
-                ti.run(session=session)
+        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
+            "producer"
+        ]
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == "did_not_exists"
+        assert producer_event.extra == {"key": "value"}
 
     def test_inlet_dataset_extra(self, dag_maker, session):
         from airflow.datasets import Dataset
