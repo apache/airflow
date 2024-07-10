@@ -21,9 +21,10 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
+    branches: ['main', 'teradata_release*']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'teradata_release*']
+  workflow_dispatch:
 permissions:
   # All other permissions are set to none
   contents: read
