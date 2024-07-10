@@ -43,7 +43,9 @@ integrations:
 dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-postgres>=5.7.1
-  - pgvector>=0.2.3
+  # setting !=0.3.0 version due to https://github.com/pgvector/pgvector-python/issues/79
+  # observed in 0.3.0.
+  - pgvector!=0.3.0
 
 hooks:
   - integration-name: pgvector
