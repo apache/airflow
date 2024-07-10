@@ -137,7 +137,9 @@ def test_should_list_providers_on_page_with_details(admin_client):
     resp = admin_client.get("/provider")
     beam_href = '<a href="https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/'
     beam_text = "apache-airflow-providers-apache-beam</a>"
-    beam_description = '<a href="https://beam.apache.org/">Apache Beam</a>'
+    beam_description = (
+        '<a href="https://beam.apache.org/" target="_blank" rel="noopener noreferrer">Apache Beam</a>'
+    )
     check_content_in_response(beam_href, resp)
     check_content_in_response(beam_text, resp)
     check_content_in_response(beam_description, resp)
@@ -147,20 +149,23 @@ def test_should_list_providers_on_page_with_details(admin_client):
 @pytest.mark.parametrize(
     "provider_description, expected",
     [
-        ("`Airbyte <https://airbyte.com/>`__", Markup('<a href="https://airbyte.com/">Airbyte</a>')),
+        (
+            "`Airbyte <https://airbyte.com/>`__",
+            Markup('<a href="https://airbyte.com/" target="_blank" rel="noopener noreferrer">Airbyte</a>'),
+        ),
         (
             "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).",
             Markup(
-                'Amazon integration (including <a href="https://aws.amazon.com/">Amazon Web Services ('
-                "AWS)</a>)."
+                'Amazon integration (including <a href="https://aws.amazon.com/" '
+                'target="_blank" rel="noopener noreferrer">Amazon Web Services (AWS)</a>).'
             ),
         ),
         (
             "`Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc"
             "/>`__",
             Markup(
-                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/">Java '
-                "Database Connectivity (JDBC)</a>"
+                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/" '
+                'target="_blank" rel="noopener noreferrer">Java Database Connectivity (JDBC)</a>'
             ),
         ),
         (

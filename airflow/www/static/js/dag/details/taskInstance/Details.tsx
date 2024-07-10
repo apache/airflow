@@ -33,6 +33,7 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import TrySelector from "./TrySelector";
 
 interface Props {
@@ -319,7 +320,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
           <Text as="strong" mb={3}>
             Rendered Templates
           </Text>
-          <Table>
+          <Table variant="striped">
             <Tbody>
               {Object.keys(instance.renderedFields).map((key) => {
                 const renderedFields = instance.renderedFields as Record<
@@ -339,7 +340,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-                        <Code fontSize="md">{field as string}</Code>
+                        <RenderedJsonField content={field as string} />
                       </Td>
                     </Tr>
                   );

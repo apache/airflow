@@ -435,7 +435,12 @@
     "devel-deps": [
       "deltalake>=0.12.0"
     ],
-    "plugins": [],
+    "plugins": [
+      {
+        "name": "databricks_workflow",
+        "plugin-class": "airflow.providers.databricks.plugins.databricks_workflow.DatabricksWorkflowPlugin"
+      }
+    ],
     "cross-providers-deps": [
       "common.sql"
     ],
@@ -795,6 +800,7 @@
     ],
     "plugins": [],
     "cross-providers-deps": [
+      "amazon",
       "google",
       "oracle",
       "sftp"
