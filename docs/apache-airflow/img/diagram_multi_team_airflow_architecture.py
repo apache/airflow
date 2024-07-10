@@ -116,16 +116,6 @@ def generate_dag_processor_airflow_diagram():
                 dag_files_1 = Custom("DAGS/Team 1", MULTIPLE_FILES_IMAGE.as_posix())
                 plugins_and_packages_1 = Custom("Plugins\n& Packages\nTenant 1", PACKAGES_IMAGE.as_posix())
                 config_file_1 = Custom("Config\nFile\nTeam 1", CONFIG_FILE.as_posix())
-<<<<<<<< HEAD:docs/apache-airflow/img/diagram_multi_team_airflow_architecture_with_grpc_api.py
-            with Cluster("DB access", graph_attr={"bgcolor": "#D0BBCC"}):
-                internal_api_1 = Custom("GRPC API\nTeam 1\n", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                (
-                    internal_api_1
-                    >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n\n\n")
-                    >> metadata_db
-                )
-========
->>>>>>>> main:docs/apache-airflow/img/diagram_multi_team_airflow_architecture.py
         operations_user_1 = User("Operations User\nTeam 1")
 
         deployment_manager_2 = User("Deployment\nManager\nTeam 2")
@@ -141,16 +131,6 @@ def generate_dag_processor_airflow_diagram():
                 dag_files_2 = Custom("DAGS/Team 2", MULTIPLE_FILES_IMAGE.as_posix())
                 plugins_and_packages_2 = Custom("Plugins\n& Packages\nTeam 2", PACKAGES_IMAGE.as_posix())
                 config_file_2 = Custom("Config\nFile\nTeam 2", CONFIG_FILE.as_posix())
-<<<<<<<< HEAD:docs/apache-airflow/img/diagram_multi_team_airflow_architecture_with_grpc_api.py
-            with Cluster("DB access", graph_attr={"bgcolor": "#D0BBCC"}):
-                internal_api_2 = Custom("GRPC API\nTeam 2", PYTHON_MULTIPROCESS_LOGO.as_posix())
-                (
-                    internal_api_2
-                    >> Edge(color="red", style="dotted", reverse=True, label="DB Access\n\n\n")
-                    >> metadata_db
-                )
-========
->>>>>>>> main:docs/apache-airflow/img/diagram_multi_team_airflow_architecture.py
         operations_user_2 = User("Operations User\nTeam 2")
 
         (

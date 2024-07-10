@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:scripts/ci/cleanup_docker.sh
-#!/usr/bin/env bash
-========
 #
->>>>>>>> main:tests/system/providers/apache/iceberg/__init__.py
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,11 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-<<<<<<<< HEAD:scripts/ci/cleanup_docker.sh
-function cleanup_docker {
-    docker system prune --all --force --volumes || true
-}
-
-cleanup_docker
-========
->>>>>>>> main:tests/system/providers/apache/iceberg/__init__.py
