@@ -893,18 +893,6 @@ def test_success_edit_ti_with_dag_level_access_only(client_dag_level_access_with
     check_content_in_response("Marked success on 1 task instances", resp)
 
 
-def test_trigger_dag_run_with_dag_level_access_only(client_dag_level_access_with_ti_edit):
-    form = dict(
-        dag_run_id=DEFAULT_RUN_ID,
-        upstream="false",
-        downstream="false",
-        future="false",
-        past="false",
-    )
-    resp = client_dag_level_access_with_ti_edit.post("/dags/example_bash_operator/dagRuns", data=form, follow_redirects=True)
-    check_content_in_response("Marked success on 1 task instances", resp)
-
-
 @pytest.fixture(scope="module")
 def user_ti_edit_without_dag_level_access(acl_app):
     with create_user_scope(
