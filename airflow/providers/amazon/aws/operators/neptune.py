@@ -81,7 +81,8 @@ def handle_waitable_exception(
 
 
 class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
-    """Starts an Amazon Neptune DB cluster.
+    """
+    Starts an Amazon Neptune DB cluster.
 
     Amazon Neptune Database is a serverless graph database designed for superior scalability
     and availability. Neptune Database provides built-in security, continuous backups, and

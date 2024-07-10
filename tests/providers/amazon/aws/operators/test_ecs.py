@@ -674,13 +674,13 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
     def test_execute_complete(self, client_mock):
-        event = {"status": "success", "task_arn": "my_arn"}
+        event = {"status": "success", "task_arn": "my_arn", "cluster": "test_cluster"}
         self.ecs.reattach = True
 
         self.ecs.execute_complete(None, event)
 
         # task gets described to assert its success
-        client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
+        client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(

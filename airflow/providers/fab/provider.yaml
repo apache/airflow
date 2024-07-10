@@ -28,10 +28,12 @@ description: |
 # For providers until we think it should be released.
 state: ready
 
-source-date-epoch: 1716287750
+source-date-epoch: 1720423149
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.2.1
+  - 1.2.0
   - 1.1.1
   - 1.1.0
   - 1.0.4

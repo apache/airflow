@@ -243,10 +243,6 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                             run={"runId": "parent_run_id"},
                             job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
-                        "parentRun": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
-                        ),
                         "externalQuery1": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                         "externalQuery2": ExternalQueryRunFacet(externalQueryId="999", source="source"),
                     },
@@ -361,10 +357,6 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                             run={"runId": "parent_run_id"},
                             job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
-                        "parentRun": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
-                        ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
                 ),
@@ -457,6 +449,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
             run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source")},
             job_facets={"sql": SqlJobFacet(query="SELECT 1;")},
         ),
+        error=ValueError("Error message"),
     )
 
     assert (
@@ -471,11 +464,10 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                             run={"runId": "parent_run_id"},
                             job={"namespace": namespace(), "name": "parent_job_name"},
                         ),
-                        "parentRun": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
-                        ),
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
+                        "errorMessage": ErrorMessageRunFacet(
+                            message="Error message", programmingLanguage="python", stackTrace=None
+                        ),
                     },
                 ),
                 job=Job(

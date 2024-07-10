@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.6.0
+.....
+
+Latest change: 2024-06-27
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`8654cf67e2 <https://github.com/apache/airflow/commit/8654cf67e242a263eb372e25c815011aac09783f>`_  2024-06-27   ``Fix failure of "Add connection" introduced by influxdb change (#40469)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+`e4c125fc6a <https://github.com/apache/airflow/commit/e4c125fc6a8b7fc83a1ebd53f89e5963ea78942f>`_  2024-06-27   ``add timeout to influx db (#40439)``
+=================================================================================================  ===========  ==========================================================================
+
 2.5.1
 .....
 
-Latest change: 2024-05-11
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
 `73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``

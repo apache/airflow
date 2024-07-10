@@ -142,7 +142,8 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
 
 @attr.define(kw_only=True, repr=False)
 class OperatorPartial:
-    """An "intermediate state" returned by ``BaseOperator.partial()``.
+    """
+    An "intermediate state" returned by ``BaseOperator.partial()``.
 
     This only exists at DAG-parsing time; the only intended usage is for the
     user to call ``.expand()`` on it at some point (usually in a method chain) to
@@ -688,7 +689,8 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
-        """Get the kwargs to create the unmapped operator.
+        """
+        Get the kwargs to create the unmapped operator.
 
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
@@ -696,7 +698,8 @@ class MappedOperator(AbstractOperator):
         return self._get_specified_expand_input().resolve(context, session)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
-        """Get init kwargs to unmap the underlying operator class.
+        """
+        Get init kwargs to unmap the underlying operator class.
 
         :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
         """
@@ -727,7 +730,8 @@ class MappedOperator(AbstractOperator):
         }
 
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" Operator after applying the current mapping.
+        """
+        Get the "normal" Operator after applying the current mapping.
 
         The *resolve* argument is only used if ``operator_class`` is a real
         class, i.e. if this operator is not serialized. If ``operator_class`` is
@@ -819,7 +823,8 @@ class MappedOperator(AbstractOperator):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         This updates *context* to reference the map-expanded task and relevant
         information, without modifying the mapped operator. The expanded task

@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+8.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Solve failing KPO task with task decorator and imported typing elements (#40642)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+8.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Scheduler restarting due to too many completed pods in cluster (#40183)``
+
+Misc
+~~~~
+
+* ``Bump minimum kubernetes lib version to kubernetes 29.0.0 (#40253)``
+
 8.3.1
 .....
 

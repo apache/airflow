@@ -1216,14 +1216,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """Get inlet definitions on this task.
+        """
+        Get inlet definitions on this task.
 
         :meta private:
         """
         return self.inlets
 
     def get_outlet_defs(self):
-        """Get outlet definitions on this task.
+        """
+        Get outlet definitions on this task.
 
         :meta private:
         """
@@ -1397,7 +1399,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         This mutates the attributes in-place and is irreversible.
 
@@ -1581,7 +1584,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def is_setup(self) -> bool:
-        """Whether the operator is a setup task.
+        """
+        Whether the operator is a setup task.
 
         :meta private:
         """
@@ -1589,7 +1593,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @is_setup.setter
     def is_setup(self, value: bool) -> None:
-        """Setter for is_setup property.
+        """
+        Setter for is_setup property.
 
         :meta private:
         """
@@ -1599,7 +1604,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def is_teardown(self) -> bool:
-        """Whether the operator is a teardown task.
+        """
+        Whether the operator is a teardown task.
 
         :meta private:
         """
@@ -1776,7 +1782,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" operator from the current operator.
+        """
+        Get the "normal" operator from the current operator.
 
         Since a BaseOperator is not mapped to begin with, this simply returns
         the original operator.

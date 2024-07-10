@@ -647,6 +647,24 @@ class TestTriggerer:
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
 
+    def test_persistent_volume_claim_retention_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "triggerer": {
+                    "persistence": {
+                        "enabled": True,
+                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                    }
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert {
+            "whenDeleted": "Delete",
+        } == jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0])
+
 
 class TestTriggererServiceAccount:
     """Tests triggerer service account."""
@@ -756,6 +774,20 @@ class TestTriggererKedaAutoScaler:
             show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+    def test_mysql_db_backend_keda_default_value(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql"}},
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.triggerers[0].metadata.keda.usePgBouncer", docs[0]) is None
 
     def test_mysql_db_backend_keda(self):
         docs = render_chart(

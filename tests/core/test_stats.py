@@ -502,9 +502,9 @@ class TestStatsWithInfluxDBEnabled:
     def test_increment_counter_with_tags(self):
         self.stats.incr(
             "test_stats_run.delay",
-            tags={"key0": "val0", "key1": "val1", "key2": "val2"},
+            tags={"key0": 0, "key1": "val1", "key2": "val2"},
         )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=val0,key1=val1", 1, 1)
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
 
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(

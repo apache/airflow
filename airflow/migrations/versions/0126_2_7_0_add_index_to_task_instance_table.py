@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add index to task_instance table.
+"""
+Add index to task_instance table.
 
 Revision ID: 937cbd173ca1
 Revises: c804e5c76e3e

@@ -1968,7 +1968,7 @@ class TestDag:
 
     def test_timetable_and_description_from_dataset(self):
         dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == DatasetTriggeredTimetable()
+        assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
         assert dag.schedule_interval == "Dataset"
         assert dag.timetable.description == "Triggered by datasets"
 
@@ -3274,27 +3274,25 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert "Regular DAG documentation" in dag.doc_md
 
-    def test_resolve_documentation_template_file_rendered(self, tmp_path):
+    def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
-        path = tmp_path / "testfile.md"
-        path.write_text(
-            """
+        raw_content = """
         {% if True %}
             External Markdown DAG documentation
         {% endif %}
         """
-        )
 
-        @dag_decorator(
-            "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
-        )
+        path = tmp_path / "testfile.md"
+        path.write_text(raw_content)
+
+        @dag_decorator("test-dag", start_date=DEFAULT_DATE, doc_md=str(path))
         def markdown_docs(): ...
 
         dag = markdown_docs()
         assert isinstance(dag, DAG)
         assert dag.dag_id == "test-dag"
-        assert dag.doc_md.strip() == "External Markdown DAG documentation"
+        assert dag.doc_md == raw_content
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""

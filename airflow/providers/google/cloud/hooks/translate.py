@@ -71,7 +71,8 @@ class CloudTranslateHook(GoogleBaseHook):
         source_language: str | None = None,
         model: str | list[str] | None = None,
     ) -> dict:
-        """Translate a string or list of strings.
+        """
+        Translate a string or list of strings.
 
         See https://cloud.google.com/translate/docs/translating-text
 

@@ -717,10 +717,19 @@ class TestCliDags:
         mock_yesno.assert_not_called()
         dag_command.dag_unpause(args)
 
-    def test_pause_non_existing_dag_error(self):
+    def test_pause_non_existing_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
-        with pytest.raises(AirflowException):
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_pause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No unpaused DAGs were found"
+
+    def test_unpause_non_existing_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_unpause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No paused DAGs were found"
 
     def test_unpause_already_unpaused_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
@@ -970,7 +979,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("workday.AfterWorkdayTimetable", side_effect=lambda: mock.MagicMock(active_runs_limit=None))
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
     def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
         """

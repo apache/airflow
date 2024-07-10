@@ -26,6 +26,68 @@
 Changelog
 ---------
 
+8.26.0
+......
+
+.. note::
+  Reduce memory footprint of S3KeyTrigger
+  Decorator ``provide_bucket_name_async`` is removed.
+  Async does not require a separated decorator.
+  The old one is removed and users can use ``provide_bucket_name`` for coroutine functions, async iterators, and normal synchronous functions.
+  Hook method ``get_file_metadata_async`` is now an async iterator
+  Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
+  S3KeyTrigger avoids loading all positive matches into memory in some circumstances
+
+.. note::
+  This release contains significant resources utilization improvements for async sessions
+
+Features
+~~~~~~~~
+
+* ``Do not dynamically determine op links for emr serverless (#40627)``
+* ``Be able to remove ACL in S3 hook's copy_object (#40518)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix OpenLineage extraction for AthenaOperator (#40545)``
+* ``Reduce memory footprint of s3 key trigger (#40473)``
+* ``Adding cluster to ecs trigger event to avoid defer error (#40482)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in AWS Glue Data Catalog Sensors (#40492)``
+* ``Use base aws classes in AWS Glue Crawlers Operators/Sensors/Triggers (#40504)``
+* ``Share data loader to across asyncio boto sessions (#40658)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix docs build re aws changelog (#40488)``
+   * ``Remove todo re bucket_name decorator in s3 hook (#40485)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+8.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Comprehend Document Classifier (#40287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'importlib_metadata' import in aws utils (#40134)``
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+* ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
 8.24.0
 ......
 

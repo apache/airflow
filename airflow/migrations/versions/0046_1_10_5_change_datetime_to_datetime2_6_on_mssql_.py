@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""change datetime to datetime2(6) on MSSQL tables.
+"""
+change datetime to datetime2(6) on MSSQL tables.
 
 Revision ID: 74effc47d867
 Revises: 6e96a59344a4
@@ -248,7 +249,8 @@ def downgrade():
 
 
 def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
-    """Return primary and unique constraint along with column name.
+    """
+    Return primary and unique constraint along with column name.
 
     This function return primary and unique constraint
     along with column name. some tables like task_instance
@@ -276,7 +278,8 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
 
 
 def reorder_columns(columns):
-    """Reorder the columns for creating constraint.
+    """
+    Reorder the columns for creating constraint.
 
     Preserve primary key ordering
     ``['task_id', 'dag_id', 'execution_date']``
@@ -297,7 +300,8 @@ def reorder_columns(columns):
 
 
 def drop_constraint(operator, constraint_dict):
-    """Drop a primary key or unique constraint.
+    """
+    Drop a primary key or unique constraint.
 
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
@@ -311,7 +315,8 @@ def drop_constraint(operator, constraint_dict):
 
 
 def create_constraint(operator, constraint_dict):
-    """Create a primary key or unique constraint.
+    """
+    Create a primary key or unique constraint.
 
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
@@ -327,7 +332,8 @@ def create_constraint(operator, constraint_dict):
 
 
 def modify_execution_date_with_constraint(conn, batch_operator, table_name, type_, nullable) -> None:
-    """Change type of column execution_date.
+    """
+    Change type of column execution_date.
 
     Helper function changes type of column execution_date by
     dropping and recreating any primary/unique constraint associated with

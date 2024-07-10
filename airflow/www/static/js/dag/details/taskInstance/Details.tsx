@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
@@ -33,6 +33,7 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import TrySelector from "./TrySelector";
 
 interface Props {
@@ -47,38 +48,47 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isGroup = !!group?.children;
   const summary: React.ReactNode[] = [];
 
-  const {
-    mapIndex,
-    runId,
-    taskId,
-    tryNumber: finalTryNumber,
-  } = gridInstance || {};
+  const { runId, taskId } = gridInstance || {};
+
+  const finalTryNumber = gridInstance?.tryNumber || taskInstance?.tryNumber;
 
   const { data: tiHistory } = useTIHistory({
     dagId,
     taskId: taskId || "",
     runId: runId || "",
-    mapIndex,
+    mapIndex: taskInstance?.mapIndex || -1,
     enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
   });
 
-  const [selectedTryNumber, setSelectedTryNumber] = useState(0);
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1
+  );
+
+  // update state if the final try number changes
+  useEffect(() => {
+    if (finalTryNumber) setSelectedTryNumber(finalTryNumber);
+  }, [finalTryNumber]);
+
+  const tryInstance = tiHistory?.find(
+    (ti) => ti.tryNumber === selectedTryNumber
+  );
 
   const instance =
-    selectedTryNumber !== finalTryNumber
-      ? tiHistory?.find((ti) => ti.tryNumber === selectedTryNumber)
-      : gridInstance || taskInstance;
+    selectedTryNumber !== finalTryNumber && finalTryNumber && finalTryNumber > 1
+      ? tryInstance
+      : taskInstance;
 
   const state =
     instance?.state ||
     (instance?.state === "none" ? null : instance?.state) ||
+    gridInstance?.state ||
     null;
   const isMapped = group?.isMapped;
   const startDate = instance?.startDate;
   const endDate = instance?.endDate;
-  const executor = taskInstance?.executor || "<default>";
+  const executor = instance?.executor || "<default>";
 
-  const operator = taskInstance?.operator || group?.operator;
+  const operator = instance?.operator || group?.operator;
 
   const mappedStates = !taskInstance ? gridInstance?.mappedStates : undefined;
 
@@ -115,8 +125,6 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
     });
   }
 
-  const isTaskInstance = !isGroup && !(isMapped && mapIndex === undefined);
-
   const taskIdTitle = isGroup ? "Task Group ID" : "Task ID";
   const isStateFinal =
     state &&
@@ -125,7 +133,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
 
   return (
     <Box mt={3} flexGrow={1}>
-      {isTaskInstance && !!taskInstance && (
+      {!!taskInstance && (
         <TrySelector
           taskInstance={taskInstance}
           selectedTryNumber={selectedTryNumber || finalTryNumber}
@@ -189,17 +197,17 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Td>
             </Tr>
           )}
-          {mapIndex !== undefined && (
+          {instance?.mapIndex !== undefined && (
             <Tr>
               <Td>Map Index</Td>
-              <Td>{mapIndex}</Td>
+              <Td>{instance.mapIndex}</Td>
             </Tr>
           )}
-          {taskInstance?.renderedMapIndex !== undefined &&
-            taskInstance?.renderedMapIndex !== null && (
+          {instance?.renderedMapIndex !== undefined &&
+            instance?.renderedMapIndex !== null && (
               <Tr>
                 <Td>Rendered Map Index</Td>
-                <Td>{taskInstance.renderedMapIndex}</Td>
+                <Td>{instance.renderedMapIndex}</Td>
               </Tr>
             )}
           {operator && (
@@ -239,32 +247,32 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Td>
             </Tr>
           )}
-          {!!taskInstance?.pid && (
+          {!!instance?.pid && (
             <Tr>
               <Td>Process ID (PID)</Td>
               <Td>
-                <ClipboardText value={taskInstance.pid.toString()} />
+                <ClipboardText value={instance.pid.toString()} />
               </Td>
             </Tr>
           )}
-          {!!taskInstance?.hostname && (
+          {!!instance?.hostname && (
             <Tr>
               <Td>Hostname</Td>
               <Td>
-                <ClipboardText value={taskInstance.hostname} />
+                <ClipboardText value={instance.hostname} />
               </Td>
             </Tr>
           )}
-          {!!taskInstance?.pool && (
+          {!!instance?.pool && (
             <Tr>
               <Td>Pool</Td>
-              <Td>{taskInstance.pool}</Td>
+              <Td>{instance.pool}</Td>
             </Tr>
           )}
-          {!!taskInstance?.poolSlots && (
+          {!!instance?.poolSlots && (
             <Tr>
               <Td>Pool Slots</Td>
-              <Td>{taskInstance.poolSlots}</Td>
+              <Td>{instance.poolSlots}</Td>
             </Tr>
           )}
           {executor && (
@@ -273,49 +281,49 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               <Td>{executor}</Td>
             </Tr>
           )}
-          {!!taskInstance?.executorConfig && (
+          {!!instance?.executorConfig && (
             <Tr>
               <Td>Executor Config</Td>
               <Td>
-                <Code fontSize="md">{taskInstance.executorConfig}</Code>
+                <Code fontSize="md">{instance.executorConfig.toString()}</Code>
               </Td>
             </Tr>
           )}
-          {!!taskInstance?.unixname && (
+          {!!instance?.unixname && (
             <Tr>
               <Td>Unix Name</Td>
-              <Td>{taskInstance.unixname}</Td>
+              <Td>{instance.unixname}</Td>
             </Tr>
           )}
-          {!!taskInstance?.maxTries && (
+          {!!instance?.maxTries && (
             <Tr>
               <Td>Max Tries</Td>
-              <Td>{taskInstance.maxTries}</Td>
+              <Td>{instance.maxTries}</Td>
             </Tr>
           )}
-          {!!taskInstance?.queue && (
+          {!!instance?.queue && (
             <Tr>
               <Td>Queue</Td>
-              <Td>{taskInstance.queue}</Td>
+              <Td>{instance.queue}</Td>
             </Tr>
           )}
-          {!!taskInstance?.priorityWeight && (
+          {!!instance?.priorityWeight && (
             <Tr>
               <Td>Priority Weight</Td>
-              <Td>{taskInstance.priorityWeight}</Td>
+              <Td>{instance.priorityWeight}</Td>
             </Tr>
           )}
         </Tbody>
       </Table>
-      {taskInstance?.renderedFields && (
+      {instance?.renderedFields && (
         <Box mt={3}>
           <Text as="strong" mb={3}>
             Rendered Templates
           </Text>
-          <Table>
+          <Table variant="striped">
             <Tbody>
-              {Object.keys(taskInstance.renderedFields).map((key) => {
-                const renderedFields = taskInstance.renderedFields as Record<
+              {Object.keys(instance.renderedFields).map((key) => {
+                const renderedFields = instance.renderedFields as Record<
                   string,
                   unknown
                 >;
@@ -332,7 +340,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-                        <Code fontSize="md">{field as string}</Code>
+                        <RenderedJsonField content={field as string} />
                       </Td>
                     </Tr>
                   );
