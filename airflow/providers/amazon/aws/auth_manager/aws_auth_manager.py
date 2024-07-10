@@ -85,6 +85,7 @@ class AwsAuthManager(BaseAuthManager):
 
         from airflow.version import version
 
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.9.0
         if Version(version) < Version("2.9"):
             raise AirflowOptionalProviderFeatureException(
                 "``AwsAuthManager`` is compatible with Airflow versions >= 2.9."
@@ -206,14 +207,8 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_custom_view(
-        self,
-        *,
-        method: ResourceMethod | str,
-        resource_name: str,
-        user: BaseUser | None = None,
-        **kwargs,
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
-        # TODO: remove this if block when min_airflow_version is set to higher than 2.9.0
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CUSTOM,
