@@ -1797,7 +1797,7 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
-        Index("ti_trigger_id", trigger_id),
+        Index("ti_trigger_id", trigger_id, priority_weight),
         PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
         ForeignKeyConstraint(
             [trigger_id],
