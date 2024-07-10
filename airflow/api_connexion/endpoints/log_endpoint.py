@@ -156,7 +156,8 @@ def get_log_pages(
     if ti.state is None:
         raise BadRequest("TaskInstance state is None")
 
-    if ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED}:
+    # Maybe add more?
+    if ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY}:
         return {"total_pages": 1}
 
     # Fetch s3 log content length

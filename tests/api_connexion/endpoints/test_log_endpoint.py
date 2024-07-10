@@ -450,7 +450,7 @@ class TestLogPageFunctionality:
         assert response.status_code == 200
         assert response.json == {"total_pages": 1}
 
-    def test_should_return_multiple_pages_for_large_log(self, tmp_path, session):
+    def test_should_return_multiple_pages_for_success(self, tmp_path, session):
         ti = (
             session.query(TaskInstance)
             .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
@@ -485,7 +485,7 @@ class TestLogPageFunctionality:
             assert response.status_code == 200
             assert response.json == {"total_pages": 3}
 
-    def test_should_return_1_page_for_failed_state(self, tmp_path, session):
+    def test_should_return_multiple_pages_failed_state(self, tmp_path, session):
         ti = (
             session.query(TaskInstance)
             .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
@@ -494,7 +494,7 @@ class TestLogPageFunctionality:
         ti.state = TaskInstanceState.FAILED
         session.commit()
 
-        log_content = "Log content for failed state"
+        log_content = "A" * 400 * 1024  # 300 KB of 'A's
         log_file_path = (
             tmp_path
             / f"dag_id={self.DAG_ID}"
@@ -518,50 +518,15 @@ class TestLogPageFunctionality:
             )
 
             assert response.status_code == 200
-            assert response.json == {"total_pages": 1}
+            assert response.json == {"total_pages": 4}
 
-    def test_should_return_1_page_for_deferred_state(self, tmp_path, session):
+    def test_should_return_multiple_pages_for_up_for_retry(self, tmp_path, session):
         ti = (
             session.query(TaskInstance)
             .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
             .first()
         )
-        ti.state = TaskInstanceState.DEFERRED
-        session.commit()
-
-        log_content = "Log content for deferred state"
-        log_file_path = (
-            tmp_path
-            / f"dag_id={self.DAG_ID}"
-            / f"run_id={self.RUN_ID}"
-            / f"task_id={self.TASK_ID}"
-            / "attempt=1.log"
-        )
-        log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        log_file_path.write_text(log_content)
-
-        with mock.patch(
-            "airflow.providers.amazon.aws.hooks.s3.S3Hook.get_content_length"
-        ) as mock_get_content_length:
-            mock_get_content_length.return_value = len(log_content)
-
-            response = self.client.get(
-                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
-                query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
-                headers={"Accept": "application/json"},
-                environ_overrides={"REMOTE_USER": "test"},
-            )
-
-            assert response.status_code == 200
-            assert response.json == {"total_pages": 1}
-
-    def test_should_return_multiple_pages_for_deferred_large_log(self, tmp_path, session):
-        ti = (
-            session.query(TaskInstance)
-            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
-            .first()
-        )
-        ti.state = TaskInstanceState.DEFERRED
+        ti.state = TaskInstanceState.UP_FOR_RETRY
         session.commit()
 
         log_content = "A" * 300 * 1024  # 300 KB of 'A's
@@ -589,39 +554,3 @@ class TestLogPageFunctionality:
 
             assert response.status_code == 200
             assert response.json == {"total_pages": 3}
-
-    def test_should_return_error_for_no_logs_in_failed_state(self, session):
-        ti = (
-            session.query(TaskInstance)
-            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
-            .first()
-        )
-        ti.state = TaskInstanceState.FAILED
-        session.commit()
-
-        response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
-            query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
-        )
-
-        assert response.status_code == 400
-
-    def test_should_return_error_for_no_logs_in_deferred_state(self, session):
-        ti = (
-            session.query(TaskInstance)
-            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
-            .first()
-        )
-        ti.state = TaskInstanceState.DEFERRED
-        session.commit()
-
-        response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
-            query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
-        )
-
-        assert response.status_code == 400
