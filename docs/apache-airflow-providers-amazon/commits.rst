@@ -35,14 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.26.0
+......
+
+Latest change: 2024-07-08
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`d2b61976a4 <https://github.com/apache/airflow/commit/d2b61976a4f8f73286906e2a6884d836a11fe4fb>`_  2024-07-08   ``Share data loader to across asyncio boto sessions (#40658)``
+`c72920af3b <https://github.com/apache/airflow/commit/c72920af3be5f0590c832d23633acbf4765e9eb3>`_  2024-07-06   ``Do not dynamically determine op links for emr serverless (#40627)``
+`b7d0bf9800 <https://github.com/apache/airflow/commit/b7d0bf9800974e2029a777e20417e3498e665503>`_  2024-07-04   ``fix OpenLineage extraction for AthenaOperator (#40545)``
+`8e04ef088f <https://github.com/apache/airflow/commit/8e04ef088fd2c817800f53b69bff1ac0680ac8b5>`_  2024-07-02   ``Be able to remove ACL in S3 hook's copy_object (#40518)``
+`015ac89689 <https://github.com/apache/airflow/commit/015ac89689cb278d78ed4d65825254b67d476db8>`_  2024-07-02   ``Use base aws classes in AWS Glue Data Catalog Sensors (#40492)``
+`b8aab5cf63 <https://github.com/apache/airflow/commit/b8aab5cf6332681b797e2aaea67c10e6ddf6bb46>`_  2024-07-02   ``Use base aws classes in AWS Glue Crawlers Operators/Sensors/Triggers (#40504)``
+`5ec81b6f95 <https://github.com/apache/airflow/commit/5ec81b6f9536bd4824ff39574ec9602916d06af8>`_  2024-06-28   ``Fix docs build re aws changelog (#40488)``
+`8d5dbaae37 <https://github.com/apache/airflow/commit/8d5dbaae37c2bcd0be360fdf8d42c5f72c7629da>`_  2024-06-28   ``Remove todo re bucket_name decorator in s3 hook (#40485)``
+`bbfeee4aee <https://github.com/apache/airflow/commit/bbfeee4aee7203e934d50bc455f10d4d6a26f84a>`_  2024-06-28   ``Reduce memory footprint of s3 key trigger (#40473)``
+`6c12744dd8 <https://github.com/apache/airflow/commit/6c12744dd8656e1d8b066c7edc8f0ab60ac124d2>`_  2024-06-28   ``Adding cluster to ecs trigger event to avoid defer error (#40482)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =================================================================================
+
 8.25.0
 ......
 
-Latest change: 2024-06-19
+Latest change: 2024-06-22
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `d5fb711ae0 <https://github.com/apache/airflow/commit/d5fb711ae09b06bef882a7b3b2cd20607a3671e3>`_  2024-06-19   ``Add Amazon Comprehend Document Classifier (#40287)``
 `81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
 `6f4098487d <https://github.com/apache/airflow/commit/6f4098487d3629ab4c99de05a503fc1b511c7300>`_  2024-06-14   ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``

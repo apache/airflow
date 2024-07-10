@@ -460,3 +460,40 @@ class TestACIOperator:
         (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
 
         assert called_cg.diagnostics == diagnostics
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_spot_discount(self, aci_mock):
+        expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = expected_cg
+
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            priority="Spot",
+        )
+        aci.execute(None)
+
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (called_rg, called_cn, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        assert called_rg == "resource-group"
+        assert called_cn == "container-name"
+
+        assert called_cg.location == "region"
+        assert called_cg.image_registry_credentials is None
+        assert called_cg.restart_policy == "Never"
+        assert called_cg.os_type == "Linux"
+        assert called_cg.priority == "Spot"
+
+        called_cg_container = called_cg.containers[0]
+        assert called_cg_container.name == "container-name"
+        assert called_cg_container.image == "container-image"
+
+        assert aci_mock.return_value.delete.call_count == 1
