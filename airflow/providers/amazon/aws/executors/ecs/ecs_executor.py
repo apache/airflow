@@ -542,3 +542,11 @@ class AwsEcsExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
+
+    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
+        try:
+            super().send_message_to_task_logs(level, msg, *args, ti=ti)
+        except AttributeError:
+            # ``send_message_to_task_logs`` is added in 2.10.0
+            self.log.error(msg, *args)
