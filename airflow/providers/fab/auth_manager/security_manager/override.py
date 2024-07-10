@@ -317,7 +317,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ]
 
     # global resource for dag-level access
-    DAG_ACTIONS = permissions.ACTIONS_BY_RESOURCE[permissions.RESOURCE_DAG]["actions"]
+    DAG_ACTIONS = permissions.RESOURCE_DETAILS_MAP[permissions.RESOURCE_DAG]["actions"]
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
@@ -1004,7 +1004,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Check if user has read or write access to some dags."""
         if dag_id and dag_id != "~":
             root_dag_id = self._get_root_dag_id(dag_id)
-            return self.has_access(action, permissions.resource_name(root_dag_id))
+            return self.has_access(action, permissions.resource_name(root_dag_id, permissions.RESOURCE_DAG))
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
@@ -1038,7 +1038,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         for dag in dags:
             root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
-            dag_resource_name = permissions.resource_name(root_dag_id)
+            dag_resource_name = permissions.resource_name(root_dag_id, permissions.RESOURCE_DAG)
             for action_name in self.DAG_ACTIONS:
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
@@ -1055,7 +1055,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             stacklevel=2,
         )
         root_dag_id = self._get_root_dag_id(dag_id)
-        return permissions.resource_name(root_dag_id)
+        return permissions.resource_name(root_dag_id, permissions.RESOURCE_DAG)
 
     def is_dag_resource(self, resource_name: str) -> bool:
         """Determine if a resource belongs to a DAG or all DAGs."""
@@ -1081,7 +1081,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             each value is a set() of action names (e.g., {'DAG Runs': {'can_read'}})
         :return:
         """
-        for resource_name, resource_values in permissions.ACTIONS_BY_RESOURCE.items():
+        for resource_name, resource_values in permissions.RESOURCE_DETAILS_MAP.items():
             dag_resource_name = permissions.resource_name(dag_id, resource_name)
             for dag_action_name in resource_values['actions']:
                 self.create_permission(dag_action_name, dag_resource_name)
@@ -1153,13 +1153,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 if resource != resource_name:
                     continue
 
-                invalid_actions = actions - permissions.ACTIONS_BY_RESOURCE[resource_name]['actions']
+                invalid_actions = actions - permissions.RESOURCE_DETAILS_MAP[resource_name]['actions']
 
                 if invalid_actions:
                     raise AirflowException(
                         f"The access_control map for DAG '{dag_resource_name}' includes "
                         f"the following invalid permissions: {invalid_actions}; "
-                        f"The set of valid permissions is: {permissions.ACTIONS_BY_RESOURCE[resource_name]['actions']}"
+                        f"The set of valid permissions is: {permissions.RESOURCE_DETAILS_MAP[resource_name]['actions']}"
                     )
 
                 for action_name in actions:

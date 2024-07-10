@@ -60,7 +60,8 @@ def configured_app(minimal_app_for_api):
         [
             {
                 "role": "TestSingleDAG",
-                "perms": [(permissions.ACTION_CAN_READ, permissions.resource_name(TEST_DAG_IDS[0]))],
+                "perms": [(permissions.ACTION_CAN_READ, permissions.resource_name(TEST_DAG_IDS[0],
+                                                                                  permissions.RESOURCE_DAG))],
             }
         ]
     )

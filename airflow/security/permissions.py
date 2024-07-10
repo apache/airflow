@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TypedDict
+
 # Resource Constants
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
@@ -65,32 +67,36 @@ ACTION_CAN_ACCESS_MENU = "menu_access"
 DEPRECATED_ACTION_CAN_DAG_READ = "can_dag_read"
 DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 
-ACTIONS_BY_RESOURCE = {
-    RESOURCE_DAG: {
-        'actions': {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE},
-        'prefix': RESOURCE_DAG_PREFIX
-    },
-    RESOURCE_DAG_RUN: {
-        'actions': {ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
-        'prefix': RESOURCE_DAG_RUN_PREFIX
-    },
+class ResourceDetails(TypedDict):
+    actions: set[str]
+    prefix: str
+
+RESOURCE_DETAILS_MAP = {
+    RESOURCE_DAG: ResourceDetails(
+        actions = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE},
+        prefix = RESOURCE_DAG_PREFIX
+    ),
+    RESOURCE_DAG_RUN: ResourceDetails(
+        actions = {ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
+        prefix = RESOURCE_DAG_RUN_PREFIX
+    ),
 }
-RESOURCE_BY_PREFIX = {
+PREFIX_RESOURCES_MAP = {
     prefix: resource
-    for resource, actions in ACTIONS_BY_RESOURCE.items()
+    for resource, actions in RESOURCE_DETAILS_MAP.items()
     for prefix in actions['prefix']
 }
 
 
-def resource_name(root_dag_id: str, resource: str = RESOURCE_DAG) -> str:
+def resource_name(root_dag_id: str, resource: str) -> str:
     """Return the resource name for a DAG id.
 
     Note that since a sub-DAG should follow the permission of its
     parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
     for a subdag. A normal dag should pass the ``DagModel.dag_id``.
     """
-    if root_dag_id in ACTIONS_BY_RESOURCE.keys():
+    if root_dag_id in RESOURCE_DETAILS_MAP.keys():
         return root_dag_id
-    if root_dag_id.startswith(tuple(RESOURCE_BY_PREFIX.keys())):
+    if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
         return root_dag_id
-    return f"{ACTIONS_BY_RESOURCE[resource]['prefix']}{root_dag_id}"
+    return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{root_dag_id}"
