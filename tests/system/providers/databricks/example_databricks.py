@@ -42,10 +42,14 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
     DatabricksSubmitRunOperator,
+    DatabricksTaskOperator,
 )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_operator"
+
+QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
 
 with DAG(
     dag_id=DAG_ID,
@@ -200,6 +204,39 @@ with DAG(
         existing_cluster_id="existing_cluster_id",
     )
     # [END howto_operator_databricks_notebook_existing_cluster]
+
+    # [START howto_operator_databricks_task_notebook]
+    task_operator_nb_1 = DatabricksTaskOperator(
+        task_id="nb_1",
+        databricks_conn_id="databricks_conn",
+        job_cluster_key="Shared_job_cluster",
+        task_config={
+            "notebook_task": {
+                "notebook_path": "/Shared/Notebook_1",
+                "source": "WORKSPACE",
+            },
+            "libraries": [
+                {"pypi": {"package": "Faker"}},
+                {"pypi": {"package": "simplejson"}},
+            ],
+        },
+    )
+    # [END howto_operator_databricks_task_notebook]
+
+    # [START howto_operator_databricks_task_sql]
+    task_operator_sql_query = DatabricksTaskOperator(
+        task_id="sql_query",
+        databricks_conn_id="databricks_conn",
+        task_config={
+            "sql_task": {
+                "query": {
+                    "query_id": QUERY_ID,
+                },
+                "warehouse_id": WAREHOUSE_ID,
+            }
+        },
+    )
+    # [END howto_operator_databricks_task_sql]
 
     from tests.system.utils.watcher import watcher
 

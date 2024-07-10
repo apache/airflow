@@ -218,7 +218,6 @@ fallback_task = {
             "class": "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
             "base_log_folder": "~/abc",
             "s3_log_folder": "s3://abc",
-            "filename_template": "blah",
         },
     },
     "loggers": {"airflow.task": {"handlers": ["task"]}},
@@ -318,7 +317,6 @@ root_not_file_task = {
             "class": "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
             "base_log_folder": "~/abc",
             "s3_log_folder": "s3://abc",
-            "filename_template": "blah",
         },
         "trigger": {"class": "logging.Handler"},
     },
@@ -379,7 +377,6 @@ root_logger_old_file_task = {
             "class": "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
             "base_log_folder": "~/abc",
             "s3_log_folder": "s3://abc",
-            "filename_template": "blah",
         },
         "trigger": {
             "class": "tests.jobs.test_triggerer_job_logging.OldFileTaskHandler",

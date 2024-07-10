@@ -53,13 +53,16 @@ DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = [
     "cassandra",
     "celery",
+    "drill",
+    "kafka",
     "kerberos",
     "mongo",
-    "pinot",
-    "trino",
-    "kafka",
-    "qdrant",
     "mssql",
+    "pinot",
+    "qdrant",
+    "redis",
+    "trino",
+    "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
@@ -221,7 +224,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 
 
 def get_default_platform_machine() -> str:
-    machine = platform.uname().machine
+    machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
     machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
@@ -231,15 +234,17 @@ def get_default_platform_machine() -> str:
 DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
 DOCKER_BUILDKIT = 1
 
+DRILL_HOST_PORT = "28047"
+FLOWER_HOST_PORT = "25555"
+MSSQL_HOST_PORT = "21433"
+MYSQL_HOST_PORT = "23306"
+POSTGRES_HOST_PORT = "25433"
+RABBITMQ_HOST_PORT = "25672"
+REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
-POSTGRES_HOST_PORT = "25433"
-MYSQL_HOST_PORT = "23306"
-FLOWER_HOST_PORT = "25555"
-REDIS_HOST_PORT = "26379"
-CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
-MSSQL_HOST_PORT = "21433"
 
+CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
@@ -361,6 +366,7 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "RNHTTR",
     "ryanahamilton",
     "ryw",
     "saguziel",
@@ -400,7 +406,6 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-AVAILABLE_INTEGRATIONS = ["cassandra", "kerberos", "mongo", "pinot", "celery", "statsd", "trino", "qdrant"]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
@@ -488,9 +493,9 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
-        "airflow-version": "2.7.1",
+        "airflow-version": "2.7.3",
         "remove-providers": "common.io fab",
-        "run-tests": "false",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",

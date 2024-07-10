@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, Mock
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.operators.teradata import TeradataOperator
+from airflow.providers.teradata.operators.teradata import TeradataOperator, TeradataStoredProcedureOperator
 
 
 class TestTeradataOperator:
@@ -65,7 +65,9 @@ class TestTeradataOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        operator = TeradataOperator(sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id)
+        operator = TeradataOperator(
+            sql=sql, teradata_conn_id=teradata_conn_id, parameters=parameters, task_id=task_id
+        )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql=sql,
@@ -88,7 +90,9 @@ class TestTeradataOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        operator = TeradataOperator(sql=sql, conn_id=teradata_conn_id, parameters=parameters, task_id=task_id)
+        operator = TeradataOperator(
+            sql=sql, teradata_conn_id=teradata_conn_id, parameters=parameters, task_id=task_id
+        )
         operator.execute(context=context)
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql=sql,
@@ -96,4 +100,30 @@ class TestTeradataOperator:
             parameters=parameters,
             handler=fetch_all_handler,
             return_last=True,
+        )
+
+
+class TestTeradataStoredProcedureOperator:
+    @mock.patch.object(TeradataHook, "run", autospec=TeradataHook.run)
+    def test_execute(self, mock_run):
+        procedure = "test"
+        teradata_conn_id = "teradata_default"
+        parameters = {"parameter": "value"}
+        context = "test_context"
+        task_id = "test_task_id"
+
+        operator = TeradataStoredProcedureOperator(
+            procedure=procedure,
+            teradata_conn_id=teradata_conn_id,
+            parameters=parameters,
+            task_id=task_id,
+        )
+        result = operator.execute(context=context)
+        assert result is mock_run.return_value
+        mock_run.assert_called_once_with(
+            mock.ANY,
+            "{CALL test(?)}",
+            autocommit=True,
+            parameters=["value"],
+            handler=mock.ANY,
         )

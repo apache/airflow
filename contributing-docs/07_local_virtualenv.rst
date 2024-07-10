@@ -26,7 +26,7 @@ harder to debug the tests and to use your IDE to run them.
 
 That's why we recommend using local virtualenv for development and testing.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Installation in local virtualenv
 --------------------------------
@@ -156,7 +156,8 @@ to upgrade ``hatch`` easily as needed with:
 
     pipx upgrade hatch
 
-## Using Hatch to manage your Python versions
+Using Hatch to manage your Python versions
+..........................................
 
 You can also use hatch to install and manage airflow virtualenvs and development
 environments. For example, you can install Python 3.10 with this command:
@@ -271,7 +272,8 @@ You can clean the env by running:
 
 More information about hatch can be found in `Hatch: Environments <https://hatch.pypa.io/latest/environment/>`__
 
-## Using Hatch to build your packages
+Using Hatch to build your packages
+..................................
 
 You can use hatch to build installable package from the airflow sources. Such package will
 include all metadata that is configured in ``pyproject.toml`` and will be installable with pip.

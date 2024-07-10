@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -142,7 +142,8 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
 
 @attr.define(kw_only=True, repr=False)
 class OperatorPartial:
-    """An "intermediate state" returned by ``BaseOperator.partial()``.
+    """
+    An "intermediate state" returned by ``BaseOperator.partial()``.
 
     This only exists at DAG-parsing time; the only intended usage is for the
     user to call ``.expand()`` on it at some point (usually in a method chain) to
@@ -237,8 +238,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            start_trigger=self.operator_class.start_trigger,
-            next_method=self.operator_class.next_method,
+            start_trigger_args=self.operator_class.start_trigger_args,
+            start_from_trigger=self.operator_class.start_from_trigger,
         )
         return op
 
@@ -281,8 +282,8 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
-    start_trigger: BaseTrigger | None
-    next_method: str | None
+    start_trigger_args: StartTriggerArgs | None
+    start_from_trigger: bool
     _needs_expansion: bool = True
 
     dag: DAG | None
@@ -309,12 +310,7 @@ class MappedOperator(AbstractOperator):
     supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        (
-            "parse_time_mapped_ti_count",
-            "operator_class",
-            "start_trigger",
-            "next_method",
-        )
+        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
 
     def __hash__(self):
@@ -693,7 +689,8 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
-        """Get the kwargs to create the unmapped operator.
+        """
+        Get the kwargs to create the unmapped operator.
 
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
@@ -701,7 +698,8 @@ class MappedOperator(AbstractOperator):
         return self._get_specified_expand_input().resolve(context, session)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
-        """Get init kwargs to unmap the underlying operator class.
+        """
+        Get init kwargs to unmap the underlying operator class.
 
         :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
         """
@@ -732,7 +730,8 @@ class MappedOperator(AbstractOperator):
         }
 
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" Operator after applying the current mapping.
+        """
+        Get the "normal" Operator after applying the current mapping.
 
         The *resolve* argument is only used if ``operator_class`` is a real
         class, i.e. if this operator is not serialized. If ``operator_class`` is
@@ -824,7 +823,8 @@ class MappedOperator(AbstractOperator):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         This updates *context* to reference the map-expanded task and relevant
         information, without modifying the mapped operator. The expanded task

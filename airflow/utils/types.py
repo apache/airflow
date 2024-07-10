@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 
 class ArgNotSet:
-    """Sentinel type for annotations, useful when None is not viable.
+    """
+    Sentinel type for annotations, useful when None is not viable.
 
     Use like this::
 
@@ -45,20 +46,20 @@ NOTSET = ArgNotSet()
 """Sentinel value for argument default. See ``ArgNotSet``."""
 
 
-class ElidedDag:
+class AttributeRemoved:
     """
-    Sentinel type to signal when dag elided on serialization.
+    Sentinel type to signal when attribute removed on serialization.
 
     :meta private:
     """
 
     def __getattr__(self, item):
-        raise RuntimeError("Dag was elided on serialization and must be set again.")
+        raise RuntimeError("Attribute was removed on serialization and must be set again.")
 
 
-ELIDED_DAG = ElidedDag()
+ATTRIBUTE_REMOVED = AttributeRemoved()
 """
-Sentinel value for dag elided on serialization. See ``ElidedDag``.
+Sentinel value for attributes removed on serialization.
 
 :meta private:
 """

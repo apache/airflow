@@ -22,7 +22,7 @@ The regular Breeze development tasks are available as top-level commands. Those 
 used during the development, that's why they are available without any sub-command. More advanced
 commands are separated to sub-commands.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Entering Breeze shell
 ---------------------

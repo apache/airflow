@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+3.7.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``better define conn parameter type for MsSqlHook (#39831)``
+
 3.7.1
 .....
 

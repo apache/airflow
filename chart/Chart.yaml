@@ -19,8 +19,8 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.14.0
-appVersion: 2.9.1
+version: 1.15.0-dev
+appVersion: 2.9.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -44,40 +44,125 @@ type: application
 annotations:
   artifacthub.io/links: |
     - name: Documentation
-      url: https://airflow.apache.org/docs/helm-chart/1.14.0/
+      url: https://airflow.apache.org/docs/helm-chart/1.15.0/
   artifacthub.io/screenshots: |
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/dags.png
     - title: Datasets View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/datasets.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/datasets.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/graph.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/graph.png
     - title: Calendar View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/calendar.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/calendar.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/variable_hidden.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/variable_hidden.png
     - title: Gantt Chart
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/gantt.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/gantt.png
     - title: Task Duration
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/duration.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/duration.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.1/_images/code.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.9.2/_images/code.png
   artifacthub.io/changes: |
-    - description: Don't overwrite ``.Values.airflowPodAnnotations``
-      kind: fixed
+    - description: Enable MySQL KEDA support for triggerer
+      kind: added
       links:
-      - name: '#37917'
-        url: https://github.com/apache/airflow/pull/37917
-    - description: Fix cluster-wide RBAC naming clash when using multiple ``multiNamespace``
-        releases with the same name
-      kind: fixed
+      - name: '#37365'
+        url: https://github.com/apache/airflow/pull/37365
+    - description: Allow AWS Executors
+      kind: added
       links:
-      - name: '#37197'
-        url: https://github.com/apache/airflow/pull/37197
-    - description: 'Misc: Default airflow version to 2.8.3'
+      - name: '#38524'
+        url: https://github.com/apache/airflow/pull/38524
+    - description: Allow ``valueFrom`` in env config of components
       kind: changed
       links:
-      - name: '#38036'
-        url: https://github.com/apache/airflow/pull/38036
+      - name: '#40135'
+        url: https://github.com/apache/airflow/pull/40135
+    - description: Enable templating in ``extraContainers`` and ``extraInitContainers``
+      kind: changed
+      links:
+      - name: '#38507'
+        url: https://github.com/apache/airflow/pull/38507
+    - description: Add safe-to-evict annotation to pod-template-file
+      kind: changed
+      links:
+      - name: '#37352'
+        url: https://github.com/apache/airflow/pull/37352
+    - description: Support ``workers.command`` for KubernetesExecutor
+      kind: changed
+      links:
+      - name: '#39132'
+        url: https://github.com/apache/airflow/pull/39132
+    - description: Add ``priorityClassName`` to Jobs
+      kind: changed
+      links:
+      - name: '#39133'
+        url: https://github.com/apache/airflow/pull/39133
+    - description: Add Kerberos sidecar to pod-template-file
+      kind: changed
+      links:
+      - name: '#38815'
+        url: https://github.com/apache/airflow/pull/38815
+    - description: Add templated field support for extra containers
+      kind: changed
+      links:
+      - name: '#38510'
+        url: https://github.com/apache/airflow/pull/38510
+    - description: Set ``workers.safeToEvict`` default to False
+      kind: fixed
+      links:
+      - name: '#40229'
+        url: https://github.com/apache/airflow/pull/40229
+    - description: 'Docs: Document ``extraContainers`` and ``extraInitContainers`` that
+        are templated'
+      kind: changed
+      links:
+      - name: '#40033'
+        url: https://github.com/apache/airflow/pull/40033
+    - description: 'Docs: Fix typo in HorizontalPodAutoscaling documentation'
+      kind: changed
+      links:
+      - name: '#39307'
+        url: https://github.com/apache/airflow/pull/39307
+    - description: 'Docs: Fix supported k8s versions in docs'
+      kind: changed
+      links:
+      - name: '#39172'
+        url: https://github.com/apache/airflow/pull/39172
+    - description: 'Docs: Fix typo in YAML path for ``brokerUrlSecretName``'
+      kind: changed
+      links:
+      - name: '#39115'
+        url: https://github.com/apache/airflow/pull/39115
+    - description: 'Misc: Default Airflow version to 2.9.2'
+      kind: changed
+      links:
+      - name: '#40160'
+        url: https://github.com/apache/airflow/pull/40160
+    - description: 'Misc: Limit Redis image to 7.2'
+      kind: changed
+      links:
+      - name: '#38928'
+        url: https://github.com/apache/airflow/pull/38928
+    - description: 'Misc: Build Helm values schemas with Kubernetes 1.29 resources'
+      kind: changed
+      links:
+      - name: '#38460'
+        url: https://github.com/apache/airflow/pull/38460
+    - description: 'Misc: Add missing containers to resources docs'
+      kind: changed
+      links:
+      - name: '#38534'
+        url: https://github.com/apache/airflow/pull/38534
+    - description: 'Misc: Upgrade StatsD Exporter image to 0.26.1'
+      kind: changed
+      links:
+      - name: '#38416'
+        url: https://github.com/apache/airflow/pull/38416
+    - description: 'Misc: Remove K8S 1.25 support'
+      kind: changed
+      links:
+      - name: '#38367'
+        url: https://github.com/apache/airflow/pull/38367

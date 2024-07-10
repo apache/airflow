@@ -173,6 +173,7 @@ def get_mapped_task_instances(
     state: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
+    executor: list[str] | None = None,
     limit: int | None = None,
     offset: int | None = None,
     order_by: str | None = None,
@@ -221,6 +222,7 @@ def get_mapped_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=executor)
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -323,6 +325,7 @@ def get_task_instances(
     state: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
+    executor: list[str] | None = None,
     offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -354,6 +357,7 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=executor)
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -401,7 +405,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         if not get_auth_manager().batch_is_authorized_dag(requests):
             raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
-        dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+        dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
     states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
@@ -428,6 +432,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=data["pool"])
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=data["executor"])
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -441,7 +446,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         ),
         isouter=True,
     ).add_columns(SlaMiss)
-    ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
+    ti_query = base_query.options(
+        joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
+    )
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
 

@@ -17,6 +17,8 @@
 
 """
 Example DAG to demonstrate annotating a dataset event with extra information.
+
+Also see examples in ``example_inlet_event_extra.py``.
 """
 
 from __future__ import annotations

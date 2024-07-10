@@ -523,7 +523,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_filesystems()
 
     @provider_info_cache("dataset_uris")
-    def initializa_providers_dataset_uri_handlers(self):
+    def initialize_providers_dataset_uri_handlers(self):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
         self._discover_dataset_uri_handlers()
@@ -1291,7 +1291,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @property
     def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initializa_providers_dataset_uri_handlers()
+        self.initialize_providers_dataset_uri_handlers()
         return self._dataset_uri_handlers
 
     @property

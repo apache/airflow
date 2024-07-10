@@ -74,7 +74,7 @@ with DAG(
     key_regex_pattern = ".*-key"
 
     # [START howto_sensor_s3_key_function_definition]
-    def check_fn(files: list) -> bool:
+    def check_fn(files: list, **kwargs) -> bool:
         """
         Example of custom check: check if all files are bigger than ``20 bytes``
 

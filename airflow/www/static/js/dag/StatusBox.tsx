@@ -56,7 +56,7 @@ export const StatusWithNotes = ({
 };
 
 interface SimpleStatusProps extends BoxProps {
-  state: TaskState;
+  state: TaskState | undefined;
 }
 export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
   <Box

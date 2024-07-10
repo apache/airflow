@@ -20,9 +20,8 @@
 ################################
 ## Airflow rpc-server NetworkPolicy
 #################################
-{{- if .Values.rpcServer.enabled }}
+{{- if .Values._rpcServer.enabled }}
 {{- if .Values.networkPolicies.enabled }}
-{{- $from := or .Values.rpcServer.networkPolicy.ingress.from .Values.rpcServer.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -33,8 +32,8 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.rpcServer.labels) }}
-      {{- mustMerge .Values.rpcServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values._rpcServer.labels) }}
+      {{- mustMerge .Values._rpcServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   podSelector:
@@ -44,11 +43,11 @@ spec:
       release: {{ .Release.Name }}
   policyTypes:
     - Ingress
-  {{- if $from }}
+  {{- if .Values._rpcServer.networkPolicy.ingress.from }}
   ingress:
-    - from: {{- toYaml $from | nindent 6 }}
+    - from: {{- toYaml .Values._rpcServer.networkPolicy.ingress.from | nindent 6 }}
       ports:
-      {{ range .Values.rpcServer.networkPolicy.ingress.ports }}
+      {{ range .Values._rpcServer.networkPolicy.ingress.ports }}
         -
           {{- range $key, $val := . }}
           {{ $key }}: {{ tpl (toString $val) $ }}

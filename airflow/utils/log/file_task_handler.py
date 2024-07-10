@@ -47,7 +47,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
     from airflow.models import DagRun
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -86,7 +87,7 @@ def _set_task_deferred_context_var():
 
 def _fetch_logs_from_service(url, log_relative_path):
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
-    import httpx
+    import requests
 
     from airflow.utils.jwt_signer import JWTSigner
 
@@ -96,7 +97,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
-    response = httpx.get(
+    response = requests.get(
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
@@ -141,7 +142,8 @@ def _interleave_logs(*logs):
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
-    """Given TI | TIKey, return a TI object.
+    """
+    Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """
@@ -264,7 +266,7 @@ class FileTaskHandler(logging.Handler):
     @internal_api_call
     @provide_session
     def _render_filename_db_access(
-        *, ti, try_number: int, session=None
+        *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
     ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
         ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
@@ -280,9 +282,7 @@ class FileTaskHandler(logging.Handler):
             filename = render_template_to_string(jinja_tpl, context)
         return dag_run, ti, str_tpl, filename
 
-    def _render_filename(
-        self, ti: TaskInstance | TaskInstanceKey | TaskInstancePydantic, try_number: int
-    ) -> str:
+    def _render_filename(self, ti: TaskInstance | TaskInstancePydantic, try_number: int) -> str:
         """Return the worker log filename."""
         dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
         if filename:
@@ -574,9 +574,9 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            from httpx import UnsupportedProtocol
+            from requests.exceptions import InvalidSchema
 
-            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")

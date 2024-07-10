@@ -23,7 +23,7 @@ Airflow 2.0 is split into core and providers. They are delivered as separate pac
 * ``apache-airflow`` - core of Apache Airflow
 * ``apache-airflow-providers-*`` - More than 70 provider packages to communicate with external services
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Where providers are kept in our repository
 ------------------------------------------

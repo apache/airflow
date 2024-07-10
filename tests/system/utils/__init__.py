@@ -58,7 +58,9 @@ def get_test_run(dag):
     def test_run():
         dag.on_failure_callback = add_callback(dag.on_failure_callback, callback)
         dag.on_success_callback = add_callback(dag.on_success_callback, callback)
-        dag_run = dag.test()
+        # If the env variable ``_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR`` is set, then use an executor to run the
+        # DAG
+        dag_run = dag.test(use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1")
         assert (
             dag_run.state == DagRunState.SUCCESS
         ), "The system test failed, please look at the logs to find out the underlying failed task(s)"

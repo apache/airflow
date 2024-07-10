@@ -32,9 +32,21 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
+PARAM_TYPES = {bool, float, int, str}
+
+
+def _map_param(value):
+    if value in PARAM_TYPES:
+        # In this branch, value is a Python type; calling it produces
+        # an instance of the type which is understood by the Teradata driver
+        # in the out parameter mapping mechanism.
+        value = value()
+    return value
+
 
 class TeradataHook(DbApiHook):
-    """General hook for interacting with Teradata SQL Database.
+    """
+    General hook for interacting with Teradata SQL Database.
 
     This module contains basic APIs to connect to and interact with Teradata SQL Database. It uses teradatasql
     client internally as a database driver for connecting to Teradata database. The config parameters like
@@ -85,7 +97,8 @@ class TeradataHook(DbApiHook):
         super().__init__(*args, schema=database, **kwargs)
 
     def get_conn(self) -> TeradataConnection:
-        """Create and return a Teradata Connection object using teradatasql client.
+        """
+        Create and return a Teradata Connection object using teradatasql client.
 
         Establishes connection to a Teradata SQL database using config corresponding to teradata_conn_id.
 
@@ -102,7 +115,8 @@ class TeradataHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Use :func:`insert_rows` instead, this is deprecated.
+        """
+        Use :func:`insert_rows` instead, this is deprecated.
 
         Insert bulk of records into Teradata SQL Database.
 
@@ -187,3 +201,58 @@ class TeradataHook(DbApiHook):
                 "password": "dbc",
             },
         }
+
+    def callproc(
+        self,
+        identifier: str,
+        autocommit: bool = False,
+        parameters: list | dict | None = None,
+    ) -> list | dict | tuple | None:
+        """
+        Call the stored procedure identified by the provided string.
+
+        Any OUT parameters must be provided with a value of either the
+        expected Python type (e.g., `int`) or an instance of that type.
+
+        :param identifier: stored procedure name
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :param parameters: The `IN`, `OUT` and `INOUT` parameters for Teradata
+            stored procedure
+
+        The return value is a list or mapping that includes parameters in
+        both directions; the actual return type depends on the type of the
+        provided `parameters` argument.
+
+        """
+        if parameters is None:
+            parameters = []
+
+        args = ",".join("?" for name in parameters)
+
+        sql = f"{{CALL {identifier}({(args)})}}"
+
+        def handler(cursor):
+            records = cursor.fetchall()
+
+            if records is None:
+                return
+            if isinstance(records, list):
+                return [row for row in records]
+
+            if isinstance(records, dict):
+                return {n: v for (n, v) in records.items()}
+            raise TypeError(f"Unexpected results: {records}")
+
+        result = self.run(
+            sql,
+            autocommit=autocommit,
+            parameters=(
+                [_map_param(value) for (name, value) in parameters.items()]
+                if isinstance(parameters, dict)
+                else [_map_param(value) for value in parameters]
+            ),
+            handler=handler,
+        )
+
+        return result

@@ -20,6 +20,7 @@ import contextlib
 import warnings
 from contextlib import closing, contextmanager
 from datetime import datetime
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
@@ -181,24 +183,28 @@ class DbApiHook(BaseHook):
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
 
-    @property
+    def get_conn_id(self) -> str:
+        return getattr(self, self.conn_name_attr)
+
+    @cached_property
     def placeholder(self):
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         placeholder = conn.extra_dejson.get("placeholder")
         if placeholder:
             if placeholder in SQL_PLACEHOLDERS:
                 return placeholder
             self.log.warning(
-                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
                 "and got ignored. Falling back to the default placeholder '%s'.",
-                self.conn_name_attr,
+                placeholder,
+                self.get_conn_id(),
                 self._placeholder,
             )
         return self._placeholder
 
     def get_conn(self):
         """Return a connection object."""
-        db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
+        db = self.get_connection(self.get_conn_id())
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
@@ -207,7 +213,7 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         conn.schema = self.__schema or conn.schema
         return conn.get_uri()
 
@@ -363,7 +369,8 @@ class DbApiHook(BaseHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Run a command or a list of commands.
+        """
+        Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
         execute sequentially.
@@ -456,7 +463,8 @@ class DbApiHook(BaseHook):
             return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
-        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
+        """
+        Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
         transform the result of an SQL command (typically returned by cursor methods) into a common
@@ -500,12 +508,13 @@ class DbApiHook(BaseHook):
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
-                getattr(self, self.conn_name_attr),
+                self.get_conn_id(),
             )
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn) -> bool:
-        """Get autocommit setting for the provided connection.
+        """
+        Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting. True if ``autocommit`` is set
@@ -564,7 +573,8 @@ class DbApiHook(BaseHook):
         executemany=False,
         **kwargs,
     ):
-        """Insert a collection of tuples into a table.
+        """
+        Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
         done in a new transaction.

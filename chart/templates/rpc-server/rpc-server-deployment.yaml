@@ -20,16 +20,16 @@
 ################################
 ## Airflow rpc-server Deployment
 #################################
-{{- if .Values.rpcServer.enabled }}
-{{- $nodeSelector := or .Values.rpcServer.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.rpcServer.affinity .Values.affinity }}
-{{- $tolerations := or .Values.rpcServer.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.rpcServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.rpcServer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.rpcServer) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.rpcServer) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.rpcServer.waitForMigrations) }}
-{{- $containerLifecycleHooks := or .Values.rpcServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- if .Values._rpcServer.enabled }}
+{{- $nodeSelector := or .Values._rpcServer.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values._rpcServer.affinity .Values.affinity }}
+{{- $tolerations := or .Values._rpcServer.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values._rpcServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values._rpcServer.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values._rpcServer) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values._rpcServer) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values._rpcServer.waitForMigrations) }}
+{{- $containerLifecycleHooks := or .Values._rpcServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,17 +43,17 @@ metadata:
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- if .Values.rpcServer.annotations }}
-  annotations: {{- toYaml .Values.rpcServer.annotations | nindent 4 }}
+  {{- if .Values._rpcServer.annotations }}
+  annotations: {{- toYaml .Values._rpcServer.annotations | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.rpcServer.replicas }}
+  replicas: {{ .Values._rpcServer.replicas }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:
-    {{- if .Values.rpcServer.strategy }}
-    {{- toYaml .Values.rpcServer.strategy | nindent 4 }}
+    {{- if .Values._rpcServer.strategy }}
+    {{- toYaml .Values._rpcServer.strategy | nindent 4 }}
     {{- else }}
     {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
     # Here we define the rolling update strategy
@@ -82,8 +82,8 @@ spec:
         tier: airflow
         component: rpc-server
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.rpcServer.labels) }}
-          {{- mustMerge .Values.rpcServer.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or (.Values.labels) (.Values._rpcServer.labels) }}
+          {{- mustMerge .Values._rpcServer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -94,16 +94,16 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
           {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
-        {{- if .Values.rpcServer.podAnnotations }}
-          {{- toYaml .Values.rpcServer.podAnnotations | nindent 8 }}
+        {{- if .Values._rpcServer.podAnnotations }}
+          {{- toYaml .Values._rpcServer.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
-      {{- if .Values.rpcServer.hostAliases }}
-      hostAliases: {{- toYaml .Values.rpcServer.hostAliases | nindent 8 }}
+      {{- if .Values._rpcServer.hostAliases }}
+      hostAliases: {{- toYaml .Values._rpcServer.hostAliases | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "rpcServer.serviceAccountName" . }}
-      {{- if .Values.rpcServer.priorityClassName }}
-      priorityClassName: {{ .Values.rpcServer.priorityClassName }}
+      {{- if .Values._rpcServer.priorityClassName }}
+      priorityClassName: {{ .Values._rpcServer.priorityClassName }}
       {{- end }}
       {{- if .Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
@@ -131,9 +131,9 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        {{- if .Values.rpcServer.waitForMigrations.enabled }}
+        {{- if .Values._rpcServer.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
-          resources: {{- toYaml .Values.rpcServer.resources | nindent 12 }}
+          resources: {{- toYaml .Values._rpcServer.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
@@ -142,20 +142,20 @@ spec:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.rpcServer.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.rpcServer.extraVolumeMounts) . | nindent 12 }}
+            {{- if .Values._rpcServer.extraVolumeMounts }}
+              {{- tpl (toYaml .Values._rpcServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if .Values.rpcServer.waitForMigrations.env }}
-              {{- tpl (toYaml .Values.rpcServer.waitForMigrations.env) $ | nindent 12 }}
+            {{- if .Values._rpcServer.waitForMigrations.env }}
+              {{- tpl (toYaml .Values._rpcServer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
-        {{- if .Values.rpcServer.extraInitContainers }}
-          {{- toYaml .Values.rpcServer.extraInitContainers | nindent 8 }}
+        {{- if .Values._rpcServer.extraInitContainers }}
+          {{- toYaml .Values._rpcServer.extraInitContainers | nindent 8 }}
         {{- end }}
       containers:
         - name: rpc-server
@@ -165,13 +165,13 @@ spec:
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.rpcServer.command }}
-          command: {{ tpl (toYaml .Values.rpcServer.command) . | nindent 12 }}
+          {{- if .Values._rpcServer.command }}
+          command: {{ tpl (toYaml .Values._rpcServer.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.rpcServer.args }}
-          args: {{- tpl (toYaml .Values.rpcServer.args) . | nindent 12 }}
+          {{- if .Values._rpcServer.args }}
+          args: {{- tpl (toYaml .Values._rpcServer.args) . | nindent 12 }}
           {{- end }}
-          resources: {{- toYaml .Values.rpcServer.resources | nindent 12 }}
+          resources: {{- toYaml .Values._rpcServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.logs.persistence.enabled }}
@@ -181,63 +181,63 @@ spec:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.rpcServer.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.rpcServer.extraVolumeMounts) . | nindent 12 }}
+            {{- if .Values._rpcServer.extraVolumeMounts }}
+              {{- tpl (toYaml .Values._rpcServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           ports:
             - name: rpc-server
-              containerPort: {{ .Values.ports.rpcServer }}
+              containerPort: {{ .Values.ports._rpcServer }}
           livenessProbe:
             httpGet:
-              path: {{ if .Values.rpcServer.baseUrl }}{{- with urlParse (tpl .Values.rpcServer.baseUrl .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
-              port: {{ .Values.ports.rpcServer }}
-              {{- if .Values.rpcServer.baseUrl}}
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              port: {{ .Values.ports._rpcServer }}
+              {{- if .Values.config.core.internal_api_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.rpcServer.baseUrl .)).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
               {{- end }}
-              scheme: {{ .Values.rpcServer.livenessProbe.scheme | default "http" }}
-            initialDelaySeconds: {{ .Values.rpcServer.livenessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.rpcServer.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.rpcServer.livenessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.rpcServer.livenessProbe.periodSeconds }}
+              scheme: {{ .Values._rpcServer.livenessProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._rpcServer.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values._rpcServer.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._rpcServer.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values._rpcServer.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: {{ if .Values.rpcServer.baseUrl }}{{- with urlParse (tpl .Values.rpcServer.baseUrl .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
-              port: {{ .Values.ports.rpcServer }}
-              {{- if .Values.rpcServer.baseUrl }}
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              port: {{ .Values.ports._rpcServer }}
+              {{- if .Values.config.core.internal_api_url }}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.rpcServer.baseUrl .)).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
               {{- end }}
-              scheme: {{ .Values.rpcServer.readinessProbe.scheme | default "http" }}
-            initialDelaySeconds: {{ .Values.rpcServer.readinessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.rpcServer.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.rpcServer.readinessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.rpcServer.readinessProbe.periodSeconds }}
+              scheme: {{ .Values._rpcServer.readinessProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._rpcServer.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values._rpcServer.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._rpcServer.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values._rpcServer.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: {{ if .Values.rpcServer.baseUrl }}{{- with urlParse (tpl .Values.rpcServer.baseUrl .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
-              port: {{ .Values.ports.rpcServer }}
-              {{- if .Values.rpcServer.baseUrl}}
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              port: {{ .Values.ports._rpcServer }}
+              {{- if .Values.config.core.internal_api_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.rpcServer.baseUrl .)).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
               {{- end }}
-              scheme: {{ .Values.rpcServer.startupProbe.scheme | default "http" }}
-            timeoutSeconds: {{ .Values.rpcServer.startupProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.rpcServer.startupProbe.failureThreshold }}
-            periodSeconds: {{ .Values.rpcServer.startupProbe.periodSeconds }}
+              scheme: {{ .Values._rpcServer.startupProbe.scheme | default "http" }}
+            timeoutSeconds: {{ .Values._rpcServer.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._rpcServer.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values._rpcServer.startupProbe.periodSeconds }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- include "container_extra_envs" (list . .Values.rpcServer.env) | indent 10 }}
+            {{- include "container_extra_envs" (list . .Values._rpcServer.env) | indent 10 }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
-        {{- if .Values.rpcServer.extraContainers }}
-          {{- toYaml .Values.rpcServer.extraContainers | nindent 8 }}
+        {{- if .Values._rpcServer.extraContainers }}
+          {{- tpl (toYaml .Values._rpcServer.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -253,7 +253,7 @@ spec:
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
-        {{- if .Values.rpcServer.extraVolumes }}
-          {{- tpl (toYaml .Values.rpcServer.extraVolumes) . | nindent 8 }}
+        {{- if .Values._rpcServer.extraVolumes }}
+          {{- tpl (toYaml .Values._rpcServer.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}

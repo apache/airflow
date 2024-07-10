@@ -19,6 +19,9 @@ from __future__ import annotations
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.marketing_platform.operators.analytics import (
     GoogleAnalyticsDataImportUploadOperator,
     GoogleAnalyticsDeletePreviousDataUploadsOperator,
@@ -42,12 +45,17 @@ BUCKET_OBJECT_NAME = "file.csv"
 class TestGoogleAnalyticsListAccountsOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
-        op = GoogleAnalyticsListAccountsOperator(
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            task_id="test_task",
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `GoogleAnalyticsListAccountsOperator` class is deprecated, please use "
+            "`GoogleAnalyticsAdminListAccountsOperator` instead.",
+        ):
+            op = GoogleAnalyticsListAccountsOperator(
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                task_id="test_task",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context=None)
         hook_mock.assert_called_once()
         hook_mock.return_value.list_accounts.assert_called_once()
@@ -56,14 +64,19 @@ class TestGoogleAnalyticsListAccountsOperator:
 class TestGoogleAnalyticsRetrieveAdsLinksListOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
-        op = GoogleAnalyticsRetrieveAdsLinksListOperator(
-            account_id=ACCOUNT_ID,
-            web_property_id=WEB_PROPERTY_ID,
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            task_id="test_task",
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `GoogleAnalyticsRetrieveAdsLinksListOperator` class is deprecated, please use "
+            "`GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead.",
+        ):
+            op = GoogleAnalyticsRetrieveAdsLinksListOperator(
+                account_id=ACCOUNT_ID,
+                web_property_id=WEB_PROPERTY_ID,
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                task_id="test_task",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context=None)
         hook_mock.assert_called_once()
         hook_mock.return_value.list_ad_words_links.assert_called_once()
@@ -80,15 +93,20 @@ class TestGoogleAnalyticsRetrieveAdsLinksListOperator:
 class TestGoogleAnalyticsGetAdsLinkOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsHook")
     def test_execute(self, hook_mock):
-        op = GoogleAnalyticsGetAdsLinkOperator(
-            account_id=ACCOUNT_ID,
-            web_property_id=WEB_PROPERTY_ID,
-            web_property_ad_words_link_id=WEB_PROPERTY_AD_WORDS_LINK_ID,
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            task_id="test_task",
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `GoogleAnalyticsGetAdsLinkOperator` class is deprecated, please use "
+            "`GoogleAnalyticsAdminGetGoogleAdsLinkOperator` instead.",
+        ):
+            op = GoogleAnalyticsGetAdsLinkOperator(
+                account_id=ACCOUNT_ID,
+                web_property_id=WEB_PROPERTY_ID,
+                web_property_ad_words_link_id=WEB_PROPERTY_AD_WORDS_LINK_ID,
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                task_id="test_task",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context=None)
         hook_mock.assert_called_once()
         hook_mock.return_value.get_ad_words_link.assert_called_once()
@@ -112,17 +130,22 @@ class TestGoogleAnalyticsDataImportUploadOperator:
         filename = "file/"
         mock_tempfile.return_value.__enter__.return_value.name = filename
 
-        op = GoogleAnalyticsDataImportUploadOperator(
-            account_id=ACCOUNT_ID,
-            web_property_id=WEB_PROPERTY_ID,
-            storage_bucket=BUCKET,
-            storage_name_object=BUCKET_OBJECT_NAME,
-            custom_data_source_id=DATA_SOURCE,
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            task_id="test_task",
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `GoogleAnalyticsDataImportUploadOperator` class is deprecated, "
+            "please use `GoogleAnalyticsAdminCreateDataStreamOperator` instead.",
+        ):
+            op = GoogleAnalyticsDataImportUploadOperator(
+                account_id=ACCOUNT_ID,
+                web_property_id=WEB_PROPERTY_ID,
+                storage_bucket=BUCKET,
+                storage_name_object=BUCKET_OBJECT_NAME,
+                custom_data_source_id=DATA_SOURCE,
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                task_id="test_task",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         op.execute(context=None)
 
         gcs_hook_mock.assert_called_once_with(
@@ -154,15 +177,19 @@ class TestGoogleAnalyticsDeletePreviousDataUploadsOperator:
             {"id": 2},
             {"id": 3},
         ]
-
-        op = GoogleAnalyticsDeletePreviousDataUploadsOperator(
-            account_id=ACCOUNT_ID,
-            web_property_id=WEB_PROPERTY_ID,
-            custom_data_source_id=DATA_SOURCE,
-            api_version=API_VERSION,
-            gcp_conn_id=GCP_CONN_ID,
-            task_id="test_task",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `GoogleAnalyticsDeletePreviousDataUploadsOperator` class is deprecated, please use "
+            "`GoogleAnalyticsAdminDeleteDataStreamOperator` instead.",
+        ):
+            op = GoogleAnalyticsDeletePreviousDataUploadsOperator(
+                account_id=ACCOUNT_ID,
+                web_property_id=WEB_PROPERTY_ID,
+                custom_data_source_id=DATA_SOURCE,
+                api_version=API_VERSION,
+                gcp_conn_id=GCP_CONN_ID,
+                task_id="test_task",
+            )
         op.execute(context=None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

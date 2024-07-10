@@ -81,7 +81,7 @@ def init_dagruns(app, reset_dagruns):
             value="{'x':1}",
             task_id="runme_0",
             dag_id="example_bash_operator",
-            execution_date=DEFAULT_DATE,
+            run_id=DEFAULT_DAGRUN,
         )
         app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,

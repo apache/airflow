@@ -69,10 +69,13 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        # Fetch the correct execution date for the triggerED dag which is
+        # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
-        when = XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO)
-        query = {"dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id, "base_date": when}
+        triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
+        query = {
+            "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
+            "dag_run_id": triggered_dag_run_id,
+        }
         return build_airflow_url_with_query(query)
 
 
@@ -199,7 +202,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_logical_date)
+                dag_run = e.dag_run
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.logical_date)
 
                 # Get target dag object and call clear()
                 dag_model = DagModel.get_current(self.trigger_dag_id)
@@ -208,7 +212,6 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag_run = e.dag_run
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
                 if self.skip_when_already_exists:
@@ -218,8 +221,9 @@ class TriggerDagRunOperator(BaseOperator):
                 raise e
         if dag_run is None:
             raise RuntimeError("The dag_run should be set here!")
-        # Store the execution date from the dag run (either created or found above) to
+        # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
+        # TODO: Logical date as xcom stored only for backwards compatibility. Remove in Airflow 3.0
         ti = context["task_instance"]
         ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
@@ -231,7 +235,7 @@ class TriggerDagRunOperator(BaseOperator):
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
                         states=self.allowed_states + self.failed_states,
-                        execution_dates=[parsed_logical_date],
+                        execution_dates=[dag_run.logical_date],
                         poll_interval=self.poke_interval,
                     ),
                     method_name="execute_complete",

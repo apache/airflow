@@ -23,6 +23,11 @@ Deprecated REST API
   This REST API is deprecated since version 2.0. Please consider using the :doc:`stable REST API <stable-rest-api-ref>`.
   For more information on migration, see `UPDATING.md <https://airflow.apache.org/docs/apache-airflow/stable/howto/upgrading-from-1-10/>`_
 
+.. warning::
+
+  Please note that these API endpoints do not have access control. An authenticated user has full access.
+
+
 Before Airflow 2.0 this REST API was known as the "experimental" API, but now that the :doc:`stable REST API <stable-rest-api-ref>` is available, it has been renamed.
 
 The endpoints for this API are available at ``/api/experimental/``.

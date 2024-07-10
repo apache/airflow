@@ -57,7 +57,7 @@ securityContexts:
   pod: {}
   containers: {}
 
-# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
+# Global container lifecycle hooks for airflow containers
 containerLifecycleHooks: {}
 
 # Airflow home directory
@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.9.1"
+defaultAirflowTag: "2.9.2"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.9.1"
+airflowVersion: "2.9.2"
 
 # Images
 images:
@@ -119,7 +119,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.01.19-0.16.0
+    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -185,50 +185,6 @@ ingress:
     # Http paths to add to the web Ingress after the default path
     succeedingPaths: []
 
-  # Configs for the Ingress of the RPC server Service
-  rpcServer:
-    # Enable RPC server ingress resource
-    enabled: false
-
-    # Annotations for the RPC server Ingress
-    annotations: {}
-
-    # The path for the RPC server Ingress
-    path: "/"
-
-    # The pathType for the above path (used only with Kubernetes v1.19 and above)
-    pathType: "ImplementationSpecific"
-
-    # The hostname for the RPC server Ingress (Deprecated - renamed to `ingress.RPC server.hosts`)
-    host: ""
-
-    # The hostnames or hosts configuration for the RPC server Ingress
-    hosts: []
-    #   # The hostname for the RPC server Ingress (can be templated)
-    # - name: ""
-    #   # configs for RPC server Ingress TLS
-    #   tls:
-    #     # Enable TLS termination for the RPC server Ingress
-    #     enabled: false
-    #     # the name of a pre-created Secret containing a TLS private key and certificate
-    #     secretName: ""
-
-    # The Ingress Class for the RPC server Ingress (used only with Kubernetes v1.19 and above)
-    ingressClassName: ""
-
-    # configs for RPC server Ingress TLS (Deprecated - renamed to `ingress.RPC server.hosts[*].tls`)
-    tls:
-      # Enable TLS termination for the RPC server Ingress
-      enabled: false
-      # the name of a pre-created Secret containing a TLS private key and certificate
-      secretName: ""
-
-    # HTTP paths to add to the RPC server Ingress before the default path
-    precedingPaths: []
-
-    # Http paths to add to the RPC server Ingress after the default path
-    succeedingPaths: []
-
   # Configs for the Ingress of the flower Service
   flower:
     # Enable web ingress resource
@@ -289,7 +245,8 @@ airflowLocalSettings: |-
     UIAlert(
       'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
       ' See the <a href='
-      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
+      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key" '
+      'target="_blank" rel="noopener noreferrer">'
       'Helm Chart Production Guide</a> for more details.',
       category="warning",
       roles=["Admin"],
@@ -663,6 +620,11 @@ workers:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -720,13 +682,13 @@ workers:
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
-  safeToEvict: true
+  safeToEvict: false
 
-  # Launch additional containers into worker.
+  # Launch additional containers into worker (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
-  # Add additional init containers into workers.
+  # Add additional init containers into workers (templated).
   extraInitContainers: []
 
   # Mount additional volumes into worker. It can be templated like in the following example:
@@ -855,13 +817,14 @@ scheduler:
     periodSeconds: 60
     command: ~
 
-  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
-  # livenessProbe kicks in after the startup
+  # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
     command: ~
+
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -931,9 +894,9 @@ scheduler:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into scheduler.
+  # Launch additional containers into scheduler (templated).
   extraContainers: []
-  # Add additional init containers into scheduler.
+  # Add additional init containers into scheduler (templated).
   extraInitContainers: []
 
   # Mount additional volumes into scheduler. It can be templated like in the following example:
@@ -1075,6 +1038,9 @@ createUserJob:
   # Launch additional containers into user creation job
   extraContainers: []
 
+  # Add additional init containers into user creation job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into user creation job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1175,6 +1141,9 @@ migrateDatabaseJob:
   # Launch additional containers into database migration job
   extraContainers: []
 
+  # Add additional init containers into migrate database job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into database migration job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1200,9 +1169,12 @@ migrateDatabaseJob:
   useHelmHooks: true
   applyCustomEnv: true
 
-rpcServer:
-  enabled: true
-  baseUrl: ""
+# rpcServer support is experimental / dev purpose only and will later be renamed
+_rpcServer:
+  enabled: false
+
+  # Labels specific to workers objects and pods
+  labels: {}
 
   # Command to use when running the Airflow rpc server (templated).
   command:
@@ -1228,7 +1200,7 @@ rpcServer:
     annotations: {}
     ports:
       - name: rpc-server
-        port: "{{ .Values.ports.rpcServer }}"
+        port: "{{ .Values.ports._rpcServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1258,6 +1230,27 @@ rpcServer:
     securityContexts:
       container: {}
 
+  # Launch additional containers into the flower pods.
+  extraContainers: []
+
+  # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
+  extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for webserver NetworkPolicy ingress
+      from: []
+      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      ports:
+        - port: "{{ .Values.ports._rpcServer }}"
+
+  resources: {}
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+
   livenessProbe:
     initialDelaySeconds: 15
     timeoutSeconds: 5
@@ -1272,6 +1265,8 @@ rpcServer:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the RPC server container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1306,6 +1301,8 @@ webserver:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the webserver container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1392,9 +1389,9 @@ webserver:
     lastName: user
     password: admin
 
-  # Launch additional containers into webserver.
+  # Launch additional containers into webserver (templated).
   extraContainers: []
-  # Add additional init containers into webserver.
+  # Add additional init containers into webserver (templated).
   extraInitContainers: []
 
   # Mount additional volumes into webserver. It can be templated like in the following example:
@@ -1552,6 +1549,8 @@ triggerer:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -1578,9 +1577,9 @@ triggerer:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into triggerer.
+  # Launch additional containers into triggerer (templated).
   extraContainers: []
-  # Add additional init containers into triggerers.
+  # Add additional init containers into triggerers (templated).
   extraInitContainers: []
 
   # Mount additional volumes into triggerer. It can be templated like in the following example:
@@ -1690,6 +1689,10 @@ triggerer:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
       FROM trigger
 
+    # Whether to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: false
+
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: false
@@ -1761,9 +1764,9 @@ dagProcessor:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into dag processor.
+  # Launch additional containers into dag processor (templated).
   extraContainers: []
-  # Add additional init containers into dag processors.
+  # Add additional init containers into dag processors (templated).
   extraInitContainers: []
 
   # Mount additional volumes into dag processor. It can be templated like in the following example:
@@ -2250,6 +2253,9 @@ redis:
   enabled: true
   terminationGracePeriodSeconds: 600
 
+  # Annotations for Redis Statefulset
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2355,7 +2361,6 @@ elasticsearch:
 ports:
   flowerUI: 5555
   airflowUI: 8080
-  rpcServer: 9080
   workerLogs: 8793
   triggererLogs: 8794
   redisDB: 6379
@@ -2363,6 +2368,8 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
+  # rpcServer support is experimental / dev purpose only and will later be renamed
+  _rpcServer: 9080
 
 # Define any ResourceQuotas for namespace
 quotas: {}
@@ -2627,6 +2634,12 @@ dags:
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
     # sshKeySecret: airflow-ssh-secret
+    #
+    # Or set sshKeySecret with your key
+    # sshKey: |-
+    #   -----BEGIN {OPENSSH PRIVATE KEY}-----
+    #   ...
+    #   -----END {OPENSSH PRIVATE KEY}-----
     #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:

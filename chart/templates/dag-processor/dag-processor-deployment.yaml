@@ -144,7 +144,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraInitContainers }}
-          {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: dag-processor
@@ -246,7 +246,7 @@ spec:
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
         {{- end }}
-        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret }}
+        {{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- if .Values.volumes }}

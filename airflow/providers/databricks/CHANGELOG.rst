@@ -26,6 +26,44 @@
 Changelog
 ---------
 
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make Databricks operators' json parameter compatible with XComs, Jinja expression values (#40471)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug/fix support azure managed identities in Databricks operator (#40332)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksTaskOperator (#40013)``
+* ``Add DatabricksWorkflowTaskGroup (#39771)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: optional include of user names in 'list_jobs' (#40178)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Lower log levels from INFO to DEBUG to reduce log verbosity - Databricks provider auth (#39941)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
 6.5.0
 .....
 

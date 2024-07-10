@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Merge migrations Heads.
+"""
+Merge migrations Heads.
 
 Revision ID: 05f30312d566
 Revises: 86770d1215c0, 0e2a74e0fc9f

@@ -332,7 +332,6 @@ class TestGcpVisionHook:
                 metadata=(),
             )
         err = ctx.value
-        # self.assertIn("The required parameter 'project_id' is missing", str(err))
         assert err
         assert ERR_DIFF_NAMES.format(
             explicit_name=explicit_ps_name,

@@ -147,7 +147,8 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
 
 
 class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
-    """Create a new backup in a given project and location.
+    """
+    Create a new backup in a given project and location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -261,7 +262,8 @@ class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
-    """Create a new MetadataImport in a given project and location.
+    """
+    Create a new MetadataImport in a given project and location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -361,7 +363,8 @@ class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
-    """Create a metastore service in a project and location.
+    """
+    Create a metastore service in a project and location.
 
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -431,7 +434,7 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        self.log.info("Creating Dataproc Metastore service: %s", self.project_id)
+        self.log.info("Creating Dataproc Metastore service: %s", self.service_id)
         try:
             operation = hook.create_service(
                 region=self.region,
@@ -462,7 +465,8 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
-    """Delete a single backup.
+    """
+    Delete a single backup.
 
     :param project_id: Required. The ID of the Google Cloud project that the backup belongs to.
     :param region: Required. The ID of the Google Cloud region that the backup belongs to.
@@ -546,15 +550,27 @@ class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
-    """Delete a single service.
+    """
+    Delete a single service.
 
-    :param request:  The request object. Request message for
-        [DataprocMetastore.DeleteService][google.cloud.metastore.v1.DataprocMetastore.DeleteService].
+    :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param service_id:  Required. The ID of the metastore service, which is used as the final component of
+        the metastore service's name. This value must be between 2 and 63 characters long inclusive, begin
+        with a letter, end with a letter or number, and consist of alphanumeric ASCII characters or
+        hyphens.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
-    :param gcp_conn_id:
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     template_fields: Sequence[str] = (
@@ -589,7 +605,7 @@ class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
         hook = DataprocMetastoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        self.log.info("Deleting Dataproc Metastore service: %s", self.project_id)
+        self.log.info("Deleting Dataproc Metastore service: %s", self.service_id)
         operation = hook.delete_service(
             region=self.region,
             project_id=self.project_id,
@@ -599,11 +615,12 @@ class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         hook.wait_for_operation(self.timeout, operation)
-        self.log.info("Service %s deleted successfully", self.project_id)
+        self.log.info("Service %s deleted successfully", self.service_id)
 
 
 class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
-    """Export metadata from a service.
+    """
+    Export metadata from a service.
 
     :param destination_gcs_folder: A Cloud Storage URI of a folder, in the format
         ``gs://<bucket_name>/<path_inside_bucket>``. A sub-folder
@@ -695,7 +712,8 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
         return destination_uri[5:] if destination_uri.startswith("gs://") else destination_uri
 
     def _wait_for_export_metadata(self, hook: DataprocMetastoreHook):
-        """Check that export was created successfully.
+        """
+        Check that export was created successfully.
 
         This is a workaround to an issue parsing result to MetadataExport inside
         the SDK.
@@ -721,7 +739,8 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
-    """Get the details of a single service.
+    """
+    Get the details of a single service.
 
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -793,7 +812,8 @@ class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
-    """List backups in a service.
+    """
+    List backups in a service.
 
     :param project_id: Required. The ID of the Google Cloud project that the backup belongs to.
     :param region: Required. The ID of the Google Cloud region that the backup belongs to.
@@ -877,7 +897,8 @@ class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
-    """Restore a service from a backup.
+    """
+    Restore a service from a backup.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -981,7 +1002,8 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
         DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
 
     def _wait_for_restore_service(self, hook: DataprocMetastoreHook):
-        """Check that export was created successfully.
+        """
+        Check that export was created successfully.
 
         This is a workaround to an issue parsing result to MetadataExport inside
         the SDK.
@@ -1005,7 +1027,8 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
-    """Update the parameters of a single service.
+    """
+    Update the parameters of a single service.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
