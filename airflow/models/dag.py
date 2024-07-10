@@ -93,6 +93,7 @@ from airflow.exceptions import (
     RemovedInAirflow3Warning,
     TaskDeferred,
     TaskNotFound,
+    UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import run_job
@@ -830,8 +831,8 @@ class DAG(LoggingMixin):
             if task.executor:
                 try:
                     ExecutorLoader.lookup_executor_name_by_str(task.executor)
-                except ValueError:
-                    raise ValueError(
+                except UnknownExecutorException:
+                    raise UnknownExecutorException(
                         f"The specified executor {task.executor} for task {task.task_id} is not "
                         "configured. Review the core.executors Airflow configuration to add it or "
                         "update the executor configuration for this task."
@@ -2826,7 +2827,6 @@ class DAG(LoggingMixin):
         end_date=None,
         mark_success=False,
         local=False,
-        executor=None,
         donot_pickle=airflow_conf.getboolean("core", "donot_pickle"),
         ignore_task_deps=False,
         ignore_first_depends_on_past=True,
@@ -2862,19 +2862,17 @@ class DAG(LoggingMixin):
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         """
+        from airflow.executors.executor_loader import ExecutorLoader
         from airflow.jobs.backfill_job_runner import BackfillJobRunner
 
-        if not executor and local:
+        if local:
             from airflow.executors.local_executor import LocalExecutor
 
-            executor = LocalExecutor()
-        elif not executor:
-            from airflow.executors.executor_loader import ExecutorLoader
+            ExecutorLoader.set_default_executor(LocalExecutor())
 
-            executor = ExecutorLoader.get_default_executor()
         from airflow.jobs.job import Job
 
-        job = Job(executor=executor)
+        job = Job()
         job_runner = BackfillJobRunner(
             job=job,
             dag=self,

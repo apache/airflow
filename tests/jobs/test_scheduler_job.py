@@ -65,6 +65,7 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+from tests.jobs.test_backfill_job import _mock_executor
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
@@ -2747,7 +2748,8 @@ class TestSchedulerJob:
             assert not isinstance(dag, SerializedDAG)
             # TODO: Can this be replaced with `self.run_scheduler_until_dagrun_terminal. `dag.run` isn't
             # great to use here as it uses BackfillJobRunner!
-            dag.run(start_date=ex_date, end_date=ex_date, executor=self.null_exec, **run_kwargs)
+            for _ in _mock_executor(self.null_exec):
+                dag.run(start_date=ex_date, end_date=ex_date, **run_kwargs)
         except AirflowException:
             pass
 
@@ -2819,8 +2821,9 @@ class TestSchedulerJob:
         )
         self.null_exec.mock_task_fail(dag_id, "test_dagrun_fail", dr.run_id)
 
-        with pytest.raises(AirflowException):
-            dag.run(start_date=dr.execution_date, end_date=dr.execution_date, executor=self.null_exec)
+        for _ in _mock_executor(self.null_exec):
+            with pytest.raises(AirflowException):
+                dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
 
         # Mark the successful task as never having run since we want to see if the
         # dagrun will be in a running state despite having an unfinished task.
@@ -2927,11 +2930,12 @@ class TestSchedulerJob:
                 # That behavior still exists, but now it will only do so if after the
                 # start date
                 bf_exec = MockExecutor()
-                backfill_job = Job(executor=bf_exec)
-                job_runner = BackfillJobRunner(
-                    job=backfill_job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
-                )
-                run_job(job=backfill_job, execute_callable=job_runner._execute)
+                for _ in _mock_executor(bf_exec):
+                    backfill_job = Job()
+                    job_runner = BackfillJobRunner(
+                        job=backfill_job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
+                    )
+                    run_job(job=backfill_job, execute_callable=job_runner._execute)
 
                 # one task ran
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
