@@ -47,14 +47,14 @@ PURGE_LOGS_INTERVAL_PERIOD = 5
 TEST_FILE_IDENTIFIERS: list[str] = ["example_", "test_"]
 
 INVALID_ENV_ID_MSG: str = (
-    "In order to maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
-    "which starts with a letter. Please see `tests/system/providers/amazon/aws/README.md`."
+    "To maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
+    "which starts with a letter. Please see `tests/system/providers/amazon/README.md`."
 )
 LOWERCASE_ENV_ID_MSG: str = (
     "The provided Environment ID contains uppercase letters and "
     "will be converted to lowercase for the AWS System Tests."
 )
-NO_VALUE_MSG: str = "No Value Found: Variable {key} could not be found and no default value was provided."
+NO_VALUE_MSG: str = "No Value Found: Variable {key} could not be found, and no default value was provided."
 
 log = logging.getLogger(__name__)
 

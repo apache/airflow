@@ -191,9 +191,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.default-python-version }}
       - name: "Summarize all warnings"
         run: |
-          ls -R ./artifacts/
-          cat ./artifacts/test-warnings*/* | sort | uniq
-          echo
-          echo Total number of unique warnings $(cat ./artifacts/test-warnings*/* | sort | uniq | wc -l)
+          ./scripts/ci/testing/summarize_captured_warnings.py ./artifacts \
+            --pattern "**/warnings-*.txt" \
+            --output ./files
+      - name: "Upload artifact for summarized warnings"
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summarized-warnings
+          path: ./files/warn-summary-*.txt
+          retention-days: 7
+          if-no-files-found: ignore
+          overwrite: true

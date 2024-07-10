@@ -40,7 +40,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection or Variables or Configs from Yandex Lockbox.
+    Retrieves connections or variables or configs from Yandex Lockbox.
 
     Configurable via ``airflow.cfg`` like so:
 
@@ -61,7 +61,7 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
     the path ``airflow/config/sql_alchemy_conn``, the config with key ``sql_alchemy_conn`` would be
     accessible.
 
-    When the prefix is empty, keys will use the Lockbox Secrets without any prefix.
+    If the prefix is empty, the requests will not be sent to Yandex Lockbox.
 
     .. code-block:: ini
 
@@ -69,43 +69,49 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         backend = airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
         backend_kwargs = {"yc_connection_id": "<connection_ID>", "folder_id": "<folder_ID>"}
 
-    You need to specify credentials or id of yandexcloud connection to connect to Yandex Lockbox with.
-    Credentials will be used with this priority:
+    You need to specify credentials or the ID of the ``yandexcloud`` connection to connect to Yandex Lockbox.
+    The credentials will be used with the following priority:
 
-    * OAuth Token
-    * Service Account JSON file
-    * Service Account JSON
-    * Yandex Cloud Connection
+    * OAuth token
+    * Service account key in JSON from file
+    * Service account key in JSON
+    * Yandex Cloud connection
 
-    If no credentials specified, default connection id will be used.
+    If you do not specify any credentials,
+    the system will use the default connection ID:``yandexcloud_default``.
 
     Also, you need to specify the Yandex Cloud folder ID to search for Yandex Lockbox secrets in.
+    If you do not specify folder ID, the requests will use the connection ``folder_id`` if specified.
 
-    :param yc_oauth_token: Specifies the user account OAuth token to connect to Yandex Lockbox with.
-        Looks like ``y3_xxxxx``.
-    :param yc_sa_key_json: Specifies the service account auth JSON.
-        Looks like ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
-    :param yc_sa_key_json_path: Specifies the service account auth JSON file path.
-        Looks like ``/home/airflow/authorized_key.json``.
-        File content looks like ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
-    :param yc_connection_id: Specifies the connection ID to connect to Yandex Lockbox with.
-        Default: "yandexcloud_default"
+    :param yc_oauth_token: Specifies the user account OAuth token to connect to Yandex Lockbox.
+        The parameter value should look like ``y3_xx123``.
+    :param yc_sa_key_json: Specifies the service account key in JSON.
+        The parameter value should look like
+        ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
+    :param yc_sa_key_json_path: Specifies the service account key in JSON file path.
+        The parameter value should look like ``/home/airflow/authorized_key.json``,
+        while the file content should have the following format:
+        ``{"id": "...", "service_account_id": "...", "private_key": "..."}``.
+    :param yc_connection_id: Specifies the connection ID to connect to Yandex Lockbox.
+        The default value is ``yandexcloud_default``.
     :param folder_id: Specifies the folder ID to search for Yandex Lockbox secrets in.
-        If set to None (null in JSON), requests will use the connection folder_id if specified.
-    :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
-        If set to None (null in JSON), requests for connections will not be sent to Yandex Lockbox.
-        Default: "airflow/connections"
-    :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
-        If set to None (null in JSON), requests for variables will not be sent to Yandex Lockbox.
-        Default: "airflow/variables"
-    :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
-        If set to None (null in JSON), requests for variables will not be sent to Yandex Lockbox.
-        Default: "airflow/config"
-    :param sep: Specifies the separator used to concatenate secret_prefix and secret_id.
-        Default: "/"
-    :param endpoint: Specifies an API endpoint.
-        If set to None (null in JSON), requests will use the connection endpoint, if specified,
-        or the default endpoint.
+        If set to ``None`` (``null`` in JSON),
+        the requests will use the connection ``folder_id``, if specified.
+    :param connections_prefix: Specifies the prefix of the secret to read to get connections.
+        If set to ``None`` (``null`` in JSON),
+        the requests for connections will not be sent to Yandex Lockbox.
+        The default value is ``airflow/connections``.
+    :param variables_prefix: Specifies the prefix of the secret to read to get variables.
+        If set to ``None`` (``null`` in JSON), the requests for variables will not be sent to Yandex Lockbox.
+        The default value is ``airflow/variables``.
+    :param config_prefix: Specifies the prefix of the secret to read to get configurations.
+        If set to ``None`` (``null`` in JSON), the requests for variables will not be sent to Yandex Lockbox.
+        The default value is ``airflow/config``.
+    :param sep: Specifies the separator to concatenate ``secret_prefix`` and ``secret_id``.
+        The default value is ``/``.
+    :param endpoint: Specifies the API endpoint.
+        If set to ``None`` (``null`` in JSON), the requests will use the connection endpoint, if specified;
+        otherwise, they will use the default endpoint.
     """
 
     def __init__(

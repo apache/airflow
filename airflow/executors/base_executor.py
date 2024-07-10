@@ -23,6 +23,7 @@ import sys
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
@@ -32,6 +33,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -284,8 +286,12 @@ class BaseExecutor(LoggingMixin):
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
                 # Otherwise, we give up and remove the task from the queue.
-                self.log.error(
-                    "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                self.send_message_to_task_logs(
+                    logging.ERROR,
+                    "could not queue task %s (still running after %d attempts).",
+                    key,
+                    attempt.total_tries,
+                    ti=ti,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]
@@ -303,19 +309,23 @@ class BaseExecutor(LoggingMixin):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
+    def change_state(
+        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+    ) -> None:
         """
         Change state of the task.
 
-        :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         :param state: State to set for the task.
+        :param info: Executor information for the task instance
+        :param remove_running: Whether or not to remove the TI key from running set
         """
         self.log.debug("Changing state: %s", key)
-        try:
-            self.running.remove(key)
-        except KeyError:
-            self.log.debug("Could not find key: %s", key)
+        if remove_running:
+            try:
+                self.running.remove(key)
+            except KeyError:
+                self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:
@@ -344,6 +354,15 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         self.change_state(key, TaskInstanceState.QUEUED, info)
+
+    def running_state(self, key: TaskInstanceKey, info=None) -> None:
+        """
+        Set running state for the event.
+
+        :param info: Executor information for the task instance
+        :param key: Unique key for the task instance
+        """
+        self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -435,6 +454,11 @@ class BaseExecutor(LoggingMixin):
         else:
             return sys.maxsize
 
+    @property
+    def slots_occupied(self):
+        """Number of tasks this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks)
+
     @staticmethod
     def validate_command(command: list[str]) -> None:
         """
@@ -488,7 +512,8 @@ class BaseExecutor(LoggingMixin):
         )
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Send callback for execution.
+        """
+        Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
@@ -498,9 +523,20 @@ class BaseExecutor(LoggingMixin):
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
 
+    @cached_property
+    def _task_context_logger(self) -> TaskContextLogger:
+        return TaskContextLogger(
+            component_name="Executor",
+            call_site_logger=self.log,
+        )
+
+    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+        self._task_context_logger._log(level, msg, *args, ti=ti)
+
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        """Vends CLI commands to be included in Airflow CLI.
+        """
+        Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
@@ -510,7 +546,8 @@ class BaseExecutor(LoggingMixin):
 
     @classmethod
     def _get_parser(cls) -> argparse.ArgumentParser:
-        """Generate documentation; used by Sphinx argparse.
+        """
+        Generate documentation; used by Sphinx argparse.
 
         :meta private:
         """

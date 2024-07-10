@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import sys
+import warnings
 from datetime import datetime, timedelta
 
 from kubernetes import client
@@ -35,6 +36,12 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+warnings.warn(
+    "Use kubernetes command from providers package, Use cncf.kubernetes provider >= 8.2.1",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 @cli_utils.action_cli

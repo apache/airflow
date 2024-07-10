@@ -165,18 +165,15 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if query_status in AthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
-            raise Exception(
+            raise AirflowException(
                 f"Final state of Athena job is {query_status}, query_execution_id is "
                 f"{self.query_execution_id}. Error: {error_message}"
             )
         elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
-            raise Exception(
+            raise AirflowException(
                 f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
                 f"query_execution_id is {self.query_execution_id}."
             )
-
-        # Save output location from API response for later use in OpenLineage.
-        self.output_location = self.hook.get_output_location(self.query_execution_id)
 
         return self.query_execution_id
 
@@ -185,6 +182,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+
+        # Save query_execution_id to be later used by listeners
+        self.query_execution_id = event["value"]
         return event["value"]
 
     def on_kill(self) -> None:
@@ -208,13 +208,21 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                     )
                     self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)
 
-    def get_openlineage_facets_on_start(self) -> OperatorLineage:
-        """Retrieve OpenLineage data by parsing SQL queries and enriching them with Athena API.
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        """
+        Retrieve OpenLineage data by parsing SQL queries and enriching them with Athena API.
 
         In addition to CTAS query, query and calculation results are stored in S3 location.
-        For that reason additional output is attached with this location.
+        For that reason additional output is attached with this location. Instead of using the complete
+        path where the results are saved (user's prefix + some UUID), we are creating a dataset with the
+        user-provided path only. This should make it easier to match this dataset across different processes.
         """
-        from openlineage.client.facet import ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+        from openlineage.client.facet import (
+            ExternalQueryRunFacet,
+            ExtractionError,
+            ExtractionErrorRunFacet,
+            SqlJobFacet,
+        )
         from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -264,9 +272,14 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             )
         )
 
+        if self.query_execution_id:
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=self.query_execution_id, source="awsathena"
+            )
+
         if self.output_location:
             parsed = urlparse(self.output_location)
-            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path or "/"))
 
         return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
 
@@ -300,7 +313,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 )
             }
             fields = [
-                SchemaField(name=column["Name"], type=column["Type"], description=column["Comment"])
+                SchemaField(name=column["Name"], type=column["Type"], description=column.get("Comment"))
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]
             if fields:

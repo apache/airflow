@@ -22,7 +22,13 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+try:
+    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -116,3 +122,16 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
                 self.bucket_name,
             )
         return f"gs://{self.bucket_name}/{self.object_name}"
+
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
+        account_name = wasb_hook.get_conn().account_name
+
+        return OperatorLineage(
+            inputs=[Dataset(namespace=f"wasbs://{self.container_name}@{account_name}", name=self.blob_name)],
+            outputs=[Dataset(namespace=f"gs://{self.bucket_name}", name=self.object_name)],
+        )

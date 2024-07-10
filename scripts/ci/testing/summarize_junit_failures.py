@@ -43,7 +43,7 @@ def translate_classname(classname):
 
     parts = classname.split(".")
 
-    for offset, component in enumerate(parts, 1):
+    for offset, component in enumerate(parts, 1):  # noqa: B007
         candidate = context / component
 
         if candidate.is_dir():

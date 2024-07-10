@@ -19,12 +19,16 @@ from __future__ import annotations
 
 import json
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from opensearchpy import OpenSearch, RequestsHttpConnection
 
+if TYPE_CHECKING:
+    from opensearchpy import Connection as OpenSearchConnectionClass
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.utils.strings import to_boolean
 
 
 class OpenSearchHook(BaseHook):
@@ -40,13 +44,20 @@ class OpenSearchHook(BaseHook):
     conn_type = "opensearch"
     hook_name = "OpenSearch Hook"
 
-    def __init__(self, open_search_conn_id: str, log_query: bool, **kwargs: Any):
+    def __init__(
+        self,
+        open_search_conn_id: str,
+        log_query: bool,
+        open_search_conn_class: type[OpenSearchConnectionClass] | None = RequestsHttpConnection,
+        **kwargs: Any,
+    ):
         super().__init__(**kwargs)
         self.conn_id = open_search_conn_id
         self.log_query = log_query
 
-        self.use_ssl = self.conn.extra_dejson.get("use_ssl", False)
-        self.verify_certs = self.conn.extra_dejson.get("verify_certs", False)
+        self.use_ssl = to_boolean(str(self.conn.extra_dejson.get("use_ssl", False)))
+        self.verify_certs = to_boolean(str(self.conn.extra_dejson.get("verify_certs", False)))
+        self.connection_class = open_search_conn_class
         self.__SERVICE = "es"
 
     @cached_property
@@ -62,7 +73,7 @@ class OpenSearchHook(BaseHook):
             http_auth=auth,
             use_ssl=self.use_ssl,
             verify_certs=self.verify_certs,
-            connection_class=RequestsHttpConnection,
+            connection_class=self.connection_class,
         )
         return client
 

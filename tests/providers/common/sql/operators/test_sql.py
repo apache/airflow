@@ -29,6 +29,7 @@ from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
+    BaseSQLOperator,
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -42,8 +43,12 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+]
 
 
 class MockHook:
@@ -53,6 +58,28 @@ class MockHook:
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+class TestBaseSQLOperator:
+    def _construct_operator(self, **kwargs):
+        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1), render_template_as_native_obj=True)
+        return BaseSQLOperator(
+            task_id="test_task",
+            conn_id="{{ conn_id }}",
+            database="{{ database }}",
+            hook_params="{{ hook_params }}",
+            **kwargs,
+            dag=dag,
+        )
+
+    def test_templated_fields(self):
+        operator = self._construct_operator()
+        operator.render_template_fields(
+            {"conn_id": "my_conn_id", "database": "my_database", "hook_params": {"key": "value"}}
+        )
+        assert operator.conn_id == "my_conn_id"
+        assert operator.database == "my_database"
+        assert operator.hook_params == {"key": "value"}
 
 
 class TestSQLExecuteQueryOperator:
@@ -626,6 +653,19 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
 
+    def test_sql_operator_hook_params_templated(self):
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+            return_value=Connection(conn_id="sql_default", conn_type="postgres"),
+        ) as mock_get_conn:
+            mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
+            self._operator.hook_params = {"session_parameters": {"query_tag": "{{ ds }}"}}
+            logical_date = "2024-04-02"
+            self._operator.render_template_fields({"ds": logical_date})
+
+            assert self._operator._hook.conn_type == "snowflake"
+            assert self._operator._hook.session_parameters == {"query_tag": logical_date}
+
 
 class TestCheckOperator:
     def setup_method(self):
@@ -1080,6 +1120,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1120,6 +1161,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1161,6 +1203,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1203,6 +1246,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1242,6 +1286,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1272,6 +1317,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1311,6 +1357,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first

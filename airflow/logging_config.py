@@ -96,6 +96,7 @@ def validate_logging_config(logging_config):
                 "but no handler with this name was found. Please update your config to use task. "
                 "Running config has been adjusted to match",
                 DeprecationWarning,
+                stacklevel=2,
             )
             conf.set("logging", "task_log_reader", "task")
         else:

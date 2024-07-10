@@ -178,7 +178,7 @@ class TestMigrateDatabaseJob:
             values={
                 "migrateDatabaseJob": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -186,9 +186,40 @@ class TestMigrateDatabaseJob:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraInitContainers": [
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {
+            "name": "airflow",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[0]", docs[0])
+
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
 
     def test_set_resources(self):
         docs = render_chart(

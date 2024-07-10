@@ -32,6 +32,7 @@ from urllib.parse import urljoin
 
 import pendulum
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -39,11 +40,17 @@ from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
-from airflow.utils.session import create_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from pendulum import DateTime
+
+    from airflow.models import DagRun
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +87,7 @@ def _set_task_deferred_context_var():
 
 def _fetch_logs_from_service(url, log_relative_path):
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
-    import httpx
+    import requests
 
     from airflow.utils.jwt_signer import JWTSigner
 
@@ -90,7 +97,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
-    response = httpx.get(
+    response = requests.get(
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
@@ -134,14 +141,15 @@ def _interleave_logs(*logs):
         last = v
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """Given TI | TIKey, return a TI object.
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
+    """
+    Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
 
-    if not isinstance(ti, TaskInstanceKey):
+    if isinstance(ti, TaskInstance):
         return ti
     val = (
         session.query(TaskInstance)
@@ -153,11 +161,10 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         )
         .one_or_none()
     )
-    if isinstance(val, TaskInstance):
-        val._try_number = ti.try_number
-        return val
-    else:
+    if not val:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
+    val.try_number = ti.try_number
+    return val
 
 
 class FileTaskHandler(logging.Handler):
@@ -255,22 +262,31 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _render_filename_db_access(
+        *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
+    ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
+        ti = _ensure_ti(ti, session)
+        dag_run = ti.get_dagrun(session=session)
+        template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+        filename = None
+        if jinja_tpl:
+            if getattr(ti, "task", None) is not None:
+                context = ti.get_template_context(session=session)
+            else:
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+            context["try_number"] = try_number
+            filename = render_template_to_string(jinja_tpl, context)
+        return dag_run, ti, str_tpl, filename
+
+    def _render_filename(self, ti: TaskInstance | TaskInstancePydantic, try_number: int) -> str:
         """Return the worker log filename."""
-        with create_session() as session:
-            ti = _ensure_ti(ti, session)
-            dag_run = ti.get_dagrun(session=session)
-            template = dag_run.get_log_template(session=session).filename
-            str_tpl, jinja_tpl = parse_template_string(template)
-
-            if jinja_tpl:
-                if getattr(ti, "task", None) is not None:
-                    context = ti.get_template_context(session=session)
-                else:
-                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-                context["try_number"] = try_number
-                return render_template_to_string(jinja_tpl, context)
-
+        dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
+        if filename:
+            return filename
         if str_tpl:
             if ti.task is not None and ti.task.dag is not None:
                 dag = ti.task.dag
@@ -278,6 +294,9 @@ class FileTaskHandler(logging.Handler):
             else:
                 from airflow.timetables.base import DataInterval
 
+                if TYPE_CHECKING:
+                    assert isinstance(dag_run.data_interval_start, DateTime)
+                    assert isinstance(dag_run.data_interval_end, DateTime)
                 data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -343,7 +362,11 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
-        is_in_running_or_deferred = ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        is_in_running_or_deferred = ti.state in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
+        is_up_for_retry = ti.state == TaskInstanceState.UP_FOR_RETRY
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -358,7 +381,7 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if is_in_running_or_deferred and not executor_messages and not remote_logs:
+        if (is_in_running_or_deferred or is_up_for_retry) and not executor_messages and not remote_logs:
             # While task instance is still running and we don't have either executor nor remote logs, look for served logs
             # This is for cases when users have not setup remote logging nor shared drive for logs
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
@@ -551,9 +574,9 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            from httpx import UnsupportedProtocol
+            from requests.exceptions import InvalidSchema
 
-            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")

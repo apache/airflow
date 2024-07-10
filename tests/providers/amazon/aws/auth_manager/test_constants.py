@@ -19,7 +19,6 @@ from __future__ import annotations
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_AVP_POLICY_STORE_ID_KEY,
     CONF_CONN_ID_KEY,
-    CONF_ENABLE_KEY,
     CONF_REGION_NAME_KEY,
     CONF_SAML_METADATA_URL_KEY,
     CONF_SECTION_NAME,
@@ -27,9 +26,6 @@ from airflow.providers.amazon.aws.auth_manager.constants import (
 
 
 class TestAwsAuthManagerConstants:
-    def test_conf_enable_key(self):
-        assert CONF_ENABLE_KEY == "enable"
-
     def test_conf_section_name(self):
         assert CONF_SECTION_NAME == "aws_auth_manager"
 

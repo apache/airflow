@@ -22,7 +22,7 @@ Managing Docker images
 This document describes how to manage Breeze images CI and PROD - used to run containerized
 Airflow development environment and tests.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 CI Image tasks
 --------------

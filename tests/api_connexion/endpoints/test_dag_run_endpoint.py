@@ -64,20 +64,6 @@ def configured_app(minimal_app_for_api):
     )
     create_user(
         app,  # type: ignore
-        username="test_no_dag_run_create_permission",
-        role_name="TestNoDagRunCreatePermission",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        ],
-    )
-    create_user(
-        app,  # type: ignore
         username="test_dag_view_only",
         role_name="TestViewDags",
         permissions=[
@@ -105,12 +91,7 @@ def configured_app(minimal_app_for_api):
     )
     app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_ID",
-        access_control={
-            "TestGranularDag": {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
-            "TestNoDagRunCreatePermission": {
-                permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}
-            }
-        },
+        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
@@ -121,7 +102,6 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_view_dags")  # type: ignore
     delete_user(app, username="test_granular_permissions")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_no_dag_run_create_permission")  # type: ignore
     delete_roles(app)
 
 
@@ -1351,15 +1331,6 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 400
         assert "Invalid input for param" in response.json["detail"]
 
-    def test_dagrun_trigger_with_dag_level_permissions(self):
-        self._create_dag("TEST_DAG_ID")
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns",
-            json={"conf": {"validated_number": 1}},
-            environ_overrides={"REMOTE_USER": "test_no_dag_run_create_permission"},
-        )
-        assert response.status_code == 200
-
     @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
     def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):
         self._create_dag("TEST_DAG_ID")
@@ -2231,26 +2202,6 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-
-    @conf_vars(
-        {
-            ("api", "auth_backends"): "airflow.api.auth.backend.default",
-        }
-    )
-    def test_should_respond_200_with_anonymous_user(self, dag_maker, session):
-        from airflow.www import app as application
-
-        app = application.create_app(testing=True)
-        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
-        dag_runs = self._create_test_dag_run(DagRunState.SUCCESS)
-        session.add_all(dag_runs)
-        session.commit()
-        created_dr = dag_runs[0]
-        response = app.test_client().patch(
-            f"api/v1/dags/{created_dr.dag_id}/dagRuns/TEST_DAG_RUN_ID_1/setNote",
-            json={"note": "I am setting a note with anonymous user"},
-        )
-        assert response.status_code == 200
 
     @pytest.mark.parametrize(
         "set_auto_role_public, expected_status_code",

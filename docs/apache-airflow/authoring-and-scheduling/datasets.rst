@@ -111,7 +111,7 @@ If needed, you can include an extra dictionary in a dataset:
         extra={"team": "trainees"},
     )
 
-This extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
+This can be used to supply custom description to the dataset, such as who has ownership to the target file, or what the file is for. The extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
 
 .. code-block:: python
 
@@ -223,17 +223,74 @@ If one dataset is updated multiple times before all consumed datasets update, th
 
     }
 
+Attaching extra information to an emitting dataset event
+--------------------------------------------------------
+
+.. versionadded:: 2.10.0
+
+A task with a dataset outlet can optionally attach extra information before it emits a dataset event. This is different
+from `Extra information on dataset`_. Extra information on a dataset statically describes the entity pointed to by the dataset URI; extra information on the *dataset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
+
+The easiest way to attach extra information to the dataset event is by ``yield``-ing a ``Metadata`` object from a task:
+
+.. code-block:: python
+
+    from airflow.datasets import Dataset
+    from airflow.datasets.metadata import Metadata
+
+    example_s3_dataset = Dataset("s3://dataset/example.csv")
+
+
+    @task(outlets=[example_s3_dataset])
+    def write_to_s3():
+        df = ...  # Get a Pandas DataFrame to write.
+        # Write df to dataset...
+        yield Metadata(example_s3_dataset, {"row_count": len(df)})
+
+Airflow automatically collects all yielded metadata, and populates dataset events with extra information for corresponding metadata objects.
+
+This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook. If you choose to use hooks, however, remember that they are not rerun when a task is retried, and may cause the extra information to not match actual data in certain scenarios.
+
+Another way to achieve the same is by accessing ``outlet_events`` in a task's execution context directly:
+
+.. code-block:: python
+
+    @task(outlets=[example_s3_dataset])
+    def write_to_s3(*, outlet_events):
+        outlet_events[example_s3_dataset].extra = {"row_count": len(df)}
+
+There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
+
+
+Fetching information from previously emitted dataset events
+-----------------------------------------------------------
+
+.. versionadded:: 2.10.0
+
+Events of a dataset defined in a task's ``outlets``, as described in the previous section, can be read by a task that declares the same dataset in its ``inlets``. A dataset event entry contains ``extra`` (see previous section for details), ``timestamp`` indicating when the event was emitted from a task, and ``source_task_instance`` linking the event back to its source.
+
+Inlet dataset events can be read with the ``inlet_events`` accessor in the execution context. Continuing from the ``write_to_s3`` task in the previous section:
+
+.. code-block:: python
+
+    @task(inlets=[example_s3_dataset])
+    def post_process_s3_file(*, inlet_events):
+        events = inlet_events[example_s3_dataset]
+        last_row_count = events[-1].extra["row_count"]
+
+Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given dataset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
+
+
 Fetching information from a triggering dataset event
 ----------------------------------------------------
 
-A triggered DAG can fetch information from the dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
-See more at :ref:`templates-ref`.
+A triggered DAG can fetch information from the dataset that triggered it using the ``triggering_dataset_events`` template or parameter. See more at :ref:`templates-ref`.
 
 Example:
 
 .. code-block:: python
 
-    example_snowflake_dataset = Dataset("snowflake://my_db.my_schema.my_table")
+    example_snowflake_dataset = Dataset("snowflake://my_db/my_schema/my_table")
 
     with DAG(dag_id="load_snowflake_data", schedule="@hourly", ...):
         SQLExecuteQueryOperator(
@@ -261,6 +318,7 @@ Example:
         print_triggering_dataset_events()
 
 Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one dataset given to the DAG, and the first of one DatasetEvent for that dataset. An implementation can be quite complex if you have multiple datasets, potentially with multiple DatasetEvents.
+
 
 Advanced dataset scheduling with conditional expressions
 --------------------------------------------------------

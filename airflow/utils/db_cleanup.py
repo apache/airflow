@@ -114,6 +114,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
     _TableConfig(table_name="task_fail", recency_column_name="start_date"),
     _TableConfig(table_name="task_instance", recency_column_name="start_date"),
+    _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
@@ -196,8 +197,8 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
-        metadata.bind = session.get_bind()
-        target_table.drop()
+        bind = session.get_bind()
+        target_table.drop(bind=bind)
     session.commit()
     print("Finished Performing Delete")
 

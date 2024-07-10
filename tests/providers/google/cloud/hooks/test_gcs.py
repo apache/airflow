@@ -565,6 +565,32 @@ class TestGCSHook:
 
         assert response == returned_file_md5hash
 
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_object_get_metadata(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+        returned_file_metadata = {"test_metadata_key": "test_metadata_val"}
+
+        bucket_method = mock_service.return_value.bucket
+        get_blob_method = bucket_method.return_value.get_blob
+        get_blob_method.return_value.metadata = returned_file_metadata
+
+        response = self.gcs_hook.get_metadata(bucket_name=test_bucket, object_name=test_object)
+
+        assert response == returned_file_metadata
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_nonexisting_object_get_metadata(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        bucket_method = mock_service.return_value.bucket
+        get_blob_method = bucket_method.return_value.get_blob
+        get_blob_method.return_value = None
+
+        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in bucket \((.*?)\)"):
+            self.gcs_hook.get_metadata(bucket_name=test_bucket, object_name=test_object)
+
     @mock.patch("google.cloud.storage.Bucket")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_create_bucket(self, mock_service, mock_bucket):

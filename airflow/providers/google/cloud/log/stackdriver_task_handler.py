@@ -50,7 +50,8 @@ _DEFAULT_SCOPESS = frozenset(
 
 
 class StackdriverTaskHandler(logging.Handler):
-    """Handler that directly makes Stackdriver logging API calls.
+    """
+    Handler that directly makes Stackdriver logging API calls.
 
     This is a Python standard ``logging`` handler using that can be used to
     route Python standard logging messages directly to the Stackdriver
@@ -174,14 +175,14 @@ class StackdriverTaskHandler(logging.Handler):
         return labels or {}
 
     def emit(self, record: logging.LogRecord) -> None:
-        """Actually log the specified logging record.
+        """
+        Actually log the specified logging record.
 
         :param record: The record to be logged.
         """
         message = self.format(record)
         ti = None
-        # todo: remove ctx_indiv_trigger is not None check when min airflow version >= 2.6
-        if ctx_indiv_trigger is not None and getattr(record, ctx_indiv_trigger.name, None):
+        if getattr(record, ctx_indiv_trigger.name, None):
             ti = getattr(record, "task_instance", None)  # trigger context
         labels = self._get_labels(ti)
         self._transport.send(record, message, resource=self.resource, labels=labels)

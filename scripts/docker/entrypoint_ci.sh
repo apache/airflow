@@ -204,7 +204,21 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/logs/
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
+        if [[ ${USE_AIRFLOW_VERSION} =~ 2\.[7-8].* && ${TEST_TYPE} == "Providers[fab]" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
+            echo
+            exit 0
+        fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+        # Some packages might leave legacy typing module which causes test issues
+        pip uninstall -y typing || true
+        # Upgrade pytest and pytest extensions to latest version if they have been accidentally
+        # downgraded by constraints
+        pip install --upgrade pytest pytest aiofiles aioresponses pytest-asyncio pytest-custom-exit-code \
+           pytest-icdiff pytest-instafail pytest-mock pytest-rerunfailures pytest-timeouts \
+           pytest-xdist pytest requests_mock time-machine \
+           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -223,10 +237,15 @@ function check_boto_upgrade() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
-    # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
-    # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
+    # We need to include few dependencies to pass pip check with other dependencies:
+    #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
+    #   * gcloud-aio-auth limit is needed to be included as it bumps cryptography (sync with google provider)
+    #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
+    set -x
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
+       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+    set +x
     pip check
 }
 
@@ -255,7 +274,7 @@ function check_pydantic() {
         echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
         echo
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg weaviate-client
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo
@@ -286,15 +305,15 @@ function check_downgrade_sqlalchemy() {
 
 # Download minimum supported version of pendulum to run tests with it
 function check_downgrade_pendulum() {
-    if [[ ${DOWNGRADE_PENDULUM=} != "true" ]]; then
+    if [[ ${DOWNGRADE_PENDULUM=} != "true" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
         return
     fi
-    min_pendulum_version=$(grep "\"pendulum>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    local MIN_PENDULUM_VERSION="2.1.2"
     echo
-    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${MIN_PENDULUM_VERSION}${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${MIN_PENDULUM_VERSION}"
     pip check
 }
 
@@ -324,12 +343,41 @@ function check_run_tests() {
     fi
 }
 
+function check_force_lowest_dependencies() {
+    if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
+        return
+    fi
+    EXTRA=""
+    if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
+        # shellcheck disable=SC2001
+        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/')
+        echo
+        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
+        echo
+    else
+        echo
+        echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
+        echo
+    fi
+    set -x
+    # TODO: hard-code explicitly papermill on 3.12 but we should automate it
+    if [[ ${EXTRA}  == "[papermill]" && ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
+        echo
+        echo "Skipping papermill check on Python 3.12!"
+        echo
+        exit 0
+    fi
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
+    set +x
+}
+
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_pydantic
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
+check_force_lowest_dependencies
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

@@ -272,7 +272,7 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                 assert self._find_process(r"airflow webserver", print_found_process=True)
                 console.print("[blue]Waiting for gunicorn processes:")
                 # wait for gunicorn to start
-                for i in range(120):
+                for _ in range(120):
                     if self._find_process(r"^gunicorn"):
                         break
                     console.print("[blue]Waiting for gunicorn to start ...")

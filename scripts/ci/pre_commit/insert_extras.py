@@ -82,7 +82,7 @@ def process_documentation_files() -> bool:
     for file, file_format, add_comment in FILES_TO_UPDATE:
         if not file.exists():
             raise FileNotFoundError(f"File {file} does not exist")
-        for extra_type_description, extra_list in extra_type_dict.items():
+        for extra_type_description in extra_type_dict:
             header, footer = get_header_and_footer(extra_type_description, file_format)
             if insert_documentation(
                 file, extra_type_dict[extra_type_description], header, footer, add_comment

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import timedelta
+from os.path import isabs
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -100,7 +101,7 @@ def create_app(config=None, testing=False):
     flask_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"] = require_confirmation_dag_change
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
-    if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
+    if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(
             f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
@@ -117,6 +118,7 @@ def create_app(config=None, testing=False):
             "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
             "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         cookie_samesite_config = "Lax"
     flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config

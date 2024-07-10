@@ -73,7 +73,7 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
     :param delete_message_on_reception: Default to `True`, the messages are deleted from the queue
         as soon as being consumed. Otherwise, the messages remain in the queue after consumption and
         should be deleted manually.
-    :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param aws_conn_id: The Airflow connection used for AWS credentials.

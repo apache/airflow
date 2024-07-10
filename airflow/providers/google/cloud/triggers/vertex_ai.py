@@ -29,6 +29,7 @@ from google.cloud.aiplatform_v1 import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
+from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobAsyncHook,
 )
@@ -40,7 +41,8 @@ if TYPE_CHECKING:
 
 
 class BaseVertexAIJobTrigger(BaseTrigger):
-    """Base class for Vertex AI job triggers.
+    """
+    Base class for Vertex AI job triggers.
 
     This trigger polls the Vertex AI job and checks its status.
 
@@ -189,3 +191,96 @@ class RunPipelineJobTrigger(BaseVertexAIJobTrigger):
             poll_interval=self.poll_interval,
         )
         return job
+
+
+class CustomTrainingJobTrigger(BaseVertexAIJobTrigger):
+    """
+    Make async calls to Vertex AI to check the state of a running custom training job.
+
+    Return the job when it enters a completed state.
+    """
+
+    job_type_verbose_name = "Custom Training Job"
+    job_serializer_class = types.TrainingPipeline
+    statuses_success = {
+        PipelineState.PIPELINE_STATE_PAUSED,
+        PipelineState.PIPELINE_STATE_SUCCEEDED,
+    }
+
+    @cached_property
+    def async_hook(self) -> CustomJobAsyncHook:
+        return CustomJobAsyncHook(
+            gcp_conn_id=self.conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def _wait_job(self) -> types.TrainingPipeline:
+        pipeline: types.TrainingPipeline = await self.async_hook.wait_for_training_pipeline(
+            project_id=self.project_id,
+            location=self.location,
+            pipeline_id=self.job_id,
+            poll_interval=self.poll_interval,
+        )
+        return pipeline
+
+
+class CustomContainerTrainingJobTrigger(BaseVertexAIJobTrigger):
+    """
+    Make async calls to Vertex AI to check the state of a running custom container training job.
+
+    Return the job when it enters a completed state.
+    """
+
+    job_type_verbose_name = "Custom Container Training Job"
+    job_serializer_class = types.TrainingPipeline
+    statuses_success = {
+        PipelineState.PIPELINE_STATE_PAUSED,
+        PipelineState.PIPELINE_STATE_SUCCEEDED,
+    }
+
+    @cached_property
+    def async_hook(self) -> CustomJobAsyncHook:
+        return CustomJobAsyncHook(
+            gcp_conn_id=self.conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def _wait_job(self) -> types.TrainingPipeline:
+        pipeline: types.TrainingPipeline = await self.async_hook.wait_for_training_pipeline(
+            project_id=self.project_id,
+            location=self.location,
+            pipeline_id=self.job_id,
+            poll_interval=self.poll_interval,
+        )
+        return pipeline
+
+
+class CustomPythonPackageTrainingJobTrigger(BaseVertexAIJobTrigger):
+    """
+    Make async calls to Vertex AI to check the state of a running custom python package training job.
+
+    Return the job when it enters a completed state.
+    """
+
+    job_type_verbose_name = "Custom Python Package Training Job"
+    job_serializer_class = types.TrainingPipeline
+    statuses_success = {
+        PipelineState.PIPELINE_STATE_PAUSED,
+        PipelineState.PIPELINE_STATE_SUCCEEDED,
+    }
+
+    @cached_property
+    def async_hook(self) -> CustomJobAsyncHook:
+        return CustomJobAsyncHook(
+            gcp_conn_id=self.conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def _wait_job(self) -> types.TrainingPipeline:
+        pipeline: types.TrainingPipeline = await self.async_hook.wait_for_training_pipeline(
+            project_id=self.project_id,
+            location=self.location,
+            pipeline_id=self.job_id,
+            poll_interval=self.poll_interval,
+        )
+        return pipeline

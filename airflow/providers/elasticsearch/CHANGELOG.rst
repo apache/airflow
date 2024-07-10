@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+5.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make elastic search index_pattern more configurable (#38423)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Scheduler to handle incrementing of try_number (#39336)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+5.4.0
+.....
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+5.3.4
+.....
+
+Misc
+~~~~
+
+* ``Add default for 'task' on TaskInstance / fix attrs on TaskInstancePydantic (#37854)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Fix D105 checks for ES provider (#37880)``
+
 5.3.3
 .....
 

@@ -37,6 +37,7 @@ moto = pytest.importorskip("moto")
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.db_test
 class TestS3ToHiveTransfer:
     @pytest.fixture(autouse=True)
     def setup_attrs(self):

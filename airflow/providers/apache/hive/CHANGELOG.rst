@@ -27,6 +27,72 @@
 Changelog
 ---------
 
+8.1.2
+.....
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+8.1.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Improvising high availability field name in hive hook (#39658)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+8.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+8.0.0
+.....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Changed the default value of ``use_beeline`` in hive cli connection to True.
+Beeline will be always enabled by default in this connection type.
+
+Removed deprecated parameter ``authMechanism`` from HiveHook and dependent operators.
+Use ``auth_mechanism`` instead in your ``extra``.
+
+HiveOperator: Removed the method ``get_hook``  in favor of ``hook`` property instead.
+
+HiveStatsCollectionOperator: Removed the deprecated ``col_blacklist`` in favor of ``excluded_columns``.
+
+* ``Setting use_beeline by default for hive cli connection (#38763)``
+* ``Removing deprecated code in hive provider (#38859)``
+
+Features
+~~~~~~~~
+
+* ``Adding support to hive hook for high availability Hive installations (#38651)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix TRY002 for apache hive provider (#38781)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Fix D105 for Apache Hive Provider (#38042)``
+   * ``Fix deprecated apache.hive operators arguments in 'MappedOperator' (#38351)``
+
 7.0.1
 .....
 

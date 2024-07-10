@@ -33,6 +33,7 @@ body:
         - apache-flink
         - apache-hdfs
         - apache-hive
+        - apache-iceberg
         - apache-impala
         - apache-kafka
         - apache-kylin
@@ -48,6 +49,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - cohere
+        - common-compat
         - common-io
         - common-sql
         - databricks
@@ -111,6 +113,7 @@ body:
         - vertica
         - weaviate
         - yandex
+        - ydb
         - zendesk
     validations:
       required: true

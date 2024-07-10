@@ -24,7 +24,6 @@ import os
 import re
 import shutil
 import sys
-import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from io import StringIO
@@ -47,7 +46,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
@@ -156,6 +155,7 @@ class TestCliTasks:
             in caplog.text
         )
 
+    @pytest.mark.enable_redact
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_filters_secrets(self, capsys):
         """Test ``airflow test`` does not print secrets to stdout.
@@ -388,7 +388,6 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @pytest.mark.asyncio
     @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
@@ -587,7 +586,7 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             external_trigger=True,
         )
-        ti2 = TaskInstance(task2, dagrun.execution_date)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
@@ -652,6 +651,12 @@ class TestCliTasks:
         task_command.task_clear(args)
 
 
+def _set_state_and_try_num(ti, session):
+    ti.state = TaskInstanceState.QUEUED
+    ti.try_number += 1
+    session.commit()
+
+
 class TestLogsfromTaskRunCommand:
     def setup_method(self) -> None:
         self.dag_id = "test_logging_dag"
@@ -669,7 +674,7 @@ class TestLogsfromTaskRunCommand:
 
         dag = DagBag().get_dag(self.dag_id)
         data_interval = dag.timetable.infer_manual_data_interval(run_after=self.execution_date)
-        dag.create_dagrun(
+        self.dr = dag.create_dagrun(
             run_id=self.run_id,
             execution_date=self.execution_date,
             data_interval=data_interval,
@@ -677,6 +682,9 @@ class TestLogsfromTaskRunCommand:
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
         )
+        self.tis = self.dr.get_task_instances()
+        assert len(self.tis) == 1
+        self.ti = self.tis[0]
 
         root = self.root_logger = logging.getLogger()
         self.root_handlers = root.handlers.copy()
@@ -758,7 +766,7 @@ class TestLogsfromTaskRunCommand:
     @pytest.mark.parametrize(
         "is_k8s, is_container_exec", [("true", "true"), ("true", ""), ("", "true"), ("", "")]
     )
-    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec):
+    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec, session):
         """
         When running task --local as k8s executor pod, all logging should make it to stdout.
         Otherwise, all logging after "running TI" is redirected to logs (and the actual log
@@ -770,6 +778,9 @@ class TestLogsfromTaskRunCommand:
         verifies with certainty the behavior.
         """
         import subprocess
+
+        ti = self.dr.get_task_instances(session=session)[0]
+        _set_state_and_try_num(ti, session)  # so that try_number is correct
 
         with mock.patch.dict(
             "os.environ",
@@ -807,8 +818,10 @@ class TestLogsfromTaskRunCommand:
             # when not k8s executor pod, most output is redirected to logs
             assert len(lines) == 1
 
-    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
-    def test_logging_with_run_task(self):
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
+    def test_logging_with_run_task(self, session):
+        ti = self.dr.get_task_instances(session=session)[0]
+        _set_state_and_try_num(ti, session)
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
@@ -835,7 +848,7 @@ class TestLogsfromTaskRunCommand:
             f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
-    @unittest.skipIf(not hasattr(os, "fork"), "Forking not available")
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
     def test_run_task_with_pool(self):
         pool_name = "test_pool_run"
 
@@ -853,7 +866,10 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
-    def test_logging_with_run_task_subprocess(self):
+    def test_logging_with_run_task_subprocess(self, session):
+        ti = self.dr.get_task_instances(session=session)[0]
+        _set_state_and_try_num(ti, session)
+
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
@@ -875,14 +891,14 @@ class TestLogsfromTaskRunCommand:
             f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
-    def test_log_file_template_with_run_task(self):
+    def test_log_file_template_with_run_task(self, session):
         """Verify that the taskinstance has the right context for log_filename_template"""
 
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             # increment the try_number of the task to be run
             with create_session() as session:
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
-                ti.try_number = 1
+                ti.try_number = 2
 
             log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
 

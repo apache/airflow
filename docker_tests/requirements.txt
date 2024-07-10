@@ -1,8 +1,6 @@
-# Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
-# Internal meta-task for track https://github.com/apache/airflow/issues/37156
-pytest>=7.4.4,<8.0
+pytest>=8.2,<9
 pytest-xdist
 # Requests 3 if it will be released, will be heavily breaking.
 requests>=2.27.0,<3
 python-on-whales>=0.70.0
-hatchling==1.24.2
+hatchling==1.25.0

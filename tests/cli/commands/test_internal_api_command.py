@@ -125,7 +125,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
             assert self._find_process(r"airflow internal-api --daemon", print_found_process=True)
             console.print("[blue]Waiting for gunicorn processes:")
             # wait for gunicorn to start
-            for i in range(30):
+            for _ in range(30):
                 if self._find_process(r"^gunicorn"):
                     break
                 console.print("[blue]Waiting for gunicorn to start ...")
@@ -205,6 +205,8 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                     "-",
                     "--error-logfile",
                     "-",
+                    "--config",
+                    "python:airflow.api_internal.gunicorn_config",
                     "--access-logformat",
                     "custom_log_format",
                     "airflow.cli.commands.internal_api_command:cached_app()",

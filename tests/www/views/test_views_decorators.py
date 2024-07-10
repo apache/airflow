@@ -146,6 +146,7 @@ def test_action_logging_variables_post(session, admin_client):
     _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
 
 
+@pytest.mark.enable_redact
 def test_action_logging_variables_masked_secrets(session, admin_client):
     form = dict(key="x_secret", val="randomval")
     admin_client.post("/variable/add", data=form)

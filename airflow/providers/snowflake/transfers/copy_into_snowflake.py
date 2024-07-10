@@ -42,8 +42,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     :param prefix: cloud storage location specified to limit the set of files to load
     :param files: files to load into table
     :param pattern: pattern to load files from external location to table
-    :param copy_into_postifx: optional sql postfix for INSERT INTO query
-           such as `formatTypeOptions` and `copyOptions`
     :param snowflake_conn_id:  Reference to :ref:`Snowflake connection id<howto/connection:snowflake>`
     :param account: snowflake account name
     :param warehouse: name of snowflake warehouse
@@ -154,7 +152,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     def _extract_openlineage_unique_dataset_paths(
         query_result: list[dict[str, Any]],
     ) -> tuple[list[tuple[str, str]], list[str]]:
-        """Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
+        """
+        Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
 
         Each row in the results is expected to have a 'file' field, which is a URI.
         The function parses these URIs and constructs a set of unique OpenLineage (namespace, name) tuples.

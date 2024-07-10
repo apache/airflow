@@ -168,8 +168,9 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
-    def test_get_conn_rds_iam(self, mock_client, mock_connect):
-        self.connection.extra = '{"iam":true}'
+    def test_get_conn_rds_iam(self, mock_client, mock_connect, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_CONN_TEST_AWS_IAM_CONN", '{"conn_type": "aws"}')
+        self.connection.extra = '{"iam":true, "aws_conn_id": "test_aws_iam_conn"}'
         mock_client.return_value.generate_db_auth_token.return_value = "aws_token"
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(

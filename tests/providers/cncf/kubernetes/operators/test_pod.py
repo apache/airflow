@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
@@ -25,9 +26,15 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
+from kubernetes.client.exceptions import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -38,10 +45,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import (
-    PodLoggingStatus,
-    PodPhase,
-)
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -235,20 +239,47 @@ class TestKubernetesPodOperator:
         )
 
     @pytest.mark.parametrize(
-        "input",
+        "input,render_template_as_native_obj,raises_error",
         [
-            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
-            pytest.param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], False, False, id="current"),
+            pytest.param({"{{ bar }}": "{{ foo }}"}, False, False, id="backcompat"),
+            pytest.param("{{ env }}", True, False, id="xcom_args"),
+            pytest.param("bad env", False, True, id="error"),
         ],
     )
-    def test_env_vars(self, input):
+    def test_env_vars(self, input, render_template_as_native_obj, raises_error):
+        dag = DAG(
+            dag_id="dag",
+            start_date=pendulum.now(),
+            render_template_as_native_obj=render_template_as_native_obj,
+        )
         k = KubernetesPodOperator(
             env_vars=input,
             task_id="task",
+            name="test",
+            dag=dag,
         )
-        k.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
-        assert k.env_vars[0].value == "footemplated"
-        assert k.env_vars[0].name == "bartemplated"
+        k.render_template_fields(
+            context={"foo": "footemplated", "bar": "bartemplated", "env": {"bartemplated": "footemplated"}}
+        )
+        if raises_error:
+            with pytest.raises(AirflowException):
+                k.build_pod_request_obj()
+        else:
+            k.build_pod_request_obj()
+            assert k.env_vars[0].name == "bartemplated"
+            assert k.env_vars[0].value == "footemplated"
+
+    def test_pod_runtime_info_envs(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            name="test",
+            pod_runtime_info_envs=[k8s.V1EnvVar(name="bar", value="foo")],
+        )
+        k.build_pod_request_obj()
+
+        assert k.env_vars[0].name == "bar"
+        assert k.env_vars[0].value == "foo"
 
     def test_security_context(self):
         security_context = V1PodSecurityContext(run_as_user=1245)
@@ -328,7 +359,8 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            # Try number behaves differently on different versions of Airflow
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "run_id": "test",
             "airflow_kpo_in_cluster": str(in_cluster),
@@ -344,7 +376,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "run_id": "test",
             "map_index": "10",
@@ -738,12 +770,10 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
         [
-            ({}, True),  # default values
-            ({"is_delete_operator_pod": True}, True),  # check b/c of is_delete_operator_pod
-            ({"is_delete_operator_pod": False}, False),  # check b/c of is_delete_operator_pod
-            ({"on_finish_action": "delete_pod"}, True),
-            ({"on_finish_action": "delete_succeeded_pod"}, False),
-            ({"on_finish_action": "keep_pod"}, False),
+            pytest.param({}, True, id="default"),  # default values
+            pytest.param({"on_finish_action": "delete_pod"}, True, id="delete-pod"),
+            pytest.param({"on_finish_action": "delete_succeeded_pod"}, False, id="delete-succeeded-pod"),
+            pytest.param({"on_finish_action": "keep_pod"}, False, id="keep-pod"),
         ],
     )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
@@ -761,9 +791,9 @@ class TestKubernetesPodOperator:
         find_pod_mock.return_value.status.container_statuses = [cont_status]
         k = KubernetesPodOperator(task_id="task", **task_kwargs)
         self.await_pod_mock.side_effect = AirflowException("fake failure")
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
         with pytest.raises(AirflowException, match="my-failure"):
-            context = create_context(k)
-            context["ti"].xcom_push = MagicMock()
             k.execute(context=context)
         if should_be_deleted:
             delete_pod_mock.assert_called_with(find_pod_mock.return_value)
@@ -856,7 +886,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -892,7 +922,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -963,7 +993,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1033,7 +1063,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1084,7 +1114,7 @@ class TestKubernetesPodOperator:
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
-            "try_number": "1",
+            "try_number": mock.ANY,
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1271,30 +1301,35 @@ class TestKubernetesPodOperator:
             mock_await.assert_not_called()
 
     @pytest.mark.parametrize(
+        "on_finish_action",
+        # Regardless what we provide in `on_finish_action`
+        # it doesn't take any affect if `is_delete_operator_pod` provided.
+        [*sorted(OnFinishAction.__members__.values()), None],
+    )
+    @pytest.mark.parametrize(
+        "is_delete_operator_pod, expected_on_finish_action",
+        [
+            pytest.param(True, "delete_pod", id="delete-operator-pod"),
+            pytest.param(False, "keep_pod", id="keep-operator-pod"),
+        ],
+    )
+    def test_deprecated_is_delete_operator_pod(
+        self, is_delete_operator_pod, expected_on_finish_action, on_finish_action
+    ):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="please use `on_finish_action`"):
+            op = KubernetesPodOperator(
+                task_id="task",
+                is_delete_operator_pod=is_delete_operator_pod,
+                on_finish_action=on_finish_action,
+            )
+        assert op.is_delete_operator_pod == is_delete_operator_pod
+        assert op.on_finish_action == expected_on_finish_action
+
+    @pytest.mark.parametrize(
         "task_kwargs, should_fail, should_be_deleted",
         [
             ({}, False, True),
             ({}, True, True),
-            (
-                {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
-                False,
-                True,
-            ),  # check backcompat of is_delete_operator_pod
-            (
-                {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
-                True,
-                True,
-            ),  # check b/c of is_delete_operator_pod
-            (
-                {"is_delete_operator_pod": False, "on_finish_action": "delete_pod"},
-                False,
-                False,
-            ),  # check b/c of is_delete_operator_pod
-            (
-                {"is_delete_operator_pod": False, "on_finish_action": "delete_pod"},
-                True,
-                False,
-            ),  # check b/c of is_delete_operator_pod
             ({"on_finish_action": "keep_pod"}, False, False),
             ({"on_finish_action": "keep_pod"}, True, False),
             ({"on_finish_action": "delete_pod"}, False, True),
@@ -1561,7 +1596,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
             callbacks=MockKubernetesPodOperatorCallback,
         )
-        k.execute_complete(
+        k.trigger_reentry(
             context=create_context(k),
             event={
                 "status": "success",
@@ -1587,6 +1622,137 @@ class TestKubernetesPodOperator:
             "pod": remote_pod_mock,
         }
 
+    @pytest.mark.parametrize("get_logs", [True, False])
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    def test_await_container_completion_refreshes_properties_on_exception(
+        self, mock_await_container_completion, fetch_requested_container_logs, get_logs
+    ):
+        k = KubernetesPodOperator(task_id="task", get_logs=get_logs)
+        pod = self.run_pod(k)
+        client, hook, pod_manager = k.client, k.hook, k.pod_manager
+
+        # no exception doesn't update properties
+        k.await_pod_completion(pod)
+        assert client == k.client
+        assert hook == k.hook
+        assert pod_manager == k.pod_manager
+
+        # exception refreshes properties
+        mock_await_container_completion.side_effect = [ApiException(status=401), mock.DEFAULT]
+        fetch_requested_container_logs.side_effect = [ApiException(status=401), mock.DEFAULT]
+        k.await_pod_completion(pod)
+
+        if get_logs:
+            fetch_requested_container_logs.assert_has_calls(
+                [mock.call(pod=pod, containers=k.container_logs, follow_logs=True)] * 3
+            )
+        else:
+            mock_await_container_completion.assert_has_calls(
+                [mock.call(pod=pod, container_name=k.base_container_name)] * 3
+            )
+        assert client != k.client
+        assert hook != k.hook
+        assert pod_manager != k.pod_manager
+
+    @pytest.mark.parametrize(
+        "side_effect, exception_type, expect_exc",
+        [
+            ([ApiException(401), mock.DEFAULT], ApiException, True),  # works after one 401
+            ([ApiException(401)] * 10, ApiException, False),  # exc after 3 retries on 401
+            ([ApiException(402)], ApiException, False),  # exc on non-401
+            ([ApiException(500)], ApiException, False),  # exc on non-401
+            ([Exception], Exception, False),  # exc on different exception
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    def test_await_container_completion_retries_on_specific_exception(
+        self, mock_await_container_completion, side_effect, exception_type, expect_exc
+    ):
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=False,
+        )
+        pod = self.run_pod(k)
+        mock_await_container_completion.side_effect = side_effect
+        if expect_exc:
+            k.await_pod_completion(pod)
+        else:
+            with pytest.raises(exception_type):
+                k.await_pod_completion(pod)
+        expected_call_count = min(len(side_effect), 3)  # retry max 3 times
+        mock_await_container_completion.assert_has_calls(
+            [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
+        )
+
+    @pytest.mark.parametrize(
+        "on_finish_action", [OnFinishAction.KEEP_POD, OnFinishAction.DELETE_SUCCEEDED_POD]
+    )
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods__label_patched_if_action_is_not_delete_pod(
+        self,
+        process_pod_deletion_mock,
+        patch_already_checked_mock,
+        on_finish_action,
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=on_finish_action,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": now}
+        pod_2.status = {"start_time": now + datetime.timedelta(seconds=60)}
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_not_called()
+        assert result.metadata.name == pod_2.metadata.name
+
+    @patch(KUB_OP_PATH.format("patch_already_checked"))
+    @patch(KUB_OP_PATH.format("process_pod_deletion"))
+    def test_process_duplicate_label_pods__pod_removed_if_delete_pod(
+        self, process_pod_deletion_mock, patch_already_checked_mock
+    ):
+        now = datetime.datetime.now()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:22.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 12"],
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=False,
+            on_finish_action=OnFinishAction.DELETE_POD,
+        )
+        context = create_context(k)
+        pod_1 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+        pod_2 = k.get_or_create_pod(pod_request_obj=k.build_pod_request_obj(context), context=context)
+
+        pod_1.status = {"start_time": now}
+        pod_2.status = {"start_time": now + datetime.timedelta(seconds=60)}
+        pod_2.metadata.labels.update({"try_number": "2"})
+
+        result = k.process_duplicate_label_pods([pod_1, pod_2])
+
+        patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
+        process_pod_deletion_mock.assert_called_once_with(pod_1)
+        assert result.metadata.name == pod_2.metadata.name
+
 
 class TestSuppress:
     def test__suppress(self, caplog):
@@ -1608,7 +1774,7 @@ class TestSuppress:
         with pytest.raises(RuntimeError):
             with _optionally_suppress(reraise=True):
                 raise RuntimeError("failure")
-            assert caplog.text == ""
+        assert caplog.text == ""
 
     def test__suppress_wrong_error(self, caplog):
         """
@@ -1683,7 +1849,7 @@ class TestKubernetesPodOperatorAsync:
         remote_pod_mock.metadata.namespace = TEST_NAMESPACE
         self.await_pod_mock.return_value = remote_pod_mock
 
-        operator.execute_complete(
+        operator.trigger_reentry(
             context=context,
             event={
                 "status": "success",
@@ -1761,7 +1927,7 @@ class TestKubernetesPodOperatorAsync:
         )
 
         with pytest.raises(AirflowException):
-            k.execute_complete(
+            k.trigger_reentry(
                 context=None,
                 event={
                     "status": "error",
@@ -1843,9 +2009,9 @@ class TestKubernetesPodOperatorAsync:
 
         if expected_exc:
             with pytest.raises(expected_exc):
-                k.execute_complete(context=context, event=event)
+                k.trigger_reentry(context=context, event=event)
         else:
-            k.execute_complete(context=context, event=event)
+            k.trigger_reentry(context=context, event=event)
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
@@ -1866,7 +2032,7 @@ class TestKubernetesPodOperatorAsync:
 
         context = create_context(k)
         context["ti"] = MagicMock()
-        k.execute_complete(
+        k.trigger_reentry(
             context=context,
             event={
                 "status": "success",
@@ -1909,7 +2075,7 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
-    @patch(KUB_OP_PATH.format("write_logs"))
+    @patch(KUB_OP_PATH.format("_write_logs"))
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
     def test_async_get_logs_should_execute_successfully(
@@ -1925,7 +2091,7 @@ class TestKubernetesPodOperatorAsync:
 
         context = create_context(k)
         context["ti"] = MagicMock()
-        k.execute_complete(
+        k.trigger_reentry(
             context=context,
             event={
                 "status": "success",
@@ -1971,6 +2137,28 @@ class TestKubernetesPodOperatorAsync:
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
 
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(KUB_OP_PATH.format("extract_xcom"))
+    @patch(HOOK_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    def test_async_write_logs_handler_api_exception(
+        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, mocked_client
+    ):
+        mocked_client.read_namespaced_pod_log.side_effect = ApiException(status=404)
+        mock_manager.await_pod_completion.side_effect = ApiException(status=404)
+        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        mock_extract_xcom.return_value = "{}"
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=True,
+            deferrable=True,
+        )
+        self.run_pod_async(k)
+        post_complete_action.assert_not_called()
+
     @pytest.mark.parametrize(
         "log_pod_spec_on_failure,expect_match",
         [
@@ -1985,9 +2173,9 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
-    @mock.patch(f"{HOOK_CLASS}.get_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
+    @patch(f"{HOOK_CLASS}.get_pod")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     def test_get_logs_running(
         self,
         fetch_container_logs,
@@ -2007,10 +2195,11 @@ class TestKubernetesPodOperatorAsync:
             )
         fetch_container_logs.is_called_with(pod, "base")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup):
+    @patch(KUB_OP_PATH.format("_write_logs"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
+    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup, mock_write_log):
         pod = MagicMock()
         find_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
@@ -2020,14 +2209,15 @@ class TestKubernetesPodOperatorAsync:
         )
         fetch_container_logs.is_called_with(pod, "base")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
-    def test_trigger_error(self, find_pod, cleanup):
+    @patch(KUB_OP_PATH.format("_write_logs"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    def test_trigger_error(self, find_pod, cleanup, mock_write_log):
         """Assert that trigger_reentry raise exception in case of error"""
         find_pod.return_value = MagicMock()
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+        context = create_context(op)
         with pytest.raises(AirflowException):
-            context = create_context(op)
             op.trigger_reentry(
                 context,
                 {
@@ -2037,6 +2227,15 @@ class TestKubernetesPodOperatorAsync:
                     "namespace": TEST_NAMESPACE,
                 },
             )
+
+    def test_deprecated_execute_complete(self):
+        fake_context = mock.sentinel.context
+        fake_event = mock.sentinel.event
+        with mock.patch.object(KubernetesPodOperator, "trigger_reentry") as mocked_trigger_reentry:
+            op = KubernetesPodOperator(task_id="test-task")
+            with pytest.warns(AirflowProviderDeprecationWarning, match="use `trigger_reentry` instead"):
+                op.execute_complete(fake_context, fake_event)
+        mocked_trigger_reentry.assert_called_once_with(context=fake_context, event=fake_event)
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
@@ -2065,7 +2264,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    k.execute_complete({}, success_event)
+    k.trigger_reentry({}, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
@@ -2110,7 +2309,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
 
     with pytest.raises(AirflowException):
-        k.execute_complete({"ti": ti_mock}, success_event)
+        k.trigger_reentry({"ti": ti_mock}, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
@@ -2156,7 +2355,7 @@ def test_async_skip_kpo_wait_termination_with_timeout_event(mock_manager, mocked
 
     # assert that the AirflowException is raised when the timeout event is present
     with pytest.raises(AirflowException):
-        k.execute_complete({"ti": ti_mock}, event)
+        k.trigger_reentry({"ti": ti_mock}, event)
 
     # assert that the await_pod_completion is not called
     mock_manager.await_pod_completion.assert_not_called()

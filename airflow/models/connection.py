@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import warnings
+from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -50,12 +51,13 @@ CONN_ID_MAX_LEN: int = 250
 
 def parse_netloc_to_hostname(*args, **kwargs):
     """Do not use, this method is deprecated."""
-    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
+    warnings.warn("This method is deprecated.", RemovedInAirflow3Warning, stacklevel=2)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
 
 def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | None:
-    r"""Sanitizes the connection id and allows only specific characters to be within.
+    r"""
+    Sanitizes the connection id and allows only specific characters to be within.
 
     Namely, it allows alphanumeric characters plus the symbols #,!,-,_,.,:,\,/ and () from 1 and up to
     250 consecutive matches. If desired, the max length can be adjusted by setting `max_length`.
@@ -219,6 +221,7 @@ class Connection(Base, LoggingMixin):
         warnings.warn(
             "This method is deprecated. Please use uri parameter in constructor.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         self._parse_from_uri(**uri)
 
@@ -470,21 +473,36 @@ class Connection(Base, LoggingMixin):
 
         return status, message
 
-    @property
-    def extra_dejson(self) -> dict:
-        """Returns the extra property by deserializing json."""
-        obj = {}
+    def get_extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Deserialize extra property to JSON.
+
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        """
+        extra = {}
+
         if self.extra:
             try:
-                obj = json.loads(self.extra)
-
+                if nested:
+                    for key, value in json.loads(self.extra).items():
+                        extra[key] = value
+                        if isinstance(value, str):
+                            with suppress(JSONDecodeError):
+                                extra[key] = json.loads(value)
+                else:
+                    extra = json.loads(self.extra)
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
             # Mask sensitive keys from this list
-            mask_secret(obj)
+            mask_secret(extra)
 
-        return obj
+        return extra
+
+    @property
+    def extra_dejson(self) -> dict:
+        """Returns the extra property by deserializing json."""
+        return self.get_extra_dejson()
 
     @classmethod
     def get_connection_from_secrets(cls, conn_id: str) -> Connection:

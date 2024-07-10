@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import contextlib
-from contextlib import closing
+import warnings
+from contextlib import closing, contextmanager
 from datetime import datetime
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,20 +38,26 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
 from more_itertools import chunked
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
+
 T = TypeVar("T")
+SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -142,10 +150,14 @@ class DbApiHook(BaseHook):
     default_conn_name = "default_conn_id"
     # Override if this db supports autocommit.
     supports_autocommit = False
+    # Override if this db supports executemany.
+    supports_executemany = False
     # Override with the object that exposes the connect method
     connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
+    # Default SQL placeholder
+    _placeholder: str = "%s"
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -164,7 +176,6 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
-        self._placeholder: str = "%s"
         self._insert_statement_format: str = kwargs.get(
             "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
         )
@@ -172,13 +183,28 @@ class DbApiHook(BaseHook):
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
 
-    @property
-    def placeholder(self) -> str:
+    def get_conn_id(self) -> str:
+        return getattr(self, self.conn_name_attr)
+
+    @cached_property
+    def placeholder(self):
+        conn = self.get_connection(self.get_conn_id())
+        placeholder = conn.extra_dejson.get("placeholder")
+        if placeholder:
+            if placeholder in SQL_PLACEHOLDERS:
+                return placeholder
+            self.log.warning(
+                "Placeholder '%s' defined in Connection '%s' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+                "and got ignored. Falling back to the default placeholder '%s'.",
+                placeholder,
+                self.get_conn_id(),
+                self._placeholder,
+            )
         return self._placeholder
 
     def get_conn(self):
         """Return a connection object."""
-        db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
+        db = self.get_connection(self.get_conn_id())
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
@@ -187,9 +213,25 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         conn.schema = self.__schema or conn.schema
         return conn.get_uri()
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        Needs to be implemented in the provider subclass to return the sqlalchemy.engine.URL object.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        qualname = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        if qualname != "airflow.providers.common.sql.hooks.sql.DbApiHook":
+            msg = f"{qualname!r} does not implement/support built SQLAlchemy URL."
+        else:
+            msg = "`sqlalchemy_url` property should be implemented in the provider subclass."
+        raise NotImplementedError(msg)
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
@@ -218,7 +260,7 @@ class DbApiHook(BaseHook):
         try:
             from pandas.io import sql as psql
         except ImportError:
-            raise Exception(
+            raise AirflowOptionalProviderFeatureException(
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
@@ -245,7 +287,7 @@ class DbApiHook(BaseHook):
         try:
             from pandas.io import sql as psql
         except ImportError:
-            raise Exception(
+            raise AirflowOptionalProviderFeatureException(
                 "pandas library not installed, run: pip install "
                 "'apache-airflow-providers-common-sql[pandas]'."
             )
@@ -327,7 +369,8 @@ class DbApiHook(BaseHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Run a command or a list of commands.
+        """
+        Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
         execute sequentially.
@@ -392,10 +435,7 @@ class DbApiHook(BaseHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
-        with closing(self.get_conn()) as conn:
-            if self.supports_autocommit:
-                self.set_autocommit(conn, autocommit)
-
+        with self._create_autocommit_connection(autocommit) as conn:
             with closing(conn.cursor()) as cur:
                 results = []
                 for sql_statement in sql_list:
@@ -422,16 +462,9 @@ class DbApiHook(BaseHook):
         else:
             return results
 
-    @deprecated(
-        reason=(
-            "The `_make_serializable` method is deprecated and support will be removed in a future "
-            "version of the common.sql provider. Please update the DbApiHook's provider "
-            "to a version based on common.sql >= 1.9.1."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
-        """Ensure the data returned from an SQL command is a standard tuple or list[tuple].
+        """
+        Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
         This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
         transform the result of an SQL command (typically returned by cursor methods) into a common
@@ -444,6 +477,13 @@ class DbApiHook(BaseHook):
         # Back-compatibility call for providers implementing old ´_make_serializable' method.
         with contextlib.suppress(AttributeError):
             result = self._make_serializable(result=result)  # type: ignore[attr-defined]
+            warnings.warn(
+                "The `_make_serializable` method is deprecated and support will be removed in a future "
+                f"version of the common.sql provider. Please update the {self.__class__.__name__}'s provider "
+                "to a version based on common.sql >= 1.9.1.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
         if isinstance(result, Sequence):
             return cast(List[tuple], result)
@@ -468,12 +508,13 @@ class DbApiHook(BaseHook):
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
-                getattr(self, self.conn_name_attr),
+                self.get_conn_id(),
             )
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn) -> bool:
-        """Get autocommit setting for the provided connection.
+        """
+        Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting. True if ``autocommit`` is set
@@ -513,6 +554,14 @@ class DbApiHook(BaseHook):
 
         return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
+    @contextmanager
+    def _create_autocommit_connection(self, autocommit: bool = False):
+        """Context manager that closes the connection after use and detects if autocommit is supported."""
+        with closing(self.get_conn()) as conn:
+            if self.supports_autocommit:
+                self.set_autocommit(conn, autocommit)
+            yield conn
+
     def insert_rows(
         self,
         table,
@@ -524,7 +573,8 @@ class DbApiHook(BaseHook):
         executemany=False,
         **kwargs,
     ):
-        """Insert a collection of tuples into a table.
+        """
+        Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
         done in a new transaction.
@@ -535,47 +585,44 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
-        :param executemany: Insert all rows at once in chunks defined by the commit_every parameter, only
-            works if all rows have same number of column names but leads to better performance
+        :param executemany: (Deprecated) If True, all rows are inserted at once in
+            chunks defined by the commit_every parameter. This only works if all rows
+            have same number of column names, but leads to better performance.
         """
-        i = 0
-        with closing(self.get_conn()) as conn:
-            if self.supports_autocommit:
-                self.set_autocommit(conn, False)
-
+        nb_rows = 0
+        with self._create_autocommit_connection() as conn:
             conn.commit()
-
             with closing(conn.cursor()) as cur:
-                if executemany:
+                if self.supports_executemany or executemany:
                     for chunked_rows in chunked(rows, commit_every):
                         values = list(
                             map(
-                                lambda row: tuple(map(lambda cell: self._serialize_cell(cell, conn), row)),
+                                lambda row: self._serialize_cells(row, conn),
                                 chunked_rows,
                             )
                         )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
-                        cur.fast_executemany = True
                         cur.executemany(sql, values)
                         conn.commit()
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                        nb_rows += len(chunked_rows)
                 else:
                     for i, row in enumerate(rows, 1):
-                        lst = []
-                        for cell in row:
-                            lst.append(self._serialize_cell(cell, conn))
-                        values = tuple(lst)
+                        values = self._serialize_cells(row, conn)
                         sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
                         cur.execute(sql, values)
                         if commit_every and i % commit_every == 0:
                             conn.commit()
                             self.log.info("Loaded %s rows into %s so far", i, table)
+                        nb_rows += 1
+                    conn.commit()
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
 
-            if not executemany:
-                conn.commit()
-        self.log.info("Done loading. Loaded a total of %s rows into %s", i, table)
+    @classmethod
+    def _serialize_cells(cls, row, conn=None):
+        return tuple(cls._serialize_cell(cell, conn) for cell in row)
 
     @staticmethod
     def _serialize_cell(cell, conn=None) -> str | None:

@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add missing auto-increment to columns on FAB tables
+"""
+Add missing auto-increment to columns on FAB tables.
 
 Revision ID: b0d31815b5a6
 Revises: ecb43d2a1842
@@ -38,7 +39,8 @@ airflow_version = "2.4.2"
 
 
 def upgrade():
-    """Apply migration.
+    """
+    Apply migration.
 
     If these columns are already of the right type (i.e. created by our
     migration in 1.10.13 rather than FAB itself in an earlier version), this
@@ -74,5 +76,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply add_missing_autoinc_fab"""
+    """Unapply add_missing_autoinc_fab."""
     # No downgrade needed, these _should_ have applied from 1.10.13 but didn't due to a previous bug!

@@ -115,6 +115,8 @@ def internal_api(args):
             str(access_logfile),
             "--error-logfile",
             str(error_logfile),
+            "--config",
+            "python:airflow.api_internal.gunicorn_config",
         ]
 
         if args.access_logformat and args.access_logformat.strip():

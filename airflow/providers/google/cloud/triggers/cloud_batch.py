@@ -28,7 +28,8 @@ DEFAULT_BATCH_LOCATION = "us-central1"
 
 
 class CloudBatchJobFinishedTrigger(BaseTrigger):
-    """Cloud Batch trigger to check if templated job has been finished.
+    """
+    Cloud Batch trigger to check if templated job has been finished.
 
     :param job_name: Required. Name of the job.
     :param project_id: Required. the Google Cloud project ID in which the job was started.

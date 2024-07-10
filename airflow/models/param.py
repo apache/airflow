@@ -76,6 +76,7 @@ class Param:
                 "The use of non-json-serializable params is deprecated and will be removed in "
                 "a future release",
                 RemovedInAirflow3Warning,
+                stacklevel=1,
             )
 
     @staticmethod
@@ -91,11 +92,13 @@ class Param:
             f"The use of non-RFC3339 datetime: {value!r} is deprecated "
             "and will be removed in a future release",
             RemovedInAirflow3Warning,
+            stacklevel=1,
         )
         if timezone.is_naive(iso8601_value):
             warnings.warn(
                 "The use naive datetime is deprecated and will be removed in a future release",
                 RemovedInAirflow3Warning,
+                stacklevel=1,
             )
         return value
 
@@ -294,7 +297,8 @@ class ParamsDict(MutableMapping[str, Any]):
 
 
 class DagParam(ResolveMixin):
-    """DAG run parameter reference.
+    """
+    DAG run parameter reference.
 
     This binds a simple Param object to a name within a DAG instance, so that it
     can be resolved during the runtime via the ``{{ context }}`` dictionary. The

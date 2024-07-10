@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
+from azure.cosmos import PartitionKey
 from azure.cosmos.cosmos_client import CosmosClient
 
 from airflow.exceptions import AirflowException
@@ -43,6 +44,7 @@ class TestAzureCosmosDbHook:
         self.test_collection_name = "test_collection_name"
         self.test_database_default = "test_database_default"
         self.test_collection_default = "test_collection_default"
+        self.test_partition_key = "/test_partition_key"
         create_mock_connection(
             Connection(
                 conn_id="azure_cosmos_test_key_id",
@@ -52,6 +54,7 @@ class TestAzureCosmosDbHook:
                 extra={
                     "database_name": self.test_database_default,
                     "collection_name": self.test_collection_default,
+                    "partition_key": self.test_partition_key,
                 },
             )
         )
@@ -115,11 +118,11 @@ class TestAzureCosmosDbHook:
     @mock.patch(f"{MODULE}.CosmosClient")
     def test_create_container(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_key_id")
-        hook.create_collection(self.test_collection_name, self.test_database_name)
+        hook.create_collection(self.test_collection_name, self.test_database_name, partition_key="/id")
         expected_calls = [
             mock.call()
             .get_database_client("test_database_name")
-            .create_container("test_collection_name", partition_key=None)
+            .create_container("test_collection_name", partition_key=PartitionKey(path="/id"))
         ]
         mock_cosmos.assert_any_call(self.test_end_point, {"masterKey": self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)
@@ -131,7 +134,9 @@ class TestAzureCosmosDbHook:
         expected_calls = [
             mock.call()
             .get_database_client("test_database_name")
-            .create_container("test_collection_name", partition_key=None)
+            .create_container(
+                "test_collection_name", partition_key=PartitionKey(path=self.test_partition_key)
+            )
         ]
         mock_cosmos.assert_any_call(self.test_end_point, {"masterKey": self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)

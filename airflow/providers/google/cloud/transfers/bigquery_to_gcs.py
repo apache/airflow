@@ -142,8 +142,6 @@ class BigQueryToGCSOperator(BaseOperator):
         self.hook: BigQueryHook | None = None
         self.deferrable = deferrable
 
-        self._job_id: str = ""
-
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
@@ -212,7 +210,7 @@ class BigQueryToGCSOperator(BaseOperator):
         self.hook = hook
 
         configuration = self._prepare_configuration()
-        job_id = hook.generate_job_id(
+        self.job_id = hook.generate_job_id(
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -224,14 +222,14 @@ class BigQueryToGCSOperator(BaseOperator):
         try:
             self.log.info("Executing: %s", configuration)
             job: BigQueryJob | UnknownJob = self._submit_job(
-                hook=hook, job_id=job_id, configuration=configuration
+                hook=hook, job_id=self.job_id, configuration=configuration
             )
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
                 project_id=self.project_id,
                 location=self.location,
-                job_id=job_id,
+                job_id=self.job_id,
             )
             if job.state in self.reattach_states:
                 # We are reattaching to a job
@@ -240,12 +238,12 @@ class BigQueryToGCSOperator(BaseOperator):
             else:
                 # Same job configuration so we need force_rerun
                 raise AirflowException(
-                    f"Job with id: {job_id} already exists and is in {job.state} state. If you "
+                    f"Job with id: {self.job_id} already exists and is in {job.state} state. If you "
                     f"want to force rerun it consider setting `force_rerun=True`."
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
-        self._job_id = job.job_id
+        self.job_id = job.job_id
         conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
         dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
         BigQueryTableLink.persist(
@@ -261,7 +259,7 @@ class BigQueryToGCSOperator(BaseOperator):
                 timeout=self.execution_timeout,
                 trigger=BigQueryInsertJobTrigger(
                     conn_id=self.gcp_conn_id,
-                    job_id=self._job_id,
+                    job_id=self.job_id,
                     project_id=self.project_id or self.hook.project_id,
                     location=self.location or self.hook.location,
                     impersonation_chain=self.impersonation_chain,
@@ -272,7 +270,8 @@ class BigQueryToGCSOperator(BaseOperator):
             job.result(timeout=self.result_timeout, retry=self.result_retry)
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+        """
+        Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -283,6 +282,8 @@ class BigQueryToGCSOperator(BaseOperator):
             self.task_id,
             event["message"],
         )
+        # Save job_id as an attribute to be later used by listeners
+        self.job_id = event.get("job_id")
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
@@ -296,13 +297,21 @@ class BigQueryToGCSOperator(BaseOperator):
         from openlineage.client.run import Dataset
 
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
-        from airflow.providers.google.cloud.utils.openlineage import (
+        from airflow.providers.google.cloud.openlineage.utils import (
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        table_object = self.hook.get_client(self.hook.project_id).get_table(self.source_project_dataset_table)
+        if not self.hook:
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
+
+        project_id = self.project_id or self.hook.project_id
+        table_object = self.hook.get_client(project_id).get_table(self.source_project_dataset_table)
 
         input_dataset = Dataset(
             namespace="bigquery",
@@ -346,9 +355,9 @@ class BigQueryToGCSOperator(BaseOperator):
             output_datasets.append(dataset)
 
         run_facets = {}
-        if self._job_id:
+        if self.job_id:
             run_facets = {
-                "externalQuery": ExternalQueryRunFacet(externalQueryId=self._job_id, source="bigquery"),
+                "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery"),
             }
 
         return OperatorLineage(inputs=[input_dataset], outputs=output_datasets, run_facets=run_facets)

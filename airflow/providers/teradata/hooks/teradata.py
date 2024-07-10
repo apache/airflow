@@ -19,20 +19,34 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy
 import teradatasql
 from teradatasql import TeradataConnection
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
+PARAM_TYPES = {bool, float, int, str}
+
+
+def _map_param(value):
+    if value in PARAM_TYPES:
+        # In this branch, value is a Python type; calling it produces
+        # an instance of the type which is understood by the Teradata driver
+        # in the out parameter mapping mechanism.
+        value = value()
+    return value
+
 
 class TeradataHook(DbApiHook):
-    """General hook for interacting with Teradata SQL Database.
+    """
+    General hook for interacting with Teradata SQL Database.
 
     This module contains basic APIs to connect to and interact with Teradata SQL Database. It uses teradatasql
     client internally as a database driver for connecting to Teradata database. The config parameters like
@@ -59,6 +73,9 @@ class TeradataHook(DbApiHook):
     # Override if this db supports autocommit.
     supports_autocommit = True
 
+    # Override if this db supports executemany.
+    supports_executemany = True
+
     # Override this for hook to have a custom name in the UI selection
     conn_type = "teradata"
 
@@ -80,7 +97,8 @@ class TeradataHook(DbApiHook):
         super().__init__(*args, schema=database, **kwargs)
 
     def get_conn(self) -> TeradataConnection:
-        """Create and return a Teradata Connection object using teradatasql client.
+        """
+        Create and return a Teradata Connection object using teradatasql client.
 
         Establishes connection to a Teradata SQL database using config corresponding to teradata_conn_id.
 
@@ -97,7 +115,10 @@ class TeradataHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Insert bulk of records into Teradata SQL Database.
+        """
+        Use :func:`insert_rows` instead, this is deprecated.
+
+        Insert bulk of records into Teradata SQL Database.
 
         This uses prepared statements via `executemany()`. For best performance,
         pass in `rows` as an iterator.
@@ -106,41 +127,20 @@ class TeradataHook(DbApiHook):
             specific database
         :param rows: the rows to insert into the table
         :param target_fields: the names of the columns to fill in the table, default None.
-            If None, each rows should have some order as table columns name
+            If None, each row should have some order as table columns name
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
         """
+        warnings.warn(
+            "bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
-        conn = self.get_conn()
-        if self.supports_autocommit:
-            self.set_autocommit(conn, False)
-        cursor = conn.cursor()
-        cursor.fast_executemany = True
-        values_base = target_fields if target_fields else rows[0]
-        prepared_stm = "INSERT INTO {tablename} {columns} VALUES ({values})".format(
-            tablename=table,
-            columns="({})".format(", ".join(target_fields)) if target_fields else "",
-            values=", ".join("?" for i in range(1, len(values_base) + 1)),
-        )
-        row_count = 0
-        # Chunk the rows
-        row_chunk = []
-        for row in rows:
-            row_chunk.append(row)
-            row_count += 1
-            if row_count % commit_every == 0:
-                cursor.executemany(prepared_stm, row_chunk)
-                conn.commit()  # type: ignore[attr-defined]
-                # Empty chunk
-                row_chunk = []
-        # Commit the leftover chunk
-        if len(row_chunk) > 0:
-            cursor.executemany(prepared_stm, row_chunk)
-            conn.commit()  # type: ignore[attr-defined]
-        self.log.info("[%s] inserted %s rows", table, row_count)
-        cursor.close()
-        conn.close()  # type: ignore[attr-defined]
+
+        self.insert_rows(table=table, rows=rows, target_fields=target_fields, commit_every=commit_every)
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
@@ -201,3 +201,58 @@ class TeradataHook(DbApiHook):
                 "password": "dbc",
             },
         }
+
+    def callproc(
+        self,
+        identifier: str,
+        autocommit: bool = False,
+        parameters: list | dict | None = None,
+    ) -> list | dict | tuple | None:
+        """
+        Call the stored procedure identified by the provided string.
+
+        Any OUT parameters must be provided with a value of either the
+        expected Python type (e.g., `int`) or an instance of that type.
+
+        :param identifier: stored procedure name
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :param parameters: The `IN`, `OUT` and `INOUT` parameters for Teradata
+            stored procedure
+
+        The return value is a list or mapping that includes parameters in
+        both directions; the actual return type depends on the type of the
+        provided `parameters` argument.
+
+        """
+        if parameters is None:
+            parameters = []
+
+        args = ",".join("?" for name in parameters)
+
+        sql = f"{{CALL {identifier}({(args)})}}"
+
+        def handler(cursor):
+            records = cursor.fetchall()
+
+            if records is None:
+                return
+            if isinstance(records, list):
+                return [row for row in records]
+
+            if isinstance(records, dict):
+                return {n: v for (n, v) in records.items()}
+            raise TypeError(f"Unexpected results: {records}")
+
+        result = self.run(
+            sql,
+            autocommit=autocommit,
+            parameters=(
+                [_map_param(value) for (name, value) in parameters.items()]
+                if isinstance(parameters, dict)
+                else [_map_param(value) for value in parameters]
+            ),
+            handler=handler,
+        )
+
+        return result

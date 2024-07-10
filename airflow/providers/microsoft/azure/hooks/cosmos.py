@@ -27,9 +27,10 @@ the default database and collection to use (see connection `azure_cosmos_default
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any, List, Union
 from urllib.parse import urlparse
 
+from azure.cosmos import PartitionKey
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
@@ -41,6 +42,9 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
+
+if TYPE_CHECKING:
+    PartitionKeyType = Union[str, List[str]]
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -111,6 +115,7 @@ class AzureCosmosDBHook(BaseHook):
 
         self.default_database_name = None
         self.default_collection_name = None
+        self.default_partition_key = None
 
     def _get_field(self, extras, name):
         return get_field(
@@ -153,6 +158,7 @@ class AzureCosmosDBHook(BaseHook):
 
             self.default_database_name = self._get_field(extras, "database_name")
             self.default_collection_name = self._get_field(extras, "collection_name")
+            self.default_partition_key = self._get_field(extras, "partition_key")
 
             # Initialize the Python Azure Cosmos DB client
             self._conn = CosmosClient(endpoint_uri, {"masterKey": master_key})
@@ -180,6 +186,18 @@ class AzureCosmosDBHook(BaseHook):
 
         return coll_name
 
+    def __get_partition_key(self, partition_key: PartitionKeyType | None = None) -> PartitionKeyType:
+        self.get_conn()
+        if partition_key is None:
+            part_key = self.default_partition_key
+        else:
+            part_key = partition_key
+
+        if part_key is None:
+            raise AirflowBadRequest("Partition key must be specified")
+
+        return part_key
+
     def does_collection_exist(self, collection_name: str, database_name: str) -> bool:
         """Check if a collection exists in CosmosDB."""
         if collection_name is None:
@@ -204,7 +222,7 @@ class AzureCosmosDBHook(BaseHook):
         self,
         collection_name: str,
         database_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ) -> None:
         """Create a new collection in the CosmosDB database."""
         if collection_name is None:
@@ -226,7 +244,8 @@ class AzureCosmosDBHook(BaseHook):
         # Only create if we did not find it already existing
         if not existing_container:
             self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
-                collection_name, partition_key=partition_key
+                collection_name,
+                partition_key=PartitionKey(path=self.__get_partition_key(partition_key)),
             )
 
     def does_database_exist(self, database_name: str) -> bool:
@@ -328,7 +347,7 @@ class AzureCosmosDBHook(BaseHook):
         document_id: str,
         database_name: str | None = None,
         collection_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ) -> None:
         """Delete an existing document out of a collection in the CosmosDB database."""
         if document_id is None:
@@ -337,7 +356,7 @@ class AzureCosmosDBHook(BaseHook):
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .get_container_client(self.__get_collection_name(collection_name))
-            .delete_item(document_id, partition_key=partition_key)
+            .delete_item(document_id, partition_key=self.__get_partition_key(partition_key))
         )
 
     def get_document(
@@ -345,7 +364,7 @@ class AzureCosmosDBHook(BaseHook):
         document_id: str,
         database_name: str | None = None,
         collection_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ):
         """Get a document from an existing collection in the CosmosDB database."""
         if document_id is None:
@@ -356,7 +375,7 @@ class AzureCosmosDBHook(BaseHook):
                 self.get_conn()
                 .get_database_client(self.__get_database_name(database_name))
                 .get_container_client(self.__get_collection_name(collection_name))
-                .read_item(document_id, partition_key=partition_key)
+                .read_item(document_id, partition_key=self.__get_partition_key(partition_key))
             )
         except CosmosHttpResponseError:
             return None
@@ -366,7 +385,7 @@ class AzureCosmosDBHook(BaseHook):
         sql_string: str,
         database_name: str | None = None,
         collection_name: str | None = None,
-        partition_key: str | None = None,
+        partition_key: PartitionKeyType | None = None,
     ) -> list | None:
         """Get a list of documents from an existing collection in the CosmosDB database via SQL query."""
         if sql_string is None:
@@ -377,7 +396,7 @@ class AzureCosmosDBHook(BaseHook):
                 self.get_conn()
                 .get_database_client(self.__get_database_name(database_name))
                 .get_container_client(self.__get_collection_name(collection_name))
-                .query_items(sql_string, partition_key=partition_key)
+                .query_items(sql_string, partition_key=self.__get_partition_key(partition_key))
             )
             return list(result_iterable)
         except CosmosHttpResponseError:

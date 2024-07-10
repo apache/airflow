@@ -73,7 +73,7 @@ with DAG(
         dag_run: DagRun = ti.dag_run
         selected_languages = []
         for lang in ["english", "german", "french"]:
-            if lang in dag_run.conf and dag_run.conf[lang]:
+            if dag_run.conf.get(lang):
                 selected_languages.append(f"generate_{lang}_greeting")
         return selected_languages
 

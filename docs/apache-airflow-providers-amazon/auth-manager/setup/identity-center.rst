@@ -112,7 +112,7 @@ Once the application is created, you need to configure the attribute mappings.
 2. Choose **Actions**.
 3. Under **Actions**, choose **Edit attribute mappings**.
 4. On the **Attribute mappings** page, you need to configure the different attribute mappings between your identity
-   provider and AWS IAM Identity Center. For more information on attribute mappings, see the
+   source and AWS IAM Identity Center. For more information on attribute mappings, see the
    `IAM Identity Center documentation <https://docs.aws.amazon.com/singlesignon/latest/userguide/attributemappingsconcept.html>`_.
    The AWS auth manager needs two attributes: **id** and **groups**.
    If you use the default Identity Center directory as identity source, you can use the configuration below:

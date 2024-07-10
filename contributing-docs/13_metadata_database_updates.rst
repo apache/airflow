@@ -21,17 +21,15 @@ Metadata Database Updates
 When developing features, you may need to persist information to the metadata
 database. Airflow has `Alembic <https://github.com/sqlalchemy/alembic>`__ built-in
 module to handle all schema changes. Alembic must be installed on your
-development machine before continuing with migration.
+development machine before continuing with migration. If you had made changes to the ORM,
+you will need to generate a new migration file. This file will contain the changes to the
+database schema that you have made. To generate a new migration file, run the following:
 
 
 .. code-block:: bash
 
     # starting at the root of the project
-    $ pwd
-    ~/airflow
-    # change to the airflow directory
-    $ cd airflow
-    $ alembic revision -m "add new field to db"
+    $ breeze generate-migration-file -m "add new field to db"
        Generating
     ~/airflow/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
 

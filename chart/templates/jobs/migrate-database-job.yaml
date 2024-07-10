@@ -75,6 +75,9 @@ spec:
     spec:
       securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: OnFailure
+      {{- if .Values.migrateDatabaseJob.priorityClassName }}
+      priorityClassName: {{ .Values.migrateDatabaseJob.priorityClassName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       {{- if .Values.schedulerName }}
@@ -86,6 +89,10 @@ spec:
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
+      {{- end }}
+      {{- if .Values.migrateDatabaseJob.extraInitContainers }}
+      initContainers:
+        {{- tpl (toYaml .Values.migrateDatabaseJob.extraInitContainers) . | nindent 8 }}
       {{- end }}
       containers:
         - name: run-airflow-migrations
@@ -120,7 +127,7 @@ spec:
               {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.migrateDatabaseJob.extraContainers }}
-          {{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.migrateDatabaseJob.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

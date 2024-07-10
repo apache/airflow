@@ -180,7 +180,8 @@ class BashOperator(BaseOperator):
 
     @staticmethod
     def refresh_bash_command(ti: TaskInstance) -> None:
-        """Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
+        """
+        Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
 
         TaskInstance.get_rendered_template_fields() cannot be used because this will retrieve the
         RenderedTaskInstanceFields from the metadatabase which doesn't have the runtime-evaluated bash_command

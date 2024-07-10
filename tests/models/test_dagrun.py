@@ -32,15 +32,16 @@ from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
-from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -60,11 +61,22 @@ TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models.dagbag import DagBag
+
+    return DagBag(include_examples=True)
+
+
 class TestDagRun:
-    dagbag = DagBag(include_examples=True)
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        self._clean_db()
+        yield
+        self._clean_db()
 
     @staticmethod
-    def clean_db():
+    def _clean_db():
         db.clear_db_runs()
         db.clear_db_pools()
         db.clear_db_dags()
@@ -72,12 +84,6 @@ class TestDagRun:
         db.clear_db_datasets()
         db.clear_db_xcom()
         db.clear_db_task_fail()
-
-    def setup_class(self) -> None:
-        self.clean_db()
-
-    def teardown_method(self) -> None:
-        self.clean_db()
 
     def create_dag_run(
         self,
@@ -741,10 +747,10 @@ class TestDagRun:
             (None, False),
         ],
     )
-    def test_depends_on_past(self, session, prev_ti_state, is_ti_success):
+    def test_depends_on_past(self, dagbag, session, prev_ti_state, is_ti_success):
         dag_id = "test_depends_on_past"
 
-        dag = self.dagbag.get_dag(dag_id)
+        dag = dagbag.get_dag(dag_id)
         task = dag.tasks[0]
 
         dag_run_1 = self.create_dag_run(
@@ -778,9 +784,9 @@ class TestDagRun:
             (None, False),
         ],
     )
-    def test_wait_for_downstream(self, session, prev_ti_state, is_ti_success):
+    def test_wait_for_downstream(self, dagbag, session, prev_ti_state, is_ti_success):
         dag_id = "test_wait_for_downstream"
-        dag = self.dagbag.get_dag(dag_id)
+        dag = dagbag.get_dag(dag_id)
         upstream, downstream = dag.tasks
 
         # For ti.set_state() to work, the DagRun has to exist,
@@ -1982,6 +1988,61 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+def test_schedule_tis_start_trigger(dag_maker, session):
+    """
+    Test that an operator with start_trigger_args set can be directly deferred during scheduling.
+    """
+
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs=None,
+            next_method="execute_complete",
+            timeout=None,
+        )
+        start_from_trigger = True
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.start_trigger_args.trigger_kwargs = {}
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        task = TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    ti = TI(task=task, run_id=dr.run_id, state=None)
+    assert ti.state is None
+    dr.schedule_tis((ti,), session=session)
+    assert ti.state == TaskInstanceState.DEFERRED
+
+
+def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
+    """
+    When empty operator is not actually run, then we need to increment the try_number,
+    since ordinarily it's incremented when scheduled, but empty operator is generally not scheduled.
+    """
+
+    with dag_maker(session=session):
+        BashOperator(task_id="real_task", bash_command="echo 1")
+        EmptyOperator(task_id="empty_task")
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+    session.commit()
+    tis = dr.task_instances
+    dr.schedule_tis(tis, session=session)
+    session.commit()
+    session.expunge_all()
+    tis = dr.get_task_instances(session=session)
+    real_ti = next(x for x in tis if x.task_id == "real_task")
+    empty_ti = next(x for x in tis if x.task_id == "empty_task")
+    assert real_ti.try_number == 1
+    assert empty_ti.try_number == 1
+
+
 def test_mapped_expand_kwargs(dag_maker):
     with dag_maker():
 
@@ -2083,8 +2144,8 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
     task = ti.task
     for map_index in range(1, 5):
         ti = TI(task, run_id=dr.run_id, map_index=map_index)
-        ti.dag_run = dr
         session.add(ti)
+        ti.dag_run = dr
     session.flush()
     tis = dr.get_task_instances()
     for ti in tis:
@@ -2318,7 +2379,8 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task=ti,
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
         run_id=ti.run_id,
         try_number=ti.try_number,
         start_date=timezone.datetime(2017, 1, 1),

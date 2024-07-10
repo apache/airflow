@@ -41,8 +41,6 @@ class MetricNameLengthExemptionWarning(Warning):
     Using a custom Warning class allows us to easily test that it is used.
     """
 
-    ...
-
 
 # Only characters in the character set are considered valid
 # for the stat_name if stat_name_default_handler is used.
@@ -198,6 +196,7 @@ def stat_name_otel_handler(
             f"This stat name will be deprecated in the future and replaced with "
             f"a shorter name combined with Attributes/Tags.",
             MetricNameLengthExemptionWarning,
+            stacklevel=2,
         )
 
     return proposed_stat_name

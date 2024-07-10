@@ -23,9 +23,13 @@ from flask import session, url_for
 
 from airflow.exceptions import AirflowException
 from airflow.www import app as application
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests.test_utils.config import conf_vars
 
 pytest.importorskip("onelogin")
+
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
+
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
@@ -54,7 +58,6 @@ def aws_app():
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "enable"): "True",
             ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
         }
     ):
@@ -95,7 +98,6 @@ class TestAwsAuthManagerAuthenticationViews:
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws_auth_manager", "enable"): "True",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):
@@ -134,7 +136,6 @@ class TestAwsAuthManagerAuthenticationViews:
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws_auth_manager", "enable"): "True",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):

@@ -44,7 +44,7 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     ROLES_COMMANDS,
@@ -242,8 +242,6 @@ class FabAuthManager(BaseAuthManager):
 
             return all(
                 self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN
-                else self._is_authorized_dag_run(method=method, details=details, user=user)
                 for resource_type in resource_types
             )
 
@@ -274,10 +272,7 @@ class FabAuthManager(BaseAuthManager):
     ):
         if not user:
             user = self.get_user()
-        if method in get_fab_action_from_method_map():
-            fab_action_name = get_fab_action_from_method_map()[method]
-        else:
-            fab_action_name = method
+        fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
     @provide_session
@@ -344,7 +339,7 @@ class FabAuthManager(BaseAuthManager):
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
             if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
-                raise Exception(
+                raise AirflowConfigException(
                     """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride."""
                 )
             return sm_from_config(self.appbuilder)
@@ -355,8 +350,8 @@ class FabAuthManager(BaseAuthManager):
         """Return the login page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
-        if "next_url" in kwargs and kwargs["next_url"]:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+        if next_url := kwargs.get("next_url"):
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=next_url)
         else:
             return url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
@@ -417,33 +412,7 @@ class FabAuthManager(BaseAuthManager):
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG
-            resource_dag_name = self._resource_name(details.id, RESOURCE_DAG)
-            return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
-
-        return False
-
-    def _is_authorized_dag_run(
-        self,
-        method: ResourceMethod,
-        details: DagDetails | None = None,
-        user: BaseUser | None = None,
-    ) -> bool:
-        """
-        Return whether the user is authorized to perform a given action on a DAG Run.
-
-        :param method: the method to perform
-        :param details: optional details about the DAG
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
-
-        :meta private:
-        """
-        is_global_authorized = self._is_authorized(method=method, resource_type=RESOURCE_DAG_RUN, user=user)
-        if is_global_authorized:
-            return True
-
-        if details and details.id:
-            # Check whether the user has permissions to access a specific DAG Run permission on a DAG Level
-            resource_dag_name = self._resource_name(details.id, RESOURCE_DAG_RUN)
+            resource_dag_name = self._resource_name_for_dag(details.id)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
         return False
@@ -475,7 +444,7 @@ class FabAuthManager(BaseAuthManager):
             raise AirflowException(f"Unknown DAG access entity: {dag_access_entity}")
         return _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[dag_access_entity]
 
-    def _resource_name(self, dag_id: str, resource_type: str) -> str:
+    def _resource_name_for_dag(self, dag_id: str) -> str:
         """
         Return the FAB resource name for a DAG id.
 
@@ -484,7 +453,11 @@ class FabAuthManager(BaseAuthManager):
         :meta private:
         """
         root_dag_id = self._get_root_dag_id(dag_id)
-        return permissions.resource_name(root_dag_id, resource_type)
+        if root_dag_id == RESOURCE_DAG:
+            return root_dag_id
+        if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
+            return root_dag_id
+        return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
 
     @staticmethod
     def _get_user_permissions(user: BaseUser):

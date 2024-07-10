@@ -121,11 +121,13 @@ jobs:
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:
           SIGN_WITH: dev@airflow.apache.org
+      - name: "Fetch Git Tags"
+        run: git fetch --tags
       - name: "Test helm chart issue generation automatically"
         # Adding same tags for now, will address in a follow-up
         run: >
-          breeze release-management generate-issue-content-helm-chart
-          --previous-release helm-chart/0.0.0dev0 --current-release helm-chart/0.0.0dev0
+          breeze release-management generate-issue-content-helm-chart --limit-pr-count 10
+          --latest --verbose
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:

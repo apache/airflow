@@ -28,6 +28,7 @@ import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
+import re2
 from alembic.script import ScriptDirectory
 from rich.console import Console
 from tabulate import tabulate
@@ -184,11 +185,36 @@ def ensure_filenames_are_sorted(revisions):
         os.rename(old, new)
 
 
+def correct_mismatching_revision_nums(revisions: Iterable[Script]):
+    revision_pattern = r'revision = "([a-fA-F0-9]+)"'
+    down_revision_pattern = r'down_revision = "([a-fA-F0-9]+)"'
+    revision_id_pattern = r"Revision ID: ([a-fA-F0-9]+)"
+    revises_id_pattern = r"Revises: ([a-fA-F0-9]+)"
+    for rev in revisions:
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
+        file = Path(rev.module.__file__)
+        content = file.read_text()
+        revision_match = re2.search(
+            revision_pattern,
+            content,
+        )
+        revision_id_match = re2.search(revision_id_pattern, content)
+        new_content = content.replace(revision_id_match.group(1), revision_match.group(1), 1)
+        down_revision_match = re2.search(down_revision_pattern, new_content)
+        revises_id_match = re2.search(revises_id_pattern, new_content)
+        if down_revision_match:
+            new_content = new_content.replace(revises_id_match.group(1), down_revision_match.group(1), 1)
+        file.write_text(new_content)
+
+
 if __name__ == "__main__":
     console.print("[bright_blue]Updating migration reference")
     revisions = list(reversed(list(get_revisions())))
     console.print("[bright_blue]Making sure airflow version updated")
     ensure_airflow_version(revisions=revisions)
+    console.print("[bright_blue]Making sure there's no mismatching revision numbers")
+    correct_mismatching_revision_nums(revisions=revisions)
     revisions = list(reversed(list(get_revisions())))
     console.print("[bright_blue]Making sure filenames are sorted")
     ensure_filenames_are_sorted(revisions=revisions)

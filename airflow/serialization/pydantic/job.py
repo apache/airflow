@@ -42,6 +42,7 @@ class JobPydantic(BaseModelPydantic):
     executor_class: Optional[str]
     hostname: Optional[str]
     unixname: Optional[str]
+    grace_multiplier: float = 2.1
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,14 +58,12 @@ class JobPydantic(BaseModelPydantic):
             assert self.job_type is not None
         return Job._heartrate(self.job_type)
 
-    def is_alive(self, grace_multiplier=2.1) -> bool:
+    def is_alive(self) -> bool:
         """Is this job currently alive."""
-        from airflow.jobs.job import Job
+        from airflow.jobs.job import Job, health_check_threshold
 
         return Job._is_alive(
-            job_type=self.job_type,
-            heartrate=self.heartrate,
             state=self.state,
+            health_check_threshold_value=health_check_threshold(self.job_type, self.heartrate),
             latest_heartbeat=self.latest_heartbeat,
-            grace_multiplier=grace_multiplier,
         )

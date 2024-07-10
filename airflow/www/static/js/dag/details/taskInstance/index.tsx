@@ -30,6 +30,8 @@ import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
 import DatasetUpdateEvents from "./DatasetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
+import TaskFailedDependency from "./TaskFailedDependency";
+import TaskDocumentation from "./TaskDocumentation";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -66,6 +68,10 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     enabled: (!isGroup && !isMapped) || isMapIndexDefined,
   });
 
+  const showTaskSchedulingDependencies =
+    !isGroupOrMappedTaskSummary &&
+    (!taskInstance?.state || taskInstance?.state === "scheduled");
+
   const gridInstance = group?.instances.find((ti) => ti.runId === runId);
 
   return (
@@ -85,6 +91,7 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           operator={operator}
         />
       )}
+      {!isGroupOrMappedTaskSummary && <TaskDocumentation taskId={taskId} />}
       {!isGroupOrMappedTaskSummary && (
         <NotesAccordion
           dagId={dagId}
@@ -112,6 +119,14 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
         <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />
+      {showTaskSchedulingDependencies && (
+        <TaskFailedDependency
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
+        />
+      )}
       <Details
         gridInstance={gridInstance}
         taskInstance={taskInstance}

@@ -41,7 +41,8 @@ class OperatorLineage:
 
 
 class BaseExtractor(ABC, LoggingMixin):
-    """Abstract base extractor class.
+    """
+    Abstract base extractor class.
 
     This is used mostly to maintain support for custom extractors.
     """
@@ -55,7 +56,8 @@ class BaseExtractor(ABC, LoggingMixin):
     @classmethod
     @abstractmethod
     def get_operator_classnames(cls) -> list[str]:
-        """Get a list of operators that extractor works for.
+        """
+        Get a list of operators that extractor works for.
 
         This is an abstract method that subclasses should implement. There are
         operators that work very similarly and one extractor can cover.
@@ -77,7 +79,8 @@ class DefaultExtractor(BaseExtractor):
 
     @classmethod
     def get_operator_classnames(cls) -> list[str]:
-        """Assign this extractor to *no* operators.
+        """
+        Assign this extractor to *no* operators.
 
         Default extractor is chosen not on the classname basis, but
         by existence of get_openlineage_facets method on operator.
@@ -87,6 +90,9 @@ class DefaultExtractor(BaseExtractor):
     def _execute_extraction(self) -> OperatorLineage | None:
         # OpenLineage methods are optional - if there's no method, return None
         try:
+            self.log.debug(
+                "Trying to execute `get_openlineage_facets_on_start` for %s.", self.operator.task_type
+            )
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
         except ImportError:
             self.log.error(
@@ -105,9 +111,13 @@ class DefaultExtractor(BaseExtractor):
         if task_instance.state == TaskInstanceState.FAILED:
             on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
             if on_failed and callable(on_failed):
+                self.log.debug(
+                    "Executing `get_openlineage_facets_on_failure` for %s.", self.operator.task_type
+                )
                 return self._get_openlineage_facets(on_failed, task_instance)
         on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
         if on_complete and callable(on_complete):
+            self.log.debug("Executing `get_openlineage_facets_on_complete` for %s.", self.operator.task_type)
             return self._get_openlineage_facets(on_complete, task_instance)
         return self.extract()
 

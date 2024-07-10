@@ -65,6 +65,7 @@ class TestTaskInstanceSchema:
 
     def test_task_instance_schema_without_sla_and_rendered(self, session):
         ti = TI(task=self.task, **self.default_ti_init)
+        session.add(ti)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
         serialized_ti = task_instance_schema.dump((ti, None, None))
@@ -73,6 +74,7 @@ class TestTaskInstanceSchema:
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -109,6 +111,7 @@ class TestTaskInstanceSchema:
         session.add(sla_miss)
         session.flush()
         ti = TI(task=self.task, **self.default_ti_init)
+        session.add(ti)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
         self.task.template_fields = ["partitions"]
@@ -120,6 +123,7 @@ class TestTaskInstanceSchema:
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,

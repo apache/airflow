@@ -34,6 +34,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -44,7 +45,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -83,7 +83,8 @@ CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
 
 
 def _generate_temporary_run_id() -> str:
-    """Generate a ``run_id`` for a DAG run that will be created temporarily.
+    """
+    Generate a ``run_id`` for a DAG run that will be created temporarily.
 
     This is used mostly by ``airflow task test`` to create a DAG run that will
     be deleted after the task is run.
@@ -96,9 +97,10 @@ def _get_dag_run(
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: str | None = None,
-    session: Session,
+    session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
-    """Try to retrieve a DAG run from a string representing either a run ID or logical date.
+    """
+    Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:
 
@@ -115,13 +117,13 @@ def _get_dag_run(
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
-        dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
+        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         if execution_date:
-            dag_run = dag.get_dagrun(execution_date=execution_date, session=session)
+            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session)
         if dag_run:
             return dag_run, False
         elif not create_if_necessary:
@@ -137,7 +139,7 @@ def _get_dag_run(
 
     if create_if_necessary == "memory":
         dag_run = DagRun(
-            dag.dag_id,
+            dag_id=dag.dag_id,
             run_id=exec_date_or_run_id,
             execution_date=dag_run_execution_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
@@ -155,8 +157,10 @@ def _get_dag_run(
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
+@internal_api_call
 @provide_session
-def _get_ti(
+def _get_ti_db_access(
+    dag: DAG,
     task: Operator,
     map_index: int,
     *,
@@ -166,12 +170,15 @@ def _get_ti(
     session: Session = NEW_SESSION,
 ) -> tuple[TaskInstance | TaskInstancePydantic, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
-    dag = task.dag
-    if dag is None:
-        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    # this check is imperfect because diff dags could have tasks with same name
+    # but in a task, dag_id is a property that accesses its dag, and we don't
+    # currently include the dag when serializing an operator
+    if task.task_id not in dag.task_dict:
+        raise ValueError(f"Provided task {task.task_id} is not in dag '{dag.dag_id}.")
+
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    if needs_expansion(task):
+    if task.get_needs_expansion():
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
     elif map_index >= 0:
@@ -184,6 +191,7 @@ def _get_ti(
     )
 
     ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    ti: TaskInstance | TaskInstancePydantic
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(
@@ -191,12 +199,39 @@ def _get_ti(
                 f"run_id or execution_date of {exec_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
-        ti: TaskInstance | TaskInstancePydantic = TaskInstance(
-            task, run_id=dag_run.run_id, map_index=map_index
-        )
+        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
+        if dag_run in session:
+            session.add(ti)
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
+    ti.refresh_from_task(task, pool_override=pool)
+    return ti, dr_created
+
+
+def _get_ti(
+    task: Operator,
+    map_index: int,
+    *,
+    exec_date_or_run_id: str | None = None,
+    pool: str | None = None,
+    create_if_necessary: CreateIfNecessary = False,
+):
+    dag = task.dag
+    if dag is None:
+        raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+
+    ti, dr_created = _get_ti_db_access(
+        dag=dag,
+        task=task,
+        map_index=map_index,
+        exec_date_or_run_id=exec_date_or_run_id,
+        pool=pool,
+        create_if_necessary=create_if_necessary,
+    )
+
+    # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
+    # is the original task object and not the result of the round trip
     ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
@@ -264,6 +299,9 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
 def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
+    if InternalApiConfig.get_use_internal_api():
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
+        from airflow.models.trigger import Trigger  # noqa: F401
     job_runner = LocalTaskJobRunner(
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,
@@ -637,7 +675,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
             else:
                 ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True, raise_on_defer=True)
     except TaskDeferred as defer:
-        ti.defer_task(defer=defer, session=session)
+        ti.defer_task(exception=defer, session=session)
         log.info("[TASK TEST] running trigger in line")
 
         event = _run_inline_trigger(defer.trigger)

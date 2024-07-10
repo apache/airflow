@@ -66,7 +66,8 @@ alphanum_lower = string.ascii_lowercase + string.digits
 
 
 def rand_str(num):
-    """Generate random lowercase alphanumeric string of length num.
+    """
+    Generate random lowercase alphanumeric string of length num.
 
     :meta private:
     """
@@ -74,7 +75,8 @@ def rand_str(num):
 
 
 def add_pod_suffix(pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
-    """Add random string to pod name while staying under max length.
+    """
+    Add random string to pod name while staying under max length.
 
     :param pod_name: name of the pod
     :param rand_len: length of the random string to append
@@ -170,7 +172,7 @@ class PodGenerator:
 
     def gen_pod(self) -> k8s.V1Pod:
         """Generate pod."""
-        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
+        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning, stacklevel=2)
         result = self.ud_pod
 
         result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
@@ -185,7 +187,9 @@ class PodGenerator:
         """Add sidecar."""
         warnings.warn(
             "This function is deprecated. "
-            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
         )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
@@ -223,6 +227,7 @@ class PodGenerator:
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
                 " instead. ",
                 category=RemovedInAirflow3Warning,
+                stacklevel=2,
             )
             return PodGenerator.from_legacy_obj(obj)
         else:
@@ -401,7 +406,9 @@ class PodGenerator:
         """
         if len(pod_id) > 253:
             warnings.warn(
-                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix."
+                "pod_id supplied is longer than 253 characters; truncating and adding unique suffix.",
+                category=UserWarning,
+                stacklevel=2,
             )
             pod_id = add_pod_suffix(pod_name=pod_id, max_len=253)
         try:
@@ -599,6 +606,7 @@ class PodGenerator:
         warnings.warn(
             "This function is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
             RemovedInAirflow3Warning,
+            stacklevel=2,
         )
 
         if not pod_id:

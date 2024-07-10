@@ -62,7 +62,10 @@ Variable                                    Type                  Description
 ``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
+``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet datasets. See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
+``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to dataset events that will be emitted by the current task.
+                                                                  | See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.

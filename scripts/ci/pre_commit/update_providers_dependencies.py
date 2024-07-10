@@ -185,12 +185,13 @@ if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
     num_providers = len(ALL_PROVIDERS)
-    console.print(f"Found {len(ALL_PROVIDERS)} providers with {len(ALL_PROVIDER_FILES)} Python files.")
+    console.print(f"Found {num_providers} providers with {num_files} Python files.")
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
         ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
         ALL_DEPENDENCIES[provider]["devel-deps"].extend(provider_yaml_content.get("devel-dependencies") or [])
+        ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:
         console.print("[yellow]Warnings!\n")
@@ -205,7 +206,8 @@ if __name__ == "__main__":
     unique_sorted_dependencies: dict[str, dict[str, list[str] | str]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
         unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
-        unique_sorted_dependencies[key]["devel-deps"] = ALL_DEPENDENCIES[key].get("devel-deps") or []
+        unique_sorted_dependencies[key]["devel-deps"] = sorted(ALL_DEPENDENCIES[key]["devel-deps"])
+        unique_sorted_dependencies[key]["plugins"] = sorted(ALL_DEPENDENCIES[key]["plugins"])
         unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
             set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
         )

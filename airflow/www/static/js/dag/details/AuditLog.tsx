@@ -24,14 +24,12 @@ import {
   Box,
   Flex,
   FormControl,
-  FormHelperText,
   FormLabel,
-  Input,
   SimpleGrid,
-  Button,
   RadioGroup,
   Stack,
   Radio,
+  IconButton,
 } from "@chakra-ui/react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { snakeCase } from "lodash";
@@ -53,6 +51,9 @@ import { NewTable } from "src/components/NewTable/NewTable";
 import { useTableURLState } from "src/components/NewTable/useTableUrlState";
 import { CodeCell, TimeCell } from "src/components/NewTable/NewCells";
 import { MdRefresh } from "react-icons/md";
+import { useTimezone } from "src/context/timezone";
+import { isoFormatWithoutTZ } from "src/datetime_utils";
+import DateTimeInput from "src/components/DateTimeInput";
 
 const configExcludedEvents = getMetaValue("excluded_audit_log_events");
 const configIncludedEvents = getMetaValue("included_audit_log_events");
@@ -92,16 +93,27 @@ const AuditLog = ({ taskId, run }: Props) => {
   }
   const [eventFilter, setEventFilter] = useState(defaultEventFilter);
   const [events, setEvents] = useState(defaultEvents);
+  const [before, setBefore] = useState("");
+  const [after, setAfter] = useState("");
 
   const sort = tableURLState.sorting[0];
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
+
+  const { timezone } = useTimezone();
+
+  // @ts-ignore
+  const beforeTime = moment(before).tz(timezone).format(isoFormatWithoutTZ);
+  // @ts-ignore
+  const afterTime = moment(after).tz(timezone).format(isoFormatWithoutTZ);
 
   const { data, isLoading, isFetching, refetch } = useEventLogs({
     dagId,
     taskId,
     runId: run?.runId || undefined,
-    before: run?.lastSchedulingDecision || undefined,
-    after: run?.queuedAt || undefined,
+    // @ts-ignore
+    before: before ? moment(before).format() : undefined,
+    // @ts-ignore
+    after: after ? moment(after).format() : undefined,
     orderBy,
     limit: tableURLState.pagination.pageSize,
     offset:
@@ -191,15 +203,14 @@ const AuditLog = ({ taskId, run }: Props) => {
       overflowY="auto"
     >
       <Flex justifyContent="right" mb={2}>
-        <Button
-          leftIcon={<MdRefresh />}
+        <IconButton
+          aria-label="Refresh"
+          icon={<MdRefresh />}
           onClick={() => refetch()}
           variant="outline"
           colorScheme="blue"
           mr={2}
-        >
-          Refresh
-        </Button>
+        />
         <LinkButton href={getMetaValue("audit_log_url")}>
           View full cluster Audit Log
         </LinkButton>
@@ -207,43 +218,17 @@ const AuditLog = ({ taskId, run }: Props) => {
       <SimpleGrid columns={4} columnGap={2}>
         <FormControl>
           <FormLabel>Show Logs After</FormLabel>
-          <Input
-            type="datetime"
-            // @ts-ignore
-            placeholder={run?.queuedAt ? moment(run?.queuedAt).format() : ""}
-            isDisabled
+          <DateTimeInput
+            value={afterTime}
+            onChange={(e) => setAfter(e.target.value)}
           />
-          {!!run && run?.queuedAt && (
-            <FormHelperText>After selected DAG Run Queued At</FormHelperText>
-          )}
         </FormControl>
         <FormControl>
           <FormLabel>Show Logs Before</FormLabel>
-          <Input
-            type="datetime"
-            placeholder={
-              run?.lastSchedulingDecision
-                ? // @ts-ignore
-                  moment(run?.lastSchedulingDecision).format()
-                : ""
-            }
-            isDisabled
+          <DateTimeInput
+            value={beforeTime}
+            onChange={(e) => setBefore(e.target.value)}
           />
-          {!!run && run?.lastSchedulingDecision && (
-            <FormHelperText>
-              Before selected DAG Run Last Scheduling Decision
-            </FormHelperText>
-          )}
-        </FormControl>
-        <FormControl>
-          <FormLabel>Filter by Run ID</FormLabel>
-          <Input placeholder={run?.runId} isDisabled />
-          <FormHelperText />
-        </FormControl>
-        <FormControl>
-          <FormLabel>Filter by Task ID</FormLabel>
-          <Input placeholder={taskId} isDisabled />
-          <FormHelperText />
         </FormControl>
         <FormControl>
           <FormLabel display="flex" alignItems="center">

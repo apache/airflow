@@ -24,7 +24,8 @@ import os
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
 # executor may have both so we need two lookup dicts.
 _alias_to_executors: dict[str, ExecutorName] = {}
 _module_to_executors: dict[str, ExecutorName] = {}
+_classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
 # Used to cache executors so that we don't construct executor objects unnecessarily
@@ -73,7 +75,8 @@ class ExecutorLoader:
 
     @classmethod
     def block_use_of_hybrid_exec(cls, executor_config: list):
-        """Raise an exception if the user tries to use multiple executors before the feature is complete.
+        """
+        Raise an exception if the user tries to use multiple executors before the feature is complete.
 
         This check is built into a method so that it can be easily mocked in unit tests.
 
@@ -87,7 +90,8 @@ class ExecutorLoader:
 
     @classmethod
     def _get_executor_names(cls) -> list[ExecutorName]:
-        """Return the executor names from Airflow configuration.
+        """
+        Return the executor names from Airflow configuration.
 
         :return: List of executor names from Airflow configuration
         """
@@ -120,10 +124,11 @@ class ExecutorLoader:
                 # complicated. Multiple Executors of the same type will be supported by a future multitenancy
                 # AIP.
                 # The module component should always be a module or plugin path.
-                if not split_name[1] or split_name[1] in CORE_EXECUTOR_NAMES:
+                module_path = split_name[1]
+                if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
                     raise AirflowConfigException(
-                        f"Incorrectly formatted executor configuration: {name}\n"
-                        "second portion of an executor configuration must be a module path"
+                        "Incorrectly formatted executor configuration. Second portion of an executor "
+                        f"configuration must be a module path or plugin but received: {module_path}"
                     )
                 else:
                     executor_names.append(ExecutorName(alias=split_name[0], module_path=split_name[1]))
@@ -147,14 +152,25 @@ class ExecutorLoader:
                 _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
+            _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
             # Cache the executor names, so the logic of this method only runs once
             _executor_names.append(executor_name)
 
         return executor_names
 
     @classmethod
+    def get_executor_names(cls) -> list[ExecutorName]:
+        """
+        Return the executor names from Airflow configuration.
+
+        :return: List of executor names from Airflow configuration
+        """
+        return cls._get_executor_names()
+
+    @classmethod
     def get_default_executor_name(cls) -> ExecutorName:
-        """Return the default executor name from Airflow configuration.
+        """
+        Return the default executor name from Airflow configuration.
 
         :return: executor name from Airflow configuration
         """
@@ -167,6 +183,22 @@ class ExecutorLoader:
         default_executor = cls.load_executor(cls.get_default_executor_name())
 
         return default_executor
+
+    @classmethod
+    def set_default_executor(cls, executor: BaseExecutor) -> None:
+        """
+        Externally set an executor to be the default.
+
+        This is used in rare cases such as dag.run which allows, as a user convenience, to provide
+        the executor by cli/argument instead of Airflow configuration
+        """
+        exec_class_name = executor.__class__.__qualname__
+        exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
+
+        _module_to_executors[exec_name.module_path] = exec_name
+        _classname_to_executors[exec_class_name] = exec_name
+        _executor_names.insert(0, exec_name)
+        _loaded_executors[exec_name] = executor
 
     @classmethod
     def init_executors(cls) -> list[BaseExecutor]:
@@ -191,23 +223,28 @@ class ExecutorLoader:
             return executor_name
         elif executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
+        elif executor_name := _classname_to_executors.get(executor_name_str):
+            return executor_name
         else:
-            raise AirflowException(f"Unknown executor being loaded: {executor_name}")
+            raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
-    def load_executor(cls, executor_name: ExecutorName | str) -> BaseExecutor:
+    def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:
         """
         Load the executor.
 
         This supports the following formats:
         * by executor name for core executor
         * by ``{plugin_name}.{class_name}`` for executor from plugins
-        * by import path.
+        * by import path
+        * by class name of the Executor
         * by ExecutorName object specification
 
         :return: an instance of executor class via executor_name
         """
-        if isinstance(executor_name, str):
+        if not executor_name:
+            _executor_name = cls.get_default_executor_name()
+        elif isinstance(executor_name, str):
             _executor_name = cls.lookup_executor_name_by_str(executor_name)
         else:
             _executor_name = executor_name
@@ -310,6 +347,9 @@ class ExecutorLoader:
 
         # This is set in tests when we want to be able to use SQLite.
         if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
+            return
+
+        if InternalApiConfig.get_use_internal_api():
             return
 
         from airflow.settings import engine

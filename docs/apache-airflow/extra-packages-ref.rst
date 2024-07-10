@@ -87,6 +87,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| cloudpickle         | pip install apache-airflow[cloudpickle]             | Cloudpickle hooks and operators                                            |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 
 
 Providers extras
@@ -140,6 +142,8 @@ custom bash/python providers).
 | apache-hdfs         | ``pip install 'apache-airflow[apache-hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-hive         | ``pip install 'apache-airflow[apache-hive]'``       | All Hive related operators                     |
++---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-iceberg      | ``pip install 'apache-airflow[apache-iceberg]'``    | Apache Iceberg hooks                           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-impala       | ``pip install 'apache-airflow[apache-impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
@@ -236,6 +240,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | yandex              | ``pip install 'apache-airflow[yandex]'``            | Yandex.cloud hooks and operators                    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| ydb                 | ``pip install 'apache-airflow[ydb]'``               | YDB hooks and operators                             |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 
@@ -311,6 +317,8 @@ pre-installed when Airflow is installed.
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
+| common-compat       | ``pip install 'apache-airflow[common-compat]'``     | Compatibility code for old Airflow   |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-io           | ``pip install 'apache-airflow[common-io]'``         | Core IO Operators                    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-sql          | ``pip install 'apache-airflow[common-sql]'``        | Core SQL Operators                   |      *       |

@@ -16,6 +16,7 @@ airflow/www/*.log
 airflow-webserver.pid
 standalone_admin_password.txt
 warnings.txt
+warn-summary-*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

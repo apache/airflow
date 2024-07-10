@@ -35,14 +35,99 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.1
+.....
+
+Latest change: 2024-06-28
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`2423238295 <https://github.com/apache/airflow/commit/242323829502eece2f6c7748cc9db051f9c247bc>`_  2024-06-28   ``Add backward compatibility to CSRF protection of '/logout' method (#40479)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  ==============================================================================
+
+1.2.0
+.....
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`e24b7c1de3 <https://github.com/apache/airflow/commit/e24b7c1de319a4032e5c682a3f80e38b0dec9248>`_  2024-06-20   ``Add '[webserver]update_fab_perms' to deprecated configs (#40317)``
+`4fbdd07c13 <https://github.com/apache/airflow/commit/4fbdd07c1392eed517ed2af000aae2c2c3f5b3f6>`_  2024-06-20   ``fix: sqa deprecations for airflow providers (#39293)``
+`14deaa2f1f <https://github.com/apache/airflow/commit/14deaa2f1fb8d5dbe4d2e1d9adaa390c5e5efbf8>`_  2024-06-12   ``Add CSRF protection to "/logout" (#40145)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`483d408041 <https://github.com/apache/airflow/commit/483d408041b13659287aaefb09cfa36ca85a3d09>`_  2024-05-27   ``Upgrade to FAB 4.5.0 (#39851)``
+=================================================================================================  ===========  ==================================================================================
+
+1.1.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`959e52bf3c <https://github.com/apache/airflow/commit/959e52bf3c48ba1f2622187179fca28f908a859a>`_  2024-05-02   ``Simplify action name retrieval in FAB auth manager (#39358)``
+`4910c0439b <https://github.com/apache/airflow/commit/4910c0439bf370348a63f445bbeb8051a93e22fd>`_  2024-05-01   ``Add 'jmespath' as an explicit dependency (#39350)``
+=================================================================================================  ===========  ===============================================================
+
+1.1.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  ==========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`7635ff3555 <https://github.com/apache/airflow/commit/7635ff35558f1ddb4bed0b167c6d8b6fb5c7b984>`_  2024-04-25   ``Remove plugins permissions from Viewer role (#39254)``
+`f7a2f60325 <https://github.com/apache/airflow/commit/f7a2f6032544defa8a00d1f7fa90e91d27eb3a8e>`_  2024-04-22   ``Update 'is_authorized_custom_view' from auth manager to handle custom actions (#39167)``
+=================================================================================================  ===========  ==========================================================================================
+
+1.0.4
+.....
+
+Latest change: 2024-04-16
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`13df6569d6 <https://github.com/apache/airflow/commit/13df6569d6cc131fbf096cedd46dc32b0a6cf6b2>`_  2024-04-16   ``Prepare docs 1st wave (RC3) + ad hoc April 2024 (#38995) (#39054)``
+`f8104325b7 <https://github.com/apache/airflow/commit/f8104325b7a66d4e98ff3a6c3555f90c796071c6>`_  2024-04-15   ``Activate RUF019 that checks for unnecessary key check (#38950)``
+`c3bb80da93 <https://github.com/apache/airflow/commit/c3bb80da939025dd49b646a819f5e984faf9ddfc>`_  2024-04-12   ``Remove button for reset my password when we have reset password (#38957)``
+=================================================================================================  ===========  ============================================================================
+
+1.0.3
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`53cd7173b4 <https://github.com/apache/airflow/commit/53cd7173b4781e8cd46fd96b1e107b2d1bcf4966>`_  2024-04-10   ``Fix azure authentication when no email is set (#38872)``
+`6d3d2075ae <https://github.com/apache/airflow/commit/6d3d2075ae782104b7840779c91fb2be5a61cf24>`_  2024-04-07   ``fix: try002 for provider fab (#38801)``
+`e700f4150a <https://github.com/apache/airflow/commit/e700f4150a60fd019e20cfd650ab397c6276dd77>`_  2024-03-30   ``Rename 'allowed_filter_attrs' to 'allowed_sort_attrs' (#38626)``
+=================================================================================================  ===========  ==================================================================
+
 1.0.2
 .....
 
-Latest change: 2024-03-20
+Latest change: 2024-03-25
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`256911aa62 <https://github.com/apache/airflow/commit/256911aa62ecbc5be1fe4eeefd9c965077feb357>`_  2024-03-25   ``Prepare fab provider RC1 (#38451)``
 `7776e9154d <https://github.com/apache/airflow/commit/7776e9154d6f3577100b534b08f4131321360a0f>`_  2024-03-20   ``Upgrade FAB to 4.4.1 (#38319)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
 `2e35854a05 <https://github.com/apache/airflow/commit/2e35854a052a13206cb1475973e039fbe394254c>`_  2024-03-15   ``Make the method 'BaseAuthManager.is_authorized_custom_view' abstract (#37915)``

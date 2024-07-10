@@ -124,11 +124,11 @@ class LazyDictWithCache(MutableMapping):
         return value
 
     def __delitem__(self, key):
-        self._raw_dict.__delitem__(key)
         try:
             self._resolved.remove(key)
         except KeyError:
             pass
+        self._raw_dict.__delitem__(key)
 
     def __iter__(self):
         return iter(self._raw_dict)
@@ -138,6 +138,10 @@ class LazyDictWithCache(MutableMapping):
 
     def __contains__(self, key):
         return key in self._raw_dict
+
+    def clear(self):
+        self._resolved.clear()
+        self._raw_dict.clear()
 
 
 def _read_schema_from_resources_or_local_file(filename: str) -> dict:
@@ -519,7 +523,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_filesystems()
 
     @provider_info_cache("dataset_uris")
-    def initializa_providers_dataset_uri_handlers(self):
+    def initialize_providers_dataset_uri_handlers(self):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
         self._discover_dataset_uri_handlers()
@@ -826,6 +830,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     "of 'connection-types' in Airflow 2.2. Use **both** in case you want to "
                     "have backwards compatibility with Airflow < 2.2",
                     DeprecationWarning,
+                    stacklevel=1,
                 )
         for already_registered_connection_type in already_registered_warning_connection_types:
             log.warning(
@@ -1286,7 +1291,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @property
     def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initializa_providers_dataset_uri_handlers()
+        self.initialize_providers_dataset_uri_handlers()
         return self._dataset_uri_handlers
 
     @property

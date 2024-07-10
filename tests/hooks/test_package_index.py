@@ -111,7 +111,7 @@ def test_test_connection(monkeypatch: pytest.MonkeyPatch, mock_get_connection: s
         result = hook_instance.test_connection()
         assert result[0] == (success == 0)
     else:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Please provide an index URL"):
             hook_instance.test_connection()
 
 

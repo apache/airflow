@@ -20,13 +20,18 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import redshift_connector
+from packaging.version import Version
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
+from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -34,7 +39,8 @@ if TYPE_CHECKING:
 
 
 class RedshiftSQLHook(DbApiHook):
-    """Execute statements against Amazon Redshift.
+    """
+    Execute statements against Amazon Redshift.
 
     This hook requires the redshift_conn_id connection.
 
@@ -98,7 +104,8 @@ class RedshiftSQLHook(DbApiHook):
         return conn_params
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
-        """Retrieve a temporary password to connect to Redshift.
+        """
+        Retrieve a temporary password to connect to Redshift.
 
         Port is required. If none is provided, default is used for each service.
         """
@@ -172,7 +179,8 @@ class RedshiftSQLHook(DbApiHook):
         return create_engine(self.get_uri(), **engine_kwargs)
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
-        """Get the table's primary key.
+        """
+        Get the table's primary key.
 
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
@@ -257,4 +265,6 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_openlineage_default_schema(self) -> str | None:
         """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
-        return self.get_first("SELECT CURRENT_SCHEMA();")[0]
+        if _IS_AIRFLOW_2_10_OR_HIGHER:
+            return self.get_first("SELECT CURRENT_SCHEMA();")[0]
+        return super().get_openlineage_default_schema()

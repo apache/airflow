@@ -27,6 +27,7 @@ from common_precommit_utils import console, initialize_breeze_precommit
 initialize_breeze_precommit(__name__, __file__)
 
 POSSIBLE_TEST_FOLDERS = [
+    "_internals",
     "always",
     "api",
     "api_connexion",

@@ -16,15 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
+import opensearchpy
 import pytest
+from opensearchpy import Urllib3HttpConnection
 
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 pytestmark = pytest.mark.db_test
 
 
 MOCK_SEARCH_RETURN = {"status": "test"}
+DEFAULT_CONN = opensearchpy.connection.http_requests.RequestsHttpConnection
 
 
 class TestOpenSearchHook:
@@ -46,3 +52,25 @@ class TestOpenSearchHook:
         hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
         with pytest.raises(AirflowException, match="must include one of either a query or a document id"):
             hook.delete(index_name="test_index")
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    def test_hook_param_bool(self, mock_get_connection):
+        mock_conn = Connection(
+            conn_id="opensearch_default", extra={"use_ssl": "True", "verify_certs": "True"}
+        )
+        mock_get_connection.return_value = mock_conn
+        hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
+
+        assert isinstance(hook.use_ssl, bool)
+        assert isinstance(hook.verify_certs, bool)
+
+    def test_load_conn_param(self, mock_hook):
+        hook_default = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
+        assert hook_default.connection_class == DEFAULT_CONN
+
+        hook_Urllib3 = OpenSearchHook(
+            open_search_conn_id="opensearch_default",
+            log_query=True,
+            open_search_conn_class=Urllib3HttpConnection,
+        )
+        assert hook_Urllib3.connection_class == Urllib3HttpConnection

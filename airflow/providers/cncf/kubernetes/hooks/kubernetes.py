@@ -25,6 +25,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Generator
 
 import aiofiles
+import tenacity
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
@@ -35,6 +36,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
@@ -474,7 +476,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         namespace: str = "default",
         **kwargs,
     ) -> V1Deployment:
-        """Get status of existing Deployment.
+        """
+        Get status of existing Deployment.
 
         :param name: Name of Deployment to retrieve
         :param namespace: Deployment namespace
@@ -486,6 +489,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         except Exception as exc:
             raise exc
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_random_exponential(),
+        reraise=True,
+        retry=tenacity.retry_if_exception(should_retry_creation),
+    )
     def create_job(
         self,
         job: V1Job,
@@ -513,7 +522,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return resp
 
     def get_job(self, job_name: str, namespace: str) -> V1Job:
-        """Get Job of specified name and namespace.
+        """
+        Get Job of specified name and namespace.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
@@ -522,7 +532,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
-        """Get job with status of specified name and namespace.
+        """
+        Get job with status of specified name and namespace.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
@@ -533,7 +544,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         )
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
-        """Block job of specified name and namespace until it is complete or failed.
+        """
+        Block job of specified name and namespace until it is complete or failed.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
@@ -549,14 +561,16 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             sleep(job_poll_interval)
 
     def list_jobs_all_namespaces(self) -> V1JobList:
-        """Get list of Jobs from all namespaces.
+        """
+        Get list of Jobs from all namespaces.
 
         :return: V1JobList object
         """
         return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
 
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
-        """Get list of Jobs from dedicated namespace.
+        """
+        Get list of Jobs from dedicated namespace.
 
         :param namespace: Namespace of the Job.
         :return: V1JobList object
@@ -564,33 +578,49 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
 
     def is_job_complete(self, job: V1Job) -> bool:
-        """Check whether the given job is complete (with success or fail).
+        """
+        Check whether the given job is complete (with success or fail).
 
         :return: Boolean indicating that the given job is complete.
         """
-        if conditions := job.status.conditions:
-            if final_condition_types := list(
-                c for c in conditions if c.type in JOB_FINAL_STATUS_CONDITION_TYPES and c.status
-            ):
-                s = "s" if len(final_condition_types) > 1 else ""
-                self.log.info(
-                    "The job '%s' state%s: %s",
-                    job.metadata.name,
-                    s,
-                    ", ".join(f"{c.type} at {c.last_transition_time}" for c in final_condition_types),
-                )
-                return True
+        if status := job.status:
+            if conditions := status.conditions:
+                if final_condition_types := list(
+                    c for c in conditions if c.type in JOB_FINAL_STATUS_CONDITION_TYPES and c.status
+                ):
+                    s = "s" if len(final_condition_types) > 1 else ""
+                    self.log.info(
+                        "The job '%s' state%s: %s",
+                        job.metadata.name,
+                        s,
+                        ", ".join(f"{c.type} at {c.last_transition_time}" for c in final_condition_types),
+                    )
+                    return True
         return False
 
     @staticmethod
     def is_job_failed(job: V1Job) -> str | bool:
-        """Check whether the given job is failed.
+        """
+        Check whether the given job is failed.
 
         :return: Error message if the job is failed, and False otherwise.
         """
-        conditions = job.status.conditions or []
-        if fail_condition := next((c for c in conditions if c.type == "Failed" and c.status), None):
-            return fail_condition.reason
+        if status := job.status:
+            conditions = status.conditions or []
+            if fail_condition := next((c for c in conditions if c.type == "Failed" and c.status), None):
+                return fail_condition.reason
+        return False
+
+    @staticmethod
+    def is_job_successful(job: V1Job) -> str | bool:
+        """
+        Check whether the given job is completed successfully..
+
+        :return: Error message if the job is failed, and False otherwise.
+        """
+        if status := job.status:
+            conditions = status.conditions or []
+            return bool(next((c for c in conditions if c.type == "Complete" and c.status), None))
         return False
 
     def patch_namespaced_job(self, job_name: str, namespace: str, body: object) -> V1Job:
@@ -789,7 +819,8 @@ class AsyncKubernetesHook(KubernetesHook):
         return job
 
     async def wait_until_job_complete(self, name: str, namespace: str, poll_interval: float = 10) -> V1Job:
-        """Block job of specified name and namespace until it is complete or failed.
+        """
+        Block job of specified name and namespace until it is complete or failed.
 
         :param name: Name of Job to fetch.
         :param namespace: Namespace of the Job.

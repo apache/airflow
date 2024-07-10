@@ -91,7 +91,7 @@ def replace_match(file: Path, line: str) -> str | None:
 def find_matches(_file: Path):
     new_lines = []
     lines = _file.read_text().splitlines(keepends=True)
-    for index, line in enumerate(lines):
+    for line in lines:
         new_line = replace_match(_file, line)
         if new_line is not None:
             new_lines.append(new_line)

@@ -269,6 +269,7 @@ class S3ToGCSOperator(S3ListOperator):
         self.defer(
             trigger=CloudStorageTransferServiceCreateJobsTrigger(
                 project_id=gcs_hook.project_id,
+                gcp_conn_id=self.gcp_conn_id,
                 job_names=job_names,
                 poll_interval=self.poll_interval,
             ),
@@ -328,7 +329,8 @@ class S3ToGCSOperator(S3ListOperator):
         return job_names
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+        """
+        Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

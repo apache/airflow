@@ -127,6 +127,7 @@ newsfragments/*
 
 # Warning file generated
 warnings.txt
+warn-summary-*.txt
 
 # Dev stuff
 tests/*

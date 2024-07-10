@@ -86,7 +86,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     @property
     def account_identifier(self) -> str:
         """Returns snowflake account identifier."""
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
         account_identifier = f"https://{conn_config['account']}"
 
         if conn_config["region"]:
@@ -147,7 +147,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
         """
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
 
         req_id = uuid.uuid4()
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
@@ -186,7 +186,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def get_headers(self) -> dict[str, Any]:
         """Form auth headers based on either OAuth token or JWT token from private key."""
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
         if all(
@@ -225,7 +225,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def get_oauth_token(self) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
         url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
         data = {
             "grant_type": "refresh_token",
@@ -283,11 +283,12 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif status_code == 422:
             return {"status": "error", "message": resp["message"]}
         elif status_code == 200:
-            statement_handles = []
-            if "statementHandles" in resp and resp["statementHandles"]:
-                statement_handles = resp["statementHandles"]
-            elif "statementHandle" in resp and resp["statementHandle"]:
-                statement_handles.append(resp["statementHandle"])
+            if resp_statement_handles := resp.get("statementHandles"):
+                statement_handles = resp_statement_handles
+            elif resp_statement_handle := resp.get("statementHandle"):
+                statement_handles = [resp_statement_handle]
+            else:
+                statement_handles = []
             return {
                 "status": "success",
                 "message": resp["message"],

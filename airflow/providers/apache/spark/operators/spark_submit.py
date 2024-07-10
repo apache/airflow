@@ -72,7 +72,7 @@ class SparkSubmitOperator(BaseOperator):
                          (will overwrite any spark_binary defined in the connection's extra JSON)
     :param properties_file: Path to a file from which to load extra properties. If not
                               specified, this will look for conf/spark-defaults.conf.
-    :param queue: The name of the YARN queue to which the application is submitted.
+    :param yarn_queue: The name of the YARN queue to which the application is submitted.
                         (will overwrite any yarn queue defined in the connection's extra JSON)
     :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as a client.
                         (will overwrite any deployment mode defined in the connection's extra JSON)
@@ -129,7 +129,7 @@ class SparkSubmitOperator(BaseOperator):
         verbose: bool = False,
         spark_binary: str | None = None,
         properties_file: str | None = None,
-        queue: str | None = None,
+        yarn_queue: str | None = None,
         deploy_mode: str | None = None,
         use_krb5ccache: bool = False,
         **kwargs: Any,
@@ -161,7 +161,7 @@ class SparkSubmitOperator(BaseOperator):
         self._verbose = verbose
         self._spark_binary = spark_binary
         self.properties_file = properties_file
-        self._queue = queue
+        self._yarn_queue = yarn_queue
         self._deploy_mode = deploy_mode
         self._hook: SparkSubmitHook | None = None
         self._conn_id = conn_id
@@ -206,7 +206,7 @@ class SparkSubmitOperator(BaseOperator):
             verbose=self._verbose,
             spark_binary=self._spark_binary,
             properties_file=self.properties_file,
-            queue=self._queue,
+            yarn_queue=self._yarn_queue,
             deploy_mode=self._deploy_mode,
             use_krb5ccache=self._use_krb5ccache,
         )

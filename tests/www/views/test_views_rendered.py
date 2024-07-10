@@ -229,6 +229,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     assert "originalerror: no filter named &#39;hello&#39;" in resp_html.lower()
 
 
+@pytest.mark.enable_redact
 @pytest.mark.usefixtures("patch_app")
 def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     """Test that the Rendered View masks values retrieved from secret variables."""
@@ -261,6 +262,7 @@ else:
     initial_db_init()
 
 
+@pytest.mark.enable_redact
 @pytest.mark.parametrize(
     "env, expected",
     [

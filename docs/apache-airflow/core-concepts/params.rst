@@ -36,9 +36,10 @@ To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``pa
 Use a dictionary that maps Param names to either a :class:`~airflow.models.param.Param` or an object indicating the parameter's default value.
 
 .. code-block::
-   :emphasize-lines: 6-9
+   :emphasize-lines: 7-10
 
     from airflow import DAG
+    from airflow.decorators import task
     from airflow.models.param import Param
 
     with DAG(
@@ -47,7 +48,34 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
             "x": Param(5, type="integer", minimum=3),
             "my_int_param": 6
         },
-    ):
+    ) as dag:
+
+        @task.python
+        def example_task(params: dict):
+            # This will print the default value, 6:
+            dag.log.info(dag.params['my_int_param'])
+
+            # This will print the manually-provided value, 42:
+            dag.log.info(params['my_int_param'])
+
+            # This will print the default value, 5, since it wasn't provided manually:
+            dag.log.info(params['x'])
+
+        example_task()
+
+    if __name__ == "__main__":
+        dag.test(
+            run_conf={"my_int_param": 42}
+        )
+
+.. note::
+
+   DAG-level parameters are the default values passed on to tasks. These should not be confused with values manually
+   provided through the UI form or CLI, which exist solely within the context of a :class:`~airflow.models.dagrun.DagRun`
+   and a :class:`~airflow.models.taskinstance.TaskInstance`. This distinction is crucial for TaskFlow DAGs, which may
+   include logic within the ``with DAG(...) as dag:`` block. In such cases, users might try to access the manually-provided
+   parameter values using the ``dag`` object, but this will only ever contain the default values. To ensure that the
+   manually-provided values are accessed, use a template variable such as ``params`` or ``ti`` within your task.
 
 Task-level Params
 -----------------
@@ -271,13 +299,17 @@ The following features are supported in the Trigger UI Form:
               | For multi-value selects ``examples`` you can add
               | the attribute ``values_display`` with a dict and
               | map data values to display labels.
-            * | If you add the attribute ``items``, a JSON entry
+            * | If you add the attribute ``items`` with a
+              | dictionary that contains a field ``type``
+              | with a value other than "string", a JSON entry
               | field will be generated for more array types and
               | additional type validation as described in
               | `JSON Schema Array Items <https://json-schema.org/understanding-json-schema/reference/array.html#items>`_.
           - ``Param(["a", "b", "c"], type="array")``
 
             ``Param(["two", "three"], type="array", examples=["one", "two", "three", "four", "five"])``
+
+            ``Param(["one@example.com", "two@example.com"], type="array", items={"type": "string", "format": "idn-email"})``
 
         * - ``object``
           - | Generates a JSON entry field with

@@ -35,14 +35,74 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.2
+.....
+
+Latest change: 2024-06-07
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`80522b91bb <https://github.com/apache/airflow/commit/80522b91bb9802a6de6546ca9796a46cc1894f07>`_  2024-06-07   ``catch sentry flush if exception happens in _execute_in_fork finally block (#40060)``
+`73d02e0f21 <https://github.com/apache/airflow/commit/73d02e0f219216910297548d6ec8bd13f523865c>`_  2024-06-05   ``Add PID and return code to _execute_in_fork logging (#40058)``
+`f4c90f71b9 <https://github.com/apache/airflow/commit/f4c90f71b9c709e4bff80d2d0e184fb90f1a288f>`_  2024-06-04   ``Fixing exception types to include TypeError, which is what is raised in (#40012)``
+=================================================================================================  ===========  ======================================================================================
+
+3.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`7b588b4dd9 <https://github.com/apache/airflow/commit/7b588b4dd97ee719b9574c2f9b948b7a5a837968>`_  2024-05-22   ``misc: add comment about remove unused code (#39748)``
+`e3897dcbed <https://github.com/apache/airflow/commit/e3897dcbed0262b0cab7a357f8d7fbbb6c4f4eeb>`_  2024-05-13   ``Remove compat code for 2.7.0 - its now the min Airflow version (#39591)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`a74b5f0694 <https://github.com/apache/airflow/commit/a74b5f069481e1a2339cfd95e137619b16390906>`_  2024-05-06   ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+=================================================================================================  ===========  ===========================================================================
+
+3.7.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  =======================================================================
+
+3.6.2
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`3e30b3a025 <https://github.com/apache/airflow/commit/3e30b3a02584e13fa130255b25756eaf7dfe35d3>`_  2024-04-09   ``Use celery worker CLI from Airflow package for Airflow < 2.8.0 (#38879)``
+`179b963782 <https://github.com/apache/airflow/commit/179b96378251db258d564ba091deef2ab762d12d>`_  2024-03-27   ``Don't dispose sqlalchemy engine when using internal api (#38562)``
+`2ad923a001 <https://github.com/apache/airflow/commit/2ad923a001cbfc93bbf47cb2fa64fca202c44518>`_  2024-03-27   ``Rerais of AirflowOptionalProviderFeatureException should be direct (#38555)``
+`6296f7e224 <https://github.com/apache/airflow/commit/6296f7e224e0c7772e49f2f3b42a398482f2c986>`_  2024-03-22   ``Allow to use 'redis'>=5 (#38385)``
+`095c5fe313 <https://github.com/apache/airflow/commit/095c5fe3137e2cb6d45e8f3184bae149cb2850d1>`_  2024-03-21   ``Ensure __exit__ is called in decorator context managers (#38383)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+=================================================================================================  ===========  ===============================================================================
+
 3.6.1
 .....
 
-Latest change: 2024-03-02
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ==================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `a7d13315e1 <https://github.com/apache/airflow/commit/a7d13315e11bcf76d02493b874ca5f0690ddd5e1>`_  2024-03-02   ``Resolve G003: "Logging statement uses +" (#37848)``
 `cd33c2a6a7 <https://github.com/apache/airflow/commit/cd33c2a6a73ca902daa234cf60dd0b7b9782bdc6>`_  2024-02-27   ``Migrate executor docs to respective providers (#37728)``
 `8d74ee8dcd <https://github.com/apache/airflow/commit/8d74ee8dcd1b3ad0291ef666835edcffb24265ae>`_  2024-02-25   ``Remove pid arg from celery option to fix duplicate pid issue, Move celery command to provider package (#36794)``

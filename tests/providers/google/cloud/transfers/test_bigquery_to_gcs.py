@@ -187,6 +187,26 @@ class TestBigQueryToGCSOperator:
             nowait=True,
         )
 
+    def test_execute_complete_reassigns_job_id(self):
+        """Assert that we use job_id from event after deferral."""
+
+        operator = BigQueryToGCSOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=[f"gs://{TEST_BUCKET}/{TEST_FOLDER}/"],
+            deferrable=True,
+            job_id=None,
+        )
+        job_id = "123456"
+
+        assert operator.job_id is None
+        operator.execute_complete(
+            context=MagicMock(),
+            event={"status": "success", "message": "Job completed", "job_id": job_id},
+        )
+        assert operator.job_id == job_id
+
     @pytest.mark.parametrize(
         ("gcs_uri", "expected_dataset_name"),
         (

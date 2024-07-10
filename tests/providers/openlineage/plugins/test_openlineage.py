@@ -23,25 +23,19 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.openlineage.conf import config_path, is_disabled, transport
+from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
 
+@pytest.mark.skipif(
+    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Plugin initialization is done early in case of packages"
+)
 class TestOpenLineageProviderPlugin:
     def setup_method(self):
-        is_disabled.cache_clear()
-        transport.cache_clear()
-        config_path.cache_clear()
-        self.old_modules = dict(sys.modules)
-
-    def teardown_method(self):
-        is_disabled.cache_clear()
-        transport.cache_clear()
-        config_path.cache_clear()
-        # Remove any new modules imported during the test run. This lets us
+        # Remove module under test if loaded already before. This lets us
         # import the same source files for more than one test.
-        for mod in [m for m in sys.modules if m not in self.old_modules]:
-            del sys.modules[mod]
+        if "airflow.providers.openlineage.plugins.openlineage" in sys.modules:
+            del sys.modules["airflow.providers.openlineage.plugins.openlineage"]
 
     @pytest.mark.parametrize(
         "mocks, expected",

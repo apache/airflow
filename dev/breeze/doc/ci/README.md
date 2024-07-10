@@ -20,9 +20,9 @@
 This directory contains detailed design of the Airflow CI setup.
 
 * [CI Environment](01_ci_environment.md) - contains description of the CI environment
-* [Image Naming](02_image_naming.md) - contains description of the naming conventions for the images
+* [Image Naming](02_images.md) - contains description of the naming conventions for the images
 * [GitHub Variables](03_github_variables.md) - contains description of the GitHub variables used in CI
-* [Static checks](04_static_checks.md) - contains description of the static checks performed in CI
+* [Selective checks](04_selective_checks.md) - contains description of the selective checks performed in CI
 * [Workflows](05_workflows.md) - contains description of the workflows used in CI
 * [Diagrams](06_diagrams.md) - contains diagrams of the CI workflows
 * [Debugging](07_debugging.md) - contains description of debugging CI issues

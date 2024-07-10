@@ -15,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add map_index to TaskFail
+"""
+Add map_index to TaskFail.
 
 Drop index idx_task_fail_dag_task_date
 Add run_id and map_index
 Drop execution_date
 Add FK `task_fail_ti_fkey`: TF -> TI ([dag_id, task_id, run_id, map_index])
 
-
 Revision ID: 48925b2719cb
 Revises: 4eaab2fe6582
 Create Date: 2022-03-14 10:31:11.220720
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -83,6 +84,7 @@ def _update_value_from_dag_run(
 ) -> Update:
     """
     Grabs a value from the source table ``dag_run`` and updates target with this value.
+
     :param dialect_name: dialect in use
     :param target_table: the table to update
     :param target_column: the column to update

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ClauseElement
 
     from airflow.hooks.base import BaseHook
+
+
+log = logging.getLogger(__name__)
 
 
 class ColumnIndex(IntEnum):
@@ -81,7 +85,8 @@ def get_table_schemas(
     in_query: str | None,
     out_query: str | None,
 ) -> tuple[list[Dataset], list[Dataset]]:
-    """Query database for table schemas.
+    """
+    Query database for table schemas.
 
     Uses provided hook. Responsibility to provide queries for this function is on particular extractors.
     If query for input or output table isn't provided, the query is skipped.
@@ -90,6 +95,7 @@ def get_table_schemas(
     if not in_query and not out_query:
         return [], []
 
+    log.debug("Starting to query database for table schemas")
     with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
         if in_query:
             cursor.execute(in_query)
@@ -101,11 +107,13 @@ def get_table_schemas(
             out_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
         else:
             out_datasets = []
+    log.debug("Got table schema query result from database.")
     return in_datasets, out_datasets
 
 
 def parse_query_result(cursor) -> list[TableSchema]:
-    """Fetch results from DB-API 2.0 cursor and creates list of table schemas.
+    """
+    Fetch results from DB-API 2.0 cursor and creates list of table schemas.
 
     For each row it creates :class:`TableSchema`.
     """
@@ -149,7 +157,7 @@ def create_information_schema_query(
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
     """Create query for getting table schemas from information schema."""
-    metadata = MetaData(sqlalchemy_engine)
+    metadata = MetaData()
     select_statements = []
     # Don't iterate over tables hierarchy, just pass it to query single information schema table
     if use_flat_cross_db_query:

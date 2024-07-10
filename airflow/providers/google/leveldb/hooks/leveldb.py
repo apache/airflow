@@ -94,7 +94,7 @@ class LevelDBHook(BaseHook):
         """
         if command == "put":
             if not value:
-                raise Exception("Please provide `value`!")
+                raise ValueError("Please provide `value`!")
             return self.put(key, value)
         elif command == "get":
             return self.get(key)
@@ -102,9 +102,9 @@ class LevelDBHook(BaseHook):
             return self.delete(key)
         elif command == "write_batch":
             if not keys:
-                raise Exception("Please provide `keys`!")
+                raise ValueError("Please provide `keys`!")
             if not values:
-                raise Exception("Please provide `values`!")
+                raise ValueError("Please provide `values`!")
             return self.write_batch(keys, values)
         else:
             raise LevelDBHookException("Unknown command for LevelDB hook")
@@ -117,7 +117,7 @@ class LevelDBHook(BaseHook):
         :param value: value for put execution e.g. ``b'value'``, ``b'another-value'``
         """
         if not self.db:
-            raise Exception(DB_NOT_INITIALIZED_BEFORE)
+            raise AirflowException(DB_NOT_INITIALIZED_BEFORE)
         self.db.put(key, value)
 
     def get(self, key: bytes) -> bytes:
@@ -128,7 +128,7 @@ class LevelDBHook(BaseHook):
         :returns: value of key from db.get
         """
         if not self.db:
-            raise Exception(DB_NOT_INITIALIZED_BEFORE)
+            raise AirflowException(DB_NOT_INITIALIZED_BEFORE)
         return self.db.get(key)
 
     def delete(self, key: bytes):
@@ -138,7 +138,7 @@ class LevelDBHook(BaseHook):
         :param key: key for delete execution, e.g. ``b'key'``, ``b'another-key'``
         """
         if not self.db:
-            raise Exception(DB_NOT_INITIALIZED_BEFORE)
+            raise AirflowException(DB_NOT_INITIALIZED_BEFORE)
         self.db.delete(key)
 
     def write_batch(self, keys: list[bytes], values: list[bytes]):
@@ -149,7 +149,7 @@ class LevelDBHook(BaseHook):
         :param values: values for write_batch execution e.g. ``[b'value', b'another-value']``
         """
         if not self.db:
-            raise Exception(DB_NOT_INITIALIZED_BEFORE)
+            raise AirflowException(DB_NOT_INITIALIZED_BEFORE)
         with self.db.write_batch() as batch:
             for i, key in enumerate(keys):
                 batch.put(key, values[i])

@@ -139,11 +139,46 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
 
+    # [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
+    create_custom_python_package_training_job_deferrable = CreateCustomPythonPackageTrainingJobOperator(
+        task_id="python_package_task_deferrable",
+        staging_bucket=f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}",
+        display_name=f"{PACKAGE_DISPLAY_NAME}_DEF",
+        python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+        python_module_name=PYTHON_MODULE_NAME,
+        container_uri=CONTAINER_URI,
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        # run params
+        dataset_id=tabular_dataset_id,
+        model_display_name=f"{MODEL_DISPLAY_NAME}_DEF",
+        replica_count=REPLICA_COUNT,
+        machine_type=MACHINE_TYPE,
+        accelerator_type=ACCELERATOR_TYPE,
+        accelerator_count=ACCELERATOR_COUNT,
+        training_fraction_split=TRAINING_FRACTION_SPLIT,
+        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+        test_fraction_split=TEST_FRACTION_SPLIT,
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
+
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id="{{ task_instance.xcom_pull(task_ids='python_package_task', "
         "key='training_id') }}",
         custom_job_id="{{ task_instance.xcom_pull(task_ids='python_package_task', key='custom_job_id') }}",
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_custom_training_job_deferrable = DeleteCustomTrainingJobOperator(
+        task_id="delete_custom_training_job_deferrable",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='python_package_task_deferrable', "
+        "key='training_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='python_package_task_deferrable', key='custom_job_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -168,9 +203,10 @@ with DAG(
         >> move_data_files
         >> create_tabular_dataset
         # TEST BODY
-        >> create_custom_python_package_training_job
+        >> [create_custom_python_package_training_job, create_custom_python_package_training_job_deferrable]
         # TEST TEARDOWN
         >> delete_custom_training_job
+        >> delete_custom_training_job_deferrable
         >> delete_tabular_dataset
         >> delete_bucket
     )

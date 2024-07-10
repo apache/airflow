@@ -25,8 +25,6 @@ from unittest import mock
 import pytest
 import time_machine
 
-from tests.test_utils import AIRFLOW_MAIN_FOLDER
-
 
 class TestGetEksToken:
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook")
@@ -65,13 +63,13 @@ class TestGetEksToken:
             ],
         ],
     )
-    def test_run(self, mock_eks_hook, args, expected_aws_conn_id, expected_region_name):
+    def test_run(self, mock_eks_hook, args, expected_aws_conn_id, expected_region_name, airflow_root_path):
         (
             mock_eks_hook.return_value.fetch_access_token_for_cluster.return_value
         ) = "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
 
         with mock.patch("sys.argv", args), contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            os.chdir(AIRFLOW_MAIN_FOLDER)
+            os.chdir(airflow_root_path)
             # We are not using run_module because of https://github.com/pytest-dev/pytest/issues/9007
             runpy.run_path("airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__")
         output = temp_stdout.getvalue()

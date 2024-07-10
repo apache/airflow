@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 
 import kubernetes
 import pytest
+from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
 from sqlalchemy.orm import make_transient
 
@@ -497,6 +498,52 @@ class TestKubernetesHook:
 
         assert actual_result == expected_result
 
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_failed_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_failed = hook.is_job_failed(mock_job)
+
+        assert not job_failed
+
+    @pytest.mark.parametrize(
+        "condition_type, status, expected_result",
+        [
+            ("Complete", False, False),
+            ("Complete", True, True),
+            ("Failed", False, False),
+            ("Failed", True, False),
+            ("Suspended", False, False),
+            ("Suspended", True, False),
+            ("Unknown", False, False),
+            ("Unknown", True, False),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_successful(self, mock_merger, mock_loader, condition_type, status, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_successful(mock_job)
+
+        assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_successful_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_successful = hook.is_job_successful(mock_job)
+
+        assert not job_successful
+
     @pytest.mark.parametrize(
         "condition_type, status, expected_result",
         [
@@ -520,6 +567,17 @@ class TestKubernetesHook:
         actual_result = hook.is_job_complete(mock_job)
 
         assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_complete_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_complete = hook.is_job_complete(mock_job)
+
+        assert not job_complete
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
@@ -567,6 +625,44 @@ class TestKubernetesHook:
         mock_sleep.assert_has_calls([mock.call(POLL_INTERVAL)] * 4)
         assert job_actual == job_expected
 
+    @patch(f"{HOOK_MODULE}.json.dumps")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_create_job_retries_on_500_error(self, mock_client, mock_json_dumps):
+        mock_client.create_namespaced_job.side_effect = [
+            ApiException(status=500),
+            MagicMock(),
+        ]
+
+        hook = KubernetesHook()
+        hook.create_job(job=mock.MagicMock())
+
+        assert mock_client.create_namespaced_job.call_count == 2
+
+    @patch(f"{HOOK_MODULE}.json.dumps")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_create_job_fails_on_other_exception(self, mock_client, mock_json_dumps):
+        mock_client.create_namespaced_job.side_effect = [ApiException(status=404)]
+
+        hook = KubernetesHook()
+        with pytest.raises(ApiException):
+            hook.create_job(job=mock.MagicMock())
+
+    @patch(f"{HOOK_MODULE}.json.dumps")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_create_job_retries_three_times(self, mock_client, mock_json_dumps):
+        mock_client.create_namespaced_job.side_effect = [
+            ApiException(status=500),
+            ApiException(status=500),
+            ApiException(status=500),
+            ApiException(status=500),
+        ]
+
+        hook = KubernetesHook()
+        with pytest.raises(ApiException):
+            hook.create_job(job=mock.MagicMock())
+
+        assert mock_client.create_namespaced_job.call_count == 3
+
 
 class TestKubernetesHookIncorrectConfiguration:
     @pytest.mark.parametrize(
@@ -578,10 +674,10 @@ class TestKubernetesHookIncorrectConfiguration:
         ),
     )
     def test_should_raise_exception_on_invalid_configuration(self, conn_uri):
+        kubernetes_hook = KubernetesHook()
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri), pytest.raises(
             AirflowException, match="Invalid connection configuration"
         ):
-            kubernetes_hook = KubernetesHook()
             kubernetes_hook.get_conn()
 
 
@@ -700,13 +796,13 @@ class TestAsyncKubernetesHook:
     async def test_load_config_with_several_params(
         self,
     ):
+        hook = AsyncKubernetesHook(
+            conn_id=CONN_ID,
+            in_cluster=True,
+            config_file=ASYNC_CONFIG_PATH,
+            cluster_context=None,
+        )
         with pytest.raises(AirflowException):
-            hook = AsyncKubernetesHook(
-                conn_id=CONN_ID,
-                in_cluster=True,
-                config_file=ASYNC_CONFIG_PATH,
-                cluster_context=None,
-            )
             await hook._load_config()
 
     @pytest.mark.asyncio

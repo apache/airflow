@@ -83,7 +83,6 @@ with DAG(
         task_id="slack_file_upload_2",
         channels=SLACK_CHANNEL,
         content="file content in txt",
-        method_version="v2",
     )
     # [END slack_api_file_operator_content_howto_guide]
 

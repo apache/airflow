@@ -74,17 +74,17 @@ MOCK_COMMANDS: list[CLICommand] = [
 ]
 
 ALL_COMMANDS = """\
-airflow cmd_b                             | Help text D
+airflow cmd_b                                   | Help text D
 """
 
 SECTION_A = """\
-airflow cmd_a cmd_b                       | Help text B
-airflow cmd_a cmd_c                       | Help text C
+airflow cmd_a cmd_b                             | Help text B
+airflow cmd_a cmd_c                             | Help text C
 """
 
 SECTION_E = """\
-airflow cmd_e cmd_f                       | Help text F
-airflow cmd_e cmd_g                       | Help text G
+airflow cmd_e cmd_f                             | Help text F
+airflow cmd_e cmd_g                             | Help text G
 """
 
 

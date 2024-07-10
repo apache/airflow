@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from openlineage.client.facet import (
+    ExternalQueryRunFacet,
     SchemaDatasetFacet,
     SchemaField,
     SqlJobFacet,
@@ -29,7 +30,7 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Dataset
 
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
@@ -180,7 +181,7 @@ class TestAthenaOperator:
         mock_check_query_status,
         mock_get_state_change_reason,
     ):
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -195,7 +196,7 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_cancelled_query(self, mock_conn, mock_run_query, mock_check_query_status):
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -209,7 +210,7 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_failed_query_with_max_tries(self, mock_conn, mock_run_query, mock_check_query_status):
-        with pytest.raises(Exception):
+        with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
@@ -264,6 +265,24 @@ class TestAthenaOperator:
             query_execution_id=ATHENA_QUERY_ID,
         )
 
+    def test_execute_complete_reassigns_query_execution_id_after_deferring(self):
+        """Assert that we use query_execution_id from event after deferral."""
+
+        operator = AthenaOperator(
+            task_id="test_athena_operator",
+            query="SELECT * FROM TEST_TABLE",
+            database="TEST_DATABASE",
+            deferrable=True,
+        )
+        assert operator.query_execution_id is None
+
+        query_execution_id = "123456"
+        operator.execute_complete(
+            context=None,
+            event={"status": "success", "value": query_execution_id},
+        )
+        assert operator.query_execution_id == query_execution_id
+
     @mock.patch.object(AthenaHook, "region_name", new_callable=mock.PropertyMock)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_operator_openlineage_data(self, mock_conn, mock_region_name):
@@ -279,12 +298,13 @@ class TestAthenaOperator:
             task_id="test_athena_openlineage",
             query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
             database="TEST_DATABASE",
-            output_location="s3://test_s3_bucket/",
+            output_location="s3://test_s3_bucket",
             client_request_token="eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
             sleep_time=0,
             max_polling_attempts=3,
             dag=self.dag,
         )
+        op.query_execution_id = "12345"  # Mocking what will be available after execution
 
         expected_lineage = OperatorLineage(
             inputs=[
@@ -365,5 +385,6 @@ class TestAthenaOperator:
                     query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
                 )
             },
+            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
         )
-        assert op.get_openlineage_facets_on_start() == expected_lineage
+        assert op.get_openlineage_facets_on_complete(None) == expected_lineage

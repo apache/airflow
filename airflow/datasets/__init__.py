@@ -34,6 +34,11 @@ __all__ = ["Dataset", "DatasetAll", "DatasetAny"]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
+    """
+    Place-hold a :class:`~urllib.parse.SplitResult`` normalizer.
+
+    :meta private:
+    """
     return parts
 
 
@@ -46,6 +51,12 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
 
 
 def _sanitize_uri(uri: str) -> str:
+    """
+    Sanitize a dataset URI.
+
+    This checks for URI validity, and normalizes the URI if needed. A fully
+    normalized URI is returned.
+    """
     if not uri:
         raise ValueError("Dataset URI cannot be empty")
     if uri.isspace():
@@ -95,21 +106,51 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
-class BaseDatasetEventInput:
-    """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
+def coerce_to_uri(value: str | Dataset) -> str:
+    """
+    Coerce a user input into a sanitized URI.
+
+    If the input value is a string, it is treated as a URI and sanitized. If the
+    input is a :class:`Dataset`, the URI it contains is considered sanitized and
+    returned directly.
+
+    :meta private:
+    """
+    if isinstance(value, Dataset):
+        return value.uri
+    return _sanitize_uri(str(value))
+
+
+class BaseDataset:
+    """
+    Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
 
     :meta private:
     """
 
-    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __bool__(self) -> bool:
+        return True
+
+    def __or__(self, other: BaseDataset) -> BaseDataset:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         return DatasetAny(self, other)
 
-    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __and__(self, other: BaseDataset) -> BaseDataset:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         return DatasetAll(self, other)
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        The return value is stored in DagModel for display purposes. It must be
+        JSON-compatible.
+
+        :meta private:
+        """
+        raise NotImplementedError
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
@@ -119,7 +160,7 @@ class BaseDatasetEventInput:
 
 
 @attr.define()
-class Dataset(os.PathLike, BaseDatasetEventInput):
+class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
@@ -141,6 +182,14 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __hash__(self) -> int:
         return hash(self.uri)
 
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return self.uri
+
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
 
@@ -148,13 +197,13 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
         return statuses.get(self.uri, False)
 
 
-class _DatasetBooleanCondition(BaseDatasetEventInput):
+class _DatasetBooleanCondition(BaseDataset):
     """Base class for dataset boolean logic."""
 
     agg_func: Callable[[Iterable], bool]
 
-    def __init__(self, *objects: BaseDatasetEventInput) -> None:
-        if not all(isinstance(o, BaseDatasetEventInput) for o in objects):
+    def __init__(self, *objects: BaseDataset) -> None:
+        if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
         self.objects = objects
 
@@ -176,8 +225,8 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
-    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __or__(self, other: BaseDataset) -> BaseDataset:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
         return DatasetAny(*self.objects, other)
@@ -185,17 +234,33 @@ class DatasetAny(_DatasetBooleanCondition):
     def __repr__(self) -> str:
         return f"DatasetAny({', '.join(map(str, self.objects))})"
 
+    def as_expression(self) -> dict[str, Any]:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"any": [o.as_expression() for o in self.objects]}
+
 
 class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
 
     agg_func = all
 
-    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        if not isinstance(other, BaseDatasetEventInput):
+    def __and__(self, other: BaseDataset) -> BaseDataset:
+        if not isinstance(other, BaseDataset):
             return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
         return DatasetAll(*self.objects, other)
 
     def __repr__(self) -> str:
         return f"DatasetAll({', '.join(map(str, self.objects))})"
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"all": [o.as_expression() for o in self.objects]}

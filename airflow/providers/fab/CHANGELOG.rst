@@ -20,6 +20,93 @@
 Changelog
 ---------
 
+1.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add backward compatibility to CSRF protection of '/logout' method (#40479)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add CSRF protection to "/logout" (#40145)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Upgrade to FAB 4.5.0 (#39851)``
+* ``fix: sqa deprecations for airflow providers (#39293)``
+* ``Add '[webserver]update_fab_perms' to deprecated configs (#40317)``
+
+1.1.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Simplify action name retrieval in FAB auth manager (#39358)``
+* ``Add 'jmespath' as an explicit dependency (#39350)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+1.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove plugins permissions from Viewer role (#39254)``
+* ``Update 'is_authorized_custom_view' from auth manager to handle custom actions (#39167)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+1.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove button for reset my password when we have reset password (#38957)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+
+
+1.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Rename 'allowed_filter_attrs' to 'allowed_sort_attrs' (#38626)``
+* ``Fix azure authentication when no email is set (#38872)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider fab (#38801)``
+
 1.0.2
 .....
 

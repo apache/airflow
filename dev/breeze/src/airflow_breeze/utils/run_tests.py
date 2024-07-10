@@ -191,6 +191,7 @@ SYSTEM_TESTS = "tests/system"
 
 # Those directories are already ignored vu pyproject.toml. We want to exclude them here as well.
 NO_RECURSE_DIRS = [
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",
@@ -308,6 +309,7 @@ def generate_args_for_pytest(
     parallel_test_types_list: list[str],
     python_version: str,
     helm_test_package: str | None,
+    keep_env_variables: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
@@ -394,6 +396,8 @@ def generate_args_for_pytest(
                 "--disable-warnings",
             ]
         )
+    if keep_env_variables:
+        args.append("--keep-env-variables")
     return args
 
 

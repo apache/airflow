@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add processor_subdir column to DagModel, SerializedDagModel and CallbackRequest tables.
+"""
+Add processor_subdir column to DagModel, SerializedDagModel and CallbackRequest tables.
 
 Revision ID: ecb43d2a1842
 Revises: 1486deb605b4
 Create Date: 2022-08-26 11:30:11.249580
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -36,7 +38,7 @@ airflow_version = "2.4.0"
 
 
 def upgrade():
-    """Apply add processor_subdir to DagModel and SerializedDagModel"""
+    """Apply add processor_subdir to DagModel and SerializedDagModel."""
     conn = op.get_bind()
 
     with op.batch_alter_table("dag") as batch_op:
@@ -60,7 +62,7 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add processor_subdir to DagModel and SerializedDagModel"""
+    """Unapply Add processor_subdir to DagModel and SerializedDagModel."""
     conn = op.get_bind()
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("processor_subdir")

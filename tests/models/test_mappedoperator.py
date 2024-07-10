@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -73,8 +72,6 @@ def test_task_mapping_with_dag():
 
 @patch("airflow.models.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
-    caplog.set_level(logging.INFO)
-
     class UnrenderableClass:
         def __bool__(self):
             raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
@@ -95,7 +92,6 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
-    assert caplog.text.count("[DAG TEST] end task task_id=task_2") == 2
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text
@@ -916,7 +912,6 @@ class TestMappedSetupTeardown:
                 t = my_teardown.expand(op_args=my_setup.output)
                 with t.as_teardown(setups=my_setup):
                     my_work(my_setup.output)
-            return dag
 
         dr = dag.test()
         states = self.get_states(dr)

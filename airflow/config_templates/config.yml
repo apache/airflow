@@ -341,6 +341,14 @@ core:
       type: string
       example: ~
       default: "downstream"
+    task_success_overtime:
+      description: |
+        Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+        (like listeners, mini scheduler...) after task is marked as success..
+      version_added: 2.10.0
+      type: integer
+      example: ~
+      default: "20"
     default_task_execution_timeout:
       description: |
         The default task execution_timeout value for the operators. Expected an integer value to
@@ -1013,6 +1021,22 @@ logging:
       type: boolean
       example: ~
       default: "True"
+    color_log_error_keywords:
+      description: |
+        A comma separated list of keywords related to errors whose presence should display the line in red
+        color in UI
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "error,exception"
+    color_log_warning_keywords:
+      description: |
+        A comma separated list of keywords related to warning whose presence should display the line in yellow
+        color in UI
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "warn"
 metrics:
   description: |
     `StatsD <https://github.com/statsd/statsd>`__ integration settings.
@@ -1033,7 +1057,8 @@ metrics:
         If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+      or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
@@ -1046,7 +1071,8 @@ metrics:
         If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+      or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     statsd_on:
       description: |
@@ -1192,6 +1218,64 @@ metrics:
       type: string
       example: ~
       default: "False"
+traces:
+  description: |
+    Distributed traces integration settings.
+  options:
+    otel_on:
+      description: |
+        Enables sending traces to OpenTelemetry.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "False"
+    otel_host:
+      description: |
+        Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
+        traces.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "localhost"
+    otel_port:
+      description: |
+        Specifies the port of the OpenTelemetry Collector that is listening to.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "8889"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "Airflow"
+    otel_debugging_on:
+      description: |
+        If True, all traces are also emitted to the console. Defaults to False.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "False"
+    otel_ssl_active:
+      description: |
+        If True, SSL will be enabled.  Defaults to False.
+        To establish an HTTPS connection to the OpenTelemetry collector,
+        you need to configure the SSL certificate and key within the OpenTelemetry collector's
+        config.yml file.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "False"
+    otel_task_log_event:
+      description: |
+        If True, after the task is complete, the full task log messages will be added as the
+        span events, chunked by 64k size. defaults to False.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -1277,8 +1361,8 @@ api:
   options:
     enable_experimental_api:
       description: |
-        Enables the deprecated experimental API. Please note that these APIs do not have access control.
-        The authenticated user has full access.
+        Enables the deprecated experimental API. Please note that these API endpoints do not have
+        access control. An authenticated user has full access.
 
         .. warning::
 
@@ -1878,16 +1962,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    update_fab_perms:
-      description: |
-        Update FAB permissions and sync security manager roles
-        on webserver startup
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
@@ -1957,24 +2031,6 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    auth_rate_limited:
-      description: |
-        Boolean for enabling rate limiting on authentication endpoints.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
-    auth_rate_limit:
-      description: |
-        Rate limit for authentication endpoints.
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: "5 per 40 second"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
@@ -2645,3 +2701,25 @@ sensors:
       type: float
       example: ~
       default: "604800"
+usage_data_collection:
+  description: |
+    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
+    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
+    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
+    security fixes. Additionally, this information supports key decisions related to the development road map.
+    Check the FAQ doc for more information on what data is collected.
+
+    Deployments can opt-out of analytics by setting the ``enabled`` option
+    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+    Individual users can easily opt-out of analytics in various ways documented in the
+    `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
+
+  options:
+    enabled:
+      description: |
+        Enable or disable usage data collection and sending.
+      version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "True"
+      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"

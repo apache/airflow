@@ -26,7 +26,7 @@ for the first time. See the table below to identify which pre-commit checks requ
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pre-commit hooks
 ----------------
@@ -142,6 +142,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-builtin-literals                                    | Require literal syntax when initializing builtin types       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-changelog-format                                    | Check changelog format                                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
@@ -225,6 +227,8 @@ require Breeze Docker image to be built locally.
 | check-system-tests-present                                | Check if system tests have required segments of code         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-template-context-variable-in-sync                   | Check all template context variable references are in sync   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-tests-in-the-right-folders                          | Check if tests are in the right folders                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -358,6 +362,8 @@ require Breeze Docker image to be built locally.
 | update-local-yml-file                                     | Update mounts in the local yml file                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update dependencies for provider packages                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

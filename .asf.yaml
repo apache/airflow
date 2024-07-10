@@ -105,13 +105,13 @@ github:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
-      #    v2-9-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
+    v2-9-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
   collaborators:
-    - Lee-W
-    - RNHTTR
+    # Max 10 collaborators allowed
+    # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
     - aritra24
     - dirrao
     - mhenc
@@ -119,6 +119,8 @@ github:
     - sunank200
     - vatsrahul1001
     - cmarteepants
+    - romsharon98
+    - shahar1
 
 notifications:
   jobs: jobs@airflow.apache.org

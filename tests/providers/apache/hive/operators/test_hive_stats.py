@@ -23,11 +23,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.presto.hooks.presto import PrestoHook
-from airflow.utils import timezone
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from tests.providers.apache.hive import (
     DEFAULT_DATE,
     DEFAULT_DATE_DS,
@@ -372,41 +370,3 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                 "value",
             ],
         )
-
-    def test_col_blacklist_deprecation(self):
-        warn_message = "col_blacklist kwarg passed to.*task_id: fake-task-id.*is deprecated"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warn_message):
-            HiveStatsCollectionOperator(
-                task_id="fake-task-id",
-                table="airflow.static_babynames_partitioned",
-                partition={"ds": DEFAULT_DATE_DS},
-                col_blacklist=["foo", "bar"],
-            )
-
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "col_blacklist",
-        [pytest.param(None, id="none"), pytest.param(["foo", "bar"], id="list")],
-    )
-    def test_partial_col_blacklist_deprecation(self, col_blacklist, dag_maker, session):
-        with dag_maker(
-            dag_id="test_partial_col_blacklist_deprecation",
-            start_date=timezone.datetime(2024, 1, 1),
-            session=session,
-        ):
-            HiveStatsCollectionOperator.partial(
-                task_id="fake-task-id",
-                partition={"ds": DEFAULT_DATE_DS},
-                col_blacklist=col_blacklist,
-                excluded_columns=["spam", "egg"],
-            ).expand(table=["airflow.table1", "airflow.table2"])
-
-        dr = dag_maker.create_dagrun(execution_date=None)
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warn_message = "col_blacklist kwarg passed to.*task_id: fake-task-id.*is deprecated"
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warn_message):
-                    ti.render_templates()
-                expected = col_blacklist or []
-                assert ti.task.excluded_columns == expected

@@ -88,8 +88,8 @@ class TestAmazonGlacierSensor:
         self.op.soft_fail = soft_fail
         response = {"Action": "some action", "StatusCode": "Failed"}
         message = f'Sensor failed. Job status: {response["Action"]}, code status: {response["StatusCode"]}'
+        mocked_describe_job.return_value = response
         with pytest.raises(expected_exception, match=message):
-            mocked_describe_job.return_value = response
             self.op.poke(context={})
 
 

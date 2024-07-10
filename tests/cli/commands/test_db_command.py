@@ -139,13 +139,24 @@ class TestCliDb:
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
-        db_command.upgradedb(self.parser.parse_args(["db", "upgrade", *args]))
+        db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
         mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
 
     @pytest.mark.parametrize(
         "args, pattern",
         [
-            pytest.param(["--to-version", "2.1.25"], "not supported", id="bad version"),
+            pytest.param(
+                ["--to-revision", "abc", "--to-version", "2.2.0"],
+                "Cannot supply both",
+                id="to both version and revision",
+            ),
+            pytest.param(
+                ["--from-revision", "abc", "--from-version", "2.2.0"],
+                "Cannot supply both",
+                id="from both version and revision",
+            ),
+            pytest.param(["--to-version", "2.1.25"], "Unknown version '2.1.25'", id="unknown to version"),
+            pytest.param(["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"),
             pytest.param(
                 ["--to-revision", "abc", "--from-revision", "abc123"],
                 "used with `--show-sql-only`",
@@ -157,16 +168,21 @@ class TestCliDb:
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "abc", "--from-version", "2.1.25", "--show-sql-only"],
-                "Unknown version",
-                id="bad version",
+                ["--to-revision", "2.2.0", "--from-version", "2.1.25", "--show-sql-only"],
+                "Unknown version '2.1.25'",
+                id="unknown from version",
+            ),
+            pytest.param(
+                ["--to-revision", "2.9.0", "--from-version", "abc", "--show-sql-only"],
+                "Invalid version 'abc'",
+                id="invalid from version",
             ),
         ],
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_sync_failure(self, mock_upgradedb, args, pattern):
         with pytest.raises(SystemExit, match=pattern):
-            db_command.migratedb(self.parser.parse_args(["db", "upgrade", *args]))
+            db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
 
     @mock.patch("airflow.cli.commands.db_command.migratedb")
     def test_cli_upgrade(self, mock_migratedb):
