@@ -40,6 +40,15 @@ from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
+alias_association_table = Table(
+    "dataset_alias_dataset",
+    Base.metadata,
+    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dataset_alias_dataset_alias_id", "alias_id"),
+    Index("idx_dataset_alias_dataset_alias_dataset_id", "dataset_id"),
+)
+
 
 class DatasetAliasModel(Base):
     """
@@ -63,6 +72,12 @@ class DatasetAliasModel(Base):
     )
 
     __tablename__ = "dataset_alias"
+
+    datasets = relationship(
+        "DatasetModel",
+        secondary=alias_association_table,
+        backref="aliases",
+    )
 
     @classmethod
     def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
