@@ -458,3 +458,7 @@ class DeserializingResultError(ValueError):
             "Error deserializing result. Note that result deserialization "
             "is not supported across major Python versions. Cause: " + str(self.__cause__)
         )
+
+
+class UnknownExecutorException(ValueError):
+    """Raised when an attempt is made to load an executor which is not configured."""
