@@ -40,7 +40,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -1930,17 +1930,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         try:
             return ExecutorLoader.load_executor(executor_name)
-        except ValueError as e:
+        except UnknownExecutorException:
             # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
             # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
             # they request is available and if not, disallow the DAG to be scheduled.
             # Keeping this exception handling because this is a critical issue if we do somehow find
             # ourselves here and the user should get some feedback about that.
-            if "Unknown executor" in str(e):
-                self.log.warning(
-                    "Executor, %s, was not found but a Task was configured to use it", executor_name
-                )
-                return None
-            else:
-                # Re-raise any other Exception not related to unknown executors.
-                raise
+            self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
+            return None
