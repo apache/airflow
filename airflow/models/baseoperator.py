@@ -101,7 +101,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import ELIDED_DAG, NOTSET
+from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -1249,13 +1249,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self._dag = None
             return
 
-        # if already set to elided, then just set and exit
-        if self._dag is ELIDED_DAG:
+        # if set to removed, then just set and exit
+        if self._dag is ATTRIBUTE_REMOVED:
             self._dag = dag
             return
-        # if setting to elided, then just set and exit
-        if dag is ELIDED_DAG:
-            self._dag = ELIDED_DAG  # type: ignore[assignment]
+        # if setting to removed, then just set and exit
+        if dag is ATTRIBUTE_REMOVED:
+            self._dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
             return
 
         from airflow.models.dag import DAG

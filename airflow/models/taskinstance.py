@@ -136,7 +136,7 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import ELIDED_DAG
+from airflow.utils.types import ATTRIBUTE_REMOVED
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -932,7 +932,7 @@ def _get_template_context(
         assert task
         assert task.dag
 
-    if task.dag is ELIDED_DAG:
+    if task.dag is ATTRIBUTE_REMOVED:
         task.dag = dag  # required after deserialization
 
     dag_run = task_instance.get_dagrun(session)
@@ -1264,7 +1264,7 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    if task.dag is ELIDED_DAG:
+    if task.dag is ATTRIBUTE_REMOVED:
         task.dag = dag  # required after deserialization
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
@@ -3367,7 +3367,7 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task
             assert ti.task
 
-        if ti.task.dag is ELIDED_DAG:
+        if ti.task.dag is ATTRIBUTE_REMOVED:
             ti.task.dag = self.task.dag
 
         # If self.task is mapped, this call replaces self.task to point to the
