@@ -65,7 +65,7 @@ def configured_app(minimal_app_for_api):
     create_user(
         app,  # type: ignore
         username="test_no_dag_run_create_permission",
-        role_name="Test",
+        role_name="TestNoDagRunCreatePermission",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
