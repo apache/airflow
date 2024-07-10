@@ -2458,6 +2458,10 @@ class TestTaskInstance:
     def test_outlet_dataset_alias(self, dag_maker, session):
         from airflow.datasets import Dataset, DatasetAlias
 
+        ds1 = DatasetModel(id=1, uri="test_outlet_dataset_alias_test_case_ds")
+        session.add(ds1)
+        session.commit()
+
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
             @task(outlets=DatasetAlias("test_outlet_dataset_alias_test_case_dsa"))
@@ -2491,6 +2495,10 @@ class TestTaskInstance:
     def test_outlet_multiple_dataset_alias(self, dag_maker, session):
         from airflow.datasets import Dataset, DatasetAlias
 
+        ds1 = DatasetModel(id=1, uri="test_outlet_mdsa_ds")
+        session.add(ds1)
+        session.commit()
+
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
             @task(outlets=[DatasetAlias("test_outlet_mdsa_dsa_1"), DatasetAlias("test_outlet_mdsa_dsa_2")])
@@ -2517,13 +2525,16 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == "test_outlet_dataset_alias_test_case_ds"
+        assert producer_event.dataset.uri == "test_outlet_mdsa_ds"
         assert producer_event.extra == {}
 
     def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
         from airflow.datasets import DatasetAlias
         from airflow.datasets.metadata import Metadata
 
+        ds1 = DatasetModel(id=1, uri="test_outlet_dataset_alias_through_metadata_ds")
+        session.add(ds1)
+        session.commit()
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
             @task(outlets=DatasetAlias("test_outlet_dataset_alias_through_metadata_dsa"))
