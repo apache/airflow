@@ -21,8 +21,8 @@ from airflow.datasets.metadata import Metadata
 
 
 def test_metadata_alias_handling_during_initialization():
-    metadata_1 = Metadata(target="dataset", extra={}, aliases="dataset_alias")
-    metadata_2 = Metadata(target="dataset", extra={}, aliases=["dataset_alias"])
+    metadata_1 = Metadata(target="dataset", extra={}, alias="dataset_alias")
+    metadata_2 = Metadata(target="dataset", extra={}, alias=["dataset_alias"])
 
     for metadata in (metadata_1, metadata_2):
-        assert metadata.aliases == ["dataset_alias"]
+        assert metadata.alias == ["dataset_alias"]

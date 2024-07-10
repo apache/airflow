@@ -416,7 +416,7 @@ The following example create a dataset event against the S3 URI ``f"s3://bucket/
     @task(outlets=[DatasetAlias("my-task-outputs")])
     def my_task_with_metadata(*, ds):
         s3_dataset = Dataset(f"s3://bucket/my-task/{ds}")
-        yield Metadata(s3_dataset, extra={"k": "v"}, aliases="my-task-outputs")
+        yield Metadata(s3_dataset, extra={"k": "v"}, alias="my-task-outputs")
 
 Combining dataset and time-based schedules
 ------------------------------------------
