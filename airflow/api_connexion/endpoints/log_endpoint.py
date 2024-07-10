@@ -151,8 +151,6 @@ def get_log_pages(
     )
 
     ti = session.scalar(query)
-    if ti is None:
-        raise NotFound(title="TaskInstance not found")
 
     # Check if the task instance state is terminal
     if ti.state is None:
