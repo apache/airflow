@@ -64,6 +64,8 @@ class SlackNotifier(BaseNotifier):
         proxy: str | None = None,
         timeout: int | None = None,
         retry_handlers: list[RetryHandler] | None = None,
+        unfurl_links: bool = True,
+        unfurl_media: bool = True,
     ):
         super().__init__()
         self.slack_conn_id = slack_conn_id
@@ -77,6 +79,8 @@ class SlackNotifier(BaseNotifier):
         self.timeout = timeout
         self.proxy = proxy
         self.retry_handlers = retry_handlers
+        self.unfurl_links = unfurl_links
+        self.unfurl_media = unfurl_media
 
     @cached_property
     def hook(self) -> SlackHook:
@@ -98,6 +102,8 @@ class SlackNotifier(BaseNotifier):
             "icon_url": self.icon_url,
             "attachments": json.dumps(self.attachments),
             "blocks": json.dumps(self.blocks),
+            "unfurl_links": self.unfurl_links,
+            "unfurl_media": self.unfurl_media,
         }
         self.hook.call("chat.postMessage", json=api_call_params)
 
