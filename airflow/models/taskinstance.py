@@ -82,6 +82,7 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunNotFound,
+    DestDatasetNotFound,
     RemovedInAirflow3Warning,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -2943,6 +2944,8 @@ class TaskInstance(Base, LoggingMixin):
                     extra=dataset_extra,
                     session=session,
                 )
+            else:
+                raise DestDatasetNotFound(f"Dataset(uri={uri}) does not exists")
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""

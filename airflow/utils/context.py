@@ -41,9 +41,10 @@ import lazy_object_proxy
 from sqlalchemy import select
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent, extract_event_key
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import DestDatasetNotFound, RemovedInAirflow3Warning
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -170,12 +171,15 @@ class OutletEventAccessor:
     dataset_alias_event: DatasetAliasEvent | None = None
 
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
+        """Add a DatasetEvent to an existing Dataset."""
         if isinstance(dataset, str):
             dataset_uri = dataset
         elif isinstance(dataset, Dataset):
             dataset_uri = dataset.uri
         else:
             return
+
+        OutletEventAccessor.check_dataset_exists(dataset_uri)
 
         if isinstance(self.raw_key, str):
             dataset_alias_name = self.raw_key
@@ -190,6 +194,14 @@ class OutletEventAccessor:
         self.dataset_alias_event = DatasetAliasEvent(
             source_alias_name=dataset_alias_name, dest_dataset_uri=dataset_uri
         )
+
+    @staticmethod
+    @provide_session
+    def check_dataset_exists(dataset_uri: str, session: Session = NEW_SESSION) -> None:
+        """Check whether a Dataset exists."""
+        dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == dataset_uri).limit(1))
+        if not dataset_obj:
+            raise DestDatasetNotFound(f"Dataset(uri={dataset_uri}) does not exists")
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
