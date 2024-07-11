@@ -46,6 +46,7 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('main.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('loadingDots.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('bootstrap-datetimepicker.min.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('jquery-ui.min.css') }}">
   <style type="text/css">
     {% for state, state_color in state_color_mapping.items() %}
       span.{{state}} {
@@ -133,6 +134,7 @@
     $('time[title]').tooltip();
   </script>
   <script src="{{ url_for_asset('moment.js') }}"></script>
+  <script src="{{ url_for_asset('jquery-ui.min.js') }}"></script>
   <script src="{{ url_for_asset('main.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
