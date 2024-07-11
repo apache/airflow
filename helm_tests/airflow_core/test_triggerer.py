@@ -775,6 +775,20 @@ class TestTriggererKedaAutoScaler:
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
 
+    def test_mysql_db_backend_keda_default_value(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql"}},
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.triggerers[0].metadata.keda.usePgBouncer", docs[0]) is None
+
     def test_mysql_db_backend_keda(self):
         docs = render_chart(
             values={

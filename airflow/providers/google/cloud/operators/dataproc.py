@@ -3055,6 +3055,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                     self.log.info("Batch %s created", self.batch_id)
 
                 else:
+                    DataprocBatchLink.persist(
+                        context=context,
+                        operator=self,
+                        project_id=self.project_id,
+                        region=self.region,
+                        batch_id=self.batch_id,
+                    )
                     return self.operation.operation.name
 
             else:

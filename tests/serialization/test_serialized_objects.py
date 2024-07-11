@@ -339,6 +339,11 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
         reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
         dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
         assert isinstance(dereserialized, pydantic_class)
+
+        if encoded_type == "task_instance":
+            deserialized.task.dag = None
+            dereserialized.task.dag = None
+
         assert dereserialized == deserialized
 
         # Verify recursive behavior
@@ -394,6 +399,10 @@ def test_all_pydantic_models_round_trip():
         serialized = BaseSerialization.serialize(pydantic_instance, use_pydantic_models=True)
         deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
         assert isinstance(deserialized, c)
+        if isinstance(pydantic_instance, TaskInstancePydantic):
+            # we can't access the dag on deserialization; but there is no dag here.
+            deserialized.task.dag = None
+            pydantic_instance.task.dag = None
         assert pydantic_instance == deserialized
 
 

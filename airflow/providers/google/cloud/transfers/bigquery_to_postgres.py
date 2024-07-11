@@ -76,7 +76,7 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
         self.replace_index = replace_index
 
     def get_sql_hook(self) -> PostgresHook:
-        return PostgresHook(schema=self.database, postgres_conn_id=self.postgres_conn_id)
+        return PostgresHook(database=self.database, postgres_conn_id=self.postgres_conn_id)
 
     def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(

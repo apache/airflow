@@ -5699,6 +5699,10 @@
         "1.8.0": {
             "associated_airflow_version": "2.9.2",
             "date_released": "2024-05-30T06:38:15Z"
+        },
+        "1.9.0": {
+            "associated_airflow_version": "2.9.2",
+            "date_released": "2024-07-04T18:21:57Z"
         }
     },
     "opensearch": {
