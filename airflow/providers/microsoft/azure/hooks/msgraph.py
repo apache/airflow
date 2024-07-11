@@ -110,13 +110,16 @@ class KiotaRequestAdapterHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
+        host: str = NationalClouds.Global.value,
         api_version: APIVersion | str | None = None,
     ):
         super().__init__()
         self.conn_id = conn_id
         self.timeout = timeout
         self.proxies = proxies
+        self.host = host
         self._api_version = self.resolve_api_version_from_value(api_version)
+
 
     @property
     def api_version(self) -> APIVersion:
@@ -141,11 +144,10 @@ class KiotaRequestAdapterHook(BaseHook):
             )
         return self._api_version
 
-    @staticmethod
-    def get_host(connection: Connection) -> str:
+    def get_host(self, connection: Connection) -> str:
         if connection.schema and connection.host:
             return f"{connection.schema}://{connection.host}"
-        return NationalClouds.Global.value
+        return self.host
 
     @staticmethod
     def format_no_proxy_url(url: str) -> str:

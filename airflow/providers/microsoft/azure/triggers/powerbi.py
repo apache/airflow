@@ -21,9 +21,11 @@ import asyncio
 import time
 from typing import AsyncIterator
 
+from msgraph_core import APIVersion
+
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIAsyncHook,
-    PowerBIDatasetRefreshStatus,
+    PowerBIDatasetRefreshStatus, PowerBIHook,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -34,7 +36,13 @@ class PowerBITrigger(BaseTrigger):
 
     Wait for termination will always be True.
 
-    :param powerbi_conn_id: The connection Id to connect to PowerBI.
+    :param conn_id: The connection Id to connect to PowerBI.
+    :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
+        When no timeout is specified or set to None then there is no HTTP timeout on each request.
+    :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+        You can pass an enum named APIVersion which has 2 possible members v1 and beta,
+        or you can pass a string as `v1.0` or `beta`.
     :param dataset_id: The dataset Id to refresh.
     :param group_id: The workspace Id where dataset is located.
     :param dataset_refresh_id: The dataset refresh Id.
@@ -45,16 +53,24 @@ class PowerBITrigger(BaseTrigger):
 
     def __init__(
         self,
-        powerbi_conn_id: str,
+        conn_id: str,
         dataset_id: str,
         group_id: str,
         dataset_refresh_id: str,
         end_time: float,
+        timeout: float | None = None,
+        proxies: dict | None = None,
+        api_version: APIVersion | None = None,
         check_interval: int = 60,
         wait_for_termination: bool = True,
     ):
         super().__init__()
-        self.powerbi_conn_id = powerbi_conn_id
+        self.hook = PowerBIHook(
+            conn_id=conn_id,
+            timeout=timeout,
+            proxies=proxies,
+            api_version=api_version,
+        )
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.dataset_refresh_id = dataset_refresh_id
@@ -64,10 +80,14 @@ class PowerBITrigger(BaseTrigger):
 
     def serialize(self):
         """Serialize the trigger instance."""
+        api_version = self.api_version.value if self.api_version else None
         return (
             "airflow.providers.microsoft.azure.triggers.powerbi.PowerBITrigger",
             {
-                "powerbi_conn_id": self.powerbi_conn_id,
+                "conn_id": self.conn_id,
+                "timeout": self.timeout,
+                "proxies": self.proxies,
+                "api_version": api_version,
                 "dataset_id": self.dataset_id,
                 "group_id": self.group_id,
                 "dataset_refresh_id": self.dataset_refresh_id,
@@ -77,12 +97,27 @@ class PowerBITrigger(BaseTrigger):
             },
         )
 
+    @property
+    def conn_id(self) -> str:
+        return self.hook.conn_id
+
+    @property
+    def timeout(self) -> float | None:
+        return self.hook.timeout
+
+    @property
+    def proxies(self) -> dict | None:
+        return self.hook.proxies
+
+    @property
+    def api_version(self) -> APIVersion:
+        return self.hook.api_version
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
-        hook = PowerBIAsyncHook(powerbi_conn_id=self.powerbi_conn_id)
         try:
             while self.end_time > time.time():
-                dataset_refresh_status = await hook.get_dataset_refresh_status(
+                dataset_refresh_status = await self.hook.get_dataset_refresh_status(
                     dataset_id=self.dataset_id,
                     group_id=self.group_id,
                     dataset_refresh_id=self.dataset_refresh_id,
@@ -126,7 +161,7 @@ class PowerBITrigger(BaseTrigger):
                     self.log.info(
                         "Unexpected error %s caught. Cancel pipeline run %s", error, self.dataset_refresh_id
                     )
-                    await hook.cancel_dataset_refresh(
+                    await self.hook.cancel_dataset_refresh(
                         dataset_id=self.dataset_id,
                         group_id=self.group_id,
                         dataset_refresh_id=self.dataset_refresh_id,
@@ -147,4 +182,3 @@ class PowerBITrigger(BaseTrigger):
                     "dataset_refresh_id": self.dataset_refresh_id,
                 }
             )
-            return

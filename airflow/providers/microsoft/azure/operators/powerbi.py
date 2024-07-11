@@ -17,10 +17,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
+
+from msgraph_core import APIVersion
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -87,44 +90,51 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         group_id: str,
         wait_for_termination: bool = True,
         force_refresh: bool = False,
-        powerbi_conn_id: str = PowerBIHook.default_conn_name,
+        conn_id: str = PowerBIHook.default_conn_name,
         timeout: int = 60 * 60 * 24 * 7,
+        proxies: dict | None = None,
+        api_version: APIVersion | None = None,
         check_interval: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.hook = PowerBIHook(
+            conn_id=conn_id,
+            timeout=timeout,
+            proxies=proxies,
+            api_version=api_version,
+        )
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.wait_for_termination = wait_for_termination
         self.force_refresh = force_refresh
-        self.powerbi_conn_id = powerbi_conn_id
+        self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
         self.deferrable = deferrable
 
-    @cached_property
-    def hook(self) -> PowerBIHook:
-        """Create and return an PowerBIHook (cached)."""
-        return PowerBIHook(powerbi_conn_id=self.powerbi_conn_id)
+    @classmethod
+    def run_async(cls, future: Any) -> Any:
+        return asyncio.get_event_loop().run_until_complete(future)
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
         self.log.info("Executing Dataset refresh.")
-        request_id = self.hook.trigger_dataset_refresh(
+        request_id = self.run_async(self.hook.trigger_dataset_refresh(
             dataset_id=self.dataset_id,
             group_id=self.group_id,
-        )
+        ))
 
         # Push Dataset Refresh ID to Xcom regardless of what happen durinh the refresh
-        context["ti"].xcom_push(key="powerbi_dataset_refresh_id", value=request_id)
+        self.xcom_push(context=context, key="powerbi_dataset_refresh_id", value=request_id)
 
         if self.wait_for_termination:
             if self.deferrable:
                 end_time = time.time() + self.timeout
                 self.defer(
                     trigger=PowerBITrigger(
-                        powerbi_conn_id=self.powerbi_conn_id,
+                        powerbi_conn_id=self.conn_id,
                         group_id=self.group_id,
                         dataset_id=self.dataset_id,
                         dataset_refresh_id=request_id,
@@ -136,14 +146,14 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                 )
             else:
                 self.log.info("Waiting for dataset refresh to terminate.")
-                if self.hook.wait_for_dataset_refresh_status(
+                if self.run_async(self.hook.wait_for_dataset_refresh_status(
                     request_id=request_id,
                     dataset_id=self.dataset_id,
                     group_id=self.group_id,
                     expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
                     check_interval=self.check_interval,
                     timeout=self.timeout,
-                ):
+                )):
                     self.log.info("Dataset refresh %s has completed successfully.", request_id)
                 else:
                     raise PowerBIDatasetRefreshException(
@@ -159,16 +169,16 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                 )
 
         # Retrieve refresh details after triggering refresh
-        refresh_details = self.hook.get_refresh_details_by_request_id(
+        refresh_details = self.run_async(self.hook.get_refresh_details_by_request_id(
             dataset_id=self.dataset_id, group_id=self.group_id, request_id=request_id
-        )
+        ))
 
         status = str(refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value))
         error = str(refresh_details.get(PowerBIDatasetRefreshFields.ERROR.value))
 
         # Xcom Integration
-        context["ti"].xcom_push(key="powerbi_dataset_refresh_status", value=status)
-        context["ti"].xcom_push(key="powerbi_dataset_refresh_error", value=error)
+        self.xcom_push(context=context, key="powerbi_dataset_refresh_status", value=status)
+        self.xcom_push(context=context, key="powerbi_dataset_refresh_error", value=error)
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> Any:
         """
@@ -181,5 +191,5 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                 raise AirflowException(event["message"])
             else:
                 # Push Dataset refresh status to Xcom
-                context["ti"].xcom_push(key="powerbi_dataset_refresh_status", value=event["status"])
+                self.xcom_push(context=context, key="powerbi_dataset_refresh_status", value=event["status"])
         self.log.info(event["message"])
