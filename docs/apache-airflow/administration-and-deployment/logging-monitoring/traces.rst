@@ -36,7 +36,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 .. code-block:: ini
 
     [traces]
-    otel_on = False
+    otel_on = True
     otel_host = localhost
     otel_port = 8889
     otel_application = airflow
