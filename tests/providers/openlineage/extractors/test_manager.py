@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 from openlineage.client.facet import (
+    DocumentationDatasetFacet,
     OwnershipDatasetFacet,
     OwnershipDatasetFacetOwners,
     SchemaDatasetFacet,
@@ -94,6 +95,7 @@ def test_convert_to_ol_dataset_from_table_with_columns_and_owners():
             User(email="smith@company.com", last_name="Smith"),
             User(email="jane@company.com"),
         ],
+        description="test description",
     )
     expected_facets = {
         "schema": SchemaDatasetFacet(
@@ -118,6 +120,7 @@ def test_convert_to_ol_dataset_from_table_with_columns_and_owners():
                 OwnershipDatasetFacetOwners(name="user:<jane@company.com>", type=""),
             ]
         ),
+        "documentation": DocumentationDatasetFacet(description="test description"),
     }
     result = ExtractorManager.convert_to_ol_dataset_from_table(table)
     assert result.namespace == "c1"
