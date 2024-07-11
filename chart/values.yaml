@@ -245,7 +245,8 @@ airflowLocalSettings: |-
     UIAlert(
       'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
       ' See the <a href='
-      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
+      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key" '
+      'target="_blank" rel="noopener noreferrer">'
       'Helm Chart Production Guide</a> for more details.',
       category="warning",
       roles=["Admin"],
@@ -1687,6 +1688,10 @@ triggerer:
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
       FROM trigger
+
+    # Whether to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: false
 
 # Airflow Dag Processor Config
 dagProcessor:

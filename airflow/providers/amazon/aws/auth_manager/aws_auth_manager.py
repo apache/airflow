@@ -81,6 +81,16 @@ class AwsAuthManager(BaseAuthManager):
     """
 
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
+        from packaging.version import Version
+
+        from airflow.version import version
+
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.9.0
+        if Version(version) < Version("2.9"):
+            raise AirflowOptionalProviderFeatureException(
+                "``AwsAuthManager`` is compatible with Airflow versions >= 2.9."
+            )
+
         super().__init__(appbuilder)
         self._check_avp_schema_version()
 

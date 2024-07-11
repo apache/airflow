@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``chore: Add param support for client_request_mfa_token in SnowflakeHook (#40394)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 5.5.2
 .....
 

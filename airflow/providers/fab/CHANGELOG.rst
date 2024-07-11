@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add backward compatibility to CSRF protection of '/logout' method (#40479)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 1.2.0
 .....
 
