@@ -21,24 +21,36 @@
 
 import React from "react";
 
+import { useSearchParams } from "react-router-dom";
+import useSelection from "src/dag/useSelection";
 import { useGridData } from "src/api";
 import { startCase } from "lodash";
 import { getDuration, defaultFormat } from "src/datetime_utils";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 interface SeriesData {
   name?: string | null;
   type: string;
-  data: Array<number>;
 }
 
+const TAB_PARAM = "tab";
+
 const AllTaskDuration = () => {
+  const { onSelect } = useSelection();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const {
     data: { dagRuns, groups, ordering },
   } = useGridData();
   let maxDuration = 0;
   let unit = "seconds";
   let unitDivisor = 1;
+  let map = {
+    runId: [],
+  };
+
+  dagRuns.forEach((dr) => map["runId"].push(dr.runId));
 
   const seriesData: Array<SeriesData> = [];
   const legendData: Array<string | null> = [];
@@ -49,43 +61,37 @@ const AllTaskDuration = () => {
     seriesData.push({
       name: children.id,
       type: "line",
-      data: children.instances.map((instance) => {
-        const runDuration = moment
-          .duration(
-            instance.startDate
-              ? getDuration(instance.startDate, instance?.endDate)
-              : 0
-          )
-          .asSeconds();
+    });
 
-        if (runDuration > maxDuration) {
-          maxDuration = runDuration;
-        }
+    map[children.id] = children.instances.map((instance) => {
+      const runDuration = moment
+        .duration(
+          instance.startDate
+            ? getDuration(instance.startDate, instance?.endDate)
+            : 0
+        )
+        .asSeconds();
 
-        return runDuration;
-      }),
+      if (runDuration > maxDuration) {
+        maxDuration = runDuration;
+      }
+
+      return runDuration;
     });
   });
 
-  if (maxDuration <= 60 * 2) {
-    unit = "seconds";
-    unitDivisor = 1;
-  } else if (maxDuration <= 60 * 60 * 2) {
-    unit = "minutes";
-    unitDivisor = 60;
-  } else if (maxDuration <= 24 * 60 * 60 * 2) {
-    unit = "hours";
-    unitDivisor = 60 * 60;
-  } else {
-    unit = "days";
-    unitDivisor = 60 * 60 * 24;
+  function formatTooltip(args) {
+    let { data } = args[0];
+    const durations = data.slice(1);
+    return durations
+      .map(
+        (duration, index) =>
+          seriesData[index].name +
+          " " +
+          moment.utc(duration * 1000).format("HH[h]:mm[m]:ss[s]")
+      )
+      .join("<br>");
   }
-
-  seriesData.forEach((series) => {
-    series.data = series.data.map((duration) =>
-      (duration / unitDivisor).toFixed(2)
-    );
-  });
 
   const option: ReactEChartsProps["option"] = {
     legend: {
@@ -95,15 +101,24 @@ const AllTaskDuration = () => {
     },
     tooltip: {
       trigger: "axis",
+      formatter: formatTooltip,
+    },
+    dataset: {
+      dimensions: ["runId"].concat(legendData),
+      source: map,
     },
     series: seriesData,
     xAxis: {
       type: "category",
       show: true,
-      data: dagRuns.map((dagRun) =>
-        // @ts-ignore
-        moment(dagRun[orderingLabel]).format(defaultFormat)
-      ),
+      axisLabel: {
+        formatter: (runId: string) => {
+          const dagRun = dagRuns.find((dr) => dr.runId === runId);
+          if (!dagRun || !dagRun[orderingLabel]) return runId;
+          // @ts-ignore
+          return moment(dagRun[orderingLabel]).format(defaultFormat);
+        },
+      },
       name: startCase(orderingLabel),
       nameLocation: "end",
       nameGap: 0,
@@ -115,11 +130,31 @@ const AllTaskDuration = () => {
     },
     yAxis: {
       type: "value",
-      name: `Duration (${unit})`,
+      name: `Duration`,
+      axisLabel: {
+        formatter: function (value, index) {
+          let duration = moment.utc(value * 1000);
+          return duration.format("HH[h]:mm[m]:ss[s]");
+        },
+      },
     },
   };
 
-  return <ReactECharts option={option} />;
+  const events = {
+    // @ts-ignore
+    click(params) {
+      const url_params = new URLSearchParamsWrapper(searchParams);
+      url_params.set("tab", "details");
+      setSearchParams(url_params);
+
+      onSelect({
+        taskId: params.seriesName,
+        runId: params.name,
+      });
+    },
+  };
+
+  return <ReactECharts option={option} events={events} />;
 };
 
 export default AllTaskDuration;
