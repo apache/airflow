@@ -392,7 +392,7 @@ How to use DatasetAlias
 
 ``DatasetAlias`` has one single argument ``name`` that uniquely identifies the dataset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
 
-The following example creates a dataset event against the S3 URI ``f"s3://bucket/my-task/{ds}"``  with optional extra information ``extra``. If the dataset does not exist, Airflow will dynamically create it and log a warning message.
+The following example creates a dataset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the dataset does not exist, Airflow will dynamically create it and log a warning message.
 
 **Emit a dataset event during task execution through outlet_events**
 
@@ -402,8 +402,8 @@ The following example creates a dataset event against the S3 URI ``f"s3://bucket
 
 
     @task(outlets=[DatasetAlias("my-task-outputs")])
-    def my_task_with_outlet_events(*, ds, outlet_events):
-        outlet_events["my-task-outputs"].add(Dataset(f"s3://bucket/my-task/{ds}"), extra={"k": "v"})
+    def my_task_with_outlet_events(*, outlet_events):
+        outlet_events["my-task-outputs"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
 
 
 **Emit a dataset event during task execution through yielding Metadata**
@@ -414,8 +414,8 @@ The following example creates a dataset event against the S3 URI ``f"s3://bucket
 
 
     @task(outlets=[DatasetAlias("my-task-outputs")])
-    def my_task_with_metadata(*, ds):
-        s3_dataset = Dataset(f"s3://bucket/my-task/{ds}")
+    def my_task_with_metadata():
+        s3_dataset = Dataset("s3://bucket/my-task}")
         yield Metadata(s3_dataset, extra={"k": "v"}, alias="my-task-outputs")
 
 Only one dataset event is emitted for an added dataset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple dataset events. In the following example, two dataset events will be emitted.
@@ -432,12 +432,12 @@ Only one dataset event is emitted for an added dataset, even if it is added to t
             DatasetAlias("my-task-outputs-3"),
         ]
     )
-    def my_task_with_outlet_events(*, ds, outlet_events):
-        outlet_events["my-task-outputs-1"].add(Dataset(f"s3://bucket/my-task/{ds}"), extra={"k": "v"})
+    def my_task_with_outlet_events(*, outlet_events):
+        outlet_events["my-task-outputs-1"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
         # This line won't emit an additional dataset event as the dataset and extra are the same as the previous line.
-        outlet_events["my-task-outputs-2"].add(Dataset(f"s3://bucket/my-task/{ds}"), extra={"k": "v"})
+        outlet_events["my-task-outputs-2"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
         # This line will emit an additional dataset event as the extra is different.
-        outlet_events["my-task-outputs-3"].add(Dataset(f"s3://bucket/my-task/{ds}"), extra={"k2": "v2"})
+        outlet_events["my-task-outputs-3"].add(Dataset("s3://bucket/my-task"), extra={"k2": "v2"})
 
 
 Combining dataset and time-based schedules
