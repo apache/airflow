@@ -211,10 +211,7 @@ const config = {
           to: "d3-tip.js",
           flatten: true,
         },
-        {
-          from: "node_modules/bootstrap-3-typeahead/*min.*",
-          flatten: true,
-        },
+
         {
           from: "node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css",
           flatten: true,
