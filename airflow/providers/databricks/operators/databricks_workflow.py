@@ -28,10 +28,6 @@ from mergedeep import merge
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState
-from airflow.providers.databricks.plugins.databricks_workflow import (
-    WorkflowJobRepairAllFailedLink,
-    WorkflowJobRunLink,
-)
 from airflow.utils.task_group import TaskGroup
 
 if TYPE_CHECKING:
@@ -92,7 +88,6 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         populated after instantiation using the `add_task` method.
     """
 
-    operator_extra_links = (WorkflowJobRunLink(), WorkflowJobRepairAllFailedLink())
     template_fields = ("notebook_params",)
     caller = "_CreateDatabricksWorkflowOperator"
 
