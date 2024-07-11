@@ -2542,7 +2542,7 @@ class TestTaskInstance:
                 yield Metadata(
                     "test_outlet_dataset_alias_through_metadata_ds",
                     extra={"key": "value"},
-                    aliases="test_outlet_dataset_alias_through_metadata_dsa",
+                    alias="test_outlet_dataset_alias_through_metadata_dsa",
                 )
 
             producer()
