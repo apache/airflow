@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_utils import ExecutorName
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -32,6 +33,8 @@ class MockExecutor(BaseExecutor):
     """
 
     supports_pickling = False
+    mock_module_path = "mock.executor.path"
+    mock_alias = "mock_executor"
 
     def __init__(self, do_update=True, *args, **kwargs):
         self.do_update = do_update
@@ -43,12 +46,16 @@ class MockExecutor(BaseExecutor):
         # All the tasks, in a stable sort order
         self.sorted_tasks = []
 
+        self.name = ExecutorName(module_path=self.mock_module_path, alias=self.mock_alias)
+
         # If multiprocessing runs in spawn mode,
         # arguments are to be pickled but lambda is not picclable.
         # So we should pass self.success instead of lambda.
         self.mock_task_results = defaultdict(self.success)
 
         super().__init__(*args, **kwargs)
+
+        self.task_context_logger = Mock()
 
     def success(self):
         return State.SUCCESS
@@ -99,3 +106,10 @@ class MockExecutor(BaseExecutor):
         """
         assert isinstance(run_id, str)
         self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED
+
+    def get_mock_loader_side_effect(self):
+        return lambda *x: {
+            (None,): self,
+            (self.mock_module_path,): self,
+            (self.mock_alias,): self,
+        }[x]

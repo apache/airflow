@@ -4514,13 +4514,13 @@ class ProviderView(AirflowBaseView):
             text = match_obj.group(1)
             url = match_obj.group(2)
 
-            # parsing the url to check if ita a valid url
+            # parsing the url to check if it's a valid url
             parsed_url = urlparse(url)
             if not (parsed_url.scheme == "http" or parsed_url.scheme == "https"):
                 # returning the original raw text
                 return escape(match_obj.group(0))
 
-            return Markup(f'<a href="{url}">{text}</a>')
+            return Markup(f'<a href="{url}" target="_blank" rel="noopener noreferrer">{text}</a>')
 
         cd = escape(description)
         cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)

@@ -25,7 +25,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -185,6 +185,22 @@ class ExecutorLoader:
         return default_executor
 
     @classmethod
+    def set_default_executor(cls, executor: BaseExecutor) -> None:
+        """
+        Externally set an executor to be the default.
+
+        This is used in rare cases such as dag.run which allows, as a user convenience, to provide
+        the executor by cli/argument instead of Airflow configuration
+        """
+        exec_class_name = executor.__class__.__qualname__
+        exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
+
+        _module_to_executors[exec_name.module_path] = exec_name
+        _classname_to_executors[exec_class_name] = exec_name
+        _executor_names.insert(0, exec_name)
+        _loaded_executors[exec_name] = executor
+
+    @classmethod
     def init_executors(cls) -> list[BaseExecutor]:
         """Create a new instance of all configured executors if not cached already."""
         executor_names = cls._get_executor_names()
@@ -210,7 +226,7 @@ class ExecutorLoader:
         elif executor_name := _classname_to_executors.get(executor_name_str):
             return executor_name
         else:
-            raise ValueError(f"Unknown executor being loaded: {executor_name_str}")
+            raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
     def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:
