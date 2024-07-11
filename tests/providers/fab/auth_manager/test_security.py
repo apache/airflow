@@ -23,7 +23,7 @@ import json
 import logging
 import os
 from unittest import mock
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 import pytest
 import time_machine
@@ -62,8 +62,8 @@ from tests.test_utils.mock_security_manager import MockSecurityManager
 
 pytestmark = pytest.mark.db_test
 
-READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
-READ_ONLY = {permissions.ACTION_CAN_READ}
+READ_WRITE = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}}
+READ_ONLY = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ}}
 
 logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 logging.getLogger().setLevel(logging.DEBUG)
@@ -751,6 +751,19 @@ def test_access_control_with_non_existent_role(security_manager):
     assert "role does not exist" in str(ctx.value)
 
 
+def test_access_control_with_non_allowed_resource(security_manager):
+    with pytest.raises(AirflowException) as ctx:
+        security_manager._sync_dag_view_permissions(
+            dag_id="access-control-test",
+            access_control={
+                "this-role-does-not-exist": {
+                    permissions.RESOURCE_POOL: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+                }
+            },
+        )
+    assert "role does not exist" in str(ctx.value)
+
+
 def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
     username = "dag_access_user"
     role_name = "dag_access_role"
@@ -787,6 +800,13 @@ def test_access_control_with_invalid_permission(app, security_manager):
                 security_manager._sync_dag_view_permissions(
                     "access_control_test",
                     access_control={rolename: {action}},
+                )
+            assert "invalid permissions" in str(ctx.value)
+
+            with pytest.raises(AirflowException) as ctx:
+                security_manager._sync_dag_view_permissions(
+                    "access_control_test",
+                    access_control={rolename: {permissions.RESOURCE_DAG_RUN: {action}}},
                 )
             assert "invalid permissions" in str(ctx.value)
 
@@ -922,19 +942,9 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
 
-    security_manager._sync_dag_view_permissions.assert_has_calls(
-        (
-            call(
-                permissions.resource_name("has_access_control", permissions.RESOURCE_DAG),
-                access_control,
-                permissions.RESOURCE_DAG,
-            ),
-            call(
-                permissions.resource_name("has_access_control", permissions.RESOURCE_DAG),
-                access_control,
-                permissions.RESOURCE_DAG_RUN,
-            ),
-        )
+    security_manager._sync_dag_view_permissions.assert_called_once_with(
+        "has_access_control",
+        access_control,
     )
 
     del dagbag_mock.dags["has_access_control"]

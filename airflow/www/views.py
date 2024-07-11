@@ -985,9 +985,6 @@ class Airflow(AirflowBaseView):
                 .unique()
                 .all()
             )
-            can_create_dag_run = get_auth_manager().is_authorized_dag(
-                method="POST", access_entity=DagAccessEntity.RUN, user=g.user
-            )
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
             if dataset_triggered_dag_ids:
@@ -1001,6 +998,12 @@ class Airflow(AirflowBaseView):
             for dag in dags:
                 dag.can_edit = get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag.dag_id), user=g.user
+                )
+                can_create_dag_run = get_auth_manager().is_authorized_dag(
+                    method="POST",
+                    access_entity=DagAccessEntity.RUN,
+                    details=DagDetails(id=dag.dag_id),
+                    user=g.user,
                 )
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_auth_manager().is_authorized_dag(
@@ -5744,7 +5747,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
         return
     dag = context["dag"]
     can_create_dag_run = get_auth_manager().is_authorized_dag(
-        method="POST", access_entity=DagAccessEntity.RUN
+        method="POST", access_entity=DagAccessEntity.RUN, details=DagDetails(id=dag.dag_id)
     )
 
     dag.can_edit = get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag.dag_id))
