@@ -36,7 +36,6 @@
 
     Connection types <connections/databricks>
     Operators <operators/index>
-    Plugins <plugins/index>
 
 .. toctree::
     :hidden:
