@@ -814,26 +814,24 @@ class TestSparkSubmitHook:
         client = mock_client_method.return_value
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster")
         log_lines = [
-            "INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:"
-            "pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver"
-            "namespace: default"
-            "labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,"
-            "spark-role -> driver"
-            "pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42"
-            "creation time: 2018-03-05T10:26:55Z"
-            "service account name: spark"
+            "INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:",
+            "pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver",
+            "namespace: default",
+            "labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,spark-role -> driver",
+            "pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42",
+            "creation time: 2018-03-05T10:26:55Z",
+            "service account name: spark",
             "volumes: spark-init-properties, download-jars-volume,"
-            "download-files-volume, spark-token-2vmlm"
-            "node name: N/A"
-            "start time: N/A"
-            "container images: N/A"
-            "phase: Pending"
-            "status: []"
-            "2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,"
-            " new state:"
-            "pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver"
-            "namespace: default"
-            "Exit code: 0"
+            "download-files-volume, spark-token-2vmlm",
+            "node name: N/A",
+            "start time: N/A",
+            "container images: N/A",
+            "phase: Pending",
+            "status: []",
+            "2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:",
+            "pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver",
+            "namespace: default",
+            "Exit code: 0",
         ]
         hook._process_spark_submit_log(log_lines)
         hook.submit()
