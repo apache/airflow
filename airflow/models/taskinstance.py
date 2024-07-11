@@ -2996,7 +2996,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.warning('Created a new Dataset(uri="%s") as it did not exists.', uri)
                 dataset_objs_cache[uri] = dataset_obj
 
-            for alias in aliases:
+            for alias in alias_names:
                 alias_obj = session.scalar(
                     select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
                 )

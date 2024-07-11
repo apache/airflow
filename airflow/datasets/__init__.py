@@ -189,13 +189,27 @@ class DatasetAlias(BaseDataset):
 
         :meta private:
         """
-        return {"alias": self.name}
+        return {"any": [o.as_expression() for o in self.expand_datasets()]}
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
-        yield self.name, self
+        for dataset in self.expand_datasets():
+            yield dataset.uri, dataset
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return statuses.get(self.name, False)
+        return any(x.evaluate(statuses=statuses) for x in self.expand_datasets())
+
+    @provide_session
+    def expand_datasets(self, *, session: Session = NEW_SESSION) -> list[Dataset]:
+        """Expand the dataset alias to resolved datasets."""
+        from airflow.models.dataset import DatasetAliasModel
+
+        dataset_alias_obj = session.scalars(
+            select(DatasetAliasModel).where(DatasetAliasModel.name == self.name).limit(1)
+        ).one()
+        if dataset_alias_obj:
+            return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
+
+        return []
 
 
 class DatasetAliasEvent(TypedDict):
@@ -257,21 +271,9 @@ class _DatasetBooleanCondition(BaseDataset):
             if isinstance(obj, Dataset):
                 expanded_objects.append(obj)
             elif isinstance(obj, DatasetAlias):
-                expanded_objects.extend(self.expand_dataset_alias(obj))
+                expanded_objects.extend(obj.expand_datasets())
 
         self.objects = expanded_objects
-
-    @provide_session
-    def expand_dataset_alias(self, obj: DatasetAlias, *, session: Session = NEW_SESSION) -> list[Dataset]:
-        from airflow.models.dataset import DatasetAliasModel
-
-        dataset_alias_obj = session.scalars(
-            select(DatasetAliasModel).where(DatasetAliasModel.name == obj.name).limit(1)
-        ).one()
-        if dataset_alias_obj:
-            return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
-
-        return []
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)

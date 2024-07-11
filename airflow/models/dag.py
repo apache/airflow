@@ -173,7 +173,9 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection["Dataset"]]
+ScheduleArg = Union[
+    ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection[Union["Dataset", "DatasetAlias"]]
+]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -670,7 +672,7 @@ class DAG(LoggingMixin):
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be datasets")
+                raise ValueError("All elements in 'schedule' should be datasets or dataset aliases")
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, ArgNotSet):
@@ -3312,22 +3314,8 @@ class DAG(LoggingMixin):
                     curr_orm_dag.schedule_dataset_references = []
             else:
                 for _, dataset in dataset_condition.iter_datasets():
-                    datasets = [dataset]
-                    if isinstance(dataset, DatasetAlias):
-                        dataset_alias_obj = session.scalars(
-                            select(DatasetAliasModel).where(DatasetAliasModel.name == dataset.name).limit(1)
-                        ).one()
-                        if dataset_alias_obj:
-                            datasets = [
-                                Dataset(uri=dataset.uri, extra=dataset.extra)
-                                for dataset in dataset_alias_obj.datasets
-                            ]
-                        else:
-                            datasets = []
-
-                    for dataset in datasets:
-                        dag_references[dag.dag_id].add(dataset.uri)
-                        input_datasets[DatasetModel.from_public(dataset)] = None
+                    dag_references[dag.dag_id].add(dataset.uri)
+                    input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets: list[Dataset] = []
