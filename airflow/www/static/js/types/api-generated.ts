@@ -555,7 +555,7 @@ export interface paths {
      */
     get: operations["get_task_instance_try_details"];
   };
-  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}/{map_index}": {
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
     /**
      * Get details of a mapped task instance try.
      *

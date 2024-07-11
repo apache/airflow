@@ -206,6 +206,7 @@ class TestTaskInstanceEndpoint:
             dag.clear()
             for ti in tis:
                 ti.try_number = 2
+                ti.queue = "default_queue"
                 session.merge(ti)
             session.commit()
         return tis
@@ -2734,6 +2735,117 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
+    @pytest.mark.parametrize("try_number", [1, 2])
+    @provide_session
+    def test_should_respond_200_with_different_try_numbers(self, try_number, session):
+        self.create_task_instances(session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True)
+
+        response = self.client.get(
+            f"/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/{try_number}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00+00:00",
+            "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0 if try_number == 1 else 1,
+            "note": "placeholder-note",
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "sla_miss": None,
+            "start_date": "2020-01-02T00:00:00+00:00",
+            "state": "success" if try_number == 1 else None,
+            "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
+            "try_number": try_number,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
+            "rendered_map_index": None,
+            "trigger": None,
+            "triggerer_job": None,
+        }
+
+    @pytest.mark.parametrize("try_number", [1, 2])
+    @provide_session
+    def test_should_respond_200_with_mapped_task_at_different_try_numbers(self, try_number, session):
+        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
+            ti.try_number = 1
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            session.add(ti)
+        session.commit()
+        tis = session.query(TaskInstance).all()
+
+        # Record the task instance history
+        from airflow.models.taskinstance import clear_task_instances
+
+        clear_task_instances(tis, session)
+        # Simulate the try_number increasing to new values in TI
+        for ti in tis:
+            if ti.map_index > 0:
+                ti.try_number += 1
+                ti.queue = "default_queue"
+                session.merge(ti)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
+            response = self.client.get(
+                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                f"/print_the_context/{map_index}/tries/{try_number}",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 200
+
+            assert response.json == {
+                "dag_id": "example_python_operator",
+                "duration": 10000.0,
+                "end_date": "2020-01-03T00:00:00+00:00",
+                "execution_date": "2020-01-01T00:00:00+00:00",
+                "executor": None,
+                "executor_config": "{}",
+                "hostname": "",
+                "map_index": map_index,
+                "max_tries": 0 if try_number == 1 else 1,
+                "note": "placeholder-note",
+                "operator": "PythonOperator",
+                "pid": 100,
+                "pool": "default_pool",
+                "pool_slots": 1,
+                "priority_weight": 9,
+                "queue": "default_queue",
+                "queued_when": None,
+                "sla_miss": None,
+                "start_date": "2020-01-02T00:00:00+00:00",
+                "state": "failed" if try_number == 1 else None,
+                "task_id": "print_the_context",
+                "task_display_name": "print_the_context",
+                "try_number": try_number,
+                "unixname": getuser(),
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_map_index": None,
+                "trigger": None,
+                "triggerer_job": None,
+            }
+
     def test_should_respond_200_with_task_state_in_deferred(self, session):
         now = pendulum.now("UTC")
         ti = self.create_task_instances(
@@ -2954,7 +3066,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
             response = self.client.get(
                 "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
-                f"/print_the_context/tries/1/{map_index}",
+                f"/print_the_context/{map_index}/tries/1",
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200

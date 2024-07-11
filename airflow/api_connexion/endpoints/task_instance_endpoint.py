@@ -801,10 +801,7 @@ def get_task_instance_try_details(
             )
         return result
 
-    result = _query(TI)
-
-    if not result:
-        result = _query(TaskInstanceHistory)
+    result = _query(TI) or _query(TaskInstanceHistory)
     if result is None:
         error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}, map_index={map_index}, try_number={task_try_number}."
         raise NotFound("Task instance not found", detail=error_message)
