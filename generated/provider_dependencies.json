@@ -435,12 +435,7 @@
     "devel-deps": [
       "deltalake>=0.12.0"
     ],
-    "plugins": [
-      {
-        "name": "databricks_workflow",
-        "plugin-class": "airflow.providers.databricks.plugins.databricks_workflow.DatabricksWorkflowPlugin"
-      }
-    ],
+    "plugins": [],
     "cross-providers-deps": [
       "common.sql"
     ],
