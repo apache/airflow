@@ -392,7 +392,7 @@ How to use DatasetAlias
 
 ``DatasetAlias`` has one single argument ``name`` that uniquely identifies the dataset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
 
-The following example create a dataset event against the S3 URI ``f"s3://bucket/my-task/{ds}"``  with optional extra information ``extra``. If the dataset does not exist, Airflow will dynamically create it and log a warning message.
+The following example creates a dataset event against the S3 URI ``f"s3://bucket/my-task/{ds}"``  with optional extra information ``extra``. If the dataset does not exist, Airflow will dynamically create it and log a warning message.
 
 **Emit a dataset event during task execution through outlet_events**
 
