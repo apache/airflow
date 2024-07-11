@@ -261,6 +261,7 @@ class TaskInfo(InfoJsonEncodable):
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
+        "operator_class_path": lambda task: get_fully_qualified_class_name(task),
         "task_group": lambda task: (
             TaskGroupInfo(task.task_group)
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
