@@ -756,12 +756,12 @@ def test_access_control_with_non_allowed_resource(security_manager):
         security_manager._sync_dag_view_permissions(
             dag_id="access-control-test",
             access_control={
-                "this-role-does-not-exist": {
+                "Public": {
                     permissions.RESOURCE_POOL: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
                 }
             },
         )
-    assert "role does not exist" in str(ctx.value)
+    assert "invalid resource name" in str(ctx.value)
 
 
 def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):

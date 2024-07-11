@@ -1177,6 +1177,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
 
             for resource_name, actions in resource_actions.items():
+                if resource_name not in permissions.RESOURCE_DETAILS_MAP:
+                    raise AirflowException(
+                        f"The access_control map for DAG '{dag_id}' includes the following invalid "
+                        f"resource name: '{resource_name}'; "
+                        f"The set of valid resource names is: {permissions.RESOURCE_DETAILS_MAP.keys()}"
+                    )
+
                 dag_resource_name = permissions.resource_name(dag_id, resource_name)
                 self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
 
