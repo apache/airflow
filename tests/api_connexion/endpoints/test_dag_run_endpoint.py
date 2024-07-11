@@ -107,9 +107,7 @@ def configured_app(minimal_app_for_api):
         "TEST_DAG_ID",
         access_control={
             "TestGranularDag": {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
-            "TestNoDagRunCreatePermission": {
-                permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}
-            }
+            "TestNoDagRunCreatePermission": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
         },
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

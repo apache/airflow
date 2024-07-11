@@ -863,8 +863,10 @@ def user_dag_level_access_with_ti_edit(acl_app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_EDIT, permissions.resource_name("example_bash_operator",
-                                                                    permissions.RESOURCE_DAG)),
+            (
+                permissions.ACTION_CAN_EDIT,
+                permissions.resource_name("example_bash_operator", permissions.RESOURCE_DAG),
+            ),
         ],
     ) as user:
         yield user

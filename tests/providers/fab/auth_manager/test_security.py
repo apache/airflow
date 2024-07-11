@@ -23,7 +23,7 @@ import json
 import logging
 import os
 from unittest import mock
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 import pytest
 import time_machine
@@ -923,12 +923,18 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ("can_edit", dag_resource_name) in all_perms
 
     security_manager._sync_dag_view_permissions.assert_has_calls(
-        (call(permissions.resource_name("has_access_control", permissions.RESOURCE_DAG),
-             access_control,
-             permissions.RESOURCE_DAG),
-        call(permissions.resource_name("has_access_control", permissions.RESOURCE_DAG),
-             access_control,
-             permissions.RESOURCE_DAG_RUN))
+        (
+            call(
+                permissions.resource_name("has_access_control", permissions.RESOURCE_DAG),
+                access_control,
+                permissions.RESOURCE_DAG,
+            ),
+            call(
+                permissions.resource_name("has_access_control", permissions.RESOURCE_DAG),
+                access_control,
+                permissions.RESOURCE_DAG_RUN,
+            ),
+        )
     )
 
     del dagbag_mock.dags["has_access_control"]

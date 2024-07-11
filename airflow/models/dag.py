@@ -912,6 +912,7 @@ class DAG(LoggingMixin):
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
             permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
         }
+
         def update_old_perm(permission: str):
             new_perm = new_dag_perm_mapping.get(permission, permission)
             if new_perm != permission:

@@ -1001,7 +1001,7 @@ class TestDagBag:
             dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator",  {'Public': {'DAGs': {'can_read'}, 'DAG Runs': {'can_create'}}}
+                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
             )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)

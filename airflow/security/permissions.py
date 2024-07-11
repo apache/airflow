@@ -67,24 +67,25 @@ ACTION_CAN_ACCESS_MENU = "menu_access"
 DEPRECATED_ACTION_CAN_DAG_READ = "can_dag_read"
 DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 
+
 class ResourceDetails(TypedDict):
+    """Details of a resource (actions and prefix)."""
+
     actions: set[str]
     prefix: str
 
+
 RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG: ResourceDetails(
-        actions = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE},
-        prefix = RESOURCE_DAG_PREFIX
+        actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
     ),
     RESOURCE_DAG_RUN: ResourceDetails(
-        actions = {ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
-        prefix = RESOURCE_DAG_RUN_PREFIX
+        actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
+        prefix=RESOURCE_DAG_RUN_PREFIX,
     ),
 }
 PREFIX_RESOURCES_MAP = {
-    prefix: resource
-    for resource, actions in RESOURCE_DETAILS_MAP.items()
-    for prefix in actions['prefix']
+    prefix: resource for resource, actions in RESOURCE_DETAILS_MAP.items() for prefix in actions["prefix"]
 }
 
 

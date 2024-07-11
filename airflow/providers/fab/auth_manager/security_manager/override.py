@@ -24,7 +24,7 @@ import os
 import random
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Container, Iterable, Sequence
 
 import jwt
 import packaging.version
@@ -1093,7 +1093,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]] | Collection[str]] | None = None,
+        access_control: dict[str, dict[str, set[str]] | set[str] | list[str]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1110,7 +1110,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         for resource_name, resource_values in permissions.RESOURCE_DETAILS_MAP.items():
             dag_resource_name = permissions.resource_name(dag_id, resource_name)
-            for dag_action_name in resource_values['actions']:
+            for dag_action_name in resource_values["actions"]:
                 self.create_permission(dag_action_name, dag_resource_name)
 
             if access_control is not None:
@@ -1122,9 +1122,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     dag_resource_name,
                 )
 
-    def _sync_dag_view_permissions(self, dag_id: str,
-                                   access_control: dict[str, dict[str, Collection[str]] | Collection[str]],
-                                   resource_name: str = permissions.RESOURCE_DAG) -> None:
+    def _sync_dag_view_permissions(
+        self,
+        dag_id: str,
+        access_control: dict[str, dict[str, set[str]] | set[str] | list[str]],
+        resource_name: str = permissions.RESOURCE_DAG,
+    ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
 
@@ -1172,15 +1175,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 )
 
             if isinstance(action_values, (set, list)):
-                action_values = {
-                    permissions.RESOURCE_DAG: set(action_values)
-                }
+                action_values = {permissions.RESOURCE_DAG: set(action_values)}
 
-            for resource, actions in action_values.items():
-                if resource != resource_name:
-                    continue
-
-                invalid_actions = actions - permissions.RESOURCE_DETAILS_MAP[resource_name]['actions']
+            if actions := action_values.get(resource_name):
+                invalid_actions = actions - permissions.RESOURCE_DETAILS_MAP[resource_name]["actions"]
 
                 if invalid_actions:
                     raise AirflowException(
