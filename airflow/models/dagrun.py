@@ -1174,7 +1174,7 @@ class DagRun(Base, LoggingMixin):
         Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
-    def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
+    def verify_integrity(self, *, session: Session = NEW_SESSION, run_type=None) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
@@ -1194,11 +1194,14 @@ class DagRun(Base, LoggingMixin):
             dag, task_instance_mutation_hook, session=session
         )
 
-        def task_filter(task: Operator) -> bool:
+        def task_filter(task: Operator, run_type=None) -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill
-                or (task.start_date is None or task.start_date <= self.execution_date)
-                and (task.end_date is None or self.execution_date <= task.end_date)
+                or (
+                    (task.start_date is None or task.start_date >= self.execution_date)
+                    and (task.end_date is None or self.execution_date <= task.end_date)
+                )
+                or (run_type == "MANUAL")
             )
 
         created_counts: dict[str, int] = defaultdict(int)
