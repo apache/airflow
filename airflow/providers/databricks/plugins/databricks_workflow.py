@@ -392,9 +392,10 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 
     default_view = "repair"
 
-    @expose("/repair_databricks_job/<string:dag_id>/<string:run_id>/", methods=("GET",))
+    @expose("/repair_databricks_job", methods=("GET",))
     @auth.has_access_dag("POST", DagAccessEntity.RUN)
-    def repair(self, dag_id: str, run_id: str):
+    def repair(self):
+        dag_id = request.values.get("dag_id")
         if not dag_id:
             return_url = request.referrer or url_for("Airflow.index")
             flash("No dag_id provided. Cannot repair tasks.")
@@ -411,6 +412,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 
         databricks_conn_id = request.values.get("databricks_conn_id")
         databricks_run_id = request.values.get("databricks_run_id")
+        run_id = request.values.get("run_id")
 
         if not databricks_conn_id:
             flash("No Databricks connection ID provided. Cannot repair tasks.")
