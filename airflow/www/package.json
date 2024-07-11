@@ -124,6 +124,7 @@
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
     "framer-motion": "^6.0.0",
     "jquery": ">=3.5.0",
+    "jquery-ui": "1.13.3",
     "jshint": "^2.13.4",
     "json-to-pretty-yaml": "^1.2.2",
     "lodash": "^4.17.21",
