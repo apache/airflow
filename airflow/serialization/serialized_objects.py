@@ -258,6 +258,8 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
         return DatasetAll(*(decode_dataset_condition(x) for x in var["objects"]))
     if dat == DAT.DATASET_ANY:
         return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
+    if dat == DAT.DATASET_ALIAS:
+        return DatasetAlias(name=var["name"])
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
