@@ -669,7 +669,7 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable(schedule)
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, Dataset) for x in schedule):
+            if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets")
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
@@ -3312,8 +3312,22 @@ class DAG(LoggingMixin):
                     curr_orm_dag.schedule_dataset_references = []
             else:
                 for _, dataset in dataset_condition.iter_datasets():
-                    dag_references[dag.dag_id].add(dataset.uri)
-                    input_datasets[DatasetModel.from_public(dataset)] = None
+                    datasets = [dataset]
+                    if isinstance(dataset, DatasetAlias):
+                        dataset_alias_obj = session.scalars(
+                            select(DatasetAliasModel).where(DatasetAliasModel.name == dataset.name).limit(1)
+                        ).one()
+                        if dataset_alias_obj:
+                            datasets = [
+                                Dataset(uri=dataset.uri, extra=dataset.extra)
+                                for dataset in dataset_alias_obj.datasets
+                            ]
+                        else:
+                            datasets = []
+
+                    for dataset in datasets:
+                        dag_references[dag.dag_id].add(dataset.uri)
+                        input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets: list[Dataset] = []
@@ -4009,6 +4023,7 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
+
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]

@@ -23,11 +23,15 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
+from sqlalchemy import select
 
 from airflow.typing_compat import TypedDict
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
+
+    from sqlalchemy.orm.session import Session
 
 
 from airflow.configuration import conf
@@ -179,6 +183,20 @@ class DatasetAlias(BaseDataset):
     def __hash__(self) -> int:
         return hash(self.name)
 
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"alias": self.name}
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        yield self.name, self
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return statuses.get(self.name, False)
+
 
 class DatasetAliasEvent(TypedDict):
     """A represeation of dataset event to be triggered by a dataset alias."""
@@ -233,7 +251,27 @@ class _DatasetBooleanCondition(BaseDataset):
     def __init__(self, *objects: BaseDataset) -> None:
         if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
-        self.objects = objects
+
+        expanded_objects = []
+        for obj in objects:
+            if isinstance(obj, Dataset):
+                expanded_objects.append(obj)
+            elif isinstance(obj, DatasetAlias):
+                expanded_objects.extend(self.expand_dataset_alias(obj))
+
+        self.objects = expanded_objects
+
+    @provide_session
+    def expand_dataset_alias(self, obj: DatasetAlias, *, session: Session = NEW_SESSION) -> list[Dataset]:
+        from airflow.models.dataset import DatasetAliasModel
+
+        dataset_alias_obj = session.scalars(
+            select(DatasetAliasModel).where(DatasetAliasModel.name == obj.name).limit(1)
+        ).one()
+        if dataset_alias_obj:
+            return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
+
+        return []
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
