@@ -231,6 +231,7 @@ class TaskInfo(InfoJsonEncodable):
         "_is_teardown": "is_teardown",
     }
     includes = [
+        "deferrable",
         "depends_on_past",
         "downstream_task_ids",
         "execution_timeout",

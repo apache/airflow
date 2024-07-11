@@ -71,7 +71,7 @@ SPARK_STEPS = [
 
 JOB_FLOW_OVERRIDES: dict[str, Any] = {
     "Name": "PiCalc",
-    "ReleaseLabel": "emr-6.7.0",
+    "ReleaseLabel": "emr-7.1.0",
     "Applications": [{"Name": "Spark"}],
     "Instances": {
         "InstanceGroups": [

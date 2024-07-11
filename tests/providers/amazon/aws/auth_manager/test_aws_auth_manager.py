@@ -23,7 +23,7 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
-from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
 
 try:
     from airflow.auth.managers.models.resource_details import (
@@ -65,6 +65,8 @@ from tests.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
 
 mock = Mock()
 
