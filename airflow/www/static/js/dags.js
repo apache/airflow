@@ -116,21 +116,27 @@ $.each($("[id^=toggle]"), function toggleId() {
   });
 });
 
-$(".typeahead").typeahead({
-  source(query, callback) {
-    return $.ajax(autocompleteUrl, {
+// eslint-disable-next-line no-underscore-dangle
+$(".typeahead").autocomplete({
+  autoFocus:true,
+  source: (request, response)=> {
+    $.ajax({
+      url: autocompleteUrl,
       data: {
-        query: encodeURIComponent(query),
+        query: encodeURIComponent(request.term),
         status: statusFilter,
       },
-      success: callback,
+      success: (data)=> {
+        response(data);
+      }
     });
   },
-  displayText(value) {
-    return value.dag_display_name || value.name;
+  focus: (event, ui)=> {
+    // Prevents value from being inserted on focus
+    event.preventDefault();
   },
-  autoSelect: false,
-  afterSelect(value) {
+  select: (event, ui)=> {
+    const value = ui.item;
     const query = new URLSearchParams(window.location.search);
     query.set("search", value.name);
     if (value.type === "owner") {
@@ -140,7 +146,21 @@ $(".typeahead").typeahead({
       window.location = `${gridUrl.replace("__DAG_ID__", value.name)}?${query}`;
     }
   },
-});
+  appendTo: "#search_form > div"
+}).data("ui-autocomplete")._renderMenu = function(ul, items) {
+  ul.addClass("typeahead dropdown-menu");
+  var that = this;
+  $.each(items, function(index, item) {
+    that._renderItemData(ul, item);
+  });
+};
+
+// eslint-disable-next-line no-underscore-dangle
+$.ui.autocomplete.prototype._renderItem = function(ul, item) {
+  return $("<li>")
+    .append($("<a>").addClass("dropdown-item").text(item.dag_display_name || item.name))
+    .appendTo(ul);
+};
 
 $("#search_form").on("reset", () => {
   const query = new URLSearchParams(window.location.search);
