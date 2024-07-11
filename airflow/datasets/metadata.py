@@ -33,11 +33,14 @@ class Metadata:
 
     uri: str
     extra: dict[str, Any]
-    alias: DatasetAlias | str | None
+    alias_name: str | None = None
 
     def __init__(
         self, target: str | Dataset, extra: dict[str, Any], alias: DatasetAlias | str | None = None
     ) -> None:
         self.uri = extract_event_key(target)
         self.extra = extra
-        self.alias = alias
+        if isinstance(alias, DatasetAlias):
+            self.alias_name = alias.name
+        else:
+            self.alias_name = alias
