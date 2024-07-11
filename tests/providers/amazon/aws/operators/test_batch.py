@@ -311,7 +311,7 @@ class TestBatchOperator:
                                 },
                             ]
                         },
-                    ]
+                    ],
                     "metadata": {
                         "labels": {
                             "string": "string"
@@ -367,7 +367,7 @@ class TestBatchOperator:
                                     },
                                 ]
                             },
-                        ]
+                        ],
                         "metadata": {
                             "labels": {
                                 "string": "string"
