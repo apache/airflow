@@ -32,6 +32,7 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.permissions import _resource_name
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 pytestmark = pytest.mark.db_test
@@ -865,7 +866,7 @@ def user_dag_level_access_with_ti_edit(acl_app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (
                 permissions.ACTION_CAN_EDIT,
-                permissions.resource_name("example_bash_operator", permissions.RESOURCE_DAG),
+                _resource_name("example_bash_operator", permissions.RESOURCE_DAG),
             ),
         ],
     ) as user:

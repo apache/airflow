@@ -59,6 +59,7 @@ from tests.test_utils.api_connexion_utils import (
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
+from tests.test_utils.permissions import _resource_name
 
 pytestmark = pytest.mark.db_test
 
@@ -108,7 +109,7 @@ def _clear_db_dag_and_runs():
 
 
 def _delete_dag_permissions(dag_id, security_manager):
-    dag_resource_name = permissions.resource_name(dag_id, permissions.RESOURCE_DAG)
+    dag_resource_name = _resource_name(dag_id, permissions.RESOURCE_DAG)
     for dag_action_name in security_manager.DAG_ACTIONS:
         security_manager.delete_permission(dag_action_name, dag_resource_name)
 
@@ -926,7 +927,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name(dag.dag_id, permissions.RESOURCE_DAG)
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) not in all_perms
         assert ("can_edit", dag_resource_name) not in all_perms
@@ -937,7 +938,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     collect_dags_from_db_mock.assert_called_once_with()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name(dag.dag_id, permissions.RESOURCE_DAG)
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
@@ -993,7 +994,7 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         DeprecationWarning,
         match=(
             "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name_for_dag` instead."
+            "Please use `airflow.security.permissions.resource_name` instead."
         ),
     ):
         security_manager.prefixed_dag_id("hello")

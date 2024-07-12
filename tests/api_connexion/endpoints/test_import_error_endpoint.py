@@ -10,7 +10,7 @@
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANYexit
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
@@ -29,6 +29,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors
+from tests.test_utils.permissions import _resource_name
 
 pytestmark = pytest.mark.db_test
 
@@ -63,7 +64,7 @@ def configured_app(minimal_app_for_api):
                 "perms": [
                     (
                         permissions.ACTION_CAN_READ,
-                        permissions.resource_name(TEST_DAG_IDS[0], permissions.RESOURCE_DAG),
+                        _resource_name(TEST_DAG_IDS[0], permissions.RESOURCE_DAG),
                     )
                 ],
             }
