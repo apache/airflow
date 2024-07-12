@@ -20,6 +20,7 @@
 /* global moment */
 
 import React from "react";
+import type { SeriesOption } from "echarts";
 
 import { useSearchParams } from "react-router-dom";
 import useSelection from "src/dag/useSelection";
@@ -28,11 +29,6 @@ import { startCase } from "lodash";
 import { getDuration, defaultFormat } from "src/datetime_utils";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
-
-interface SeriesData {
-  name?: string | null;
-  type: string;
-}
 
 const TAB_PARAM = "tab";
 
@@ -43,27 +39,31 @@ const AllTaskDuration = () => {
   const {
     data: { dagRuns, groups, ordering },
   } = useGridData();
-  let maxDuration = 0;
-  let unit = "seconds";
-  let unitDivisor = 1;
-  let map = {
-    runId: [],
-  };
+  const runIds: Array<string> = [];
+  const source: Record<string, Array<string | number>> = {};
 
-  dagRuns.forEach((dr) => map["runId"].push(dr.runId));
+  dagRuns.forEach((dr) => {
+    runIds.push(dr.runId!!);
+  });
 
-  const seriesData: Array<SeriesData> = [];
-  const legendData: Array<string | null> = [];
+  source.runId = runIds;
+  const seriesData: Array<SeriesOption> = [];
+  const legendData: Array<string> = [];
   const orderingLabel = ordering[0] || ordering[1] || "startDate";
 
   groups.children?.forEach((children) => {
-    legendData.push(children.id);
-    seriesData.push({
-      name: children.id,
-      type: "line",
-    });
+    if (children.id === null) {
+      return;
+    }
 
-    map[children.id] = children.instances.map((instance) => {
+    const taskId = children.id;
+    legendData.push(taskId);
+    seriesData.push({
+      name: taskId,
+      type: "line",
+    } as SeriesOption);
+
+    source[taskId] = children.instances.map((instance) => {
       const runDuration = moment
         .duration(
           instance.startDate
@@ -72,25 +72,15 @@ const AllTaskDuration = () => {
         )
         .asSeconds();
 
-      if (runDuration > maxDuration) {
-        maxDuration = runDuration;
-      }
-
       return runDuration;
     });
   });
 
-  function formatTooltip(args) {
-    let { data } = args[0];
-    const durations = data.slice(1);
-    return durations
-      .map(
-        (duration, index) =>
-          seriesData[index].name +
-          " " +
-          moment.utc(duration * 1000).format("HH[h]:mm[m]:ss[s]")
-      )
-      .join("<br>");
+  const dimensions = ["runId"].concat(legendData);
+
+  // @ts-ignore
+  function formatTooltip(value) {
+    return moment.utc(value * 1000).format("HH[h]:mm[m]:ss[s]");
   }
 
   const option: ReactEChartsProps["option"] = {
@@ -101,11 +91,12 @@ const AllTaskDuration = () => {
     },
     tooltip: {
       trigger: "axis",
-      formatter: formatTooltip,
+      valueFormatter: formatTooltip,
     },
+    // @ts-ignore
     dataset: {
-      dimensions: ["runId"].concat(legendData),
-      source: map,
+      dimensions,
+      source,
     },
     series: seriesData,
     xAxis: {
@@ -132,8 +123,8 @@ const AllTaskDuration = () => {
       type: "value",
       name: `Duration`,
       axisLabel: {
-        formatter: function (value, index) {
-          let duration = moment.utc(value * 1000);
+        formatter(value: number) {
+          const duration = moment.utc(value * 1000);
           return duration.format("HH[h]:mm[m]:ss[s]");
         },
       },
@@ -143,9 +134,9 @@ const AllTaskDuration = () => {
   const events = {
     // @ts-ignore
     click(params) {
-      const url_params = new URLSearchParamsWrapper(searchParams);
-      url_params.set("tab", "details");
-      setSearchParams(url_params);
+      const URL_PARAMS = new URLSearchParamsWrapper(searchParams);
+      URL_PARAMS.set(TAB_PARAM, "details");
+      setSearchParams(URL_PARAMS);
 
       onSelect({
         taskId: params.seriesName,

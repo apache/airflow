@@ -64,12 +64,12 @@ import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
+import AllTaskDuration from "./task/AllTaskDuration";
 import TaskDetails from "./task";
 import EventLog from "./EventLog";
 import RunDuration from "./dag/RunDuration";
 import Calendar from "./dag/Calendar";
 import RenderedK8s from "./taskInstance/RenderedK8s";
-import AllTaskDuration from "./task/AllTaskDuration";
 
 const dagId = getMetaValue("dag_id")!;
 
