@@ -339,7 +339,10 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session, skip_task_filter=True)
+    if run_type == DagRunType.MANUAL:
+        run.verify_integrity(session=session, skip_task_filter=True)
+    else:
+        run.verify_integrity(session=session, skip_task_filter=False)
     return run
 
 
