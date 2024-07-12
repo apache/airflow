@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
+    apply_locale,
     at_most_one,
     build_airflow_url_with_query,
     exactly_one,
@@ -35,7 +36,7 @@ from airflow.utils.helpers import (
     prune_dict,
     validate_group_key,
     validate_instance_args,
-    validate_key, apply_locale,
+    validate_key,
 )
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars

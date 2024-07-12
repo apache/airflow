@@ -25,7 +25,7 @@ import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import reduce
-from locale import LC_TIME, getlocale, setlocale, getdefaultlocale
+from locale import LC_TIME, getdefaultlocale, getlocale, setlocale
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
 from lazy_object_proxy import Proxy
