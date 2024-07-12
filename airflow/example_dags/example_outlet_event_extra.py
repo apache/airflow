@@ -69,7 +69,7 @@ with DAG(
     tags=["produces"],
 ):
 
-    def _dataset_with_extra_from_classic_operator_post_execute(context, results):
+    def _dataset_with_extra_from_classic_operator_post_execute(context, result):
         context["outlet_events"][ds].extra = {"hi": "bye"}
 
     BashOperator(
