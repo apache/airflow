@@ -21,6 +21,7 @@ from typing import NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
+from airflow.api_connexion.schemas.task_event_log_schema import TaskEventLogSchema
 from airflow.models.log import Log
 
 
@@ -54,6 +55,7 @@ class EventLogCollectionSchema(Schema):
     """EventLog Collection Schema."""
 
     event_logs = fields.List(fields.Nested(EventLogSchema))
+    task_event_logs = fields.List(fields.Nested(TaskEventLogSchema))
     total_entries = fields.Int()
 
 

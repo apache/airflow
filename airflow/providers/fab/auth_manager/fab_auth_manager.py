@@ -72,6 +72,7 @@ from airflow.security.permissions import (
     RESOURCE_POOL,
     RESOURCE_PROVIDER,
     RESOURCE_SLA_MISS,
+    RESOURCE_TASK_EVENT_LOG,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_LOG,
     RESOURCE_TASK_RESCHEDULE,
@@ -93,6 +94,7 @@ if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
+    DagAccessEntity.TASK_EVENT_LOG: (RESOURCE_TASK_EVENT_LOG,),
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),

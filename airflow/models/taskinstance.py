@@ -92,7 +92,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.dataset import DatasetModel
-from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -193,22 +192,18 @@ def _merge_ti(ti, session: Session = NEW_SESSION):
 @internal_api_call
 @provide_session
 def _add_log(
-    event,
-    task_instance=None,
-    owner=None,
-    owner_display_name=None,
-    extra=None,
+    task_instance,
+    message,
     session: Session = NEW_SESSION,
-    **kwargs,
 ):
     session.add(
-        Log(
-            event,
-            task_instance,
-            owner,
-            owner_display_name,
-            extra,
-            **kwargs,
+        TaskEventLog(
+            task_id=task_instance.task_id,
+            dag_id=task_instance.dag_id,
+            run_id=task_instance.run_id,
+            map_index=task_instance.map_index,
+            try_number=task_instance.try_number,
+            description=message,
         )
     )
 
@@ -358,7 +353,7 @@ def _run_raw_task(
         _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
 
         if not test_mode:
-            _add_log(event=ti.state, task_instance=ti, session=session)
+            _add_log(task_instance=ti, message=ti.state, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
                 ti._register_dataset_changes(events=context["outlet_events"], session=session)
 
@@ -1639,7 +1634,7 @@ def _defer_task(
         else:
             ti.trigger_timeout = ti.start_date + execution_timeout
     if ti.test_mode:
-        _add_log(event=ti.state, task_instance=ti, session=session)
+        _add_log(task_instance=ti, message=ti.state, session=session)
 
     if exception is not None:
         session.merge(ti)
@@ -2762,7 +2757,7 @@ class TaskInstance(Base, LoggingMixin):
             cls.logger().info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
 
         if not test_mode:
-            session.add(Log(TaskInstanceState.RUNNING.value, ti))
+            _add_log(task_instance=ti, message=TaskInstanceState.RUNNING.value, session=session)
 
         ti.state = TaskInstanceState.RUNNING
         ti.emit_state_change_metric(TaskInstanceState.RUNNING)
@@ -3218,7 +3213,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:
-            session.add(Log(TaskInstanceState.FAILED.value, ti))
+            _add_log(task_instance=ti, message=TaskInstanceState.FAILED.value, session=session)
 
             # Log failure duration
             session.add(TaskFail(ti=ti))
@@ -4092,6 +4087,37 @@ class TaskInstanceNote(TaskInstanceDependencies):
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
         return prefix + ">"
+
+
+class TaskEventLog(Base):
+    """For logging events around the scheduling and execution of task instances."""
+
+    __tablename__ = "task_event_log"
+
+    id = Column(Integer, primary_key=True)
+    dag_id = Column(StringID(), nullable=False)
+    task_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False)
+    try_number = Column(Integer, nullable=False)
+    description = Column(String(100).with_variant(Text(100), "mysql"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("id", name="task_event_log_pkey"),
+        # intentionally not adding foreign key to task_instance to avoid locking
+    )
+
+    def __init__(self, task_id, dag_id, run_id, map_index, try_number, description):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.try_number = try_number
+        self.description = description
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: dag_id={self.dag_id} task_id={self.task_id} run_id={self.run_id} map_index={self.map_index}>"
 
 
 STATICA_HACK = True

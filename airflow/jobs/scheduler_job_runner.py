@@ -24,7 +24,7 @@ import signal
 import sys
 import time
 import warnings
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
@@ -55,7 +55,7 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskEventLog, TaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -740,6 +740,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return len(queued_tis)
 
+    @staticmethod
+    def _process_task_event_logs(log_records: deque[tuple[TaskInstanceKey, str]], session: Session):
+        while log_records:
+            ti_key, description = log_records.popleft()
+            session.add(
+                TaskEventLog(
+                    task_id=ti_key.task_id,
+                    dag_id=ti_key.dag_id,
+                    run_id=ti_key.run_id,
+                    map_index=ti_key.map_index,
+                    try_number=ti_key.try_number,
+                    description=description,
+                )
+            )
+
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
@@ -1066,6 +1081,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         num_finished_events += self._process_executor_events(
                             executor=executor, session=session
                         )
+
+                for executor in self.job.executors:
+                    try:
+                        with create_session() as session:
+                            self._process_task_event_logs(executor._task_event_logs, session)
+                    except Exception:
+                        self.log.exception("Something went wrong when trying to save task event logs.")
+
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 

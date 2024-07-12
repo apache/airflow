@@ -309,6 +309,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     # [START security_admin_perms]
     ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_EVENT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),

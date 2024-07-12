@@ -57,6 +57,7 @@ from airflow.security.permissions import (
     RESOURCE_POOL,
     RESOURCE_PROVIDER,
     RESOURCE_SLA_MISS,
+    RESOURCE_TASK_EVENT_LOG,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_RESCHEDULE,
     RESOURCE_TRIGGER,
@@ -271,6 +272,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
         for resource, entity, details_func in [
             (RESOURCE_DAG, None, None),
             (RESOURCE_AUDIT_LOG, DagAccessEntity.AUDIT_LOG, None),
+            (RESOURCE_TASK_EVENT_LOG, DagAccessEntity.TASK_EVENT_LOG, None),
             (RESOURCE_DAG_CODE, DagAccessEntity.CODE, None),
             (RESOURCE_DAG_DEPENDENCIES, DagAccessEntity.DEPENDENCIES, None),
             (RESOURCE_SLA_MISS, DagAccessEntity.SLA_MISS, None),

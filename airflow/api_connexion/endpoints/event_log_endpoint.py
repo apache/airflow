@@ -30,6 +30,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 )
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
+from airflow.models.taskinstance import TaskEventLog
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -108,6 +109,43 @@ def get_event_logs(
     total_entries = get_query_count(query, session=session)
 
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
+    event_logs = session.scalars(query.offset(offset).limit(limit)).all()
+    return event_log_collection_schema.dump(
+        EventLogCollection(event_logs=event_logs, total_entries=total_entries)
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_EVENT_LOG)
+@format_parameters({"limit": check_limit})
+@provide_session
+def get_task_event_logs(
+    *,
+    dag_id: str | None = None,
+    task_id: str | None = None,
+    run_id: str | None = None,
+    map_index: int | None = None,
+    try_number: int | None = None,
+    limit: int,
+    offset: int | None = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get all log entries from event log."""
+    query = select(TaskEventLog)
+
+    if dag_id:
+        query = query.where(TaskEventLog.dag_id == dag_id)
+    if task_id:
+        query = query.where(TaskEventLog.task_id == task_id)
+    if run_id:
+        query = query.where(TaskEventLog.run_id == run_id)
+    if map_index:
+        query = query.where(TaskEventLog.map_index == map_index)
+    if try_number:
+        query = query.where(TaskEventLog.try_number == try_number)
+
+    total_entries = get_query_count(query, session=session)
+
+    query = query.order_by(TaskEventLog.id)
     event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)
