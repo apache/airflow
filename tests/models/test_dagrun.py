@@ -2665,3 +2665,58 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
         else:
             with pytest.raises(AirflowException):
                 dag_maker.create_dagrun(run_id=run_id)
+
+
+def test_that_ti_blocked_by_upstream_doesnt_prevent_dagrun_from_succeeding(dag_maker, session):
+    with dag_maker(session=session):
+
+        @task
+        def task1():
+            return 1
+
+        @task
+        def task2():
+            return 2
+
+        @task
+        def task3():
+            return 3
+
+        task1() >> task2() >> task3()
+
+    dr = dag_maker.create_dagrun()
+    # First run of scheduler sets task1 to success and tis that don't meet deps to NONE state
+    schedulable_tis, _ = dr.update_state(session=session)
+    assert len(schedulable_tis) == 1
+    assert schedulable_tis[0].task_id == "task1"
+    dr.schedule_tis(schedulable_tis, session=session)
+    session.flush()
+    schedulable_tis[0]._run_raw_task()
+    session.flush()
+    assert dr.get_task_instance("task1", session=session).state == State.SUCCESS
+    assert dr.get_task_instance("task2", session=session).state == State.NONE
+    assert dr.get_task_instance("task3", session=session).state == State.NONE
+
+    # Second run of scheduler sets task2 and rest of tis that don't meet deps to NONE state
+    schedulable_tis, _ = dr.update_state(session=session)
+
+    assert len(schedulable_tis) == 1
+    assert schedulable_tis[0].task_id == "task2"
+    dr.schedule_tis(schedulable_tis, session=session)
+    session.flush()
+    schedulable_tis[0]._run_raw_task()
+    session.flush()
+    assert dr.get_task_instance("task1", session=session).state == State.SUCCESS
+    assert dr.get_task_instance("task2", session=session).state == State.SUCCESS
+    assert dr.get_task_instance("task3", session=session).state == State.NONE
+
+    # Third run of scheduler sets task3 to success
+    schedulable_tis, _ = dr.update_state(session=session)
+    assert len(schedulable_tis) == 1
+    assert schedulable_tis[0].task_id == "task3"
+    dr.schedule_tis(schedulable_tis, session=session)
+    session.flush()
+    schedulable_tis[0]._run_raw_task()
+    session.flush()
+    tis = dr.get_task_instances()
+    assert all(ti.state == State.SUCCESS for ti in tis)
