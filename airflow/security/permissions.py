@@ -88,9 +88,7 @@ RESOURCE_DETAILS_MAP = {
         prefix=RESOURCE_DAG_RUN_PREFIX,
     ),
 }
-PREFIX_RESOURCES_MAP = {
-    details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()
-}
+PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
 
 
 def resource_name(root_dag_id: str, resource: str) -> str:
