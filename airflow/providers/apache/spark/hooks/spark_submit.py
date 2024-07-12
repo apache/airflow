@@ -553,11 +553,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
                 match_driver_pod = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
-                match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
                 if match_driver_pod:
                     self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
-                elif match_application_id:
+                
+                match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
+                if match_application_id:
                     self._kubernetes_application_id = match_application_id.group(1)
                     self.log.info("Identified spark application id: %s", self._kubernetes_application_id)
 
