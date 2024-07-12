@@ -109,7 +109,6 @@ def get_log(
         return logs_schema.dump(LogResponseObject(continuation_token=token, content=content))
     else:  # text/plain streaming
         log_stream = task_log_reader.read_log_stream(ti, task_try_number, metadata)
-        # Since `log_stream` is an iterator of strings, we can directly pass it to Response
         return Response(log_stream, headers={"Content-Type": return_type})
 
 
