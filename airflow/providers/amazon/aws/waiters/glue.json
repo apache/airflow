@@ -25,6 +25,104 @@
                     "state": "success"
                 }
             ]
+        },
+        "data_quality_ruleset_evaluation_run_complete": {
+            "operation": "GetDataQualityRulesetEvaluationRun",
+            "delay": 60,
+            "maxAttempts": 75,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "TIMEOUT",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                }
+            ]
+        },
+        "data_quality_rule_recommendation_run_complete": {
+            "operation": "GetDataQualityRuleRecommendationRun",
+            "delay": 60,
+            "maxAttempts": 75,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "TIMEOUT",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                }
+            ]
         }
     }
 }

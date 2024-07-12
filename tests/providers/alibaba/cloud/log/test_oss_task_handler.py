@@ -98,7 +98,7 @@ class TestOSSTaskHandler:
         # Then
         assert mock_service.call_count == 2
         mock_service.return_value.head_key.assert_called_once_with(MOCK_BUCKET_NAME, "airflow/logs/1.log")
-        mock_oss_log_exists.assert_called_once_with("airflow/logs/1.log")
+        mock_oss_log_exists.assert_called_once_with("1.log")
         mock_service.return_value.append_string.assert_called_once_with(
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 1
         )
@@ -115,7 +115,7 @@ class TestOSSTaskHandler:
         # Then
         assert mock_service.call_count == 1
         mock_service.return_value.head_key.assert_not_called()
-        mock_oss_log_exists.assert_called_once_with("airflow/logs/1.log")
+        mock_oss_log_exists.assert_called_once_with("1.log")
         mock_service.return_value.append_string.assert_called_once_with(
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 0
         )

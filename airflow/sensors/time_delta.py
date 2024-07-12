@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
@@ -66,9 +66,12 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
     """
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> bool | NoReturn:
         target_dttm = context["data_interval_end"]
         target_dttm += self.delta
+        if timezone.utcnow() > target_dttm:
+            # If the target datetime is in the past, return immediately
+            return True
         try:
             trigger = DateTimeTrigger(moment=target_dttm)
         except (TypeError, ValueError) as e:
@@ -78,6 +81,6 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
         self.defer(trigger=trigger, method_name="execute_complete")
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context, event=None) -> None:
         """Execute for when the trigger fires - return immediately."""
         return None

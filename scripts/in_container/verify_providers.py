@@ -45,7 +45,7 @@ GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "pr
 ALL_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
-IS_AIRFLOW_VERSION_PROVIDED = re.match("^(\d+)\.(\d+)\.(\d+)\S*$", USE_AIRFLOW_VERSION)
+IS_AIRFLOW_VERSION_PROVIDED = re.match(r"^(\d+)\.(\d+)\.(\d+)\S*$", USE_AIRFLOW_VERSION)
 
 
 class EntityType(Enum):

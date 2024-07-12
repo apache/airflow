@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import asyncio
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+
+from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -95,16 +99,21 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         database_name: str,
         table_name: str,
         expression: str = "",
+        waiter_delay: int = 60,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
-        waiter_delay: int = 60,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         self.database_name = database_name
         self.table_name = table_name
         self.expression = expression
+        self.waiter_delay = waiter_delay
+
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.waiter_delay = waiter_delay
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -117,12 +126,19 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
                 "waiter_delay": self.waiter_delay,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     @cached_property
     def hook(self) -> GlueCatalogHook:
-        return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        return GlueCatalogHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def poke(self, client: Any) -> bool:
         if "." in self.table_name:
@@ -148,3 +164,73 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
                     break
                 else:
                     await asyncio.sleep(self.waiter_delay)
+
+
+class GlueDataQualityRuleSetEvaluationRunCompleteTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a AWS Glue data quality evaluation run complete.
+
+    :param evaluation_run_id: The AWS Glue data quality ruleset evaluation run identifier.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        evaluation_run_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = "aws_default",
+    ):
+        super().__init__(
+            serialized_fields={"evaluation_run_id": evaluation_run_id},
+            waiter_name="data_quality_ruleset_evaluation_run_complete",
+            waiter_args={"RunId": evaluation_run_id},
+            failure_message="AWS Glue data quality ruleset evaluation run failed.",
+            status_message="Status of AWS Glue data quality ruleset evaluation run is",
+            status_queries=["Status"],
+            return_key="evaluation_run_id",
+            return_value=evaluation_run_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return GlueDataQualityHook(aws_conn_id=self.aws_conn_id)
+
+
+class GlueDataQualityRuleRecommendationRunCompleteTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a AWS Glue data quality recommendation run complete.
+
+    :param recommendation_run_id: The AWS Glue data quality rule recommendation run identifier.
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        recommendation_run_id: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = "aws_default",
+    ):
+        super().__init__(
+            serialized_fields={"recommendation_run_id": recommendation_run_id},
+            waiter_name="data_quality_rule_recommendation_run_complete",
+            waiter_args={"RunId": recommendation_run_id},
+            failure_message="AWS Glue data quality recommendation run failed.",
+            status_message="Status of AWS Glue data quality recommendation run is",
+            status_queries=["Status"],
+            return_key="recommendation_run_id",
+            return_value=recommendation_run_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return GlueDataQualityHook(aws_conn_id=self.aws_conn_id)

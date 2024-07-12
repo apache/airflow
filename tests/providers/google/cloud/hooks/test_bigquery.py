@@ -27,7 +27,7 @@ import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.api_core import page_iterator
 from google.auth.exceptions import RefreshError
-from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
+from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, DatasetReference, QueryJob, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
@@ -992,6 +992,45 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             configuration=configuration,
         )
         assert job_id == expected_job_id
+
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_job",
+        return_value=mock.MagicMock(spec=CopyJob),
+    )
+    def test_query_results__not_query_job_exception(self, _):
+        with pytest.raises(AirflowException, match="query job"):
+            self.hook.get_query_results(job_id=JOB_ID, location=LOCATION)
+
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_job",
+        return_value=mock.MagicMock(spec=QueryJob, state="RUNNING"),
+    )
+    def test_query_results__job_not_done_exception(self, _):
+        with pytest.raises(AirflowException, match="DONE state"):
+            self.hook.get_query_results(job_id=JOB_ID, location=LOCATION)
+
+    @pytest.mark.parametrize(
+        "selected_fields, result",
+        [
+            (None, [{"a": 1, "b": 2}, {"a": 3, "b": 4}]),
+            ("a", [{"a": 1}, {"a": 3}]),
+            ("a,b", [{"a": 1, "b": 2}, {"a": 3, "b": 4}]),
+            ("b,a", [{"a": 1, "b": 2}, {"a": 3, "b": 4}]),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_job",
+        return_value=mock.MagicMock(
+            spec=QueryJob,
+            state="DONE",
+            result=mock.MagicMock(return_value=[{"a": 1, "b": 2}, {"a": 3, "b": 4}]),
+        ),
+    )
+    def test_query_results(self, _, selected_fields, result):
+        assert (
+            self.hook.get_query_results(job_id=JOB_ID, location=LOCATION, selected_fields=selected_fields)
+            == result
+        )
 
 
 class TestBigQueryTableSplitter:

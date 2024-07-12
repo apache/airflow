@@ -57,6 +57,11 @@ class PythonExtractor(BaseExtractor):
                     source=source_code,
                 )
             }
+        else:
+            self.log.debug(
+                "OpenLineage disable_source_code option is on - no source code is extracted.",
+            )
+
         return OperatorLineage(
             job_facets=job_facet,
             # The PythonOperator is recorded as an "unknownSource" even though we have an extractor,

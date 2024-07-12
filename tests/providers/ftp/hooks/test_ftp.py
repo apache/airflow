@@ -155,6 +155,28 @@ class TestIntegrationFTPHook:
             Connection(conn_id="ftp_active", conn_type="ftp", host="localhost", extra='{"passive": false}')
         )
 
+        db.merge_conn(
+            Connection(
+                conn_id="ftp_custom_port",
+                conn_type="ftp",
+                host="localhost",
+                port=10000,
+                extra='{"passive": true}',
+            )
+        )
+
+        db.merge_conn(
+            Connection(
+                conn_id="ftp_custom_port_and_login",
+                conn_type="ftp",
+                host="localhost",
+                port=10000,
+                login="user",
+                password="pass123",
+                extra='{"passive": true}',
+            )
+        )
+
     def _test_mode(self, hook_type, connection_id, expected_mode):
         hook = hook_type(connection_id)
         conn = hook.get_conn()
@@ -171,6 +193,26 @@ class TestIntegrationFTPHook:
         from airflow.providers.ftp.hooks.ftp import FTPHook
 
         self._test_mode(FTPHook, "ftp_active", False)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_custom_port(self, mock_ftp):
+        from airflow.providers.ftp.hooks.ftp import FTPHook
+
+        hook = FTPHook("ftp_custom_port")
+        conn = hook.get_conn()
+        conn.connect.assert_called_once_with("localhost", 10000)
+        conn.login.assert_not_called()
+        conn.set_pasv.assert_called_once_with(True)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_custom_port_and_login(self, mock_ftp):
+        from airflow.providers.ftp.hooks.ftp import FTPHook
+
+        hook = FTPHook("ftp_custom_port_and_login")
+        conn = hook.get_conn()
+        conn.connect.assert_called_once_with("localhost", 10000)
+        conn.login.assert_called_once_with("user", "pass123")
+        conn.set_pasv.assert_called_once_with(True)
 
     @mock.patch("ftplib.FTP_TLS")
     def test_ftps_passive_mode(self, mock_ftp):

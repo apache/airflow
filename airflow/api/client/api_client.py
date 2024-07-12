@@ -32,7 +32,8 @@ class Client:
             self._session.auth = auth
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
-        """Create a dag run for the specified dag.
+        """
+        Create a dag run for the specified dag.
 
         :param dag_id:
         :param run_id:
@@ -44,14 +45,16 @@ class Client:
         raise NotImplementedError()
 
     def delete_dag(self, dag_id):
-        """Delete all DB records related to the specified dag.
+        """
+        Delete all DB records related to the specified dag.
 
         :param dag_id:
         """
         raise NotImplementedError()
 
     def get_pool(self, name):
-        """Get pool.
+        """
+        Get pool.
 
         :param name: pool name
         """
@@ -62,7 +65,8 @@ class Client:
         raise NotImplementedError()
 
     def create_pool(self, name, slots, description, include_deferred):
-        """Create a pool.
+        """
+        Create a pool.
 
         :param name: pool name
         :param slots: pool slots amount
@@ -72,7 +76,8 @@ class Client:
         raise NotImplementedError()
 
     def delete_pool(self, name):
-        """Delete pool.
+        """
+        Delete pool.
 
         :param name: pool name
         """

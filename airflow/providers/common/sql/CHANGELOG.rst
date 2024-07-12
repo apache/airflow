@@ -25,6 +25,85 @@
 Changelog
 ---------
 
+1.14.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: DbApiHook.insert_rows unnecessarily restarting connections (#40615)``
+
+Misc
+~~~~
+
+* ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve postgres deprecations in tests (#40392)``
+
+1.14.1
+......
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``standardizes template fields for 'BaseSQLOperator' and adds 'database' as a templated field (#39826)``
+
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'parameters' as template field for SqlSensor (#39588)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DbAPiHook: Don't log a warning message if placeholder is None and make sure warning message is formatted correctly (#39690)``
+
+Misc
+~~~~
+
+* ``refactor: The executemany parameter of insert_rows should not be deprecated as for some hooks we don't want to enable a system-wide supports_executemany parameter, that way we can also keep using it in dedicated situations (#39630)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Add typing for SqlSensor (#39773)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+1.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+
+Features
+~~~~~~~~
+
+* ``Add 'sqlalchemy_url' property to 'DbApiHook' class (#38871)``
+* ``Always use the executemany method when inserting rows in DbApiHook as it's way much faster (#38715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DbApiHook.insert_rows' when 'rows' is a generator (#38972)``
+* ``Fix 'update-common-sql-api-stubs' pre-commit check (#38915)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
 1.12.0
 ......
 

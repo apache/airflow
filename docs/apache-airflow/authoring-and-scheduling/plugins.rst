@@ -309,15 +309,12 @@ will automatically load the registered plugins from the entrypoint list.
         name = "my_namespace"
         flask_blueprints = [bp]
 
-.. code-block:: python
+Then inside pyproject.toml:
 
-    from setuptools import setup
+.. code-block:: toml
 
-    setup(
-        name="my-package",
-        # ...
-        entry_points={"airflow.plugins": ["my_plugin = my_package.my_plugin:MyAirflowPlugin"]},
-    )
+    [project.entry-points."airflow.plugins"]
+    my_plugin = "my_package.my_plugin:MyAirflowPlugin"
 
 Automatic reloading webserver
 -----------------------------

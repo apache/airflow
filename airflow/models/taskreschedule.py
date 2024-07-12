@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql import Select
 
-    from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
@@ -84,7 +83,8 @@ class TaskReschedule(TaskInstanceDependencies):
 
     def __init__(
         self,
-        task: Operator,
+        task_id: str,
+        dag_id: str,
         run_id: str,
         try_number: int,
         start_date: datetime.datetime,
@@ -92,8 +92,8 @@ class TaskReschedule(TaskInstanceDependencies):
         reschedule_date: datetime.datetime,
         map_index: int = -1,
     ) -> None:
-        self.dag_id = task.dag_id
-        self.task_id = task.task_id
+        self.dag_id = dag_id
+        self.task_id = task_id
         self.run_id = run_id
         self.map_index = map_index
         self.try_number = try_number

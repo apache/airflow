@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.vertica.operators.vertica import VerticaOperator
 
@@ -27,8 +31,13 @@ class TestVerticaOperator:
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
     def test_execute(self, mock_get_db_hook):
         sql = "select a, b, c"
-        op = VerticaOperator(task_id="test_task_id", sql=sql)
-        op.execute(None)
+        warning_message = re.escape(
+            "Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`"
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            op = VerticaOperator(task_id="test_task_id", sql=sql)
+        op.execute({})
+
         mock_get_db_hook.return_value.run.assert_called_once_with(
             sql=sql,
             autocommit=False,

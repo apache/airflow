@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 
 class SlackAPIOperator(BaseOperator):
-    """Base Slack Operator class.
+    """
+    Base Slack Operator class.
 
     :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`
         which its password is Slack API token.
@@ -89,7 +90,8 @@ class SlackAPIOperator(BaseOperator):
         )
 
     def construct_api_call_params(self) -> Any:
-        """Construct API call parameters used by the execute function.
+        """
+        Construct API call parameters used by the execute function.
 
         Allow templating on the source fields of the ``api_call_params`` dict
         before construction.
@@ -112,7 +114,8 @@ class SlackAPIOperator(BaseOperator):
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
-    """Post messages to a Slack channel.
+    """
+    Post messages to a Slack channel.
 
     .. code-block:: python
 
@@ -173,7 +176,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
 
 class SlackAPIFileOperator(SlackAPIOperator):
-    """Send a file to a Slack channel.
+    """
+    Send a file to a Slack channel.
 
     .. code-block:: python
 
@@ -226,7 +230,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str | None = None,
         content: str | None = None,
         title: str | None = None,
-        method_version: Literal["v1", "v2"] = "v1",
+        method_version: Literal["v1", "v2"] = "v2",
         channel: str | Sequence[str] | None | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:

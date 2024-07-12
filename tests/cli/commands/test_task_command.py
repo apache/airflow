@@ -46,7 +46,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
@@ -150,7 +150,10 @@ class TestCliTasks:
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
         with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in caplog.text
+        assert (
+            f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}, run_id={self.run_id}, "
+            in caplog.text
+        )
 
     @pytest.mark.enable_redact
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
@@ -583,7 +586,7 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             external_trigger=True,
         )
-        ti2 = TaskInstance(task2, dagrun.execution_date)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
@@ -648,6 +651,12 @@ class TestCliTasks:
         task_command.task_clear(args)
 
 
+def _set_state_and_try_num(ti, session):
+    ti.state = TaskInstanceState.QUEUED
+    ti.try_number += 1
+    session.commit()
+
+
 class TestLogsfromTaskRunCommand:
     def setup_method(self) -> None:
         self.dag_id = "test_logging_dag"
@@ -665,7 +674,7 @@ class TestLogsfromTaskRunCommand:
 
         dag = DagBag().get_dag(self.dag_id)
         data_interval = dag.timetable.infer_manual_data_interval(run_after=self.execution_date)
-        dag.create_dagrun(
+        self.dr = dag.create_dagrun(
             run_id=self.run_id,
             execution_date=self.execution_date,
             data_interval=data_interval,
@@ -673,6 +682,9 @@ class TestLogsfromTaskRunCommand:
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
         )
+        self.tis = self.dr.get_task_instances()
+        assert len(self.tis) == 1
+        self.ti = self.tis[0]
 
         root = self.root_logger = logging.getLogger()
         self.root_handlers = root.handlers.copy()
@@ -754,7 +766,7 @@ class TestLogsfromTaskRunCommand:
     @pytest.mark.parametrize(
         "is_k8s, is_container_exec", [("true", "true"), ("true", ""), ("", "true"), ("", "")]
     )
-    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec):
+    def test_logging_with_run_task_stdout_k8s_executor_pod(self, is_k8s, is_container_exec, session):
         """
         When running task --local as k8s executor pod, all logging should make it to stdout.
         Otherwise, all logging after "running TI" is redirected to logs (and the actual log
@@ -766,6 +778,9 @@ class TestLogsfromTaskRunCommand:
         verifies with certainty the behavior.
         """
         import subprocess
+
+        ti = self.dr.get_task_instances(session=session)[0]
+        _set_state_and_try_num(ti, session)  # so that try_number is correct
 
         with mock.patch.dict(
             "os.environ",
@@ -804,7 +819,9 @@ class TestLogsfromTaskRunCommand:
             assert len(lines) == 1
 
     @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
-    def test_logging_with_run_task(self):
+    def test_logging_with_run_task(self, session):
+        ti = self.dr.get_task_instances(session=session)[0]
+        _set_state_and_try_num(ti, session)
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
@@ -828,7 +845,7 @@ class TestLogsfromTaskRunCommand:
 
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
     @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
@@ -849,7 +866,10 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
-    def test_logging_with_run_task_subprocess(self):
+    def test_logging_with_run_task_subprocess(self, session):
+        ti = self.dr.get_task_instances(session=session)[0]
+        _set_state_and_try_num(ti, session)
+
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             task_command.task_run(self.parser.parse_args(self.task_args))
 
@@ -868,17 +888,17 @@ class TestLogsfromTaskRunCommand:
         assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
         )
 
-    def test_log_file_template_with_run_task(self):
+    def test_log_file_template_with_run_task(self, session):
         """Verify that the taskinstance has the right context for log_filename_template"""
 
         with conf_vars({("core", "dags_folder"): self.dag_path}):
             # increment the try_number of the task to be run
             with create_session() as session:
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
-                ti.try_number = 1
+                ti.try_number = 2
 
             log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
 

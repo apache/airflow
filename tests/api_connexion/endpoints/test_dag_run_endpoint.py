@@ -28,6 +28,7 @@ from airflow.datasets import Dataset
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -127,7 +128,7 @@ class TestDagRunEndpoint:
         dag_instance.is_active = True
         with create_session() as session:
             session.add(dag_instance)
-        dag = DAG(dag_id=dag_id, schedule=None)
+        dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
@@ -1320,6 +1321,16 @@ class TestPostDagRun(TestDagRunEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         }
 
+    def test_raises_validation_error_for_invalid_params(self):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={"conf": {"validated_number": 5000}},  # DAG param must be between 1 and 10
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert "Invalid input for param" in response.json["detail"]
+
     @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
     def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):
         self._create_dag("TEST_DAG_ID")
@@ -2191,26 +2202,6 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-
-    @conf_vars(
-        {
-            ("api", "auth_backends"): "airflow.api.auth.backend.default",
-        }
-    )
-    def test_should_respond_200_with_anonymous_user(self, dag_maker, session):
-        from airflow.www import app as application
-
-        app = application.create_app(testing=True)
-        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
-        dag_runs = self._create_test_dag_run(DagRunState.SUCCESS)
-        session.add_all(dag_runs)
-        session.commit()
-        created_dr = dag_runs[0]
-        response = app.test_client().patch(
-            f"api/v1/dags/{created_dr.dag_id}/dagRuns/TEST_DAG_RUN_ID_1/setNote",
-            json={"note": "I am setting a note with anonymous user"},
-        )
-        assert response.status_code == 200
 
     @pytest.mark.parametrize(
         "set_auto_role_public, expected_status_code",

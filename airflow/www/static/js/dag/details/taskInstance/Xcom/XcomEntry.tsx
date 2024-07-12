@@ -19,7 +19,9 @@
 
 import { Alert, AlertIcon, Spinner, Td, Text, Tr } from "@chakra-ui/react";
 import React from "react";
+
 import { useTaskXcomEntry } from "src/api";
+import ErrorAlert from "src/components/ErrorAlert";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 
 interface Props {
@@ -56,12 +58,7 @@ const XcomEntry = ({
   if (isLoading) {
     content = <Spinner />;
   } else if (error) {
-    content = (
-      <Alert status="error">
-        <AlertIcon />
-        Error loading XCom entry
-      </Alert>
-    );
+    content = <ErrorAlert error={error} />;
   } else if (!xcom) {
     content = (
       <Alert status="info">

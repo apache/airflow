@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
+    from airflow.serialization.serialized_objects import _ExpandInputRef
     from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
 
@@ -49,7 +50,8 @@ OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mappin
 
 @attr.define(kw_only=True)
 class MappedArgument(ResolveMixin):
-    """Stand-in stub for task-group-mapping arguments.
+    """
+    Stand-in stub for task-group-mapping arguments.
 
     This is very similar to an XComArg, but resolved differently. Declared here
     (instead of in the task group module) to avoid import cycles.
@@ -94,7 +96,8 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
 
 
 class NotFullyPopulated(RuntimeError):
-    """Raise when ``get_map_lengths`` cannot populate all mapping metadata.
+    """
+    Raise when ``get_map_lengths`` cannot populate all mapping metadata.
 
     This is generally due to not all upstream tasks have finished when the
     function is called.
@@ -109,7 +112,8 @@ class NotFullyPopulated(RuntimeError):
 
 
 class DictOfListsExpandInput(NamedTuple):
-    """Storage type of a mapped operator's mapped kwargs.
+    """
+    Storage type of a mapped operator's mapped kwargs.
 
     This is created from ``expand(**kwargs)``.
     """
@@ -130,7 +134,8 @@ class DictOfListsExpandInput(NamedTuple):
         return functools.reduce(operator.mul, literal_values, 1)
 
     def _get_map_lengths(self, run_id: str, *, session: Session) -> dict[str, int]:
-        """Return dict of argument name to map length.
+        """
+        Return dict of argument name to map length.
 
         If any arguments are not known right now (upstream task not finished),
         they will not be present in the dict.
@@ -212,7 +217,8 @@ def _describe_type(value: Any) -> str:
 
 
 class ListOfDictsExpandInput(NamedTuple):
-    """Storage type of a mapped operator's mapped kwargs.
+    """
+    Storage type of a mapped operator's mapped kwargs.
 
     This is created from ``expand_kwargs(xcom_arg)``.
     """
@@ -281,7 +287,11 @@ _EXPAND_INPUT_TYPES = {
 }
 
 
-def get_map_type_key(expand_input: ExpandInput) -> str:
+def get_map_type_key(expand_input: ExpandInput | _ExpandInputRef) -> str:
+    from airflow.serialization.serialized_objects import _ExpandInputRef
+
+    if isinstance(expand_input, _ExpandInputRef):
+        return expand_input.key
     return next(k for k, v in _EXPAND_INPUT_TYPES.items() if v == type(expand_input))
 
 

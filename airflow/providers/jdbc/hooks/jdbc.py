@@ -36,11 +36,16 @@ def suppress_and_warn(*exceptions: type[BaseException]):
     try:
         yield
     except exceptions as e:
-        warnings.warn(f"Exception suppressed: {e}\n{traceback.format_exc()}", category=UserWarning)
+        warnings.warn(
+            f"Exception suppressed: {e}\n{traceback.format_exc()}",
+            category=UserWarning,
+            stacklevel=3,
+        )
 
 
 class JdbcHook(DbApiHook):
-    """General hook for JDBC access.
+    """
+    General hook for JDBC access.
 
     JDBC URL, username and password will be taken from the predefined connection.
     Note that the whole JDBC URL must be specified in the "host" field in the DB.
@@ -159,7 +164,8 @@ class JdbcHook(DbApiHook):
         return conn
 
     def set_autocommit(self, conn: jaydebeapi.Connection, autocommit: bool) -> None:
-        """Set autocommit for the given connection.
+        """
+        Set autocommit for the given connection.
 
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
@@ -168,7 +174,8 @@ class JdbcHook(DbApiHook):
             conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
-        """Get autocommit setting for the provided connection.
+        """
+        Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting. True if ``autocommit`` is set

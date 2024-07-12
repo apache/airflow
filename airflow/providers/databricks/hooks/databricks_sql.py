@@ -50,7 +50,8 @@ T = TypeVar("T")
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """Hook to interact with Databricks SQL.
+    """
+    Hook to interact with Databricks SQL.
 
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`.

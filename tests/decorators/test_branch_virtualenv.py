@@ -25,7 +25,7 @@ from airflow.utils.state import State
 pytestmark = pytest.mark.db_test
 
 
-class Test_BranchPythonVirtualenvDecoratedOperator:
+class TestBranchPythonVirtualenvDecoratedOperator:
     # when run in "Parallel" test run environment, sometimes this test runs for a long time
     # because creating virtualenv and starting new Python interpreter creates a lot of IO/contention
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout

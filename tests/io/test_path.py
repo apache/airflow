@@ -403,3 +403,8 @@ class TestFs:
 
         assert o.fs is not None
         assert o._fs_cached
+
+    @pytest.mark.parametrize("input_str", ("file:///tmp/foo", "s3://conn_id@bucket/test.txt"))
+    def test_str(self, input_str):
+        o = ObjectStoragePath(input_str)
+        assert str(o) == input_str

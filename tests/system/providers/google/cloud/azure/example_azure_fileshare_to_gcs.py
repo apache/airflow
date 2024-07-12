@@ -23,14 +23,15 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import AzureFileShareToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "azure_fileshare_to_gcs_example"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 AZURE_SHARE_NAME = os.environ.get("AZURE_SHARE_NAME", "test-azure-share")
-AZURE_DIRECTORY_NAME = "test-azure-dir"
+AZURE_DIRECTORY_PATH = "test-azure-dir"
 
 with DAG(
     dag_id=DAG_ID,
@@ -49,7 +50,9 @@ with DAG(
     tags=["example", "azure"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,  # type: ignore[arg-type]
     )
 
     # [START howto_operator_azure_fileshare_to_gcs_basic]
@@ -57,7 +60,7 @@ with DAG(
         task_id="sync_azure_files_with_gcs",
         share_name=AZURE_SHARE_NAME,
         dest_gcs=BUCKET_NAME,
-        directory_name=AZURE_DIRECTORY_NAME,
+        directory_path=AZURE_DIRECTORY_PATH,
         replace=False,
         gzip=True,
         google_impersonation_chain=None,

@@ -96,12 +96,6 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_try_count(try_number: int, state: State):
-    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-        return try_number + 1
-    return try_number
-
-
 priority: list[None | TaskInstanceState] = [
     TaskInstanceState.FAILED,
     TaskInstanceState.UPSTREAM_FAILED,
@@ -147,7 +141,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "try_number": parent_instance.try_number,
         "execution_date": parent_instance.execution_date,
     }
 
@@ -533,7 +527,12 @@ def dag_run_link(attr):
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
 
-    url = url_for("Airflow.graph", dag_id=dag_id, dag_run_id=run_id)
+    url = url_for(
+        "Airflow.grid",
+        dag_id=dag_id,
+        dag_run_id=run_id,
+        tab="graph",
+    )
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
@@ -552,7 +551,8 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
 def sorted_dag_runs(
     query: Select, *, ordering: Sequence[str], limit: int, session: Session
 ) -> Sequence[DagRun]:
-    """Produce DAG runs sorted by specified columns.
+    """
+    Produce DAG runs sorted by specified columns.
 
     :param query: An ORM select object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
@@ -851,7 +851,8 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class DagRunCustomSQLAInterface(CustomSQLAInterface):
-    """Custom interface to allow faster deletion.
+    """
+    Custom interface to allow faster deletion.
 
     The ``delete`` and ``delete_all`` methods are overridden to speed up
     deletion when a DAG run has a lot of related task instances. Relying on
@@ -930,7 +931,8 @@ class UIAlert:
         self.message = Markup(message) if html else message
 
     def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
-        """Determine if the user should see the message.
+        """
+        Determine if the user should see the message.
 
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
         set in ``webserver_config.py``, An anonymous user would have the

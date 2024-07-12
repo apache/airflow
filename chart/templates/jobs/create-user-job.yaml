@@ -90,6 +90,10 @@ spec:
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
       {{- end }}
+      {{- if .Values.createUserJob.extraInitContainers }}
+      initContainers:
+        {{- tpl (toYaml .Values.createUserJob.extraInitContainers) . | nindent 8 }}
+      {{- end }}
       containers:
         - name: create-user
           image: {{ template "airflow_image" . }}

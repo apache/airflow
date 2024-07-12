@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
+from kubernetes.client.rest import ApiException
 
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.resource import (
@@ -237,3 +238,61 @@ class TestKubernetesXResourceOperator:
             "resourceflavors",
             "default-flavor-test",
         )
+
+    @patch("kubernetes.config.load_kube_config")
+    @patch("airflow.providers.cncf.kubernetes.operators.resource.create_from_yaml")
+    def test_create_objects_retries_on_500_error(self, mock_create_from_yaml, mock_load_kube_config, context):
+        mock_create_from_yaml.side_effect = [
+            ApiException(status=500),
+            MagicMock(),
+        ]
+
+        op = KubernetesCreateResourceOperator(
+            yaml_conf=TEST_VALID_RESOURCE_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            config_file="/foo/bar",
+        )
+        op.execute(context)
+
+        assert mock_create_from_yaml.call_count == 2
+
+    @patch("kubernetes.config.load_kube_config")
+    @patch("airflow.providers.cncf.kubernetes.operators.resource.create_from_yaml")
+    def test_create_objects_fails_on_other_exception(
+        self, mock_create_from_yaml, mock_load_kube_config, context
+    ):
+        mock_create_from_yaml.side_effect = [ApiException(status=404)]
+
+        op = KubernetesCreateResourceOperator(
+            yaml_conf=TEST_VALID_RESOURCE_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            config_file="/foo/bar",
+        )
+        with pytest.raises(ApiException):
+            op.execute(context)
+
+    @patch("kubernetes.config.load_kube_config")
+    @patch("airflow.providers.cncf.kubernetes.operators.resource.create_from_yaml")
+    def test_create_objects_retries_three_times(self, mock_create_from_yaml, mock_load_kube_config, context):
+        mock_create_from_yaml.side_effect = [
+            ApiException(status=500),
+            ApiException(status=500),
+            ApiException(status=500),
+            ApiException(status=500),
+        ]
+
+        op = KubernetesCreateResourceOperator(
+            yaml_conf=TEST_VALID_RESOURCE_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            config_file="/foo/bar",
+        )
+        with pytest.raises(ApiException):
+            op.execute(context)
+
+        assert mock_create_from_yaml.call_count == 3

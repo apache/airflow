@@ -136,7 +136,7 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": { "$ref": "#/definitions/params_dict" },
+        "params": { "$ref": "#/definitions/params" },
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
@@ -148,10 +148,6 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
-        "dataset_triggers": {
-        "$ref": "#/definitions/typed_dataset_cond"
-
-},
         "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
@@ -206,9 +202,13 @@
       "type": "array",
       "additionalProperties": { "$ref": "#/definitions/operator" }
     },
-    "params_dict": {
-      "type": "object",
-      "additionalProperties": {"$ref": "#/definitions/param" }
+    "params": {
+      "type": "array",
+      "prefixItems": [
+          { "type": "string" },
+          { "$ref": "#/definitions/param" }
+      ],
+      "unevaluatedItems": false
     },
     "param": {
       "$comment": "A param for a dag / operator",
@@ -258,7 +258,7 @@
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
-        "params": { "$ref": "#/definitions/params_dict" },
+        "params": { "$ref": "#/definitions/params" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
         "executor": { "type": "string" },

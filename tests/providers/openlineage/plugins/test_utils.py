@@ -58,7 +58,7 @@ class SafeStrDict(dict):
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
-    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule_interval="@once")
+    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule="@once")
     AIRFLOW_DAG.bulk_write_to_db([dag])
     dag_model = DagModel.get_dagmodel(dag.dag_id)
     run_id = str(uuid.uuid1())
@@ -115,6 +115,32 @@ def test_info_json_encodable():
         "goody_name": "not_funny",
         "donotcare": "abc",
     }
+
+
+def test_info_json_encodable_list_does_not_flatten():
+    class TestInfo(InfoJsonEncodable):
+        includes = ["alist"]
+
+    @define(slots=False)
+    class Test:
+        alist: list[str]
+
+    obj = Test(["a", "b", "c"])
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": ["a", "b", "c"]}
+
+
+def test_info_json_encodable_list_does_include_nonexisting():
+    class TestInfo(InfoJsonEncodable):
+        includes = ["exists", "doesnotexist"]
+
+    @define(slots=False)
+    class Test:
+        exists: str
+
+    obj = Test("something")
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {"exists": "something"}
 
 
 def test_is_name_redactable():

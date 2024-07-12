@@ -64,6 +64,7 @@ TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 TEST_IMPERSONATION_CHAIN = "TEST_SERVICE_ACCOUNT"
 TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_PARTITION_ID = "1234"
+TEST_SELECTED_FIELDS = "f0_,f1_"
 
 
 @pytest.fixture
@@ -91,6 +92,7 @@ def get_data_trigger():
         location=None,
         poll_interval=POLLING_PERIOD_SECONDS,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        selected_fields=TEST_SELECTED_FIELDS,
     )
 
 
@@ -237,13 +239,15 @@ class TestBigQueryInsertJobTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.cancel_job")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger.safe_to_cancel")
     async def test_bigquery_insert_job_trigger_cancellation(
-        self, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
+        self, mock_get_task_instance, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
     ):
         """
         Test that BigQueryInsertJobTrigger handles cancellation correctly, logs the appropriate message,
         and conditionally cancels the job based on the `cancel_on_kill` attribute.
         """
+        mock_get_task_instance.return_value = True
         insert_job_trigger.cancel_on_kill = True
         insert_job_trigger.job_id = "1234"
 
@@ -269,6 +273,41 @@ class TestBigQueryInsertJobTrigger:
         ), "Expected messages about task status or cancellation not found in log."
         mock_cancel_job.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.cancel_job")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger.safe_to_cancel")
+    async def test_bigquery_insert_job_trigger_cancellation_unsafe_cancellation(
+        self, mock_safe_to_cancel, mock_get_job_status, mock_cancel_job, caplog, insert_job_trigger
+    ):
+        """
+        Test that BigQueryInsertJobTrigger logs the appropriate message and does not cancel the job
+        if safe_to_cancel returns False even when the task is cancelled.
+        """
+        mock_safe_to_cancel.return_value = False
+        insert_job_trigger.cancel_on_kill = True
+        insert_job_trigger.job_id = "1234"
+
+        # Simulate the initial job status as running
+        mock_get_job_status.side_effect = [
+            {"status": "running", "message": "Job is still running"},
+            asyncio.CancelledError(),
+            {"status": "running", "message": "Job is still running after cancellation"},
+        ]
+
+        caplog.set_level(logging.INFO)
+
+        try:
+            async for _ in insert_job_trigger.run():
+                pass
+        except asyncio.CancelledError:
+            pass
+
+        assert (
+            "Skipping to cancel job" in caplog.text
+        ), "Expected message about skipping cancellation not found in log."
+        assert mock_get_job_status.call_count == 2, "Job status should be checked multiple times"
+
 
 class TestBigQueryGetDataTrigger:
     def test_bigquery_get_data_trigger_serialization(self, get_data_trigger):
@@ -285,6 +324,7 @@ class TestBigQueryGetDataTrigger:
             "project_id": TEST_GCP_PROJECT_ID,
             "table_id": TEST_TABLE_ID,
             "location": None,
+            "selected_fields": TEST_SELECTED_FIELDS,
             "poll_interval": POLLING_PERIOD_SECONDS,
         }
 
@@ -444,6 +484,7 @@ class TestBigQueryCheckTrigger:
             "table_id": TEST_TABLE_ID,
             "location": None,
             "poll_interval": POLLING_PERIOD_SECONDS,
+            "cancel_on_kill": True,
         }
 
     @pytest.mark.asyncio

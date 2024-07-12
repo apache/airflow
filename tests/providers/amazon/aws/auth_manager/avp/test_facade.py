@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -312,13 +311,10 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 user=test_user,
             )
 
-    def test_is_policy_store_schema_up_to_date_when_schema_up_to_date(self, facade):
-        schema_path = (
-            Path(__file__)
-            .parents[6]
-            .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json")
-            .resolve()
-        )
+    def test_is_policy_store_schema_up_to_date_when_schema_up_to_date(self, facade, airflow_root_path):
+        schema_path = airflow_root_path.joinpath(
+            "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        ).resolve()
         with open(schema_path) as schema_file:
             avp_response = {"schema": schema_file.read()}
             mock_get_schema = Mock(return_value=avp_response)
@@ -326,13 +322,10 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
 
             assert facade.is_policy_store_schema_up_to_date()
 
-    def test_is_policy_store_schema_up_to_date_when_schema_is_modified(self, facade):
-        schema_path = (
-            Path(__file__)
-            .parents[6]
-            .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json")
-            .resolve()
-        )
+    def test_is_policy_store_schema_up_to_date_when_schema_is_modified(self, facade, airflow_root_path):
+        schema_path = airflow_root_path.joinpath(
+            "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        ).resolve()
         with open(schema_path) as schema_file:
             schema = json.loads(schema_file.read())
             schema["new_field"] = "new_value"

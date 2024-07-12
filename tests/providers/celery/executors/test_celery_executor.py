@@ -200,8 +200,6 @@ class TestCeleryExecutor:
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        try_number = 1
-
         with DAG("test_try_adopt_task_instances_none") as dag:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
@@ -221,8 +219,8 @@ class TestCeleryExecutor:
 
         not_adopted_tis = executor.try_adopt_task_instances(tis)
 
-        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, try_number)
-        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, try_number)
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0)
+        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0)
         assert executor.running == {key_1, key_2}
 
         assert executor.tasks == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}

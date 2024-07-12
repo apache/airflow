@@ -27,6 +27,64 @@
 Changelog
 ---------
 
+3.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerOperator TaskFlow - correct argyments in python command (#39620)``
+
+Misc
+~~~~
+
+* ``Improve logging behavior of DockerOperator (#40489)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+3.12.1
+......
+
+Misc
+~~~~
+
+* ``Bump minimum docker version to 7.1.0 (#39839)``
+
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add args to docker service ContainerSpec (#39464)``
+* ``Add support to define Resources on DockerSwarmOperator (#39027)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Limit requests in botocore upgrade test (#39747)``
+* ``Pin requests due to incompatibility with docker-py (#39740)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+3.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
 3.10.0
 ......
 

@@ -75,7 +75,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
     def is_authorized(
         self,
         *,
-        method: ResourceMethod,
+        method: ResourceMethod | str,
         entity_type: AvpEntities,
         user: AwsAuthManagerUser | None,
         entity_id: str | None = None,
@@ -86,7 +86,10 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
         Check whether the user has permissions to access given resource.
 
-        :param method: the method to perform
+        :param method: the method to perform.
+            The method can also be a string if the action has been defined in a plugin.
+            In that case, the action can be anything (e.g. can_do).
+            See https://github.com/apache/airflow/issues/39144
         :param entity_type: the entity type the user accesses
         :param user: the user
         :param entity_id: the entity ID the user accesses. If not provided, all entities of the type will be

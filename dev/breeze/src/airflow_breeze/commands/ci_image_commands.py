@@ -788,7 +788,7 @@ def run_build_ci_image(
         )
     else:
         env = get_docker_build_env(ci_image_params)
-        subprocess.run(
+        process = subprocess.run(
             [
                 sys.executable,
                 os.fspath(
@@ -801,6 +801,8 @@ def run_build_ci_image(
             ],
             check=False,
         )
+        if process.returncode != 0:
+            sys.exit(process.returncode)
         get_console(output=output).print(f"\n[info]Building CI Image for {param_description}\n")
         build_command_result = run_command(
             prepare_docker_build_command(

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING
@@ -58,6 +59,7 @@ class DockerSwarmOperator(DockerOperator):
         container's process exits.
         The default is False.
     :param command: Command to be run in the container. (templated)
+    :param args: Arguments to the command.
     :param docker_url: URL of the host running the docker daemon.
         Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
         if it is unset.
@@ -96,21 +98,28 @@ class DockerSwarmOperator(DockerOperator):
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :param placement: Placement instructions for the scheduler. If a list is passed instead,
         it is assumed to be a list of constraints as part of a Placement object.
+    :param container_resources: Resources for the launched container.
+        The resources are Resources as per the docker api
+        [https://docker-py.readthedocs.io/en/stable/api.html#docker.types.Resources]_
+        This parameter has precedence on the mem_limit parameter.
     """
 
     def __init__(
         self,
         *,
         image: str,
+        args: str | list[str] | None = None,
         enable_logging: bool = True,
         configs: list[types.ConfigReference] | None = None,
         secrets: list[types.SecretReference] | None = None,
         mode: types.ServiceMode | None = None,
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
+        container_resources: types.Resources | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
+        self.args = args
         self.enable_logging = enable_logging
         self.service = None
         self.configs = configs
@@ -118,6 +127,7 @@ class DockerSwarmOperator(DockerOperator):
         self.mode = mode
         self.networks = networks
         self.placement = placement
+        self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
 
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -130,6 +140,7 @@ class DockerSwarmOperator(DockerOperator):
                 container_spec=types.ContainerSpec(
                     image=self.image,
                     command=self.format_command(self.command),
+                    args=self.format_args(self.args),
                     mounts=self.mounts,
                     env=self.environment,
                     user=self.user,
@@ -138,7 +149,7 @@ class DockerSwarmOperator(DockerOperator):
                     secrets=self.secrets,
                 ),
                 restart_policy=types.RestartPolicy(condition="none"),
-                resources=types.Resources(mem_limit=self.mem_limit),
+                resources=self.container_resources,
                 networks=self.networks,
                 placement=self.placement,
             ),
@@ -218,6 +229,21 @@ class DockerSwarmOperator(DockerOperator):
         while not self._has_service_terminated():
             sleep(2)
             last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since=last_timestamp)
+
+    @staticmethod
+    def format_args(args: list[str] | str | None) -> list[str] | None:
+        """
+        Retrieve args.
+
+        The args string is parsed to a list.
+
+        :param args: args to the docker service
+
+        :return: the args as list
+        """
+        if isinstance(args, str):
+            return shlex.split(args)
+        return args
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:

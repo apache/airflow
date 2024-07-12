@@ -17,26 +17,73 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from urllib.parse import urljoin, urlparse
+import json
+from contextlib import suppress
+from http import HTTPStatus
+from io import BytesIO
+from json import JSONDecodeError
+from typing import TYPE_CHECKING, Any
+from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from azure.identity import ClientSecretCredential
 from httpx import Timeout
+from kiota_abstractions.api_error import APIError
+from kiota_abstractions.method import Method
+from kiota_abstractions.request_information import RequestInformation
+from kiota_abstractions.response_handler import ResponseHandler
 from kiota_authentication_azure.azure_identity_authentication_provider import (
     AzureIdentityAuthenticationProvider,
 )
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-from msgraph_core import GraphClientFactory
-from msgraph_core._enums import APIVersion, NationalClouds
+from kiota_http.middleware.options import ResponseHandlerOption
+from msgraph_core import APIVersion, GraphClientFactory
+from msgraph_core._enums import NationalClouds
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from kiota_abstractions.request_adapter import RequestAdapter
+    from kiota_abstractions.request_information import QueryParams
+    from kiota_abstractions.response_handler import NativeResponseType
+    from kiota_abstractions.serialization import ParsableFactory
+    from kiota_http.httpx_request_adapter import ResponseType
 
     from airflow.models import Connection
+
+
+class DefaultResponseHandler(ResponseHandler):
+    """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
+
+    @staticmethod
+    def get_value(response: NativeResponseType) -> Any:
+        with suppress(JSONDecodeError):
+            return response.json()
+        content = response.content
+        if not content:
+            return {key: value for key, value in response.headers.items()}
+        return content
+
+    async def handle_response_async(
+        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
+    ) -> Any:
+        """
+        Invoke this callback method when a response is received.
+
+        param response: The type of the native response object.
+        param error_map: The error dict to use in case of a failed request.
+        """
+        value = self.get_value(response)
+        if response.status_code not in {200, 201, 202, 204, 302}:
+            message = value or response.reason_phrase
+            status_code = HTTPStatus(response.status_code)
+            if status_code == HTTPStatus.BAD_REQUEST:
+                raise AirflowBadRequest(message)
+            elif status_code == HTTPStatus.NOT_FOUND:
+                raise AirflowNotFoundException(message)
+            raise AirflowException(message)
+        return value
 
 
 class KiotaRequestAdapterHook(BaseHook):
@@ -54,6 +101,7 @@ class KiotaRequestAdapterHook(BaseHook):
         or you can pass a string as "v1.0" or "beta".
     """
 
+    DEFAULT_HEADERS = {"Accept": "application/json;q=1"}
     cached_request_adapters: dict[str, tuple[APIVersion, RequestAdapter]] = {}
     default_conn_name: str = "msgraph_default"
 
@@ -117,13 +165,16 @@ class KiotaRequestAdapterHook(BaseHook):
                 proxies[cls.format_no_proxy_url(url.strip())] = None
         return proxies
 
-    @classmethod
-    def to_msal_proxies(cls, authority: str | None, proxies: dict):
+    def to_msal_proxies(self, authority: str | None, proxies: dict):
+        self.log.info("authority: %s", authority)
         if authority:
             no_proxies = proxies.get("no")
+            self.log.info("no_proxies: %s", no_proxies)
             if no_proxies:
                 for url in no_proxies.split(","):
+                    self.log.info("url: %s", url)
                     domain_name = urlparse(url).path.replace("*", "")
+                    self.log.info("domain_name: %s", domain_name)
                     if authority.endswith(domain_name):
                         return None
         return proxies
@@ -206,3 +257,97 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self._api_version = api_version
         return request_adapter
+
+    def test_connection(self):
+        """Test HTTP Connection."""
+        try:
+            self.run()
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)
+
+    async def run(
+        self,
+        url: str = "",
+        response_type: ResponseType | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, QueryParams] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+    ):
+        self.log.info("Executing url '%s' as '%s'", url, method)
+
+        response = await self.get_conn().send_primitive_async(
+            request_info=self.request_information(
+                url=url,
+                response_type=response_type,
+                path_parameters=path_parameters,
+                method=method,
+                query_parameters=query_parameters,
+                headers=headers,
+                data=data,
+            ),
+            response_type=response_type,
+            error_map=self.error_mapping(),
+        )
+
+        self.log.info("response: %s", response)
+
+        return response
+
+    def request_information(
+        self,
+        url: str,
+        response_type: ResponseType | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, QueryParams] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+    ) -> RequestInformation:
+        request_information = RequestInformation()
+        request_information.path_parameters = path_parameters or {}
+        request_information.http_method = Method(method.strip().upper())
+        request_information.query_parameters = self.encoded_query_parameters(query_parameters)
+        if url.startswith("http"):
+            request_information.url = url
+        elif request_information.query_parameters.keys():
+            query = ",".join(request_information.query_parameters.keys())
+            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}{{?{query}}}"
+        else:
+            request_information.url_template = f"{{+baseurl}}/{self.normalize_url(url)}"
+        if not response_type:
+            request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
+                response_handler=DefaultResponseHandler()
+            )
+        headers = {**self.DEFAULT_HEADERS, **headers} if headers else self.DEFAULT_HEADERS
+        for header_name, header_value in headers.items():
+            request_information.headers.try_add(header_name=header_name, header_value=header_value)
+        if isinstance(data, BytesIO) or isinstance(data, bytes) or isinstance(data, str):
+            request_information.content = data
+        elif data:
+            request_information.headers.try_add(
+                header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
+            )
+            request_information.content = json.dumps(data).encode("utf-8")
+        return request_information
+
+    @staticmethod
+    def normalize_url(url: str) -> str | None:
+        if url.startswith("/"):
+            return url.replace("/", "", 1)
+        return url
+
+    @staticmethod
+    def encoded_query_parameters(query_parameters) -> dict:
+        if query_parameters:
+            return {quote(key): value for key, value in query_parameters.items()}
+        return {}
+
+    @staticmethod
+    def error_mapping() -> dict[str, ParsableFactory | None]:
+        return {
+            "4XX": APIError,
+            "5XX": APIError,
+        }

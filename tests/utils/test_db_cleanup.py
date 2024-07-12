@@ -297,6 +297,10 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
+    @pytest.mark.filterwarnings(
+        # This test case might import some deprecated modules, ignore it
+        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
+    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -340,6 +344,8 @@ class TestDBCleanup:
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
+            "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
+            # significant source of data.
         }
 
         from airflow.utils.db_cleanup import config_dict

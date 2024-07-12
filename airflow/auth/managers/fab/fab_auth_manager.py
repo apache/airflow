@@ -19,11 +19,14 @@ from __future__ import annotations
 
 from deprecated import deprecated
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager as FabAuthManagerProvider
 
 
 @deprecated(
-    reason="Use airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager instead", version="2.9.0"
+    reason="Use airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager instead",
+    version="2.9.0",
+    category=RemovedInAirflow3Warning,
 )
 class FabAuthManager(FabAuthManagerProvider):
     """

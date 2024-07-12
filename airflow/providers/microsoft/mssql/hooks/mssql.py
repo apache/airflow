@@ -19,11 +19,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 import pymssql
+from pymssql import Connection as PymssqlConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class MsSqlHook(DbApiHook):
@@ -53,6 +58,15 @@ class MsSqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
+    @cached_property
+    def connection(self) -> Connection:
+        """
+        Get the airflow connection object.
+
+        :return: The connection object.
+        """
+        return self.get_connection(getattr(self, self.conn_name_attr))
+
     @property
     def connection_extra_lower(self) -> dict:
         """
@@ -60,8 +74,7 @@ class MsSqlHook(DbApiHook):
 
         This is used internally for case-insensitive access of mssql params.
         """
-        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
-        return {k.lower(): v for k, v in conn.extra_dejson.items()}
+        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -92,25 +105,23 @@ class MsSqlHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
 
-    def get_conn(self) -> pymssql.connect:
+    def get_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""
-        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
-
-        conn = pymssql.connect(
+        conn = self.connection
+        return pymssql.connect(
             server=conn.host,
             user=conn.login,
             password=conn.password,
             database=self.schema or conn.schema,
-            port=conn.port,
+            port=str(conn.port),
         )
-        return conn
 
     def set_autocommit(
         self,
-        conn: pymssql.connect,
+        conn: PymssqlConnection,
         autocommit: bool,
     ) -> None:
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: pymssql.connect):
+    def get_autocommit(self, conn: PymssqlConnection):
         return conn.autocommit_state

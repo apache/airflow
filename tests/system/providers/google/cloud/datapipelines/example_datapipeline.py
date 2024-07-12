@@ -24,38 +24,40 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.dataflow import DataflowDeletePipelineOperator
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "google-datapipeline"
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-GCP_LOCATION = os.environ.get("location", "us-central1")
+DAG_ID = "datapipeline"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCP_LOCATION = "us-central1"
 
-PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "defualt-pipeline-name")
+PIPELINE_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
+PIPELINE_JOB_NAME = f"{DAG_ID}-{ENV_ID}-job".replace("_", "-")
 PIPELINE_TYPE = "PIPELINE_TYPE_BATCH"
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
 FILE_NAME = "kinglear.txt"
 TEMPLATE_FILE = "word-count.json"
-DATAPIPELINES_JOB_NAME = "test-job-name"
 TEMP_LOCATION = f"gs://{BUCKET_NAME}/temp"
 
-GCS_PATH = f"gs://{BUCKET_NAME}/templates/{TEMPLATE_FILE}"
-INPUT_FILE = f"gs://{BUCKET_NAME}/examples/{FILE_NAME}"
+GCS_PATH = f"gs://{BUCKET_NAME}/dataflow/{TEMPLATE_FILE}"
+INPUT_FILE = f"gs://{BUCKET_NAME}/dataflow/{FILE_NAME}"
 OUTPUT = f"gs://{BUCKET_NAME}/results/hello"
-
-FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
-TEMPLATE_LOCAL_PATH = str(Path(__file__).parent / "resources" / TEMPLATE_FILE)
 
 with DAG(
     DAG_ID,
@@ -66,18 +68,13 @@ with DAG(
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=FILE_LOCAL_PATH,
-        dst=FILE_NAME,
-        bucket=BUCKET_NAME,
-    )
-
-    upload_template = LocalFilesystemToGCSOperator(
-        task_id="upload_template_to_bucket",
-        src=TEMPLATE_LOCAL_PATH,
-        dst=TEMPLATE_FILE,
-        bucket=BUCKET_NAME,
+    move_files_to_bucket = GCSSynchronizeBucketsOperator(
+        task_id="move_files_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="dataflow/pipelines",
+        destination_bucket=BUCKET_NAME,
+        destination_object="dataflow",
+        recursive=True,
     )
 
     # [START howto_operator_create_data_pipeline]
@@ -92,7 +89,7 @@ with DAG(
                 "dataflowFlexTemplateRequest": {
                     "launchParameter": {
                         "containerSpecGcsPath": GCS_PATH,
-                        "jobName": DATAPIPELINES_JOB_NAME,
+                        "jobName": PIPELINE_JOB_NAME,
                         "environment": {"tempLocation": TEMP_LOCATION},
                         "parameters": {
                             "inputFile": INPUT_FILE,
@@ -107,18 +104,6 @@ with DAG(
     )
     # [END howto_operator_create_data_pipeline]
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
-    )
-
-    (create_bucket >> upload_file >> upload_template >> create_data_pipeline >> delete_bucket)
-
-    from tests.system.utils.watcher import watcher
-
-    # This test needs watcher in order to properly mark success/failure
-    # when "teardown" task with trigger rule is part of the DAG
-    list(dag.tasks) >> watcher()
-
     # [START howto_operator_run_data_pipeline]
     run_data_pipeline = RunDataPipelineOperator(
         task_id="run_data_pipeline",
@@ -126,6 +111,38 @@ with DAG(
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_run_data_pipeline]
+
+    # [START howto_operator_delete_dataflow_pipeline]
+    delete_pipeline = DataflowDeletePipelineOperator(
+        task_id="delete_data_pipeline",
+        pipeline_name=PIPELINE_NAME,
+        project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_delete_dataflow_pipeline]
+
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (
+        # TEST SETUP
+        create_bucket
+        >> move_files_to_bucket
+        # TEST BODY
+        >> create_data_pipeline
+        >> run_data_pipeline
+        # TEST TEARDOWN
+        >> delete_pipeline
+        >> delete_bucket
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
 
 from tests.system.utils import get_test_run  # noqa: E402
 

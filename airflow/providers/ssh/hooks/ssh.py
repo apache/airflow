@@ -43,7 +43,8 @@ CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
-    """Execute remote commands with Paramiko.
+    """
+    Execute remote commands with Paramiko.
 
     .. seealso:: https://github.com/paramiko/paramiko
 
@@ -388,7 +389,8 @@ class SSHHook(BaseHook):
     def get_tunnel(
         self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
     ) -> SSHTunnelForwarder:
-        """Create a tunnel between two hosts.
+        """
+        Create a tunnel between two hosts.
 
         This is conceptually similar to ``ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>``.
 
@@ -439,7 +441,8 @@ class SSHHook(BaseHook):
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
-        """Create a tunnel for SSH connection [Deprecated].
+        """
+        Create a tunnel for SSH connection [Deprecated].
 
         :param local_port: local port number
         :param remote_port: remote port number
@@ -448,7 +451,8 @@ class SSHHook(BaseHook):
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
-        """Create an appropriate Paramiko key for a given private key.
+        """
+        Create an appropriate Paramiko key for a given private key.
 
         :param private_key: string containing private key
         :return: ``paramiko.PKey`` appropriate for given key

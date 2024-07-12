@@ -19,10 +19,12 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import time
-from collections import defaultdict, deque
+from collections import deque
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -34,11 +36,12 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch.boto_schema import (
     BatchDescribeJobsResponseSchema,
     BatchSubmitJobResponseSchema,
@@ -262,7 +265,6 @@ class AwsBatchExecutor(BaseExecutor):
         in the next iteration of the sync() method, unless it has exceeded the maximum number of
         attempts. If a job exceeds the maximum number of attempts, it is removed from the queue.
         """
-        failure_reasons = defaultdict(int)
         for _ in range(len(self.pending_jobs)):
             batch_job = self.pending_jobs.popleft()
             key = batch_job.key
@@ -270,7 +272,7 @@ class AwsBatchExecutor(BaseExecutor):
             queue = batch_job.queue
             exec_config = batch_job.executor_config
             attempt_number = batch_job.attempt_number
-            _failure_reason = []
+            failure_reason: str | None = None
             if timezone.utcnow() < batch_job.next_attempt_time:
                 self.pending_jobs.append(batch_job)
                 continue
@@ -284,18 +286,18 @@ class AwsBatchExecutor(BaseExecutor):
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                     self.pending_jobs.append(batch_job)
                     raise
-                _failure_reason.append(str(e))
+                failure_reason = str(e)
             except Exception as e:
-                _failure_reason.append(str(e))
+                failure_reason = str(e)
 
-            if _failure_reason:
-                for reason in _failure_reason:
-                    failure_reasons[reason] += 1
-
+            if failure_reason:
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
-                    self.log.error(
-                        "This job has been unsuccessfully attempted too many times (%s). Dropping the task.",
+                    self.send_message_to_task_logs(
+                        logging.ERROR,
+                        "This job has been unsuccessfully attempted too many times (%s). Dropping the task. Reason: %s",
                         attempt_number,
+                        failure_reason,
+                        ti=key,
                     )
                     self.fail(key=key)
                 else:
@@ -306,19 +308,20 @@ class AwsBatchExecutor(BaseExecutor):
                     self.pending_jobs.append(batch_job)
             else:
                 # Success case
+                job_id = submit_job_response["job_id"]
                 self.active_workers.add_job(
-                    job_id=submit_job_response["job_id"],
+                    job_id=job_id,
                     airflow_task_key=key,
                     airflow_cmd=cmd,
                     queue=queue,
                     exec_config=exec_config,
                     attempt_number=attempt_number,
                 )
-        if failure_reasons:
-            self.log.error(
-                "Pending Batch jobs failed to launch for the following reasons: %s. Retrying later.",
-                dict(failure_reasons),
-            )
+                with contextlib.suppress(AttributeError):
+                    # TODO: Remove this when min_airflow_version is 2.10.0 or higher in Amazon provider.
+                    # running_state is added in Airflow 2.10 and only needed to support task adoption
+                    # (an optional executor feature).
+                    self.running_state(key, job_id)
 
     def _describe_jobs(self, job_ids) -> list[BatchJob]:
         all_jobs = []
@@ -418,3 +421,47 @@ class AwsBatchExecutor(BaseExecutor):
                 " and value should be NULL or empty."
             )
         return submit_kwargs
+
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+        """
+        Adopt task instances which have an external_executor_id (the Batch job ID).
+
+        Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
+        """
+        with Stats.timer("batch_executor.adopt_task_instances.duration"):
+            adopted_tis: list[TaskInstance] = []
+
+            if job_ids := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+                batch_jobs = self._describe_jobs(job_ids)
+
+                for batch_job in batch_jobs:
+                    ti = next(ti for ti in tis if ti.external_executor_id == batch_job.job_id)
+                    self.active_workers.add_job(
+                        job_id=batch_job.job_id,
+                        airflow_task_key=ti.key,
+                        airflow_cmd=ti.command_as_list(),
+                        queue=ti.queue,
+                        exec_config=ti.executor_config,
+                        attempt_number=ti.prev_attempted_tries,
+                    )
+                    adopted_tis.append(ti)
+
+            if adopted_tis:
+                tasks = [f"{task} in state {task.state}" for task in adopted_tis]
+                task_instance_str = "\n\t".join(tasks)
+                self.log.info(
+                    "Adopted the following %d tasks from a dead executor:\n\t%s",
+                    len(adopted_tis),
+                    task_instance_str,
+                )
+
+            not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
+            return not_adopted_tis
+
+    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
+        try:
+            super().send_message_to_task_logs(level, msg, *args, ti=ti)
+        except AttributeError:
+            # ``send_message_to_task_logs`` is added in 2.10.0
+            self.log.error(msg, *args)

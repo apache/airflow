@@ -27,7 +27,9 @@ from airflow.utils import dates, timezone
 
 
 class TestDates:
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:Function `days_ago` is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
+    )
     def test_days_ago(self):
         today = pendulum.today()
         today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()))
@@ -103,7 +105,9 @@ class TestDates:
         assert arr4 == pytest.approx([2.3147, 1.1574], rel=1e-3)
 
 
-@pytest.mark.filterwarnings("ignore:`airflow.utils.dates.date_range:DeprecationWarning")
+@pytest.mark.filterwarnings(
+    r"ignore:`airflow.utils.dates.date_range\(\)` is deprecated:airflow.exceptions.RemovedInAirflow3Warning"
+)
 class TestUtilsDatesDateRange:
     def test_no_delta(self):
         assert dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)) == []

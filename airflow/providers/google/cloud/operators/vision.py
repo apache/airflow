@@ -47,7 +47,8 @@ MetaData = Sequence[Tuple[str, str]]
 
 
 class CloudVisionCreateProductSetOperator(GoogleCloudBaseOperator):
-    """Create a new ProductSet resource.
+    """
+    Create a new ProductSet resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -139,7 +140,8 @@ class CloudVisionCreateProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionGetProductSetOperator(GoogleCloudBaseOperator):
-    """Get information associated with a ProductSet.
+    """
+    Get information associated with a ProductSet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -216,7 +218,8 @@ class CloudVisionGetProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
-    """Make changes to a `ProductSet` resource.
+    """
+    Make changes to a `ProductSet` resource.
 
     Only ``display_name`` can be updated currently.
 
@@ -322,7 +325,8 @@ class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDeleteProductSetOperator(GoogleCloudBaseOperator):
-    """Permanently deletes a ``ProductSet``.
+    """
+    Permanently deletes a ``ProductSet``.
 
     ``Products`` and ``ReferenceImages`` in the ``ProductSet`` are not deleted.
     The actual image files are not deleted from Google Cloud Storage.
@@ -402,7 +406,8 @@ class CloudVisionDeleteProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
-    """Create and return a new product resource.
+    """
+    Create and return a new product resource.
 
     Possible errors regarding the ``Product`` object provided:
 
@@ -499,7 +504,8 @@ class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionGetProductOperator(GoogleCloudBaseOperator):
-    """Get information associated with a ``Product``.
+    """
+    Get information associated with a ``Product``.
 
     Possible errors:
 
@@ -580,7 +586,8 @@ class CloudVisionGetProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
-    """Make changes to a Product resource.
+    """
+    Make changes to a Product resource.
 
     Only the display_name, description, and labels fields can be updated right now.
 
@@ -693,7 +700,8 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDeleteProductOperator(GoogleCloudBaseOperator):
-    """Permanently delete a product and its reference images.
+    """
+    Permanently delete a product and its reference images.
 
     Metadata of the product and all its images will be deleted right away, but
     search queries against ProductSets containing the product may still work
@@ -778,7 +786,8 @@ class CloudVisionDeleteProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionImageAnnotateOperator(GoogleCloudBaseOperator):
-    """Run image detection and annotation for an image or a batch of images.
+    """
+    Run image detection and annotation for an image or a batch of images.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -845,7 +854,8 @@ class CloudVisionImageAnnotateOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
-    """Create and return a new ReferenceImage ID resource.
+    """
+    Create and return a new ReferenceImage ID resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -948,7 +958,8 @@ class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDeleteReferenceImageOperator(GoogleCloudBaseOperator):
-    """Delete a ReferenceImage ID resource.
+    """
+    Delete a ReferenceImage ID resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1033,7 +1044,8 @@ class CloudVisionDeleteReferenceImageOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionAddProductToProductSetOperator(GoogleCloudBaseOperator):
-    """Add a Product to the specified ProductSet.
+    """
+    Add a Product to the specified ProductSet.
 
     If the Product is already present, no change is made. One Product can be
     added to at most 100 ProductSets.
@@ -1122,7 +1134,8 @@ class CloudVisionAddProductToProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
-    """Remove a Product from the specified ProductSet.
+    """
+    Remove a Product from the specified ProductSet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1204,7 +1217,8 @@ class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
-    """Detect Text in the image.
+    """
+    Detect Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1285,7 +1299,8 @@ class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
-    """Detect Document Text in the image.
+    """
+    Detect Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1365,7 +1380,8 @@ class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
-    """Detect Document Text in the image.
+    """
+    Detect Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1435,7 +1451,8 @@ class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDetectImageSafeSearchOperator(GoogleCloudBaseOperator):
-    """Detect Document Text in the image.
+    """
+    Detect Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1507,7 +1524,8 @@ class CloudVisionDetectImageSafeSearchOperator(GoogleCloudBaseOperator):
 def prepare_additional_parameters(
     additional_properties: dict | None, language_hints: Any, web_detection_params: Any
 ) -> dict | None:
-    """Create a value for the ``additional_properties`` parameter.
+    """
+    Create a value for the ``additional_properties`` parameter.
 
     The new value is based on ``language_hints``, ``web_detection_params``, and
     ``additional_properties`` parameters specified by the user.

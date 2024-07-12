@@ -25,14 +25,16 @@ import os
 import sys
 import traceback
 import warnings
+from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
+from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from airflow import policies
+from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
 from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
@@ -121,16 +123,19 @@ def _get_rich_console(file):
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Print rich and visible warnings."""
     # Delay imports until we need it
+    import re2
     from rich.markup import escape
 
+    re2_escape_regex = re2.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
-    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
+    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re2_escape_regex)}[/yellow]"
     write_console = _get_rich_console(file or sys.stderr)
     write_console.print(msg, soft_wrap=True)
 
 
 def replace_showwarning(replacement):
-    """Replace ``warnings.showwarning``, returning the original.
+    """
+    Replace ``warnings.showwarning``, returning the original.
 
     This is useful since we want to "reset" the ``showwarning`` hook on exit to
     avoid lazy-loading issues. If a warning is emitted after Python cleaned up
@@ -207,6 +212,31 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
+def _run_openlineage_runtime_check():
+    """
+    Ensure compatibility of OpenLineage provider package and Airflow version.
+
+    Airflow 2.10.0 introduced some core changes (#39336) that made versions <= 1.8.0 of OpenLineage
+    provider incompatible with future Airflow versions (>= 2.10.0).
+    """
+    ol_package = "apache-airflow-providers-openlineage"
+    try:
+        ol_version = metadata.version(ol_package)
+    except metadata.PackageNotFoundError:
+        return
+
+    if ol_version and Version(ol_version) < Version("1.8.0.dev0"):
+        raise RuntimeError(
+            f"You have installed `{ol_package}` == `{ol_version}` that is not compatible with "
+            f"`apache-airflow` == `{airflow_version}`. "
+            f"For `apache-airflow` >= `2.10.0` you must use `{ol_package}` >= `1.8.0`."
+        )
+
+
+def run_providers_custom_runtime_checks():
+    _run_openlineage_runtime_check()
+
+
 class SkipDBTestsSession:
     """
     This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set.
@@ -251,17 +281,30 @@ class TracebackSession:
         pass
 
 
+def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
+    """Determine whether the database connection URI specifies a relative path."""
+    # Check for non-empty connection string:
+    if not sqla_conn_str:
+        return False
+    # Check for the right URI scheme:
+    if not sqla_conn_str.startswith("sqlite"):
+        return False
+    # In-memory is not useful for production, but useful for writing tests against Airflow for extensions
+    if sqla_conn_str == "sqlite://":
+        return False
+    # Check for absolute path:
+    if sqla_conn_str.startswith(abs_prefix := "sqlite:///") and os.path.isabs(
+        sqla_conn_str[len(abs_prefix) :]
+    ):
+        return False
+    return True
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
 
-    if (
-        SQL_ALCHEMY_CONN
-        and SQL_ALCHEMY_CONN.startswith("sqlite")
-        and not SQL_ALCHEMY_CONN.startswith("sqlite:////")
-        # In memory is not useful for production, but useful for writing tests against Airflow for extensions
-        and SQL_ALCHEMY_CONN != "sqlite://"
-    ):
+    if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException
 
         raise AirflowConfigException(
@@ -572,8 +615,18 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    # Run any custom runtime checks that needs to be executed for providers
+    run_providers_custom_runtime_checks()
+
     # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
+
+
+def is_usage_data_collection_enabled() -> bool:
+    """Check if data collection is enabled."""
+    return conf.getboolean("usage_data_collection", "enabled", fallback=True) and (
+        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
+    )
 
 
 # Const stuff

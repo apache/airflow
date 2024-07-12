@@ -18,11 +18,16 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+
 from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
+pytestmark = pytest.mark.db_test
 
-@pytest.mark.db_test
+
 class TestCliUtils:
     def test_get_application_builder(self):
         with get_application_builder() as appbuilder:

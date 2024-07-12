@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import timedelta
+from os.path import isabs
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -44,6 +45,7 @@ from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
     init_api_experimental_auth,
+    init_cache_control,
     init_check_user_active,
     init_xframe_protection,
 )
@@ -99,7 +101,7 @@ def create_app(config=None, testing=False):
     flask_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"] = require_confirmation_dag_change
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
-    if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
+    if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(
             f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
@@ -120,6 +122,10 @@ def create_app(config=None, testing=False):
         )
         cookie_samesite_config = "Lax"
     flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config
+
+    # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
+    # for static file caching, it needs to set value explicitly.
+    flask_app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(seconds=43200)
 
     if config:
         flask_app.config.from_mapping(config)
@@ -176,6 +182,7 @@ def create_app(config=None, testing=False):
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
+        init_cache_control(flask_app)
         init_airflow_session_interface(flask_app)
         init_check_user_active(flask_app)
     return flask_app

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from deprecated import deprecated
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.fab.auth_manager.security_manager.override import (
     FabAirflowSecurityManagerOverride as FabProviderAirflowSecurityManagerOverride,
 )
@@ -27,7 +28,8 @@ from airflow.providers.fab.auth_manager.security_manager.override import (
 @deprecated(
     reason="If you want to override the security manager, you should inherit from "
     "`airflow.providers.fab.auth_manager.security_manager.override.FabAirflowSecurityManagerOverride` "
-    "instead"
+    "instead",
+    category=RemovedInAirflow3Warning,
 )
 class FabAirflowSecurityManagerOverride(FabProviderAirflowSecurityManagerOverride):
     """

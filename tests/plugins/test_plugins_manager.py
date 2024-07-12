@@ -103,6 +103,7 @@ class TestPluginsRBAC:
         link = links[0]
         assert link.name == v_appbuilder_package["category"]
         assert link.childs[0].name == v_appbuilder_package["name"]
+        assert link.childs[0].label == v_appbuilder_package["label"]
 
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem, appbuilder_mitem_toplevel
@@ -206,7 +207,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert 7 == len(plugins_manager.plugins)
+            assert len(plugins_manager.plugins) == 9
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert "postload" == plugin.name
@@ -225,7 +226,7 @@ class TestPluginsManager:
             with conf_vars({("core", "plugins_folder"): os.fspath(tmp_path)}):
                 plugins_manager.load_plugins_from_plugin_directory()
 
-            assert plugins_manager.plugins == []
+            assert len(plugins_manager.plugins) == 3  # three are loaded from examples
 
             received_logs = caplog.text
             assert "Failed to import plugin" in received_logs
@@ -385,6 +386,7 @@ class TestPluginsManager:
             listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
             # sort names as order of listeners is not guaranteed
             assert [
+                "airflow.example_dags.plugins.event_listener",
                 "tests.listeners.class_listener.ClassBasedListener",
                 "tests.listeners.empty_listener",
             ] == sorted(listener_names)
@@ -413,7 +415,7 @@ class TestPluginsManager:
             assert len(plugins_manager.plugins) == 0
             plugins_manager.load_entrypoint_plugins()
             plugins_manager.load_providers_plugins()
-            assert len(plugins_manager.plugins) == 2
+            assert len(plugins_manager.plugins) == 3
 
 
 class TestPluginsDirectorySource:

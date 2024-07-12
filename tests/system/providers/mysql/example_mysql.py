@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.mysql.operators.mysql import MySqlOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_mysql"
@@ -33,13 +33,13 @@ DAG_ID = "example_mysql"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={"mysql_conn_id": "mysql_conn_id"},
+    default_args={"conn_id": "mysql_conn_id"},
     tags=["example"],
     catchup=False,
 ) as dag:
     # [START howto_operator_mysql]
 
-    drop_table_mysql_task = MySqlOperator(
+    drop_table_mysql_task = SQLExecuteQueryOperator(
         task_id="drop_table_mysql", sql=r"""DROP TABLE table_name;""", dag=dag
     )
 
@@ -47,7 +47,7 @@ with DAG(
 
     # [START howto_operator_mysql_external_file]
 
-    mysql_task = MySqlOperator(
+    mysql_task = SQLExecuteQueryOperator(
         task_id="drop_table_mysql_external_file",
         sql="/scripts/drop_table.sql",
         dag=dag,

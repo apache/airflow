@@ -32,7 +32,7 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 class TestOracleHookConn:
     def setup_method(self):
         self.connection = Connection(
-            login="login", password="password", host="host", schema="schema", port=1521
+            login="login", password="password", host="host", port=1521, extra='{"service_name": "schema"}'
         )
 
         self.db_hook = OracleHook()
@@ -47,7 +47,7 @@ class TestOracleHookConn:
         assert args == ()
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
-        assert kwargs["dsn"] == "host:1521/schema"
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="schema")
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_host_alternative_port(self, mock_connect):
@@ -58,7 +58,7 @@ class TestOracleHookConn:
         assert args == ()
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
-        assert kwargs["dsn"] == "host:1522/schema"
+        assert kwargs["dsn"] == oracledb.makedsn("host", self.connection.port, service_name="schema")
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_sid(self, mock_connect):

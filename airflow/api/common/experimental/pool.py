@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowBadRequest, PoolNotFound
+from airflow.exceptions import AirflowBadRequest, PoolNotFound, RemovedInAirflow3Warning
 from airflow.models import Pool
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-@deprecated(reason="Use Pool.get_pool() instead", version="2.2.4")
+@deprecated(reason="Use Pool.get_pool() instead", version="2.2.4", category=RemovedInAirflow3Warning)
 @provide_session
 def get_pool(name, session: Session = NEW_SESSION):
     """Get pool by a given name."""
@@ -46,14 +46,14 @@ def get_pool(name, session: Session = NEW_SESSION):
     return pool
 
 
-@deprecated(reason="Use Pool.get_pools() instead", version="2.2.4")
+@deprecated(reason="Use Pool.get_pools() instead", version="2.2.4", category=RemovedInAirflow3Warning)
 @provide_session
 def get_pools(session: Session = NEW_SESSION):
     """Get all pools."""
     return session.scalars(select(Pool)).all()
 
 
-@deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
+@deprecated(reason="Use Pool.create_pool() instead", version="2.2.4", category=RemovedInAirflow3Warning)
 @provide_session
 def create_pool(name, slots, description, session: Session = NEW_SESSION):
     """Create a pool with given parameters."""
@@ -84,7 +84,7 @@ def create_pool(name, slots, description, session: Session = NEW_SESSION):
     return pool
 
 
-@deprecated(reason="Use Pool.delete_pool() instead", version="2.2.4")
+@deprecated(reason="Use Pool.delete_pool() instead", version="2.2.4", category=RemovedInAirflow3Warning)
 @provide_session
 def delete_pool(name, session: Session = NEW_SESSION):
     """Delete pool by a given name."""

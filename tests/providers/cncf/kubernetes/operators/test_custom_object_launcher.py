@@ -16,15 +16,46 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from kubernetes.client import (
+    V1ContainerState,
+    V1ContainerStateWaiting,
+    V1ContainerStatus,
+    V1Pod,
+    V1PodStatus,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
+    CustomObjectLauncher,
     SparkJobSpec,
     SparkResources,
 )
+
+
+@pytest.fixture
+def mock_launcher():
+    launcher = CustomObjectLauncher(
+        name="test-spark-job",
+        namespace="default",
+        kube_client=MagicMock(),
+        custom_obj_api=MagicMock(),
+        template_body={
+            "spark": {
+                "spec": {
+                    "image": "gcr.io/spark-operator/spark-py:v3.0.0",
+                    "driver": {},
+                    "executor": {},
+                },
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+            },
+        },
+    )
+    launcher.pod_spec = V1Pod()
+    return launcher
 
 
 class TestSparkJobSpec:
@@ -64,6 +95,22 @@ class TestSparkJobSpec:
 
         assert spark_job_spec.spec["dynamicAllocation"]["enabled"]
 
+    def test_spark_job_spec_dynamicAllocation_enabled_with_default_initial_executors(self):
+        entries = {
+            "spec": {
+                "dynamicAllocation": {
+                    "enabled": True,
+                    "minExecutors": 1,
+                    "maxExecutors": 2,
+                },
+                "driver": {},
+                "executor": {},
+            }
+        }
+        spark_job_spec = SparkJobSpec(**entries)
+
+        assert spark_job_spec.spec["dynamicAllocation"]["enabled"]
+
     def test_spark_job_spec_dynamicAllocation_enabled_with_invalid_config(self):
         entries = {
             "spec": {
@@ -79,18 +126,10 @@ class TestSparkJobSpec:
         }
 
         cloned_entries = entries.copy()
-        cloned_entries["spec"]["dynamicAllocation"]["initialExecutors"] = None
-        with pytest.raises(
-            AirflowException,
-            match="Make sure initial/min/max value for dynamic allocation is passed",
-        ):
-            SparkJobSpec(**cloned_entries)
-
-        cloned_entries = entries.copy()
         cloned_entries["spec"]["dynamicAllocation"]["minExecutors"] = None
         with pytest.raises(
             AirflowException,
-            match="Make sure initial/min/max value for dynamic allocation is passed",
+            match="Make sure min/max value for dynamic allocation is passed",
         ):
             SparkJobSpec(**cloned_entries)
 
@@ -98,7 +137,7 @@ class TestSparkJobSpec:
         cloned_entries["spec"]["dynamicAllocation"]["maxExecutors"] = None
         with pytest.raises(
             AirflowException,
-            match="Make sure initial/min/max value for dynamic allocation is passed",
+            match="Make sure min/max value for dynamic allocation is passed",
         ):
             SparkJobSpec(**cloned_entries)
 
@@ -142,3 +181,40 @@ class TestSparkResources:
         assert spark_resources.executor["cpu"]["limit"] == "4"
         assert spark_resources.driver["gpu"]["quantity"] == 1
         assert spark_resources.executor["gpu"]["quantity"] == 2
+
+
+class TestCustomObjectLauncher:
+    def get_pod_status(self, reason: str, message: str | None = None):
+        return V1PodStatus(
+            container_statuses=[
+                V1ContainerStatus(
+                    image="test",
+                    image_id="test",
+                    name="test",
+                    ready=False,
+                    restart_count=0,
+                    state=V1ContainerState(
+                        waiting=V1ContainerStateWaiting(
+                            reason=reason,
+                            message=message,
+                        ),
+                    ),
+                ),
+            ]
+        )
+
+    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
+    def test_check_pod_start_failure_no_error(self, mock_pod_manager, mock_launcher):
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("ContainerCreating")
+        mock_launcher.check_pod_start_failure()
+
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status("PodInitializing")
+        mock_launcher.check_pod_start_failure()
+
+    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
+    def test_check_pod_start_failure_with_error(self, mock_pod_manager, mock_launcher):
+        mock_pod_manager.return_value.read_pod.return_value.status = self.get_pod_status(
+            "CrashLoopBackOff", "Error message"
+        )
+        with pytest.raises(AirflowException):
+            mock_launcher.check_pod_start_failure()

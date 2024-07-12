@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, NoReturn, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -90,13 +90,13 @@ class DateTimeSensorAsync(DateTimeSensor):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> NoReturn:
         trigger = DateTimeTrigger(moment=timezone.parse(self.target_time))
         self.defer(
             trigger=trigger,
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context, event=None) -> None:
         """Execute when the trigger fires - returns immediately."""
         return None

@@ -38,12 +38,19 @@ from typing import (
 
 import attrs
 import lazy_object_proxy
+from sqlalchemy import select
 
 from airflow.datasets import Dataset, coerce_to_uri
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Row
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql.expression import Select, TextClause
+
     from airflow.models.baseoperator import BaseOperator
 
 # NOTE: Please keep this in sync with the following:
@@ -56,13 +63,13 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "dag_run",
     "data_interval_end",
     "data_interval_start",
-    "dataset_events",
     "ds",
     "ds_nodash",
     "execution_date",
     "expanded_ti_count",
     "exception",
     "inlets",
+    "inlet_events",
     "logical_date",
     "macros",
     "map_index_template",
@@ -70,6 +77,7 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "next_ds_nodash",
     "next_execution_date",
     "outlets",
+    "outlet_events",
     "params",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
@@ -150,17 +158,25 @@ class ConnectionAccessor:
 
 
 @attrs.define()
-class DatasetEventAccessor:
-    """Wrapper to access a DatasetEvent instance in template."""
+class OutletEventAccessor:
+    """
+    Wrapper to access an outlet dataset event in template.
+
+    :meta private:
+    """
 
     extra: dict[str, Any]
 
 
-class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
-    """Lazy mapping of dataset event accessors."""
+class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
+    """
+    Lazy mapping of outlet dataset event accessors.
+
+    :meta private:
+    """
 
     def __init__(self) -> None:
-        self._dict: dict[str, DatasetEventAccessor] = {}
+        self._dict: dict[str, OutletEventAccessor] = {}
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
@@ -168,10 +184,63 @@ class DatasetEventAccessors(Mapping[str, DatasetEventAccessor]):
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Dataset) -> DatasetEventAccessor:
+    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor:
         if (uri := coerce_to_uri(key)) not in self._dict:
-            self._dict[uri] = DatasetEventAccessor({})
+            self._dict[uri] = OutletEventAccessor({})
         return self._dict[uri]
+
+
+class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
+    """
+    List-like interface to lazily access DatasetEvent rows.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _rebuild_select(stmt: TextClause) -> Select:
+        return select(DatasetEvent).from_statement(stmt)
+
+    @staticmethod
+    def _process_row(row: Row) -> DatasetEvent:
+        return row[0]
+
+
+@attrs.define(init=False)
+class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
+    """
+    Lazy mapping for inlet dataset events accessors.
+
+    :meta private:
+    """
+
+    _inlets: list[Any]
+    _datasets: dict[str, Dataset]
+    _session: Session
+
+    def __init__(self, inlets: list, *, session: Session) -> None:
+        self._inlets = inlets
+        self._datasets = {inlet.uri: inlet for inlet in inlets if isinstance(inlet, Dataset)}
+        self._session = session
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._inlets)
+
+    def __len__(self) -> int:
+        return len(self._inlets)
+
+    def __getitem__(self, key: int | str | Dataset) -> LazyDatasetEventSelectSequence:
+        if isinstance(key, int):  # Support index access; it's easier for trivial cases.
+            dataset = self._inlets[key]
+            if not isinstance(dataset, Dataset):
+                raise IndexError(key)
+        else:
+            dataset = self._datasets[coerce_to_uri(key)]
+        return LazyDatasetEventSelectSequence.from_select(
+            select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri == dataset.uri),
+            order_by=[DatasetEvent.timestamp],
+            session=self._session,
+        )
 
 
 class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
@@ -191,7 +260,8 @@ def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInA
 
 
 class Context(MutableMapping[str, Any]):
-    """Jinja2 template context for task rendering.
+    """
+    Jinja2 template context for task rendering.
 
     This is a mapping (dict-like) class that can lazily emit warnings when
     (and only when) deprecated context keys are accessed.
@@ -222,7 +292,8 @@ class Context(MutableMapping[str, Any]):
         return repr(self._context)
 
     def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """Pickle the context as a dict.
+        """
+        Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,
         instead of using ``items()``, to trigger deprecation warnings.
@@ -283,7 +354,8 @@ class Context(MutableMapping[str, Any]):
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
-    """Merge parameters into an existing context.
+    """
+    Merge parameters into an existing context.
 
     Like ``dict.update()`` , this take the same parameters, and updates
     ``context`` in-place.
@@ -298,7 +370,8 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """Update context after task unmapping.
+    """
+    Update context after task unmapping.
 
     Since ``get_template_context()`` is called before unmapping, the context
     contains information about the mapped task. We need to do some in-place
@@ -313,7 +386,8 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-    """Create a context by copying items under selected keys in ``source``.
+    """
+    Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
@@ -327,7 +401,8 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
 
 
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
-    """Create a mapping that wraps deprecated entries in a lazy object proxy.
+    """
+    Create a mapping that wraps deprecated entries in a lazy object proxy.
 
     This further delays deprecation warning to until when the entry is actually
     used, instead of when it's accessed in the context. The result is useful for
@@ -360,8 +435,8 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
     return {k: _create_value(k, v) for k, v in source._context.items()}
 
 
-def context_get_dataset_events(context: Context) -> DatasetEventAccessors:
+def context_get_outlet_events(context: Context) -> OutletEventAccessors:
     try:
-        return context["dataset_events"]
+        return context["outlet_events"]
     except KeyError:
-        return DatasetEventAccessors()
+        return OutletEventAccessors()

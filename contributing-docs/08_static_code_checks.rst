@@ -26,7 +26,7 @@ for the first time. See the table below to identify which pre-commit checks requ
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pre-commit hooks
 ----------------
@@ -142,9 +142,13 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-builtin-literals                                    | Require literal syntax when initializing builtin types       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-changelog-format                                    | Check changelog format                                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-code-deprecations                                   | Check deprecations categories in decorators                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-compat-cache-on-methods                             | Check that compat cache do not use on class methods          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

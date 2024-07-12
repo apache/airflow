@@ -128,7 +128,7 @@ class RedshiftToS3Operator(BaseOperator):
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
         # Un-escape already escaped queries
-        select_query = re.sub(r"''(.+)''", r"'\1'", select_query)
+        select_query = re.sub(r"''(.+?)''", r"'\1'", select_query)
         return f"""
                     UNLOAD ($${select_query}$$)
                     TO 's3://{self.s3_bucket}/{s3_key}'

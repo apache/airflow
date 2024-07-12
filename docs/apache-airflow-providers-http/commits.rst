@@ -35,14 +35,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.12.0
+......
+
+Latest change: 2024-06-06
+
+=================================================================================================  ===========  =========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================
+`b358d0a6de <https://github.com/apache/airflow/commit/b358d0a6de3a7c2fabdabaccf8c5edab9e1d0ecf>`_  2024-06-06   ``Add 'retry_args' parameter to 'HttpOperator' (#40086)``
+=================================================================================================  ===========  =========================================================
+
+4.11.1
+......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================
+
+4.11.0
+......
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`9619536e6f <https://github.com/apache/airflow/commit/9619536e6f1f5737d56d2ef761c2e4467f17cd4e>`_  2024-04-24   ``Allow trust env parameter to be defined in extra options of HTTP Connection (#39161)``
+=================================================================================================  ===========  ========================================================================================
+
 4.10.1
 ......
 
-Latest change: 2024-03-31
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `6d4746f899 <https://github.com/apache/airflow/commit/6d4746f8998617653ae839f187a7e74ed8c83471>`_  2024-03-31   ``Consolidate HttpOperator http request between sync and async mode (#37293)``
 `eead6c2479 <https://github.com/apache/airflow/commit/eead6c2479b5f1f08d7bfede83a7900e3913dfae>`_  2024-03-22   ``fix(http): add return statement to yield within a while loop in triggers (#38392)``
 `b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``

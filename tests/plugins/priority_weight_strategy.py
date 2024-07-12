@@ -44,7 +44,7 @@ class DecreasingPriorityStrategy(PriorityWeightStrategy):
     """A priority weight strategy that decreases the priority weight with each attempt."""
 
     def get_weight(self, ti: TaskInstance):
-        return max(3 - ti._try_number + 1, 1)
+        return max(3 - ti.try_number + 1, 1)
 
 
 class TestPriorityWeightStrategyPlugin(AirflowPlugin):

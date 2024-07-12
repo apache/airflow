@@ -26,6 +26,193 @@
 Changelog
 ---------
 
+8.26.0
+......
+
+.. note::
+  Reduce memory footprint of S3KeyTrigger
+  Decorator ``provide_bucket_name_async`` is removed.
+  Async does not require a separated decorator.
+  The old one is removed and users can use ``provide_bucket_name`` for coroutine functions, async iterators, and normal synchronous functions.
+  Hook method ``get_file_metadata_async`` is now an async iterator
+  Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
+  S3KeyTrigger avoids loading all positive matches into memory in some circumstances
+
+.. note::
+  This release contains significant resources utilization improvements for async sessions
+
+Features
+~~~~~~~~
+
+* ``Do not dynamically determine op links for emr serverless (#40627)``
+* ``Be able to remove ACL in S3 hook's copy_object (#40518)``
+* ``feat(aws): provide the context to check_fn in S3 sensor (#40686)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix OpenLineage extraction for AthenaOperator (#40545)``
+* ``Reduce memory footprint of s3 key trigger (#40473)``
+* ``Adding cluster to ecs trigger event to avoid defer error (#40482)``
+* ``Fix deferrable AWS SageMaker operators (#40706)``
+* ``Make 'AwsAuthManager' compatible with only Airflow >= 2.9 (#40690)``
+* ``Add serialization opt to s3 operator (#40659)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in AWS Glue Data Catalog Sensors (#40492)``
+* ``Use base aws classes in AWS Glue Crawlers Operators/Sensors/Triggers (#40504)``
+* ``Share data loader to across asyncio boto sessions (#40658)``
+* ``Send executor logs to task logs in 'EcsExecutor' (#40468)``
+* ``Send executor logs to task logs in 'AwsBatchExecutor' (#40698)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix docs build re aws changelog (#40488)``
+   * ``Remove todo re bucket_name decorator in s3 hook (#40485)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+
+8.25.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Amazon Comprehend Document Classifier (#40287)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'importlib_metadata' import in aws utils (#40134)``
+* ``openlineage, redshift: do not call DB for schemas below Airflow 2.10 (#40197)``
+* ``Lazy match escaped quotes in 'RedshiftToS3Operator' (#40206)``
+* ``Use stdlib 'importlib.metadata' for retrieve 'botocore' package version (#40137)``
+
+Misc
+~~~~
+
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
+8.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Overrides for AWS Batch submit_job (#39903)``
+* ``Add transfer operator S3ToDynamoDBOperator (#39654)``
+* ``Adding Glue Data Quality Rule Recommendation Run  (#40014)``
+* ``Allow user-specified object attributes to be used in check_fn for S3KeySensor (#39950)``
+* ``Adding Amazon Glue Data Quality Service (#39923)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Deduplicate model name in SageMakerTransformOperator (#39956)``
+* ``Fix: remove process_func from templated_fields (#39948)``
+* ``Fix aws assume role session creation when deferrable (#40051)``
+
+Misc
+~~~~
+
+* ``Resolving ECS fargate deprecated warnings (#39834)``
+* ``Resolving EMR notebook deprecated warnings (#39829)``
+* ``Bump boto min versions (#40052)``
+* ``docs: mention minimum boto3 1.34.52 for AWS provider when using Batch 'ecs_properties_override' (#39983)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Implement per-provider tests with lowest-direct dependency resolution (#39946)``
+   * ``Resolve aws emr deprecations in tests (#40020)``
+   * ``Prepare docs 4th wave May 2024 (#39934)``
+
+8.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Amazon Bedrock - Retrieve and RetrieveAndGenerate (#39500)``
+* ``Introduce Amazon Comprehend Service (#39592)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: empty openlineage dataset name for AthenaExtractor (#39677)``
+* ``Fix default value for aws batch operator retry strategy (#39608)``
+* ``Sagemaker trigger: pass the job name as part of the event (#39671)``
+* ``Handle task adoption for batch executor (#39590)``
+* ``bugfix: handle invalid cluster states in NeptuneStopDbClusterOperator (#38287)``
+* ``Fix automatic termination issue in 'EmrOperator' by ensuring 'waiter_max_attempts' is set for deferrable triggers (#38658)``
+
+Misc
+~~~~
+
+* ``Resolving EMR deprecated warnings (#39743)``
+* ``misc: add comment about remove unused code (#39748)``
+
+8.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``'S3DeleteObjectsOperator' Added ability to filter keys by last modified time (#39151)``
+* ``Amazon Bedrock - Add Knowledge Bases and Data Sources integration (#39245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``EcsExcecutor Scheduler to handle incrementing of try_number (#39336)``
+* ``ECS Executor: Set tasks to RUNNING state once active (#39212)``
+
+Misc
+~~~~
+
+* ``Add 'jmespath' as an explicit dependency (#39350)``
+* ``Drop 'xmlsec' dependency (#39534)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``enh(amazon_hook): raise not found exception instead of general exception when download file (#39509)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+8.21.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Added logging_config,snapstart,ephemeral_storage parameters to aws lambdacreatefunctionoperator (#39300)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in GlueJobOperator where consecutive runs fail when a local script file is used (#38960)``
+* ``Update 'is_authorized_custom_view' from auth manager to handle custom actions (#39167)``
+* ``Update logic to allow retries in AWS Batch Client hook to be effective (#38998)``
+* ``Amazon Bedrock - Model Throughput Provisioning (#38850)``
+
+Misc
+~~~~
+
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Allow importing the aws executors with a shorter path (#39093)``
+* ``Remove flag from AWS auth manager to use it (#39033)``
+* ``Limit xmlsec<1.3.14  (#39104)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename "try_number" increments that are unrelated to the airflow concept (#39317)``
+   * ``Activate RUF015 that checks for unnecessary iterable allocation for first element (#38949)``
+   * ``Add tests for 'EmrServerlessJobSensor' and 'EmrServerlessApplicationSensor' (#39099)``
+
 8.20.0
 ......
 
