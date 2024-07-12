@@ -46,7 +46,7 @@ class TaskLogReader:
         metadata: dict,
         offset: int | None = 0,
         limit: int | None = 1000,
-    ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
+    ) -> tuple[list[list[tuple[str, str]]], dict[str, str]]:
         """
         Read chunks of Task Instance logs with pagination support.
 
@@ -58,10 +58,12 @@ class TaskLogReader:
         """
         if try_number is not None:
             logs, metadatas = self.log_handler.read(
-                ti, try_number, metadata=metadata, offset=offset, limit=limit
+                ti, try_number, metadata=metadata, offset=offset or 0, limit=limit or 1000
             )
         else:
-            logs, metadatas = self.log_handler.read(ti, metadata=metadata, offset=offset, limit=limit)
+            logs, metadatas = self.log_handler.read(
+                ti, metadata=metadata, offset=offset or 0, limit=limit or 1000
+            )
 
         metadata = metadatas[0] if metadatas else {}
 

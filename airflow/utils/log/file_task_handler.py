@@ -337,14 +337,25 @@ class FileTaskHandler(logging.Handler):
         limit: int = 100,
     ):
         """
-        Template method that contains custom logic of reading logs given the try_number with pagination support for terminated tasks.
+        Template method that contains custom logic of reading logs given the try_number.
 
-        :param ti: Task instance record
-        :param try_number: Current try_number to read log from
-        :param metadata: Log metadata, used for streaming log reading and auto-tailing
+        :param ti: task instance record
+        :param try_number: current try_number to read log from
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
+                         Following attributes are used:
+                         log_pos: (absolute) Char position to which the log
+                                  which was retrieved in previous calls, this
+                                  part will be skipped and only following test
+                                  returned to be added to tail.
         :param offset: Starting index for log entries (for pagination)
         :param limit: Maximum number of log entries to return (for pagination)
-        :return: Log message as a string and metadata dictionary with status and position
+        :return: log message as a string and metadata.
+                 Following attributes are used in metadata:
+                 end_of_log: Boolean, True if end of log is reached or False
+                             if further calls might get more log text.
+                             This is determined by the status of the TaskInstance
+                 log_pos: (absolute) Char position to which the log is retrieved
         """
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
@@ -353,11 +364,13 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
+
         is_in_running_or_deferred = ti.state in (
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
         )
         is_up_for_retry = ti.state == TaskInstanceState.UP_FOR_RETRY
+
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -368,19 +381,13 @@ class FileTaskHandler(logging.Handler):
             if executor_messages:
                 messages_list.extend(executor_messages)
         if not (remote_logs and ti.state not in State.unfinished):
-            # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
         if (is_in_running_or_deferred or is_up_for_retry) and not executor_messages and not remote_logs:
-            # While task instance is still running and we don't have either executor nor remote logs, look for served logs
-            # This is for cases when users have not setup remote logging nor shared drive for logs
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
-            # ordinarily we don't check served logs, with the assumption that users set up
-            # remote logging or shared drive for logs for persistence, but that's not always true
-            # so even if task is done, if no local logs or remote logs are found, we'll check the worker
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
 
@@ -437,12 +444,15 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None, offset: int = 0, limit: int = 1000):
+    def read(self, task_instance, try_number=None, metadata=None, offset=0, limit=1000):
         """
         Read logs of given task instance from local machine.
+
         :param task_instance: task instance object
-        :param try_number: task instance try_number to read logs from. If None, it returns all logs separated by try_number
+        :param try_number: task instance try_number to read logs from. If None
+                           it returns all logs separated by try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
+        :return: a list of listed tuples which order log string by host
         :param offset: Starting offset for log entries
         :param limit: Maximum number of log entries to return
         :return: a list of listed tuples which order log string by host
@@ -457,8 +467,8 @@ class FileTaskHandler(logging.Handler):
         else:
             try_numbers = [try_number]
 
-        logs = [""] * len(try_numbers)
-        metadata_array = [{}] * len(try_numbers)
+        logs: list[str] = [""] * len(try_numbers)
+        metadata_array: list[dict] = [{}] * len(try_numbers)
 
         for i, try_number_element in enumerate(try_numbers):
             log, out_metadata = self._read(

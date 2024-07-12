@@ -316,8 +316,9 @@ class TestLogView:
 
         # First chunk
         logs, metadatas = task_log_reader.read_log_chunks(
-            ti=ti, try_number=1, metadata={}, offset=0, limit=13
+            ti=ti, try_number=None, metadata={}, offset=0, limit=14
         )
+
         assert logs == [
             [
                 (
@@ -326,22 +327,151 @@ class TestLogView:
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
                     "try_number=1.",
                 )
-            ]
+            ],
+            [
+                (
+                    "localhost",
+                    "*** Found local files:\n"
+                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+                    "try_number=2.",
+                )
+            ],
+            [
+                (
+                    "localhost",
+                    "*** Found local files:\n"
+                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+                    "try_number=3.",
+                )
+            ],
         ]
-        assert metadatas == {"end_of_log": False, "log_pos": 13}
+        assert metadatas == {"end_of_log": True, "log_pos": 13}
 
-        # Second chunk
-        logs, metadatas = task_log_reader.read_log_chunks(
-            ti=ti, try_number=1, metadata={}, offset=13, limit=13
+
+class TestLogPaginationView:
+    DAG_ID = "dag_log_reader"
+    TASK_ID = "task_log_reader"
+    DEFAULT_DATE = timezone.datetime(2017, 9, 1)
+    FILENAME_TEMPLATE = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(':', '.') }}/{{ try_number }}.log"
+
+    @pytest.fixture(autouse=True)
+    def log_dir(self):
+        with tempfile.TemporaryDirectory() as log_dir:
+            self.log_dir = log_dir
+            yield log_dir
+        del self.log_dir
+
+    @pytest.fixture(autouse=True)
+    def settings_folder(self):
+        old_modules = dict(sys.modules)
+        with tempfile.TemporaryDirectory() as settings_folder:
+            self.settings_folder = settings_folder
+            sys.path.append(settings_folder)
+            yield settings_folder
+        sys.path.remove(settings_folder)
+        for mod in [m for m in sys.modules if m not in old_modules]:
+            del sys.modules[mod]
+        del self.settings_folder
+
+    @pytest.fixture(autouse=True)
+    def configure_loggers(self, log_dir, settings_folder):
+        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+        logging_config["handlers"]["task"]["base_log_folder"] = log_dir
+        settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
+        with open(settings_file, "w") as handle:
+            new_logging_file = f"LOGGING_CONFIG = {logging_config}"
+            handle.writelines(new_logging_file)
+        with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
+            settings.configure_logging()
+        yield
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+
+    @pytest.fixture(autouse=True)
+    def prepare_large_log_files(self, log_dir):
+        dir_path = f"{log_dir}/{self.DAG_ID}/{self.TASK_ID}/2017-09-01T00.00.00+00.00/"
+        os.makedirs(dir_path)
+        for try_number in range(1, 4):
+            with open(f"{dir_path}/{try_number}.log", "w+") as f:
+                for i in range(1000):
+                    f.write(f"try_number={try_number}, line={i}\n")
+                f.flush()
+
+    @pytest.fixture(autouse=True)
+    def prepare_db(self, create_task_instance):
+        session = settings.Session()
+        log_template = LogTemplate(filename=self.FILENAME_TEMPLATE, elasticsearch_id="")
+        session.add(log_template)
+        session.commit()
+        ti = create_task_instance(
+            dag_id=self.DAG_ID,
+            task_id=self.TASK_ID,
+            start_date=self.DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=self.DEFAULT_DATE,
+            state=TaskInstanceState.RUNNING,
         )
-        assert list(logs) == [
+        ti.try_number = 3
+        ti.hostname = "localhost"
+        self.ti = ti
+        yield
+        clear_db_runs()
+        clear_db_dags()
+        session.delete(log_template)
+        session.commit()
+
+    def test_read_log_chunks_with_pagination(self):
+        task_log_reader = TaskLogReader()
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=ti, try_number=1, metadata={}, offset=0, limit=276
+        )
+        assert logs == [
             [
                 (
                     "localhost",
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                    "try_number=1.",
+                    "try_number=1, line=0\n"
+                    "try_number=1, line=1\n"
+                    "try_number=1, line=2\n"
+                    "try_number=1, line=3\n"
+                    "try_number=1, line=4\n"
+                    "try_number=1, line=5\n"
+                    "try_number=1, line=6\n"
+                    "try_number=1, line=7\n"
+                    "try_number=1, line=8\n"
+                    "try_number=1, line=9\n"
+                    "try_number=1, line=10\n"
+                    "try_number=1, line=11\n"
+                    "try_number=1, line=12\n",
                 )
             ]
         ]
-        assert metadatas == {"end_of_log": True, "log_pos": 26}
+        assert metadatas == {"end_of_log": False, "log_pos": 276}
+
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=ti, try_number=1, metadata={}, offset=276, limit=286
+        )
+        assert logs == [
+            [
+                (
+                    "localhost",
+                    "try_number=1, line=13\n"
+                    "try_number=1, line=14\n"
+                    "try_number=1, line=15\n"
+                    "try_number=1, line=16\n"
+                    "try_number=1, line=17\n"
+                    "try_number=1, line=18\n"
+                    "try_number=1, line=19\n"
+                    "try_number=1, line=20\n"
+                    "try_number=1, line=21\n"
+                    "try_number=1, line=22\n"
+                    "try_number=1, line=23\n"
+                    "try_number=1, line=24\n"
+                    "try_number=1, line=25\n",
+                )
+            ]
+        ]
+        assert metadatas == {"end_of_log": False, "log_pos": 562}

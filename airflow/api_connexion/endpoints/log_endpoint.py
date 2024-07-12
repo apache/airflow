@@ -53,35 +53,26 @@ def get_log(
     task_try_number: int,
     full_content: bool = False,
     map_index: int = -1,
-    offset: int | None = None,
-    limit: int | None = None,
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get logs for specific task instance."""
     key = get_airflow_app().config["SECRET_KEY"]
-    if not token:
-        metadata = {}
-    else:
+    metadata = {}
+    if token:
         try:
             metadata = URLSafeSerializer(key).loads(token)
         except BadSignature:
             raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
 
-    if metadata.get("download_logs") and metadata["download_logs"]:
-        full_content = True
-
-    if full_content:
-        metadata["download_logs"] = True
-    else:
-        metadata["download_logs"] = False
+    metadata["download_logs"] = full_content or metadata.get("download_logs", False)
 
     task_log_reader = TaskLogReader()
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
 
-    query = (
+    ti = session.scalar(
         select(TaskInstance)
         .where(
             TaskInstance.task_id == task_id,
@@ -92,24 +83,21 @@ def get_log(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
-    ti = session.scalar(query)
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if dag:
-        try:
-            ti.task = dag.get_task(ti.task_id)
-        except TaskNotFound:
-            pass
+        ti.task = dag.get_task(ti.task_id)
+        if ti.task is None:
+            raise NotFound("Task not found in DAG")
 
     return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
 
-    # Adjust for both JSON and streaming responses
-    if return_type == "application/json" or return_type is None:  # default
+    if return_type in ["application/json", None]:  # default
         logs, metadata = task_log_reader.read_log_chunks(
-            ti, task_try_number, metadata, offset=offset, limit=limit
+            ti, task_try_number, metadata
         )
         logs = logs[0] if task_try_number is not None else logs
         token = URLSafeSerializer(key).dumps(metadata)
@@ -159,7 +147,7 @@ def get_log_pages(
     if ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY}:
         return {"total_pages": 1}
 
-    # Fetch s3 log content length
+    # Fetch s3 log content length, change this to be generic in the future
     s3_hook = S3Hook()
     log_key = f"{dag_id}/{dag_run_id}/{task_id}/{key}"  # Updated to use key parameter
     page_size_kb = 100  # Hardcoded page size in KB for now
