@@ -24,7 +24,7 @@ import os
 import random
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
 
 import jwt
 import packaging.version
@@ -1094,7 +1094,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict | None = None,
+        access_control: dict[str, dict[str, Collection[str]]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1126,7 +1126,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _sync_dag_view_permissions(
         self,
         dag_id: str,
-        access_control: dict,
+        access_control: dict[str, dict[str, Collection[str]]],
     ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
