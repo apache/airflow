@@ -313,7 +313,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _get_keytab_from_base64(self, base64_keytab: str) -> str:
         _uuid = uuid.uuid4()
         temp_dir_path = Path(tempfile.gettempdir()).resolve()
-        temp_file_name = f"airflow_keytab-{self._connection.get('principal', _uuid)}"
+        temp_file_name = f"airflow_keytab-{self._connection['principal'] or _uuid}"
 
         keytab_path = temp_dir_path / temp_file_name
         staging_path = temp_dir_path / f".{temp_file_name}.{_uuid}"
