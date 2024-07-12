@@ -344,10 +344,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ]
 
     # global resource for dag-level access
-    RESOURCE_DETAILS_MAP = getattr(permissions, 'RESOURCE_DETAILS_MAP', {
-        permissions.RESOURCE_DAG: {
-            'actions': permissions.DAG_ACTIONS,
-        }}
+    RESOURCE_DETAILS_MAP = getattr(
+        permissions,
+        "RESOURCE_DETAILS_MAP",
+        {
+            permissions.RESOURCE_DAG: {
+                "actions": permissions.DAG_ACTIONS,
+            }
+        },
     )
     DAG_ACTIONS = RESOURCE_DETAILS_MAP[permissions.RESOURCE_DAG]["actions"]
 
