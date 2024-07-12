@@ -480,7 +480,9 @@ class FabAuthManager(BaseAuthManager):
         :meta private:
         """
         root_dag_id = self._get_root_dag_id(dag_id)
-        return permissions.resource_name(root_dag_id, resource_type)
+        if hasattr(permissions, "resource_name"):
+            return getattr(permissions, "resource_name")(dag_id, root_dag_id)
+        return getattr(permissions, "resource_name_for_dag")(dag_id)
 
     @staticmethod
     def _get_user_permissions(user: BaseUser):
