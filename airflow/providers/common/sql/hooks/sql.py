@@ -188,8 +188,7 @@ class DbApiHook(BaseHook):
 
     @cached_property
     def placeholder(self):
-        conn = self.get_connection(self.get_conn_id())
-        placeholder = conn.extra_dejson.get("placeholder")
+        placeholder = self.connection_extra.get("placeholder")
         if placeholder:
             if placeholder in SQL_PLACEHOLDERS:
                 return placeholder
@@ -201,6 +200,20 @@ class DbApiHook(BaseHook):
                 self._placeholder,
             )
         return self._placeholder
+
+    @cached_property
+    def connection_extra(self) -> dict:
+        conn = self.get_connection(self.get_conn_id())
+        return conn.extra_dejson
+
+    @cached_property
+    def connection_extra_lower(self) -> dict:
+        """
+        ``connection.extra_dejson`` but where keys are converted to lower case.
+
+        This is used internally for case-insensitive access of jdbc params.
+        """
+        return {k.lower(): v for k, v in self.connection_extra.items()}
 
     def get_conn(self):
         """Return a connection object."""

@@ -100,15 +100,6 @@ class OdbcHook(DbApiHook):
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
     @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of odbc params.
-        """
-        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
-
-    @property
     def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
         extra_driver = self.connection_extra_lower.get("driver")
@@ -167,7 +158,7 @@ class OdbcHook(DbApiHook):
 
             extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
             extra_params = {
-                k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
+                k: v for k, v in self.connection_extra_lower if k not in extra_exclude
             }
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
