@@ -165,9 +165,5 @@ connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
     connection-type: databricks
 
-plugins:
-  - name: databricks_workflow
-    plugin-class: airflow.providers.databricks.plugins.databricks_workflow.DatabricksWorkflowPlugin
-
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
