@@ -2684,39 +2684,40 @@ def test_that_ti_blocked_by_upstream_doesnt_prevent_dagrun_from_succeeding(dag_m
 
         task1() >> task2() >> task3()
 
+    def _run_ti(dr, ti):
+        dr.schedule_tis([ti], session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.blocked_by_upstream = False
+        session.merge(ti)
+        session.flush()
+        ti.run()
+        session.flush()
+
     dr = dag_maker.create_dagrun()
     # First run of scheduler sets task1 to success and tis that don't meet deps to NONE state
-    schedulable_tis, _ = dr.update_state(session=session)
+    info = dr.task_instance_scheduling_decisions(session=session)
+    schedulable_tis = [ti for ti in info.schedulable_tis if not ti.blocked_by_upstream]
     assert len(schedulable_tis) == 1
     assert schedulable_tis[0].task_id == "task1"
-    dr.schedule_tis(schedulable_tis, session=session)
-    session.flush()
-    schedulable_tis[0]._run_raw_task()
-    session.flush()
-    assert dr.get_task_instance("task1", session=session).state == State.SUCCESS
-    assert dr.get_task_instance("task2", session=session).state == State.NONE
-    assert dr.get_task_instance("task3", session=session).state == State.NONE
-
-    # Second run of scheduler sets task2 and rest of tis that don't meet deps to NONE state
-    schedulable_tis, _ = dr.update_state(session=session)
-
+    _run_ti(dr, schedulable_tis[0])
+    tis = dr.get_task_instances(session=session, state=State.SUCCESS)
+    assert len(tis) == 1
+    # Second run of scheduler, 2 succeeds and one is still blocked
+    info = dr.task_instance_scheduling_decisions(session=session)
+    schedulable_tis = [ti for ti in info.schedulable_tis if not ti.blocked_by_upstream]
     assert len(schedulable_tis) == 1
     assert schedulable_tis[0].task_id == "task2"
-    dr.schedule_tis(schedulable_tis, session=session)
+    _run_ti(dr, schedulable_tis[0])
+    tis = dr.get_task_instances(session=session, state=State.SUCCESS)
+    assert len(tis) == 2
     session.flush()
-    schedulable_tis[0]._run_raw_task()
-    session.flush()
-    assert dr.get_task_instance("task1", session=session).state == State.SUCCESS
-    assert dr.get_task_instance("task2", session=session).state == State.SUCCESS
-    assert dr.get_task_instance("task3", session=session).state == State.NONE
 
-    # Third run of scheduler sets task3 to success
-    schedulable_tis, _ = dr.update_state(session=session)
-    assert len(schedulable_tis) == 1
-    assert schedulable_tis[0].task_id == "task3"
-    dr.schedule_tis(schedulable_tis, session=session)
+    # Third run of scheduler, last task succeeds
+    info = dr.task_instance_scheduling_decisions(session)
+    ti3 = info.unfinished_tis[0]
+    _run_ti(dr, ti3)
+    tis = dr.get_task_instances(session=session, state=State.SUCCESS)
+    assert len(tis) == 3
     session.flush()
-    schedulable_tis[0]._run_raw_task()
-    session.flush()
-    tis = dr.get_task_instances()
-    assert all(ti.state == State.SUCCESS for ti in tis)
+    assert all(ti.state == State.SUCCESS for ti in dr.get_task_instances(session=session))
+    assert all(ti.blocked_by_upstream is False for ti in dr.get_task_instances(session=session))
