@@ -38,6 +38,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook as BaseHook
+from airflow.models import Connection
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
@@ -69,6 +70,8 @@ class DbApiHook(BaseHook):
     @cached_property
     def placeholder(self): ...
     @cached_property
+    def connection(self) -> Connection: ...
+    @property
     def connection_extra(self) -> dict: ...
     @cached_property
     def connection_extra_lower(self) -> dict: ...

@@ -80,13 +80,6 @@ class OdbcHook(DbApiHook):
         self._connect_kwargs = connect_kwargs
 
     @property
-    def connection(self):
-        """The Connection object with ID ``odbc_conn_id``."""
-        if not self._connection:
-            self._connection = self.get_connection(getattr(self, self.conn_name_attr))
-        return self._connection
-
-    @property
     def database(self) -> str | None:
         """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return self._database or self.connection.schema

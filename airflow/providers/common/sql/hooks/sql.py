@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from pandas import DataFrame
     from sqlalchemy.engine import URL
 
+    from airflow.models import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -202,9 +203,17 @@ class DbApiHook(BaseHook):
         return self._placeholder
 
     @cached_property
+    def connection(self) -> Connection:
+        """
+        Get the airflow connection object.
+
+        :return: The connection object.
+        """
+        return self.get_connection(self.get_conn_id())
+
+    @property
     def connection_extra(self) -> dict:
-        conn = self.get_connection(self.get_conn_id())
-        return conn.extra_dejson
+        return self.connection.extra_dejson
 
     @cached_property
     def connection_extra_lower(self) -> dict:
@@ -217,7 +226,7 @@ class DbApiHook(BaseHook):
 
     def get_conn(self):
         """Return a connection object."""
-        db = self.get_connection(self.get_conn_id())
+        db = self.connection
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
