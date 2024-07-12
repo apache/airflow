@@ -1102,11 +1102,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a role name and
-            each value is a set() of action names in case of DAGs resource (e.g.,
-            {'can_read'}
-            or the value can be a dict where each key is a resource name and
-            each value is a set() of action names (e.g., {'DAG Runs': {'can_read'}})
+        :param access_control: a dict where each key is a role name and each value can be:
+             - a set() of DAGs resource action names (e.g. `{'can_read'}`)
+             - or a dict where each key is a resource name ('DAGs' or 'DAG Runs') and each value
+             is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         :return:
         """
         for resource_name, resource_values in permissions.RESOURCE_DETAILS_MAP.items():
@@ -1132,10 +1131,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a role name and
-            each value is a set() of action names (e.g. {'can_read'})
-            or the value can be a dict where each key is a resource name and
-            each value is a set() of action names (e.g., {'DAG Runs': {'can_read'}})
+        :param access_control: a dict where each key is a role name and each value is:
+            - a dict where each key is a resource name ('DAGs' or 'DAG Runs') and each value
+            is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         """
 
         def _get_or_create_dag_permission(action_name: str, dag_resource_name: str) -> Permission | None:
