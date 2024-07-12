@@ -147,7 +147,7 @@ def user_single_dag(app):
         role_name="role_single_dag",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.qACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
             (
                 permissions.ACTION_CAN_READ,
                 permissions.resource_name(TEST_FILTER_DAG_IDS[0], permissions.RESOURCE_DAG),
