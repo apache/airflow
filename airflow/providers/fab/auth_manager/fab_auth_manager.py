@@ -428,8 +428,8 @@ class FabAuthManager(BaseAuthManager):
         Return whether the user is authorized to perform a given action on a DAG Run.
 
         :param method: the method to perform
-        :param details: optional details about the DAG
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        :param details: optional, details about the DAG
+        :param user: optional, the user to perform the action on. If not provided, it uses the current user
 
         :meta private:
         """
