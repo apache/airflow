@@ -38,11 +38,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.26.0
 ......
 
-Latest change: 2024-07-08
+Latest change: 2024-07-11
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`6b9214508a <https://github.com/apache/airflow/commit/6b9214508ae8ff4d6d39e9ecda5138b5ba717ceb>`_  2024-07-11   ``Send important executor logs to task logs in 'AwsBatchExecutor' (#40698)``
+`a11d273af5 <https://github.com/apache/airflow/commit/a11d273af5ec51150e6a9c75bced1dc5446e608a>`_  2024-07-11   ``Fix deferrable AWS SageMaker operators (#40706)``
+`aca140a2c1 <https://github.com/apache/airflow/commit/aca140a2c1c96d2b880b15534524c76ce8441429>`_  2024-07-10   ``Send important executor logs to task logs (#40468)``
+`224cb75be1 <https://github.com/apache/airflow/commit/224cb75be10f71e34b4a81a9f4b7ed43f2f25db6>`_  2024-07-10   ``Make 'AwsAuthManager' compatible with only Airflow >= 2.9 (#40690)``
+`c627311863 <https://github.com/apache/airflow/commit/c62731186385925da82aecb728b61a7b194eafaa>`_  2024-07-10   ``feat(aws): provide the context to check_fn in S3 sensor (#40686)``
+`0d0cfec70d <https://github.com/apache/airflow/commit/0d0cfec70d19a2ff752275d428e9a5f51c4d0906>`_  2024-07-09   ``Add serialization opt to s3 operator (#40659)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `d2b61976a4 <https://github.com/apache/airflow/commit/d2b61976a4f8f73286906e2a6884d836a11fe4fb>`_  2024-07-08   ``Share data loader to across asyncio boto sessions (#40658)``
 `c72920af3b <https://github.com/apache/airflow/commit/c72920af3be5f0590c832d23633acbf4765e9eb3>`_  2024-07-06   ``Do not dynamically determine op links for emr serverless (#40627)``
 `b7d0bf9800 <https://github.com/apache/airflow/commit/b7d0bf9800974e2029a777e20417e3498e665503>`_  2024-07-04   ``fix OpenLineage extraction for AthenaOperator (#40545)``
