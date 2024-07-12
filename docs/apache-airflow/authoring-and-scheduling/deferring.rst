@@ -210,7 +210,7 @@ This is particularly useful when deferring is the only thing the ``execute`` met
             # We have no more work to do here. Mark as complete.
             return
 
-To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name. For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work.
+To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name. For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work. Note that this works different from mapping an operator without ``start_from_trigger`` support. The whole ``__init__`` method is skipped when mapping an operator whose ``start_from_trigger`` is set to True. Only argument ``trigger_kwargs`` is used and passed into ``trigger_cls``.
 
 .. code-block:: python
 
