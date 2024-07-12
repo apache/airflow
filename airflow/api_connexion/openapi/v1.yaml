@@ -1952,14 +1952,15 @@ paths:
       - $ref: "#/components/parameters/TaskTryNumber"
       - $ref: "#/components/parameters/FullContent"
       - $ref: "#/components/parameters/FilterMapIndex"
-      - $ref: "#/components/parameters/PageNumber"
+      - $ref: "#/components/parameters/Offset"
+      - $ref: "#/components/parameters/Limit"
       - $ref: "#/components/parameters/ContinuationToken"
 
     get:
       summary: Get logs
       description: |
         Get logs for a specific task instance and its try number.
-        To get log from specific character position, following way of using
+        To get log from a specific character position, the following way of using
         URLSafeSerializer can be used.
 
         Example:
@@ -1969,7 +1970,7 @@ paths:
         request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
         key = app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
-        token = serializer.dumps({"log_pos": 10000})
+        token = serializer.dumps({"offset": 10000})
 
         response = self.client.get(
             request_url,
@@ -1978,12 +1979,12 @@ paths:
             environ_overrides={"REMOTE_USER": "test"},
         )
         continuation_token = response.json["continuation_token"]
-            metadata = URLSafeSerializer(key).loads(continuation_token)
-            log_pos = metadata["log_pos"]
-            end_of_log = metadata["end_of_log"]
+        metadata = URLSafeSerializer(key).loads(continuation_token)
+        offset = metadata["offset"]
+        end_of_log = metadata["end_of_log"]
         ```
-        If log_pos is passed as 10000 like the above example, it renders the logs starting
-        from char position 10000 to last (not the end as the logs may be tailing behind in
+        If offset is passed as 10000 like the above example, it renders the logs starting
+        from char position 10000 to the last (not the end as the logs may be tailing behind in
         running state). This way pagination can be done with metadata as part of the token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
       operationId: get_log
@@ -5434,14 +5435,19 @@ components:
         A full content will be returned.
         By default, only the first fragment will be returned.
 
-    PageNumber:
+    Offset:
+      name: offset
       in: query
-      name: page_number
       schema:
         type: integer
-      required: false
-      description: |
-        Task log page number
+        default: 0
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 1000
 
     ContinuationToken:
       in: query

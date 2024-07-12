@@ -611,7 +611,7 @@ export interface paths {
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
     /**
      * Get logs for a specific task instance and its try number.
-     * To get log from specific character position, following way of using
+     * To get log from a specific character position, the following way of using
      * URLSafeSerializer can be used.
      *
      * Example:
@@ -621,7 +621,7 @@ export interface paths {
      * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
      * key = app.config["SECRET_KEY"]
      * serializer = URLSafeSerializer(key)
-     * token = serializer.dumps({"log_pos": 10000})
+     * token = serializer.dumps({"offset": 10000})
      *
      * response = self.client.get(
      *     request_url,
@@ -630,12 +630,12 @@ export interface paths {
      *     environ_overrides={"REMOTE_USER": "test"},
      * )
      * continuation_token = response.json["continuation_token"]
-     *     metadata = URLSafeSerializer(key).loads(continuation_token)
-     *     log_pos = metadata["log_pos"]
-     *     end_of_log = metadata["end_of_log"]
+     * metadata = URLSafeSerializer(key).loads(continuation_token)
+     * offset = metadata["offset"]
+     * end_of_log = metadata["end_of_log"]
      * ```
-     * If log_pos is passed as 10000 like the above example, it renders the logs starting
-     * from char position 10000 to last (not the end as the logs may be tailing behind in
+     * If offset is passed as 10000 like the above example, it renders the logs starting
+     * from char position 10000 to the last (not the end as the logs may be tailing behind in
      * running state). This way pagination can be done with metadata as part of the token.
      */
     get: operations["get_log"];
@@ -658,8 +658,8 @@ export interface paths {
         full_content?: components["parameters"]["FullContent"];
         /** Filter on map index for mapped task. */
         map_index?: components["parameters"]["FilterMapIndex"];
-        /** Task log page number */
-        page_number?: components["parameters"]["PageNumber"];
+        offset?: components["parameters"]["Offset"];
+        limit?: components["parameters"]["Limit"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -2522,8 +2522,8 @@ export interface components {
      * By default, only the first fragment will be returned.
      */
     FullContent: boolean;
-    /** @description Task log page number */
-    PageNumber: number;
+    Offset: number;
+    Limit: number;
     /**
      * @description A token that allows you to continue fetching logs.
      * If passed, it will specify the location from which the download should be continued.
@@ -4480,7 +4480,7 @@ export interface operations {
   };
   /**
    * Get logs for a specific task instance and its try number.
-   * To get log from specific character position, following way of using
+   * To get log from a specific character position, the following way of using
    * URLSafeSerializer can be used.
    *
    * Example:
@@ -4490,7 +4490,7 @@ export interface operations {
    * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
    * key = app.config["SECRET_KEY"]
    * serializer = URLSafeSerializer(key)
-   * token = serializer.dumps({"log_pos": 10000})
+   * token = serializer.dumps({"offset": 10000})
    *
    * response = self.client.get(
    *     request_url,
@@ -4499,12 +4499,12 @@ export interface operations {
    *     environ_overrides={"REMOTE_USER": "test"},
    * )
    * continuation_token = response.json["continuation_token"]
-   *     metadata = URLSafeSerializer(key).loads(continuation_token)
-   *     log_pos = metadata["log_pos"]
-   *     end_of_log = metadata["end_of_log"]
+   * metadata = URLSafeSerializer(key).loads(continuation_token)
+   * offset = metadata["offset"]
+   * end_of_log = metadata["end_of_log"]
    * ```
-   * If log_pos is passed as 10000 like the above example, it renders the logs starting
-   * from char position 10000 to last (not the end as the logs may be tailing behind in
+   * If offset is passed as 10000 like the above example, it renders the logs starting
+   * from char position 10000 to the last (not the end as the logs may be tailing behind in
    * running state). This way pagination can be done with metadata as part of the token.
    */
   get_log: {
@@ -4527,8 +4527,8 @@ export interface operations {
         full_content?: components["parameters"]["FullContent"];
         /** Filter on map index for mapped task. */
         map_index?: components["parameters"]["FilterMapIndex"];
-        /** Task log page number */
-        page_number?: components["parameters"]["PageNumber"];
+        offset?: components["parameters"]["Offset"];
+        limit?: components["parameters"]["Limit"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.

@@ -214,9 +214,9 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 1, metadata={"end_of_log": False}),
+                mock.call(self.ti, 1, metadata={}, offset=0, limit=1000),
+                mock.call(self.ti, 1, metadata={}, offset=0, limit=1000),
+                mock.call(self.ti, 1, metadata={"end_of_log": False}, offset=0, limit=1000),
             ],
             any_order=False,
         )
@@ -235,9 +235,9 @@ class TestLogView:
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 2, metadata={}),
-                mock.call(self.ti, 3, metadata={}),
+                mock.call(self.ti, 1, metadata={}, offset=0, limit=1000),
+                mock.call(self.ti, 2, metadata={}, offset=0, limit=1000),
+                mock.call(self.ti, 3, metadata={}, offset=0, limit=1000),
             ],
             any_order=False,
         )
@@ -308,3 +308,40 @@ class TestLogView:
 
         reader = TaskLogReader()
         assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
+
+    def test_read_log_chunks_with_pagination(self):
+        task_log_reader = TaskLogReader()
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+
+        # First chunk
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=ti, try_number=1, metadata={}, offset=0, limit=13
+        )
+        assert logs == [
+            [
+                (
+                    "localhost",
+                    "*** Found local files:\n"
+                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                    "try_number=1.",
+                )
+            ]
+        ]
+        assert metadatas == {"end_of_log": False, "log_pos": 13}
+
+        # Second chunk
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=ti, try_number=1, metadata={}, offset=13, limit=13
+        )
+        assert list(logs) == [
+            [
+                (
+                    "localhost",
+                    "*** Found local files:\n"
+                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                    "try_number=1.",
+                )
+            ]
+        ]
+        assert metadatas == {"end_of_log": True, "log_pos": 26}

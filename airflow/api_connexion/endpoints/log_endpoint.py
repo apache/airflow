@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from math import ceil
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from flask import Response, request
 from itsdangerous.exc import BadSignature
@@ -53,7 +53,8 @@ def get_log(
     task_try_number: int,
     full_content: bool = False,
     map_index: int = -1,
-    page_number: int | None = None,
+    offset: int | None = None,
+    limit: int | None = None,
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -79,6 +80,7 @@ def get_log(
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
+
     query = (
         select(TaskInstance)
         .where(
@@ -104,20 +106,17 @@ def get_log(
 
     return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
 
-    # return_type would be either the above two or None
-    logs: Any
+    # Adjust for both JSON and streaming responses
     if return_type == "application/json" or return_type is None:  # default
         logs, metadata = task_log_reader.read_log_chunks(
-            ti, task_try_number, metadata, page_number=page_number
+            ti, task_try_number, metadata, offset=offset, limit=limit
         )
         logs = logs[0] if task_try_number is not None else logs
-        # we must have token here, so we can safely ignore it
-        token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
+        token = URLSafeSerializer(key).dumps(metadata)
         return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
-    # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
-
-    return Response(logs, headers={"Content-Type": return_type})
+    else:  # text/plain streaming
+        logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+        return Response(logs, headers={"Content-Type": return_type})
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
