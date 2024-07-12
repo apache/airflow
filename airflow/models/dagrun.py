@@ -1175,7 +1175,7 @@ class DagRun(Base, LoggingMixin):
         Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
-    def verify_integrity(self, *, session: Session = NEW_SESSION, run_type=None) -> None:
+    def verify_integrity(self, *, session: Session = NEW_SESSION, skip_task_filter: Boolean = False) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
@@ -1195,21 +1195,23 @@ class DagRun(Base, LoggingMixin):
             dag, task_instance_mutation_hook, session=session
         )
 
-        def task_filter(task: Operator, run_type=None) -> bool:
+        def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill
                 or (
                     (task.start_date is None or task.start_date >= self.execution_date)
                     and (task.end_date is None or self.execution_date <= task.end_date)
                 )
-                or (run_type == "MANUAL")
             )
 
         created_counts: dict[str, int] = defaultdict(int)
         task_creator = self._get_task_creator(created_counts, task_instance_mutation_hook, hook_is_noop)
 
         # Create the missing tasks, including mapped tasks
-        tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
+        if skip_task_filter:
+            tasks_to_create = (task for task in dag.task_dict.values())
+        else:
+            tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
         tis_to_create = self._create_tasks(tasks_to_create, task_creator, session=session)
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
 
