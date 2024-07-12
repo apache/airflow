@@ -372,10 +372,15 @@ class TestBatchOperator:
                             "labels": {
                                 "string": "string"
                             },
-                        },
+                        }, 
                     },
                 ]
-            }
+            },
+            "parameters": {},                                              
+            "retryStrategy": {                                             
+                "attempts": 1,                                               
+            },                                                             
+            "tags": {},   
         )
 
     @mock.patch.object(BatchClientHook, "check_job_success")
