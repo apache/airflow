@@ -328,7 +328,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             return str(keytab_path)
         except Exception as err:
             self.log.error("Failed to save keytab: %s", err)
-            raise
+            raise AirflowException("Failed to save keytab") from err
         finally:
             if staging_path.exists():
                 self.log.info("Removing staging keytab file: %s", staging_path)
