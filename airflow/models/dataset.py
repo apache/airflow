@@ -291,6 +291,18 @@ dataset_alias_dataset_event_assocation_table = Table(
     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_dataset_alias_dataset_event_alias_id", "alias_id"),
     Index("idx_dataset_alias_dataset_event_event_id", "event_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="dss_de_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("event_id",),
+        ["dataset_event.id"],
+        name="dss_de_event_id",
+        ondelete="CASCADE",
+    ),
 )
 
 
