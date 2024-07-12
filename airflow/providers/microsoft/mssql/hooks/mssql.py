@@ -68,15 +68,6 @@ class MsSqlHook(DbApiHook):
         return self.get_connection(getattr(self, self.conn_name_attr))
 
     @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of mssql params.
-        """
-        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
-
-    @property
     def sqlalchemy_scheme(self) -> str:
         """Sqlalchemy scheme either from constructor, connection extras or default."""
         extra_scheme = self.connection_extra_lower.get("sqlalchemy_scheme")
