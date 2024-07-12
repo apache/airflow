@@ -809,7 +809,11 @@ def test_access_control_with_invalid_permission(app, security_manager):
                     "access_control_test",
                     access_control={rolename: {permissions.RESOURCE_DAG_RUN: {action}}},
                 )
-            assert "invalid permissions" in str(ctx.value)
+            if hasattr(permissions, "resource_name"):
+                assert "invalid permission" in str(ctx.value)
+            else:
+                # Test with old airflow running new FAB
+                assert "invalid resource name" in str(ctx.value)
 
 
 def test_access_control_is_set_on_init(
@@ -911,7 +915,11 @@ def test_correct_roles_have_perms_to_read_config(security_manager):
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
-    access_control = {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
+    access_control = (
+        {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
+        if hasattr(permissions, "resource_name")
+        else {"Public": {permissions.ACTION_CAN_READ}}
+    )
 
     collect_dags_from_db_mock = mock.Mock()
     dagbag_mock = mock.Mock()

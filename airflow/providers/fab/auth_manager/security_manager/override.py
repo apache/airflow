@@ -1133,6 +1133,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def _resource_name(self, dag_id: str, resource_name: str) -> str:
         """
+        Get the resource name from permissions
+
         This method is to keep compatibility with new FAB versions
         running with old airflow versions.
         """
