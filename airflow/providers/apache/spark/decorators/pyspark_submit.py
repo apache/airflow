@@ -103,21 +103,22 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
                 UserWarning,
                 stacklevel=2,
             )
-        for key in SPARK_CONTEXT_KEYS:
-            if key in op_kwargs:
-                if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
-                    raise AirflowException(
+        if op_kwargs:
+            for key in SPARK_CONTEXT_KEYS:
+                if key in op_kwargs:
+                    if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
+                        raise AirflowException(
+                            f"Invalid key '{key}' in op_kwargs. You don't need to set it because it's a "
+                            "variable that will be automatically set within the Python process of the Spark "
+                            "job submitted via spark-submit."
+                        )
+                    warnings.warn(
                         f"Invalid key '{key}' in op_kwargs. You don't need to set it because it's a "
                         "variable that will be automatically set within the Python process of the Spark "
-                        "job submitted via spark-submit."
+                        "job submitted via spark-submit.",
+                        UserWarning,
+                        stacklevel=2,
                     )
-                warnings.warn(
-                    f"Invalid key '{key}' in op_kwargs. You don't need to set it because it's a "
-                    "variable that will be automatically set within the Python process of the Spark "
-                    "job submitted via spark-submit.",
-                    UserWarning,
-                    stacklevel=2,
-                )
 
         super().__init__(
             python_callable=python_callable,
