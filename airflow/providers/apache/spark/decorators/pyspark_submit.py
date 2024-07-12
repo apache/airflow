@@ -104,7 +104,7 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
                 stacklevel=2,
             )
         for key in SPARK_CONTEXT_KEYS:
-            if key in kwargs:
+            if key in op_kwargs:
                 if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
                     raise AirflowException(
                         f"Invalid key '{key}' in op_kwargs. You don't need to set it because it's a "

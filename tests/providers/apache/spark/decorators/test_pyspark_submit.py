@@ -137,6 +137,16 @@ class TestPysparkSubmitDecorator:
         )
         assert use_spark_session_block in pyspark_source
 
+    @conf_vars({("operators", "ALLOW_ILLEGAL_ARGUMENTS"): "false"})
+    def test_pyspark_submit_decorator_when_spark_in_op_kwargs(self):
+        @task.pyspark_submit(conn_id="pyspark_local")
+        def f(spark):
+            print(spark)
+
+        with pytest.raises(AirflowException) as ctx:
+            f(spark=1)
+        assert "Invalid key 'spark' in op_kwargs." in str(ctx.value)
+
     def test_pyspark_submit_decorator_with_sc_params(self):
         @task.pyspark_submit(conn_id="pyspark_local")
         def f(sc):
