@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, cast
 from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
 
-from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -34,6 +33,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.security import permissions
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -392,14 +392,19 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 
     default_view = "repair"
 
-    @expose("/repair_databricks_job", methods=("GET",))
-    @auth.has_access_dag("POST", DagAccessEntity.RUN)
-    def repair(self):
-        dag_id = request.values.get("dag_id")
-        if not dag_id:
-            return_url = request.referrer or url_for("Airflow.index")
-            flash("No dag_id provided. Cannot repair tasks.")
-            return redirect(return_url)
+    @expose("/repair_databricks_job/<string:dag_id>/<string:run_id>", methods=("GET",))
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
+    def repair(self, dag_id: str, run_id: str):
+        # dag_id = request.values.get("dag_id")
+        # if not dag_id:
+        #     return_url = request.referrer or url_for("Airflow.index")
+        #     flash("No dag_id provided. Cannot repair tasks.")
+        #     return redirect(return_url)
 
         view = conf.get("webserver", "dag_default_view")
         return_url = self._get_return_url(dag_id, view)
@@ -412,7 +417,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 
         databricks_conn_id = request.values.get("databricks_conn_id")
         databricks_run_id = request.values.get("databricks_run_id")
-        run_id = request.values.get("run_id")
+        # run_id = request.values.get("run_id")
 
         if not databricks_conn_id:
             flash("No Databricks connection ID provided. Cannot repair tasks.")
@@ -422,9 +427,9 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
             flash("No Databricks run ID provided. Cannot repair tasks.")
             return redirect(return_url)
 
-        if not run_id:
-            flash("No run ID provided. Cannot repair tasks.")
-            return redirect(return_url)
+        # if not run_id:
+        #     flash("No run ID provided. Cannot repair tasks.")
+        #     return redirect(return_url)
 
         run_id = run_id.replace(" ", "+")  # Replace spaces with + to avoid URL encoding issues
 
@@ -450,8 +455,8 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 repair_databricks_view = RepairDatabricksTasks()
 
 repair_databricks_package = {
-    "name": "Repair Databricks View",
-    "category": None,
+    # "name": "Repair Databricks View",
+    # "category": None,
     "view": repair_databricks_view,
 }
 
