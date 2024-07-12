@@ -47,6 +47,18 @@ alias_association_table = Table(
     Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_dataset_alias_dataset_alias_id", "alias_id"),
     Index("idx_dataset_alias_dataset_alias_dataset_id", "dataset_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="ds_dsa_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("dataset_id",),
+        ["dataset.id"],
+        name="ds_dsa_dataset_id",
+        ondelete="CASCADE",
+    ),
 )
 
 
