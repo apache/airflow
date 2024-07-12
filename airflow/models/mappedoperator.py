@@ -689,7 +689,7 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+        self, context: Context, session: Session, *, include_xcom: bool
     ) -> tuple[Mapping[str, Any], set[int]]:
         """
         Get the kwargs to create the unmapped operator.
@@ -812,7 +812,7 @@ class MappedOperator(AbstractOperator):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
             elif resolve is not None:
-                kwargs, _ = self._expand_mapped_kwargs(*resolve)
+                kwargs, _ = self._expand_mapped_kwargs(*resolve, include_xcom=True)
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
@@ -907,7 +907,7 @@ class MappedOperator(AbstractOperator):
         # set_current_task_session context manager to store the session in the current task.
         session = get_current_task_instance_session()
 
-        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session, include_xcom=True)
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 

@@ -551,7 +551,7 @@ class DecoratedMappedOperator(MappedOperator):
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
     def _expand_mapped_kwargs(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+        self, context: Context, session: Session, *, include_xcom: bool
     ) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
