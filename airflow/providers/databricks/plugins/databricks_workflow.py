@@ -20,9 +20,11 @@ from __future__ import annotations
 import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import unquote
 
 from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
+from packaging.version import Version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
@@ -39,6 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+from airflow.version import version
 from airflow.www import auth
 from airflow.www.views import AirflowBaseView
 
@@ -50,6 +53,21 @@ REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
 REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
 
 airflow_app = cast(AirflowApp, current_app)
+
+
+def get_auth_decorator():
+    # TODO: remove this if block when min_airflow_version is set to higher than 2.8.0
+    if Version(version) < Version("2.8"):
+        return auth.has_access(
+            [
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            ]
+        )
+
+    from airflow.auth.managers.models.resource_details import DagAccessEntity
+
+    return auth.has_access_dag("POST", DagAccessEntity.RUN)
 
 
 def _get_databricks_task_id(task: BaseOperator) -> str:
@@ -393,19 +411,8 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
     default_view = "repair"
 
     @expose("/repair_databricks_job/<string:dag_id>/<string:run_id>", methods=("GET",))
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-        ]
-    )
+    @get_auth_decorator()
     def repair(self, dag_id: str, run_id: str):
-        # dag_id = request.values.get("dag_id")
-        # if not dag_id:
-        #     return_url = request.referrer or url_for("Airflow.index")
-        #     flash("No dag_id provided. Cannot repair tasks.")
-        #     return redirect(return_url)
-
         view = conf.get("webserver", "dag_default_view")
         return_url = self._get_return_url(dag_id, view)
 
@@ -417,7 +424,6 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 
         databricks_conn_id = request.values.get("databricks_conn_id")
         databricks_run_id = request.values.get("databricks_run_id")
-        # run_id = request.values.get("run_id")
 
         if not databricks_conn_id:
             flash("No Databricks connection ID provided. Cannot repair tasks.")
@@ -426,12 +432,6 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
         if not databricks_run_id:
             flash("No Databricks run ID provided. Cannot repair tasks.")
             return redirect(return_url)
-
-        # if not run_id:
-        #     flash("No run ID provided. Cannot repair tasks.")
-        #     return redirect(return_url)
-
-        run_id = run_id.replace(" ", "+")  # Replace spaces with + to avoid URL encoding issues
 
         self.log.info("Repairing databricks job %s", databricks_run_id)
         res = _repair_task(
@@ -443,6 +443,8 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
         self.log.info("Repairing databricks job query for run %s sent", databricks_run_id)
 
         self.log.info("Clearing tasks to rerun in airflow")
+
+        run_id = unquote(run_id)
         _clear_task_instances(dag_id, run_id, tasks_to_repair.split(","), self.log)
         flash(f"Databricks repair job is starting!: {res}")
         return redirect(return_url)
@@ -455,8 +457,6 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 repair_databricks_view = RepairDatabricksTasks()
 
 repair_databricks_package = {
-    # "name": "Repair Databricks View",
-    # "category": None,
     "view": repair_databricks_view,
 }
 
