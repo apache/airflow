@@ -66,9 +66,12 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
     """
 
-    def execute(self, context: Context) -> NoReturn:
+    def execute(self, context: Context) -> bool | NoReturn:
         target_dttm = context["data_interval_end"]
         target_dttm += self.delta
+        if timezone.utcnow() > target_dttm:
+            # If the target datetime is in the past, return immediately
+            return True
         try:
             trigger = DateTimeTrigger(moment=target_dttm)
         except (TypeError, ValueError) as e:
