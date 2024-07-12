@@ -1194,21 +1194,21 @@ class DagRun(Base, LoggingMixin):
             dag, task_instance_mutation_hook, session=session
         )
 
-        def task_filter(task: Operator) -> bool:
+        def task_filter(task: Operator, skip_task_filter: Boolean = False) -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill
-                or (task.start_date is None or task.start_date <= self.execution_date)
-                and (task.end_date is None or self.execution_date <= task.end_date)
+                or (
+                    (task.start_date is None or task.start_date <= self.execution_date)
+                    and (task.end_date is None or self.execution_date <= task.end_date)
+                )
+                or skip_task_filter
             )
 
         created_counts: dict[str, int] = defaultdict(int)
         task_creator = self._get_task_creator(created_counts, task_instance_mutation_hook, hook_is_noop)
 
         # Create the missing tasks, including mapped tasks
-        if skip_task_filter:
-            tasks_to_create = (task for task in dag.task_dict.values())
-        else:
-            tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
+        tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task, skip_task_filter))
         tis_to_create = self._create_tasks(tasks_to_create, task_creator, session=session)
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
 
