@@ -291,7 +291,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
-            conn_data["principal"] = self._principal if self._principal else extra.get("principal")
+            conn_data["principal"] = self._principal or extra.get("principal")
             conn_data["keytab"] = self._keytab
             base64_keytab = extra.get("keytab")
             if base64_keytab is not None:
