@@ -89,7 +89,7 @@ RESOURCE_DETAILS_MAP = {
     ),
 }
 PREFIX_RESOURCES_MAP = {
-    prefix: resource for resource, actions in RESOURCE_DETAILS_MAP.items() for prefix in actions["prefix"]
+    details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()
 }
 
 
