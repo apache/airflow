@@ -292,10 +292,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
             conn_data["principal"] = self._principal if self._principal else extra.get("principal")
+            conn_data["keytab"] = self._keytab
             base64_keytab = extra.get("keytab")
-            if self._keytab is not None:
-                conn_data["keytab"] = self._keytab
-            elif base64_keytab is not None:
+            if base64_keytab is not None:
                 conn_data["keytab"] = self._get_keytab_from_base64(base64_keytab)
         except AirflowException:
             self.log.info(
