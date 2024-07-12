@@ -37,7 +37,7 @@ class CommonSchema(Schema):
 
 
 class TestSpecSchema(CommonSchema):
-    environment_specification_file_path = fields.Str(required=True)
+    instance_specification_file_path = fields.Str(required=True)
     randomize_environment_name = fields.Boolean()
 
     @post_load
@@ -88,36 +88,30 @@ class DefaultValues:
     def validate(self):
         if not os.path.isfile(self.elastic_dag_config_file_path):
             raise ValueError(
-                f"Elastic dag configuration file "
-                f"'{self.elastic_dag_config_file_path}' does not exist."
+                f"Elastic dag configuration file " f"'{self.elastic_dag_config_file_path}' does not exist."
             )
 
         if not any({self.output_path, self.results_bucket, self.results_dataset}):
-            raise KeyError(
-                f"Please provide at least one argument to store results "
-                f"for study component."
-            )
+            raise KeyError(f"Please provide at least one argument to store results " f"for study component.")
 
 
 class TestSpec(DefaultValues):
     def __init__(
         self,
         *,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         randomize_environment_name: Optional[bool] = None,
         ci_build_id: Optional[str] = None,
         script_user: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.environment_specification_file_path = environment_specification_file_path
+        self.instance_specification_file_path = instance_specification_file_path
         self.randomize_environment_name = (randomize_environment_name,)
         self.ci_build_id = ci_build_id
         self.script_user = script_user
 
-        self.environment_type = PerformanceTest.get_environment_type(
-            self.environment_specification_file_path
-        )
+        self.environment_type = PerformanceTest.get_instance_type(self.instance_specification_file_path)
 
     def __str__(self):
         return f"<TestSpec>: \n{pformat(TestSpecSchema().dump(self), indent=2, compact=True)}"
@@ -125,10 +119,10 @@ class TestSpec(DefaultValues):
     def validate(self):
         super().validate()
 
-        if not os.path.isfile(self.environment_specification_file_path):
+        if not os.path.isfile(self.instance_specification_file_path):
             raise ValueError(
                 f"Environment specification file "
-                f"'{self.environment_specification_file_path}' "
+                f"'{self.instance_specification_file_path}' "
                 f"does not exist."
             )
 

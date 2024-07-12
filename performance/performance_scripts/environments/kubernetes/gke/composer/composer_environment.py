@@ -74,7 +74,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
@@ -87,16 +87,16 @@ class ComposerEnvironment(GKEBasedEnvironment):
         """
         Creates an instance of ComposerEnvironment.
 
-        :param environment_specification_file_path: path to the json file with specification
+        :param instance_specification_file_path: path to the json file with specification
             of Composer environment. Contents of this json file will be used in a request creating
             the environment instance.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_path: a path to elastic DAG file copies of which should be uploaded
             to the storage of given Composer instance.
         :type elastic_dag_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from environment_specification_file_path.
+            from instance_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -124,8 +124,11 @@ class ComposerEnvironment(GKEBasedEnvironment):
             namespace_prefix=None,
             pod_prefix=STATS_COLLECTOR_POD_PREFIX,
             container_name=STATS_COLLECTOR_CONTAINER_NAME,
-            system_namespaces=[COMPOSER2_SYSTEM_NAMESPACE, COMPOSER2_USER_WORKLOADS_NAMESPACE,
-                               COMPOSER3_WORKLOADS_NAMESPACE],
+            system_namespaces=[
+                COMPOSER2_SYSTEM_NAMESPACE,
+                COMPOSER2_USER_WORKLOADS_NAMESPACE,
+                COMPOSER3_WORKLOADS_NAMESPACE,
+            ],
         )
 
         self.elastic_dag_path = elastic_dag_path
@@ -143,7 +146,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
             self.location_id,
             self.environment_id,
         ) = self.load_specification(
-            environment_specification_file_path,
+            instance_specification_file_path,
             elastic_dag_config_file_path,
             jinja_variables_dict,
         )
@@ -273,8 +276,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         if match is None:
             raise ValueError(
-                f"Environment id '{environment_id}' "
-                f"does not match the regex: {ENVIRONMENT_ID_REGEX}"
+                f"Environment id '{environment_id}' " f"does not match the regex: {ENVIRONMENT_ID_REGEX}"
             )
 
     @staticmethod
@@ -292,7 +294,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
     def prepare_specifications_for_multiple_test_attempts(
         cls,
         number_of_copies: int,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
         randomize_environment_name: bool = True,
@@ -303,12 +305,12 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         :param number_of_copies: number of copies of the specification that should be prepared.
         :type number_of_copies: int
-        :param environment_specification_file_path: path to the file with specification
+        :param instance_specification_file_path: path to the file with specification
             of Composer environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from environment_specification_file_path.
+            from instance_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -337,7 +339,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
                 location_id,
                 environment_id,
             ) = cls.load_specification(
-                environment_specification_file_path,
+                instance_specification_file_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
             )
@@ -346,7 +348,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
                 "Error occurred when reading environment specification file: %s\n"
                 "Provided elastic dag config file: %s\n"
                 "Provided jinja_variables_dict: %s",
-                environment_specification_file_path,
+                instance_specification_file_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
             )
@@ -370,13 +372,9 @@ class ComposerEnvironment(GKEBasedEnvironment):
             )
             # TODO: need better check that would involve IP ranges and networks
             if private:
-                specifications_to_run_in_sequence.append(
-                    (new_environment_specification, new_environment_id)
-                )
+                specifications_to_run_in_sequence.append((new_environment_specification, new_environment_id))
             else:
-                specifications_to_run_in_parallel.append(
-                    (new_environment_specification, new_environment_id)
-                )
+                specifications_to_run_in_parallel.append((new_environment_specification, new_environment_id))
 
         return specifications_to_run_in_parallel, specifications_to_run_in_sequence
 
@@ -386,7 +384,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
     @classmethod
     def load_specification(
         cls,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
     ) -> Tuple[Dict, str, str, str]:
@@ -394,12 +392,12 @@ class ComposerEnvironment(GKEBasedEnvironment):
         Loads the files under specified paths, validates their contents and returns Composer
         environment specification and other environment related values.
 
-        :param environment_specification_file_path: path to the file with specification
+        :param instance_specification_file_path: path to the file with specification
             of Composer environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from environment_specification_file_path.
+            from instance_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -426,12 +424,10 @@ class ComposerEnvironment(GKEBasedEnvironment):
         }
 
         if "environment_id" not in jinja_variables_to_use:
-            jinja_variables_to_use["environment_id"] = cls.construct_environment_id(
-                jinja_variables_to_use
-            )
+            jinja_variables_to_use["environment_id"] = cls.construct_environment_id(jinja_variables_to_use)
 
         environment_specification = read_templated_json_file(
-            environment_specification_file_path, jinja_variables_to_use
+            instance_specification_file_path, jinja_variables_to_use
         )
 
         if not isinstance(environment_specification, Dict):
@@ -453,14 +449,10 @@ class ComposerEnvironment(GKEBasedEnvironment):
             )
 
         add_perf_start_date_env_to_conf(
-            environment_specification["config_body"]["config"]["softwareConfig"][
-                "envVariables"
-            ]
+            environment_specification["config_body"]["config"]["softwareConfig"]["envVariables"]
         )
         validate_elastic_dag_conf(
-            environment_specification["config_body"]["config"]["softwareConfig"][
-                "envVariables"
-            ]
+            environment_specification["config_body"]["config"]["softwareConfig"]["envVariables"]
         )
 
         # collect and check the environment id
@@ -495,10 +487,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
             raise KeyError("Composer configuration must contain 'config' key.")
 
         if not isinstance(config_body["config"], Dict):
-            raise TypeError(
-                "In composer configuration a dictionary is expected "
-                "under 'config' key."
-            )
+            raise TypeError("In composer configuration a dictionary is expected " "under 'config' key.")
 
         if "softwareConfig" not in config_body["config"]:
             raise KeyError(
@@ -508,16 +497,13 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         if not isinstance(config_body["config"]["softwareConfig"], Dict):
             raise TypeError(
-                "In composer configuration a dictionary is expected "
-                "under 'config' -> 'softwareConfig'."
+                "In composer configuration a dictionary is expected " "under 'config' -> 'softwareConfig'."
             )
 
         if "envVariables" not in config_body["config"]["softwareConfig"]:
             config_body["config"]["softwareConfig"]["envVariables"] = {}
 
-        if not isinstance(
-            config_body["config"]["softwareConfig"]["envVariables"], Dict
-        ):
+        if not isinstance(config_body["config"]["softwareConfig"]["envVariables"], Dict):
             raise TypeError(
                 "In composer configuration a dictionary is expected "
                 "under 'config' -> 'softwareConfig' -> 'envVariables'."
@@ -554,9 +540,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
         return project_id, location_id, environment_id
 
     @classmethod
-    def fill_name_form(
-        cls, project_id: str, location_id: str, environment_id: str
-    ) -> str:
+    def fill_name_form(cls, project_id: str, location_id: str, environment_id: str) -> str:
         """
         Returns full name of the Composer environment, filling the template with the provided ids.
         """
@@ -581,42 +565,24 @@ class ComposerEnvironment(GKEBasedEnvironment):
         to move the performance test forward.
         """
         return {
-            State.NONE: Action(
-                self.prepare_environment, sleep_time=None, retryable=True
-            ),
-            State.WAIT_UNTIL_READY: Action(
-                self.is_composer_instance_ready, sleep_time=60.0, retryable=True
-            ),
+            State.NONE: Action(self.prepare_environment, sleep_time=None, retryable=True),
+            State.WAIT_UNTIL_READY: Action(self.is_composer_instance_ready, sleep_time=60.0, retryable=True),
             State.WAIT_UNTIL_CAN_BE_DELETED: Action(
                 self.is_composer_instance_ready, sleep_time=60.0, retryable=True
             ),
-            State.DELETING_ENV: Action(
-                self._wait_for_deletion, sleep_time=30.0, retryable=True
-            ),
-            State.UPDATE_ENV_INFO: Action(
-                self._update_environment_info, sleep_time=10.0, retryable=True
-            ),
+            State.DELETING_ENV: Action(self._wait_for_deletion, sleep_time=30.0, retryable=True),
+            State.UPDATE_ENV_INFO: Action(self._update_environment_info, sleep_time=10.0, retryable=True),
             State.DEPLOY_STATS_COLLECTOR: Action(
                 self._deploy_stats_collector, sleep_time=10.0, retryable=True
             ),
-            State.RESET_ENV: Action(
-                self._reset_environment, sleep_time=10.0, retryable=True
-            ),
-            State.UPLOAD_DAG: Action(
-                self.upload_dag_files, sleep_time=10.0, retryable=True
-            ),
-            State.WAIT_FOR_DAG: Action(
-                self.check_if_dags_have_loaded, sleep_time=30.0, retryable=True
-            ),
-            State.UNPAUSE_DAG: Action(
-                self.unpause_dags, sleep_time=10.0, retryable=True
-            ),
+            State.RESET_ENV: Action(self._reset_environment, sleep_time=10.0, retryable=True),
+            State.UPLOAD_DAG: Action(self.upload_dag_files, sleep_time=10.0, retryable=True),
+            State.WAIT_FOR_DAG: Action(self.check_if_dags_have_loaded, sleep_time=30.0, retryable=True),
+            State.UNPAUSE_DAG: Action(self.unpause_dags, sleep_time=10.0, retryable=True),
             State.WAIT_FOR_DAG_RUN_EXEC: Action(
                 self.check_dag_run_execution_status, sleep_time=60.0, retryable=True
             ),
-            State.COLLECT_RESULTS: Action(
-                self.collect_results, sleep_time=10.0, retryable=True
-            ),
+            State.COLLECT_RESULTS: Action(self.collect_results, sleep_time=10.0, retryable=True),
         }
 
     @property
@@ -656,8 +622,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         if self.reuse_if_exists:
             log.info(
-                "Environment with name: '%s' already exists. Reusing it as reuse-if-exists "
-                "flag was set.",
+                "Environment with name: '%s' already exists. Reusing it as reuse-if-exists " "flag was set.",
                 self.name,
             )
             return State.WAIT_UNTIL_READY
@@ -785,9 +750,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         if self.reuse_if_exists:
             self.check_and_adjust_config_body(ready_env_config)
-            validate_elastic_dag_conf(
-                ready_env_config["config"]["softwareConfig"]["envVariables"]
-            )
+            validate_elastic_dag_conf(ready_env_config["config"]["softwareConfig"]["envVariables"])
 
         self.config_body = ready_env_config
 
@@ -840,7 +803,9 @@ class ComposerEnvironment(GKEBasedEnvironment):
             api_client = core_api.api_client
             custom_objects_api = CustomObjectsApi(api_client=api_client)
 
-            versioned_namespace = self.remote_runner_provider.find_namespace_with_a_prefix(core_api, self.namespace_prefix, self.system_namespaces)
+            versioned_namespace = self.remote_runner_provider.find_namespace_with_a_prefix(
+                core_api, self.namespace_prefix, self.system_namespaces
+            )
             log.info("Found namespace: %s.", versioned_namespace)
 
             # TODO: extract to constants
@@ -867,20 +832,26 @@ class ComposerEnvironment(GKEBasedEnvironment):
                     namespace=versioned_namespace,
                 ),
                 spec=k8s.V1PodSpec(
-                    containers=[k8s.V1Container(
-                        name="stats-collector",
-                        image=airflow_worker_container["image"],
-                        args=["stats-collector"],
-                        env=airflow_worker_container["env"],
-                    )]),
+                    containers=[
+                        k8s.V1Container(
+                            name="stats-collector",
+                            image=airflow_worker_container["image"],
+                            args=["stats-collector"],
+                            env=airflow_worker_container["env"],
+                        )
+                    ]
+                ),
             )
             if composer_major_version == "2":
-                pod.spec.volumes = [k8s.V1Volume(
-                    name="airflow-config",
-                    config_map=k8s.V1ConfigMapVolumeSource(name="airflow-configmap"))]
-                pod.spec.containers[0].volume_mounts = [k8s.V1VolumeMount(
-                    name="airflow-config",
-                    mount_path="/etc/airflow/airflow_cfg")]
+                pod.spec.volumes = [
+                    k8s.V1Volume(
+                        name="airflow-config",
+                        config_map=k8s.V1ConfigMapVolumeSource(name="airflow-configmap"),
+                    )
+                ]
+                pod.spec.containers[0].volume_mounts = [
+                    k8s.V1VolumeMount(name="airflow-config", mount_path="/etc/airflow/airflow_cfg")
+                ]
             if composer_major_version == "3":
                 pod.spec.runtime_class_name = "gke-node"
                 for env_var in pod.spec.containers[0].env:
@@ -888,8 +859,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
                         env_var["value"] = "airflow-sqlproxy-service.composer-system.svc.cluster.local"
                         break
             sanitized_pod = api_client.sanitize_for_serialization(pod)
-            core_api.create_namespaced_pod(
-                body=sanitized_pod, namespace=versioned_namespace)
+            core_api.create_namespaced_pod(body=sanitized_pod, namespace=versioned_namespace)
 
         return State.UPLOAD_DAG
 
@@ -927,9 +897,10 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         log.info("Uploading dag files to environment %s.", self.name)
 
-        with generate_copies_of_elastic_dag(
-            self.elastic_dag_path, self.get_env_variables()
-        ) as (_, elastic_dag_copies):
+        with generate_copies_of_elastic_dag(self.elastic_dag_path, self.get_env_variables()) as (
+            _,
+            elastic_dag_copies,
+        ):
             self.storage_client.upload_dag_files(
                 dag_file_paths=elastic_dag_copies,
                 bucket_name=bucket_name,
@@ -1051,9 +1022,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
         """
         Extracts version of Apache Airflow from image version.
         """
-        return self.config_body["config"]["softwareConfig"]["imageVersion"].split(
-            "airflow-"
-        )[1]
+        return self.config_body["config"]["softwareConfig"]["imageVersion"].split("airflow-")[1]
 
     def get_node_count(self) -> int:
         """
@@ -1070,7 +1039,9 @@ class ComposerEnvironment(GKEBasedEnvironment):
             apps_api,
             _,
         ):
-            namespace = self.remote_runner_provider.find_namespace_with_a_prefix(core_api, self.namespace_prefix, self.system_namespaces)
+            namespace = self.remote_runner_provider.find_namespace_with_a_prefix(
+                core_api, self.namespace_prefix, self.system_namespaces
+            )
             log.info("Found namespace: %s.", namespace)
             response = apps_api.list_namespaced_deployment(namespace)
             for item in response.to_dict()["items"]:
@@ -1094,18 +1065,16 @@ class ComposerEnvironment(GKEBasedEnvironment):
         """
         Returns True if this instance of Cloud Composer uses Private IP and False otherwise.
         """
-        return self.config_body["config"]["privateEnvironmentConfig"].get(
-            "enablePrivateEnvironment", False
-        )
+        return self.config_body["config"]["privateEnvironmentConfig"].get("enablePrivateEnvironment", False)
 
     def check_if_public_endpoint_enabled(self) -> bool:
         """
         Returns True if this instance of Cloud Composer has access to public master
         endpoint and False otherwise.
         """
-        private_cluster_config = self.config_body["config"][
-            "privateEnvironmentConfig"
-        ].get("privateClusterConfig", {})
+        private_cluster_config = self.config_body["config"]["privateEnvironmentConfig"].get(
+            "privateClusterConfig", {}
+        )
         return not private_cluster_config.get("enablePrivateEndpoint", False)
 
     def check_if_drs_enabled(self) -> bool:
@@ -1117,9 +1086,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
             apps_api,
             _,
         ):
-            deployment = self.remote_runner_provider.get_deployment(
-                apps_api, "gcs-syncd", "default"
-            )
+            deployment = self.remote_runner_provider.get_deployment(apps_api, "gcs-syncd", "default")
         return deployment is not None
 
     def get_airflow_uri(self) -> str:
@@ -1140,9 +1107,7 @@ class ComposerEnvironment(GKEBasedEnvironment):
             f"&project={self.project_id}"
         )
 
-    def get_results_object_name_components(
-        self, results_df: DataFrame
-    ) -> Sequence[str]:
+    def get_results_object_name_components(self, results_df: DataFrame) -> Sequence[str]:
         """
         Gets the sequence of components for the results object's name (file, GCS blob, BQ table)
         based on contents of the results dataframe.
@@ -1158,9 +1123,9 @@ class ComposerEnvironment(GKEBasedEnvironment):
 
         # TODO: this method should not depend on contents of results_df, all required info should
         #  be collected using class methods
-        test_start_day = datetime.strptime(
-            results_df["test_start_date"][0], "%Y-%m-%d %H:%M:%S.%f"
-        ).strftime("%Y%m%d")
+        test_start_day = datetime.strptime(results_df["test_start_date"][0], "%Y-%m-%d %H:%M:%S.%f").strftime(
+            "%Y%m%d"
+        )
         environment_name = results_df["environment_name"][0]
         environment_type = results_df["environment_type"][0]
         composer_version = results_df["composer_version"][0]
@@ -1206,9 +1171,7 @@ class ComposerApi:
     Class dedicated for communicating with Google Cloud Composer service.
     """
 
-    def __init__(
-        self, version: str = DEFAULT_API_VERSION, api_endpoint: Optional[str] = None
-    ) -> None:
+    def __init__(self, version: str = DEFAULT_API_VERSION, api_endpoint: Optional[str] = None) -> None:
         """
         Creates an instance of ComposerApi.
 
@@ -1224,9 +1187,7 @@ class ComposerApi:
         self.version = version
         self.api_endpoint = api_endpoint or ""
         self.client_options = {"api_endpoint": api_endpoint} if api_endpoint else None
-        self.service = build(
-            "composer", self.version, client_options=self.client_options
-        )
+        self.service = build("composer", self.version, client_options=self.client_options)
 
     def get_version(self) -> str:
         """
@@ -1244,9 +1205,7 @@ class ComposerApi:
         """
         Re-instantiates the service object.
         """
-        self.service = build(
-            "composer", self.version, client_options=self.client_options
-        )
+        self.service = build("composer", self.version, client_options=self.client_options)
 
     @handle_broken_pipe_error
     def list_environments(
@@ -1296,9 +1255,7 @@ class ComposerApi:
         :rtype: Dict
         """
 
-        get_environment_request = (
-            self.service.projects().locations().environments().get(name=name)
-        )
+        get_environment_request = self.service.projects().locations().environments().get(name=name)
         response = get_environment_request.execute()
         return response
 
@@ -1318,10 +1275,7 @@ class ComposerApi:
         """
 
         create_environment_request = (
-            self.service.projects()
-            .locations()
-            .environments()
-            .create(parent=parent, body=body)
+            self.service.projects().locations().environments().create(parent=parent, body=body)
         )
         response = create_environment_request.execute()
         return response
@@ -1339,8 +1293,6 @@ class ComposerApi:
         :rtype: Dict
         """
 
-        delete_environment_request = (
-            self.service.projects().locations().environments().delete(name=name)
-        )
+        delete_environment_request = self.service.projects().locations().environments().delete(name=name)
         response = delete_environment_request.execute()
         return response

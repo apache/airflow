@@ -9,20 +9,16 @@ import os
 
 from performance_scripts.performance_test import PerformanceTest
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 DUMPED_JSON_ARGUMENTS = ("jinja_variables", "results_columns")
 FILE_PATH_ARGUMENTS = (
-    "environment_specification_file_path",
+    "instance_specification_file_path",
     "output_path",
 )
-ELASTIC_DAG_PATH = os.path.join(
-    os.path.dirname(__file__), "performance_dags/elastic_dag/elastic_dag.py"
-)
+ELASTIC_DAG_PATH = os.path.join(os.path.dirname(__file__), "performance_dags/elastic_dag/elastic_dag.py")
 
 
 def get_run_performance_test_argument_parser() -> argparse.ArgumentParser:
@@ -71,38 +67,6 @@ def get_run_performance_test_argument_parser() -> argparse.ArgumentParser:
         "with the same name already present in the results table. "
         "New columns will be added at the beginning of the table. "
         'Example: --results-columns \'{"user": "Me"}\'',
-    )
-    parser.add_argument(
-        "-p",
-        "--results-project-id",
-        type=str,
-        default=None,
-        required=False,
-        help="Google cloud project id. It is used to specify the location of the BQ dataset "
-        "(results-dataset argument) and where the GCS bucket should be created in case "
-        "it does not exist (results-bucket argument). If not provided, the script will attempt "
-        "to collect the project id from the ADC.",
-    )
-    parser.add_argument(
-        "-b",
-        "--results-bucket",
-        type=str,
-        default=None,
-        required=False,
-        help="Name of the GCS bucket where the CSV file with results should be stored. If the "
-        "bucket does not exist, then one will be created using the default settings in the project "
-        "specified by results-project-id (if it was set) or the project returned by the ADC.",
-    )
-    parser.add_argument(
-        "-d",
-        "--results-dataset",
-        type=str,
-        default=None,
-        required=False,
-        help="Name of the BigQuery dataset where the table with results should be uploaded. "
-        "If the dataset does not exist, then one will be created using the default settings. "
-        "If project for the dataset was not provided via results-project-id argument, "
-        "then the project returned from the ADC is used.",
     )
     parser.add_argument(
         "-o",
@@ -166,7 +130,7 @@ def get_run_performance_test_argument_parser() -> argparse.ArgumentParser:
         help="Setting this flag will result in the reset of the existing environment "
         "(currently only the refresh of Airflow metadata database). Without it, the environment "
         "will be used as is (without any cleaning operations). This may result in an unexpected "
-        "behavior. This flag has effect only if --reuse-if-exists flag was set as well.",
+        "behaviour. This flag has effect only if --reuse-if-exists flag was set as well.",
     )
 
     return parser
@@ -192,14 +156,11 @@ def initialize_performance_test(args: argparse.Namespace) -> PerformanceTest:
         args.results_columns = json.loads(args.results_columns)
 
     perf_test = PerformanceTest(
-        environment_specification_file_path=args.environment_specification_file_path,
+        instance_specification_file_path=args.instance_specification_file_path,
         elastic_dag_path=ELASTIC_DAG_PATH,
         elastic_dag_config_file_path=args.elastic_dag_config_file_path,
         jinja_variables_dict=args.jinja_variables,
         results_columns=args.results_columns,
-        results_project_id=args.results_project_id,
-        results_bucket=args.results_bucket,
-        results_dataset=args.results_dataset,
         output_path=args.output_path,
         results_object_name=args.results_object_name,
         reuse_if_exists=args.reuse_if_exists,

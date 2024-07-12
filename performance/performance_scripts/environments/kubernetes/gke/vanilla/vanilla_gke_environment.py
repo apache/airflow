@@ -1,6 +1,7 @@
 """
 Class representing Airflow environment installed directly on GKE cluster.
 """
+
 # pylint: disable=too-many-lines
 import logging
 import os
@@ -63,7 +64,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
@@ -76,9 +77,9 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         """
         Creates an instance of VanillaGKEEnvironment.
 
-        :param environment_specification_file_path: path to the json file with specification
+        :param instance_specification_file_path: path to the json file with specification
             of `Vanilla GKE environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_path: a path to elastic DAG that should be uploaded to test environment.
         :type elastic_dag_path: str
         :param elastic_dag_config_file_path: path to file with configuration for elastic DAG.
@@ -106,9 +107,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         """
 
         if reuse_if_exists:
-            log.warning(
-                "Reusing an existing Vanilla GKE environment is currently not supported."
-            )
+            log.warning("Reusing an existing Vanilla GKE environment is currently not supported.")
             reuse_if_exists = False
 
         super().__init__(
@@ -127,7 +126,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         jinja_variables_dict = jinja_variables_dict or {}
 
         environment_specification = self.load_specification(
-            environment_specification_file_path,
+            instance_specification_file_path,
             elastic_dag_config_file_path,
             jinja_variables_dict,
         )
@@ -205,9 +204,9 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         # TODO: improve this so it always uses true information from rendered file
 
-        cluster_id = "-".join(
-            ["airflow", "{node_count}nodes", "{machine_type}"]
-        ).format(**jinja_variables_dict)
+        cluster_id = "-".join(["airflow", "{node_count}nodes", "{machine_type}"]).format(
+            **jinja_variables_dict
+        )
 
         return cluster_id.lower().replace(".", "-")[:40].strip("-")
 
@@ -225,10 +224,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         match = re.compile(CLUSTER_ID_REGEX).match(cluster_id)
 
         if match is None:
-            raise ValueError(
-                f"Cluster id '{cluster_id}' "
-                f"does not match the regex: {CLUSTER_ID_REGEX}"
-            )
+            raise ValueError(f"Cluster id '{cluster_id}' " f"does not match the regex: {CLUSTER_ID_REGEX}")
 
     @staticmethod
     def get_random_gke_cluster_id(cluster_id: str) -> str:
@@ -240,9 +236,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         return f"{cluster_id[:(40 - len(random_part) - 1)]}-{random_part}"
 
     @staticmethod
-    def get_airflow_env_variables_overwrites(
-        node_count: int
-    ) -> Dict[str, Dict[str, str]]:
+    def get_airflow_env_variables_overwrites(node_count: int) -> Dict[str, Dict[str, str]]:
         """
         Returns Airflow configuration options to set on Vanilla GKE environment in order
         to make it close to the Airflow configuration of Composer environment
@@ -292,9 +286,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         private = cluster_config.get("private_cluster_config", {}).get(
             "enable_private_nodes", False
-        ) and cluster_config.get("ip_allocation_policy", {}).get(
-            "use_ip_aliases", False
-        )
+        ) and cluster_config.get("ip_allocation_policy", {}).get("use_ip_aliases", False)
 
         return private
 
@@ -304,7 +296,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
     def prepare_specifications_for_multiple_test_attempts(
         cls,
         number_of_copies: int,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
         randomize_environment_name: bool = True,
@@ -315,12 +307,12 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         :param number_of_copies: number of copies of the specification that should be prepared.
         :type number_of_copies: int
-        :param environment_specification_file_path: path to the file with specification
+        :param instance_specification_file_path: path to the file with specification
             of Vanilla GKE environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from environment_specification_file_path.
+            from instance_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -344,7 +336,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         try:
             environment_specification = cls.load_specification(
-                environment_specification_file_path,
+                instance_specification_file_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
             )
@@ -353,7 +345,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
                 "Error occurred when reading environment specification file: %s\n"
                 "Provided elastic dag config file: %s\n"
                 "Provided jinja_variables_dict: %s",
-                environment_specification_file_path,
+                instance_specification_file_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
             )
@@ -366,20 +358,14 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         for _ in range(number_of_copies):
             new_environment_specification = deepcopy(environment_specification)
             new_cluster_id = (
-                cls.get_random_gke_cluster_id(cluster_id)
-                if randomize_environment_name
-                else cluster_id
+                cls.get_random_gke_cluster_id(cluster_id) if randomize_environment_name else cluster_id
             )
             new_environment_specification["cluster_config"]["name"] = new_cluster_id
             # TODO: need better check that would involve IP ranges and networks
             if private:
-                specifications_to_run_in_sequence.append(
-                    (new_environment_specification, new_cluster_id)
-                )
+                specifications_to_run_in_sequence.append((new_environment_specification, new_cluster_id))
             else:
-                specifications_to_run_in_parallel.append(
-                    (new_environment_specification, new_cluster_id)
-                )
+                specifications_to_run_in_parallel.append((new_environment_specification, new_cluster_id))
 
         return specifications_to_run_in_parallel, specifications_to_run_in_sequence
 
@@ -389,7 +375,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
     @classmethod
     def load_specification(
         cls,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
     ) -> Dict:
@@ -397,12 +383,12 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         Loads the files under specified paths, validates their contents and returns Vanilla GKE
         environment specification and other environment related values.
 
-        :param environment_specification_file_path: path to the file with specification
+        :param instance_specification_file_path: path to the file with specification
             of Vanilla GKE environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from environment_specification_file_path.
+            from instance_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -425,12 +411,10 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         }
 
         if "cluster_id" not in jinja_variables_to_use:
-            jinja_variables_to_use["cluster_id"] = cls.construct_gke_cluster_id(
-                jinja_variables_to_use
-            )
+            jinja_variables_to_use["cluster_id"] = cls.construct_gke_cluster_id(jinja_variables_to_use)
 
         environment_specification = read_templated_json_file(
-            environment_specification_file_path, jinja_variables_to_use
+            instance_specification_file_path, jinja_variables_to_use
         )
 
         if not isinstance(environment_specification, Dict):
@@ -442,9 +426,9 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
                 "with configuration of GKE cluster."
             )
 
-        if not environment_specification.get(
-            "airflow_image_tag"
-        ) and not environment_specification.get("docker_image"):
+        if not environment_specification.get("airflow_image_tag") and not environment_specification.get(
+            "docker_image"
+        ):
             raise KeyError(
                 "Specification of Vanilla GKE environment must contain either 'airflow_image_tag'"
                 "key with a tag of apache/airflow Docker Hub image or 'docker_image' key with "
@@ -452,16 +436,12 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
             )
 
         if not cls.is_private_specification(environment_specification):
-            environment_specification["cluster_config"].pop(
-                "default_max_pods_constraint", None
-            )
+            environment_specification["cluster_config"].pop("default_max_pods_constraint", None)
         # private clusters cannot fetch images directly from Docker Hub, as they do not have
         # outbound access to the public internet; we have to keep copies of all required images
         # on GCR and pull it from there (replace corresponding fields in values.yaml)
         else:
-            raise ValueError(
-                "Using private clusters in Vanilla GKE environment is currently not supported"
-            )
+            raise ValueError("Using private clusters in Vanilla GKE environment is currently not supported")
 
         # base check of config body
         cls.validate_gke_cluster_config(environment_specification["cluster_config"])
@@ -502,14 +482,11 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         if len(cluster_config["locations"]) != 1:
             raise ValueError(
-                "In GKE cluster configuration a single zone is expected "
-                "in the list under 'locations' key."
+                "In GKE cluster configuration a single zone is expected " "in the list under 'locations' key."
             )
 
         if "name" not in cluster_config:
-            raise KeyError(
-                "GKE cluster configuration must contain 'name' key with the id of the cluster."
-            )
+            raise KeyError("GKE cluster configuration must contain 'name' key with the id of the cluster.")
 
         cls.validate_gke_cluster_id(cluster_config["name"])
 
@@ -586,29 +563,19 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
             elastic_dag_conf = read_json_file(elastic_dag_conf_path)
 
             if not isinstance(elastic_dag_conf, Dict):
-                raise TypeError(
-                    "Elastic dag configuration is expected to be a dictionary."
-                )
+                raise TypeError("Elastic dag configuration is expected to be a dictionary.")
         else:
             elastic_dag_conf = {}
 
         env_variable_sets = {}
-        node_count = environment_specification["cluster_config"]["node_pools"][0][
-            "initial_node_count"
-        ]
+        node_count = environment_specification["cluster_config"]["node_pools"][0]["initial_node_count"]
 
-        airflow_env_variables_overwrites = cls.get_airflow_env_variables_overwrites(
-            node_count
-        )
+        airflow_env_variables_overwrites = cls.get_airflow_env_variables_overwrites(node_count)
 
         for section in airflow_env_variables_overwrites:
             for option in airflow_env_variables_overwrites[section]:
-                airflow_env_var_name = "__".join(
-                    ["AIRFLOW", section.upper(), option.upper()]
-                )
-                env_variable_sets[
-                    airflow_env_var_name
-                ] = airflow_env_variables_overwrites[section][option]
+                airflow_env_var_name = "__".join(["AIRFLOW", section.upper(), option.upper()])
+                env_variable_sets[airflow_env_var_name] = airflow_env_variables_overwrites[section][option]
 
         # we update any default env variable sets with the ones provided explicitly in specification
         env_variable_sets.update(environment_specification.get("env_variable_sets", {}))
@@ -634,33 +601,19 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         to move the performance test forward.
         """
         return {
-            State.NONE: Action(
-                self.prepare_gke_cluster, sleep_time=None, retryable=True
-            ),
-            State.WAIT_UNTIL_READY: Action(
-                self.is_gke_cluster_ready, sleep_time=30.0, retryable=True
-            ),
+            State.NONE: Action(self.prepare_gke_cluster, sleep_time=None, retryable=True),
+            State.WAIT_UNTIL_READY: Action(self.is_gke_cluster_ready, sleep_time=30.0, retryable=True),
             State.WAIT_UNTIL_CAN_BE_DELETED: Action(
                 self.is_gke_cluster_ready, sleep_time=30.0, retryable=True
             ),
-            State.DELETING_ENV: Action(
-                self._wait_for_deletion, sleep_time=20.0, retryable=True
-            ),
-            State.UPDATE_ENV_INFO: Action(
-                self._update_environment_info, sleep_time=10.0, retryable=True
-            ),
-            State.WAIT_FOR_DAG: Action(
-                self.check_if_dags_have_loaded, sleep_time=30.0, retryable=True
-            ),
-            State.UNPAUSE_DAG: Action(
-                self.unpause_dags, sleep_time=20.0, retryable=True
-            ),
+            State.DELETING_ENV: Action(self._wait_for_deletion, sleep_time=20.0, retryable=True),
+            State.UPDATE_ENV_INFO: Action(self._update_environment_info, sleep_time=10.0, retryable=True),
+            State.WAIT_FOR_DAG: Action(self.check_if_dags_have_loaded, sleep_time=30.0, retryable=True),
+            State.UNPAUSE_DAG: Action(self.unpause_dags, sleep_time=20.0, retryable=True),
             State.WAIT_FOR_DAG_RUN_EXEC: Action(
                 self.check_dag_run_execution_status, sleep_time=60.0, retryable=True
             ),
-            State.COLLECT_RESULTS: Action(
-                self.collect_results, sleep_time=10.0, retryable=True
-            ),
+            State.COLLECT_RESULTS: Action(self.collect_results, sleep_time=10.0, retryable=True),
         }
 
     @property
@@ -685,9 +638,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         if not self.check_if_gke_cluster_exists():
             log.info("Creating environment.")
 
-            self.cluster_manager.create_cluster(
-                cluster=self.gke_cluster, parent=self.get_parent()
-            )
+            self.cluster_manager.create_cluster(cluster=self.gke_cluster, parent=self.get_parent())
             return State.WAIT_UNTIL_READY
 
         cluster_state = self.get_gke_cluster_state()
@@ -702,8 +653,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         if self.delete_if_exists:
             log.info(
-                "Cluster %s already exists. Recreating it as delete-if-exists "
-                "flag was set.",
+                "Cluster %s already exists. Recreating it as delete-if-exists " "flag was set.",
                 self.name,
             )
             return State.WAIT_UNTIL_CAN_BE_DELETED
@@ -736,9 +686,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         cluster_id = self.get_gke_cluster_id()
 
         # pylint: disable=protected-access
-        return any(
-            [cluster for cluster in response._pb.clusters if cluster.name == cluster_id]
-        )
+        return any([cluster for cluster in response._pb.clusters if cluster.name == cluster_id])
         # pylint: enable=protected-access
 
     def is_gke_cluster_ready(self) -> State:
@@ -755,10 +703,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
             return self.state
 
         # the environment can be used now
-        if (
-            is_state(cluster_state, Cluster.Status.RUNNING)
-            and self.state == State.WAIT_UNTIL_READY
-        ):
+        if is_state(cluster_state, Cluster.Status.RUNNING) and self.state == State.WAIT_UNTIL_READY:
             return State.UPDATE_ENV_INFO
 
         # the environment can be deleted now
@@ -860,9 +805,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
             # TODO: this needs handling reconciling cluster
             self.remote_runner_provider.create_namespace(core_api, AIRFLOW_NAMESPACE)
 
-            execute_in_subprocess(
-                ["helm", "repo", "add", "stable", "https://charts.helm.sh/stable/"]
-            )
+            execute_in_subprocess(["helm", "repo", "add", "stable", "https://charts.helm.sh/stable/"])
 
             execute_in_subprocess(["helm", "dep", "update", HELM_CHART_PATH])
 
@@ -893,9 +836,10 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         docker_client = docker.from_env()
 
-        with generate_copies_of_elastic_dag(
-            self.elastic_dag_path, self.get_env_variables()
-        ) as (temp_dir, elastic_dag_copies):
+        with generate_copies_of_elastic_dag(self.elastic_dag_path, self.get_env_variables()) as (
+            temp_dir,
+            elastic_dag_copies,
+        ):
 
             for file_path in elastic_dag_copies:
 
@@ -966,9 +910,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         # prepare environment variable sets
         for env_var_index, env_var in enumerate(self.env_variable_sets.items()):
-            helm_install_command += get_helm_env_var_setter_flag(
-                env_var_index, env_var[0], env_var[1]
-            )
+            helm_install_command += get_helm_env_var_setter_flag(env_var_index, env_var[0], env_var[1])
 
         return helm_install_command
 
@@ -1092,9 +1034,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         """
         return not self.gke_cluster.private_cluster_config.enable_private_endpoint
 
-    def get_results_object_name_components(
-        self, results_df: DataFrame
-    ) -> Sequence[str]:
+    def get_results_object_name_components(self, results_df: DataFrame) -> Sequence[str]:
         """
         Gets the sequence of components for the results object's name (file, GCS blob, BQ table)
         based on contents of the results dataframe.
@@ -1110,9 +1050,9 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         # TODO: this method should not depend on contents of results_df, all required info should
         #  be collected using class methods
-        test_start_day = datetime.strptime(
-            results_df["test_start_date"][0], "%Y-%m-%d %H:%M:%S.%f"
-        ).strftime("%Y%m%d")
+        test_start_day = datetime.strptime(results_df["test_start_date"][0], "%Y-%m-%d %H:%M:%S.%f").strftime(
+            "%Y%m%d"
+        )
         environment_name = results_df["environment_name"][0]
         environment_type = results_df["environment_type"][0]
         airflow_version = results_df["airflow_version"][0]

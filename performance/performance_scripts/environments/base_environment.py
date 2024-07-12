@@ -3,7 +3,7 @@ This module contains the definition of an abstract class representing base requi
 environment needed in order to run performance tests on it.
 """
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
@@ -95,12 +95,13 @@ class BaseEnvironment(ABC):
         self.results: Optional[Tuple[DataFrame, Sequence[str]]] = None
 
     @property
+    @abstractmethod
     def states_map(self) -> Dict[State, Action]:
         """
         This method should return a map that for every applicable state holds an instance of Action
         class.
         """
-        raise NotImplementedError
+        pass
 
     @property
     def is_terminal_state(self) -> bool:
@@ -114,10 +115,7 @@ class BaseEnvironment(ABC):
         """
         Returns True if the retry attempt can be made and False otherwise.
         """
-        return (
-            self.consecutive_errors < MAX_CONSECUTIVE_ERRORS
-            and self.is_in_retryable_state
-        )
+        return self.consecutive_errors < MAX_CONSECUTIVE_ERRORS and self.is_in_retryable_state
 
     @property
     def is_in_retryable_state(self) -> bool:
@@ -134,47 +132,42 @@ class BaseEnvironment(ABC):
         return self.state in self.terminal_states_success
 
     @property
+    @abstractmethod
     def is_terminal_state_and_deletable(self) -> bool:
         """
         This method should return True if environment is in one of its terminal states and it is
         possible to delete it.
         """
-        raise NotImplementedError
+        pass
 
     @property
+    @abstractmethod
     def name(self) -> str:
         """
         This method should return the environment name.
         """
-        raise NotImplementedError
+        pass
 
     def get_state_method(self) -> Optional[Callable]:
         """
         Returns method assigned to given state, if any.
         """
 
-        return (
-            self.states_map[self.state].method
-            if self.state in self.states_map
-            else None
-        )
+        return self.states_map[self.state].method if self.state in self.states_map else None
 
     def get_state_wait_time(self) -> Optional[float]:
         """
         Returns wait time assigned to given state, if any.
         """
-        return (
-            self.states_map[self.state].sleep_time
-            if self.state in self.states_map
-            else None
-        )
+        return self.states_map[self.state].sleep_time if self.state in self.states_map else None
 
     # pylint: disable=too-many-arguments
     @classmethod
+    @abstractmethod
     def prepare_specifications_for_multiple_test_attempts(
         cls,
         number_of_copies: int,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
         randomize_environment_name: bool = True,
@@ -186,12 +179,12 @@ class BaseEnvironment(ABC):
 
         :param number_of_copies: number of copies of the specification that should be prepared.
         :type number_of_copies: int
-        :param environment_specification_file_path: path to the file with specification
+        :param instance_specification_file_path: path to the file with specification
             of environment to duplicate.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from environment_specification_file_path.
+            from instance_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -207,12 +200,13 @@ class BaseEnvironment(ABC):
             - second list contains specifications that should be run sequentially
         :rtype: Tuple[List[Tuple[Dict, str]], List[Tuple[Dict, str]]]
         """
-        raise NotImplementedError
+        pass
 
     # pylint: enable=too-many-arguments
 
+    @abstractmethod
     def delete_environment(self) -> None:
         """
         This method should delete the test environment.
         """
-        raise NotImplementedError
+        pass

@@ -14,9 +14,7 @@ from performance_scripts.environments.kubernetes.gke.composer.composer_environme
     LISTING_ENVIRONMENTS_PAGE_SIZE,
 )
 
-MODULE_NAME = (
-    "performance_scripts.environments.kubernetes.gke.composer.composer_environment"
-)
+MODULE_NAME = "performance_scripts.environments.kubernetes.gke.composer.composer_environment"
 
 API_VERSION = "v1"
 API_ENDPOINT = "endpoint"
@@ -29,7 +27,7 @@ CLUSTER_ID = "test_cluster_id"
 NAME = f"projects/{PROJECT_ID}/locations/{LOCATION_ID}/environments/{ENVIRONMENT_ID}"
 PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION_ID}"
 GKE_CLUSTER = f"projects/{PROJECT_ID}/zones/{ZONE}/clusters/{CLUSTER_ID}"
-ENVIRONMENT_SPECIFICATION_FILE_PATH = "environment.json"
+INSTANCE_SPECIFICATION_FILE_PATH = "environment.json"
 DAG_FILE_PATH = "dag_file.py"
 ELASTIC_DAG_CONF_FILE_PATH = "elastic_dag_conf.json"
 DEFAULT_JINJA_VARIABLES = {"jinja_variable_1": "value_1", "jinja_variable_2": "value_2"}
@@ -37,8 +35,8 @@ JINJA_VARIABLES_DICT = {
     "jinja_variable_1": "different_value",
     "jinja_variable_3": "value_3",
     "environment_id": ENVIRONMENT_ID,
-    "composer_version": "1.13.0",
-    "airflow_version": "1.10.12",
+    "composer_version": "2.8.3",
+    "airflow_version": "2.7.3",
     "python_version": "3",
     "node_count": "4",
 }
@@ -96,16 +94,10 @@ class TestComposerEnvironment(TestCase):
                 LOCATION_ID,
                 ENVIRONMENT_ID,
             )
-            self.composer = ComposerEnvironment(
-                ENVIRONMENT_SPECIFICATION_FILE_PATH, DAG_FILE_PATH
-            )
+            self.composer = ComposerEnvironment(INSTANCE_SPECIFICATION_FILE_PATH, DAG_FILE_PATH)
 
-    @mock.patch(
-        "performance_scripts.environments.kubernetes.gke.gke_based_environment.ClusterManagerClient"
-    )
-    @mock.patch(
-        "performance_scripts.environments.kubernetes.gke.gke_based_environment.build"
-    )
+    @mock.patch("performance_scripts.environments.kubernetes.gke.gke_based_environment.ClusterManagerClient")
+    @mock.patch("performance_scripts.environments.kubernetes.gke.gke_based_environment.build")
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.load_specification")
     @mock.patch(MODULE_NAME + ".ComposerApi")
     @mock.patch(MODULE_NAME + ".StorageClient")
@@ -124,14 +116,14 @@ class TestComposerEnvironment(TestCase):
             ENVIRONMENT_ID,
         )
         composer = ComposerEnvironment(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             DAG_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
         )
 
         mock_load_specification.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -149,9 +141,7 @@ class TestComposerEnvironment(TestCase):
 
     def test_construct_environment_id(self):
 
-        environment_id = self.composer.construct_environment_id(
-            deepcopy(JINJA_VARIABLES_DICT)
-        )
+        environment_id = self.composer.construct_environment_id(deepcopy(JINJA_VARIABLES_DICT))
         self.assertEqual(CONSTRUCTED_ENVIRONMENT_ID, environment_id)
 
     def test_construct_environment_id_too_long(self):
@@ -202,9 +192,7 @@ class TestComposerEnvironment(TestCase):
             self.composer.validate_environment_id(environment_id)
 
     def test_validate_environment_id_too_long(self):
-        environment_id = (
-            CONSTRUCTED_ENVIRONMENT_ID + (65 - len(CONSTRUCTED_ENVIRONMENT_ID)) * "a"
-        )
+        environment_id = CONSTRUCTED_ENVIRONMENT_ID + (65 - len(CONSTRUCTED_ENVIRONMENT_ID)) * "a"
 
         with self.assertRaises(ValueError):
             self.composer.validate_environment_id(environment_id)
@@ -219,14 +207,10 @@ class TestComposerEnvironment(TestCase):
 
         expected_result = f"{CONSTRUCTED_ENVIRONMENT_ID}-{random_part}"
 
-        environment_id = self.composer.get_random_environment_id(
-            CONSTRUCTED_ENVIRONMENT_ID
-        )
+        environment_id = self.composer.get_random_environment_id(CONSTRUCTED_ENVIRONMENT_ID)
 
         mock_shortuuid.assert_called_once_with()
-        mock_shortuuid.return_value.random.assert_called_once_with(
-            length=random_part_length
-        )
+        mock_shortuuid.return_value.random.assert_called_once_with(length=random_part_length)
         self.assertEqual(expected_result, environment_id)
 
     @mock.patch("shortuuid.ShortUUID", return_value=mock.Mock())
@@ -243,9 +227,7 @@ class TestComposerEnvironment(TestCase):
         environment_id = self.composer.get_random_environment_id(input_environment_id)
 
         mock_shortuuid.assert_called_once_with()
-        mock_shortuuid.return_value.random.assert_called_once_with(
-            length=random_part_length
-        )
+        mock_shortuuid.return_value.random.assert_called_once_with(length=random_part_length)
         self.assertEqual(expected_result, environment_id)
 
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.load_specification")
@@ -275,14 +257,14 @@ class TestComposerEnvironment(TestCase):
 
         parallel, sequential = ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
             NUMBER_OF_ATTEMPTS,
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
             randomize_environment_name=True,
         )
 
         mock_load_specification.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -291,8 +273,7 @@ class TestComposerEnvironment(TestCase):
         self.assertEqual(mock_get_random_environment_id.call_count, NUMBER_OF_ATTEMPTS)
 
         fill_name_calls = [
-            mock.call(PROJECT_ID, LOCATION_ID, environment_id)
-            for environment_id in environment_ids
+            mock.call(PROJECT_ID, LOCATION_ID, environment_id) for environment_id in environment_ids
         ]
         mock_fill_name_form.has_calls(fill_name_calls)
         self.assertEqual(mock_fill_name_form.call_count, NUMBER_OF_ATTEMPTS)
@@ -340,13 +321,13 @@ class TestComposerEnvironment(TestCase):
 
         parallel, sequential = ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
             NUMBER_OF_ATTEMPTS,
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
         )
 
         mock_load_specification.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -355,8 +336,7 @@ class TestComposerEnvironment(TestCase):
         self.assertEqual(mock_get_random_environment_id.call_count, NUMBER_OF_ATTEMPTS)
 
         fill_name_calls = [
-            mock.call(PROJECT_ID, LOCATION_ID, environment_id)
-            for environment_id in environment_ids
+            mock.call(PROJECT_ID, LOCATION_ID, environment_id) for environment_id in environment_ids
         ]
         mock_fill_name_form.has_calls(fill_name_calls)
         self.assertEqual(mock_fill_name_form.call_count, NUMBER_OF_ATTEMPTS)
@@ -392,23 +372,21 @@ class TestComposerEnvironment(TestCase):
 
         parallel, sequential = ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
             NUMBER_OF_ATTEMPTS,
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
             randomize_environment_name=False,
         )
 
         mock_load_specification.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
 
         mock_get_random_environment_id.assert_not_called()
 
-        fill_name_calls = [
-            mock.call(PROJECT_ID, LOCATION_ID, ENVIRONMENT_ID)
-        ] * NUMBER_OF_ATTEMPTS
+        fill_name_calls = [mock.call(PROJECT_ID, LOCATION_ID, ENVIRONMENT_ID)] * NUMBER_OF_ATTEMPTS
         mock_fill_name_form.has_calls(fill_name_calls)
         self.assertEqual(mock_fill_name_form.call_count, NUMBER_OF_ATTEMPTS)
 
@@ -432,14 +410,14 @@ class TestComposerEnvironment(TestCase):
         with self.assertRaises(ValueError):
             ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
                 NUMBER_OF_ATTEMPTS,
-                ENVIRONMENT_SPECIFICATION_FILE_PATH,
+                INSTANCE_SPECIFICATION_FILE_PATH,
                 ELASTIC_DAG_CONF_FILE_PATH,
                 deepcopy(JINJA_VARIABLES_DICT),
                 randomize_environment_name=False,
             )
 
         mock_load_specification.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -451,10 +429,7 @@ class TestComposerEnvironment(TestCase):
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.construct_environment_id")
     @mock.patch(MODULE_NAME + ".read_templated_json_file")
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.check_and_adjust_config_body")
-    @mock.patch(
-        MODULE_NAME
-        + ".ComposerEnvironment.update_config_body_with_elastic_dag_env_variables"
-    )
+    @mock.patch(MODULE_NAME + ".ComposerEnvironment.update_config_body_with_elastic_dag_env_variables")
     @mock.patch(MODULE_NAME + ".add_perf_start_date_env_to_conf")
     @mock.patch(MODULE_NAME + ".validate_elastic_dag_conf")
     @mock.patch(
@@ -472,13 +447,11 @@ class TestComposerEnvironment(TestCase):
         mock_construct_environment_id,
         mock_get_default_jinja_variables_values,
     ):
-        mock_get_default_jinja_variables_values.return_value = deepcopy(
-            DEFAULT_JINJA_VARIABLES
-        )
+        mock_get_default_jinja_variables_values.return_value = deepcopy(DEFAULT_JINJA_VARIABLES)
         mock_read_templated_json_file.return_value = deepcopy(SPECIFICATION)
 
         specification, project_id, location_id, environment_id = self.composer.load_specification(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH,
+            INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
         )
@@ -489,7 +462,7 @@ class TestComposerEnvironment(TestCase):
         mock_construct_environment_id.assert_not_called()
 
         mock_read_templated_json_file.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH, jinja_variables_dict
+            INSTANCE_SPECIFICATION_FILE_PATH, jinja_variables_dict
         )
         mock_check_and_adjust_config_body.assert_called_once_with(CONFIG_BODY)
         self.assertEqual(specification, SPECIFICATION)
@@ -500,9 +473,7 @@ class TestComposerEnvironment(TestCase):
         mock_update_config_body_with_elastic_dag_env_variables.assert_called_once_with(
             CONFIG_BODY, ELASTIC_DAG_CONF_FILE_PATH
         )
-        mock_add_perf_start_date_env_to_conf.assert_called_once_with(
-            CONFIG_BODY_ENV_VARS
-        )
+        mock_add_perf_start_date_env_to_conf.assert_called_once_with(CONFIG_BODY_ENV_VARS)
         mock_validate_elastic_dag_conf.assert_called_once_with(CONFIG_BODY_ENV_VARS)
 
         mock_retrieve_ids_from_name.assert_called_once_with(NAME)
@@ -522,11 +493,9 @@ class TestComposerEnvironment(TestCase):
         mock_construct_environment_id,
         mock_get_default_jinja_variables_values,
     ):
-        mock_get_default_jinja_variables_values.return_value = deepcopy(
-            DEFAULT_JINJA_VARIABLES
-        )
+        mock_get_default_jinja_variables_values.return_value = deepcopy(DEFAULT_JINJA_VARIABLES)
         with self.assertRaises(TypeError):
-            self.composer.load_specification(ENVIRONMENT_SPECIFICATION_FILE_PATH)
+            self.composer.load_specification(INSTANCE_SPECIFICATION_FILE_PATH)
         mock_get_default_jinja_variables_values.assert_called_once_with()
         # TODO: cannot change the arguments of call due to jinja_variables_to_use dict changing
         #  during load_specification method call
@@ -536,7 +505,7 @@ class TestComposerEnvironment(TestCase):
             **{"environment_id": CONSTRUCTED_ENVIRONMENT_ID},
         }
         mock_read_templated_json_file.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH, expected_jinja_variables
+            INSTANCE_SPECIFICATION_FILE_PATH, expected_jinja_variables
         )
 
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.get_default_jinja_variables_values")
@@ -546,10 +515,7 @@ class TestComposerEnvironment(TestCase):
     )
     @mock.patch(MODULE_NAME + ".read_templated_json_file")
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.check_and_adjust_config_body")
-    @mock.patch(
-        MODULE_NAME
-        + ".ComposerEnvironment.update_config_body_with_elastic_dag_env_variables"
-    )
+    @mock.patch(MODULE_NAME + ".ComposerEnvironment.update_config_body_with_elastic_dag_env_variables")
     @mock.patch(MODULE_NAME + ".add_perf_start_date_env_to_conf")
     @mock.patch(MODULE_NAME + ".validate_elastic_dag_conf")
     @mock.patch(
@@ -567,15 +533,11 @@ class TestComposerEnvironment(TestCase):
         mock_construct_environment_id,
         mock_get_default_jinja_variables_values,
     ):
-        mock_get_default_jinja_variables_values.return_value = deepcopy(
-            DEFAULT_JINJA_VARIABLES
-        )
-        mock_read_templated_json_file.return_value = {
-            "config_body": deepcopy(CONFIG_BODY)
-        }
+        mock_get_default_jinja_variables_values.return_value = deepcopy(DEFAULT_JINJA_VARIABLES)
+        mock_read_templated_json_file.return_value = {"config_body": deepcopy(CONFIG_BODY)}
 
         specification, project_id, location_id, environment_id = self.composer.load_specification(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH
+            INSTANCE_SPECIFICATION_FILE_PATH
         )
 
         expected_jinja_variables = {
@@ -586,7 +548,7 @@ class TestComposerEnvironment(TestCase):
         mock_get_default_jinja_variables_values.assert_called_once_with()
         mock_construct_environment_id.assert_called_once()
         mock_read_templated_json_file.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH, expected_jinja_variables
+            INSTANCE_SPECIFICATION_FILE_PATH, expected_jinja_variables
         )
         mock_check_and_adjust_config_body.assert_called_once_with(CONFIG_BODY)
         self.assertEqual(specification, {"config_body": CONFIG_BODY})
@@ -595,9 +557,7 @@ class TestComposerEnvironment(TestCase):
         self.assertEqual(environment_id, ENVIRONMENT_ID)
 
         mock_update_config_body_with_elastic_dag_env_variables.assert_not_called()
-        mock_add_perf_start_date_env_to_conf.assert_called_once_with(
-            CONFIG_BODY_ENV_VARS
-        )
+        mock_add_perf_start_date_env_to_conf.assert_called_once_with(CONFIG_BODY_ENV_VARS)
         mock_validate_elastic_dag_conf.assert_called_once_with(CONFIG_BODY_ENV_VARS)
 
         mock_retrieve_ids_from_name.assert_called_once_with(NAME)
@@ -621,12 +581,10 @@ class TestComposerEnvironment(TestCase):
         mock_construct_environment_id,
         mock_get_default_jinja_variables_values,
     ):
-        mock_get_default_jinja_variables_values.return_value = deepcopy(
-            DEFAULT_JINJA_VARIABLES
-        )
+        mock_get_default_jinja_variables_values.return_value = deepcopy(DEFAULT_JINJA_VARIABLES)
 
         with self.assertRaises(KeyError):
-            self.composer.load_specification(ENVIRONMENT_SPECIFICATION_FILE_PATH)
+            self.composer.load_specification(INSTANCE_SPECIFICATION_FILE_PATH)
         mock_get_default_jinja_variables_values.assert_called_once_with()
         mock_construct_environment_id.assert_called_once()
         expected_jinja_variables = {
@@ -634,7 +592,7 @@ class TestComposerEnvironment(TestCase):
             **{"environment_id": CONSTRUCTED_ENVIRONMENT_ID},
         }
         mock_read_templated_json_file.assert_called_once_with(
-            ENVIRONMENT_SPECIFICATION_FILE_PATH, expected_jinja_variables
+            INSTANCE_SPECIFICATION_FILE_PATH, expected_jinja_variables
         )
 
     def test_check_and_adjust_config_body(self):
@@ -702,9 +660,7 @@ class TestComposerEnvironment(TestCase):
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.validate_environment_id")
     def test_retrieve_ids_from_name(self, mock_validate_environment_id):
 
-        project_id, location_id, environment_id = self.composer.retrieve_ids_from_name(
-            NAME
-        )
+        project_id, location_id, environment_id = self.composer.retrieve_ids_from_name(NAME)
 
         mock_validate_environment_id.assert_called_once_with(ENVIRONMENT_ID)
 
@@ -713,27 +669,21 @@ class TestComposerEnvironment(TestCase):
         self.assertEqual(environment_id, ENVIRONMENT_ID)
 
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.validate_environment_id")
-    def test_retrieve_ids_from_name_too_many_components(
-        self, mock_validate_environment_id
-    ):
+    def test_retrieve_ids_from_name_too_many_components(self, mock_validate_environment_id):
 
         with self.assertRaises(ValueError):
             self.composer.retrieve_ids_from_name("a/b/c/d/e/f/g")
         mock_validate_environment_id.assert_not_called()
 
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.validate_environment_id")
-    def test_retrieve_ids_from_name_too_few_components(
-        self, mock_validate_environment_id
-    ):
+    def test_retrieve_ids_from_name_too_few_components(self, mock_validate_environment_id):
 
         with self.assertRaises(ValueError):
             self.composer.retrieve_ids_from_name("a/b/c/d/e")
         mock_validate_environment_id.assert_not_called()
 
     @mock.patch(MODULE_NAME + ".read_json_file")
-    def test_update_config_body_with_elastic_dag_env_variables(
-        self, mock_read_json_file
-    ):
+    def test_update_config_body_with_elastic_dag_env_variables(self, mock_read_json_file):
         mock_read_json_file.return_value = deepcopy(ELASTIC_DAG_CONF)
 
         expected_result = deepcopy(CONFIG_BODY_ENV_VARS)
@@ -821,9 +771,7 @@ class TestComposerEnvironment(TestCase):
             (State.FAILED, "ERROR"),
         ]
     )
-    @mock.patch(
-        MODULE_NAME + ".ComposerEnvironment.check_if_exists", return_value=False
-    )
+    @mock.patch(MODULE_NAME + ".ComposerEnvironment.check_if_exists", return_value=False)
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.get_state")
     def test_is_terminal_state_and_deletable__does_not_exist(
         self, env_state, composer_state, mock_get_state, mock_check_if_exists
@@ -847,9 +795,7 @@ class TestComposerEnvironment(TestCase):
             ("both_flags", True, True),
         ]
     )
-    @mock.patch(
-        MODULE_NAME + ".ComposerEnvironment.check_if_exists", return_value=False
-    )
+    @mock.patch(MODULE_NAME + ".ComposerEnvironment.check_if_exists", return_value=False)
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.get_state")
     def test_prepare_environment_does_not_exist(
         self, _, reuse_if_exists, delete_if_exists, mock_get_state, mock_check_if_exists
@@ -863,9 +809,7 @@ class TestComposerEnvironment(TestCase):
         self.assertEqual(returned_state, State.WAIT_UNTIL_READY)
 
         mock_check_if_exists.assert_called_once_with()
-        self.composer.composer_api.create_environment.assert_called_once_with(
-            PARENT, CONFIG_BODY
-        )
+        self.composer.composer_api.create_environment.assert_called_once_with(PARENT, CONFIG_BODY)
         mock_get_state.assert_not_called()
 
     @parameterized.expand(
@@ -906,9 +850,7 @@ class TestComposerEnvironment(TestCase):
         self.composer.composer_api.create_environment.assert_not_called()
         mock_get_state.assert_called_once_with()
 
-    @parameterized.expand(
-        [("reuse_if_exists_flag", True, False), ("both_flags", True, True)]
-    )
+    @parameterized.expand([("reuse_if_exists_flag", True, False), ("both_flags", True, True)])
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.check_if_exists", return_value=True)
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.get_state", return_value="RUNNING")
     def test_prepare_environment_reuse_if_exists_flag_no_deleting_state(
@@ -956,18 +898,14 @@ class TestComposerEnvironment(TestCase):
             {"environments": [{"name": "environment_4"}, {"name": "environment_5"}]},
         ]
 
-        composer_api_mock = mock.MagicMock(
-            **{"list_environments.side_effect": listing_responses}
-        )
+        composer_api_mock = mock.MagicMock(**{"list_environments.side_effect": listing_responses})
 
         self.composer.composer_api = composer_api_mock
 
         result = self.composer.check_if_exists()
 
         listing_calls = [
-            mock.call(
-                parent=PARENT, page_size=LISTING_ENVIRONMENTS_PAGE_SIZE, page_token=None
-            ),
+            mock.call(parent=PARENT, page_size=LISTING_ENVIRONMENTS_PAGE_SIZE, page_token=None),
             mock.call(
                 parent=PARENT,
                 page_size=LISTING_ENVIRONMENTS_PAGE_SIZE,
@@ -994,18 +932,14 @@ class TestComposerEnvironment(TestCase):
             {"environments": [{"name": "environment_5"}]},
         ]
 
-        composer_api_mock = mock.MagicMock(
-            **{"list_environments.side_effect": listing_responses}
-        )
+        composer_api_mock = mock.MagicMock(**{"list_environments.side_effect": listing_responses})
 
         self.composer.composer_api = composer_api_mock
 
         result = self.composer.check_if_exists()
 
         listing_calls = [
-            mock.call(
-                parent=PARENT, page_size=LISTING_ENVIRONMENTS_PAGE_SIZE, page_token=None
-            ),
+            mock.call(parent=PARENT, page_size=LISTING_ENVIRONMENTS_PAGE_SIZE, page_token=None),
             mock.call(
                 parent=PARENT,
                 page_size=LISTING_ENVIRONMENTS_PAGE_SIZE,
@@ -1038,9 +972,7 @@ class TestComposerEnvironment(TestCase):
         self.assertEqual(result, False)
 
     def test_get_state(self):
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": {"state": "RUNNING"}}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": {"state": "RUNNING"}})
 
         self.composer.composer_api = composer_api_mock
         expected_state = self.composer.get_state()
@@ -1134,9 +1066,7 @@ class TestComposerEnvironment(TestCase):
         mock_get_state.assert_called_once_with()
         mock_delete_environment.assert_called_once_with()
 
-    @parameterized.expand(
-        [("deleting", "DELETING"), ("unspecified", "STATE_UNSPECIFIED")]
-    )
+    @parameterized.expand([("deleting", "DELETING"), ("unspecified", "STATE_UNSPECIFIED")])
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.get_state")
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.delete_environment")
     def test_is_composer_instance_ready__not_deletable__wait_until_can_be_deleted(
@@ -1183,9 +1113,7 @@ class TestComposerEnvironment(TestCase):
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["envVariables"] = new_env_variables
         new_config["config"]["softwareConfig"]["imageVersion"] = "composer-2.4.0-airflow-2.5.3"
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.composer_api = composer_api_mock
 
         self.composer.state = State.UPDATE_ENV_INFO
@@ -1230,9 +1158,7 @@ class TestComposerEnvironment(TestCase):
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["envVariables"] = new_env_variables
         new_config["config"]["softwareConfig"]["imageVersion"] = "composer-2.4.0-airflow-2.5.3"
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.composer_api = composer_api_mock
 
         self.composer.state = State.UPDATE_ENV_INFO
@@ -1277,9 +1203,7 @@ class TestComposerEnvironment(TestCase):
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["envVariables"] = new_env_variables
         new_config["config"]["softwareConfig"]["imageVersion"] = "composer-2.4.0-airflow-2.5.3"
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.force_routing = False
         self.composer.composer_api = composer_api_mock
 
@@ -1325,9 +1249,7 @@ class TestComposerEnvironment(TestCase):
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["envVariables"] = new_env_variables
         new_config["config"]["softwareConfig"]["imageVersion"] = "composer-2.4.0-airflow-2.5.3"
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.force_routing = False
         self.composer.composer_api = composer_api_mock
 
@@ -1373,9 +1295,7 @@ class TestComposerEnvironment(TestCase):
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["envVariables"] = new_env_variables
         new_config["config"]["softwareConfig"]["imageVersion"] = "composer-2.4.0-airflow-2.5.3"
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.composer_api = composer_api_mock
 
         self.composer.reuse_if_exists = True
@@ -1422,9 +1342,7 @@ class TestComposerEnvironment(TestCase):
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["envVariables"] = new_env_variables
         new_config["config"]["softwareConfig"]["imageVersion"] = "composer-2.4.0-airflow-2.5.3"
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.composer_api = composer_api_mock
 
         self.composer.reuse_if_exists = True
@@ -1448,21 +1366,21 @@ class TestComposerEnvironment(TestCase):
 
         self.assertEqual(state, State.RESET_ENV)
 
-    @parameterized.expand([
-        ("composer-2.4.0-airflow-2.5.3", "composer"),
-        ("composer-3.0.0-preview.3-airflow-2.5.3", "airflow"),
-    ])
+    @parameterized.expand(
+        [
+            ("composer-2.4.0-airflow-2.5.3", "composer"),
+            ("composer-3.0.0-preview.3-airflow-2.5.3", "airflow"),
+        ]
+    )
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.update_remote_runner_provider")
     def test_update_environment_info_namespace_prefix(
-        self, image_version, expected_namespace_prefix,
-        mock_update_remote_runner_provider):
+        self, image_version, expected_namespace_prefix, mock_update_remote_runner_provider
+    ):
 
         new_config = deepcopy(CONFIG_BODY)
         new_config["config"]["softwareConfig"]["imageVersion"] = image_version
         new_config["config"]["privateEnvironmentConfig"] = {}
-        composer_api_mock = mock.MagicMock(
-            **{"get_environment.return_value": new_config}
-        )
+        composer_api_mock = mock.MagicMock(**{"get_environment.return_value": new_config})
         self.composer.composer_api = composer_api_mock
         self.composer.reuse_if_exists = False
 
@@ -1485,9 +1403,15 @@ class TestComposerEnvironment(TestCase):
         }
         mock_core_api = mock.MagicMock(api_client=ApiClient())
         self.composer.remote_runner_provider = mock.MagicMock(
-            **{"get_kubernetes_apis_in_isolated_context.return_value.__enter__.return_value":
-                   (mock_core_api, mock.MagicMock(), mock.MagicMock()),
-               "find_namespace_with_a_prefix.return_value": "composer-2-4-3-airflow-2-6-3-aaabbb"})
+            **{
+                "get_kubernetes_apis_in_isolated_context.return_value.__enter__.return_value": (
+                    mock_core_api,
+                    mock.MagicMock(),
+                    mock.MagicMock(),
+                ),
+                "find_namespace_with_a_prefix.return_value": "composer-2-4-3-airflow-2-6-3-aaabbb",
+            }
+        )
 
         def mock_get_namespaced_custom_object(group, version, plural, name, namespace):
             self.assertEqual(group, "composer.cloud.google.com")
@@ -1499,19 +1423,26 @@ class TestComposerEnvironment(TestCase):
                 "spec": {
                     "template": {
                         "spec": {
-                            "containers":  [{
-                                "name": "airflow-worker",
-                                "image": "image-worker-scheduler",
-                                "env": [{
-                                    "name": "ENV1",
-                                    "value": "VALUE1",
-                                }]
-                            }],
+                            "containers": [
+                                {
+                                    "name": "airflow-worker",
+                                    "image": "image-worker-scheduler",
+                                    "env": [
+                                        {
+                                            "name": "ENV1",
+                                            "value": "VALUE1",
+                                        }
+                                    ],
+                                }
+                            ],
                         },
                     },
                 },
             }
-        mock_custom_objects_api.return_value.get_namespaced_custom_object.side_effect = mock_get_namespaced_custom_object
+
+        mock_custom_objects_api.return_value.get_namespaced_custom_object.side_effect = (
+            mock_get_namespaced_custom_object
+        )
 
         state = self.composer._deploy_stats_collector()
 
@@ -1524,27 +1455,37 @@ class TestComposerEnvironment(TestCase):
                     "namespace": "composer-2-4-3-airflow-2-6-3-aaabbb",
                 },
                 "spec": {
-                    "containers": [{
-                        "name": "stats-collector",
-                        "image": "image-worker-scheduler",
-                        "args": ["stats-collector"],
-                        "env": [{
-                            "name": "ENV1",
-                            "value": "VALUE1",
-                        }],
-                        "volumeMounts": [{
+                    "containers": [
+                        {
+                            "name": "stats-collector",
+                            "image": "image-worker-scheduler",
+                            "args": ["stats-collector"],
+                            "env": [
+                                {
+                                    "name": "ENV1",
+                                    "value": "VALUE1",
+                                }
+                            ],
+                            "volumeMounts": [
+                                {
+                                    "name": "airflow-config",
+                                    "mountPath": "/etc/airflow/airflow_cfg",
+                                }
+                            ],
+                        }
+                    ],
+                    "volumes": [
+                        {
                             "name": "airflow-config",
-                            "mountPath": "/etc/airflow/airflow_cfg",
-                        }],
-                    }],
-                    "volumes": [{
-                        "name": "airflow-config",
-                        "configMap": {
-                            "name": "airflow-configmap",
-                        },
-                    }]
+                            "configMap": {
+                                "name": "airflow-configmap",
+                            },
+                        }
+                    ],
                 },
-            }, namespace="composer-2-4-3-airflow-2-6-3-aaabbb")
+            },
+            namespace="composer-2-4-3-airflow-2-6-3-aaabbb",
+        )
         self.assertEqual(state, State.UPLOAD_DAG)
 
     @mock.patch(MODULE_NAME + ".CustomObjectsApi", autospec=True)
@@ -1561,9 +1502,15 @@ class TestComposerEnvironment(TestCase):
         }
         mock_core_api = mock.MagicMock(api_client=ApiClient())
         self.composer.remote_runner_provider = mock.MagicMock(
-            **{"get_kubernetes_apis_in_isolated_context.return_value.__enter__.return_value":
-                   (mock_core_api, mock.MagicMock(), mock.MagicMock()),
-               "find_namespace_with_a_prefix.return_value": "composer-3-0-0-airflow-2-6-3-aaabbb"})
+            **{
+                "get_kubernetes_apis_in_isolated_context.return_value.__enter__.return_value": (
+                    mock_core_api,
+                    mock.MagicMock(),
+                    mock.MagicMock(),
+                ),
+                "find_namespace_with_a_prefix.return_value": "composer-3-0-0-airflow-2-6-3-aaabbb",
+            }
+        )
 
         def mock_get_namespaced_custom_object(group, version, plural, name, namespace):
             self.assertEqual(group, "composer.cloud.google.com")
@@ -1575,22 +1522,30 @@ class TestComposerEnvironment(TestCase):
                 "spec": {
                     "template": {
                         "spec": {
-                            "containers":  [{
-                                "name": "airflow-worker",
-                                "image": "image-worker-scheduler",
-                                "env": [{
-                                    "name": "ENV1",
-                                    "value": "VALUE1",
-                                }, {
-                                    "name": "SQL_HOST",
-                                    "value": "localhost",
-                                }]
-                            }],
+                            "containers": [
+                                {
+                                    "name": "airflow-worker",
+                                    "image": "image-worker-scheduler",
+                                    "env": [
+                                        {
+                                            "name": "ENV1",
+                                            "value": "VALUE1",
+                                        },
+                                        {
+                                            "name": "SQL_HOST",
+                                            "value": "localhost",
+                                        },
+                                    ],
+                                }
+                            ],
                         },
                     },
                 },
             }
-        mock_custom_objects_api.return_value.get_namespaced_custom_object.side_effect = mock_get_namespaced_custom_object
+
+        mock_custom_objects_api.return_value.get_namespaced_custom_object.side_effect = (
+            mock_get_namespaced_custom_object
+        )
 
         state = self.composer._deploy_stats_collector()
 
@@ -1604,20 +1559,27 @@ class TestComposerEnvironment(TestCase):
                 },
                 "spec": {
                     "runtimeClassName": "gke-node",
-                    "containers": [{
-                        "name": "stats-collector",
-                        "image": "image-worker-scheduler",
-                        "args": ["stats-collector"],
-                        "env": [{
-                            "name": "ENV1",
-                            "value": "VALUE1",
-                        }, {
-                            "name": "SQL_HOST",
-                            "value": "airflow-sqlproxy-service.composer-system.svc.cluster.local",
-                        }],
-                    }],
+                    "containers": [
+                        {
+                            "name": "stats-collector",
+                            "image": "image-worker-scheduler",
+                            "args": ["stats-collector"],
+                            "env": [
+                                {
+                                    "name": "ENV1",
+                                    "value": "VALUE1",
+                                },
+                                {
+                                    "name": "SQL_HOST",
+                                    "value": "airflow-sqlproxy-service.composer-system.svc.cluster.local",
+                                },
+                            ],
+                        }
+                    ],
                 },
-            }, namespace="composer-3-0-0-airflow-2-6-3-aaabbb")
+            },
+            namespace="composer-3-0-0-airflow-2-6-3-aaabbb",
+        )
         self.assertEqual(state, State.UPLOAD_DAG)
 
     def test_deploy_stats_collector_unsupported_composer_version(self):
@@ -1632,9 +1594,7 @@ class TestComposerEnvironment(TestCase):
         with self.assertRaises(ValueError):
             state = self.composer._deploy_stats_collector()
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
     def test_reset_environment(self, mock_check_cluster_readiness):
 
         runner_mock = mock.MagicMock()
@@ -1655,9 +1615,7 @@ class TestComposerEnvironment(TestCase):
 
         self.assertEqual(state, State.UPLOAD_DAG)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False)
     def test_reset_environment__cluster_not_ready(self, mock_check_cluster_readiness):
 
         runner_mock = mock.MagicMock()
@@ -1695,9 +1653,7 @@ class TestComposerEnvironment(TestCase):
 
         mock_get_bucket_name_and_dags_folder.assert_called_once_with()
 
-        mock_generate_copies_of_elastic_dag.assert_called_once_with(
-            DAG_FILE_PATH, CONFIG_BODY_ENV_VARS
-        )
+        mock_generate_copies_of_elastic_dag.assert_called_once_with(DAG_FILE_PATH, CONFIG_BODY_ENV_VARS)
         self.composer.storage_client.upload_dag_files.assert_called_once_with(
             dag_file_paths=[DAG_FILE_PATH],
             bucket_name=BUCKET_NAME,

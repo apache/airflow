@@ -31,13 +31,9 @@ from performance_scripts.environments.kubernetes.gke.vanilla.vanilla_gke_environ
     VanillaGKEEnvironment,
 )
 from performance_scripts.utils.file_utils import read_json_file
-from performance_scripts.utils.google_cloud.big_query_client import BigQueryClient
-from performance_scripts.utils.google_cloud.storage_client import StorageClient
 from reports.generator import generate_reports_for_study
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
@@ -64,10 +60,10 @@ def parse_args() -> argparse.Namespace:
         default=None,
         required=False,
         help="Path to the json file with configuration of environment variables used by "
-             "the elastic dag. You can provide the environment variables for the elastic dag "
-             "using this argument or directly in the main specification file (the one specified "
-             "in study args). Note that values from --elastic-dag-config-file path will override "
-             "any variables with the same names from the main specification file.",
+        "the elastic dag. You can provide the environment variables for the elastic dag "
+        "using this argument or directly in the main specification file (the one specified "
+        "in study args). Note that values from --elastic-dag-config-file path will override "
+        "any variables with the same names from the main specification file.",
     )
     parser.add_argument(
         "-m",
@@ -152,21 +148,15 @@ def main() -> None:
     args = parse_args()
 
     if args.max_concurrency < 1:
-        raise ValueError(
-            "Value provided via --max-concurrency argument must be higher than 0."
-        )
+        raise ValueError("Value provided via --max-concurrency argument must be higher than 0.")
 
     study = read_json_file(args.study_file_path)
     reports_bucket = args.reports_bucket or study.get("reports_bucket", None)
-    reports_project_id = args.reports_project_id or study.get(
-        "reports_project_id", None
-    )
+    reports_project_id = args.reports_project_id or study.get("reports_project_id", None)
 
     # validate reports_bucket
     if not reports_bucket:
-        raise ValueError(
-            f"Please provide a bucket to store the results under --reports-bucket argument."
-        )
+        raise ValueError(f"Please provide a bucket to store the results under --reports-bucket argument.")
     storage_client = StorageClient(project_id=reports_project_id)
     storage_client.get_bucket(reports_bucket)
 
@@ -185,7 +175,8 @@ def main() -> None:
         test_attempts_to_run_in_parallel,
         test_attempts_to_run_in_sequence,
     ) = collect_test_attempts(
-        study, study_id, args.study_file_path, args.elastic_dag_config_file_path, args.script_user)
+        study, study_id, args.study_file_path, args.elastic_dag_config_file_path, args.script_user
+    )
 
     run_test_attempts(
         test_attempts_to_run_in_parallel=test_attempts_to_run_in_parallel,
@@ -194,7 +185,10 @@ def main() -> None:
     )
 
     generate_reports_for_study(
-        study_components_by_environment_type, storage_client, reports_bucket, study_id,
+        study_components_by_environment_type,
+        storage_client,
+        reports_bucket,
+        study_id,
         args.elastic_dag_config_file_path,
     )
 
@@ -204,7 +198,10 @@ def main() -> None:
 # pylint: disable=too-many-statements
 # TODO: this function is way too big, need to extract some of it to separate methods
 def collect_test_attempts(
-    study: Dict, study_id: str, study_file_path: str, elastic_dag_config_file_path: str,
+    study: Dict,
+    study_id: str,
+    study_file_path: str,
+    elastic_dag_config_file_path: str,
     script_user: Optional[str] = None,
 ) -> Tuple[Dict, List[Dict], List[Dict]]:
     """
@@ -246,8 +243,7 @@ def collect_test_attempts(
 
         if not isinstance(default_args.get(dumped_json_argument, {}), Dict):
             raise TypeError(
-                f"Please provide a default value of '{dumped_json_argument}' argument "
-                f"as a dictionary."
+                f"Please provide a default value of '{dumped_json_argument}' argument " f"as a dictionary."
             )
 
     default_attempts = study.get("default_attempts", DEFAULT_ATTEMPTS_NUMBER)
@@ -286,9 +282,7 @@ def collect_test_attempts(
     for index, study_component in enumerate(study["study_components"]):
 
         if not isinstance(study_component, Dict):
-            raise TypeError(
-                "Every element from 'study_components' list should be a dictionary."
-            )
+            raise TypeError("Every element from 'study_components' list should be a dictionary.")
 
         if not isinstance(study_component.get("args", {}), Dict):
             raise TypeError(
@@ -329,10 +323,7 @@ def collect_test_attempts(
 
         study_component_attempts = study_component.get("attempts", default_attempts)
 
-        if (
-            not isinstance(study_component_attempts, int)
-            or study_component_attempts < 1
-        ):
+        if not isinstance(study_component_attempts, int) or study_component_attempts < 1:
             raise ValueError(
                 f"Wrong number of attempts ({study_component_attempts}) for study component "
                 f"number {index}: number of attempts must be a positive integer."
@@ -342,13 +333,9 @@ def collect_test_attempts(
         study_component_flags = study_component.get("flags", default_flags)
 
         if not isinstance(study_component_flags, list):
-            raise TypeError(
-                f"Please provide a list under 'flags' key for study component number {index}."
-            )
+            raise TypeError(f"Please provide a list under 'flags' key for study component number {index}.")
 
-        randomize_environment_name = study_component.get(
-            "randomize_environment_name", True
-        )
+        randomize_environment_name = study_component.get("randomize_environment_name", True)
 
         if not isinstance(randomize_environment_name, bool):
             raise TypeError(
@@ -360,15 +347,12 @@ def collect_test_attempts(
 
         if component_name is not None and not isinstance(component_name, str):
             raise TypeError(
-                f"Please provide a string under 'component_name' key "
-                f"for study component number {index}."
+                f"Please provide a string under 'component_name' key " f"for study component number {index}."
             )
 
         baseline_component_name = study_component.get("baseline_component_name", None)
 
-        if baseline_component_name is not None and not isinstance(
-            baseline_component_name, str
-        ):
+        if baseline_component_name is not None and not isinstance(baseline_component_name, str):
             raise TypeError(
                 f"Please provide a string under 'baseline_component_name' key "
                 f"for study component number {index}."
@@ -397,10 +381,7 @@ def collect_test_attempts(
                 f" for study component number {index}."
             )
 
-        if (
-            "results_bucket" in study_component["args"]
-            or "output_path" in study_component["args"]
-        ):
+        if "results_bucket" in study_component["args"] or "output_path" in study_component["args"]:
             raise ValueError(
                 f"Buckets and local files are not supported for storing results when running "
                 f"multiple tests. Please remove 'results_bucket' and/or 'output_path' argument(s) "
@@ -408,9 +389,7 @@ def collect_test_attempts(
                 f"store results."
             )
 
-        check_provided_arguments(
-            study_component["args"], study_component["flags"], index
-        )
+        check_provided_arguments(study_component["args"], study_component["flags"], index)
 
         for file_argument in FILE_PATH_ARGUMENTS:
             # relative paths are treated as relative to study definition file
@@ -422,12 +401,10 @@ def collect_test_attempts(
                     study_component["args"][file_argument],
                 )
 
-        if not os.path.isfile(
-            study_component["args"]["environment_specification_file_path"]
-        ):
+        if not os.path.isfile(study_component["args"]["instance_specification_file_path"]):
             raise ValueError(
                 f"Environment specification file "
-                f"'{study_component['args']['environment_specification_file_path']}' "
+                f"'{study_component['args']['instance_specification_file_path']}' "
                 f"does not exist."
             )
 
@@ -438,20 +415,14 @@ def collect_test_attempts(
             )
         )
 
-        environment_type = PerformanceTest.get_environment_type(
-            study_component["args"]["environment_specification_file_path"]
+        environment_type = PerformanceTest.get_instance_type(
+            study_component["args"]["instance_specification_file_path"]
         )
 
         if environment_type not in study_components_by_environment_type:
             study_components_by_environment_type[environment_type] = []
 
         study_components_by_environment_type[environment_type].append(study_component)
-
-    # checking and creating datasets
-    for dataset, project_id in results_datasets:
-        log.info("Checking results dataset %s from project id %s", dataset, project_id)
-        big_query_client = BigQueryClient(project_id)
-        big_query_client.check_and_create_dataset(dataset)
 
     test_attempts_to_run_in_parallel = []
     test_attempts_to_run_in_sequence = []
@@ -466,26 +437,20 @@ def collect_test_attempts(
             environment_class = VanillaGKEEnvironment
         else:
             files = [
-                study_component["args"]["environment_specification_file_path"]
-                for study_component in study_components_by_environment_type[
-                    "environment_type"
-                ]
+                study_component["args"]["instance_specification_file_path"]
+                for study_component in study_components_by_environment_type["environment_type"]
             ]
             raise ValueError(
                 f"Unknown environment type: '{environment_type}' passed "
                 f"in following environment specification files: {files}"
             )
 
-        for index, study_component in enumerate(
-            study_components_by_environment_type[environment_type]
-        ):
+        for index, study_component in enumerate(study_components_by_environment_type[environment_type]):
             # we prepare rendered specifications for every study_component; the method decides
             # if these specifications can be run in parallel or not, based on their contents
 
             if not study_component.get("component_name", None):
-                study_component[
-                    "component_name"
-                ] = f"{environment_type}_{index}".lower()
+                study_component["component_name"] = f"{environment_type}_{index}".lower()
 
             all_study_component_names.append(study_component["component_name"])
             baseline = study_component.get("baseline_component_name", None)
@@ -504,7 +469,7 @@ def collect_test_attempts(
                 to_run_in_sequence,
             ) = environment_class.prepare_specifications_for_multiple_test_attempts(
                 study_component["attempts"],
-                study_component["args"]["environment_specification_file_path"],
+                study_component["args"]["instance_specification_file_path"],
                 elastic_dag_config_file_path,
                 json.loads(study_component["args"].get("jinja_variables", "{}")),
                 study_component["randomize_environment_name"],
@@ -512,7 +477,7 @@ def collect_test_attempts(
 
             # since we have filled specifications already,
             # we do not need below arguments anymore
-            study_component["args"].pop("environment_specification_file_path", None)
+            study_component["args"].pop("instance_specification_file_path", None)
             study_component["args"].pop("jinja_variables", None)
             # remove `elastic_dag_config_file_path` parameter from study to not interfere with
             # --elastic-dag-config-file-path parameter passed to script
@@ -529,29 +494,21 @@ def collect_test_attempts(
                 parallel_test_attempt = deepcopy(study_component)
                 parallel_test_attempt["specification"] = specification
                 parallel_test_attempt["environment_name"] = environment_name
-                parallel_test_attempt["args"][
-                    "results_object_name"
-                ] = results_object_name
+                parallel_test_attempt["args"]["results_object_name"] = results_object_name
                 test_attempts_to_run_in_parallel.append(parallel_test_attempt)
 
             for specification, environment_name in to_run_in_sequence:
                 sequential_test_attempt = deepcopy(study_component)
                 sequential_test_attempt["specification"] = specification
                 sequential_test_attempt["environment_name"] = environment_name
-                sequential_test_attempt["args"][
-                    "results_object_name"
-                ] = results_object_name
+                sequential_test_attempt["args"]["results_object_name"] = results_object_name
                 test_attempts_to_run_in_sequence.append(sequential_test_attempt)
 
     log.info("Test attempts collected.")
 
     all_environment_names = [
-        test_attempt["environment_name"]
-        for test_attempt in test_attempts_to_run_in_sequence
-    ] + [
-        test_attempt["environment_name"]
-        for test_attempt in test_attempts_to_run_in_parallel
-    ]
+        test_attempt["environment_name"] for test_attempt in test_attempts_to_run_in_sequence
+    ] + [test_attempt["environment_name"] for test_attempt in test_attempts_to_run_in_parallel]
 
     if len(all_environment_names) != len(set(all_environment_names)):
         raise ValueError(
@@ -567,9 +524,7 @@ def collect_test_attempts(
         )
 
     missing_baseline_component_names = [
-        baseline
-        for baseline in all_baseline_component_names
-        if baseline not in all_study_component_names
+        baseline for baseline in all_baseline_component_names if baseline not in all_study_component_names
     ]
     if missing_baseline_component_names:
         raise ValueError(
@@ -622,18 +577,14 @@ def check_provided_arguments(arguments: Dict, flags: List[str], index: int) -> N
             "Please check this script's arguments."
         )
 
-    allowed_args = [
-        action for action in actions if isinstance(action, argparse._StoreAction)
-    ]
+    allowed_args = [action for action in actions if isinstance(action, argparse._StoreAction)]
 
     allowed_args_destinations = [allowed_arg.dest for allowed_arg in allowed_args]
 
     unknown_arguments = set(arguments) - set(allowed_args_destinations)
 
     if unknown_arguments:
-        raise KeyError(
-            f"Unknown arguments were provided for study component {index}: {unknown_arguments}."
-        )
+        raise KeyError(f"Unknown arguments were provided for study component {index}: {unknown_arguments}.")
 
     for allowed_arg in allowed_args:
         if allowed_arg.required and allowed_arg.dest not in arguments:
@@ -642,9 +593,7 @@ def check_provided_arguments(arguments: Dict, flags: List[str], index: int) -> N
                 f"Please provide it in the study json file using the following string: "
                 f"{allowed_arg.dest}."
             )
-        if allowed_arg.dest in arguments and not isinstance(
-            arguments[allowed_arg.dest], allowed_arg.type
-        ):
+        if allowed_arg.dest in arguments and not isinstance(arguments[allowed_arg.dest], allowed_arg.type):
             raise TypeError(
                 f"Value of argument {allowed_arg.dest} has wrong type for study component {index}. "
                 f"Expected type: {allowed_arg.type}, provided value: {arguments[allowed_arg.dest]}"
@@ -661,9 +610,7 @@ def check_provided_arguments(arguments: Dict, flags: List[str], index: int) -> N
     unknown_flags = set(flags) - set(allowed_flags_destinations)
 
     if unknown_flags:
-        raise KeyError(
-            f"Unknown flags were provided for study component {index}: {unknown_flags}."
-        )
+        raise KeyError(f"Unknown flags were provided for study component {index}: {unknown_flags}.")
 
     for allowed_flag in allowed_flags:
         if allowed_flag.required and allowed_flag.dest not in flags:
@@ -674,9 +621,7 @@ def check_provided_arguments(arguments: Dict, flags: List[str], index: int) -> N
             )
 
 
-def get_results_object_name(
-    study_id: str, study_component_name: str, environment_type: str
-):
+def get_results_object_name(study_id: str, study_component_name: str, environment_type: str):
     """
     Returns results object name based on given arguments. It will be used to store results of
     all test attempts of given study_component.
@@ -754,14 +699,10 @@ def run_test_attempts(
                     indexes_of_finished_parallel_test_attempts.append(index)
 
             # remove finished test attempts from list
-            for index in sorted(
-                indexes_of_finished_parallel_test_attempts, reverse=True
-            ):
+            for index in sorted(indexes_of_finished_parallel_test_attempts, reverse=True):
                 parallel_test_attempts.pop(index)
 
-            number_of_parallel_test_attempts_to_start = max_concurrency - len(
-                parallel_test_attempts
-            )
+            number_of_parallel_test_attempts_to_start = max_concurrency - len(parallel_test_attempts)
 
             # if there are no more test attempts to run in sequence,
             # then sequential_test_attempt will remain None
@@ -770,10 +711,7 @@ def run_test_attempts(
 
             # start new parallel test attempts if the concurrency allows
             # and there are any left to start
-            if (
-                test_attempts_to_run_in_parallel
-                and number_of_parallel_test_attempts_to_start > 0
-            ):
+            if test_attempts_to_run_in_parallel and number_of_parallel_test_attempts_to_start > 0:
 
                 log.info(
                     "Starting %d new parallel test attempt(s).",
@@ -855,14 +793,10 @@ def initialize_next_test_attempts(
         with open(specification_file, "w") as file:
             json.dump(next_test_attempt["specification"], file)
 
-        next_test_attempt["args"][
-            "environment_specification_file_path"
-        ] = specification_file
+        next_test_attempt["args"]["instance_specification_file_path"] = specification_file
         # pylint: disable=broad-except
         try:
-            test_attempt_namespace = prepare_namespace_for_test_attempt(
-                next_test_attempt
-            )
+            test_attempt_namespace = prepare_namespace_for_test_attempt(next_test_attempt)
 
             perf_test = initialize_performance_test(test_attempt_namespace)
 
@@ -928,9 +862,7 @@ def find_option_string_for_destination(actions: List, destination: str) -> str:
     for action in actions:
         if action.dest == destination:
             return action.option_strings[0]
-    raise ValueError(
-        f"Could not find a destination {destination} amongst script arguments."
-    )
+    raise ValueError(f"Could not find a destination {destination} amongst script arguments.")
 
 
 def check_perf_test_status(perf_test: PerformanceTest) -> bool:
@@ -961,9 +893,7 @@ def resolve_finished_perf_test(perf_test: PerformanceTest) -> None:
     """
     # pylint: disable=broad-except
     try:
-        log.info(
-            "Environment %s has reached a terminal state", perf_test.environment.name
-        )
+        log.info("Environment %s has reached a terminal state", perf_test.environment.name)
         if perf_test.environment.is_successful:
             perf_test.save_results()
     except Exception as err:
@@ -979,14 +909,11 @@ def resolve_finished_perf_test(perf_test: PerformanceTest) -> None:
                 perf_test.environment.delete_environment()
             else:
                 log.warning(
-                    "delete-upon-finish flag was set, "
-                    "but the environment %s cannot be deleted.",
+                    "delete-upon-finish flag was set, " "but the environment %s cannot be deleted.",
                     perf_test.environment.name,
                 )
         except Exception as err:
-            log.error(
-                "Deleting environment %s failed: %s.", perf_test.environment.name, err
-            )
+            log.error("Deleting environment %s failed: %s.", perf_test.environment.name, err)
     # pylint: enable=broad-except
 
 

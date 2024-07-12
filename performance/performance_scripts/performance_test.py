@@ -1,6 +1,7 @@
 """
 Definition of class representing a single performance attempt.
 """
+
 import functools
 import logging
 from time import sleep
@@ -21,8 +22,6 @@ from performance_scripts.utils.file_utils import (
     read_templated_json_file,
     save_output_file,
 )
-from performance_scripts.utils.google_cloud.big_query_client import BigQueryClient
-from performance_scripts.utils.google_cloud.storage_client import StorageClient
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -53,14 +52,11 @@ class PerformanceTest:
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        environment_specification_file_path: str,
+        instance_specification_file_path: str,
         elastic_dag_path: str,
         elastic_dag_config_file_path: str,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
         results_columns: Optional[Dict] = None,
-        results_project_id: Optional[str] = None,
-        results_bucket: Optional[str] = None,
-        results_dataset: Optional[str] = None,
         output_path: Optional[str] = None,
         results_object_name: Optional[str] = None,
         reuse_if_exists: bool = False,
@@ -71,9 +67,9 @@ class PerformanceTest:
         """
         Creates an instance of PerformanceTest class.
 
-        :param environment_specification_file_path: path to the file with specification of test
+        :param instance_specification_file_path: path to the file with specification of test
             environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
         :param elastic_dag_path: a path to elastic DAG that should be uploaded to test environment.
         :type elastic_dag_path: str
         :param elastic_dag_config_file_path: path to file with configuration for elastic DAG.
@@ -85,15 +81,6 @@ class PerformanceTest:
         :param results_columns: a dictionary with column name/value pairs that should be added
             to the results table
         :type results_columns: Dict
-        :param results_project_id: id of the Google Cloud project in which results bucket
-            should be created in case it does not exist.
-        :type results_project_id: str
-        :param results_bucket: the name of the GCS bucket where the file with test results should be
-            uploaded.
-        :type results_bucket: str
-        :param results_dataset: the name of the BQ dataset where the table with test results
-            should be uploaded.
-        :type results_dataset: str
         :param output_path: local path where results should be saved in csv format.
         :type output_path: str
         :param results_object_name: name for the results object (file or table).
@@ -113,17 +100,11 @@ class PerformanceTest:
         :raises: ValueError: if environment_type does not match any of the supported types.
         """
 
-        self.results_bucket = results_bucket
-        self.results_dataset = results_dataset
         self.results_object_name = results_object_name
         self.output_path = output_path
         self.delete_upon_finish = delete_upon_finish
 
-        if (
-            self.output_path is None
-            and self.results_bucket is None
-            and self.results_dataset is None
-        ):
+        if self.output_path is None and self.results_bucket is None and self.results_dataset is None:
             raise ValueError(
                 "No way of saving results was provided. "
                 "Please provide at least one of the following: "
@@ -132,13 +113,11 @@ class PerformanceTest:
 
         jinja_variables_dict = jinja_variables_dict or {}
 
-        environment_type = self.get_environment_type(
-            environment_specification_file_path
-        )
+        instance_type = self.get_instance_type(instance_specification_file_path)
 
-        if environment_type == ComposerEnvironment.environment_type:
+        if instance_type == ComposerEnvironment.environment_type:
             self.environment = ComposerEnvironment(
-                environment_specification_file_path,
+                instance_specification_file_path,
                 elastic_dag_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
@@ -148,9 +127,9 @@ class PerformanceTest:
                 delete_upon_finish,
                 reset_environment,
             )
-        elif environment_type == VanillaGKEEnvironment.environment_type:
+        elif instance_type == VanillaGKEEnvironment.environment_type:
             self.environment = VanillaGKEEnvironment(
-                environment_specification_file_path,
+                instance_specification_file_path,
                 elastic_dag_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
@@ -163,32 +142,20 @@ class PerformanceTest:
         else:
             raise ValueError(
                 f"Currently only Composer and Vanilla GKE environments are supported "
-                f"for performance tests (provided environment type: {environment_type})."
+                f"for performance tests (provided environment type: {instance_type})."
             )
-
-        self.storage_client = (
-            StorageClient(results_project_id)
-            if self.results_bucket is not None
-            else None
-        )
-
-        self.big_query_client = (
-            BigQueryClient(results_project_id)
-            if self.results_dataset is not None
-            else None
-        )
 
     # pylint: enable=too-many-arguments
 
     @staticmethod
-    def get_environment_type(environment_specification_file_path: str) -> str:
+    def get_instance_type(instance_specification_file_path: str) -> str:
         """
-        Reads the contents of the environment_specification_file_path
+        Reads the contents of the instance_specification_file_path
         and returns the environment type.
 
-        :param environment_specification_file_path: path to the file with specification
+        :param instance_specification_file_path: path to the file with specification
             of test environment.
-        :type environment_specification_file_path: str
+        :type instance_specification_file_path: str
 
         :raises:
             TypeError: if the specification is not a dictionary.
@@ -197,7 +164,7 @@ class PerformanceTest:
 
         # we just want to get "environment_type" that's why we fill the templated file with nulls
         environment_specification = read_templated_json_file(
-            environment_specification_file_path, fill_with_nulls=True
+            instance_specification_file_path, fill_with_nulls=True
         )
 
         if not isinstance(environment_specification, Dict):
@@ -234,8 +201,7 @@ class PerformanceTest:
                         self.environment.delete_environment()
                     else:
                         log.warning(
-                            "delete-upon-finish flag was set, "
-                            "but the environment %s cannot be deleted.",
+                            "delete-upon-finish flag was set, " "but the environment %s cannot be deleted.",
                             self.environment.name,
                         )
                 except Exception as err:
@@ -305,24 +271,12 @@ class PerformanceTest:
     def check_outputs(self) -> None:
         """
         Checks if provided ways of saving test results can be accessed by the script.
+        Currently the result can be only saved to a CSV file to `output_path` folder.
         """
 
         if self.output_path is not None:
             log.info("Checking output path: %s", self.output_path)
             check_output_path(self.output_path)
-
-        if self.results_bucket is not None:
-            log.info(
-                "Checking if results bucket '%s' can be accessed.", self.results_bucket
-            )
-            self.storage_client.get_bucket(self.results_bucket)
-
-        if self.results_dataset is not None:
-            log.info(
-                "Checking if results dataset '%s' can be accessed.",
-                self.results_dataset,
-            )
-            self.big_query_client.check_and_create_dataset(self.results_dataset)
 
     def save_results(self) -> None:
         """
@@ -343,20 +297,6 @@ class PerformanceTest:
                 results_df=results_df,
                 output_path=self.output_path,
                 default_file_name=results_object_name,
-            )
-
-        if self.results_bucket is not None:
-            self.storage_client.upload_results(
-                results_df=results_df,
-                bucket_name=self.results_bucket,
-                blob_name=results_object_name,
-            )
-
-        if self.results_dataset is not None:
-            self.big_query_client.upload_results(
-                results_df=results_df,
-                dataset_name=self.results_dataset,
-                table_name=results_object_name,
             )
 
     @staticmethod

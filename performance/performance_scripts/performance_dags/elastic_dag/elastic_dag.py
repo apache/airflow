@@ -15,8 +15,8 @@ from typing import List, Union, cast
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import BashOperator
+from airflow.operators.bash import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -41,9 +41,7 @@ def parse_time_delta(time_str):
         "Examples of valid strings: '8h', '2d8h5m20s', '2m4s'".format(time_str=time_str)
     )
 
-    time_params = {
-        name: float(param) for name, param in parts.groupdict().items() if param
-    }
+    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)  # type: ignore
 
 
@@ -55,9 +53,7 @@ def parse_start_date():
     """
 
     if "PERF_START_DATE" in os.environ:
-        start_date = datetime.strptime(
-            os.environ["PERF_START_DATE"], "%Y-%m-%d %H:%M:%S.%f"
-        )
+        start_date = datetime.strptime(os.environ["PERF_START_DATE"], "%Y-%m-%d %H:%M:%S.%f")
         dag_id_component = int(start_date.timestamp())
     else:
         start_ago = os.environ.get("PERF_START_AGO", "1h")
@@ -92,7 +88,7 @@ def safe_dag_id(dag_id):
 
 
 def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep_time, operator_extra_kwargs):
-    # type: (DAG, str, int, float) -> List[BaseOperator]
+    # type: (DAG, str, int, float, int, dict) -> List[BaseOperator]
     """
     Return list of tasks of test dag
 
@@ -109,12 +105,8 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
     if operator_type_str == "bash":
         task_list = [
             BashOperator(
-                task_id="__".join(
-                    ["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]
-                ),
-                bash_command="sleep {sleep_time}; echo test".format(
-                    sleep_time=sleep_time
-                ),
+                task_id="__".join(["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]),
+                bash_command="sleep {sleep_time}; echo test".format(sleep_time=sleep_time),
                 dag=dag_object,
                 trigger_rule=trigger_rule,
                 **operator_extra_kwargs,
@@ -129,9 +121,7 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
 
         task_list = [
             PythonOperator(
-                task_id="__".join(
-                    ["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]
-                ),
+                task_id="__".join(["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]),
                 python_callable=sleep_function,
                 dag=dag_object,
                 trigger_rule=trigger_rule,
@@ -144,9 +134,7 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
 
         task_list = [
             BigQueryInsertJobOperator(
-                task_id="__".join(
-                    ["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]
-                ),
+                task_id="__".join(["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]),
                 dag=dag_object,
                 trigger_rule=trigger_rule,
                 configuration={
@@ -253,9 +241,7 @@ def chain_as_grid(*tasks):
      t9
     """
     if len(tasks) > 100 * 99 / 2:
-        raise ValueError(
-            "Cannot generate grid DAGs with lateral size larger than 100 tasks."
-        )
+        raise ValueError("Cannot generate grid DAGs with lateral size larger than 100 tasks.")
     grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
 
     def index(i, j):
@@ -344,7 +330,9 @@ for dag_no in range(1, DAG_COUNT + 1):
         catchup=True,
     )
 
-    elastic_dag_tasks = get_task_list(dag, OPERATOR_TYPE, TASKS_COUNT, TASKS_TRIGGER_RULE, SLEEP_TIME, OPERATOR_EXTRA_KWARGS)
+    elastic_dag_tasks = get_task_list(
+        dag, OPERATOR_TYPE, TASKS_COUNT, TASKS_TRIGGER_RULE, SLEEP_TIME, OPERATOR_EXTRA_KWARGS
+    )
 
     shape_function_map = {
         DagShape.LINEAR: chain,

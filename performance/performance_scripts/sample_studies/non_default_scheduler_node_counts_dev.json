@@ -1,0 +1,67 @@
+{
+    "study_components": [
+        {
+            "args": {
+                "jinja_variables": {
+                    "node_count": "3",
+                    "scheduler_count": "1"
+                }
+            }
+        },
+        {
+            "args": {
+                "jinja_variables": {
+                    "node_count": "3",
+                    "scheduler_count": "2"
+                }
+            }
+        },
+        {
+            "args": {
+                "jinja_variables": {
+                    "node_count": "3",
+                    "scheduler_count": "3"
+                }
+            }
+        },
+        {
+            "args": {
+                "jinja_variables": {
+                    "node_count": "5",
+                    "scheduler_count": "1"
+                }
+            }
+        },
+        {
+            "args": {
+                "jinja_variables": {
+                    "node_count": "5",
+                    "scheduler_count": "2"
+                }
+            }
+        },
+        {
+            "args": {
+                "jinja_variables": {
+                    "node_count": "5",
+                    "scheduler_count": "3"
+                }
+            }
+        }
+    ],
+    "default_args": {
+        "instance_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_generic.json",
+        "results_project_id": "composer-performance-tests",
+        "results_dataset": "composer_performance_dataset_study_performance",
+        "jinja_variables": {
+            "project_id": "composer-performance-tests",
+            "location_id": "us-central1",
+            "zone_id": "us-central1-c",
+            "api_endpoint": "https://dev-composer.sandbox.googleapis.com/",
+            "composer_version": "1.17.0-preview.4",
+            "airflow_version": "2.0.1"
+        }
+    },
+    "default_flags": ["delete_if_exists", "delete_upon_finish"],
+    "default_attempts": 5
+}
