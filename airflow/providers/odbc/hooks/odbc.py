@@ -157,9 +157,7 @@ class OdbcHook(DbApiHook):
                 conn_str += f"PORT={self.connection.port};"
 
             extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
-            extra_params = {
-                k: v for k, v in self.connection_extra_lower if k not in extra_exclude
-            }
+            extra_params = {k: v for k, v in self.connection_extra_lower if k not in extra_exclude}
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
 

@@ -98,6 +98,7 @@ class JdbcHook(DbApiHook):
             "hidden_fields": ["port", "schema"],
             "relabeling": {"host": "Connection URL"},
         }
+
     @property
     def driver_path(self) -> str | None:
         from airflow.configuration import conf
