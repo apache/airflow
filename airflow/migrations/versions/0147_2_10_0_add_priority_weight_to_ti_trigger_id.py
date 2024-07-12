@@ -40,12 +40,20 @@ airflow_version = "2.10.0"
 def upgrade():
     """Apply recreate ti_trigger_id index as composite index with priority_weight."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.drop_constraint("task_instance_trigger_id_fkey", type_="foreignkey")
         batch_op.drop_index("ti_trigger_id")
+        batch_op.create_foreign_key(
+            "task_instance_trigger_id_fkey", "trigger", ["trigger_id"], ["id"], ondelete="CASCADE"
+        )
         batch_op.create_index("ti_trigger_id", ["trigger_id", "priority_weight"])
 
 
 def downgrade():
     """Unapply creation of composite index for ti_trigger_id index."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
+        batch_op.drop_constraint("task_instance_trigger_id_fkey", type_="foreignkey")
         batch_op.drop_index("ti_trigger_id")
+        batch_op.create_foreign_key(
+            "task_instance_trigger_id_fkey", "trigger", ["trigger_id"], ["id"], ondelete="CASCADE"
+        )
         batch_op.create_index("ti_trigger_id", ["trigger_id"])
