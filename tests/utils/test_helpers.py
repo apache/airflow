@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import itertools
 import re
-from locale import getdefaultlocale
 from typing import TYPE_CHECKING
 
 import pytest
@@ -397,7 +396,7 @@ def test_validate_instance_args_raises_error(instance, expected_arg_types):
     "new_locale, expected",
     [
         ("nl_BE", "nl_BE"),
-        (None, getdefaultlocale()[0]),
+        (None, "nl_BE"),
     ],
 )
 def test_apply_locale(new_locale, expected):
