@@ -75,6 +75,10 @@ class ResourceDetails(TypedDict):
     prefix: str
 
 
+# Keeping DAG_ACTIONS to keep the compatibility with outdated versions of FAB provider
+DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
+
+
 RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG: ResourceDetails(
         actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
