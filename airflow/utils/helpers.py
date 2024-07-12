@@ -25,7 +25,7 @@ import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import reduce
-from locale import LC_TIME, getdefaultlocale, getlocale, setlocale
+from locale import LC_TIME, getlocale, setlocale
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
 from lazy_object_proxy import Proxy
@@ -406,7 +406,7 @@ def apply_locale(new_locale: str | None):
     :param new_locale: Locale to be used within the context (e.g. 'en_US').
                        If None (default), the locale will not be changed.
     """
-    current_locale = getlocale(LC_TIME)[0] or getdefaultlocale()[0]
+    current_locale = getlocale(LC_TIME)[0]
 
     if new_locale is not None:
         if new_locale == current_locale:
