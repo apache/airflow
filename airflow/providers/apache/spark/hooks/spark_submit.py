@@ -17,11 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import contextlib
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import time
+import uuid
+from pathlib import Path
 from typing import Any, Iterator
 
 from airflow.configuration import conf as airflow_conf
@@ -67,7 +72,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
     :param keytab: Full path to the file that contains the keytab
+                        (will overwrite any keytab defined in the connection's extra JSON)
     :param principal: The name of the kerberos principal used for keytab
+                        (will overwrite any principal defined in the connection's extra JSON)
     :param proxy_user: User to impersonate when submitting the application
     :param name: Name of the job (default airflow-spark)
     :param num_executors: Number of executors to launch
@@ -101,14 +108,17 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return {
             "hidden_fields": ["schema", "login", "password", "extra"],
             "relabeling": {},
+            "placeholders": {
+                "keytab": "<base64 encoded Keytab Content>",
+            },
         }
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to Spark connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import PasswordField, StringField
         from wtforms.validators import Optional, any_of
 
         return {
@@ -134,6 +144,17 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             ),
             "namespace": StringField(
                 lazy_gettext("Kubernetes namespace"), widget=BS3TextFieldWidget(), validators=[Optional()]
+            ),
+            "principal": StringField(
+                lazy_gettext("Principal"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional()],
+            ),
+            "keytab": PasswordField(
+                lazy_gettext("Keytab"),
+                widget=BS3PasswordFieldWidget(),
+                description="Run the command `base64 <your-keytab-path>` and use its output.",
+                validators=[Optional()],
             ),
         }
 
@@ -236,6 +257,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "deploy_mode": None,
             "spark_binary": self.spark_binary or DEFAULT_SPARK_BINARY,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
 
         try:
@@ -268,6 +291,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
+            conn_data["principal"] = self._principal if self._principal else extra.get("principal")
+            base64_keytab = extra.get("keytab")
+            if self._keytab is not None:
+                conn_data["keytab"] = self._keytab
+            elif base64_keytab is not None:
+                conn_data["keytab"] = self._get_keytab_from_base64(base64_keytab)
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
@@ -280,6 +309,30 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def get_conn(self) -> Any:
         pass
+
+    def _get_keytab_from_base64(self, base64_keytab: str) -> str:
+        _uuid = uuid.uuid4()
+        temp_dir_path = Path(tempfile.gettempdir()).resolve()
+        temp_file_name = f"airflow_keytab-{self._connection.get('principal', _uuid)}"
+
+        keytab_path = temp_dir_path / temp_file_name
+        staging_path = temp_dir_path / f".{temp_file_name}.{_uuid}"
+
+        try:
+            with open(staging_path, "wb") as f:
+                self.log.info("Saving keytab to %s", staging_path)
+                f.write(base64.b64decode(base64_keytab))
+
+            self.log.info("Moving keytab from %s to %s", staging_path, keytab_path)
+            shutil.move(staging_path, keytab_path)
+            return str(keytab_path)
+        except Exception as err:
+            self.log.error("Failed to save keytab: %s", err)
+            raise
+        finally:
+            if staging_path.exists():
+                self.log.info("Removing staging keytab file: %s", staging_path)
+                staging_path.unlink()
 
     def _get_spark_binary_path(self) -> list[str]:
         # Assume that spark-submit is present in the path to the executing user
@@ -369,10 +422,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--executor-memory", self._executor_memory]
         if self._driver_memory:
             connection_cmd += ["--driver-memory", self._driver_memory]
-        if self._keytab:
-            connection_cmd += ["--keytab", self._keytab]
-        if self._principal:
-            connection_cmd += ["--principal", self._principal]
+        if self._connection["keytab"]:
+            connection_cmd += ["--keytab", self._connection["keytab"]]
+        if self._connection["principal"]:
+            connection_cmd += ["--principal", self._connection["principal"]]
         if self._use_krb5ccache:
             if not os.getenv("KRB5CCNAME"):
                 raise AirflowException(
@@ -702,11 +755,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._yarn_application_id:
                 kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
                 env = {**os.environ, **(self._env or {})}
-                if self._keytab is not None and self._principal is not None:
+                if self._connection["keytab"] is not None and self._connection["principal"] is not None:
                     # we are ignoring renewal failures from renew_from_kt
                     # here as the failure could just be due to a non-renewable ticket,
                     # we still attempt to kill the yarn application
-                    renew_from_kt(self._principal, self._keytab, exit_on_fail=False)
+                    renew_from_kt(
+                        self._connection["principal"], self._connection["keytab"], exit_on_fail=False
+                    )
                     env = os.environ.copy()
                     ccacche = airflow_conf.get_mandatory_value("kerberos", "ccache")
                     env["KRB5CCNAME"] = ccacche
