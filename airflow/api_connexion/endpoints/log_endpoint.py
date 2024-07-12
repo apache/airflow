@@ -53,10 +53,11 @@ def get_log(
     task_try_number: int,
     full_content: bool = False,
     map_index: int = -1,
+    offset: int = 0,
+    limit: int = 100,
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get logs for specific task instance."""
     key = get_airflow_app().config["SECRET_KEY"]
     metadata = {}
     if token:
@@ -72,7 +73,7 @@ def get_log(
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
 
-    ti = session.scalar(
+    query = (
         select(TaskInstance)
         .where(
             TaskInstance.task_id == task_id,
@@ -83,28 +84,33 @@ def get_log(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
+    ti = session.scalar(query)
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
 
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if dag:
-        ti.task = dag.get_task(ti.task_id)
-        if ti.task is None:
-            raise NotFound("Task not found in DAG")
+        try:
+            ti.task = dag.get_task(ti.task_id)
+        except TaskNotFound:
+            pass
 
     return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
 
-    if return_type in ["application/json", None]:  # default
+    if return_type == "application/json" or return_type is None:  # default
         logs, metadata = task_log_reader.read_log_chunks(
-            ti, task_try_number, metadata
+            ti, task_try_number, metadata, offset=offset, limit=limit
         )
-        logs = logs[0] if task_try_number is not None else logs
+        # Flatten the logs for JSON formatting, if necessary
+        flattened_logs = [item for sublist in logs for item in sublist]
         token = URLSafeSerializer(key).dumps(metadata)
-        return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
+        content = "\n".join(f"{host}: {message}" for host, message in flattened_logs)
+        return logs_schema.dump(LogResponseObject(continuation_token=token, content=content))
     else:  # text/plain streaming
-        logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
-        return Response(logs, headers={"Content-Type": return_type})
+        log_stream = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+        # Since `log_stream` is an iterator of strings, we can directly pass it to Response
+        return Response(log_stream, headers={"Content-Type": return_type})
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
