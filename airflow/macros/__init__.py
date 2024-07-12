@@ -74,7 +74,7 @@ def ds_format(ds: str, input_format: str, output_format: str, locale: str | None
     '01-01-15'
     >>> ds_format("1/5/2015", "%m/%d/%Y", "%Y-%m-%d")
     '2015-01-05'
-    >>> ds_format('12/07/2024', '%d/%m/%Y', '%A %d %B %Y', 'en_US')
+    >>> ds_format("12/07/2024", "%d/%m/%Y", "%A %d %B %Y", "en_US")
     'Friday 12 July 2024'
     """
     with apply_locale(locale):
