@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import itertools
 import re
+from locale import getdefaultlocale
 from typing import TYPE_CHECKING
 
 import pytest
@@ -34,7 +35,7 @@ from airflow.utils.helpers import (
     prune_dict,
     validate_group_key,
     validate_instance_args,
-    validate_key,
+    validate_key, apply_locale,
 )
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
@@ -389,3 +390,15 @@ def test_validate_instance_args_raises_no_error(instance, expected_arg_types):
 def test_validate_instance_args_raises_error(instance, expected_arg_types):
     with pytest.raises(TypeError):
         validate_instance_args(instance, expected_arg_types)
+
+
+@pytest.mark.parametrize(
+    "new_locale, expected",
+    [
+        ("nl_BE", "nl_BE"),
+        (None, getdefaultlocale()[0]),
+    ],
+)
+def test_apply_locale(new_locale, expected):
+    with apply_locale(new_locale) as applied_locale:
+        assert applied_locale == expected

@@ -28,6 +28,7 @@ import dateutil  # noqa: F401
 
 import airflow.utils.yaml as yaml  # noqa: F401
 from airflow.utils.deprecation_tools import add_deprecated_classes
+from airflow.utils.helpers import apply_locale
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -60,20 +61,24 @@ def ds_add(ds: str, days: int) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def ds_format(ds: str, input_format: str, output_format: str) -> str:
+def ds_format(ds: str, input_format: str, output_format: str, locale: str | None = None) -> str:
     """
     Output datetime string in a given format.
 
     :param ds: input string which contains a date
-    :param input_format: input string format. E.g. %Y-%m-%d
-    :param output_format: output string format  E.g. %Y-%m-%d
+    :param input_format: input string format (e.g. '%Y-%m-%d')
+    :param output_format: output string format (e.g. '%Y-%m-%d')
+    :param locale: (default None) locale used to format the output string (e.g. 'en_US')
 
     >>> ds_format("2015-01-01", "%Y-%m-%d", "%m-%d-%y")
     '01-01-15'
     >>> ds_format("1/5/2015", "%m/%d/%Y", "%Y-%m-%d")
     '2015-01-05'
+    >>> ds_format("05", '%m', '%b', 'en_US')
+    'May'
     """
-    return datetime.strptime(str(ds), input_format).strftime(output_format)
+    with apply_locale(locale):
+        return datetime.strptime(str(ds), input_format).strftime(output_format)
 
 
 def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:

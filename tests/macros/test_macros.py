@@ -42,20 +42,22 @@ def test_ds_add(ds, days, expected):
 
 
 @pytest.mark.parametrize(
-    "ds, input_format, output_format, expected",
+    "ds, input_format, output_format, locale, expected",
     [
-        ("2015-01-02", "%Y-%m-%d", "%m-%d-%y", "01-02-15"),
-        ("2015-01-02", "%Y-%m-%d", "%Y-%m-%d", "2015-01-02"),
-        ("1/5/2015", "%m/%d/%Y", "%m-%d-%y", "01-05-15"),
-        ("1/5/2015", "%m/%d/%Y", "%Y-%m-%d", "2015-01-05"),
-        (lazy_object_proxy.Proxy(lambda: "2015-01-02"), "%Y-%m-%d", "%m-%d-%y", "01-02-15"),
-        (lazy_object_proxy.Proxy(lambda: "2015-01-02"), "%Y-%m-%d", "%Y-%m-%d", "2015-01-02"),
-        (lazy_object_proxy.Proxy(lambda: "1/5/2015"), "%m/%d/%Y", "%m-%d-%y", "01-05-15"),
-        (lazy_object_proxy.Proxy(lambda: "1/5/2015"), "%m/%d/%Y", "%Y-%m-%d", "2015-01-05"),
+        ("2015-01-02", "%Y-%m-%d", "%m-%d-%y", None, "01-02-15"),
+        ("2015-01-02", "%Y-%m-%d", "%Y-%m-%d", None, "2015-01-02"),
+        ("1/5/2015", "%m/%d/%Y", "%m-%d-%y", None, "01-05-15"),
+        ("1/5/2015", "%m/%d/%Y", "%Y-%m-%d", None, "2015-01-05"),
+        ("05", "%m", "%b", "en_US", "May"),
+        ("05", "%m", "%b", "nl_Be", "mei"),
+        (lazy_object_proxy.Proxy(lambda: "2015-01-02"), "%Y-%m-%d", "%m-%d-%y", None, "01-02-15"),
+        (lazy_object_proxy.Proxy(lambda: "2015-01-02"), "%Y-%m-%d", "%Y-%m-%d", None, "2015-01-02"),
+        (lazy_object_proxy.Proxy(lambda: "1/5/2015"), "%m/%d/%Y", "%m-%d-%y", None, "01-05-15"),
+        (lazy_object_proxy.Proxy(lambda: "1/5/2015"), "%m/%d/%Y", "%Y-%m-%d", None, "2015-01-05"),
     ],
 )
-def test_ds_format(ds, input_format, output_format, expected):
-    result = macros.ds_format(ds, input_format, output_format)
+def test_ds_format(ds, input_format, output_format, locale, expected):
+    result = macros.ds_format(ds, input_format, output_format, locale)
     assert result == expected
 
 
