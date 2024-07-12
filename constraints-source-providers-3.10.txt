@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-09T08:25:55.478203
+# This constraints file was automatically generated on 2024-07-12T13:50:01.989516
 # via "eager-upgrade" mechanism of PIP. For the "v2-9-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -133,7 +133,7 @@ celery==5.4.0
 certifi==2024.7.4
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==1.5.1
+cfn-lint==1.6.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -150,9 +150,9 @@ cohere==4.57
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.2
-confluent-kafka==2.4.0
+confluent-kafka==2.5.0
 connexion==2.14.2
-coverage==7.5.4
+coverage==7.6.0
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==2.0.5
@@ -204,11 +204,11 @@ gitdb==4.0.11
 google-ads==24.1.0
 google-analytics-admin==0.22.8
 google-api-core==2.19.1
-google-api-python-client==2.136.0
+google-api-python-client==2.137.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.32.0
-google-cloud-aiplatform==1.58.0
+google-cloud-aiplatform==1.59.0
 google-cloud-appengine-logging==1.4.4
 google-cloud-audit-log==0.2.5
 google-cloud-batch==0.17.22
@@ -217,7 +217,7 @@ google-cloud-bigquery==3.25.0
 google-cloud-bigtable==2.24.0
 google-cloud-build==3.24.1
 google-cloud-compute==1.19.1
-google-cloud-container==2.47.1
+google-cloud-container==2.49.0
 google-cloud-core==2.4.1
 google-cloud-datacatalog==3.19.1
 google-cloud-dataflow-client==0.8.11
@@ -231,12 +231,12 @@ google-cloud-language==2.13.4
 google-cloud-logging==3.10.0
 google-cloud-memcache==1.9.4
 google-cloud-monitoring==2.22.1
-google-cloud-orchestration-airflow==1.12.2
+google-cloud-orchestration-airflow==1.13.0
 google-cloud-os-login==2.14.5
 google-cloud-pubsub==2.22.0
 google-cloud-redis==2.15.4
 google-cloud-resource-manager==1.12.4
-google-cloud-run==0.10.6
+google-cloud-run==0.10.7
 google-cloud-secret-manager==2.20.1
 google-cloud-spanner==3.47.0
 google-cloud-speech==2.26.1
@@ -365,12 +365,12 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.35.10
+openai==1.35.13
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.17.1
-openlineage-python==1.17.1
-openlineage_sql==1.17.1
+openlineage-integration-common==1.18.0
+openlineage-python==1.18.0
+openlineage_sql==1.18.0
 openpyxl==3.1.5
 opensearch-py==2.6.0
 opentelemetry-api==1.25.0
@@ -400,10 +400,10 @@ pbr==6.0.0
 pdpyras==5.2.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.0
+pgvector==0.3.1
 pinecone-client==2.2.4
 pinotdb==5.3.0
-pipdeptree==2.23.0
+pipdeptree==2.23.1
 pipx==1.6.0
 pkginfo==1.10.0
 platformdirs==4.2.2
@@ -507,7 +507,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.8.0
+sentry-sdk==2.9.0
 setproctitle==1.3.3
 shapely==2.0.4
 shellingham==1.5.4
@@ -519,7 +519,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.11.0
-snowflake-sqlalchemy==1.5.3
+snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.5
 sphinx-airflow-theme==0.0.12
@@ -563,7 +563,7 @@ thrift==0.16.0
 time-machine==2.14.2
 tomli==2.0.1
 tomli_w==1.0.0
-tomlkit==0.12.5
+tomlkit==0.13.0
 tornado==6.4.1
 towncrier==23.11.0
 tqdm==4.66.4
@@ -580,7 +580,7 @@ types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==2.0.0.20240423
-types-docutils==0.21.0.20240708
+types-docutils==0.21.0.20240711
 types-paramiko==3.4.0.20240423
 types-protobuf==5.27.0.20240626
 types-pyOpenSSL==24.1.0.20240425
@@ -588,8 +588,8 @@ types-python-dateutil==2.9.0.20240316
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240425
-types-requests==2.32.0.20240622
-types-setuptools==70.2.0.20240704
+types-requests==2.32.0.20240712
+types-setuptools==70.3.0.20240710
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
