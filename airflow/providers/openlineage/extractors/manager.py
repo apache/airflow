@@ -198,6 +198,7 @@ class ExtractorManager(LoggingMixin):
     def convert_to_ol_dataset_from_table(table: Table) -> Dataset:
         from openlineage.client.facet import (
             BaseFacet,
+            DocumentationDatasetFacet,
             OwnershipDatasetFacet,
             OwnershipDatasetFacetOwners,
             SchemaDatasetFacet,
@@ -231,6 +232,8 @@ class ExtractorManager(LoggingMixin):
                     for user in table.owners
                 ]
             )
+        if table.description:
+            facets["documentation"] = DocumentationDatasetFacet(description=table.description)
         return Dataset(
             namespace=f"{table.cluster}",
             name=f"{table.database}.{table.name}",
