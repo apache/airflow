@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-12T17:22:29.146637
+# This constraints file was automatically generated on 2024-07-13T09:11:50.194529
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -295,7 +295,7 @@ entrypoints==0.4
 eralchemy2==1.4.1
 et-xmlfile==1.1.0
 eventlet==0.36.1
-exceptiongroup==1.2.1
+exceptiongroup==1.2.2
 execnet==2.1.1
 executing==2.0.1
 facebook_business==20.0.0
