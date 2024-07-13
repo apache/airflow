@@ -725,7 +725,7 @@ class AirflowBaseView(BaseView):
 
     if not conf.getboolean("core", "unit_test_mode"):
         executor, _ = ExecutorLoader.import_default_executor_cls()
-        extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
+        extra_args["sqlite_warning"] = settings.engine and (settings.engine.dialect.name == "sqlite")
         if not executor.is_production:
             extra_args["production_executor_warning"] = executor.__name__
         extra_args["otel_metrics_on"] = conf.getboolean("metrics", "otel_on")
