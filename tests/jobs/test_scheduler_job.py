@@ -555,6 +555,40 @@ class TestSchedulerJob:
         scheduler_job.executor.callback_sink.send.assert_not_called()
         mock_stats_incr.assert_not_called()
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_updates_blocked_by_upstream_4_downstream_tasks(
+        self, mock_stats_incr, dag_maker, caplog, session
+    ):
+        with dag_maker(fileloc="/test_path1/"):
+            task1 = BashOperator(task_id="task1", bash_command="echo 1")
+            task2 = BashOperator(task_id="task2", bash_command="echo 2")
+            task1 >> task2
+
+        dr = dag_maker.create_dagrun()
+        dr.task_instance_scheduling_decisions(session=session)
+        ti1 = dr.get_task_instance("task1")
+        ti2 = dr.get_task_instance("task2")
+        assert ti2.blocked_by_upstream
+
+        mock_stats_incr.reset_mock()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+        self.job_runner.processor_agent = mock.MagicMock()
+
+        # ti1 set to success
+        ti1.state = State.SUCCESS
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db()
+        assert ti1.state == State.SUCCESS
+        ti2.refresh_from_db()
+        assert not ti2.blocked_by_upstream
+
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
         task_id_1 = "dummy_task"

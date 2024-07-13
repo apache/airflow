@@ -4963,3 +4963,23 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
+
+
+def test_blocked_by_upstream_updated_for_downstream_tasks_of_a_finished_tasks_in_worker(dag_maker, session):
+    with dag_maker():
+        task1 = BashOperator(task_id="task1", bash_command="echo 1")
+        task2 = BashOperator(task_id="task2", bash_command="echo 2")
+        task1 >> task2
+    dag_run = dag_maker.create_dagrun()
+    dag_run.task_instance_scheduling_decisions(session=session)
+    ti2 = dag_run.get_task_instance(task_id="task2")
+    assert ti2.blocked_by_upstream
+    ti1 = dag_run.get_task_instance(task_id="task1")
+    ti1.task = task1
+    ti1.state = TaskInstanceState.QUEUED
+    session.merge(ti1)
+    session.commit()
+    ti1.run()
+    session.commit()
+    ti2.refresh_from_db()
+    assert not ti2.blocked_by_upstream
