@@ -23,6 +23,7 @@ import platform
 import signal
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from subprocess import Popen
 from time import sleep
 
@@ -31,6 +32,7 @@ from airflow.cli.cli_config import ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.remote.models.remote_job import RemoteJob
+from airflow.providers.remote.models.remote_logs import RemoteLogs
 from airflow.providers.remote.models.remote_worker import RemoteWorker, RemoteWorkerState
 from airflow.utils import cli as cli_utils
 from airflow.utils.state import TaskInstanceState
@@ -51,17 +53,30 @@ class Job:
 
     remote_job: RemoteJob
     process: Popen
+    logfile: Path
+    logsize: int
+    """Last size of log file, point of last chunk push."""
 
 
 def _fetch_job(hostname: str, queues: list[str] | None, jobs: list[Job]) -> bool:
     """Fetch and start a new job from central site."""
     logger.debug("Attempting to fetch a new job...")
-    job = RemoteJob.reserve_task(hostname, queues)
-    if job:
-        logger.info("Received job: %s", job)
-        process = Popen(job.command, close_fds=True)
-        jobs.append(Job(job, process))
-        RemoteJob.set_state(job.key, TaskInstanceState.RUNNING)
+    remote_job = RemoteJob.reserve_task(hostname, queues)
+    if remote_job:
+        logger.info("Received job: %s", remote_job)
+        env = os.environ.copy()
+        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
+        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("remote", "api_url")
+        process = Popen(remote_job.command, close_fds=True, env=env)
+        logfile = RemoteLogs.logfile_path(
+            remote_job.dag_id,
+            remote_job.run_id,
+            remote_job.task_id,
+            remote_job.map_index,
+            remote_job.try_number,
+        )
+        jobs.append(Job(remote_job, process, logfile, 0))
+        RemoteJob.set_state(remote_job.key, TaskInstanceState.RUNNING)
         return True
 
     logger.info("No new job to process%s", f", {len(jobs)} still running" if jobs else "")
@@ -81,6 +96,20 @@ def _check_running_jobs(jobs: list[Job]) -> None:
             else:
                 logger.error("Job failed: %s", job.remote_job)
                 RemoteJob.set_state(job.remote_job.key, TaskInstanceState.FAILED)
+        if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+            with job.logfile.open("r") as logfile:
+                logfile.seek(job.logsize, os.SEEK_SET)
+                logdata = logfile.read()
+                RemoteLogs.push_logs(
+                    dag_id=job.remote_job.dag_id,
+                    run_id=job.remote_job.run_id,
+                    task_id=job.remote_job.task_id,
+                    map_index=job.remote_job.map_index,
+                    try_number=job.remote_job.try_number,
+                    log_chunk_time=datetime.now(),
+                    log_chunk_data=logdata,
+                )
+                job.logsize += len(logdata)
 
 
 def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:

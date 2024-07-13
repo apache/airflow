@@ -25,6 +25,8 @@ from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.remote.cli.remote_command import REMOTE_COMMANDS
 from airflow.providers.remote.models import RemoteJobModel
+from airflow.providers.remote.models.remote_logs import RemoteLogsModel
+from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -47,6 +49,8 @@ class RemoteExecutor(BaseExecutor):
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
             engine = session.get_bind().engine
             RemoteJobModel.metadata.create_all(engine)
+            RemoteLogsModel.metadata.create_all(engine)
+            RemoteWorkerModel.metadata.create_all(engine)
 
     @provide_session
     def execute_async(

@@ -17,5 +17,7 @@
 from __future__ import annotations
 
 from airflow.providers.remote.models.remote_job import RemoteJobModel
+from airflow.providers.remote.models.remote_logs import RemoteLogsModel
+from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
 
-__all__ = ["RemoteJobModel"]
+__all__ = ["RemoteJobModel", "RemoteLogsModel", "RemoteWorkerModel"]
