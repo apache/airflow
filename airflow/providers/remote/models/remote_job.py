@@ -168,6 +168,9 @@ class RemoteJob(BaseModelPydantic, LoggingMixin):
         job.last_update = timezone.utcnow()
         session.commit()
 
+    def __hash__(self):
+        return f"{self.dag_id}|{self.task_id}|{self.run_id}|{self.map_index}|{self.try_number}".__hash__()
+
 
 if is_pydantic_2_installed():
     RemoteJob.model_rebuild()
