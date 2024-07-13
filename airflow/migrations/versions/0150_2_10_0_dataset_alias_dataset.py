@@ -63,5 +63,5 @@ def upgrade():
 
 
 def downgrade():
-    """Remove dataset_alias_dataset association table."""
+    """Drop dataset_alias_dataset association table."""
     op.drop_table("dataset_alias_dataset")
