@@ -845,7 +845,9 @@ class BaseSerialization:
         """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
         serialized_params = []
         for k, v in params.items():
-            # TODO: As of now, we would allow serialization of params which are of type Param only.
+            if isinstance(params, ParamsDict):
+                # Use native param object, not resolved value if possible
+                v = params.get_param(k)
             try:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
@@ -853,10 +855,8 @@ class BaseSerialization:
             if class_identity == "airflow.models.param.Param":
                 serialized_params.append((k, cls._serialize_param(v)))
             else:
-                raise ValueError(
-                    f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
-                    f"but param {k!r} is {v.__class__}"
-                )
+                # Auto-boy other values into Params object like it is done by DAG parsing as well
+                serialized_params.append((k, cls._serialize_param(Param(v))))
         return serialized_params
 
     @classmethod
