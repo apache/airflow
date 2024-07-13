@@ -143,6 +143,14 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "client"}',
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id="spark_principal_set",
+                conn_type="spark",
+                host="yarn",
+                extra='{"principal": "user/spark@airflow.org"}',
+            )
+        )
 
     @patch(
         "airflow.providers.apache.spark.hooks.spark_submit.os.getenv", return_value="/tmp/airflow_krb5_ccache"
@@ -553,6 +561,50 @@ class TestSparkSubmitHook:
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark-submit"
+
+    def test_resolve_connection_principal_set_connection(self):
+        # Given
+        hook = SparkSubmitHook(conn_id="spark_principal_set")
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {
+            "master": "yarn",
+            "spark_binary": "spark-submit",
+            "deploy_mode": None,
+            "queue": None,
+            "namespace": None,
+            "principal": "user/spark@airflow.org",
+            "keytab": None,
+        }
+        assert connection == expected_spark_connection
+        assert dict_cmd["--principal"] == "user/spark@airflow.org"
+
+    def test_resolve_connection_principal_value_override(self):
+        # Given
+        hook = SparkSubmitHook(conn_id="spark_principal_set", principal="will-override")
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {
+            "master": "yarn",
+            "spark_binary": "spark-submit",
+            "deploy_mode": None,
+            "queue": None,
+            "namespace": None,
+            "principal": "will-override",
+            "keytab": None,
+        }
+        assert connection == expected_spark_connection
+        assert dict_cmd["--principal"] == "will-override"
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
