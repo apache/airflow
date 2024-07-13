@@ -30,9 +30,21 @@ import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Generator,
+    Iterable,
+    Mapping,
+    NamedTuple,
+    Sequence,
+    cast,
+)
 
 import lazy_object_proxy
 
@@ -44,6 +56,7 @@ from airflow.exceptions import (
     DeserializingResultError,
     RemovedInAirflow3Warning,
 )
+from airflow.hooks.python_virtualenv import PythonVirtualenvHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
@@ -56,6 +69,7 @@ from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+from airflow.utils.types import NOTSET
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +77,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.utils.context import Context
+    from airflow.utils.types import ArgNotSet
 
 
 def is_venv_installed() -> bool:
@@ -622,6 +637,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
           this requires to include dill in your requirements.
     :param system_site_packages: Whether to include
         system_site_packages in your virtual environment.
+        If not specified, system_site_packages will be set to ``True`` by default.
         See virtualenv documentation for more information.
     :param pip_install_options: a list of pip install options when installing requirements
         See 'pip install -h' for available options
@@ -644,10 +660,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     :param index_urls: an optional list of index urls to load Python packages from.
         If not provided the system pip conf will be used to source packages from.
+        If set to ``[]``, ``--no-index`` will be used to ignore package index.
     :param venv_cache_path: Optional path to the virtual environment parent folder in which the
         virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
         in a temp folder for every execution.
+    :param venv_conn_id: The ID of Python Virtualenv Connection.
+        If set, the other arguments in the Operator will override the values from the connection.
     :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
@@ -662,10 +681,10 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: None | Iterable[str] | str = None,
+        requirements: ArgNotSet | Iterable[str] | str = NOTSET,
         python_version: str | None = None,
         serializer: _SerializerTypeDef | None = None,
-        system_site_packages: bool = True,
+        system_site_packages: bool | ArgNotSet = NOTSET,
         pip_install_options: list[str] | None = None,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
@@ -676,6 +695,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
+        venv_conn_id: str | None = None,
         use_dill: bool = False,
         **kwargs,
     ):
@@ -698,14 +718,18 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
-        if not requirements:
+        self._is_requirements_set = requirements is not NOTSET
+        if not requirements or not self._is_requirements_set:
             self.requirements: list[str] = []
         elif isinstance(requirements, str):
             self.requirements = [requirements]
         else:
-            self.requirements = list(requirements)
+            self.requirements = list(requirements)  # type: ignore[arg-type]
         self.python_version = python_version
-        self.system_site_packages = system_site_packages
+        self._is_system_site_packages_set = system_site_packages is not NOTSET
+        self.system_site_packages: bool = (
+            system_site_packages if self._is_system_site_packages_set else False  # type: ignore[assignment]
+        )
         self.pip_install_options = pip_install_options
         if isinstance(index_urls, str):
             self.index_urls: list[str] | None = [index_urls]
@@ -714,6 +738,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         else:
             self.index_urls = None
         self.venv_cache_path = venv_cache_path
+        self.venv_conn_id = venv_conn_id
+        self._hook: PythonVirtualenvHook | None = None
         super().__init__(
             python_callable=python_callable,
             serializer=serializer,
@@ -727,6 +753,41 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             use_dill=use_dill,
             **kwargs,
         )
+
+    @property
+    def merged_props(self) -> dict[str, Any]:
+        hook = PythonVirtualenvHook(venv_conn_id=self.venv_conn_id)
+        props: dict[str, Any] = {}
+        requirements = hook.requirements
+        if self._is_requirements_set:
+            requirements = self.requirements
+        props["requirements"] = requirements
+        system_site_packages = hook.system_site_packages
+        if self._is_system_site_packages_set:
+            system_site_packages = self.system_site_packages
+        props["system_site_packages"] = system_site_packages
+        if python_version := self.python_version or hook.python_version:
+            props["python_version"] = python_version
+        if pip_install_options := self.pip_install_options or hook.pip_install_options:
+            props["pip_install_options"] = pip_install_options
+        if index_urls := self.index_urls or hook.index_urls:
+            props["index_urls"] = index_urls
+        if venv_cache_path := self.venv_cache_path or hook.venv_cache_path:
+            props["venv_cache_path"] = venv_cache_path
+        return props
+
+    @contextmanager
+    def apply_virtualenv_hook(self, rollback: bool = True) -> Generator[None, None, None]:
+        buffer = {}
+        for key, value in self.merged_props.items():
+            buffer[key] = getattr(self, key)
+            setattr(self, key, value)
+        try:
+            yield
+        finally:
+            if rollback:
+                for key, value in buffer.items():
+                    setattr(self, key, value)
 
     def _requirements_list(self, exclude_cloudpickle: bool = False) -> list[str]:
         """Prepare a list of requirements that need to be installed for the virtual environment."""
@@ -750,7 +811,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         prepare_virtualenv(
             venv_directory=str(venv_path),
             python_bin=f"python{self.python_version}" if self.python_version else "python",
-            system_site_packages=self.system_site_packages,
+            system_site_packages=bool(self.system_site_packages),
             requirements_file_path=str(requirements_file),
             pip_install_options=self.pip_install_options,
             index_urls=self.index_urls,
@@ -839,17 +900,18 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             return venv_path
 
     def execute_callable(self):
-        if self.venv_cache_path:
-            venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
-            python_path = venv_path / "bin" / "python"
-            return self._execute_python_callable_in_subprocess(python_path)
+        with self.apply_virtualenv_hook():
+            if self.venv_cache_path:
+                venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
+                python_path = venv_path / "bin" / "python"
+                return self._execute_python_callable_in_subprocess(python_path)
 
-        with TemporaryDirectory(prefix="venv") as tmp_dir:
-            tmp_path = Path(tmp_dir)
-            self._prepare_venv(tmp_path)
-            python_path = tmp_path / "bin" / "python"
-            result = self._execute_python_callable_in_subprocess(python_path)
-            return result
+            with TemporaryDirectory(prefix="venv") as tmp_dir:
+                tmp_path = Path(tmp_dir)
+                self._prepare_venv(tmp_path)
+                python_path = tmp_path / "bin" / "python"
+                result = self._execute_python_callable_in_subprocess(python_path)
+                return result
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS

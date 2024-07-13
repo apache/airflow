@@ -709,6 +709,17 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="venv_default",
+            conn_type="python_venv",
+            extra="""{
+    "requirements": "colorama==0.4.0",
+    "venv_cache_path": "/tmp/airflow"
+}""",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="vertica_default",
             conn_type="vertica",
             host="localhost",

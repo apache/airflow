@@ -38,6 +38,7 @@ from packaging.utils import canonicalize_name
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.filesystem import FSHook
 from airflow.hooks.package_index import PackageIndexHook
+from airflow.hooks.python_virtualenv import PythonVirtualenvHook
 from airflow.typing_compat import ParamSpec
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -470,7 +471,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 connection_type=None,
                 connection_testable=False,
             )
-        for cls in [FSHook, PackageIndexHook]:
+        for cls in [FSHook, PackageIndexHook, PythonVirtualenvHook]:
             package_name = cls.__module__
             hook_class_name = f"{cls.__module__}.{cls.__name__}"
             hook_info = self._import_hook(
