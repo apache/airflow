@@ -47,8 +47,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Queues
   - [x] Retry on connection loss
   - [x] Send logs (basic)
-  - [ ] Send logs also to TaskFileHandler
-  - [ ] Archive logs on completions
+  - [ ] Send logs also to TaskFileHandler + Archive logs on completions (DB)
   - [ ] Can terminate job
   - [ ] Check version match
   - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
@@ -58,8 +57,8 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Show logs after completion
 - [ ] Configurability
 - [ ] Documentation
-  - [ ] References in Airflow core
-  - [ ] Provider Package docs
+  - [x] References in Airflow core
+  - [x] Provider Package docs
 - [ ] Tests
   - [ ] Pytest
   - [ ] Breeze integration tests in Github
