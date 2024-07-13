@@ -2164,7 +2164,9 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
+        base_date = quote(self.execution_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
+        map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
         return (
             f"{base_url}"
             f"/dags"
@@ -2172,7 +2174,8 @@ class TaskInstance(Base, LoggingMixin):
             f"/grid"
             f"?dag_run_id={run_id}"
             f"&task_id={self.task_id}"
-            f"&map_index={self.map_index}"
+            f"{map_index}"
+            f"&base_date={base_date}"
             "&tab=logs"
         )
 
