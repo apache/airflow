@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import warnings
 from contextlib import closing, contextmanager
+from copy import deepcopy
 from datetime import datetime
 from functools import cached_property
 from typing import (
@@ -183,6 +184,7 @@ class DbApiHook(BaseHook):
         self._replace_statement_format: str = kwargs.get(
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
+        self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:
         return getattr(self, self.conn_name_attr)
@@ -202,14 +204,11 @@ class DbApiHook(BaseHook):
             )
         return self._placeholder
 
-    @cached_property
+    @property
     def connection(self) -> Connection:
-        """
-        Get the airflow connection object.
-
-        :return: The connection object.
-        """
-        return self.get_connection(self.get_conn_id())
+        if self._connection is None:
+            self._connection = self.get_connection(self.get_conn_id())
+        return deepcopy(self._connection)
 
     @property
     def connection_extra(self) -> dict:

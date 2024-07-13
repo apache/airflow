@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING, Any
 from urllib import parse
 
 from deprecated import deprecated
-from elasticsearch import Elasticsearch
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from elasticsearch import Elasticsearch
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection as AirflowConnection
@@ -87,12 +87,11 @@ class ElasticsearchSQLHook(DbApiHook):
     def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
-        self.connection = connection
+        self._connection = connection
 
     def get_conn(self) -> ESConnection:
         """Return an elasticsearch connection object."""
-        conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.connection
 
         conn_args = {
             "host": conn.host,
@@ -111,8 +110,7 @@ class ElasticsearchSQLHook(DbApiHook):
         return connect(**conn_args)
 
     def get_uri(self) -> str:
-        conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.connection
 
         login = ""
         if conn.login:

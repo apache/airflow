@@ -20,7 +20,6 @@ from __future__ import annotations
 import os
 import warnings
 from contextlib import closing
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
 
 import psycopg2
@@ -88,7 +87,6 @@ class PostgresHook(DbApiHook):
             )
             kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
-        self._connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
@@ -139,10 +137,6 @@ class PostgresHook(DbApiHook):
         else:
             valid_cursors = ", ".join(cursor_types.keys())
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
-
-    @property
-    def connection(self) -> Connection:
-        return deepcopy(self._connection or self.get_connection(self.get_conn_id()))
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""

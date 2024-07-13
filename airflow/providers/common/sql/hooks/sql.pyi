@@ -32,19 +32,16 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.exceptions import (
-    AirflowException as AirflowException,
-    AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
-)
+from functools import cached_property as cached_property
+from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
+
+from pandas import DataFrame as DataFrame
+from sqlalchemy.engine import URL as URL
+
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
-from functools import cached_property as cached_property
-from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import URL as URL
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
@@ -64,12 +61,14 @@ class DbApiHook(BaseHook):
     connector: ConnectorProtocol | None
     log_sql: Incomplete
     descriptions: Incomplete
+    _placeholder: str
+    _connection: Connection | None
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
 
     def get_conn_id(self) -> str: ...
     @cached_property
     def placeholder(self): ...
-    @cached_property
+    @property
     def connection(self) -> Connection: ...
     @property
     def connection_extra(self) -> dict: ...
