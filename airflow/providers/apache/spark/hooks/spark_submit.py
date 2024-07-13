@@ -319,11 +319,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         keytab_path = temp_dir_path / temp_file_name
         staging_path = temp_dir_path / f".{temp_file_name}.{_uuid}"
 
+        keytab = base64.b64decode(base64_keytab)
+
         # validate exists keytab file
         if keytab_path.exists():
             with open(keytab_path, "rb") as f:
                 old_checksum = hashlib.sha256(f.read()).hexdigest()
-            new_checksum = hashlib.sha256(base64.b64decode(base64_keytab)).hexdigest()
+            new_checksum = hashlib.sha256(keytab).hexdigest()
             if old_checksum == new_checksum:
                 self.log.info("Keytab file already exists and is the same as the provided keytab")
                 return str(keytab_path)
@@ -332,10 +334,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         try:
             with open(staging_path, "wb") as f:
                 self.log.info("Saving keytab to %s", staging_path)
-                f.write(base64.b64decode(base64_keytab))
+                f.write(keytab)
 
             self.log.info("Moving keytab from %s to %s", staging_path, keytab_path)
-            shutil.move(staging_path, keytab_path)
+            shutil.move(str(staging_path), str(keytab_path))
             return str(keytab_path)
         except Exception as err:
             self.log.error("Failed to save keytab: %s", err)
