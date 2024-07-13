@@ -59,7 +59,7 @@ class TestTemplater:
         context = Context({"ds": "2006-02-01"})  # type: ignore
         jinja_env = templater.get_template_env()
         rendered_content = templater._render_object_storage_path(path, context, jinja_env)
-        assert rendered_content == "s3://bucket/key/2006-02-01/part"
+        assert rendered_content == ObjectStoragePath("s3://bucket/key/2006-02-01/part")
 
     def test_render_template(self):
         context = Context({"name": "world"})  # type: ignore
