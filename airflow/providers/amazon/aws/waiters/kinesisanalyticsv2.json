@@ -1,0 +1,36 @@
+{
+    "version": 2,
+    "waiters": {
+        "application_operation_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "DescribeApplicationOperation",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationOperationInfoDetails.OperationStatus",
+                    "expected": "IN_PROGRESS",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationOperationInfoDetails.OperationStatus",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationOperationInfoDetails.OperationStatus",
+                    "expected": "SUCCESSFUL",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ApplicationOperationInfoDetails.OperationStatus",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}
