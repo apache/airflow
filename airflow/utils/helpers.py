@@ -403,8 +403,9 @@ def apply_locale(new_locale: str | None):
     """
     Apply a new locale within the current context and revert to the original locale afterward.
 
-    :param new_locale: Locale to be used within the context (e.g. 'en_US').
+    :param new_locale: Locale to be used within the context (e.g., 'en_US').
                        If None (default), the locale will not be changed.
+    :yield: The locale set within the context.
     """
     current_locale = getlocale(LC_TIME)[0]
 

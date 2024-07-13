@@ -65,10 +65,11 @@ def ds_format(ds: str, input_format: str, output_format: str, locale: str | None
     """
     Output datetime string in a given format.
 
-    :param ds: input string which contains a date
-    :param input_format: input string format (e.g. '%Y-%m-%d')
-    :param output_format: output string format (e.g. '%Y-%m-%d')
-    :param locale: (default None) locale used to format the output string (e.g. 'en_US')
+    :param ds: Input string which contains a date.
+    :param input_format: Input string format (e.g., '%Y-%m-%d').
+    :param output_format: Output string format (e.g., '%Y-%m-%d').
+    :param locale: Locale used to format the output string (e.g., 'en_US').
+                   If None (default), the locale will not be changed.
 
     >>> ds_format("2015-01-01", "%Y-%m-%d", "%m-%d-%y")
     '01-01-15'
@@ -76,6 +77,9 @@ def ds_format(ds: str, input_format: str, output_format: str, locale: str | None
     '2015-01-05'
     >>> ds_format("12/07/2024", "%d/%m/%Y", "%A %d %B %Y", "en_US")
     'Friday 12 July 2024'
+
+    .. versionadded:: 2.10.0
+       The `locale` parameter.
     """
     with apply_locale(locale):
         return datetime.strptime(str(ds), input_format).strftime(output_format)
