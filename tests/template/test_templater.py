@@ -55,7 +55,7 @@ class TestTemplater:
 
     def test_render_object_storage_path(self):
         templater = Templater()
-        path = ObjectStoragePath("s3://bucket/key/{ds}/part")
+        path = ObjectStoragePath("s3://bucket/key/{{ ds }}/part")
         context = Context({"ds": "2006-02-01"})  # type: ignore
         jinja_env = templater.get_template_env()
         rendered_content = templater._render_object_storage_path(path, context, jinja_env)
