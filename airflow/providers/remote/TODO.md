@@ -37,9 +37,8 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 - [ ] Plugin
   - [x] REST API
   - [ ] REST API Authentication
-  - [ ] Allow starting REST API separate
   - [x] Expose jobs via UI
-  - [ ] Expose active remote worker
+  - [x] Expose active remote worker
 - [ ] Remote Worker
   - [x] CLI
   - [x] Get a job and execute it
@@ -61,6 +60,13 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] References in Airflow core
   - [ ] Provider Package docs
 - [ ] Tests
+  - [ ] Pytest
+  - [ ] Breeze integration tests in Github
+- [ ] Known problems
+  - [ ] AIP-44 related
+    - [ ] Mapped Tasks?
+    - [ ] Templated Fields?
+    - [ ] AIP-44 Integration Tests
 - [ ] AIP-69
   - [x] Draft
   - [x] Update specs
@@ -72,18 +78,19 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 - [ ] API token per worker
 - [ ] Plugin
   - [ ] Overview about queues
-  - [ ] Administrative maintenance
+  - [ ] Allow starting REST API separate
+  - [ ] Administrative maintenance / temporary disable jobs on worker
 - [ ] Remote Worker
-  - [ ] Multiple jobs / concurrency
+  - [x] Multiple jobs / concurrency
   - [ ] Publish system metrics with heartbeats
-  - [ ] Remote update
   - [ ] Integration into telemetry to send metrics
 - [ ] API token provisioning can be automated
-- [ ] Move task context generation from Remote to Executor ("Need to know", depends on Task Execution API)
-- [ ] Thin deployment
 - [ ] Test/Support on Windows
-- [ ] DAG Code push (no need to GIT Sync)
 - [ ] Scaling test
+- [ ] Airflow 3 / AIP-72 Migration
+  - [ ] Thin deployment
+  - [ ] DAG Code push (no need to GIT Sync)
+  - [ ] Move task context generation from Remote to Executor ("Need to know", depends on Task Execution API)
 
 ## Notes
 

@@ -38,6 +38,7 @@ log = logging.getLogger(__name__)
 def _initialize_method_map() -> dict[str, Callable]:
     from airflow.api_internal.endpoints.rpc_api_endpoint import initialize_method_map
     from airflow.providers.remote.models.remote_job import RemoteJob
+    from airflow.providers.remote.models.remote_logs import RemoteLogs
     from airflow.providers.remote.models.remote_worker import RemoteWorker
 
     internal_api_functions = initialize_method_map().values()
@@ -47,6 +48,7 @@ def _initialize_method_map() -> dict[str, Callable]:
         # Additional things from Remote Executor
         RemoteJob.reserve_task,
         RemoteJob.set_state,
+        RemoteLogs.push_logs,
         RemoteWorker.register_worker,
         RemoteWorker.set_state,
     ]

@@ -87,10 +87,13 @@ class InternalApiConfig:
             raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
         internal_api_endpoint = ""
         if use_internal_api:
-            internal_api_url = conf.get("core", "internal_api_url")
-            internal_api_endpoint = internal_api_url + "/internal_api/v1/rpcapi"
-            if not internal_api_endpoint.startswith("http://"):
-                raise AirflowConfigException("[core]internal_api_url must start with http://")
+            internal_api_endpoint = conf.get("core", "internal_api_url")
+            if internal_api_endpoint.find("/", 8) == -1:
+                internal_api_endpoint = internal_api_endpoint + "/internal_api/v1/rpcapi"
+            if not internal_api_endpoint.startswith("http://") and not internal_api_endpoint.startswith(
+                "https://"
+            ):
+                raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
 
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = use_internal_api
