@@ -46,7 +46,8 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Heartbeat
   - [x] Queues
   - [x] Retry on connection loss
-  - [ ] Send logs
+  - [x] Send logs (basic)
+  - [ ] Send logs also to TaskFileHandler
   - [ ] Archive logs on completions
   - [ ] Can terminate job
   - [ ] Check version match
