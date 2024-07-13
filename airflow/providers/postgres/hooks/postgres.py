@@ -88,7 +88,7 @@ class PostgresHook(DbApiHook):
             )
             kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
-        self.connection: Connection | None = kwargs.pop("connection", None)
+        self._connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
@@ -140,10 +140,13 @@ class PostgresHook(DbApiHook):
             valid_cursors = ", ".join(cursor_types.keys())
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
+    @property
+    def connection(self) -> Connection:
+        return deepcopy(self._connection or self.get_connection(self.get_conn_id()))
+
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""
-        conn_id = getattr(self, self.conn_name_attr)
-        conn = deepcopy(self.connection or self.get_connection(conn_id))
+        conn = self.connection
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get("iam", False):
