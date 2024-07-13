@@ -23,7 +23,7 @@ description: |
   Handle remote workers via HTTP(s) connection and distribute work over distributed sites
 
 state: not-ready
-source-date-epoch: 0
+source-date-epoch: 1720863625
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 0.1.0
