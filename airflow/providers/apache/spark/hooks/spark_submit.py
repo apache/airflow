@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import base64
 import contextlib
-import hashlib
 import os
 import re
 import shutil
@@ -324,9 +323,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # validate exists keytab file
         if keytab_path.exists():
             with open(keytab_path, "rb") as f:
-                old_checksum = hashlib.sha256(f.read()).hexdigest()
-            new_checksum = hashlib.sha256(keytab).hexdigest()
-            if old_checksum == new_checksum:
+                existing_keytab = f.read()
+            if existing_keytab == keytab:
                 self.log.info("Keytab file already exists and is the same as the provided keytab")
                 return str(keytab_path)
 
