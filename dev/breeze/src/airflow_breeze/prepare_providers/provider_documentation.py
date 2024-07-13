@@ -41,6 +41,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     HTTPS_REMOTE,
     ProviderPackageDetails,
+    clear_cache_for_provider_metadata,
     get_provider_details,
     get_provider_jinja_context,
     get_source_package_path,
@@ -107,16 +108,18 @@ class TypeOfChange(Enum):
     FEATURE = "f"
     BREAKING_CHANGE = "x"
     SKIP = "s"
+    MISC = "m"
 
 
 # defines the precedence order for provider version bumps
-# BREAKING_CHANGE > FEATURE > BUGFIX > DOCUMENTATION > SKIP
+# BREAKING_CHANGE > FEATURE > BUGFIX > MISC > DOCUMENTATION > SKIP
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
-    TypeOfChange.BUGFIX: 2,
-    TypeOfChange.FEATURE: 3,
-    TypeOfChange.BREAKING_CHANGE: 4,
+    TypeOfChange.MISC: 2,
+    TypeOfChange.BUGFIX: 3,
+    TypeOfChange.FEATURE: 4,
+    TypeOfChange.BREAKING_CHANGE: 5,
 }
 
 
@@ -427,7 +430,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
-            f"change, (s)kip, (q)uit [{display_answers}]?[/] ",
+            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -461,12 +464,12 @@ def _mark_latest_changes_as_documentation_only(
 def _update_version_in_provider_yaml(
     provider_package_id: str,
     type_of_change: TypeOfChange,
-) -> tuple[bool, bool]:
+) -> tuple[bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
     :param provider_package_id: provider package
-    :return: tuple of two bools: (with_breaking_change, maybe_with_new_features)
+    :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
     provider_details = get_provider_details(provider_package_id)
     version = provider_details.versions[0]
@@ -484,11 +487,13 @@ def _update_version_in_provider_yaml(
     elif type_of_change == TypeOfChange.BUGFIX:
         v = v.bump_patch()
     provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
-    original_text = provider_yaml_path.read_text()
-    new_text = re.sub(r"^versions:", f"versions:\n  - {v}", original_text, 1, re.MULTILINE)
-    provider_yaml_path.write_text(new_text)
+    original_provider_yaml_content = provider_yaml_path.read_text()
+    new_provider_yaml_content = re.sub(
+        r"^versions:", f"versions:\n  - {v}", original_provider_yaml_content, 1, re.MULTILINE
+    )
+    provider_yaml_path.write_text(new_provider_yaml_content)
     get_console().print(f"[special]Bumped version to {v}\n")
-    return with_breaking_changes, maybe_with_new_features
+    return with_breaking_changes, maybe_with_new_features, original_provider_yaml_content
 
 
 def _update_source_date_epoch_in_provider_yaml(
@@ -700,6 +705,8 @@ def update_release_notes(
     )
     with_breaking_changes = False
     maybe_with_new_features = False
+    original_provider_yaml_content: str | None = None
+    marked_for_release = False
     if not reapply_templates_only:
         if proceed:
             if non_interactive:
@@ -711,6 +718,7 @@ def update_release_notes(
                     f"Provider {provider_package_id} with "
                     f"version: {current_release_version} marked for release. Proceed?"
                 )
+                marked_for_release = answer == Answer.YES
             if answer == Answer.NO:
                 get_console().print(
                     f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
@@ -764,8 +772,10 @@ def update_release_notes(
             )
             get_console().print()
             if type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
-                with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
-                    provider_package_id=provider_package_id, type_of_change=type_of_change
+                with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
+                    _update_version_in_provider_yaml(
+                        provider_package_id=provider_package_id, type_of_change=type_of_change
+                    )
                 )
                 _update_source_date_epoch_in_provider_yaml(provider_package_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
@@ -779,15 +789,22 @@ def update_release_notes(
 
     provider_details = get_provider_details(provider_package_id)
     current_release_version = provider_details.versions[0]
-    if not non_interactive:
+    if (not non_interactive) and (not marked_for_release):
         answer = user_confirm(
             f"Do you want to leave the version for {provider_package_id} with version: "
-            f"{current_release_version} as is?"
+            f"{current_release_version} as is for the release?"
         )
     else:
         answer = Answer.YES
 
     if answer == Answer.NO:
+        if original_provider_yaml_content is not None:
+            # Restore original content of the provider.yaml
+            (get_source_package_path(provider_package_id) / "provider.yaml").write_text(
+                original_provider_yaml_content
+            )
+            clear_cache_for_provider_metadata(provider_package_id)
+
         type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
         if type_of_change == TypeOfChange.SKIP:
             raise PrepareReleaseDocsUserSkippedException()
@@ -799,8 +816,9 @@ def update_release_notes(
         if type_of_change == TypeOfChange.DOCUMENTATION:
             _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
         elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
-            with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
-                provider_package_id=provider_package_id, type_of_change=type_of_change
+            with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
+                provider_package_id=provider_package_id,
+                type_of_change=type_of_change,
             )
             _update_source_date_epoch_in_provider_yaml(provider_package_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
@@ -885,13 +903,14 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
+        elif type_of_change == TypeOfChange.MISC:
+            classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
         else:
-            # for the changes we do not have a category for, add it to misc
-            classified_changes.misc.append(change)
+            classified_changes.other.append(change)
     return classified_changes
 
 
