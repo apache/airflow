@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+import ydb
 
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -58,3 +59,38 @@ class TestYDBExecuteQueryOperator:
 
         results = operator.execute(self.mock_context)
         assert results == [(987,)]
+
+    def test_bulk_upsert(self):
+        create_table_op = YDBExecuteQueryOperator(
+            task_id="create",
+            sql="""
+            CREATE TABLE team (
+                id INT,
+                name TEXT,
+                age UINT32,
+                PRIMARY KEY (id)
+            );""",
+            is_ddl=True,
+        )
+
+        create_table_op.execute(self.mock_context)
+
+        age_sum_op = YDBExecuteQueryOperator(task_id="age_sum", sql="SELECT SUM(age) as age_sum FROM team")
+
+        hook = age_sum_op.get_db_hook()
+        column_types = (
+            ydb.BulkUpsertColumns()
+            .add_column("id", ydb.OptionalType(ydb.PrimitiveType.Int32))
+            .add_column("name", ydb.OptionalType(ydb.PrimitiveType.Utf8))
+            .add_column("age", ydb.OptionalType(ydb.PrimitiveType.Uint32))
+        )
+
+        rows = [
+            {"id": 1, "name": "rabbits", "age": 17},
+            {"id": 2, "name": "bears", "age": 22},
+            {"id": 3, "name": "foxes", "age": 9},
+        ]
+        hook.bulk_upsert("/local/team", rows=rows, column_types=column_types)
+
+        result = age_sum_op.execute(self.mock_context)
+        assert result == [(48,)]

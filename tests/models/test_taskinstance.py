@@ -2020,7 +2020,7 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&map_index=-1"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
         )
         assert ti.log_url == expected_url
@@ -3568,6 +3568,7 @@ class TestTaskInstance:
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "EmptyOperator"
         # Verify that ti.operator field renders correctly "with" Serialization
+        deserialized_op.dag = ti.task.dag
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
