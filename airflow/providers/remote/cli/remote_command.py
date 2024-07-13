@@ -21,6 +21,7 @@ import logging
 import os
 import platform
 import signal
+from dataclasses import dataclass
 from datetime import datetime
 from subprocess import Popen
 from time import sleep
@@ -44,6 +45,54 @@ def _hostname() -> str:
         return os.uname()[1]
 
 
+@dataclass
+class Job:
+    """Holds all information for a task/job to be executed as bundle."""
+
+    remote_job: RemoteJob
+    process: Popen
+
+
+def _fetch_job(hostname: str, queues: list[str] | None, jobs: list[Job]) -> bool:
+    """Fetch and start a new job from central site."""
+    logger.debug("Attempting to fetch a new job...")
+    job = RemoteJob.reserve_task(hostname, queues)
+    if job:
+        logger.info("Received job: %s", job)
+        process = Popen(job.command, close_fds=True)
+        jobs.append(Job(job, process))
+        RemoteJob.set_state(job.key, TaskInstanceState.RUNNING)
+        return True
+
+    logger.info("No new job to process%s", f", {len(jobs)} still running" if jobs else "")
+    return False
+
+
+def _check_running_jobs(jobs: list[Job]) -> None:
+    """Check which of the running tasks/jobs are completed and report back."""
+    for i in range(len(jobs) - 1, -1, -1):
+        job = jobs[i]
+        job.process.poll()
+        if job.process.returncode is not None:
+            jobs.remove(job)
+            if job.process.returncode == 0:
+                logger.info("Job completed: %s", job.remote_job)
+                RemoteJob.set_state(job.remote_job.key, TaskInstanceState.SUCCESS)
+            else:
+                logger.error("Job failed: %s", job.remote_job)
+                RemoteJob.set_state(job.remote_job.key, TaskInstanceState.FAILED)
+
+
+def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
+    """Report liveness state of worker to central site with stats."""
+    state = (
+        (RemoteWorkerState.TERMINATING if drain_worker else RemoteWorkerState.RUNNING)
+        if jobs
+        else RemoteWorkerState.IDLE
+    )
+    RemoteWorker.set_state(hostname, state, len(jobs), {})
+
+
 @cli_utils.action_cli(check_db=False)
 def worker(args):
     """Start Airflow Remote worker."""
@@ -54,11 +103,10 @@ def worker(args):
     InternalApiConfig.force_api_access(api_url)
 
     hostname: str = args.remote_hostname or _hostname()
-    queues = args.queues.split(",") if args.queues else None
+    queues: list[str] | None = args.queues.split(",") if args.queues else None
     concurrency: int = args.concurrency
-    jobs: list[RemoteJob] = []
-    processes: list[Popen] = []
-    some_activity = False
+    jobs: list[Job] = []
+    new_job = False
     try:
         last_heartbeat = RemoteWorker.register_worker(
             hostname, RemoteWorkerState.STARTING, queues
@@ -76,44 +124,16 @@ def worker(args):
 
     while not drain_worker[0] or jobs:
         if not drain_worker[0] and len(jobs) < concurrency:
-            logger.debug("Attempting to fetch a new job...")
-            job = RemoteJob.reserve_task(hostname, queues)
-            if job:
-                some_activity = True
-                logger.info("Received job: %s", job)
-                process = Popen(job.command, close_fds=True)
-                jobs.append(job)
-                processes.append(process)
-                RemoteJob.set_state(job.key, TaskInstanceState.RUNNING)
-            else:
-                some_activity = False
-                logger.info("No new job to process%s", f", {len(jobs)} still running" if jobs else "")
-        for i in range(len(jobs) - 1, -1, -1):
-            process = processes[i]
-            job = jobs[i]
-            process.poll()
-            if process.returncode is not None:
-                processes.remove(process)
-                jobs.remove(job)
-                if process.returncode == 0:
-                    logger.info("Job completed: %s", job)
-                    RemoteJob.set_state(job.key, TaskInstanceState.SUCCESS)
-                else:
-                    logger.error("Job failed: %s", job)
-                    RemoteJob.set_state(job.key, TaskInstanceState.FAILED)
+            new_job = _fetch_job(hostname, queues, jobs)
+        _check_running_jobs(jobs)
 
         if drain_worker[0] or datetime.now().timestamp() - last_heartbeat.timestamp() > 10:
-            state = (
-                (RemoteWorkerState.TERMINATING if drain_worker[0] else RemoteWorkerState.RUNNING)
-                if jobs
-                else RemoteWorkerState.IDLE
-            )
-            RemoteWorker.set_state(hostname, state, len(jobs), {})
+            _heartbeat(hostname, jobs, drain_worker[0])
             last_heartbeat = datetime.now()
 
-        if not some_activity:
+        if not new_job:
             sleep(5)
-            some_activity = False
+            new_job = False
 
     logger.info("Quitting worker, signal being offline.")
     RemoteWorker.set_state(hostname, RemoteWorkerState.OFFLINE, 0, {})
