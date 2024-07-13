@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING, Any
 from urllib import parse
 
 from deprecated import deprecated
+from elasticsearch import Elasticsearch
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from elasticsearch import Elasticsearch
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection as AirflowConnection
