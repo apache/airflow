@@ -20,13 +20,17 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.task.priority_strategy import PriorityWeightStrategy
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models import TaskInstance
 
 
 class StaticTestPriorityWeightStrategy(PriorityWeightStrategy):
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         return 99
 
 
@@ -36,20 +40,34 @@ class FactorPriorityWeightStrategy(PriorityWeightStrategy):
     def serialize(self) -> dict[str, Any]:
         return {"factor": self.factor}
 
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         return max(ti.map_index, 1) * self.factor
 
 
 class DecreasingPriorityStrategy(PriorityWeightStrategy):
     """A priority weight strategy that decreases the priority weight with each attempt."""
 
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         return max(3 - ti.try_number + 1, 1)
+
+
+class DbPriorityStrategy(PriorityWeightStrategy):
+    """A priority weight strategy that decreases the priority weight with each attempt."""
+
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+        if session is None:
+            return 0
+        # This is adapted for unit tests
+        return ti.xcom_pull(task_ids="get_weight", key="weight", session=session) or 1
 
 
 class TestPriorityWeightStrategyPlugin(AirflowPlugin):
     # Without this import, the qualname method will not use the correct classes names
     from tests.plugins.priority_weight_strategy import (
+        DbPriorityStrategy,
         DecreasingPriorityStrategy,
         FactorPriorityWeightStrategy,
         StaticTestPriorityWeightStrategy,
@@ -60,9 +78,11 @@ class TestPriorityWeightStrategyPlugin(AirflowPlugin):
         StaticTestPriorityWeightStrategy,
         FactorPriorityWeightStrategy,
         DecreasingPriorityStrategy,
+        DbPriorityStrategy,
     ]
 
 
 class NotRegisteredPriorityWeightStrategy(PriorityWeightStrategy):
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         return 99

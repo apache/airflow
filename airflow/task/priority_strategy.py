@@ -23,6 +23,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -41,7 +42,8 @@ class PriorityWeightStrategy(ABC):
     """
 
     @abstractmethod
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         """Get the priority weight of a task."""
         ...
 
@@ -77,7 +79,8 @@ class PriorityWeightStrategy(ABC):
 class _AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the task's priority weight directly."""
 
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         if TYPE_CHECKING:
             assert ti.task
         return ti.task.priority_weight
@@ -86,7 +89,8 @@ class _AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
 class _DownstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all downstream tasks."""
 
-    def get_weight(self, ti: TaskInstance) -> int:
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         if TYPE_CHECKING:
             assert ti.task
         dag = ti.task.get_dag()
@@ -101,7 +105,8 @@ class _DownstreamPriorityWeightStrategy(PriorityWeightStrategy):
 class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all upstream tasks."""
 
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION) -> int:
         if TYPE_CHECKING:
             assert ti.task
         dag = ti.task.get_dag()
