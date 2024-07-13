@@ -38,6 +38,7 @@ from airflow.utils.helpers import (
     validate_key,
 )
 from airflow.utils.types import NOTSET
+from tests.conftest import is_locale_supported
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -393,12 +394,14 @@ def test_validate_instance_args_raises_error(instance, expected_arg_types):
 
 
 @pytest.mark.parametrize(
-    "new_locale, expected",
+    "locale, expected",
     [
         ("nl_BE", "nl_BE"),
         (None, "nl_BE"),
     ],
 )
-def test_apply_locale(new_locale, expected):
-    with apply_locale(new_locale) as applied_locale:
+def test_apply_locale(locale, expected):
+    if not is_locale_supported(locale):
+        pytest.skip(f"Locale {locale} is not supported on this system!")
+    with apply_locale(locale) as applied_locale:
         assert applied_locale == expected

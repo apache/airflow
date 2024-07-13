@@ -23,6 +23,7 @@ import pytest
 
 from airflow import macros
 from airflow.utils import timezone
+from tests.conftest import is_locale_supported
 
 
 @pytest.mark.parametrize(
@@ -57,6 +58,8 @@ def test_ds_add(ds, days, expected):
     ],
 )
 def test_ds_format(ds, input_format, output_format, locale, expected):
+    if not is_locale_supported(locale):
+        pytest.skip(f"Locale {locale} is not supported on this system!")
     result = macros.ds_format(ds, input_format, output_format, locale)
     assert result == expected
 
