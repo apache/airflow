@@ -30,12 +30,11 @@ from airflow.utils.session import create_session
 @providers_configuration_loaded
 def rotate_fernet_key(args):
     """Rotates all encrypted connection credentials and variables."""
-    batch_size = 100
     with create_session() as session:
         conns_query = select(Connection).where(Connection.is_encrypted | Connection.is_extra_encrypted)
-        for conn in session.scalars(conns_query).yield_per(batch_size):
+        for conn in session.scalars(conns_query):
             conn.rotate_fernet_key()
-        for var in session.scalars(select(Variable).where(Variable.is_encrypted)).yield_per(batch_size):
+        for var in session.scalars(select(Variable).where(Variable.is_encrypted)):
             var.rotate_fernet_key()
-        for trigger in session.scalars(select(Trigger)).yield_per(batch_size):
+        for trigger in session.scalars(select(Trigger)):
             trigger.rotate_fernet_key()
