@@ -241,7 +241,7 @@ class FabAuthManager(BaseAuthManager):
 
             return all(
                 self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN
+                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
                 else self._is_authorized_dag_run(method=method, details=details, user=user)
                 for resource_type in resource_types
             )
