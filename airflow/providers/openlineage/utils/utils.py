@@ -32,6 +32,7 @@ from openlineage.client.utils import RedactMixin
 from packaging.version import Version
 
 from airflow import __version__ as AIRFLOW_VERSION
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
@@ -231,6 +232,7 @@ class TaskInfo(InfoJsonEncodable):
         "_is_teardown": "is_teardown",
     }
     includes = [
+        "deferrable",
         "depends_on_past",
         "downstream_task_ids",
         "execution_timeout",
@@ -259,13 +261,14 @@ class TaskInfo(InfoJsonEncodable):
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
+        "operator_class_path": lambda task: get_fully_qualified_class_name(task),
         "task_group": lambda task: (
             TaskGroupInfo(task.task_group)
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
-        "inlets": lambda task: [DatasetInfo(inlet) for inlet in task.inlets],
-        "outlets": lambda task: [DatasetInfo(outlet) for outlet in task.outlets],
+        "inlets": lambda task: [DatasetInfo(i) for i in task.inlets if isinstance(i, Dataset)],
+        "outlets": lambda task: [DatasetInfo(o) for o in task.outlets if isinstance(o, Dataset)],
     }
 
 

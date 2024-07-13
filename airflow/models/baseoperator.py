@@ -101,7 +101,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET
+from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -1245,11 +1245,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @dag.setter
     def dag(self, dag: DAG | None):
         """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
-        from airflow.models.dag import DAG
-
         if dag is None:
             self._dag = None
             return
+
+        # if set to removed, then just set and exit
+        if self._dag is ATTRIBUTE_REMOVED:
+            self._dag = dag
+            return
+        # if setting to removed, then just set and exit
+        if dag is ATTRIBUTE_REMOVED:
+            self._dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
+            return
+
+        from airflow.models.dag import DAG
+
         if not isinstance(dag, DAG):
             raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
         elif self.has_dag() and self.dag is not dag:
