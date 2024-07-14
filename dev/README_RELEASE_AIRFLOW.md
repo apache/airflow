@@ -533,7 +533,7 @@ The following files should be present (9 files):
 * .tar.gz + .asc + .sha512
 * -py3-none-any.whl + .asc + .sha512
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow
@@ -1007,7 +1007,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 

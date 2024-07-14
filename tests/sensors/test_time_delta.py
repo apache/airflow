@@ -57,7 +57,7 @@ class TestTimeDeltaSensorAsync:
     @pytest.mark.parametrize(
         "data_interval_end, delta, should_deffer",
         [
-            (REFERENCE_TIME.add(hours=-1), timedelta(hours=1), False),
+            (REFERENCE_TIME.add(hours=-1, minutes=-1), timedelta(hours=1), False),
             (REFERENCE_TIME, timedelta(hours=1), True),
         ],
     )

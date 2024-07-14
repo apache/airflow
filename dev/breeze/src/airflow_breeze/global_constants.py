@@ -161,6 +161,11 @@ def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
 
 
+@lru_cache(maxsize=None)
+def all_selective_test_types_except_providers() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+
+
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
