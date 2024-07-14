@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-13T15:12:10.953751
+# This constraints file was automatically generated on 2024-07-14T09:27:22.275816
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -521,7 +521,7 @@ pexpect==4.9.0
 pgvector==0.3.1
 pinecone-client==4.1.2
 pinecone-plugin-interface==0.0.7
-pinotdb==5.3.0
+pinotdb==5.5.0
 pipdeptree==2.23.1
 pipx==1.6.0
 pkginfo==1.10.0
@@ -529,7 +529,7 @@ platformdirs==4.2.2
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
-portalocker==2.10.0
+portalocker==2.10.1
 pprintpp==0.4.0
 pre-commit==3.7.1
 presto-python-client==0.8.4
