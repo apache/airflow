@@ -26,6 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.decorators import task, task_group
+from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models.dag import DAG
 from airflow.models.param import Param
@@ -58,7 +59,7 @@ with DAG(
     @task
     def mapping_from_params(**context) -> list[int]:
         mapping_count: int = context["params"]["mapping_count"]
-        return list(range(1, mapping_count))
+        return list(range(1, mapping_count + 1))
 
     @task
     def add_one(x: int):
@@ -96,7 +97,11 @@ with DAG(
 
     @task
     def connection():
-        BaseHook.get_connection("does_not_exit")
+        try:
+            conn = BaseHook.get_connection("integration_test")
+            print(f"Got connection {conn}")
+        except AirflowNotFoundException:
+            print("Connection not found... but also OK.")
 
     @task_group(prefix_group_id=False)
     def standard_tasks_group():
