@@ -9,7 +9,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from performance_scripts.environments.kubernetes.gke.collecting_results.monitoring_api.monitoring_api import (
+from environments.kubernetes.gke.collecting_results.monitoring_api.monitoring_api import (
     MonitoringApi,
     convert_int_to_metric_kind,
     get_typed_value,
@@ -17,7 +17,7 @@ from performance_scripts.environments.kubernetes.gke.collecting_results.monitori
 )
 
 # fmt: off
-from performance_scripts.environments.kubernetes.gke.collecting_results.\
+from environments.kubernetes.gke.collecting_results.\
     monitoring_api.monitored_resources import (
         get_monitored_resources_map,
         get_merging_order,
@@ -63,9 +63,7 @@ def prepare_metrics_dataframe(
 
     api = MonitoringApi(project_id=project_id)
 
-    monitored_resources_map = get_monitored_resources_map(
-        cluster_id, airflow_namespace_prefix
-    )
+    monitored_resources_map = get_monitored_resources_map(cluster_id, airflow_namespace_prefix)
 
     collected_time_series = api.collect_time_series(
         start_date=start_date,
@@ -80,9 +78,7 @@ def prepare_metrics_dataframe(
     return metrics_df
 
 
-def convert_time_series_to_dataframes(
-    collected_time_series: List
-) -> Dict[ResourceType, Dict]:
+def convert_time_series_to_dataframes(collected_time_series: List) -> Dict[ResourceType, Dict]:
     """
     Converts a list of time series returned from Cloud Monitoring API into dataframes (separate
     for every ResourceType) and stores them together with additional information in a dictionary.
@@ -105,21 +101,14 @@ def convert_time_series_to_dataframes(
         metric_kind = convert_int_to_metric_kind(time_series.metric_kind)
 
         # sort values so resulting metric_column is not random
-        metric_labels = sorted(
-            [f"{key}-{value}" for key, value in time_series.metric.labels.items()]
-        )
-        metric_column = "__".join(
-            [resource_type.value, metric_kind, time_series.metric.type] + metric_labels
-        )
+        metric_labels = sorted([f"{key}-{value}" for key, value in time_series.metric.labels.items()])
+        metric_column = "__".join([resource_type.value, metric_kind, time_series.metric.type] + metric_labels)
 
         points = [
-            (point.interval.end_time.seconds, get_typed_value(point.value))
-            for point in time_series.points
+            (point.interval.end_time.seconds, get_typed_value(point.value)) for point in time_series.points
         ]
 
-        current_df = pd.DataFrame(
-            points, columns=[TIMESTAMP_COLUMN_NAME, metric_column]
-        )
+        current_df = pd.DataFrame(points, columns=[TIMESTAMP_COLUMN_NAME, metric_column])
 
         # add columns with resource labels to temporary df
         for label in labels_of_resource_type:
@@ -133,16 +122,12 @@ def convert_time_series_to_dataframes(
                 "metric_columns": [metric_column],
             }
         else:
-            columns_to_merge_on = [TIMESTAMP_COLUMN_NAME] + list(
-                labels_of_resource_type
-            )
+            columns_to_merge_on = [TIMESTAMP_COLUMN_NAME] + list(labels_of_resource_type)
 
             # if metric_column is already present in target dataframe,
             # then metric column will be duplicated upon merge
             # and we will have to combine them
-            to_join_metric_columns = (
-                metric_column in resource_data[resource_type]["df"].columns
-            )
+            to_join_metric_columns = metric_column in resource_data[resource_type]["df"].columns
 
             resource_data[resource_type]["df"] = pd.merge(
                 resource_data[resource_type]["df"],
@@ -154,9 +139,9 @@ def convert_time_series_to_dataframes(
 
             if to_join_metric_columns:
 
-                resource_data[resource_type]["df"][metric_column] = resource_data[
-                    resource_type
-                ]["df"][f"{metric_column}_x"].combine(
+                resource_data[resource_type]["df"][metric_column] = resource_data[resource_type]["df"][
+                    f"{metric_column}_x"
+                ].combine(
                     resource_data[resource_type]["df"][f"{metric_column}_y"],
                     func=join_metric_columns,
                 )
@@ -183,16 +168,13 @@ def join_metric_columns(value_x: pd.Series, value_y: pd.Series) -> pd.Series:
         return value_x
     if value_x != value_y:
         raise ValueError(
-            "Failed to join metric columns. "
-            "Metric columns have different non-nan values in the same row."
+            "Failed to join metric columns. " "Metric columns have different non-nan values in the same row."
         )
     # if we have not returned by this point, then both columns have the same value in given row
     return value_x
 
 
-def join_resource_dataframes(
-    resource_data: Dict[ResourceType, Dict], start_date: str
-) -> pd.DataFrame:
+def join_resource_dataframes(resource_data: Dict[ResourceType, Dict], start_date: str) -> pd.DataFrame:
     """
     Joins dataframes with time series data of separate ResourceTypes
     into a single, final metrics dataframe.
@@ -252,8 +234,7 @@ def join_resource_dataframes(
                 resource_data[merge_candidate]["df"] = pd.merge(
                     resource_data[merge_candidate]["df"],
                     resource_data[resource_type]["df"],
-                    on=[TIMESTAMP_COLUMN_NAME]
-                    + list(resource_data[resource_type]["resource_labels_set"]),
+                    on=[TIMESTAMP_COLUMN_NAME] + list(resource_data[resource_type]["resource_labels_set"]),
                     how="outer",
                     sort=False,
                 )
@@ -273,9 +254,7 @@ def join_resource_dataframes(
 
     start_date_timestamp = float(convert_to_full_minutes_timestamp(start_date))
 
-    metrics_df[SECONDS_FROM_START_COLUMN_NAME] = (
-        metrics_df[TIMESTAMP_COLUMN_NAME] - start_date_timestamp
-    )
+    metrics_df[SECONDS_FROM_START_COLUMN_NAME] = metrics_df[TIMESTAMP_COLUMN_NAME] - start_date_timestamp
 
     columns_order = get_column_order(resource_data)
 
@@ -303,9 +282,7 @@ def get_column_order(resource_data: Dict[ResourceType, Dict]) -> List[str]:
     for resource_type in ResourceType:
         if resource_type in resource_data:
             metric_columns += sorted(resource_data[resource_type]["metric_columns"])
-            collected_resource_columns.update(
-                resource_data[resource_type]["resource_labels_set"]
-            )
+            collected_resource_columns.update(resource_data[resource_type]["resource_labels_set"])
 
     # resource labels present in collected data have the same order
     # as in RESOURCE_LABEL_HIERARCHY
@@ -331,18 +308,12 @@ def get_column_order(resource_data: Dict[ResourceType, Dict]) -> List[str]:
         )
         resource_columns += sorted(missing_labels)
 
-    column_order = (
-        resource_columns
-        + [TIMESTAMP_COLUMN_NAME, SECONDS_FROM_START_COLUMN_NAME]
-        + metric_columns
-    )
+    column_order = resource_columns + [TIMESTAMP_COLUMN_NAME, SECONDS_FROM_START_COLUMN_NAME] + metric_columns
 
     return column_order
 
 
-def rearrange_metrics_df(
-    metrics_df: pd.DataFrame, columns_order: List[str]
-) -> pd.DataFrame:
+def rearrange_metrics_df(metrics_df: pd.DataFrame, columns_order: List[str]) -> pd.DataFrame:
     """
     Rearranges order of columns in metrics dataframe and sorts its data
     according to COLUMN_SORTING_ORDER.
@@ -366,9 +337,7 @@ def rearrange_metrics_df(
 
     metrics_df = metrics_df[columns_order]
 
-    sorting_order = [
-        column for column in COLUMN_SORTING_ORDER if column in metrics_df.columns
-    ]
+    sorting_order = [column for column in COLUMN_SORTING_ORDER if column in metrics_df.columns]
 
     if sorting_order:
         log.info("Sorting dataframes.")

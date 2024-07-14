@@ -11,7 +11,7 @@ from typing import Iterable, Union
 
 import pandas as pd
 
-from performance_scripts.environments.kubernetes.gke.collecting_results.metrics_dataframe import (
+from environments.kubernetes.gke.collecting_results.metrics_dataframe import (
     prepare_metrics_dataframe,
 )
 
@@ -131,8 +131,7 @@ def add_column_to_dataframe(
 
     if column_name in dataframe.columns:
         log.warning(
-            "Column '%s' is already present in results dataframe. "
-            "Column was not overwritten.",
+            "Column '%s' is already present in results dataframe. " "Column was not overwritten.",
             column_name,
         )
         return location

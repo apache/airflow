@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from kubernetes import client
 from kubernetes.stream import stream
 
-from performance_scripts.environments.kubernetes.airflow_pod_operations import (
+from environments.kubernetes.airflow_pod_operations import (
     collect_dag_run_statistics,
     get_airflow_configuration,
     get_airflow_version,
@@ -55,7 +55,6 @@ class RemoteRunner:
         container: str,
         default_request_timeout: Optional[float] = None,
     ) -> None:
-
         """
         Creates an instance of RemoteRunner.
 
@@ -78,9 +77,7 @@ class RemoteRunner:
         self.namespace = namespace
         self.pod_prefix = pod_prefix
         self.container = container
-        self.default_request_timeout = (
-            default_request_timeout or DEFAULT_EXEC_REQUEST_TIMEOUT
-        )
+        self.default_request_timeout = default_request_timeout or DEFAULT_EXEC_REQUEST_TIMEOUT
 
     # pylint: enable=too-many-arguments
 
@@ -117,9 +114,7 @@ class RemoteRunner:
         try:
             return int(response)
         except ValueError as error:
-            raise ValueError(
-                f"Could not convert response from GKE with test DAGs count to int: {error}"
-            )
+            raise ValueError(f"Could not convert response from GKE with test DAGs count to int: {error}")
 
     def unpause_dags(self, *args, **kwargs) -> str:
         """
@@ -152,9 +147,7 @@ class RemoteRunner:
         try:
             return int(response)
         except ValueError as error:
-            raise ValueError(
-                f"Could not convert response from GKE with Dag Run count to int: {error}"
-            )
+            raise ValueError(f"Could not convert response from GKE with Dag Run count to int: {error}")
 
     def collect_dag_run_statistics(self, *args, **kwargs) -> OrderedDict:
         """
@@ -241,9 +234,7 @@ class RemoteRunner:
         return self.run_command(exec_command, request_timeout)
 
     @staticmethod
-    def fill_python_trampoline_template(
-        method: Callable, args: Tuple[Any, ...], kwargs: Dict
-    ) -> str:
+    def fill_python_trampoline_template(method: Callable, args: Tuple[Any, ...], kwargs: Dict) -> str:
         """
         Fills PYTHON_TRAMPOLINE_TEMPLATE with code of a method that is to be executed on pod
         as well as args and kwargs for it.
@@ -271,9 +262,7 @@ class RemoteRunner:
 
         return python_code
 
-    def run_command(
-        self, exec_command: List[str], request_timeout: Optional[float] = None
-    ) -> str:
+    def run_command(self, exec_command: List[str], request_timeout: Optional[float] = None) -> str:
         """
         Executes given command on found pod and returns the results.
 
@@ -327,8 +316,7 @@ class RemoteRunner:
 
         if return_code == 1:
             raise ConnectionError(
-                f"Error encountered during remote command execution. "
-                f"stderr contents:\n{error}"
+                f"Error encountered during remote command execution. " f"stderr contents:\n{error}"
             )
         if return_code is None:
             raise ConnectionError(

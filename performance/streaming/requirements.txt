@@ -1,9 +1,0 @@
-# In 2.8.2 protobuf constraint is relaxed and newer version of it (>4.0.0)
-# requires Python '>=3.7' but we use 3.6.10.
-google-api-core>=1.22.0,<=2.8.1
-google-cloud-bigquery==1.25.0
-google-cloud-core==1.3.0
-google-cloud-firestore==1.7.0
-google-cloud-pubsub==1.6.0
-google-cloud-storage==1.27.0
-pytz==2020.1

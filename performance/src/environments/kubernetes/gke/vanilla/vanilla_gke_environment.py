@@ -19,20 +19,20 @@ import shortuuid
 from google.cloud.container_v1.types.cluster_service import Cluster
 from pandas import DataFrame
 
-from performance_scripts.environments.base_environment import Action, State, is_state
-from performance_scripts.environments.kubernetes.gke.gke_based_environment import (
+from environments.base_environment import Action, State, is_state
+from environments.kubernetes.gke.gke_based_environment import (
     GKEBasedEnvironment,
 )
-from performance_scripts.performance_dags.elastic_dag.elastic_dag_utils import (
+from performance_dags.elastic_dag.elastic_dag_utils import (
     add_perf_start_date_env_to_conf,
     generate_copies_of_elastic_dag,
     validate_elastic_dag_conf,
 )
-from performance_scripts.utils.file_utils import (
+from utils.file_utils import (
     read_json_file,
     read_templated_json_file,
 )
-from performance_scripts.utils.process_utils import execute_in_subprocess
+from utils.process_utils import execute_in_subprocess
 
 HELM_CHART_PATH = os.path.join(
     os.path.abspath(__file__).split(__name__.replace(".", "/"))[0],  # project root

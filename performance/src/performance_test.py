@@ -7,17 +7,17 @@ import logging
 from time import sleep
 from typing import Dict, Optional, Sequence
 
-from performance_scripts.environments.base_environment import (
+from environments.base_environment import (
     State,
     DEFAULT_SLEEP_BETWEEN_CHECKS,
 )
-from performance_scripts.environments.kubernetes.gke.composer.composer_environment import (
+from environments.kubernetes.gke.composer.composer_environment import (
     ComposerEnvironment,
 )
-from performance_scripts.environments.kubernetes.gke.vanilla.vanilla_gke_environment import (
+from environments.kubernetes.gke.vanilla.vanilla_gke_environment import (
     VanillaGKEEnvironment,
 )
-from performance_scripts.utils.file_utils import (
+from utils.file_utils import (
     check_output_path,
     read_templated_json_file,
     save_output_file,

@@ -14,23 +14,23 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from performance_scripts.performance_test import PerformanceTest
-from performance_scripts.run_performance_test import (
+from performance_test import PerformanceTest
+from run_performance_test import (
     get_run_performance_test_argument_parser,
     initialize_performance_test,
     DUMPED_JSON_ARGUMENTS,
     FILE_PATH_ARGUMENTS,
 )
-from performance_scripts.environments.base_environment import (
+from environments.base_environment import (
     DEFAULT_SLEEP_BETWEEN_CHECKS,
 )
-from performance_scripts.environments.kubernetes.gke.composer.composer_environment import (
+from environments.kubernetes.gke.composer.composer_environment import (
     ComposerEnvironment,
 )
-from performance_scripts.environments.kubernetes.gke.vanilla.vanilla_gke_environment import (
+from environments.kubernetes.gke.vanilla.vanilla_gke_environment import (
     VanillaGKEEnvironment,
 )
-from performance_scripts.utils.file_utils import read_json_file
+from utils.file_utils import read_json_file
 from reports.generator import generate_reports_for_study
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)

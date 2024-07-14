@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from marshmallow import Schema, fields, post_load
 
-from performance_scripts.performance_test import PerformanceTest
+from performance_test import PerformanceTest
 
 COMMON_VALUES = [
     "attempts",

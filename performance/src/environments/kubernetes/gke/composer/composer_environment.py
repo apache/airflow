@@ -17,21 +17,21 @@ from googleapiclient.discovery import build
 from kubernetes.client import CustomObjectsApi, models as k8s
 from pandas import DataFrame
 
-from performance_scripts.environments.base_environment import Action, State, is_state
-from performance_scripts.environments.kubernetes.gke.gke_based_environment import (
+from environments.base_environment import Action, State, is_state
+from environments.kubernetes.gke.gke_based_environment import (
     GKEBasedEnvironment,
     handle_reconciling_cluster,
 )
-from performance_scripts.performance_dags.elastic_dag.elastic_dag_utils import (
+from performance_dags.elastic_dag.elastic_dag_utils import (
     add_perf_start_date_env_to_conf,
     generate_copies_of_elastic_dag,
     validate_elastic_dag_conf,
 )
-from performance_scripts.utils.file_utils import (
+from utils.file_utils import (
     read_json_file,
     read_templated_json_file,
 )
-from performance_scripts.utils.google_cloud.storage_client import StorageClient
+from utils.google_cloud.storage_client import StorageClient
 
 API_BETA_VERSION = "v1beta1"
 DEFAULT_API_VERSION = "v1"

@@ -14,8 +14,8 @@ from unittest import mock
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CREDENTIALS, CLOUD_SDK_CONFIG_DIR
 
-from performance_scripts.utils.network_utils import find_free_port
-from performance_scripts.utils.process_utils import (
+from utils.network_utils import find_free_port
+from utils.process_utils import (
     execute_in_subprocess,
     start_port_forwarding_process,
 )
@@ -166,9 +166,7 @@ def open_routing_to_gke_node(node_name: str, zone: str) -> int:
                 socks_port,
             )
 
-            ssh_proc = start_port_forwarding_process(
-                ssh_command, socks_port, MAX_TIME_TO_OPEN_ROUTING
-            )
+            ssh_proc = start_port_forwarding_process(ssh_command, socks_port, MAX_TIME_TO_OPEN_ROUTING)
 
             log.info("Dynamic port forwarding is open.")
 
@@ -188,9 +186,7 @@ def open_routing_to_gke_node(node_name: str, zone: str) -> int:
                 socks_port,
             )
 
-            hpts_proc = start_port_forwarding_process(
-                hpts_command, http_port, MAX_TIME_TO_OPEN_ROUTING
-            )
+            hpts_proc = start_port_forwarding_process(hpts_command, http_port, MAX_TIME_TO_OPEN_ROUTING)
 
             yield http_port
 
@@ -204,9 +200,7 @@ def open_routing_to_gke_node(node_name: str, zone: str) -> int:
                 os.kill(hpts_proc.pid, signal.SIGTERM)
 
 
-def get_cluster_credentials(
-    project_id: str, zone: str, cluster_id: str, private_endpoint: bool
-) -> None:
+def get_cluster_credentials(project_id: str, zone: str, cluster_id: str, private_endpoint: bool) -> None:
     """
     Executes gcloud subcommand in order to update kubeconfig file with credentials
     of given GKE cluster.

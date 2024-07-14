@@ -8,7 +8,7 @@ import subprocess
 import time
 from typing import List, Optional, Union
 
-from performance_scripts.utils.network_utils import check_if_port_is_being_listened_on
+from utils.network_utils import check_if_port_is_being_listened_on
 
 
 log = logging.getLogger(__name__)
@@ -76,10 +76,8 @@ def get_subprocess_status(process: subprocess.Popen) -> Optional[int]:
     return poll
 
 
-def start_port_forwarding_process(
-    cmd: List[str], port: int, max_time_to_wait: int
-) -> subprocess.Popen:
-    """"
+def start_port_forwarding_process(cmd: List[str], port: int, max_time_to_wait: int) -> subprocess.Popen:
+    """ "
     Starts a port forwarding process in the background and waits until port is listened on for a
     maximum amount of time. Note that this function does not handle killing of this process.
 
@@ -117,8 +115,7 @@ def start_port_forwarding_process(
 
     if time_left < 0 and not check_if_port_is_being_listened_on(port):
         raise TimeoutError(
-            f"Port forwarding was not opened in specified time "
-            f"of {max_time_to_wait} seconds."
+            f"Port forwarding was not opened in specified time " f"of {max_time_to_wait} seconds."
         )
 
     # if port is open BUT given process has finished then raise an error as apparently some other

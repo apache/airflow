@@ -7,7 +7,7 @@ import json
 import logging
 import os
 
-from performance_scripts.performance_test import PerformanceTest
+from performance_test import PerformanceTest
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)
 log = logging.getLogger(__name__)

@@ -6,15 +6,15 @@ import pandas as pd
 from kubernetes.client import ApiClient
 from parameterized import parameterized
 
-from performance_scripts.environments.base_environment import State
-from performance_scripts.environments.kubernetes.gke.composer.composer_environment import (
+from environments.base_environment import State
+from environments.kubernetes.gke.composer.composer_environment import (
     STATS_COLLECTOR_CONTAINER_NAME,
     STATS_COLLECTOR_POD_PREFIX,
     ComposerEnvironment,
     LISTING_ENVIRONMENTS_PAGE_SIZE,
 )
 
-MODULE_NAME = "performance_scripts.environments.kubernetes.gke.composer.composer_environment"
+MODULE_NAME = "environments.kubernetes.gke.composer.composer_environment"
 
 API_VERSION = "v1"
 API_ENDPOINT = "endpoint"

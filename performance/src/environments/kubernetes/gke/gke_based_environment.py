@@ -14,22 +14,22 @@ from google.cloud.container_v1.services.cluster_manager import ClusterManagerCli
 from google.cloud.container_v1.types.cluster_service import Cluster
 from pandas import DataFrame
 
-from performance_scripts.environments.base_environment import (
+from environments.base_environment import (
     BaseEnvironment,
     FINISHED_DAG_RUN_STATES,
     State,
     is_state,
 )
-from performance_scripts.environments.kubernetes.gke.collecting_results.results_dataframe import (
+from environments.kubernetes.gke.collecting_results.results_dataframe import (
     prepare_results_dataframe,
 )
-from performance_scripts.environments.kubernetes.remote_runner import RemoteRunner
-from performance_scripts.environments.kubernetes.gke.gke_remote_runner_provider import (
+from environments.kubernetes.remote_runner import RemoteRunner
+from environments.kubernetes.gke.gke_remote_runner_provider import (
     GKERemoteRunnerProvider,
     DEFAULT_POD_PREFIX,
     DEFAULT_CONTAINER_NAME,
 )
-from performance_scripts.performance_dags.elastic_dag.elastic_dag_utils import (
+from performance_dags.elastic_dag.elastic_dag_utils import (
     calculate_number_of_dag_runs,
     get_dags_count,
     get_dag_prefix,
@@ -132,9 +132,7 @@ class GKEBasedEnvironment(BaseEnvironment, ABC):
             log.info("GKE cluster is not ready to communicate with yet.")
             return False
 
-        raise ValueError(
-            f"GKE cluster has reached an unexpected state: {cluster_state}"
-        )
+        raise ValueError(f"GKE cluster has reached an unexpected state: {cluster_state}")
 
     @handle_reconciling_cluster
     def check_if_dags_have_loaded(self) -> State:
@@ -154,8 +152,7 @@ class GKEBasedEnvironment(BaseEnvironment, ABC):
 
         if number_of_parsed_dags < expected_dags_count:
             log.info(
-                "Not all expected DAGs are present on environment %s. "
-                "DAGs parsed: %d/%d. ",
+                "Not all expected DAGs are present on environment %s. " "DAGs parsed: %d/%d. ",
                 self.name,
                 number_of_parsed_dags,
                 expected_dags_count,
@@ -251,9 +248,7 @@ class GKEBasedEnvironment(BaseEnvironment, ABC):
                     # add a new column at the beginning of the dataframe
                     results_df.insert(0, column_name, self.results_columns[column_name])
 
-        results_object_name_components = self.get_results_object_name_components(
-            results_df
-        )
+        results_object_name_components = self.get_results_object_name_components(results_df)
 
         self.results = (results_df, results_object_name_components)
         return State.DONE
@@ -289,18 +284,12 @@ class GKEBasedEnvironment(BaseEnvironment, ABC):
         gke_node_urls = [node.get("instance") for node in list_nodes_result["items"]]
 
         disks = (
-            self.compute_client.disks()
-            .list(project=self.get_project_id(), zone=self.get_zone())
-            .execute()
+            self.compute_client.disks().list(project=self.get_project_id(), zone=self.get_zone()).execute()
         )
 
         gke_cluster_disk_ids = []
         for disk in disks.get("items", []):
-            if any(
-                node_url
-                for node_url in gke_node_urls
-                if disk.get("users") == [node_url]
-            ):
+            if any(node_url for node_url in gke_node_urls if disk.get("users") == [node_url]):
                 gke_cluster_disk_ids.append(disk["id"])
 
         return gke_cluster_disk_ids
@@ -465,9 +454,7 @@ class GKEBasedEnvironment(BaseEnvironment, ABC):
         """
         raise NotImplementedError
 
-    def get_results_object_name_components(
-        self, results_df: DataFrame
-    ) -> Sequence[str]:
+    def get_results_object_name_components(self, results_df: DataFrame) -> Sequence[str]:
         """
         This method should return a sequence of components from which a results object's name can
         be formed.

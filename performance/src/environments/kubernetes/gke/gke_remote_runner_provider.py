@@ -13,8 +13,8 @@ from google.cloud.container_v1.services.cluster_manager import ClusterManagerCli
 from googleapiclient.discovery import build
 from kubernetes import client, config
 
-from performance_scripts.environments.kubernetes.remote_runner import RemoteRunner
-from performance_scripts.utils.google_cloud.gcloud_utils import (
+from environments.kubernetes.remote_runner import RemoteRunner
+from utils.google_cloud.gcloud_utils import (
     get_cluster_credentials,
     open_routing_to_gke_node,
     provide_authorized_gcloud,
@@ -105,14 +105,10 @@ class GKERemoteRunnerProvider:
 
             namespace = self.find_namespace_with_a_prefix(core_api, namespace_prefix, self.system_namespaces)
 
-            yield RemoteRunner(
-                core_api, namespace, pod_prefix, container, default_request_timeout
-            )
+            yield RemoteRunner(core_api, namespace, pod_prefix, container, default_request_timeout)
 
     @contextmanager
-    def get_kubernetes_apis_in_isolated_context(
-        self
-    ) -> Tuple[client.CoreV1Api, client.AppsV1Api, str]:
+    def get_kubernetes_apis_in_isolated_context(self) -> Tuple[client.CoreV1Api, client.AppsV1Api, str]:
         """
         Context manager that provides kubernetes python clients in an isolated context
         to avoid side-effects for current user. This way we can avoid changing the default
@@ -127,19 +123,13 @@ class GKERemoteRunnerProvider:
             # Authorize gcloud tool
             exit_stack.enter_context(provide_authorized_gcloud(self.project_id))
             # Prepare a new temporary kubeconfig
-            kubectl_temp_conf_file = exit_stack.enter_context(
-                tempfile.NamedTemporaryFile()
-            )
+            kubectl_temp_conf_file = exit_stack.enter_context(tempfile.NamedTemporaryFile())
             exit_stack.enter_context(
-                mock.patch.dict(
-                    "os.environ", {KUBE_CONFIG_ENV_VAR: kubectl_temp_conf_file.name}
-                )
+                mock.patch.dict("os.environ", {KUBE_CONFIG_ENV_VAR: kubectl_temp_conf_file.name})
             )
             # Open IAP proxy for private connection
             if self.use_routing:
-                http_port = exit_stack.enter_context(
-                    open_routing_to_gke_node(self.node_name, self.zone)
-                )
+                http_port = exit_stack.enter_context(open_routing_to_gke_node(self.node_name, self.zone))
             else:
                 http_port = None
 
@@ -154,9 +144,7 @@ class GKERemoteRunnerProvider:
 
             log.info("Loading kubernetes configuration.")
 
-            config.load_kube_config(
-                config_file=kubectl_temp_conf_file.name, context=self.gke_context
-            )
+            config.load_kube_config(config_file=kubectl_temp_conf_file.name, context=self.gke_context)
 
             proxy = ""
 
@@ -214,9 +202,7 @@ class GKERemoteRunnerProvider:
 
         list_instances_result = (
             compute_client.instanceGroups()
-            .listInstances(
-                project=self.project_id, zone=self.zone, instanceGroup=instance_group
-            )
+            .listInstances(project=self.project_id, zone=self.zone, instanceGroup=instance_group)
             .execute()
         )
 
@@ -246,7 +232,8 @@ class GKERemoteRunnerProvider:
     # TODO: this should be moved to the kubernetes directory as it does not depend on gke
     @staticmethod
     def find_namespace_with_a_prefix(
-        core_api: client.api.core_v1_api.CoreV1Api, namespace_prefix: str,
+        core_api: client.api.core_v1_api.CoreV1Api,
+        namespace_prefix: str,
         ignore_namespaces: Optional[List[str]] = None,
     ) -> str:
         """
@@ -277,21 +264,18 @@ class GKERemoteRunnerProvider:
         namespace = [
             metadata["name"]
             for metadata in metadata_list
-            if metadata["name"] and metadata["name"].startswith(namespace_prefix) and
-               metadata["name"] not in ignore_namespaces
+            if metadata["name"]
+            and metadata["name"].startswith(namespace_prefix)
+            and metadata["name"] not in ignore_namespaces
         ]
 
         if not namespace or len(namespace) > 1:
-            raise ValueError(
-                f"Could not find a single namespace starting with '{namespace_prefix}'."
-            )
+            raise ValueError(f"Could not find a single namespace starting with '{namespace_prefix}'.")
         return namespace[0]
 
     # TODO: this should be moved to the kubernetes directory as it does not depend on gke
     @staticmethod
-    def create_namespace(
-        service: client.api.core_v1_api.CoreV1Api, namespace_name: str
-    ) -> None:
+    def create_namespace(service: client.api.core_v1_api.CoreV1Api, namespace_name: str) -> None:
         """
         Creates the namespace with specified name.
 
@@ -304,9 +288,7 @@ class GKERemoteRunnerProvider:
 
         log.info("Creating namespace '%s'.", namespace_name)
 
-        namespace_body = client.V1Namespace(
-            metadata=client.V1ObjectMeta(name=namespace_name)
-        )
+        namespace_body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace_name))
 
         service.create_namespace(namespace_body)
 
@@ -340,11 +322,7 @@ class GKERemoteRunnerProvider:
 
         metadata_list = [item["metadata"] for item in response.to_dict()["items"]]
 
-        deployments = [
-            metadata
-            for metadata in metadata_list
-            if metadata["name"] == deployment_name
-        ]
+        deployments = [metadata for metadata in metadata_list if metadata["name"] == deployment_name]
 
         if not deployments:
             return None
