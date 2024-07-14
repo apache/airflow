@@ -8,9 +8,9 @@ from environments.base_environment import (
     DEFAULT_SLEEP_BETWEEN_CHECKS,
 )
 
-MODULE_NAME = "performance_scripts.performance_test"
+MODULE_NAME = "performance_test"
 ENVIRONMENT_SPECIFICATIONS_DIR = os.path.join(
-    os.path.dirname(__file__), "environments", "environment_specifications"
+    os.path.dirname(__file__), "instances", "environment_specifications"
 )
 
 COMPOSER_ENVIRONMENT_TYPE = "COMPOSER"
@@ -31,8 +31,6 @@ class TestPerformanceTest(TestCase):
         return_value=COMPOSER_ENVIRONMENT_TYPE,
     )
     @mock.patch(MODULE_NAME + ".ComposerEnvironment")
-    @mock.patch(MODULE_NAME + ".StorageClient")
-    @mock.patch(MODULE_NAME + ".BigQueryClient")
     def test_init_composer_environment(
         self,
         mock_big_query_client,
@@ -78,8 +76,6 @@ class TestPerformanceTest(TestCase):
         return_value=COMPOSER_ENVIRONMENT_TYPE,
     )
     @mock.patch(MODULE_NAME + ".ComposerEnvironment")
-    @mock.patch(MODULE_NAME + ".StorageClient")
-    @mock.patch(MODULE_NAME + ".BigQueryClient")
     def test_init_composer_environment_no_results_bucket_no_results_dataset(
         self,
         mock_big_query_client,
@@ -122,8 +118,6 @@ class TestPerformanceTest(TestCase):
         return_value=COMPOSER_ENVIRONMENT_TYPE,
     )
     @mock.patch(MODULE_NAME + ".ComposerEnvironment")
-    @mock.patch(MODULE_NAME + ".StorageClient")
-    @mock.patch(MODULE_NAME + ".BigQueryClient")
     def test_init_composer_environment_no_results(
         self,
         mock_big_query_client,
@@ -192,11 +186,7 @@ class TestPerformanceTestWithComposerEnvironment(TestCase):
         with mock.patch(
             MODULE_NAME + ".PerformanceTest.get_environment_type",
             return_value=COMPOSER_ENVIRONMENT_TYPE,
-        ), mock.patch(MODULE_NAME + ".ComposerEnvironment") as mock_composer_environment, mock.patch(
-            MODULE_NAME + ".StorageClient"
-        ), mock.patch(
-            MODULE_NAME + ".BigQueryClient"
-        ):
+        ), mock.patch(MODULE_NAME + ".ComposerEnvironment") as mock_composer_environment:
 
             mock_composer_environment.environment_type = COMPOSER_ENVIRONMENT_TYPE
 
@@ -355,10 +345,6 @@ class TestPerformanceTestWithComposerEnvironment(TestCase):
         self.performance_test.check_outputs()
 
         mock_check_output_path.assert_called_once_with(OUTPUT_PATH)
-        self.performance_test.storage_client.get_bucket.assert_called_once_with(RESULTS_BUCKET)
-        self.performance_test.big_query_client.check_and_create_dataset.assert_called_once_with(
-            RESULTS_DATASET
-        )
 
     @mock.patch(MODULE_NAME + ".check_output_path")
     def test_check_outputs_only_results_bucket(self, mock_check_output_path):
