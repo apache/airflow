@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-14T09:27:36.874050
+# This constraints file was automatically generated on 2024-07-14T15:26:41.604338
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -401,7 +401,7 @@ jaraco.functools==4.0.1
 jedi==0.19.1
 jeepney==0.8.0
 jmespath==0.10.0
-joserfc==0.12.0
+joserfc==1.0.0
 json-merge-patch==0.2
 jsondiff==2.1.1
 jsonpatch==1.33
@@ -498,7 +498,7 @@ pexpect==4.9.0
 pgvector==0.3.1
 pinecone-client==4.1.2
 pinecone-plugin-interface==0.0.7
-pinotdb==5.5.0
+pinotdb==5.6.0
 pipdeptree==2.23.1
 pipx==1.6.0
 pkginfo==1.10.0
