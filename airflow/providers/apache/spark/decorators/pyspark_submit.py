@@ -22,7 +22,6 @@ import os
 import pickle
 import warnings
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
@@ -32,7 +31,7 @@ from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decor
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.decorators.pyspark import SPARK_CONTEXT_KEYS
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils.python_virtualenv import write_python_script
+from airflow.providers.apache.spark.pyspark_submit_script import write_pyspark_script
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -132,18 +131,24 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
             script_filename = os.path.join(tmp_dir, "script.py")
             input_filename = os.path.join(tmp_dir, INPUT_FILENAME)
 
-            if self.op_args or self.op_kwargs:
+            use_arguments = bool(self.op_args or self.op_kwargs)
+            if use_arguments:
                 with open(input_filename, "wb") as file:
                     self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
                 files = self.files.split(",") if self.files else []
                 self.files = ",".join(files + [input_filename])
 
-            py_source = self.get_pyspark_source()
+            params = inspect.signature(self.python_callable).parameters
+            use_spark_context = "sc" in params
+            use_spark_session = "spark" in params
 
-            write_python_script(
+            py_source = self.get_python_source()
+            write_pyspark_script(
                 jinja_context={
-                    "op_args": None,
-                    "op_kwargs": None,
+                    "use_arguments": use_arguments,
+                    "use_spark_context": use_spark_context,
+                    "use_spark_session": use_spark_session,
+                    "input_filename": input_filename,
                     "pickling_library": self.pickling_library.__name__,
                     "python_callable": self.python_callable.__name__,
                     "python_callable_source": py_source,
@@ -151,48 +156,9 @@ class _PysparkSubmitDecoratedOperator(DecoratedOperator, SparkSubmitOperator):
                 },
                 filename=script_filename,
             )
+
             self.application = script_filename
             return super().execute(context)
-
-    def get_pyspark_source(self):
-        py_source = self.get_python_source()
-        parameters = inspect.signature(self.python_callable).parameters
-        use_spark_context = use_spark_session = False
-        if "sc" in parameters:
-            use_spark_context = True
-        if "spark" in parameters:
-            use_spark_session = True
-
-        py_source = dedent(
-            f"""\
-            from pyspark import SparkFiles
-            from pyspark.sql import SparkSession
-
-            # Script
-            {{python_callable_source}}
-
-            # args
-            if {bool(self.op_args or self.op_kwargs)}:
-                SparkSession.builder.getOrCreate()
-                with open(SparkFiles.get("{INPUT_FILENAME}"), "rb") as file:
-                    arg_dict = {self.pickling_library.__name__}.load(file)
-            else:
-                arg_dict = {{default_arg_dict}}
-
-            if {use_spark_session}:
-                arg_dict["kwargs"]["spark"] = SparkSession.builder.getOrCreate()
-            if {use_spark_context}:
-                spark = arg_dict.get("spark") or SparkSession.builder.getOrCreate()
-                arg_dict["kwargs"]["sc"] = spark.sparkContext
-
-            # Call
-            {self.python_callable.__name__}(*arg_dict["args"], **arg_dict["kwargs"])
-
-            # Exit
-            exit(0)
-            """
-        ).format(python_callable_source=py_source, default_arg_dict='{"args": [], "kwargs": {}}')
-        return py_source
 
     @property
     def pickling_library(self):
