@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import os
 from io import StringIO
-from unittest.mock import call, patch
+from pathlib import Path
+from unittest.mock import call, mock_open, patch
 
 import pytest
 
@@ -149,6 +151,14 @@ class TestSparkSubmitHook:
                 conn_type="spark",
                 host="yarn",
                 extra='{"principal": "user/spark@airflow.org"}',
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id="spark_keytab_set",
+                conn_type="spark",
+                host="yarn",
+                extra='{"keytab": "privileged_user.keytab"}',
             )
         )
 
@@ -606,6 +616,54 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert dict_cmd["--principal"] == "will-override"
 
+    @patch(
+        "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._get_keytab_from_base64",
+        return_value="privileged_user.keytab",
+    )
+    def test_resolve_connection_keytab_set_connection(self, mock_get_keytab_from_base64):
+        # Given
+        hook = SparkSubmitHook(conn_id="spark_keytab_set")
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {
+            "master": "yarn",
+            "spark_binary": "spark-submit",
+            "deploy_mode": None,
+            "queue": None,
+            "namespace": None,
+            "principal": None,
+            "keytab": "privileged_user.keytab",
+        }
+        assert connection == expected_spark_connection
+        assert dict_cmd["--keytab"] == "privileged_user.keytab"
+
+    def test_resolve_connection_keytab_value_override(self):
+        # Given
+        hook = SparkSubmitHook(conn_id="spark_keytab_set", keytab="will-override")
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {
+            "master": "yarn",
+            "spark_binary": "spark-submit",
+            "deploy_mode": None,
+            "queue": None,
+            "namespace": None,
+            "principal": None,
+            "keytab": "will-override",
+        }
+        assert connection == expected_spark_connection
+        assert dict_cmd["--keytab"] == "will-override"
+
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster_client_mode", env_vars={"bar": "foo"})
@@ -945,3 +1003,90 @@ class TestSparkSubmitHook:
 
         # Then
         assert command_masked == expected
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.uuid.uuid4")
+    @patch("pathlib.Path.resolve")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_keytab_from_base64_with_new_keytab(
+        self,
+        mock_open,
+        mock_exists,
+        mock_move,
+        mock_resolve,
+        mock_uuid4,
+    ):
+        # Given
+        hook = SparkSubmitHook()
+
+        keytab_value = b"abcd"
+        base64_keytab = base64.b64encode(keytab_value).decode("UTF-8")
+        mock_uuid4.return_value = "uuid"
+        mock_resolve.return_value = Path("resolved_path")
+        mock_exists.return_value = False
+
+        # When
+        keytab = hook._get_keytab_from_base64(base64_keytab, None)
+
+        # Then
+        assert keytab == "resolved_path/airflow_keytab-uuid"
+        mock_open().write.assert_called_once_with(keytab_value)
+        mock_move.assert_called_once()
+
+    @patch("pathlib.Path.resolve")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_keytab_from_base64_with_new_keytab_with_principal(
+        self,
+        mock_open,
+        mock_exists,
+        mock_move,
+        mock_resolve,
+    ):
+        # Given
+        hook = SparkSubmitHook()
+
+        principal = "user/spark@airflow.org"
+        keytab_value = b"abcd"
+        base64_keytab = base64.b64encode(keytab_value).decode("UTF-8")
+        mock_resolve.return_value = Path("resolved_path")
+        mock_exists.return_value = False
+
+        # When
+        keytab = hook._get_keytab_from_base64(base64_keytab, principal)
+
+        # Then
+        assert keytab == f"resolved_path/airflow_keytab-{principal}"
+        mock_open().write.assert_called_once_with(keytab_value)
+        mock_move.assert_called_once()
+
+    @patch("pathlib.Path.resolve")
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_keytab_from_base64_with_existing_keytab(
+        self,
+        mock_open,
+        mock_exists,
+        mock_resolve,
+    ):
+        # Given
+        hook = SparkSubmitHook()
+
+        principal = "user/spark@airflow.org"
+        keytab_value = b"abcd"
+        base64_keytab = base64.b64encode(keytab_value)
+        mock_resolve.return_value = Path("resolved_path")
+        mock_exists.return_value = True
+        _mock_open = mock_open()
+        _mock_open.read.return_value = base64.b64decode(base64_keytab)
+
+        # When
+        keytab = hook._get_keytab_from_base64(base64_keytab.decode("UTF-8"), principal)
+
+        # Then
+        assert keytab == f"resolved_path/airflow_keytab-{principal}"
+        mock_open.assert_called_with(Path(f"resolved_path/airflow_keytab-{principal}"), "rb")
+        _mock_open.read.assert_called_once()
+        assert not _mock_open.write.called, "Keytab file should not be written"
