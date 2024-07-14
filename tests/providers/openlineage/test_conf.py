@@ -159,20 +159,22 @@ def test_disable_source_code_conf_option_has_precedence_over_legacy_env_var():
     assert is_source_enabled() is False
 
 
-@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): "asdadawlaksnd"})
-def test_disable_source_code_conf_option_not_working_for_random_string():
-    assert is_source_enabled() is True
-
-
 @env_vars({_VAR_DISABLE_SOURCE_CODE: "asdadawlaksnd"})
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): None})
 def test_disable_source_code_legacy_env_var_not_working_for_random_string():
     assert is_source_enabled() is True
 
 
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): "asdadawlaksnd"})
+def test_disable_source_code_conf_option_not_working_for_random_string():
+    with pytest.raises(AirflowConfigException):
+        is_source_enabled()
+
+
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): ""})
 def test_disable_source_code_empty_conf_option():
-    assert is_source_enabled() is True
+    with pytest.raises(AirflowConfigException):
+        is_source_enabled()
 
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): None})
@@ -192,12 +194,14 @@ def test_selective_enable(var_string, expected):
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): "asdadawlaksnd"})
 def test_selective_enable_not_working_for_random_string():
-    assert selective_enable() is False
+    with pytest.raises(AirflowConfigException):
+        selective_enable()
 
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): ""})
 def test_selective_enable_empty_conf_option():
-    assert selective_enable() is False
+    with pytest.raises(AirflowConfigException):
+        selective_enable()
 
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): None})
@@ -346,8 +350,9 @@ def test_is_disabled_possible_values_for_disabling(disabled):
         (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "asdadawlaksnd",
     }
 )
-def test_is_disabled_is_not_disabled_by_random_string():
-    assert is_disabled() is False
+def test_is_disabled_raises_for_random_string():
+    with pytest.raises(AirflowConfigException):
+        is_disabled()
 
 
 @mock.patch.dict(os.environ, {_VAR_URL: "https://test.com"}, clear=True)
@@ -358,8 +363,9 @@ def test_is_disabled_is_not_disabled_by_random_string():
         (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
-def test_is_disabled_is_false_when_not_explicitly_disabled_and_url_set():
-    assert is_disabled() is False
+def test_is_disabled_raises_when_not_explicitly_disabled_and_url_set():
+    with pytest.raises(AirflowConfigException):
+        is_disabled()
 
 
 @mock.patch.dict(os.environ, {_VAR_URL: ""}, clear=True)
@@ -370,8 +376,9 @@ def test_is_disabled_is_false_when_not_explicitly_disabled_and_url_set():
         (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
-def test_is_disabled_is_false_when_not_explicitly_disabled_and_transport_set():
-    assert is_disabled() is False
+def test_is_disabled_raoses_when_not_explicitly_disabled_and_transport_set():
+    with pytest.raises(AirflowConfigException):
+        is_disabled()
 
 
 @mock.patch.dict(os.environ, {_VAR_URL: ""}, clear=True)
@@ -382,7 +389,19 @@ def test_is_disabled_is_false_when_not_explicitly_disabled_and_transport_set():
         (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
-def test_is_disabled_is_false_when_not_explicitly_disabled_and_config_path_set():
+def test_is_disabled_raises_when_not_explicitly_disabled_and_config_path_set():
+    with pytest.raises(AirflowConfigException):
+        is_disabled()
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: ""}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "some/path.yml",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
+    }
+)
+def test_is_disabled_does_not_raise_when_not_explicitly_disabled_and_config_path_set():
     assert is_disabled() is False
 
 
@@ -403,7 +422,6 @@ def test_is_disabled_conf_option_is_enough_to_disable():
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "some/path.yml",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): '{"valid": "transport"}',
-        (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
 def test_is_disabled_legacy_env_var_is_enough_to_disable():
@@ -451,7 +469,6 @@ def test_is_disabled_env_var_true_has_precedence_over_conf_false():
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
-        (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
 def test_is_disabled_empty_conf_option():

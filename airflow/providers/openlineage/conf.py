@@ -70,11 +70,10 @@ def config_path(check_legacy_env_var: bool = True) -> str:
 @cache
 def is_source_enabled() -> bool:
     """[openlineage] disable_source_code."""
-    option = conf.get(_CONFIG_SECTION, "disable_source_code", fallback="")
+    option = conf.getboolean(_CONFIG_SECTION, "disable_source_code", fallback="False")
     if not option:
-        option = os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", "")
-    # when disable_source_code is True, is_source_enabled() should be False
-    return not _is_true(option)
+        option = _is_true(os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", ""))
+    return not option
 
 
 @cache
@@ -87,8 +86,7 @@ def disabled_operators() -> set[str]:
 @cache
 def selective_enable() -> bool:
     """[openlineage] selective_enable."""
-    option = conf.get(_CONFIG_SECTION, "selective_enable", fallback="")
-    return _is_true(option)
+    return conf.getboolean(_CONFIG_SECTION, "selective_enable", fallback="False")
 
 
 @cache
@@ -121,16 +119,14 @@ def transport() -> dict[str, Any]:
 @cache
 def is_disabled() -> bool:
     """[openlineage] disabled + check if any configuration is present."""
-    option = conf.get(_CONFIG_SECTION, "disabled", fallback="")
-    if _is_true(option):
-        return True
-
-    option = os.getenv("OPENLINEAGE_DISABLED", "")
-    if _is_true(option):
-        return True
-    # Check if both 'transport' and 'config_path' are not present and also
-    # if legacy 'OPENLINEAGE_URL' environment variables is not set
-    return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
+    option = conf.getboolean(_CONFIG_SECTION, "disabled", fallback="False")
+    if not option:
+        option = _is_true(os.getenv("OPENLINEAGE_DISABLED", ""))
+    if not option:
+        # Check if both 'transport' and 'config_path' are not present and also
+        # if legacy 'OPENLINEAGE_URL' environment variables is not set
+        return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
+    return option
 
 
 @cache
