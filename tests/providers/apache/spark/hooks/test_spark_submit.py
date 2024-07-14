@@ -1102,7 +1102,7 @@ class TestSparkSubmitHook:
         mock_resolve.return_value = Path("resolved_path")
         mock_exists.return_value = True
         _mock_open = mock_open()
-        _mock_open.read.return_value = base64.b64decode(base64_keytab)
+        _mock_open.read.return_value = keytab_value
 
         # When
         keytab = hook._get_keytab_from_base64(base64_keytab.decode("UTF-8"), principal)
