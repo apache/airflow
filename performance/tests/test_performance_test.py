@@ -40,6 +40,7 @@ class TestPerformanceTest(TestCase):
             elastic_dag_path=ELASTIC_DAG_FILE_PATH,
             elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
             jinja_variables_dict=deepcopy(JINJA_VARIABLES_DICT),
+            output_path=OUTPUT_PATH,
         )
 
         self.assertEqual(performance_test.environment, mock_composer_environment.return_value)
@@ -50,6 +51,7 @@ class TestPerformanceTest(TestCase):
             ELASTIC_DAG_FILE_PATH,
             ELASTIC_DAG_CONFIG_FILE_PATH,
             JINJA_VARIABLES_DICT,
+            None,
             False,
             False,
             False,

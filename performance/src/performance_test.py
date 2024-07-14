@@ -278,7 +278,7 @@ class PerformanceTest:
 
     def save_results(self) -> None:
         """
-        Saves the performance test results in a local file.
+        Saves the performance test results in local file.
         Returns immediately if none of them was provided.
         """
 
