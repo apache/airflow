@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+from io import StringIO as StringBuffer
+
 import pytest
 
 from airflow.decorators import setup, task, teardown
@@ -284,3 +287,33 @@ class TestDockerDecorator:
             ret = f()
 
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
+
+    def test_failing_task(self, dag_maker):
+        """Test regression #39319
+
+        Check the log content of the DockerOperator when the task fails.
+        """
+
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            raise ValueError("This task is expected to fail")
+
+        docker_operator_logger_name = "airflow.task.operators"
+
+        docker_operator_logger = logging.getLogger(docker_operator_logger_name)
+        log_capture_string = StringBuffer()
+        ch = logging.StreamHandler(log_capture_string)
+        docker_operator_logger.addHandler(ch)
+        with dag_maker():
+            ret = f()
+
+        dr = dag_maker.create_dagrun()
+        with pytest.raises(AirflowException):
+            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ti = dr.get_task_instances()[0]
+        assert ti.state == TaskInstanceState.FAILED
+
+        log_content = str(log_capture_string.getvalue())
+        assert 'with open(sys.argv[4], "w") as file:' not in log_content
+        last_line_of_docker_operator_log = log_content.splitlines()[-1]
+        assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log

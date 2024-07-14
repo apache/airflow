@@ -105,7 +105,7 @@ class WeaviateHook(BaseHook):
             "token": PasswordField(lazy_gettext("Weaviate API Key"), widget=BS3PasswordFieldWidget()),
             "grpc_host": StringField(lazy_gettext("gRPC host"), widget=BS3TextFieldWidget()),
             "grpc_port": StringField(lazy_gettext("gRPC port"), widget=BS3TextFieldWidget()),
-            "grcp_secure": BooleanField(
+            "grpc_secure": BooleanField(
                 lazy_gettext("Use a secure channel for the underlying gRPC API"), default=False
             ),
         }
@@ -125,7 +125,7 @@ class WeaviateHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
         http_secure = extras.pop("http_secure", False)
-        grpc_secure = extras.pop("grcp_secure", False)
+        grpc_secure = extras.pop("grpc_secure", False)
         return weaviate.connect_to_custom(
             http_host=conn.host,
             http_port=conn.port or 443 if http_secure else 80,
@@ -238,7 +238,7 @@ class WeaviateHook(BaseHook):
             | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
         ),
     )
-    def get_collection_configuraiton(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
+    def get_collection_configuration(self, collection_name: str) -> CollectionConfig | CollectionConfigSimple:
         """
         Get the collection configuration from Weaviate.
 

@@ -551,7 +551,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
-                match = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver)", line)
+                match = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
                 if match:
                     self._kubernetes_driver_pod = match.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
