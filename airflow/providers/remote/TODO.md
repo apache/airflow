@@ -64,7 +64,9 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Breeze integration tests in Github
 - [ ] Known problems
   - [ ] AIP-44 related
-    - [ ] Mapped Tasks?
+    - [x] Mapped Tasks?
+    - [x] Branching Operator/SkipMixin
+    - [ ] RenderedTaskinstanceFields
     - [ ] Templated Fields?
     - [ ] AIP-44 Integration Tests
 - [ ] AIP-69
