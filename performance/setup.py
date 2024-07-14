@@ -2,26 +2,19 @@
 
 from setuptools import setup
 
-with open("performance_scripts/README.md") as readme_file:
+with open("src/README.md") as readme_file:
     readme = readme_file.read()
-
-with open("streaming/requirements.txt") as requirements_txt:
-    cloud_func_requirements = requirements_txt.read().split("\n")
 
 with open("requirements.txt") as requirements_txt:
     app_requirements = requirements_txt.read().split("\n")
 
-requirements = cloud_func_requirements + app_requirements
+requirements = app_requirements
 
 setup(
     author="Google",
     author_email="cloud-composer-team@google.com",
     description="Python project dedicated to running performance tests of Apache Airflow",
-    entry_points={
-        "console_scripts": [
-            "airflow_gepard=performance_scripts.run_performance_test:main"
-        ]
-    },
+    entry_points={"console_scripts": ["airflow_gepard=performance_scripts.run_performance_test:main"]},
     install_requires=requirements,
     license="",
     long_description=readme,

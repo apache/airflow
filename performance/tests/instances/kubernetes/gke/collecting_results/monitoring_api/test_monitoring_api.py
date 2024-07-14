@@ -3,13 +3,13 @@ from unittest import TestCase, mock
 from google.cloud.monitoring_v3.types import TimeInterval, TypedValue
 
 # fmt: off
-from performance_scripts.environments.kubernetes.gke.collecting_results.\
+from environments.kubernetes.gke.collecting_results.\
     monitoring_api.monitoring_api import (
         convert_to_full_minutes_timestamp,
         get_typed_value,
         MonitoringApi,
     )
-from performance_scripts.environments.kubernetes.gke.collecting_results.\
+from environments.kubernetes.gke.collecting_results.\
     monitoring_api.monitored_resources import (
         ResourceType,
     )
@@ -36,9 +36,7 @@ class TestMonitoringApi(TestCase):
 
     def test_convert_to_full_minutes_timestamp_round_up(self):
 
-        self.assertEqual(
-            convert_to_full_minutes_timestamp(self.start_date, round_up=True), 60
-        )
+        self.assertEqual(convert_to_full_minutes_timestamp(self.start_date, round_up=True), 60)
 
     def test_get_typed_value_double_value(self):
 
@@ -165,9 +163,7 @@ class TestMonitoringApi(TestCase):
         interval.start_time.nanos = 0
         interval.end_time.nanos = 0
 
-        self.assertEqual(
-            self.api.get_time_interval(self.start_date, self.end_date), interval
-        )
+        self.assertEqual(self.api.get_time_interval(self.start_date, self.end_date), interval)
 
     def test_get_filter(self):
 

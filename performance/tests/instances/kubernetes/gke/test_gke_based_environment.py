@@ -3,11 +3,11 @@ from unittest import TestCase, mock
 
 import pandas as pd
 
-from performance_scripts.environments.base_environment import (
+from environments.base_environment import (
     FINISHED_DAG_RUN_STATES,
     State,
 )
-from performance_scripts.environments.kubernetes.gke.gke_based_environment import (
+from environments.kubernetes.gke.gke_based_environment import (
     GKEBasedEnvironment,
 )
 
@@ -34,9 +34,7 @@ COLUMNS = ["A", "B"]
 
 class TestGKEBasedEnvironment(TestCase):
     def setUp(self):
-        with mock.patch(MODULE_NAME + ".ClusterManagerClient"), mock.patch(
-            MODULE_NAME + ".build"
-        ):
+        with mock.patch(MODULE_NAME + ".ClusterManagerClient"), mock.patch(MODULE_NAME + ".build"):
             self.gke_env = GKEBasedEnvironment(
                 namespace_prefix=DEFAULT_NAMESPACE_PREFIX,
                 pod_prefix=POD_PREFIX,
@@ -59,9 +57,7 @@ class TestGKEBasedEnvironment(TestCase):
         )
         self.assertEqual(self.gke_env.remote_runner_provider.use_routing, False)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_state", return_value=2
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_state", return_value=2)
     def test_check_cluster_readiness(self, mock_get_gke_cluster_state):
 
         return_value = self.gke_env.check_cluster_readiness()
@@ -69,9 +65,7 @@ class TestGKEBasedEnvironment(TestCase):
         mock_get_gke_cluster_state.assert_called_once_with()
         self.assertEqual(return_value, True)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_state", return_value=3
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_state", return_value=3)
     def test_check_cluster_readiness__reconciling(self, mock_get_gke_cluster_state):
 
         return_value = self.gke_env.check_cluster_readiness()
@@ -79,9 +73,7 @@ class TestGKEBasedEnvironment(TestCase):
         mock_get_gke_cluster_state.assert_called_once_with()
         self.assertEqual(return_value, False)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_state", return_value=-1
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_state", return_value=-1)
     def test_check_cluster_readiness__unknown(self, mock_get_gke_cluster_state):
 
         with self.assertRaises(ValueError):
@@ -89,19 +81,13 @@ class TestGKEBasedEnvironment(TestCase):
 
         mock_get_gke_cluster_state.assert_called_once_with()
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     @mock.patch(
         MODULE_NAME + ".GKEBasedEnvironment.get_dags_count",
         return_value=EXPECTED_DAGS_COUNT,
     )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_check_if_dags_have_loaded(
         self,
         mock_name,
@@ -110,9 +96,7 @@ class TestGKEBasedEnvironment(TestCase):
         mock_check_cluster_readiness,
     ):
 
-        runner_mock = mock.MagicMock(
-            **{"get_dags_count.return_value": EXPECTED_DAGS_COUNT}
-        )
+        runner_mock = mock.MagicMock(**{"get_dags_count.return_value": EXPECTED_DAGS_COUNT})
 
         remote_runner_provider_mock = mock.MagicMock(
             **{"get_remote_runner.return_value.__enter__.return_value": runner_mock}
@@ -134,19 +118,13 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_called_once_with()
         self.assertEqual(new_state, State.UNPAUSE_DAG)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     @mock.patch(
         MODULE_NAME + ".GKEBasedEnvironment.get_dags_count",
         return_value=EXPECTED_DAGS_COUNT,
     )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_check_if_dags_have_loaded__not_loaded(
         self,
         mock_name,
@@ -177,19 +155,13 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_called_once_with()
         self.assertEqual(new_state, State.WAIT_FOR_DAG)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     @mock.patch(
         MODULE_NAME + ".GKEBasedEnvironment.get_dags_count",
         return_value=EXPECTED_DAGS_COUNT,
     )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_check_if_dags_have_loaded__cluster_not_ready(
         self,
         mock_name,
@@ -198,9 +170,7 @@ class TestGKEBasedEnvironment(TestCase):
         mock_check_cluster_readiness,
     ):
 
-        runner_mock = mock.MagicMock(
-            **{"get_dags_count.return_value": EXPECTED_DAGS_COUNT}
-        )
+        runner_mock = mock.MagicMock(**{"get_dags_count.return_value": EXPECTED_DAGS_COUNT})
 
         remote_runner_provider_mock = mock.MagicMock(
             **{"get_remote_runner.return_value.__enter__.return_value": runner_mock}
@@ -220,18 +190,10 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_not_called()
         self.assertEqual(new_state, State.WAIT_FOR_DAG)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
-    def test_unpause_dags(
-        self, mock_name, mock_get_dag_prefix, mock_check_cluster_readiness
-    ):
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
+    def test_unpause_dags(self, mock_name, mock_get_dag_prefix, mock_check_cluster_readiness):
 
         runner_mock = mock.MagicMock()
 
@@ -254,15 +216,9 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_called_once_with()
         self.assertEqual(new_state, State.WAIT_FOR_DAG_RUN_EXEC)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_unpause_dags__cluster_not_ready(
         self, mock_name, mock_get_dag_prefix, mock_check_cluster_readiness
     ):
@@ -286,19 +242,13 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_not_called()
         self.assertEqual(new_state, State.UNPAUSE_DAG)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     @mock.patch(
         MODULE_NAME + ".GKEBasedEnvironment.get_expected_dag_runs_count",
         return_value=EXPECTED_DAG_RUNS_COUNT,
     )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_check_dag_run_execution_status(
         self,
         mock_name,
@@ -331,19 +281,13 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_called_once_with()
         self.assertEqual(new_state, State.WAIT_FOR_DAG_RUN_EXEC)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     @mock.patch(
         MODULE_NAME + ".GKEBasedEnvironment.get_expected_dag_runs_count",
         return_value=EXPECTED_DAG_RUNS_COUNT,
     )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_check_dag_run_execution_status__cluster_not_ready(
         self,
         mock_name,
@@ -352,9 +296,7 @@ class TestGKEBasedEnvironment(TestCase):
         mock_check_cluster_readiness,
     ):
 
-        runner_mock = mock.MagicMock(
-            **{"get_dag_runs_count.return_value": EXPECTED_DAG_RUNS_COUNT}
-        )
+        runner_mock = mock.MagicMock(**{"get_dag_runs_count.return_value": EXPECTED_DAG_RUNS_COUNT})
 
         remote_runner_provider_mock = mock.MagicMock(
             **{"get_remote_runner.return_value.__enter__.return_value": runner_mock}
@@ -374,19 +316,13 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_not_called()
         self.assertEqual(new_state, State.WAIT_FOR_DAG_RUN_EXEC)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     @mock.patch(
         MODULE_NAME + ".GKEBasedEnvironment.get_expected_dag_runs_count",
         return_value=EXPECTED_DAG_RUNS_COUNT,
     )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     def test_check_dag_run_execution_status_done(
         self,
         mock_name,
@@ -395,9 +331,7 @@ class TestGKEBasedEnvironment(TestCase):
         mock_check_cluster_readiness,
     ):
 
-        runner_mock = mock.MagicMock(
-            **{"get_dag_runs_count.return_value": EXPECTED_DAG_RUNS_COUNT}
-        )
+        runner_mock = mock.MagicMock(**{"get_dag_runs_count.return_value": EXPECTED_DAG_RUNS_COUNT})
 
         remote_runner_provider_mock = mock.MagicMock(
             **{"get_remote_runner.return_value.__enter__.return_value": runner_mock}
@@ -421,22 +355,14 @@ class TestGKEBasedEnvironment(TestCase):
         mock_name.assert_called_once_with()
         self.assertEqual(new_state, State.COLLECT_RESULTS)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.prepare_environment_columns")
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.prepare_elastic_dag_columns")
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.collect_airflow_statistics")
     @mock.patch(MODULE_NAME + ".prepare_results_dataframe")
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_project_id", return_value=PROJECT_ID
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_id", return_value=CLUSTER_ID
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_project_id", return_value=PROJECT_ID)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_id", return_value=CLUSTER_ID)
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_results_object_name_components")
     def test_collect_results(
         self,
@@ -457,9 +383,7 @@ class TestGKEBasedEnvironment(TestCase):
         )
         self.gke_env.remote_runner_provider = remote_runner_provider_mock
 
-        mock_prepare_results_dataframe.return_value = pd.DataFrame(
-            RESULTS_TABLE, columns=COLUMNS
-        )
+        mock_prepare_results_dataframe.return_value = pd.DataFrame(RESULTS_TABLE, columns=COLUMNS)
 
         self.gke_env.state = State.COLLECT_RESULTS
 
@@ -491,31 +415,21 @@ class TestGKEBasedEnvironment(TestCase):
             mock_prepare_results_dataframe.return_value
         )
 
-        self.assertTrue(
-            pd.DataFrame(RESULTS_TABLE, columns=COLUMNS).equals(self.gke_env.results[0])
-        )
+        self.assertTrue(pd.DataFrame(RESULTS_TABLE, columns=COLUMNS).equals(self.gke_env.results[0]))
         self.assertEqual(
             self.gke_env.results[1],
             mock_get_results_object_name_components.return_value,
         )
         self.assertEqual(state, State.DONE)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=False)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.prepare_environment_columns")
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.prepare_elastic_dag_columns")
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.collect_airflow_statistics")
     @mock.patch(MODULE_NAME + ".prepare_results_dataframe")
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_project_id", return_value=PROJECT_ID
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_id", return_value=CLUSTER_ID
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_project_id", return_value=PROJECT_ID)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_id", return_value=CLUSTER_ID)
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_results_object_name_components")
     def test_collect_results__cluster_not_ready(
         self,
@@ -536,9 +450,7 @@ class TestGKEBasedEnvironment(TestCase):
         )
         self.gke_env.remote_runner_provider = remote_runner_provider_mock
 
-        mock_prepare_results_dataframe.return_value = pd.DataFrame(
-            RESULTS_TABLE, columns=COLUMNS
-        )
+        mock_prepare_results_dataframe.return_value = pd.DataFrame(RESULTS_TABLE, columns=COLUMNS)
 
         self.gke_env.state = State.COLLECT_RESULTS
 
@@ -558,22 +470,14 @@ class TestGKEBasedEnvironment(TestCase):
 
         self.assertEqual(state, State.COLLECT_RESULTS)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.check_cluster_readiness", return_value=True)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.name", new_callable=mock.PropertyMock)
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.prepare_environment_columns")
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.prepare_elastic_dag_columns")
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.collect_airflow_statistics")
     @mock.patch(MODULE_NAME + ".prepare_results_dataframe")
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_project_id", return_value=PROJECT_ID
-    )
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_id", return_value=CLUSTER_ID
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_project_id", return_value=PROJECT_ID)
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_gke_cluster_id", return_value=CLUSTER_ID)
     @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_results_object_name_components")
     def test_collect_results_with_results_columns(
         self,
@@ -594,9 +498,7 @@ class TestGKEBasedEnvironment(TestCase):
             "A": [1, 2, 3, 4],
             "B": ["e", "e", "e", "e"],
         }
-        expected_dataframe = pd.DataFrame(
-            expected_results_table, columns=["C", "D", "A", "B"]
-        )
+        expected_dataframe = pd.DataFrame(expected_results_table, columns=["C", "D", "A", "B"])
 
         runner_mock = mock.MagicMock()
         remote_runner_provider_mock = mock.MagicMock(
@@ -604,9 +506,7 @@ class TestGKEBasedEnvironment(TestCase):
         )
         self.gke_env.remote_runner_provider = remote_runner_provider_mock
 
-        mock_prepare_results_dataframe.return_value = pd.DataFrame(
-            RESULTS_TABLE, columns=COLUMNS
-        )
+        mock_prepare_results_dataframe.return_value = pd.DataFrame(RESULTS_TABLE, columns=COLUMNS)
         self.gke_env.results_columns = results_columns
 
         self.gke_env.state = State.COLLECT_RESULTS
@@ -647,9 +547,7 @@ class TestGKEBasedEnvironment(TestCase):
 
         self.assertEqual(state, State.DONE)
 
-    @mock.patch(
-        MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX
-    )
+    @mock.patch(MODULE_NAME + ".GKEBasedEnvironment.get_dag_prefix", return_value=DAG_PREFIX)
     def test_collect_airflow_statistics(self, mock_get_dag_prefix):
 
         runner_mock = mock.MagicMock()
@@ -671,16 +569,12 @@ class TestGKEBasedEnvironment(TestCase):
 
         # pylint: disable=no-member
         # pylint: disable=protected-access
-        self.gke_env.cluster_manager.get_cluster.return_value._pb.current_node_version = (
-            GKE_VERSION
-        )
+        self.gke_env.cluster_manager.get_cluster.return_value._pb.current_node_version = GKE_VERSION
 
         return_value = self.gke_env.get_gke_version()
 
         mock_get_gke_cluster_name.assert_called_once_with()
-        self.gke_env.cluster_manager.get_cluster.assert_called_once_with(
-            name=CLUSTER_NAME
-        )
+        self.gke_env.cluster_manager.get_cluster.assert_called_once_with(name=CLUSTER_NAME)
         self.assertEqual(return_value, GKE_VERSION)
 
         # pylint: enable=no-member

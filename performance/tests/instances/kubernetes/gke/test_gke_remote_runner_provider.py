@@ -3,21 +3,17 @@ from unittest import TestCase, mock
 
 from kubernetes import client
 
-from performance_scripts.environments.kubernetes.gke.gke_remote_runner_provider import (
+from environments.kubernetes.gke.gke_remote_runner_provider import (
     GKERemoteRunnerProvider,
 )
 
-MODULE_NAME = (
-    "performance_scripts.environments.kubernetes.gke.gke_remote_runner_provider"
-)
+MODULE_NAME = "performance_scripts.environments.kubernetes.gke.gke_remote_runner_provider"
 
 PROJECT_ID = "test_project_id"
 ZONE = "test_zone"
 CLUSTER_ID = "test_cluster_id"
 DEPLOYMENT_NAME = "test_deployment_name"
-COMPUTE_BASE_URL = (
-    f"https://www.googleapis.com/compute/v1/projects/{PROJECT_ID}/zones/{ZONE}"
-)
+COMPUTE_BASE_URL = f"https://www.googleapis.com/compute/v1/projects/{PROJECT_ID}/zones/{ZONE}"
 GKE_CONTEXT = f"gke_{PROJECT_ID}_{ZONE}_{CLUSTER_ID}"
 NODE_POOL_NAME = f"projects/{PROJECT_ID}/locations/{ZONE}/clusters/{CLUSTER_ID}/node_pool_id/default-pool"
 INSTANCE_GROUP_MANAGER = "test_instance_group_manager"
@@ -66,14 +62,10 @@ class TestGKERemoteRunnerProvider(TestCase):
 
     @mock.patch(
         MODULE_NAME + ".client.api.core_v1_api.CoreV1Api.list_namespace",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(NAMESPACE_LISTING_RESPONSE)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(NAMESPACE_LISTING_RESPONSE)}),
     )
     def test_find_namespace_with_a_prefix(self, mock_list_namespace):
-        return_value = self.api.find_namespace_with_a_prefix(
-            self.core_api, namespace_prefix="comp"
-        )
+        return_value = self.api.find_namespace_with_a_prefix(self.core_api, namespace_prefix="comp")
 
         mock_list_namespace.assert_called_once()
 
@@ -81,70 +73,48 @@ class TestGKERemoteRunnerProvider(TestCase):
 
     @mock.patch(
         MODULE_NAME + ".client.api.core_v1_api.CoreV1Api.list_namespace",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(NAMESPACE_LISTING_RESPONSE)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(NAMESPACE_LISTING_RESPONSE)}),
     )
-    def test_find_namespace_with_a_prefix_raises_error_on_empty_results(
-        self, mock_list_namespace
-    ):
+    def test_find_namespace_with_a_prefix_raises_error_on_empty_results(self, mock_list_namespace):
         with self.assertRaises(ValueError):
-            self.api.find_namespace_with_a_prefix(
-                self.core_api, namespace_prefix="non-existent"
-            )
+            self.api.find_namespace_with_a_prefix(self.core_api, namespace_prefix="non-existent")
 
         mock_list_namespace.assert_called_once()
 
     @mock.patch(
         MODULE_NAME + ".client.api.core_v1_api.CoreV1Api.list_namespace",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(NAMESPACE_LISTING_RESPONSE)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(NAMESPACE_LISTING_RESPONSE)}),
     )
-    def test_find_namespace_with_a_prefix_raises_error_on_multiple_results(
-        self, mock_list_namespace
-    ):
+    def test_find_namespace_with_a_prefix_raises_error_on_multiple_results(self, mock_list_namespace):
         with self.assertRaises(ValueError):
-            self.api.find_namespace_with_a_prefix(
-                self.core_api, namespace_prefix="duplicate"
-            )
+            self.api.find_namespace_with_a_prefix(self.core_api, namespace_prefix="duplicate")
 
         mock_list_namespace.assert_called_once()
 
     @mock.patch(
         MODULE_NAME + ".client.api.core_v1_api.CoreV1Api.list_namespace",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(LISTING_RESPONSE_EMPTY)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(LISTING_RESPONSE_EMPTY)}),
     )
     def test_find_namespace_with_a_prefix_empty_response(self, mock_list_namespace):
         with self.assertRaises(ValueError):
-            self.api.find_namespace_with_a_prefix(
-                self.core_api, namespace_prefix="non-existent"
-            )
+            self.api.find_namespace_with_a_prefix(self.core_api, namespace_prefix="non-existent")
 
         mock_list_namespace.assert_called_once()
 
     @mock.patch(
         MODULE_NAME + ".client.api.apps_v1_api.AppsV1Api.list_namespaced_deployment",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(DEPLOYMENT_LISTING_RESPONSE)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(DEPLOYMENT_LISTING_RESPONSE)}),
     )
     def test_get_deployment(self, mock_list_namespaced_deployment):
 
-        return_value = self.api.get_deployment(
-            self.apps_api, DEPLOYMENT_NAME, NAMESPACE
-        )
+        return_value = self.api.get_deployment(self.apps_api, DEPLOYMENT_NAME, NAMESPACE)
 
         mock_list_namespaced_deployment.assert_called_once_with(NAMESPACE)
         self.assertEqual(return_value, DEPLOYMENT_1)
 
     @mock.patch(
         MODULE_NAME + ".client.api.apps_v1_api.AppsV1Api.list_namespaced_deployment",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(DEPLOYMENT_LISTING_RESPONSE)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(DEPLOYMENT_LISTING_RESPONSE)}),
     )
     def test_get_deployment_not_found(self, mock_list_namespaced_deployment):
         return_value = self.api.get_deployment(self.apps_api, "not-exists", NAMESPACE)
@@ -154,9 +124,7 @@ class TestGKERemoteRunnerProvider(TestCase):
 
     @mock.patch(
         MODULE_NAME + ".client.api.apps_v1_api.AppsV1Api.list_namespaced_deployment",
-        return_value=mock.MagicMock(
-            **{"to_dict.return_value": deepcopy(LISTING_RESPONSE_EMPTY)}
-        ),
+        return_value=mock.MagicMock(**{"to_dict.return_value": deepcopy(LISTING_RESPONSE_EMPTY)}),
     )
     def test_get_deployment_empty_response(self, mock_list_namespaced_deployment):
         return_value = self.api.get_deployment(self.apps_api, "not-exists", NAMESPACE)
@@ -187,9 +155,7 @@ class TestGKERemoteRunnerProvider(TestCase):
         node_2 = self.api.node_name
 
         mock_cluster_manager.assert_called_once()
-        mock_cluster_manager.return_value.get_node_pool.assert_called_once_with(
-            name=NODE_POOL_NAME
-        )
+        mock_cluster_manager.return_value.get_node_pool.assert_called_once_with(name=NODE_POOL_NAME)
         mock_compute_client.assert_called_once_with("compute", "v1")
         # fmt: off
         mock_compute_client.return_value.instanceGroups.return_value.\
@@ -200,9 +166,7 @@ class TestGKERemoteRunnerProvider(TestCase):
         self.assertEqual(node_1, node_2)
         self.assertEqual(node_1, "node_1")
 
-    @mock.patch(
-        MODULE_NAME + ".GKERemoteRunnerProvider.get_kubernetes_apis_in_isolated_context"
-    )
+    @mock.patch(MODULE_NAME + ".GKERemoteRunnerProvider.get_kubernetes_apis_in_isolated_context")
     @mock.patch(MODULE_NAME + ".GKERemoteRunnerProvider.find_namespace_with_a_prefix")
     @mock.patch(MODULE_NAME + ".RemoteRunner")
     def test_get_remote_runner(
@@ -229,7 +193,9 @@ class TestGKERemoteRunnerProvider(TestCase):
 
         mock_get_kubernetes_apis_in_isolated_context.assert_called_once_with()
         mock_find_namespace_with_a_prefix.assert_called_once_with(
-            core_api_mock, NAMESPACE_PREFIX, [],
+            core_api_mock,
+            NAMESPACE_PREFIX,
+            [],
         )
         mock_remote_runner.assert_called_once_with(
             core_api_mock,
@@ -239,9 +205,7 @@ class TestGKERemoteRunnerProvider(TestCase):
             None,
         )
 
-    @mock.patch(
-        MODULE_NAME + ".GKERemoteRunnerProvider.get_kubernetes_apis_in_isolated_context"
-    )
+    @mock.patch(MODULE_NAME + ".GKERemoteRunnerProvider.get_kubernetes_apis_in_isolated_context")
     @mock.patch(MODULE_NAME + ".GKERemoteRunnerProvider.find_namespace_with_a_prefix")
     @mock.patch(MODULE_NAME + ".RemoteRunner")
     def test_get_remote_runner_default_namespace(
@@ -264,7 +228,9 @@ class TestGKERemoteRunnerProvider(TestCase):
 
         mock_get_kubernetes_apis_in_isolated_context.assert_called_once_with()
         mock_find_namespace_with_a_prefix.assert_called_once_with(
-            core_api_mock, DEFAULT_NAMESPACE_PREFIX, [],
+            core_api_mock,
+            DEFAULT_NAMESPACE_PREFIX,
+            [],
         )
         mock_remote_runner.assert_called_once_with(
             core_api_mock,
@@ -303,9 +269,7 @@ class TestGKERemoteRunnerProvider(TestCase):
         mock_get_cluster_credentials.assert_called_once_with(
             PROJECT_ID, ZONE, CLUSTER_ID, private_endpoint=False
         )
-        mock_load_kube_config.assert_called_once_with(
-            config_file=mock.ANY, context=GKE_CONTEXT
-        )
+        mock_load_kube_config.assert_called_once_with(config_file=mock.ANY, context=GKE_CONTEXT)
         mock_core_api.assert_called_once_with()
         mock_apps_api.assert_called_once_with()
 
@@ -340,19 +304,13 @@ class TestGKERemoteRunnerProvider(TestCase):
 
         mock_provide_authorized_gcloud.assert_called_once_with(PROJECT_ID)
         mock_node_name.assert_called_once()
-        mock_open_routing_to_gke_node.assert_called_once_with(
-            mock_node_name.return_value, ZONE
-        )
+        mock_open_routing_to_gke_node.assert_called_once_with(mock_node_name.return_value, ZONE)
         mock_get_cluster_credentials.assert_called_once_with(
             PROJECT_ID, ZONE, CLUSTER_ID, private_endpoint=True
         )
-        mock_load_kube_config.assert_called_once_with(
-            config_file=mock.ANY, context=GKE_CONTEXT
-        )
+        mock_load_kube_config.assert_called_once_with(config_file=mock.ANY, context=GKE_CONTEXT)
         # pylint: disable=protected-access
-        self.assertEqual(
-            mock_k8s_configuration._default.proxy, f"http://localhost:{PORT}"
-        )
+        self.assertEqual(mock_k8s_configuration._default.proxy, f"http://localhost:{PORT}")
         # pylint: enable=protected-access
         mock_core_api.assert_called_once_with()
         mock_apps_api.assert_called_once_with()

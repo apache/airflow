@@ -2,8 +2,8 @@ import os
 from copy import deepcopy
 from unittest import TestCase, mock
 
-from performance_scripts.performance_test import PerformanceTest
-from performance_scripts.environments.base_environment import (
+from performance_test import PerformanceTest
+from environments.base_environment import (
     State,
     DEFAULT_SLEEP_BETWEEN_CHECKS,
 )

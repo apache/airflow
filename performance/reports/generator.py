@@ -15,8 +15,8 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 from loguru import logger
 
-from performance_scripts.utils.google_cloud.big_query_client import BigQueryClient
-from performance_scripts.utils.google_cloud.storage_client import StorageClient
+from utils.google_cloud.big_query_client import BigQueryClient
+from utils.google_cloud.storage_client import StorageClient
 from reports.analysis import boxplot_metric
 from reports.metrics import (
     AGGREGATED_TIME_SERIES_METRICS,
@@ -113,9 +113,7 @@ def generate_reports_for_study(
             if project_id is None:
                 project_id = adc_project_id
 
-            results_table = get_data(
-                dataset_id=dataset_id, table_name=table_name, project_id=project_id
-            )
+            results_table = get_data(dataset_id=dataset_id, table_name=table_name, project_id=project_id)
 
             analysis_components_dict[component_name] = {}
             analysis_components_dict[component_name]["results_table"] = results_table
@@ -146,9 +144,7 @@ def generate_reports_for_study(
             # overwrite the results table with the with excluded failed and anomalous runs
             analysis_components_dict[component_name]["results_table"] = results_table
             analysis_components_dict[component_name]["statistics"] = statistics
-            analysis_components_dict[component_name][
-                "configuration_information"
-            ] = configuration_information
+            analysis_components_dict[component_name]["configuration_information"] = configuration_information
             analysis_components_dict[component_name]["metrics"] = metrics
 
             report_dir_path = os.path.join(individual_reports_dir, component_name)
@@ -161,11 +157,14 @@ def generate_reports_for_study(
             )
             write_statistics_data(
                 component_name=component_name,
-                configuration_information=analysis_components_dict[component_name]["configuration_information"],
+                configuration_information=analysis_components_dict[component_name][
+                    "configuration_information"
+                ],
                 elastic_dag_config_file_path=elastic_dag_config_file_path,
                 project_id=analysis_components_dict[component_name]["project_id"],
                 dataset_id=analysis_components_dict[component_name]["dataset_id"],
-                statistics_df=statistics_df)
+                statistics_df=statistics_df,
+            )
 
         for component_name in baselines:
 
@@ -176,17 +175,13 @@ def generate_reports_for_study(
             os.makedirs(report_dir_path)
 
             generate_comparison_report(
-                baseline_analysis_components=analysis_components_dict[
-                    baseline_component_name
-                ],
+                baseline_analysis_components=analysis_components_dict[baseline_component_name],
                 subject_analysis_components=analysis_components_dict[component_name],
                 report_name=report_name,
                 reports_dir=report_dir_path,
             )
 
-        storage_client.upload_report_dir(
-            report_dir_path=study_dir, bucket_name=reports_bucket
-        )
+        storage_client.upload_report_dir(report_dir_path=study_dir, bucket_name=reports_bucket)
 
 
 @cache_dataframe
@@ -205,9 +200,7 @@ def get_data(project_id: str, dataset_id: str, table_name: str) -> pd.DataFrame:
     :rtype: pd.DataFrame
     """
 
-    logger.info(
-        f"Getting data for project {project_id}, dataset {dataset_id} and table {table_name}."
-    )
+    logger.info(f"Getting data for project {project_id}, dataset {dataset_id} and table {table_name}.")
     client = bigquery.Client(project=project_id)
 
     query = f"SELECT * FROM `{project_id}.{dataset_id}.{table_name}`"
@@ -225,8 +218,12 @@ def get_data(project_id: str, dataset_id: str, table_name: str) -> pd.DataFrame:
 
 
 def write_statistics_data(
-    component_name: str, configuration_information: Dict, elastic_dag_config_file_path: str,
-    project_id: str, dataset_id: str, statistics_df: pd.DataFrame,
+    component_name: str,
+    configuration_information: Dict,
+    elastic_dag_config_file_path: str,
+    project_id: str,
+    dataset_id: str,
+    statistics_df: pd.DataFrame,
 ) -> None:
     """
     Writes statistics data to BigQuery table.
@@ -252,13 +249,16 @@ def write_statistics_data(
 
     logger.info(
         f"Writing statistics data for component {component_name}, project {project_id}, "
-        f"dataset {dataset_id}.")
+        f"dataset {dataset_id}."
+    )
 
     client = BigQueryClient(project_id)
 
     run_configuration_dict = configuration_information.to_dict(orient="records")[0]
     run_configuration_dict["elastic_dag_config_file_path"] = elastic_dag_config_file_path
-    configuration_hash = hashlib.sha1(json.dumps(run_configuration_dict, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    configuration_hash = hashlib.sha1(
+        json.dumps(run_configuration_dict, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
     d = {
         "id": uuid.uuid1().hex,
         "run_at": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
@@ -279,7 +279,9 @@ def write_statistics_data(
         schema.append(bigquery.SchemaField("{}_units".format(category), bigquery.enums.SqlTypeNames.STRING))
 
     client.upload_results(
-        pd.DataFrame([d]), dataset_id, STATISTICS_TABLE_NAME,
+        pd.DataFrame([d]),
+        dataset_id,
+        STATISTICS_TABLE_NAME,
         schema=schema,
         allow_field_addition=True,
     )
@@ -303,9 +305,7 @@ def generate_report_for_results_table(
     :rtype: pd.DataFrame
     """
 
-    statistics_df = get_statistics_df(
-        results_statistics=analysis_components["statistics"]
-    )
+    statistics_df = get_statistics_df(results_statistics=analysis_components["statistics"])
 
     report_title = f"{report_name} performance report"
     report_file_path = os.path.join(reports_dir, f"{report_name}.md")
@@ -321,9 +321,7 @@ def generate_report_for_results_table(
         chart_full_path = os.path.join(time_series_charts_dir_path, chart_name)
         chart_relative_path = os.path.join(TIME_SERIES_CHARTS_DIR_NAME, chart_name)
 
-        draw_chart_for_time_series_metric(
-            [analysis_components["metrics"]], col, save=chart_full_path
-        )
+        draw_chart_for_time_series_metric([analysis_components["metrics"]], col, save=chart_full_path)
         time_series_charts_paths.append(chart_relative_path)
 
     box_plot_data = analysis_components["results_table"].copy()
@@ -503,9 +501,7 @@ def generate_comparison_report(
     generate_pdf(report_file_path)
 
 
-def get_metric_wise_statistics_comparison_df(
-    statistics_comparison_df: pd.DataFrame
-) -> pd.DataFrame:
+def get_metric_wise_statistics_comparison_df(statistics_comparison_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns a statistics_comparison_df with changed order of rows, so that rows showing the same
     metric (but for different resource groups) appear together.

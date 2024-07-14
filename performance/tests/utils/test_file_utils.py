@@ -3,7 +3,7 @@ from copy import deepcopy
 from json.decoder import JSONDecodeError
 from unittest import TestCase, mock
 
-from performance_scripts.utils.file_utils import (
+from utils.file_utils import (
     check_output_path,
     read_json_file,
     read_templated_json_file,
@@ -39,9 +39,7 @@ class TestFileUtils(TestCase):
     def test_read_json_file_wrong_file(self):
 
         with self.assertRaises(JSONDecodeError):
-            read_json_file(
-                os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "not_a_valid_json.json")
-            )
+            read_json_file(os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "not_a_valid_json.json"))
 
     def test_read_templated_json_file(self):
 
@@ -53,9 +51,7 @@ class TestFileUtils(TestCase):
         }
 
         rendered_file_contents = read_templated_json_file(
-            os.path.join(
-                ENVIRONMENT_SPECIFICATIONS_DIR, "templated_specification.json"
-            ),
+            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "templated_specification.json"),
             jinja_variables_dict=deepcopy(JINJA_VARIABLES_DICT),
         )
 
@@ -154,9 +150,7 @@ class TestFileUtils(TestCase):
 
         results_df = mock.Mock()
 
-        save_output_file(
-            results_df=results_df, output_path=OUTPUT_PATH, default_file_name=None
-        )
+        save_output_file(results_df=results_df, output_path=OUTPUT_PATH, default_file_name=None)
 
         mock_check_output_path.assert_called_once_with(OUTPUT_PATH)
         mock_is_dir.assert_called_once_with(OUTPUT_PATH)
@@ -166,9 +160,7 @@ class TestFileUtils(TestCase):
     @mock.patch("performance_scripts.utils.file_utils.check_output_path")
     @mock.patch("os.path.isdir", return_value=True)
     @mock.patch("os.path.join")
-    def test_save_output_file_dir_path(
-        self, mock_join, mock_is_dir, mock_check_output_path
-    ):
+    def test_save_output_file_dir_path(self, mock_join, mock_is_dir, mock_check_output_path):
 
         results_df = mock.Mock()
 
@@ -186,9 +178,7 @@ class TestFileUtils(TestCase):
     @mock.patch("performance_scripts.utils.file_utils.check_output_path")
     @mock.patch("os.path.isdir", return_value=True)
     @mock.patch("os.path.join")
-    def test_save_output_file_dir_path_no_extension(
-        self, mock_join, mock_is_dir, mock_check_output_path
-    ):
+    def test_save_output_file_dir_path_no_extension(self, mock_join, mock_is_dir, mock_check_output_path):
 
         results_df = mock.Mock()
 
@@ -213,9 +203,7 @@ class TestFileUtils(TestCase):
         results_df = mock.Mock()
 
         with self.assertRaises(ValueError):
-            save_output_file(
-                results_df=results_df, output_path=OUTPUT_PATH, default_file_name=None
-            )
+            save_output_file(results_df=results_df, output_path=OUTPUT_PATH, default_file_name=None)
 
         mock_check_output_path.assert_called_once_with(OUTPUT_PATH)
         mock_is_dir.assert_called_once_with(OUTPUT_PATH)

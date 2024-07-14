@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import pandas as pd
 
-from performance_scripts.environments.kubernetes.gke.collecting_results.results_dataframe import (
+from environments.kubernetes.gke.collecting_results.results_dataframe import (
     add_column_to_dataframe,
 )
 

@@ -2,7 +2,7 @@ import signal
 
 from unittest import TestCase, mock
 
-from performance_scripts.utils.google_cloud.gcloud_utils import (
+from utils.google_cloud.gcloud_utils import (
     MAX_TIME_TO_OPEN_ROUTING,
     get_cluster_credentials,
     open_routing_to_gke_node,
@@ -70,12 +70,8 @@ class TestGcloudUtils(TestCase):
 
         self.assertEqual(mock_find_free_port.call_count, 2)
         self.assertEqual(mock_start_port_forwarding_process.call_count, 2)
-        mock_start_port_forwarding_process.assert_any_call(
-            ssh_command, SOCKS_PORT, MAX_TIME_TO_OPEN_ROUTING
-        )
-        mock_start_port_forwarding_process.assert_any_call(
-            hpts_command, HTTP_PORT, MAX_TIME_TO_OPEN_ROUTING
-        )
+        mock_start_port_forwarding_process.assert_any_call(ssh_command, SOCKS_PORT, MAX_TIME_TO_OPEN_ROUTING)
+        mock_start_port_forwarding_process.assert_any_call(hpts_command, HTTP_PORT, MAX_TIME_TO_OPEN_ROUTING)
         self.assertEqual(mock_os_kill.call_count, 2)
         mock_os_kill.assert_any_call(SSH_PID, signal.SIGTERM)
         mock_os_kill.assert_any_call(HPTS_PID, signal.SIGTERM)
