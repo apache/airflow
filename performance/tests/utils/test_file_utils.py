@@ -30,9 +30,7 @@ JINJA_VARIABLES_DICT = {
 # pylint: disable=no-self-use
 class TestFileUtils(TestCase):
     def test_read_json_file(self):
-        file_contents = read_json_file(
-            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_environment_type.json")
-        )
+        file_contents = read_json_file(os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_instance_type.json"))
 
         self.assertEqual(EXPECTED_FILE_CONTENTS, file_contents)
 
@@ -60,7 +58,7 @@ class TestFileUtils(TestCase):
     def test_read_templated_json_file__non_templated_file(self):
 
         rendered_file_contents = read_templated_json_file(
-            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_environment_type.json"),
+            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_instance_type.json"),
             jinja_variables_dict=deepcopy(JINJA_VARIABLES_DICT),
         )
 

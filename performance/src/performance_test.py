@@ -104,11 +104,9 @@ class PerformanceTest:
         self.output_path = output_path
         self.delete_upon_finish = delete_upon_finish
 
-        if self.output_path is None and self.results_bucket is None and self.results_dataset is None:
+        if self.output_path is None:
             raise ValueError(
-                "No way of saving results was provided. "
-                "Please provide at least one of the following: "
-                "a path to a CSV file, a GCS bucket, a BQ dataset. "
+                "No output path for the result was provided. Please provide a path to a CSV file. "
             )
 
         jinja_variables_dict = jinja_variables_dict or {}
@@ -280,7 +278,7 @@ class PerformanceTest:
 
     def save_results(self) -> None:
         """
-        Saves the performance test results on GCS bucket, in BQ table and/or in local file.
+        Saves the performance test results in a local file.
         Returns immediately if none of them was provided.
         """
 
