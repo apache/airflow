@@ -318,7 +318,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         keytab_path = temp_dir_path / temp_file_name
         staging_path = temp_dir_path / f".{temp_file_name}.{_uuid}"
 
-        keytab = base64.b64decode(base64_keytab)
+        try:
+            keytab = base64.b64decode(base64_keytab)
+        except Exception as err:
+            self.log.error("Failed to decode base64 keytab: %s", err)
+            raise AirflowException("Failed to decode base64 keytab") from err
 
         # validate exists keytab file
         if keytab_path.exists():
