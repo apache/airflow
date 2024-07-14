@@ -556,7 +556,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 if match_driver_pod:
                     self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
-                
+
                 match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
                 if match_application_id:
                     self._kubernetes_application_id = match_application_id.group(1)
