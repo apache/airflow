@@ -353,6 +353,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": None,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn"
@@ -373,6 +375,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": "root.default",
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn"
@@ -394,6 +398,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": None,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "mesos://host:5050"
@@ -414,6 +420,8 @@ class TestSparkSubmitHook:
             "deploy_mode": "cluster",
             "queue": "root.etl",
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn://yarn-master"
@@ -436,6 +444,8 @@ class TestSparkSubmitHook:
             "master": "k8s://https://k8s-master",
             "deploy_mode": "cluster",
             "namespace": "mynamespace",
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "k8s://https://k8s-master"
@@ -460,6 +470,8 @@ class TestSparkSubmitHook:
             "master": "k8s://https://k8s-master",
             "deploy_mode": "cluster",
             "namespace": "airflow",
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "k8s://https://k8s-master"
@@ -481,6 +493,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": None,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark2-submit"
@@ -500,6 +514,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": None,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
@@ -530,6 +546,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": None,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
@@ -549,6 +567,8 @@ class TestSparkSubmitHook:
             "deploy_mode": None,
             "queue": "root.default",
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark-submit"
@@ -568,6 +588,8 @@ class TestSparkSubmitHook:
             "deploy_mode": "cluster",
             "queue": None,
             "namespace": None,
+            "principal": None,
+            "keytab": None,
         }
         assert connection == expected_spark_connection
         assert cmd[0] == "spark-submit"
