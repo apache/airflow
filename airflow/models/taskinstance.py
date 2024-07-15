@@ -2915,7 +2915,7 @@ class TaskInstance(Base, LoggingMixin):
         # One task only triggers one dataset event for each dataset with the same extra.
         # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
         # there're datasets with same uri but different extra that we need to emit more than one dataset events.
-        dataset_tuple_to_aliases_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        dataset_tuple_to_alias_names_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
@@ -2933,10 +2933,10 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(extra.items())
                     dataset_alias_name = dataset_alias_event["source_alias_name"]
 
-                    dataset_tuple_to_aliases_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+                    dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
 
         dataset_objs_cache: dict[str, DatasetModel] = {}
-        for (uri, extra_items), aliases in dataset_tuple_to_aliases_mapping.items():
+        for (uri, extra_items), alias_names in dataset_tuple_to_alias_names_mapping.items():
             if uri not in dataset_objs_cache:
                 dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
                 dataset_objs_cache[uri] = dataset_obj
@@ -2954,13 +2954,14 @@ class TaskInstance(Base, LoggingMixin):
                 'Create dataset event Dataset(uri="%s", extra="%s") through dataset aliases "%s"',
                 uri,
                 extra,
-                ", ".join(aliases),
+                ", ".join(alias_names),
             )
             dataset_manager.register_dataset_change(
                 task_instance=self,
                 dataset=dataset_obj,
                 extra=extra,
                 session=session,
+                source_alias_names=alias_names,
             )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
