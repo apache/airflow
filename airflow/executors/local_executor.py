@@ -39,6 +39,7 @@ from setproctitle import getproctitle, setproctitle
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
+from airflow.traces.tracer import Trace, span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -77,6 +78,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         setproctitle("airflow worker -- LocalExecutor")
         return super().run()
 
+    @span
     def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
         """
         Execute command received and stores result state in queue.
@@ -98,6 +100,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         # Remove the command since the worker is done executing the task
         setproctitle("airflow worker -- LocalExecutor")
 
+    @span
     def _execute_work_in_subprocess(self, command: CommandType) -> TaskInstanceState:
         try:
             subprocess.check_call(command, close_fds=True)
@@ -106,6 +109,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             self.log.error("Failed to execute task %s.", e)
             return TaskInstanceState.FAILED
 
+    @span
     def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:
         pid = os.fork()
         if pid:
@@ -165,6 +169,7 @@ class LocalWorker(LocalWorkerBase):
         self.key: TaskInstanceKey = key
         self.command: CommandType = command
 
+    @span
     def do_work(self) -> None:
         self.execute_work(key=self.key, command=self.command)
 
@@ -184,6 +189,7 @@ class QueuedLocalWorker(LocalWorkerBase):
         super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
+    @span
     def do_work(self) -> None:
         while True:
             try:
@@ -244,6 +250,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
+        @span
         def execute_async(
             self,
             key: TaskInstanceKey,
@@ -261,6 +268,13 @@ class LocalExecutor(BaseExecutor):
             """
             if TYPE_CHECKING:
                 assert self.executor.result_queue
+
+            span = Trace.get_current_span()
+            span.set_attribute("dag_id", key.dag_id)
+            span.set_attribute("run_id", key.run_id)
+            span.set_attribute("task_id", key.task_id)
+            span.set_attribute("try_number", key.try_number - 1)
+            span.set_attribute("commands_to_run", str(command))
 
             local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)
             self.executor.workers_used += 1
@@ -311,6 +325,7 @@ class LocalExecutor(BaseExecutor):
             for worker in self.executor.workers:
                 worker.start()
 
+        @span
         def execute_async(
             self,
             key: TaskInstanceKey,
@@ -372,6 +387,7 @@ class LocalExecutor(BaseExecutor):
 
         self.impl.start()
 
+    @span
     def execute_async(
         self,
         key: TaskInstanceKey,
