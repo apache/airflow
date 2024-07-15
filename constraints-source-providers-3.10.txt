@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-15T13:03:27.980743
+# This constraints file was automatically generated on 2024-07-15T19:12:20.323621
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -126,7 +126,7 @@ blinker==1.8.2
 boto3==1.34.131
 botocore==1.34.131
 cachelib==0.9.0
-cachetools==5.3.3
+cachetools==5.4.0
 cassandra-driver==3.29.1
 cattrs==23.2.3
 celery==5.4.0
@@ -529,7 +529,7 @@ snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.5
 sphinx-airflow-theme==0.0.12
-sphinx-argparse==0.4.0
+sphinx-argparse==0.5.0
 sphinx-autoapi==2.1.1
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
