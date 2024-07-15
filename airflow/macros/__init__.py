@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import dateutil  # noqa: F401
 from babel import Locale
-from babel.dates import format_datetime, LC_TIME
+from babel.dates import LC_TIME, format_datetime
 
 import airflow.utils.yaml as yaml  # noqa: F401
 from airflow.utils.deprecation_tools import add_deprecated_classes
