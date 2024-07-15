@@ -63,7 +63,6 @@ def ds_add(ds: str, days: int) -> str:
 
 
 def ds_format(ds: str, input_format: str, output_format: str) -> str:
-
     """
     Output datetime string in a given format.
 
@@ -81,8 +80,9 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
     return datetime.strptime(str(ds), input_format).strftime(output_format)
 
 
-def ds_format_locale(ds: str, input_format: str, output_format: str, locale: Locale | str | None = None) -> str:
-
+def ds_format_locale(
+    ds: str, input_format: str, output_format: str, locale: Locale | str | None = None
+) -> str:
     """
     Output localized datetime string in a given Babel format.
 
