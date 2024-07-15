@@ -38,10 +38,13 @@ def rotate_fernet_key(args):
     with create_session() as session:
         with session.begin():  # Start a single transaction
             rotate_method(
-                session, Connection, Connection.is_encrypted | Connection.is_extra_encrypted, batch_size
+                session,
+                Connection,
+                filter_condition=Connection.is_encrypted | Connection.is_extra_encrypted,
+                batch_size=batch_size,
             )
-            rotate_method(session, Variable, Variable.is_encrypted, batch_size)
-            rotate_method(session, Trigger, batch_size)
+            rotate_method(session, Variable, filter_condition=Variable.is_encrypted, batch_size=batch_size)
+            rotate_method(session, Trigger, filter_condition=None, batch_size=batch_size)
 
 
 def rotate_items_in_batches_v1(session, model_class, filter_condition=None, batch_size=100):
