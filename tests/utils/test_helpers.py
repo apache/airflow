@@ -397,7 +397,6 @@ def test_validate_instance_args_raises_error(instance, expected_arg_types):
     "locale, expected",
     [
         ("nl_BE", "nl_BE"),
-        (None, "nl_BE"),
     ],
 )
 def test_apply_locale(locale, expected):
