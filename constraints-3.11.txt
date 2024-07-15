@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-15T01:22:20.236996
+# This constraints file was automatically generated on 2024-07-15T13:10:34.383696
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -85,7 +85,7 @@ alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.1
 alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.10
-alibabacloud_tea_util==0.3.12
+alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.15.1
 aliyun-python-sdk-kms==2.16.3
@@ -97,7 +97,7 @@ anyascii==0.3.2
 anyio==4.4.0
 apache-airflow-providers-airbyte==3.8.1
 apache-airflow-providers-alibaba==2.8.1
-apache-airflow-providers-amazon==8.25.0
+apache-airflow-providers-amazon==8.26.0
 apache-airflow-providers-apache-beam==5.7.1
 apache-airflow-providers-apache-cassandra==3.5.1
 apache-airflow-providers-apache-drill==2.7.2
@@ -183,7 +183,7 @@ apache-airflow-providers-telegram==4.5.2
 apache-airflow-providers-teradata==2.4.0
 apache-airflow-providers-trino==5.7.2
 apache-airflow-providers-vertica==3.8.2
-apache-airflow-providers-weaviate==1.4.2
+apache-airflow-providers-weaviate==2.0.0
 apache-airflow-providers-yandex==3.11.2
 apache-airflow-providers-ydb==1.1.0
 apache-airflow-providers-zendesk==4.7.1
@@ -624,7 +624,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.9.0
+sentry-sdk==2.10.0
 setproctitle==1.3.3
 shapely==2.0.5
 shellingham==1.5.4
