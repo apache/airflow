@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-15T19:19:08.227239
+# This constraints file was automatically generated on 2024-07-15T23:21:37.432256
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -438,7 +438,7 @@ ldap3==2.9.1
 limits==3.13.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==24.10.0
+looker-sdk==24.12.0
 lxml==5.2.2
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -663,7 +663,7 @@ sqlalchemy-bigquery==1.11.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.7.0
 sqlalchemy_drill==1.1.5
-sqlparse==0.5.0
+sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
