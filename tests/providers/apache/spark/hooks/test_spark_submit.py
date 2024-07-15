@@ -652,6 +652,7 @@ class TestSparkSubmitHook:
 
         # Then
         assert hook._kubernetes_driver_pod == pod_name
+        assert hook._kubernetes_application_id == "spark-465b868ada474bda82ccb84ab2747fcd"
         assert hook._spark_exit_code == 999
 
     def test_process_spark_submit_log_k8s_spark_3(self):

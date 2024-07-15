@@ -17,30 +17,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-import attrs
-
-from airflow.datasets import DatasetAlias, extract_event_key
-
-if TYPE_CHECKING:
-    from airflow.datasets import Dataset
+from airflow.datasets import DatasetAlias
+from airflow.models.dataset import DatasetAliasModel
 
 
-@attrs.define(init=False)
-class Metadata:
-    """Metadata to attach to a DatasetEvent."""
+class TestDatasetAliasModel:
+    def test_from_public(self):
+        dataset_alias = DatasetAlias(name="test_alias")
+        dataset_alias_model = DatasetAliasModel.from_public(dataset_alias)
 
-    uri: str
-    extra: dict[str, Any]
-    alias_name: str | None = None
-
-    def __init__(
-        self, target: str | Dataset, extra: dict[str, Any], alias: DatasetAlias | str | None = None
-    ) -> None:
-        self.uri = extract_event_key(target)
-        self.extra = extra
-        if isinstance(alias, DatasetAlias):
-            self.alias_name = alias.name
-        else:
-            self.alias_name = alias
+        assert dataset_alias_model.name == "test_alias"
