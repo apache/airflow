@@ -22,6 +22,7 @@ import json
 import warnings
 from datetime import datetime, timedelta
 from importlib import import_module
+from typing import Iterator
 
 import pendulum
 import pytest
@@ -54,6 +55,7 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
+from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
 from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
@@ -154,6 +156,19 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
     return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
 
 
+class MockLazySelectSequence(LazySelectSequence):
+    _data = ["a", "b", "c"]
+
+    def __init__(self):
+        super().__init__(None, None)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+
 @pytest.mark.parametrize(
     "input, encoded_type, cmp_func",
     [
@@ -206,6 +221,7 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
             DAT.XCOM_REF,
             None,
         ),
+        (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
         (Dataset(uri="test"), DAT.DATASET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
