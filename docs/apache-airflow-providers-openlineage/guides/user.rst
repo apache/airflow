@@ -265,7 +265,7 @@ serializing only a few known attributes, we exclude certain non-serializable ele
 
 .. warning::
 
-  By setting this variable to true, OpenLineage integration does not control the size of event you sent. It can potentially include elements weighting megabytes in size, depending on the size of data you pass to the task.
+  By setting this variable to true, OpenLineage integration does not control the size of event you sent. It can potentially include elements that are megabytes in size or larger, depending on the size of data you pass to the task.
 
 
 Custom Extractors
