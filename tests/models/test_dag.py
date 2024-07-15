@@ -46,7 +46,7 @@ from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAll, DatasetAny
+from airflow.datasets import Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
@@ -70,7 +70,13 @@ from airflow.models.dag import (
     get_dataset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
+from airflow.models.dataset import (
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1332,6 +1338,51 @@ class TestDag:
             assert non_orphaned_dataset_count == 4
             orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
             assert orphaned_dataset_count == 0
+
+    def test_bulk_write_to_db_dataset_aliases(self):
+        """
+        Ensure that dataset aliases referenced in a dag are correctly loaded into the database.
+        """
+        dag_id1 = "test_dataset_alias_dag1"
+        dag_id2 = "test_dataset_alias_dag2"
+        task_id = "test_dataset_task"
+        da1 = DatasetAlias(name="da1")
+        da2 = DatasetAlias(name="da2")
+        da3 = DatasetAlias(name="da3")
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da1, da2, da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da2, da3])
+        session = settings.Session()
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da2_orm = stored_dataset_aliases[da2.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da2_orm.name == "da2"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 3
+
+        # now that we have verified that a new dag has its dataset alias references recorded properly,
+        # we need to verify that *changes* are recorded properly.
+        # so if any references are *removed*, they should also be deleted from the DB
+        # so let's remove some references and see what happens
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da1])
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+        session.expunge_all()
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 2
 
     def test_sync_to_db(self):
         dag = DAG(
