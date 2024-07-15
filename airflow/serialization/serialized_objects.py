@@ -37,7 +37,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
@@ -74,7 +74,7 @@ from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.timezone import from_timestamp, parse_timezone
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -229,12 +229,15 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
 
 
 def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
-    """Encode a dataset condition.
+    """
+    Encode a dataset condition.
 
     :meta private:
     """
     if isinstance(var, Dataset):
         return {"__type": DAT.DATASET, "uri": var.uri, "extra": var.extra}
+    if isinstance(var, DatasetAlias):
+        return {"__type": DAT.DATASET_ALIAS, "name": var.name}
     if isinstance(var, DatasetAll):
         return {"__type": DAT.DATASET_ALL, "objects": [encode_dataset_condition(x) for x in var.objects]}
     if isinstance(var, DatasetAny):
@@ -243,7 +246,8 @@ def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
 
 
 def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
-    """Decode a previously serialized dataset condition.
+    """
+    Decode a previously serialized dataset condition.
 
     :meta private:
     """
@@ -254,7 +258,25 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
         return DatasetAll(*(decode_dataset_condition(x) for x in var["objects"]))
     if dat == DAT.DATASET_ANY:
         return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
+    if dat == DAT.DATASET_ALIAS:
+        return DatasetAlias(name=var["name"])
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
+
+
+def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
+    raw_key = var.raw_key
+    return {
+        "extra": var.extra,
+        "dataset_alias_event": var.dataset_alias_event,
+        "raw_key": BaseSerialization.serialize(raw_key),
+    }
+
+
+def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
+    raw_key = BaseSerialization.deserialize(var["raw_key"])
+    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=raw_key)
+    outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
+    return outlet_event_accessor
 
 
 def encode_timetable(var: Timetable) -> dict[str, Any]:
@@ -571,7 +593,7 @@ class BaseSerialization:
             )
         elif isinstance(var, OutletEventAccessor):
             return cls._encode(
-                cls.serialize(var.extra, strict=strict, use_pydantic_models=use_pydantic_models),
+                encode_outlet_event_accessor(var),
                 type_=DAT.DATASET_EVENT_ACCESSOR,
             )
         elif isinstance(var, DAG):
@@ -711,7 +733,7 @@ class BaseSerialization:
             d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
             return d
         elif type_ == DAT.DATASET_EVENT_ACCESSOR:
-            return OutletEventAccessor(extra=cls.deserialize(var))
+            return decode_outlet_event_accessor(var)
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
@@ -751,6 +773,8 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
+        elif type_ == DAT.DATASET_ALIAS:
+            return DatasetAlias(**var)
         elif type_ == DAT.DATASET_ANY:
             return DatasetAny(*(decode_dataset_condition(x) for x in var["objects"]))
         elif type_ == DAT.DATASET_ALL:
@@ -936,7 +960,8 @@ class DependencyDetector:
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
-    """A JSON serializable representation of operator.
+    """
+    A JSON serializable representation of operator.
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
@@ -1100,7 +1125,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: dict[str, Any]) -> None:
-        """Populate operator attributes with serialized values.
+        """
+        Populate operator attributes with serialized values.
 
         This covers simple attributes that don't reference other things in the
         DAG. Setting references (such as ``op.dag`` and task dependencies) is
@@ -1228,7 +1254,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @staticmethod
     def set_task_dag_references(task: Operator, dag: DAG) -> None:
-        """Handle DAG references on an operator.
+        """
+        Handle DAG references on an operator.
 
         The operator should have been mostly populated earlier by calling
         ``populate_operator``. This function further fixes object references
@@ -1292,7 +1319,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
-
+        op.dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
         cls.populate_operator(op, encoded_op)
         return op
 

@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add task_instance_history.
+"""
+Add task_instance_history.
 
 Revision ID: d482b7261ff9
 Revises: c4602ba06b4b

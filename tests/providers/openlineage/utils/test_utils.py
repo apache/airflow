@@ -21,6 +21,8 @@ import datetime
 from unittest.mock import MagicMock
 
 from airflow import DAG
+from airflow.decorators import task
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -311,20 +313,42 @@ def test_dag_tree_level_indent():
 
 
 def test_get_dag_tree():
+    class TestMappedOperator(BaseOperator):
+        def __init__(self, value, **kwargs):
+            super().__init__(**kwargs)
+            self.value = value
+
+        def execute(self, context):
+            return self.value + 1
+
+    @task
+    def generate_list() -> list:
+        return [1, 2, 3]
+
+    @task
+    def process_item(item: int) -> int:
+        return item * 2
+
+    @task
+    def sum_values(values: list[int]) -> int:
+        return sum(values)
+
     with DAG(dag_id="dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
-        task = CustomOperatorForTest(task_id="task", bash_command="exit 0;")
+        task_ = BashOperator(task_id="task", bash_command="exit 0;")
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 1;")
         task_2 = PythonOperator(task_id="task_2", python_callable=lambda: 1)
         task_3 = BashOperator(task_id="task_3", bash_command="exit 0;")
-        task_4 = EmptyOperator(
-            task_id="task_4",
-        )
+        task_4 = EmptyOperator(task_id="task_4")
         task_5 = BashOperator(task_id="task_5", bash_command="exit 0;")
         task_6 = EmptyOperator(task_id="task_6.test5")
         task_7 = BashOperator(task_id="task_7", bash_command="exit 0;")
         task_8 = PythonOperator(task_id="task_8", python_callable=lambda: 1)  # noqa: F841
-        task_9 = BashOperator(task_id="task_9", bash_command="exit 0;")
+        task_9 = TestMappedOperator.partial(task_id="task_9").expand(value=[1, 2])
+
+        list_result = generate_list()
+        processed_results = process_item.expand(item=list_result)
+        result_sum = sum_values(processed_results)  # noqa: F841
 
         with TaskGroup("section_1", prefix_group_id=True) as tg:
             task_10 = PythonOperator(task_id="task_3", python_callable=lambda: 1)
@@ -333,12 +357,13 @@ def test_get_dag_tree():
                 with TaskGroup("section_3", parent_group=tg2):
                     task_12 = PythonOperator(task_id="task_12", python_callable=lambda: 1)
 
-        task >> [task_2, task_7]
+        task_ >> [task_2, task_7]
         task_0 >> [task_2, task_1] >> task_3 >> [task_4, task_5] >> task_6
         task_1 >> task_9 >> task_3 >> task_4 >> task_5 >> task_6
         task_3 >> task_10 >> task_12
 
         expected = {
+            "generate_list": {"process_item": {"sum_values": {}}},
             "section_1.section_2.task_11": {},
             "task": {
                 "task_2": {

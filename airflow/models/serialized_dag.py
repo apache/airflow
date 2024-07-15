@@ -54,7 +54,8 @@ log = logging.getLogger(__name__)
 
 
 class SerializedDagModel(Base):
-    """A table for serialized DAGs.
+    """
+    A table for serialized DAGs.
 
     serialized_dag table is a snapshot of DAG files synchronized by scheduler.
     This feature is controlled by:
@@ -185,7 +186,8 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
-        """Read all DAGs in serialized_dag table.
+        """
+        Read all DAGs in serialized_dag table.
 
         :param session: ORM Session
         :returns: a dict of DAGs read from database
@@ -250,7 +252,8 @@ class SerializedDagModel(Base):
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Delete DAGs not included in alive_dag_filelocs.
+        """
+        Delete DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param processor_subdir: dag processor subdir
@@ -278,7 +281,8 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
-        """Check a DAG exist in serialized_dag table.
+        """
+        Check a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
         :param session: ORM Session

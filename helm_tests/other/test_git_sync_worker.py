@@ -168,3 +168,37 @@ class TestGitSyncWorker:
             "name": "git-sync-ssh-key",
             "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_container_lifecycle_hooks(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /git/message_start",
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": ["/bin/sh", "-c", "echo preStop handler > /git/message_start"]
+                                }
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert {
+            "postStart": {
+                "exec": {"command": ["/bin/sh", "-c", "echo postStart handler > /git/message_start"]}
+            },
+            "preStop": {"exec": {"command": ["/bin/sh", "-c", "echo preStop handler > /git/message_start"]}},
+        } == jmespath.search("spec.template.spec.containers[1].lifecycle", docs[0])

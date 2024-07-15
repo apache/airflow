@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class SqlSensor(BaseSensorOperator):
-    """Run a SQL statement repeatedly until a criteria is met.
+    """
+    Run a SQL statement repeatedly until a criteria is met.
 
     This will keep trying until success or failure criteria are met, or if the
     first cell is not either ``0``, ``'0'``, ``''``, or ``None``. Optional

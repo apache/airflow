@@ -39,14 +39,17 @@ html {
 html[data-color-scheme="dark"] {
   filter: invert(100%) hue-rotate(180deg);
 }
+
+/* Default icons to not display until the data-color-scheme has been set */
+#dark_icon,
+#light_icon {
+  display: none;
+}
 html[data-color-scheme="dark"] #dark_icon {
   display: block;
 }
 html[data-color-scheme="dark"] #light_icon {
   display: none;
-}
-html[data-color-scheme="light"] {
-  /* not do */
 }
 html[data-color-scheme="light"] #dark_icon {
   display: none;

@@ -706,7 +706,8 @@ class GoogleBaseHook(BaseHook):
 
 
 class _CredentialsToken(Token):
-    """A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
+    """
+    A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
 
     This class allows us to create token instances from credentials objects and thus supports a variety of use cases for Google
     credentials in Airflow (i.e. impersonation chain). By relying on a existing credentials object we leverage functionality provided by the GoogleBaseHook

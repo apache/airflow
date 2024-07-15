@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1718604460
+source-date-epoch: 1720423376
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.21.0
   - 10.20.0
   - 10.19.0
   - 10.18.0
@@ -114,7 +115,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.54.0
+  - google-cloud-aiplatform>=1.57.0
   - google-cloud-automl>=2.12.0
   # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
   # which has led to backward compatibility issues

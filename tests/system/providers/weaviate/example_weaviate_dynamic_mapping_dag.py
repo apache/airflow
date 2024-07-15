@@ -22,6 +22,8 @@ from weaviate.collections.classes.config import Configure
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
+COLLECTION_NAMES = ["Weaviate_DTM_example_collection_1", "Weaviate_DTM_example_collection_2"]
+
 
 @dag(
     schedule=None,
@@ -61,7 +63,7 @@ def example_weaviate_dynamic_mapping_dag():
         task_id="perform_ingestion",
         conn_id="weaviate_default",
     ).expand(
-        collection_name=["example1", "example2"],
+        collection_name=COLLECTION_NAMES,
         input_data=get_data_to_ingest["return_value"],
     )
 
@@ -81,10 +83,10 @@ def example_weaviate_dynamic_mapping_dag():
 
     (
         create_weaviate_collection.expand(
-            data=[["example1", "none"], ["example2", Configure.Vectorizer.text2vec_openai()]]
+            data=[[COLLECTION_NAMES[0], None], [COLLECTION_NAMES[1], Configure.Vectorizer.text2vec_openai()]]
         )
         >> perform_ingestion
-        >> delete_weaviate_collection.expand(collection_name=["example1", "example2"])
+        >> delete_weaviate_collection.expand(collection_name=COLLECTION_NAMES)
     )
 
 

@@ -29,7 +29,7 @@ from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.exceptions import AirflowRescheduleException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.connection import Connection
@@ -53,7 +53,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
-from airflow.utils.context import OutletEventAccessors
+from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 from airflow.utils.operator_resources import Resources
 from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
@@ -150,6 +150,10 @@ def equal_time(a: datetime, b: datetime) -> bool:
     return a.strftime("%s") == b.strftime("%s")
 
 
+def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
+    return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
+
+
 @pytest.mark.parametrize(
     "input, encoded_type, cmp_func",
     [
@@ -208,6 +212,29 @@ def equal_time(a: datetime, b: datetime) -> bool:
             Connection(conn_id="TEST_ID", uri="mysql://"),
             DAT.CONNECTION,
             lambda a, b: a.get_uri() == b.get_uri(),
+        ),
+        (
+            OutletEventAccessor(
+                raw_key=Dataset(uri="test"), extra={"key": "value"}, dataset_alias_event=None
+            ),
+            DAT.DATASET_EVENT_ACCESSOR,
+            equal_outlet_event_accessor,
+        ),
+        (
+            OutletEventAccessor(
+                raw_key=DatasetAlias(name="test_alias"),
+                extra={"key": "value"},
+                dataset_alias_event=DatasetAliasEvent(
+                    source_alias_name="test_alias", dest_dataset_uri="test_uri"
+                ),
+            ),
+            DAT.DATASET_EVENT_ACCESSOR,
+            equal_outlet_event_accessor,
+        ),
+        (
+            OutletEventAccessor(raw_key="test", extra={"key": "value"}),
+            DAT.DATASET_EVENT_ACCESSOR,
+            equal_outlet_event_accessor,
         ),
     ],
 )
@@ -339,6 +366,11 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
         reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
         dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
         assert isinstance(dereserialized, pydantic_class)
+
+        if encoded_type == "task_instance":
+            deserialized.task.dag = None
+            dereserialized.task.dag = None
+
         assert dereserialized == deserialized
 
         # Verify recursive behavior
@@ -394,6 +426,10 @@ def test_all_pydantic_models_round_trip():
         serialized = BaseSerialization.serialize(pydantic_instance, use_pydantic_models=True)
         deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
         assert isinstance(deserialized, c)
+        if isinstance(pydantic_instance, TaskInstancePydantic):
+            # we can't access the dag on deserialization; but there is no dag here.
+            deserialized.task.dag = None
+            pydantic_instance.task.dag = None
         assert pydantic_instance == deserialized
 
 

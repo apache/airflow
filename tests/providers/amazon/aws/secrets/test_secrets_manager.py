@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerBackend
 
 
@@ -69,9 +70,13 @@ class TestSecretsManagerBackend:
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(
-            are_secret_values_urlencoded=are_secret_values_urlencoded
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"The `secret_values_are_urlencoded` is deprecated. This kwarg only exists to assist in migrating away from URL-encoding secret values for JSON secrets. To remove this warning, make sure your JSON secrets are \*NOT\* URL-encoded, and then remove this kwarg from backend_kwargs.",
+        ):
+            secrets_manager_backend = SecretsManagerBackend(
+                are_secret_values_urlencoded=are_secret_values_urlencoded
+            )
         secrets_manager_backend.client.create_secret(**create_param)
 
         conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
@@ -98,7 +103,11 @@ class TestSecretsManagerBackend:
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `full_url_mode` kwarg is deprecated. Going forward, the `SecretsManagerBackend` will support both URL-encoded and JSON-encoded secrets at the same time. The encoding of the secret will be determined automatically.",
+        ):
+            secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
         secrets_manager_backend.client.create_secret(**create_param)
 
         conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
@@ -115,7 +124,11 @@ class TestSecretsManagerBackend:
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `full_url_mode` kwarg is deprecated. Going forward, the `SecretsManagerBackend` will support both URL-encoded and JSON-encoded secrets at the same time. The encoding of the secret will be determined automatically.",
+        ):
+            secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
         secrets_manager_backend.client.create_secret(**create_param)
 
         conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
@@ -133,9 +146,13 @@ class TestSecretsManagerBackend:
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(
-            full_url_mode=False, extra_conn_words={"user": ["usuario"]}
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `full_url_mode` kwarg is deprecated. Going forward, the `SecretsManagerBackend` will support both URL-encoded and JSON-encoded secrets at the same time. The encoding of the secret will be determined automatically.",
+        ):
+            secrets_manager_backend = SecretsManagerBackend(
+                full_url_mode=False, extra_conn_words={"user": ["usuario"]}
+            )
         secrets_manager_backend.client.create_secret(**create_param)
 
         conn = secrets_manager_backend.get_connection(conn_id="test_postgres")

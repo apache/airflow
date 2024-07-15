@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import random
+import string
+
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
     Change,
+    TypeOfChange,
     _convert_git_changes_to_table,
     _find_insertion_index_for_version,
     _get_change_from_line,
@@ -217,15 +221,38 @@ def test_verify_changelog_exists():
     )
 
 
+def generate_random_string(length):
+    c = string.hexdigits.lower()
+    return "".join(random.choice(c) for _ in range(length))
+
+
+def generate_long_hash():
+    return generate_random_string(40)
+
+
+def generate_short_hash():
+    return generate_random_string(10)
+
+
 @pytest.mark.parametrize(
     "descriptions, with_breaking_changes, maybe_with_new_features,"
-    "breaking_count, feature_count, bugfix_count, other_count",
+    "breaking_count, feature_count, bugfix_count, other_count, misc_count, type_of_change",
     [
-        (["Added feature x"], True, True, 0, 1, 0, 0),
-        (["Added feature x"], False, False, 0, 0, 0, 1),
-        (["Breaking change in"], True, True, 1, 0, 0, 0),
-        (["Breaking change in", "Added feature y"], True, True, 1, 1, 0, 0),
-        (["Fix change in", "Breaking feature y"], False, True, 0, 0, 1, 1),
+        (["Added feature x"], True, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
+        (["Added feature x"], False, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
+        (["Breaking change in"], True, True, 1, 0, 0, 0, 0, [TypeOfChange.BREAKING_CHANGE]),
+        (["Misc change in"], False, False, 0, 0, 0, 0, 1, [TypeOfChange.MISC]),
+        (
+            ["Fix change in", "Breaking feature y"],
+            True,
+            False,
+            1,
+            0,
+            1,
+            0,
+            0,
+            [TypeOfChange.BUGFIX, TypeOfChange.BREAKING_CHANGE],
+        ),
     ],
 )
 def test_classify_changes_automatically(
@@ -236,12 +263,22 @@ def test_classify_changes_automatically(
     feature_count: int,
     bugfix_count: int,
     other_count: int,
+    misc_count: int,
+    type_of_change: TypeOfChange,
 ):
+    from airflow_breeze.prepare_providers.provider_documentation import SHORT_HASH_TO_TYPE_DICT
+
     """Test simple automated classification of the changes based on their single-line description."""
     changes = [
-        _get_change_from_line(f"LONG SHORT 2023-12-01 {description}", version="0.1.0")
+        _get_change_from_line(
+            f"{generate_long_hash()} {generate_short_hash()} 2023-12-01 {description}", version="0.1.0"
+        )
         for description in descriptions
     ]
+
+    for i in range(0, len(changes)):
+        SHORT_HASH_TO_TYPE_DICT[changes[i].short_hash] = type_of_change[i]
+
     classified_changes = _get_changes_classified(
         changes, with_breaking_changes=with_breaking_changes, maybe_with_new_features=maybe_with_new_features
     )
@@ -249,3 +286,5 @@ def test_classify_changes_automatically(
     assert len(classified_changes.features) == feature_count
     assert len(classified_changes.fixes) == bugfix_count
     assert len(classified_changes.other) == other_count
+    assert len(classified_changes.other) == other_count
+    assert len(classified_changes.misc) == misc_count

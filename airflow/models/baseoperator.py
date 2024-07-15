@@ -101,7 +101,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET
+from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -1216,14 +1216,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """Get inlet definitions on this task.
+        """
+        Get inlet definitions on this task.
 
         :meta private:
         """
         return self.inlets
 
     def get_outlet_defs(self):
-        """Get outlet definitions on this task.
+        """
+        Get outlet definitions on this task.
 
         :meta private:
         """
@@ -1243,11 +1245,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @dag.setter
     def dag(self, dag: DAG | None):
         """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
-        from airflow.models.dag import DAG
-
         if dag is None:
             self._dag = None
             return
+
+        # if set to removed, then just set and exit
+        if self._dag is ATTRIBUTE_REMOVED:
+            self._dag = dag
+            return
+        # if setting to removed, then just set and exit
+        if dag is ATTRIBUTE_REMOVED:
+            self._dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
+            return
+
+        from airflow.models.dag import DAG
+
         if not isinstance(dag, DAG):
             raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
         elif self.has_dag() and self.dag is not dag:
@@ -1397,7 +1409,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         This mutates the attributes in-place and is irreversible.
 
@@ -1581,7 +1594,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def is_setup(self) -> bool:
-        """Whether the operator is a setup task.
+        """
+        Whether the operator is a setup task.
 
         :meta private:
         """
@@ -1589,7 +1603,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @is_setup.setter
     def is_setup(self, value: bool) -> None:
-        """Setter for is_setup property.
+        """
+        Setter for is_setup property.
 
         :meta private:
         """
@@ -1599,7 +1614,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def is_teardown(self) -> bool:
-        """Whether the operator is a teardown task.
+        """
+        Whether the operator is a teardown task.
 
         :meta private:
         """
@@ -1776,7 +1792,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" operator from the current operator.
+        """
+        Get the "normal" operator from the current operator.
 
         Since a BaseOperator is not mapped to begin with, this simply returns
         the original operator.

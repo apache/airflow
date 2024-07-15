@@ -139,7 +139,8 @@ class OpenLineageAdapter(LoggingMixin):
         )
 
     def emit(self, event: RunEvent):
-        """Emit OpenLineage event.
+        """
+        Emit OpenLineage event.
 
         :param event: Event to be emitted.
         :return: Redacted Event.
@@ -433,12 +434,7 @@ class OpenLineageAdapter(LoggingMixin):
                 namespace=conf.namespace(),
                 name=parent_job_name or job_name,
             )
-            facets.update(
-                {
-                    "parent": parent_run_facet,
-                    "parentRun": parent_run_facet,  # Keep sending this for the backward compatibility
-                }
-            )
+            facets.update({"parent": parent_run_facet})
 
         if run_facets:
             facets.update(run_facets)

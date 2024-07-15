@@ -309,7 +309,7 @@ jobs:
       packages: read
     secrets: inherit
     if: >
-      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -457,8 +457,6 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      separate-test-types-list-as-string: >-
-        ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -486,6 +484,32 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
+
+  tests-with-lowest-direct-resolution:
+    name: "Lowest direct dependency resolution tests"
+    needs: [build-info, wait-for-ci-images]
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    if: >
+      needs.build-info.outputs.run-tests == 'true'
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      test-name: "LowestDeps-Postgres"
+      force-lowest-dependencies: "true"
+      test-scope: "All"
+      backend: "postgres"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
+      excludes: "[]"
+      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      monitor-delay-time-in-seconds: 120
 
   build-prod-images:
     name: >
