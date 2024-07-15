@@ -88,7 +88,7 @@ def ds_format_locale(
 
     :param ds: Input string which contains a date.
     :param input_format: Input string format (e.g., '%Y-%m-%d').
-    :param output_format: Output string Babel format (e.g., 'yyyy-MM-dd').
+    :param output_format: Output string Babel format (e.g., `yyyy-MM-dd`).
     :param locale: Locale used to format the output string (e.g., 'en_US').
                    If locale not specified, default LC_TIME will be used and if that's also not available,
                    'en_US' will be used.
