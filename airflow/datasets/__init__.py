@@ -183,34 +183,6 @@ class DatasetAlias(BaseDataset):
     def __hash__(self) -> int:
         return hash(self.name)
 
-    def as_expression(self) -> Any:
-        """
-        Serialize the dataset into its scheduling expression.
-
-        :meta private:
-        """
-        return {"alias": self.name}
-
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
-        for dataset in self.expand_datasets():
-            yield dataset.uri, dataset
-
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return any(x.evaluate(statuses=statuses) for x in self.expand_datasets())
-
-    @provide_session
-    def expand_datasets(self, *, session: Session = NEW_SESSION) -> list[Dataset]:
-        """Expand the dataset alias to resolved datasets."""
-        from airflow.models.dataset import DatasetAliasModel
-
-        dataset_alias_obj = session.scalar(
-            select(DatasetAliasModel).where(DatasetAliasModel.name == self.name).limit(1)
-        )
-        if dataset_alias_obj:
-            return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
-
-        return []
-
 
 class DatasetAliasEvent(TypedDict):
     """A represeation of dataset event to be triggered by a dataset alias."""
@@ -266,14 +238,9 @@ class _DatasetBooleanCondition(BaseDataset):
         if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
 
-        expanded_objects: list[BaseDataset] = []
-        for obj in objects:
-            if isinstance(obj, (Dataset, DatasetAlias)):
-                expanded_objects.extend(ds for _, ds in obj.iter_datasets())
-            else:
-                expanded_objects.append(obj)
-
-        self.objects = expanded_objects
+        self.objects = [
+            _DatasetAliasCondition(obj.name) if isinstance(obj, DatasetAlias) else obj for obj in objects
+        ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
@@ -309,6 +276,41 @@ class DatasetAny(_DatasetBooleanCondition):
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
+
+
+class _DatasetAliasCondition(DatasetAny):
+    """
+    Use to expand DataAlias as DatasetAny of its resolved Datasets.
+
+    :meta private:
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.objects = self.expand_datasets()
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"alias": self.name}
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return any(x.evaluate(statuses=statuses) for x in self.objects)
+
+    @provide_session
+    def expand_datasets(self, *, session: Session = NEW_SESSION) -> list[BaseDataset]:
+        """Expand the dataset alias to resolved datasets."""
+        from airflow.models.dataset import DatasetAliasModel
+
+        dataset_alias_obj = session.scalar(
+            select(DatasetAliasModel).where(DatasetAliasModel.name == self.name).limit(1)
+        )
+        if dataset_alias_obj:
+            return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
+        return []
 
 
 class DatasetAll(_DatasetBooleanCondition):
