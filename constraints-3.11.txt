@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-14T15:26:26.486011
+# This constraints file was automatically generated on 2024-07-15T01:22:20.236996
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -415,7 +415,7 @@ jeepney==0.8.0
 jmespath==0.10.0
 joserfc==1.0.0
 json-merge-patch==0.2
-jsondiff==2.1.1
+jsondiff==2.1.2
 jsonpatch==1.33
 jsonpath-ng==1.6.1
 jsonpickle==3.2.2
@@ -742,4 +742,4 @@ zenpy==2.0.49
 zipp==3.19.2
 zope.event==5.0
 zope.interface==6.4.post2
-zstandard==0.22.0
+zstandard==0.23.0
