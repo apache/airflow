@@ -266,12 +266,12 @@ class _DatasetBooleanCondition(BaseDataset):
         if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
 
-        expanded_objects = []
+        expanded_objects: list[BaseDataset] = []
         for obj in objects:
-            if isinstance(obj, Dataset):
+            if isinstance(obj, (Dataset, DatasetAlias)):
+                expanded_objects.extend(ds for _, ds in obj.iter_datasets())
+            else:
                 expanded_objects.append(obj)
-            elif isinstance(obj, DatasetAlias):
-                expanded_objects.extend(obj.expand_datasets())
 
         self.objects = expanded_objects
 
