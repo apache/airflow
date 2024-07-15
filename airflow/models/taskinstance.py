@@ -345,17 +345,13 @@ def _run_raw_task(
             )
             # Same metric with tagging
             Stats.incr("ti.finish", tags={**ti.stats_tags, "state": str(ti.state)})
-            if not session:  # Fix for mypy
-                return None
-            from airflow.models.dagrun import DagRun
 
-            dagrun = DagRun.find(
-                dag_id=ti.dag_id, run_id=ti.run_id, execution_date=ti.execution_date, session=session
-            )
-            if not dagrun:
-                return None
+            if TYPE_CHECKING:
+                assert session
+
             if ti.state in State.finished and any(
-                t.blocked_by_upstream for t in dagrun[0].get_task_instances(session=session)
+                t.blocked_by_upstream
+                for t in ti.get_dagrun(session=session).get_task_instances(session=session)
             ):
                 downstream_task_ids = ti.task.get_direct_relative_ids(upstream=False)
                 session.execute(

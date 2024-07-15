@@ -783,7 +783,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            if ti.state in State.finished and any(t.blocked_by_upstream for t in ti.dag_run.task_instances):
+            if ti.state in State.finished and any(
+                t.blocked_by_upstream
+                for t in ti.get_dagrun(session=session).get_task_instances(session=session)
+            ):
                 # Should this fail to update in the worker, we repeat it here.
                 # Get task from the Serialized DAG
                 try:
