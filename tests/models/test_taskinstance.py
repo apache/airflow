@@ -56,7 +56,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool
@@ -2495,6 +2495,14 @@ class TestTaskInstance:
         assert producer_event.extra == {}
         assert producer_event.source_aliases[0].name == dsa_name_1
 
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 1
+        assert ds_obj.aliases[0].name == dsa_name_1
+
+        dsa_obj = session.scalar(select(DatasetAliasModel).where(DatasetAliasModel.name == dsa_name_1))
+        assert len(dsa_obj.datasets) == 1
+        assert dsa_obj.datasets[0].uri == ds_uri
+
     def test_outlet_multiple_dataset_alias(self, dag_maker, session):
         from airflow.datasets import Dataset, DatasetAlias
 
@@ -2545,24 +2553,32 @@ class TestTaskInstance:
                 assert len(producer_event.source_aliases) == 1
                 assert producer_event.source_aliases[0].name == dsa_name_3
 
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 3
+        assert {alias.name for alias in ds_obj.aliases} == {dsa_name_1, dsa_name_2, dsa_name_3}
+
+        dsa_objs = session.scalars(select(DatasetAliasModel)).all()
+        assert len(dsa_objs) == 3
+        for dsa_obj in dsa_objs:
+            assert len(dsa_obj.datasets) == 1
+            assert dsa_obj.datasets[0].uri == ds_uri
+
     def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
         from airflow.datasets import DatasetAlias
         from airflow.datasets.metadata import Metadata
 
+        ds_uri = "test_outlet_dataset_alias_through_metadata_ds"
         dsa_name = "test_outlet_dataset_alias_through_metadata_dsa"
 
         ds1 = DatasetModel(id=1, uri="test_outlet_dataset_alias_through_metadata_ds")
         session.add(ds1)
         session.commit()
+
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
             @task(outlets=DatasetAlias(dsa_name))
             def producer(*, outlet_events):
-                yield Metadata(
-                    "test_outlet_dataset_alias_through_metadata_ds",
-                    extra={"key": "value"},
-                    alias=dsa_name,
-                )
+                yield Metadata(ds_uri, extra={"key": "value"}, alias=dsa_name)
 
             producer()
 
@@ -2572,28 +2588,36 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
-            "producer"
-        ]
+        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
 
         assert producer_event.source_task_id == "producer"
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == "test_outlet_dataset_alias_through_metadata_ds"
+        assert producer_event.dataset.uri == ds_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == dsa_name
+
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 1
+        assert ds_obj.aliases[0].name == dsa_name
+
+        dsa_obj = session.scalar(select(DatasetAliasModel))
+        assert len(dsa_obj.datasets) == 1
+        assert dsa_obj.datasets[0].uri == ds_uri
 
     def test_outlet_dataset_alias_dataset_not_exists(self, dag_maker, session):
         from airflow.datasets import Dataset, DatasetAlias
 
         dsa_name = "test_outlet_dataset_alias_dataset_not_exists_dsa"
+        ds_uri = "did_not_exists"
+
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
             @task(outlets=DatasetAlias(dsa_name))
             def producer(*, outlet_events):
-                outlet_events[dsa_name].add(Dataset("did_not_exists"), extra={"key": "value"})
+                outlet_events[dsa_name].add(Dataset(ds_uri), extra={"key": "value"})
 
             producer()
 
@@ -2603,18 +2627,24 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
-            "producer"
-        ]
+        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
 
         assert producer_event.source_task_id == "producer"
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == "did_not_exists"
+        assert producer_event.dataset.uri == ds_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == dsa_name
+
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 1
+        assert ds_obj.aliases[0].name == dsa_name
+
+        dsa_obj = session.scalar(select(DatasetAliasModel))
+        assert len(dsa_obj.datasets) == 1
+        assert dsa_obj.datasets[0].uri == ds_uri
 
     def test_inlet_dataset_extra(self, dag_maker, session):
         from airflow.datasets import Dataset
