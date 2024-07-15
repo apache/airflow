@@ -187,10 +187,11 @@ class SkipMixin(LoggingMixin):
             branch_task_ids = list(branch_task_ids)
         SkipMixin._skip_all_except(ti=ti, branch_task_ids=branch_task_ids)
 
-    @staticmethod
+    @classmethod
     @internal_api_call
     @provide_session
     def _skip_all_except(
+        cls,
         ti: TaskInstance | TaskInstancePydantic,
         branch_task_ids: None | str | Iterable[str],
         session: Session = NEW_SESSION,
@@ -204,6 +205,7 @@ class SkipMixin(LoggingMixin):
         branch_task_ids is stored to XCom so that NotPreviouslySkippedDep knows skipped tasks or
         newly added tasks should be skipped when they are cleared.
         """
+        log = cls().log  # Note: need to catch logger form instance, static logger breaks pytest
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
@@ -224,7 +226,7 @@ class SkipMixin(LoggingMixin):
                 f"but got {type(branch_task_ids).__name__!r}."
             )
 
-        LoggingMixin.logger().info("Following branch %s", branch_task_id_set)
+        log.info("Following branch %s", branch_task_id_set)
 
         dag_run = ti.get_dagrun(session=session)
         if TYPE_CHECKING:
@@ -272,7 +274,7 @@ class SkipMixin(LoggingMixin):
             ]
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
-            LoggingMixin.logger().info("Skipping tasks %s", skip_tasks)
+            log.info("Skipping tasks %s", skip_tasks)
             SkipMixin._set_state_to_skipped(dag_run, skip_tasks, session=session)
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
