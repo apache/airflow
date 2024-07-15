@@ -3215,6 +3215,7 @@ class TestDagModel:
                     Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
                     Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
                 ),
+                DatasetAlias(name="test_name"),
             ),
             start_date=datetime.datetime.min,
         )
@@ -3225,6 +3226,7 @@ class TestDagModel:
             "any": [
                 "s3://dag1/output_1.txt",
                 {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+                {"alias": "test_name"},
             ]
         }
 
