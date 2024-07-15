@@ -205,6 +205,10 @@
         "queued_dttm": {
           "type": "string",
           "format": "date-time"
+        },
+        "log_url": {
+          "type": "string",
+          "format": "uri"
         }
       },
       "additionalProperties": true,
