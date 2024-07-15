@@ -376,11 +376,11 @@ class TestBatchOperator:
                     },
                 ]
             },
-            "parameters": {},                                              
-            "retryStrategy": {                                             
+            parameters: {},                                              
+            retryStrategy: {                                             
                 "attempts": 1,                                               
             },                                                             
-            "tags": {},   
+            tags: {},   
         )
 
     @mock.patch.object(BatchClientHook, "check_job_success")
