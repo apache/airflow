@@ -108,6 +108,7 @@ __lazy_imports = {
     "TaskFail": "airflow.models.taskfail",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
+    "ToggleDag": "airflow.models.toggle_dag_callback",
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
     "XCom": "airflow.models.xcom",
@@ -139,6 +140,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
     from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
+    from airflow.models.toggle_dag_callback import ToggleDag
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
     from airflow.models.xcom import XCom

@@ -67,7 +67,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.jobs.test_backfill_job import _mock_executor
-from tests.listeners import dag_listener
+from tests.listeners import dagrun_listener
 from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.asserts import assert_queries_count
@@ -2580,8 +2580,8 @@ class TestSchedulerJob:
         ):
             EmptyOperator(task_id="dummy")
 
-        dag_listener.clear()
-        get_listener_manager().add_listener(dag_listener)
+        dagrun_listener.clear()
+        get_listener_manager().add_listener(dagrun_listener)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
@@ -2599,10 +2599,10 @@ class TestSchedulerJob:
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
             self.job_runner._do_scheduling(session)
 
-        assert len(dag_listener.success) or len(dag_listener.failure)
+        assert len(dagrun_listener.success) or len(dagrun_listener.failure)
 
-        dag_listener.success = []
-        dag_listener.failure = []
+        dagrun_listener.success = []
+        dagrun_listener.failure = []
         session.rollback()
         session.close()
 
@@ -2770,8 +2770,8 @@ class TestSchedulerJob:
         ):
             EmptyOperator(task_id="dummy")
 
-        dag_listener.clear()
-        get_listener_manager().add_listener(dag_listener)
+        dagrun_listener.clear()
+        get_listener_manager().add_listener(dagrun_listener)
 
         executor = MockExecutor(do_update=False)
 
@@ -2789,9 +2789,9 @@ class TestSchedulerJob:
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
             self.job_runner._do_scheduling(session)
 
-        assert dag_listener.success[0].dag_id == dr.dag_id
-        assert dag_listener.success[0].run_id == dr.run_id
-        assert dag_listener.success[0].state == DagRunState.SUCCESS
+        assert dagrun_listener.success[0].dag_id == dr.dag_id
+        assert dagrun_listener.success[0].run_id == dr.run_id
+        assert dagrun_listener.success[0].state == DagRunState.SUCCESS
 
     def test_do_not_schedule_removed_task(self, dag_maker):
         interval = datetime.timedelta(days=1)

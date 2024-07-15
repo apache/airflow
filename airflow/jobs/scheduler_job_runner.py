@@ -36,7 +36,12 @@ from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    SlaCallbackRequest,
+    TaskCallbackRequest,
+    ToggleCallbackRequest,
+)
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import UnknownExecutorException
@@ -1736,6 +1741,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id=dag.dag_id,
             processor_subdir=dag_model.processor_subdir,
         )
+        self.job.executor.send_callback(request)
+
+    def _send_toggle_dag_callbacks_to_processor(self, dag: DAG) -> None:
+        """Send Toggle DAG Callbacks to DagFileProcessor if DAG has toggle_dag_callback defined."""
+        if dag.toggle_dag_callback is not None:
+            dag_model = DagModel.get_dagmodel(dag.dag_id)
+            if not dag_model:
+                self.log.error("Couldn't find DAG %s in database!", dag.dag_id)
+                return
+
+            request = ToggleCallbackRequest(
+                full_filepath=dag.fileloc,
+                dag_id=dag.dag_id,
+                processor_subdir=dag_model.processor_subdir,
+            )
         self.job.executor.send_callback(request)
 
     @provide_session

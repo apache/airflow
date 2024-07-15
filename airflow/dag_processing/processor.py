@@ -37,11 +37,12 @@ from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     SlaCallbackRequest,
     TaskCallbackRequest,
+    ToggleCallbackRequest,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import SlaMiss
+from airflow.models import SlaMiss, toggle_dag_callback
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
@@ -443,6 +444,61 @@ class DagFileProcessor(LoggingMixin):
     @classmethod
     @internal_api_call
     @provide_session
+    def manage_toggle(cls, dag_folder, dag_id: str, session: Session = NEW_SESSION) -> None:
+        """
+        State of the DAG on/off is recorded in the table with updated time.
+
+        On any change in the state of the DAG wrt previous state then
+        find the DAGs with toggle callback defined and invoke them.
+        """
+        # First get the dag_id from toggle_dag_callback table and check if there is entry in toggle_callback table
+        trigger_notification = False
+        dagbag = DagFileProcessor._get_dagbag(dag_folder)
+        dag = dagbag.get_dag(dag_id)
+        current_dag_is_paused = dag.is_paused
+        ts = timezone.utcnow()
+        toggle_dag_callback_query = session.scalar(
+            select(toggle_dag_callback.ToggleDag)
+            .where(toggle_dag_callback.ToggleDag.dag_id == dag_id)
+            .limit(1)
+        )
+        if toggle_dag_callback_query is None:
+            # If no for dag_id, then just insert the dag_id with their current status and time into the table
+            toggle_callback = toggle_dag_callback.ToggleDag(
+                dag_id=dag_id, is_dag_paused=current_dag_is_paused, last_verified_time=ts
+            )
+            session.add(toggle_callback)
+        else:
+            # If yes for dag_id, then check the state of the new dag with the existing entry in the table
+            previous_state = toggle_dag_callback_query.is_dag_paused
+            toggle_dag_callback_query.last_verified_time = ts
+            if previous_state != current_dag_is_paused:
+                # If state is changed then trigger notification
+                toggle_dag_callback_query.is_dag_paused = current_dag_is_paused
+                trigger_notification = True
+            session.commit()
+            if trigger_notification and dag.toggle_dag_callback:
+                # Execute the alert callback
+                callbacks = (
+                    dag.toggle_dag_callback
+                    if isinstance(dag.toggle_dag_callback, list)
+                    else [dag.toggle_dag_callback]
+                )
+                for callback in callbacks:
+                    cls.logger().info("Calling Toggle DAG callback %s", callback)
+                    try:
+                        # Change the code here
+                        callback(dag, current_dag_is_paused)
+                    except Exception:
+                        cls.logger().exception(
+                            "Could not call toggle_dag_callback(%s) for DAG %s",
+                            callback.__name__,
+                            dag.dag_id,
+                        )
+
+    @classmethod
+    @internal_api_call
+    @provide_session
     def manage_slas(cls, dag_folder, dag_id: str, session: Session = NEW_SESSION) -> None:
         """
         Find all tasks that have SLAs defined, and send alert emails when needed.
@@ -743,6 +799,7 @@ class DagFileProcessor(LoggingMixin):
 
         :return: number of queries executed
         """
+<<<<<<< HEAD
         for request in callback_requests:
             cls.logger().debug("Processing Callback Request: %s", request)
             try:
@@ -765,6 +822,34 @@ class DagFileProcessor(LoggingMixin):
                 )
         session.flush()
         session.commit()
+=======
+        with count_queries(session) as query_count:
+            for request in callback_requests:
+                cls.logger().debug("Processing Callback Request: %s", request)
+                try:
+                    if isinstance(request, TaskCallbackRequest):
+                        cls._execute_task_callbacks(dagbag, request, unit_test_mode, session=session)
+                    elif isinstance(request, SlaCallbackRequest):
+                        if InternalApiConfig.get_use_internal_api():
+                            cls.logger().warning(
+                                "SlaCallbacks are not supported when the Internal API is enabled"
+                            )
+                        else:
+                            DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
+                    elif isinstance(request, DagCallbackRequest):
+                        cls._execute_dag_callbacks(dagbag, request, session=session)
+                    elif isinstance(request, ToggleCallbackRequest):
+                        DagFileProcessor.manage_toggle(dagbag.dag_folder, request.dag_id, session=session)
+                except Exception:
+                    cls.logger().exception(
+                        "Error executing %s callback for file: %s",
+                        request.__class__.__name__,
+                        request.full_filepath,
+                    )
+            session.flush()
+            session.commit()
+        return query_count[0]
+>>>>>>> 8bb27bf1a4 (add hook notification changes)
 
     @classmethod
     @internal_api_call

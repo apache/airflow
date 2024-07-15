@@ -25,6 +25,7 @@ from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     SlaCallbackRequest,
     TaskCallbackRequest,
+    ToggleCallbackRequest,
 )
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -62,6 +63,14 @@ class TestCallbackRequest:
                     processor_subdir="/test_dir",
                 ),
                 SlaCallbackRequest,
+            ),
+            (
+                ToggleCallbackRequest(
+                    full_filepath="filepath",
+                    dag_id="fake_dag",
+                    processor_subdir="/test_dir",
+                ),
+                ToggleCallbackRequest,
             ),
         ],
     )
