@@ -33,6 +33,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
     ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
 )
@@ -1279,7 +1280,6 @@ def test_expected_output_pull_request_v2_7(
         pytest.param(
             ("airflow/models/test.py",),
             {
-                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "ci-image-build": "true",
@@ -1287,21 +1287,20 @@ def test_expected_output_pull_request_v2_7(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": "apache-airflow",
                 "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "skip-provider-tests": "true",
+                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers']",
+                "mypy-folders": "['airflow']",
             },
-            id="Tests for all providers should run if model file changed",
+            id="Tests for all airflow core types except providers should run if model file changed",
         ),
         pytest.param(
             ("airflow/file.py",),
             {
-                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "ci-image-build": "true",
@@ -1309,16 +1308,17 @@ def test_expected_output_pull_request_v2_7(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": "apache-airflow",
                 "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                "skip-provider-tests": "true",
+                "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS,
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers']",
+                "mypy-folders": "['airflow']",
             },
-            id="Tests for all providers should run if any other than API/WWW/CLI/Operators file changed.",
+            id="Tests for all airflow core types except providers should run if "
+            "any other than API/WWW/CLI/Operators file changed.",
         ),
     ],
 )
@@ -1601,9 +1601,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow/test.py",),
             {
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": "apache-airflow",
             },
-            id="Core files changed. All provider docs should also be built",
+            id="Core files changed. Apache-Airflow docs should also be built",
         ),
         pytest.param(
             ("docs/docker-stack/test.rst",),
@@ -1613,9 +1613,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": "apache-airflow helm-chart",
             },
-            id="Core files and helm chart files changed. All provider docs should be built",
+            id="Core files and helm chart files changed. Apache Airflow and helm chart docs to build",
         ),
         pytest.param(
             ("chart/airflow/values.yaml",),
@@ -2033,11 +2033,11 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("airflow/models/file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow', 'providers']",
+                "mypy-folders": "['airflow']",
             },
             "main",
             (),
-            id="Airflow mypy checks on airflow files that can trigger provider tests",
+            id="Airflow mypy checks on airflow files with model changes.",
         ),
         pytest.param(
             ("airflow/providers/a_file.py",),

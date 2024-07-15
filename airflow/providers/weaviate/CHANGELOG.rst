@@ -47,6 +47,11 @@ Bug Fixes
 
 * ``Fix mypy problems in new weaviate client (#40330)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``fix two typos (#40670)``
+   * ``Fix weaviate changelog to bring back 1.4.2 (#40663)``
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+
 1.4.2
 .....
 

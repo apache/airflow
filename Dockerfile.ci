@@ -1242,7 +1242,7 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && chmod 0440 /etc/sudoers.d/airflow
 
 # Install Helm
-ARG HELM_VERSION="v3.9.4"
+ARG HELM_VERSION="v3.15.3"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
