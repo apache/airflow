@@ -112,6 +112,7 @@ class TestDagRunOperator:
         expected_args = {
             "dag_id": triggered_dag_run.dag_id,
             "dag_run_id": triggered_dag_run.run_id,
+            "execution_date": triggered_dag_run.logical_date.isoformat(),
         }
         assert expected_args in args
 

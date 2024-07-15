@@ -75,6 +75,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         query = {
             "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
             "dag_run_id": triggered_dag_run_id,
+            "execution_date": XCom.get_value(ti_key=ti_key, key=XCOM_LOGICAL_DATE_ISO),
         }
         return build_airflow_url_with_query(query)
 
