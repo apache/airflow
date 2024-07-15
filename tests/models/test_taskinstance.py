@@ -2020,7 +2020,7 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&map_index=-1"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
         )
         assert ti.log_url == expected_url
@@ -2454,6 +2454,167 @@ class TestTaskInstance:
         assert events["write2"].source_task_id == "write2"
         assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
         assert events["write2"].extra == {"x": 1}
+
+    def test_outlet_dataset_alias(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        ds_uri = "test_outlet_dataset_alias_test_case_ds"
+        dsa_name_1 = "test_outlet_dataset_alias_test_case_dsa_1"
+
+        ds1 = DatasetModel(id=1, uri=ds_uri)
+        session.add(ds1)
+        session.commit()
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias(dsa_name_1))
+            def producer(*, outlet_events):
+                outlet_events[dsa_name_1].add(Dataset(ds_uri))
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_events = session.execute(
+            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+        ).fetchall()
+
+        assert len(producer_events) == 1
+
+        producer_event = producer_events[0][0]
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == ds_uri
+        assert len(producer_event.source_aliases) == 1
+        assert producer_event.extra == {}
+        assert producer_event.source_aliases[0].name == dsa_name_1
+
+    def test_outlet_multiple_dataset_alias(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        ds_uri = "test_outlet_mdsa_ds"
+        dsa_name_1 = "test_outlet_mdsa_dsa_1"
+        dsa_name_2 = "test_outlet_mdsa_dsa_2"
+        dsa_name_3 = "test_outlet_mdsa_dsa_3"
+
+        ds1 = DatasetModel(id=1, uri=ds_uri)
+        session.add(ds1)
+        session.commit()
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=[DatasetAlias(dsa_name_1), DatasetAlias(dsa_name_2), DatasetAlias(dsa_name_3)])
+            def producer(*, outlet_events):
+                outlet_events[dsa_name_1].add(Dataset(ds_uri))
+                outlet_events[dsa_name_2].add(Dataset(ds_uri))
+                outlet_events[dsa_name_3].add(Dataset(ds_uri), extra={"k": "v"})
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_events = session.execute(
+            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+        ).fetchall()
+
+        assert len(producer_events) == 2
+        for row in producer_events:
+            producer_event = row[0]
+            assert producer_event.source_task_id == "producer"
+            assert producer_event.source_dag_id == "producer_dag"
+            assert producer_event.source_run_id == "test"
+            assert producer_event.source_map_index == -1
+            assert producer_event.dataset.uri == ds_uri
+
+            if not producer_event.extra:
+                assert producer_event.extra == {}
+                assert len(producer_event.source_aliases) == 2
+                assert {alias.name for alias in producer_event.source_aliases} == {dsa_name_1, dsa_name_2}
+            else:
+                assert producer_event.extra == {"k": "v"}
+                assert len(producer_event.source_aliases) == 1
+                assert producer_event.source_aliases[0].name == dsa_name_3
+
+    def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
+        from airflow.datasets import DatasetAlias
+        from airflow.datasets.metadata import Metadata
+
+        dsa_name = "test_outlet_dataset_alias_through_metadata_dsa"
+
+        ds1 = DatasetModel(id=1, uri="test_outlet_dataset_alias_through_metadata_ds")
+        session.add(ds1)
+        session.commit()
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def producer(*, outlet_events):
+                yield Metadata(
+                    "test_outlet_dataset_alias_through_metadata_ds",
+                    extra={"key": "value"},
+                    alias=dsa_name,
+                )
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
+            "producer"
+        ]
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == "test_outlet_dataset_alias_through_metadata_ds"
+        assert producer_event.extra == {"key": "value"}
+        assert len(producer_event.source_aliases) == 1
+        assert producer_event.source_aliases[0].name == dsa_name
+
+    def test_outlet_dataset_alias_dataset_not_exists(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        dsa_name = "test_outlet_dataset_alias_dataset_not_exists_dsa"
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def producer(*, outlet_events):
+                outlet_events[dsa_name].add(Dataset("did_not_exists"), extra={"key": "value"})
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_event = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))[
+            "producer"
+        ]
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == "did_not_exists"
+        assert producer_event.extra == {"key": "value"}
+        assert len(producer_event.source_aliases) == 1
+        assert producer_event.source_aliases[0].name == dsa_name
 
     def test_inlet_dataset_extra(self, dag_maker, session):
         from airflow.datasets import Dataset

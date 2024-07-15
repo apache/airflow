@@ -34,11 +34,39 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+
+class DatasetAliasModel(Base):
+    """
+    A table to store dataset alias.
+
+    :param uri: a string that uniquely identifies the dataset alias
+    """
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(
+        String(length=3000).with_variant(
+            String(
+                length=3000,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    __tablename__ = "dataset_alias"
+
+    @classmethod
+    def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
+        return cls(name=obj.name)
 
 
 class DatasetModel(Base):
@@ -256,6 +284,27 @@ association_table = Table(
     Index("idx_dagrun_dataset_events_event_id", "event_id"),
 )
 
+dataset_alias_dataset_event_assocation_table = Table(
+    "dataset_alias_dataset_event",
+    Base.metadata,
+    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dataset_alias_dataset_event_alias_id", "alias_id"),
+    Index("idx_dataset_alias_dataset_event_event_id", "event_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="dss_de_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("event_id",),
+        ["dataset_event.id"],
+        name="dss_de_event_id",
+        ondelete="CASCADE",
+    ),
+)
+
 
 class DatasetEvent(Base):
     """
@@ -292,6 +341,12 @@ class DatasetEvent(Base):
         "DagRun",
         secondary=association_table,
         backref="consumed_dataset_events",
+    )
+
+    source_aliases = relationship(
+        "DatasetAliasModel",
+        secondary=dataset_alias_dataset_event_assocation_table,
+        backref="dataset_events",
     )
 
     source_task_instance = relationship(
