@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         from mysql.connector.abstracts import MySQLConnectionAbstract
     except ModuleNotFoundError:
         logger.warning("The package 'mysql-connector-python' is not installed. Import skipped")
+    from MySQLdb.connections import Connection as MySQLdbConnection
 
 MySQLConnectionTypes = Union["MySQLdbConnection", "MySQLConnectionAbstract"]
 
