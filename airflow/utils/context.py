@@ -40,7 +40,7 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import Dataset, coerce_to_uri
+from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent, extract_event_key
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
@@ -165,7 +165,32 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    extra: dict[str, Any]
+    raw_key: str | Dataset | DatasetAlias
+    extra: dict[str, Any] = attrs.Factory(dict)
+    dataset_alias_event: DatasetAliasEvent | None = None
+
+    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
+        """Add a DatasetEvent to an existing Dataset."""
+        if isinstance(dataset, str):
+            dataset_uri = dataset
+        elif isinstance(dataset, Dataset):
+            dataset_uri = dataset.uri
+        else:
+            return
+
+        if isinstance(self.raw_key, str):
+            dataset_alias_name = self.raw_key
+        elif isinstance(self.raw_key, DatasetAlias):
+            dataset_alias_name = self.raw_key.name
+        else:
+            return
+
+        if extra:
+            self.extra = extra
+
+        self.dataset_alias_event = DatasetAliasEvent(
+            source_alias_name=dataset_alias_name, dest_dataset_uri=dataset_uri
+        )
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
@@ -178,16 +203,20 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __init__(self) -> None:
         self._dict: dict[str, OutletEventAccessor] = {}
 
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
+
     def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
 
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor:
-        if (uri := coerce_to_uri(key)) not in self._dict:
-            self._dict[uri] = OutletEventAccessor({})
-        return self._dict[uri]
+    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
+        event_key = extract_event_key(key)
+        if event_key not in self._dict:
+            self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
+        return self._dict[event_key]
 
 
 class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
@@ -235,7 +264,7 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
             if not isinstance(dataset, Dataset):
                 raise IndexError(key)
         else:
-            dataset = self._datasets[coerce_to_uri(key)]
+            dataset = self._datasets[extract_event_key(key)]
         return LazyDatasetEventSelectSequence.from_select(
             select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri == dataset.uri),
             order_by=[DatasetEvent.timestamp],
