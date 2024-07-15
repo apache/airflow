@@ -24,7 +24,6 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
-from locale import LC_TIME, Error, setlocale
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -656,14 +655,6 @@ def skip_if_credential_file_missing(item):
         credential_path = os.path.join(os.environ.get("CREDENTIALS_DIR"), credential_file)
         if not os.path.exists(credential_path):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
-
-
-def is_locale_supported(loc):
-    try:
-        setlocale(LC_TIME, loc)
-        return True
-    except Error:
-        return False
 
 
 def pytest_runtest_setup(item):

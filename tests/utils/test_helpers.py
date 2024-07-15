@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
-    apply_locale,
     at_most_one,
     build_airflow_url_with_query,
     exactly_one,
@@ -38,7 +37,6 @@ from airflow.utils.helpers import (
     validate_key,
 )
 from airflow.utils.types import NOTSET
-from tests.conftest import is_locale_supported
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -391,16 +389,3 @@ def test_validate_instance_args_raises_no_error(instance, expected_arg_types):
 def test_validate_instance_args_raises_error(instance, expected_arg_types):
     with pytest.raises(TypeError):
         validate_instance_args(instance, expected_arg_types)
-
-
-@pytest.mark.parametrize(
-    "locale, expected",
-    [
-        ("nl_BE", "nl_BE"),
-    ],
-)
-def test_apply_locale(locale, expected):
-    if not is_locale_supported(locale):
-        pytest.skip(f"Locale {locale} is not supported on this system!")
-    with apply_locale(locale) as applied_locale:
-        assert applied_locale == expected

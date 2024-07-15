@@ -22,10 +22,8 @@ import itertools
 import re
 import signal
 import warnings
-from contextlib import contextmanager
 from datetime import datetime
 from functools import reduce
-from locale import LC_TIME, getlocale, setlocale
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
 from lazy_object_proxy import Proxy
@@ -396,28 +394,3 @@ def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, f
         raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
     duplicated_keys_display = ", ".join(sorted(duplicated_keys))
     raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
-
-
-@contextmanager
-def apply_locale(new_locale: str | None):
-    """
-    Apply a new locale within the current context and revert to the original locale afterward.
-
-    :param new_locale: Locale to be used within the context (e.g., 'en_US').
-                       If None (default), the locale will not be changed.
-    :yield: The locale set within the context.
-    """
-    current_locale = getlocale(LC_TIME)[0]
-
-    if new_locale is not None:
-        if new_locale == current_locale:
-            yield current_locale
-        else:
-            setlocale(LC_TIME, new_locale)
-
-            try:
-                yield new_locale
-            finally:
-                setlocale(LC_TIME, current_locale)
-    else:
-        yield current_locale
