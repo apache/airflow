@@ -40,8 +40,10 @@ if sys.version_info >= (3,6):
 # Script
 {{ python_callable_source }}
 
+_spark = SparkSession.builder.getOrCreate()
+_sc = _spark.sparkContext
+
 {% if use_arguments %}
-SparkSession.builder.getOrCreate()
 with open(SparkFiles.get("{{ input_filename }}"), "rb") as file:
     arg_dict = {{ pickling_library }}.load(file)
 {% else %}
@@ -49,11 +51,11 @@ arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
 
 {% if use_spark_session %}
-arg_dict["kwargs"]["spark_session"] = SparkSession.builder.getOrCreate()
+arg_dict["kwargs"]["spark"] = _spark
 {% endif %}
 
 {% if use_spark_context %}
-arg_dict["kwargs"]["spark_context"] = SparkSession.builder.getOrCreate().sparkContext
+arg_dict["kwargs"]["sc"] = _sc
 {% endif %}
 
 # Call

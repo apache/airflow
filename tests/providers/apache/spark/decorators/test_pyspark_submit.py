@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 from io import StringIO
-from textwrap import dedent
 from typing import Any
 from unittest.mock import patch
 
@@ -45,19 +44,22 @@ class TestPysparkSubmitDecorator:
             )
         )
 
+    @patch("airflow.providers.apache.spark.decorators.pyspark_submit.write_pyspark_script")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
-    def test_simple_pyspark_submit_decorator(self, mock_popen, dag_maker):
+    def test_pyspark_submit_decorator_with_simple_func(
+        self, mock_popen, mock_write_pyspark_script, dag_maker
+    ):
         mock_popen.return_value.stdout = StringIO("stdout")
         mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
 
         @task.pyspark_submit(conn_id="pyspark_local")
-        def f():
+        def some_task_function():
             pass
 
         with dag_maker():
-            ret = f()
+            ret = some_task_function()
 
         dr = dag_maker.create_dagrun()
         operator = ret.operator
@@ -67,40 +69,131 @@ class TestPysparkSubmitDecorator:
         assert "spark-submit" in cmd
         assert "--master spark://none" in cmd
         assert re.search(r"/tmp/.*/script.py", cmd) is not None
-        pyspark_source = operator.get_pyspark_source()
-        assert "from pyspark import SparkFiles" in pyspark_source
-        assert "from pyspark.sql import SparkSession" in pyspark_source
 
+        mock_write_pyspark_script.assert_called_once()
+        jinja_context = mock_write_pyspark_script.call_args[1]["jinja_context"]
+        assert jinja_context["use_arguments"] is False
+        assert jinja_context["use_spark_context"] is False
+        assert jinja_context["use_spark_session"] is False
+        assert jinja_context["pickling_library"] == "pickle"
+        assert jinja_context["python_callable"] == "some_task_function"
+        assert ("def some_task_function():\n    pass\n") in jinja_context["python_callable_source"]
+        assert jinja_context["expect_airflow"] is False
+
+    @patch("airflow.providers.apache.spark.decorators.pyspark_submit.write_pyspark_script")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
-    def test_pyspark_submit_decorator_with_op_args_and_op_kwargs(self, mock_popen):
+    def test_pyspark_submit_decorator_with_complex_function(self, mock_popen, mock_write_pyspark_script):
         mock_popen.return_value.stdout = StringIO("stdout")
         mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
 
         @task.pyspark_submit(conn_id="pyspark_local")
-        def f(a: int, b: str, c: Any = None):
+        def some_task_function(a: int, b: str, c: Any = None) -> tuple[int, str, Any]:
+            """hello world"""
             return a, b, c
 
-        ret = f(1, "2", {"c": 3})
+        ret = some_task_function(1, "2", {"c": 3})
 
         operator = ret.operator
-        with patch.object(
-            operator, "get_pyspark_source", wraps=operator.get_pyspark_source
-        ) as mock_get_pyspark_source:
-            operator.execute(None)
-            mock_get_pyspark_source.assert_called_once()
-            pyspark_source = mock_get_pyspark_source()
-            argument_block = dedent(
-                f"""\
-                if True:
-                    SparkSession.builder.getOrCreate()
-                    with open(SparkFiles.get("{INPUT_FILENAME}"), "rb") as file:
-                        arg_dict = pickle.load(file)"""
-            )
-            assert argument_block in pyspark_source
-            assert operator.files
-            assert re.search(f"/tmp/.*/{INPUT_FILENAME}", operator.files) is not None
+        operator.execute(None)
+        assert operator.files
+        assert re.search(f"/tmp/.*/{INPUT_FILENAME}", operator.files) is not None
+
+        mock_write_pyspark_script.assert_called_once()
+        assert operator.application == mock_write_pyspark_script.call_args[1]["filename"]
+        jinja_context = mock_write_pyspark_script.call_args[1]["jinja_context"]
+        assert jinja_context["use_arguments"] is True
+        assert jinja_context["use_spark_context"] is False
+        assert jinja_context["use_spark_session"] is False
+        assert re.search(f"/tmp/.*/{INPUT_FILENAME}", jinja_context["input_filename"]) is not None
+        assert jinja_context["pickling_library"] == "pickle"
+        assert jinja_context["python_callable"] == "some_task_function"
+        assert jinja_context["python_callable_source"].startswith(
+            "def some_task_function(a: int, b: str, c: Any = None) -> tuple[int, str, Any]:"
+        )
+        assert jinja_context["expect_airflow"] is False
+
+    @patch("airflow.providers.apache.spark.decorators.pyspark_submit.write_pyspark_script")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_pyspark_submit_decorator_with_op_args_and_op_kwargs(self, mock_popen, mock_write_pyspark_script):
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
+        mock_popen.return_value.poll.return_value = None
+        mock_popen.return_value.wait.return_value = 0
+
+        @task.pyspark_submit(conn_id="pyspark_local")
+        def some_task_function(a: int, b: str, c: Any = None) -> tuple[int, str, Any]:
+            return a, b, c
+
+        ret = some_task_function(1, "2", {"c": 3})
+
+        operator = ret.operator
+        operator.execute(None)
+
+        jinja_context = mock_write_pyspark_script.call_args[1]["jinja_context"]
+        assert jinja_context["use_arguments"] is True
+
+    @patch("airflow.providers.apache.spark.decorators.pyspark_submit.write_pyspark_script")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_pyspark_submit_decorator_with_spark_params(self, mock_popen, mock_write_pyspark_script):
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
+        mock_popen.return_value.poll.return_value = None
+        mock_popen.return_value.wait.return_value = 0
+
+        @task.pyspark_submit(conn_id="pyspark_local")
+        def f(spark):
+            print("spark", spark)
+
+        ret = f()
+        operator = ret.operator
+        operator.execute(None)
+
+        jinja_context = mock_write_pyspark_script.call_args[1]["jinja_context"]
+        assert jinja_context["use_spark_context"] is False
+        assert jinja_context["use_spark_session"] is True
+
+    @patch("airflow.providers.apache.spark.decorators.pyspark_submit.write_pyspark_script")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_pyspark_submit_decorator_with_sc_params(self, mock_popen, mock_write_pyspark_script):
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
+        mock_popen.return_value.poll.return_value = None
+        mock_popen.return_value.wait.return_value = 0
+
+        @task.pyspark_submit(conn_id="pyspark_local")
+        def f(sc):
+            print("sc", sc)
+
+        ret = f()
+        operator = ret.operator
+        operator.execute(None)
+
+        jinja_context = mock_write_pyspark_script.call_args[1]["jinja_context"]
+        assert jinja_context["use_spark_context"] is True
+        assert jinja_context["use_spark_session"] is False
+
+    @patch("airflow.providers.apache.spark.decorators.pyspark_submit.write_pyspark_script")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_pyspark_submit_decorator_with_sc_and_spark(self, mock_popen, mock_write_pyspark_script):
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
+        mock_popen.return_value.poll.return_value = None
+        mock_popen.return_value.wait.return_value = 0
+
+        @task.pyspark_submit(conn_id="pyspark_local")
+        def f(sc, spark):
+            print("sc", sc)
+            print("spark", spark)
+
+        ret = f()
+        operator = ret.operator
+        operator.execute(None)
+
+        jinja_context = mock_write_pyspark_script.call_args[1]["jinja_context"]
+        assert jinja_context["use_spark_context"] is True
+        assert jinja_context["use_spark_session"] is True
 
     @conf_vars({("operators", "ALLOW_ILLEGAL_ARGUMENTS"): "false"})
     def test_pyspark_submit_decorator_with_application_decorator_param(self):
@@ -122,21 +215,6 @@ class TestPysparkSubmitDecorator:
             f()
         assert "Invalid argument 'application_args' were passed to `@task.pyspark_submit`." in str(ctx.value)
 
-    def test_pyspark_submit_decorator_with_spark_params(self):
-        @task.pyspark_submit(conn_id="pyspark_local")
-        def f(spark):
-            print(spark)
-
-        ret = f()
-        operator = ret.operator
-        pyspark_source = operator.get_pyspark_source()
-        use_spark_session_block = dedent(
-            """\
-            if True:
-                arg_dict["kwargs"]["spark"] = SparkSession.builder.getOrCreate()"""
-        )
-        assert use_spark_session_block in pyspark_source
-
     @conf_vars({("operators", "ALLOW_ILLEGAL_ARGUMENTS"): "false"})
     def test_pyspark_submit_decorator_when_spark_in_op_kwargs(self):
         @task.pyspark_submit(conn_id="pyspark_local")
@@ -146,21 +224,6 @@ class TestPysparkSubmitDecorator:
         with pytest.raises(AirflowException) as ctx:
             f(spark=1)
         assert "Invalid key 'spark' in op_kwargs." in str(ctx.value)
-
-    def test_pyspark_submit_decorator_with_sc_params(self):
-        @task.pyspark_submit(conn_id="pyspark_local")
-        def f(sc):
-            pass
-
-        ret = f()
-        operator = ret.operator
-        pyspark_source = operator.get_pyspark_source()
-        use_spark_context_block = (
-            "if True:\n"
-            '    spark = arg_dict.get("spark") or SparkSession.builder.getOrCreate()\n'
-            '    arg_dict["kwargs"]["sc"] = spark.sparkContext'
-        )
-        assert use_spark_context_block in pyspark_source
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_pyspark_submit_decorator_with_spark_submit_operator_args(self, mock_popen, dag_maker):

@@ -31,7 +31,7 @@ from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decor
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.decorators.pyspark import SPARK_CONTEXT_KEYS
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.providers.apache.spark.pyspark_submit_script import write_pyspark_script
+from airflow.providers.apache.spark.utils.pyspark_submit_script import write_pyspark_script
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -52,4 +52,4 @@ def write_pyspark_script(
             autoescape=select_autoescape(["html", "xml"]),
         )
     template = template_env.get_template("pyspark_submit_script.jinja2")
-    template.stream(**jinja_context).dump(filename)
+    template.stream(**jinja_context).dump(filename)  # type: ignore
