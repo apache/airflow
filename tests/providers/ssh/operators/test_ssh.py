@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import random
+from datetime import timedelta
 from unittest import mock
 
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
@@ -198,10 +199,7 @@ class TestSSHOperator:
             ssh_hook=self.hook,
             command="ls",
         )
-
-        with mock.patch.object(task, "on_kill"):
-            task.execute()
-            task.on_kill.assert_called_once()
+        task.execute()
 
         self.hook.get_conn.assert_called_once()
         self.hook.get_conn.return_value.__exit__.assert_called_once()
@@ -270,3 +268,28 @@ class TestSSHOperator:
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
+
+    def test_on_kill_called_on_timeout(self, dag_maker, caplog):
+        with dag_maker():
+            op = SSHOperator(
+                task_id="test_on_kill",
+                ssh_hook=self.hook,
+                command="sleep 300",
+                execution_timeout=timedelta(seconds=5),  # Set a short timeout for testing
+            )
+        dr = dag_maker.create_dagrun(run_id="test_on_kill_run")
+        ti = TaskInstance(task=op, run_id=dr.run_id)
+
+        with mock.patch.object(op, 'on_kill') as mock_on_kill:
+            with pytest.raises(AirflowTaskTimeout):
+                with caplog.at_level('INFO'):
+                    op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+                    mock_on_kill.assert_called_once()
+
+        op.on_kill()
+
+        # Print captured logs
+        for record in caplog.records:
+            print(record.message)
+
+        assert "SSH client closed." in caplog.text
