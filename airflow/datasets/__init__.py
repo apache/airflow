@@ -189,7 +189,7 @@ class DatasetAlias(BaseDataset):
 
         :meta private:
         """
-        return {"any": [o.as_expression() for o in self.expand_datasets()]}
+        return {"alias": self.name}
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         for dataset in self.expand_datasets():
