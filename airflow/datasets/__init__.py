@@ -203,9 +203,9 @@ class DatasetAlias(BaseDataset):
         """Expand the dataset alias to resolved datasets."""
         from airflow.models.dataset import DatasetAliasModel
 
-        dataset_alias_obj = session.scalars(
+        dataset_alias_obj = session.scalar(
             select(DatasetAliasModel).where(DatasetAliasModel.name == self.name).limit(1)
-        ).one()
+        )
         if dataset_alias_obj:
             return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
 
