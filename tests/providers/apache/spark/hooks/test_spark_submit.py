@@ -664,7 +664,8 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "privileged_user.keytab"
 
-    def test_resolve_connection_keytab_value_override(self):
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._get_keytab_from_base64")
+    def test_resolve_connection_keytab_value_override(self, mock_get_keytab_from_base64):
         # Given
         hook = SparkSubmitHook(conn_id="spark_keytab_set", keytab="will-override")
 
@@ -685,6 +686,7 @@ class TestSparkSubmitHook:
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "will-override"
+        assert not mock_get_keytab_from_base64.called, "Should not call _get_keytab_from_base64"
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
