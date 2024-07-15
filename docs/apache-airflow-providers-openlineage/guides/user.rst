@@ -253,7 +253,7 @@ By default, OpenLineage integration's AirflowRunFacet - attached on START event 
 not contain full serialized task information (parameters to given operator), but only includes select parameters.
 
 However, we allow users to set OpenLineage integration to include full task information. By doing this, rather than
-serializing only few known attributes, we operate in exclude mode - and exclude certain non-serializable elements.
+serializing only a few known attributes, we exclude certain non-serializable elements and send everything else.
 
 .. code-block:: ini
 
