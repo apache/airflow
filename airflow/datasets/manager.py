@@ -26,7 +26,12 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+)
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
