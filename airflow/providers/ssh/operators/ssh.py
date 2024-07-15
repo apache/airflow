@@ -193,7 +193,6 @@ class SSHOperator(BaseOperator):
         if not enable_pickling:
             result = b64encode(result).decode("utf-8")
 
-        self.on_kill()
         return result
 
     def tunnel(self) -> None:
