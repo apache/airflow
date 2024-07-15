@@ -14,33 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import pendulum
 
-import attrs
+from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
 
-from airflow.datasets import DatasetAlias, extract_event_key
-
-if TYPE_CHECKING:
-    from airflow.datasets import Dataset
-
-
-@attrs.define(init=False)
-class Metadata:
-    """Metadata to attach to a DatasetEvent."""
-
-    uri: str
-    extra: dict[str, Any]
-    alias_name: str | None = None
-
-    def __init__(
-        self, target: str | Dataset, extra: dict[str, Any], alias: DatasetAlias | str | None = None
-    ) -> None:
-        self.uri = extract_event_key(target)
-        self.extra = extra
-        if isinstance(alias, DatasetAlias):
-            self.alias_name = alias.name
-        else:
-            self.alias_name = alias
+with DAG(
+    dag_id="example_workday_timetable",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=AfterWorkdayTimetable(),
+    tags=["example", "timetable"],
+):
+    EmptyOperator(task_id="run_this")

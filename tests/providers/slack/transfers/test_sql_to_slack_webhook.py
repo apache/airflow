@@ -285,7 +285,7 @@ class TestSqlToSlackWebhookOperator:
                 slack_conn_id=slack_conn_id,
                 slack_webhook_conn_id=slack_webhook_conn_id,
                 sql_conn_id="fake-sql-conn-id",
-                slack_message="<https://github.com/apache/airflow|Apache Airflow™>",
+                slack_message="<https://github.com/apache/airflow|Apache Airflow®>",
             ).expand(sql=["SELECT 1", "SELECT 2"])
 
         dr = dag_maker.create_dagrun()
@@ -304,7 +304,7 @@ class TestSqlToSlackWebhookOperator:
                 slack_conn_id="slack_conn_id",
                 slack_webhook_conn_id="slack_webhook_conn_id",
                 sql_conn_id="fake-sql-conn-id",
-                slack_message="<https://github.com/apache/airflow|Apache Airflow™>",
+                slack_message="<https://github.com/apache/airflow|Apache Airflow®>",
             ).expand(sql=["SELECT 1", "SELECT 2"])
 
         dr = dag_maker.create_dagrun(session=session)
