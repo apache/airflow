@@ -36,11 +36,12 @@ def rotate_fernet_key(args):
     rotate_method = rotate_items_in_batches_v1 if is_sqlalchemy_v1() else rotate_items_in_batches_v2
 
     with create_session() as session:
-        rotate_method(
-            session, Connection, Connection.is_encrypted | Connection.is_extra_encrypted, batch_size
-        )
-        rotate_method(session, Variable, Variable.is_encrypted, batch_size)
-        rotate_method(session, Trigger, batch_size)
+        with session.begin():  # Start a single transaction
+            rotate_method(
+                session, Connection, Connection.is_encrypted | Connection.is_extra_encrypted, batch_size
+            )
+            rotate_method(session, Variable, Variable.is_encrypted, batch_size)
+            rotate_method(session, Trigger, batch_size)
 
 
 def rotate_items_in_batches_v1(session, model_class, filter_condition=None, batch_size=100):
