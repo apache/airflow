@@ -160,7 +160,7 @@ class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
     def __init__(self):
-        super().__init__(None, None)
+        super().__init__(None, None, session="MockSession")
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._data)
