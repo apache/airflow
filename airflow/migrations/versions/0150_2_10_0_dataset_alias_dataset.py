@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Empty message
+Add dataset_alias_dataset association table.
 
 Revision ID: 8684e37832e6
 Revises: 41b3bc7c0272
