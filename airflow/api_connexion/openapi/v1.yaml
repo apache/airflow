@@ -1229,6 +1229,37 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /taskEventLogs:
+    get:
+      summary: List log entries (experimental)
+      description: |
+        List log entries from task event log (experimental).
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_event_log_endpoint
+      operationId: get_task_event_logs
+      tags: [TaskEventLog]
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterDAGID"
+        - $ref: "#/components/parameters/FilterTaskID"
+        - $ref: "#/components/parameters/FilterRunID"
+        - $ref: "#/components/parameters/FilterMapIndex"
+        - $ref: "#/components/parameters/FilterTryNumber"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskEventLogCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
   /eventLogs:
     get:
       summary: List log entries
@@ -3378,6 +3409,49 @@ components:
           readOnly: true
           nullable: true
 
+    TaskEventLog:
+      type: object
+      description: Log of task events.
+      properties:
+        id:
+          description: The task event log ID
+          type: integer
+          readOnly: true
+        created_at:
+          description: The time when the event was recorded
+          format: date-time
+          type: string
+          readOnly: true
+        dag_id:
+          description: The DAG ID
+          type: string
+          readOnly: true
+          nullable: true
+        task_id:
+          description: The Task ID
+          type: string
+          readOnly: true
+          nullable: true
+        run_id:
+          description: The DAG Run ID
+          type: string
+          readOnly: true
+          nullable: true
+        map_index:
+          description: The DAG Run ID
+          type: integer
+          readOnly: true
+          nullable: true
+        try_number:
+          description: The DAG Run ID
+          type: integer
+          readOnly: true
+          nullable: true
+        description:
+          description: A description of the event.
+          type: string
+          readOnly: true
+
     EventLogCollection:
       type: object
       description: |
@@ -3391,6 +3465,21 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/EventLog"
+        - $ref: "#/components/schemas/CollectionInfo"
+
+    TaskEventLogCollection:
+      type: object
+      description: |
+        Collection of task event logs. (Experimental)
+
+        *Added in version 2.10.0*
+      allOf:
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/TaskEventLog"
         - $ref: "#/components/schemas/CollectionInfo"
 
     ImportError:
@@ -5586,6 +5675,13 @@ components:
       schema:
         type: integer
       description: Filter on map index for mapped task.
+
+    FilterTryNumber:
+      in: query
+      name: try_number
+      schema:
+        type: integer
+      description: Filter on try number for task instance.
 
     OrderBy:
       in: query

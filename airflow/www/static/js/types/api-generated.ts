@@ -345,6 +345,14 @@ export interface paths {
       };
     };
   };
+  "/taskEventLogs": {
+    /**
+     * List log entries from task event log (experimental).
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_task_event_logs"];
+  };
   "/eventLogs": {
     /** List log entries from event log. */
     get: operations["get_event_logs"];
@@ -1280,6 +1288,28 @@ export interface components {
       /** @description Other information that was not included in the other fields, e.g. the complete CLI command. */
       extra?: string | null;
     };
+    /** @description Log of task events. */
+    TaskEventLog: {
+      /** @description The task event log ID */
+      id?: number;
+      /**
+       * Format: date-time
+       * @description The time when the event was recorded
+       */
+      created_at?: string;
+      /** @description The DAG ID */
+      dag_id?: string | null;
+      /** @description The Task ID */
+      task_id?: string | null;
+      /** @description The DAG Run ID */
+      run_id?: string | null;
+      /** @description The DAG Run ID */
+      map_index?: number | null;
+      /** @description The DAG Run ID */
+      try_number?: number | null;
+      /** @description A description of the event. */
+      description?: string;
+    };
     /**
      * @description Collection of event logs.
      *
@@ -1287,6 +1317,14 @@ export interface components {
      */
     EventLogCollection: {
       event_logs?: components["schemas"]["EventLog"][];
+    } & components["schemas"]["CollectionInfo"];
+    /**
+     * @description Collection of task event logs. (Experimental)
+     *
+     * *Added in version 2.10.0*
+     */
+    TaskEventLogCollection: {
+      data?: components["schemas"]["TaskEventLog"][];
     } & components["schemas"]["CollectionInfo"];
     ImportError: {
       /** @description The import error ID. */
@@ -2598,6 +2636,8 @@ export interface components {
     FilterSourceMapIndex: number;
     /** @description Filter on map index for mapped task. */
     FilterMapIndex: number;
+    /** @description Filter on try number for task instance. */
+    FilterTryNumber: number;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -3653,6 +3693,48 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * List log entries from task event log (experimental).
+   *
+   * *New in version 2.10.0*
+   */
+  get_task_event_logs: {
+    parameters: {
+      query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by.
+         * Prefix a field name with `-` to reverse the sort order.
+         *
+         * *New in version 2.1.0*
+         */
+        order_by?: components["parameters"]["OrderBy"];
+        /** Returns objects matched by the DAG ID. */
+        dag_id?: components["parameters"]["FilterDAGID"];
+        /** Returns objects matched by the Task ID. */
+        task_id?: components["parameters"]["FilterTaskID"];
+        /** Returns objects matched by the Run ID. */
+        run_id?: components["parameters"]["FilterRunID"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Filter on try number for task instance. */
+        try_number?: components["parameters"]["FilterTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskEventLogCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
     };
   };
   /** List log entries from event log. */
@@ -5242,8 +5324,14 @@ export type SetDagRunNote = CamelCasedPropertiesDeep<
 export type EventLog = CamelCasedPropertiesDeep<
   components["schemas"]["EventLog"]
 >;
+export type TaskEventLog = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskEventLog"]
+>;
 export type EventLogCollection = CamelCasedPropertiesDeep<
   components["schemas"]["EventLogCollection"]
+>;
+export type TaskEventLogCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskEventLogCollection"]
 >;
 export type ImportError = CamelCasedPropertiesDeep<
   components["schemas"]["ImportError"]
@@ -5579,6 +5667,9 @@ export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
 export type DeleteDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["delete_dataset_queued_events"]["parameters"]["path"] &
     operations["delete_dataset_queued_events"]["parameters"]["query"]
+>;
+export type GetTaskEventLogsVariables = CamelCasedPropertiesDeep<
+  operations["get_task_event_logs"]["parameters"]["query"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]

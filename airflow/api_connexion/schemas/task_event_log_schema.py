@@ -39,19 +39,22 @@ class TaskEventLogSchema(SQLAlchemySchema):
     run_id = auto_field(dump_only=True)
     map_index = auto_field(dump_only=True)
     try_number = auto_field(dump_only=True)
-    message = auto_field(dump_only=True)
+    description = auto_field(dump_only=True)
 
 
 class TaskEventLogCollection(NamedTuple):
     """List of import errors with metadata."""
 
-    event_logs: list[TaskEventLog]
+    data: list[TaskEventLog]
     total_entries: int
 
 
 class TaskEventLogCollectionSchema(Schema):
     """EventLog Collection Schema."""
 
-    event_logs = fields.List(fields.Nested(TaskEventLogSchema))
-    task_event_logs = fields.List(fields.Nested(TaskEventLogSchema))
+    data = fields.List(fields.Nested(TaskEventLogSchema))
     total_entries = fields.Int()
+
+
+task_event_log_schema = TaskEventLogSchema()
+task_event_log_collection_schema = TaskEventLogCollectionSchema()
