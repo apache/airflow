@@ -229,16 +229,21 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("Variable not found")
             return variable.key
 
-        return {
-            RESOURCE_AUDIT_LOG: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
+        def _is_authorized_view(view_):
+            return lambda action, resource_pk, user: auth_manager.is_authorized_view(
+                access_view=view_,
+                user=user,
+            )
+
+        def _is_authorized_dag(entity_=None, details_func_=None):
+            return lambda action, resource_pk, user: auth_manager.is_authorized_dag(
                 method=methods[action],
-                access_entity=DagAccessEntity.AUDIT_LOG,
+                access_entity=entity_,
+                details=DagDetails(id=details_func_(resource_pk)) if details_func_ else None,
                 user=user,
-            ),
-            RESOURCE_CLUSTER_ACTIVITY: lambda action, resource_pk, user: auth_manager.is_authorized_view(
-                access_view=AccessView.CLUSTER_ACTIVITY,
-                user=user,
-            ),
+            )
+
+        mapping = {
             RESOURCE_CONFIG: lambda action, resource_pk, user: auth_manager.is_authorized_configuration(
                 method=methods[action],
                 user=user,
@@ -248,40 +253,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 details=ConnectionDetails(conn_id=get_connection_id(resource_pk)),
                 user=user,
             ),
-            RESOURCE_DAG: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                user=user,
-            ),
-            RESOURCE_DAG_CODE: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.CODE,
-                user=user,
-            ),
-            RESOURCE_DAG_DEPENDENCIES: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.DEPENDENCIES,
-                user=user,
-            ),
-            RESOURCE_DAG_RUN: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.RUN,
-                details=DagDetails(id=get_dag_id_from_dagrun_id(resource_pk)),
-                user=user,
-            ),
             RESOURCE_DATASET: lambda action, resource_pk, user: auth_manager.is_authorized_dataset(
                 method=methods[action],
-                user=user,
-            ),
-            RESOURCE_DOCS: lambda action, resource_pk, user: auth_manager.is_authorized_view(
-                access_view=AccessView.DOCS,
-                user=user,
-            ),
-            RESOURCE_PLUGIN: lambda action, resource_pk, user: auth_manager.is_authorized_view(
-                access_view=AccessView.PLUGINS,
-                user=user,
-            ),
-            RESOURCE_JOB: lambda action, resource_pk, user: auth_manager.is_authorized_view(
-                access_view=AccessView.JOBS,
                 user=user,
             ),
             RESOURCE_POOL: lambda action, resource_pk, user: auth_manager.is_authorized_pool(
@@ -289,41 +262,34 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 details=PoolDetails(name=get_pool_name(resource_pk)),
                 user=user,
             ),
-            RESOURCE_PROVIDER: lambda action, resource_pk, user: auth_manager.is_authorized_view(
-                access_view=AccessView.PROVIDERS,
-                user=user,
-            ),
-            RESOURCE_SLA_MISS: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.SLA_MISS,
-                user=user,
-            ),
-            RESOURCE_TASK_INSTANCE: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.TASK_INSTANCE,
-                details=DagDetails(id=get_dag_id_from_task_instance(resource_pk)),
-                user=user,
-            ),
-            RESOURCE_TASK_RESCHEDULE: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.TASK_RESCHEDULE,
-                user=user,
-            ),
-            RESOURCE_TRIGGER: lambda action, resource_pk, user: auth_manager.is_authorized_view(
-                access_view=AccessView.TRIGGERS,
-                user=user,
-            ),
             RESOURCE_VARIABLE: lambda action, resource_pk, user: auth_manager.is_authorized_variable(
                 method=methods[action],
                 details=VariableDetails(key=get_variable_key(resource_pk)),
                 user=user,
             ),
-            RESOURCE_XCOM: lambda action, resource_pk, user: auth_manager.is_authorized_dag(
-                method=methods[action],
-                access_entity=DagAccessEntity.XCOM,
-                user=user,
-            ),
         }
+        for resource, entity, details_func in [
+            (RESOURCE_DAG, None, None),
+            (RESOURCE_AUDIT_LOG, DagAccessEntity.AUDIT_LOG, None),
+            (RESOURCE_DAG_CODE, DagAccessEntity.CODE, None),
+            (RESOURCE_DAG_DEPENDENCIES, DagAccessEntity.DEPENDENCIES, None),
+            (RESOURCE_SLA_MISS, DagAccessEntity.SLA_MISS, None),
+            (RESOURCE_TASK_RESCHEDULE, DagAccessEntity.TASK_RESCHEDULE, None),
+            (RESOURCE_XCOM, DagAccessEntity.XCOM, None),
+            (RESOURCE_DAG_RUN, DagAccessEntity.RUN, get_dag_id_from_dagrun_id),
+            (RESOURCE_TASK_INSTANCE, DagAccessEntity.TASK_INSTANCE, get_dag_id_from_task_instance),
+        ]:
+            mapping[resource] = _is_authorized_dag(entity, details_func)
+        for resource, view in [
+            (RESOURCE_CLUSTER_ACTIVITY, AccessView.CLUSTER_ACTIVITY),
+            (RESOURCE_DOCS, AccessView.DOCS),
+            (RESOURCE_PLUGIN, AccessView.PLUGINS),
+            (RESOURCE_JOB, AccessView.JOBS),
+            (RESOURCE_PROVIDER, AccessView.PROVIDERS),
+            (RESOURCE_TRIGGER, AccessView.TRIGGERS),
+        ]:
+            mapping[resource] = _is_authorized_view(view)
+        return mapping
 
     def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable:
         is_authorized_method = self._auth_manager_is_authorized_map.get(fab_resource_name)
