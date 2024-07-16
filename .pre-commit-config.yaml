@@ -684,14 +684,14 @@ repos:
           ^airflow/providers/.*\.py$
         exclude: ^.*/.*_vendor/
       - id: check-get-lineage-collector-providers
-        language: pygrep
+        language: python
         name: Check providers import hook lineage code from compat
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
           airflow.lineage.hook.
-        entry: "airflow\\.lineage\\.hook"
-        pass_filenames: true
+        entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
         files: ^airflow/providers/.*\.py$
         exclude: ^airflow/providers/common/compat/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python
