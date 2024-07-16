@@ -905,6 +905,7 @@ KiB
 Kibana
 killMode
 Kinesis
+kinesis
 kinit
 kms
 knn
