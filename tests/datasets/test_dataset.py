@@ -25,11 +25,19 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny, _sanitize_uri
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.datasets import (
+    BaseDataset,
+    Dataset,
+    DatasetAll,
+    DatasetAny,
+    _DatasetAliasCondition,
+    _sanitize_uri,
+)
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
@@ -470,3 +478,65 @@ def test__sanitize_uri_raises_exception():
         _sanitize_uri("postgres://localhost:5432/database.schema.table")
     assert isinstance(e_info.value, ValueError)
     assert str(e_info.value) == "Incorrect URI format"
+
+
+@pytest.mark.db_test
+class Test_DatasetAliasCondition:
+    @pytest.fixture
+    def ds_1(self, session):
+        """Example dataset links to dataset alias resolved_dsa_2."""
+        ds_uri = "test_uri"
+        ds_1 = DatasetModel(id=1, uri=ds_uri)
+
+        session.add(ds_1)
+        session.commit()
+
+        yield ds_1
+
+        db.clear_db_datasets()
+
+    @pytest.fixture
+    def dsa_1(self, session):
+        """Example dataset alias links to no datasets."""
+        dsa_name = "test_name"
+        dsa_1 = DatasetAliasModel(name=dsa_name)
+
+        session.add(dsa_1)
+        session.commit()
+
+        yield dsa_1
+
+        db.clear_db_datasets()
+
+    @pytest.fixture
+    def resolved_dsa_2(self, session, ds_1):
+        """Example dataset alias links to  dataset dsa_1."""
+        dsa_name = "test_name_2"
+        dsa_2 = DatasetAliasModel(name=dsa_name)
+        dsa_2.datasets.append(ds_1)
+
+        session.add(dsa_2)
+        session.commit()
+
+        yield dsa_2
+
+        db.clear_db_datasets()
+
+    def test_expand_datasets_with_clean_dataset_alias(self, dsa_1, ds_1, resolved_dsa_2):
+        cond = _DatasetAliasCondition(name=dsa_1.name)
+        assert cond.objects == []
+
+        cond = _DatasetAliasCondition(name=resolved_dsa_2.name)
+        assert cond.objects == [Dataset(uri=ds_1.uri)]
+
+    def test_as_expression(self, dsa_1, resolved_dsa_2):
+        for dsa in (dsa_1, resolved_dsa_2):
+            cond = _DatasetAliasCondition(dsa.name)
+            assert cond.as_expression() == {"alias": dsa.name}
+
+    def test_evalute(self, dsa_1, resolved_dsa_2, ds_1):
+        cond = _DatasetAliasCondition(dsa_1.name)
+        assert cond.evaluate({ds_1.uri: True}) is False
+
+        cond = _DatasetAliasCondition(resolved_dsa_2.name)
+        assert cond.evaluate({ds_1.uri: True}) is True
