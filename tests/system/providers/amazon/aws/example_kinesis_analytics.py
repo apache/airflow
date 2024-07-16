@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import datetime as dt
 import json
 import random
 from datetime import datetime
-import datetime as dt
+
 import boto3
 
 from airflow import DAG, settings
@@ -125,7 +126,6 @@ def kinesis_analytics_v2_workflow():
         task_id="await_stop_application",
         application_name=application_name,
     )
-
     # [END howto_sensor_stop_application]
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -152,7 +152,7 @@ def copy_jar_to_s3(bucket: str):
 
     Copy application code to S3 using HttpToS3Operator.
 
-    :param bucket: Name of the Amazon S3 bucket to send the data.
+    :param bucket: Name of the Amazon S3 bucket.
     """
 
     @task
@@ -189,25 +189,19 @@ def create_kinesis_stream(stream: str):
     """
     Create kinesis stream and put some sample data.
 
-    :param stream: Name of kinesis stream
+    :param stream: Name of the kinesis stream.
     """
     client = boto3.client("kinesis", region_name=region_name)
     client.create_stream(StreamName=stream, ShardCount=1, StreamModeDetails={"StreamMode": "PROVISIONED"})
     account_id = boto3.client("sts").get_caller_identity()["Account"]
-    waiter = client.get_waiter('stream_exists')
-    waiter.wait(
-        StreamName=stream,
-        WaiterConfig={
-            'Delay': 60,
-            'MaxAttempts': 4
-        }
-    )
+    waiter = client.get_waiter("stream_exists")
+    waiter.wait(StreamName=stream, WaiterConfig={"Delay": 60, "MaxAttempts": 4})
 
     def get_data():
         return {
-            'event_time': dt.datetime.now().isoformat(),
-            'ticker': random.choice(['AAPL', 'AMZN', 'MSFT', 'INTC', 'TBV']),
-            'price': round(random.random() * 100, 2),
+            "event_time": dt.datetime.now().isoformat(),
+            "ticker": random.choice(["AAPL", "AMZN", "MSFT", "INTC", "TBV"]),
+            "price": round(random.random() * 100, 2),
         }
 
     for _ in range(2):
@@ -215,7 +209,7 @@ def create_kinesis_stream(stream: str):
         client.put_record(
             StreamARN=f"arn:aws:kinesis:{region_name}:{account_id}:stream/{stream}",
             Data=json.dumps(data),
-            PartitionKey=data["ticker"]
+            PartitionKey=data["ticker"],
         )
 
 
