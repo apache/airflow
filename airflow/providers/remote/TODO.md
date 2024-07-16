@@ -54,7 +54,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Add a stop command
 - [ ] Web UI
   - [ ] Show logs while executing
-  - [ ] Show logs after completion
+  - [x] Show logs after completion
 - [ ] Configurability
 - [ ] Documentation
   - [x] References in Airflow core
