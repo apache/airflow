@@ -24,11 +24,11 @@ import pytest
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.openlineage.conf import (
     _is_true,
-    _safe_int_convert,
     config_path,
     custom_extractors,
     dag_state_change_process_pool_size,
     disabled_operators,
+    execution_timeout,
     include_full_task_info,
     is_disabled,
     is_source_enabled,
@@ -44,6 +44,7 @@ _CONFIG_OPTION_CONFIG_PATH = "config_path"
 _VAR_DISABLE_SOURCE_CODE = "OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE"
 _CONFIG_OPTION_DISABLE_SOURCE_CODE = "disable_source_code"
 _CONFIG_OPTION_DISABLED_FOR_OPERATORS = "disabled_for_operators"
+_CONFIG_OPTION_EXECUTION_TIMEOUT = "execution_timeout"
 _VAR_EXTRACTORS = "OPENLINEAGE_EXTRACTORS"
 _CONFIG_OPTION_EXTRACTORS = "extractors"
 _VAR_NAMESPACE = "OPENLINEAGE_NAMESPACE"
@@ -84,35 +85,6 @@ _BOOL_PARAMS = (
 )
 def test_is_true(var_string, expected):
     assert _is_true(var_string) is expected
-
-
-@pytest.mark.parametrize(
-    "input_value, expected",
-    [
-        ("123", 123),
-        (456, 456),
-        ("789", 789),
-        (0, 0),
-        ("0", 0),
-    ],
-)
-def test_safe_int_convert(input_value, expected):
-    assert _safe_int_convert(input_value, default=1) == expected
-
-
-@pytest.mark.parametrize(
-    "input_value, default",
-    [
-        ("abc", 1),
-        ("", 2),
-        (None, 3),
-        ("123abc", 4),
-        ([], 5),
-        ("1.2", 6),
-    ],
-)
-def test_safe_int_convert_erroneous_values(input_value, default):
-    assert _safe_int_convert(input_value, default) == default
 
 
 @env_vars({_VAR_CONFIG_PATH: "env_var_path"})
@@ -161,7 +133,8 @@ def test_disable_source_code_conf_option_has_precedence_over_legacy_env_var():
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): "asdadawlaksnd"})
 def test_disable_source_code_conf_option_not_working_for_random_string():
-    assert is_source_enabled() is True
+    with pytest.raises(AirflowConfigException):
+        is_source_enabled()
 
 
 @env_vars({_VAR_DISABLE_SOURCE_CODE: "asdadawlaksnd"})
@@ -172,7 +145,8 @@ def test_disable_source_code_legacy_env_var_not_working_for_random_string():
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): ""})
 def test_disable_source_code_empty_conf_option():
-    assert is_source_enabled() is True
+    with pytest.raises(AirflowConfigException):
+        is_source_enabled()
 
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DISABLE_SOURCE_CODE): None})
@@ -192,12 +166,14 @@ def test_selective_enable(var_string, expected):
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): "asdadawlaksnd"})
 def test_selective_enable_not_working_for_random_string():
-    assert selective_enable() is False
+    with pytest.raises(AirflowConfigException):
+        selective_enable()
 
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): ""})
 def test_selective_enable_empty_conf_option():
-    assert selective_enable() is False
+    with pytest.raises(AirflowConfigException):
+        selective_enable()
 
 
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): None})
@@ -346,8 +322,9 @@ def test_is_disabled_possible_values_for_disabling(disabled):
         (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "asdadawlaksnd",
     }
 )
-def test_is_disabled_is_not_disabled_by_random_string():
-    assert is_disabled() is False
+def test_is_disabled_raises_for_random_string():
+    with pytest.raises(AirflowConfigException):
+        is_disabled()
 
 
 @mock.patch.dict(os.environ, {_VAR_URL: "https://test.com"}, clear=True)
@@ -356,6 +333,18 @@ def test_is_disabled_is_not_disabled_by_random_string():
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
         (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
+    }
+)
+def test_is_disabled_raises_error_for_empty_string():
+    with pytest.raises(AirflowConfigException):
+        is_disabled()
+
+
+@mock.patch.dict(os.environ, {_VAR_URL: "https://test.com"}, clear=True)
+@conf_vars(
+    {
+        (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
+        (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
     }
 )
 def test_is_disabled_is_false_when_not_explicitly_disabled_and_url_set():
@@ -367,7 +356,6 @@ def test_is_disabled_is_false_when_not_explicitly_disabled_and_url_set():
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): '{"valid": "transport"}',
-        (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
 def test_is_disabled_is_false_when_not_explicitly_disabled_and_transport_set():
@@ -379,7 +367,6 @@ def test_is_disabled_is_false_when_not_explicitly_disabled_and_transport_set():
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "some/path.yml",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
-        (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
 def test_is_disabled_is_false_when_not_explicitly_disabled_and_config_path_set():
@@ -403,7 +390,6 @@ def test_is_disabled_conf_option_is_enough_to_disable():
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "some/path.yml",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): '{"valid": "transport"}',
-        (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
 def test_is_disabled_legacy_env_var_is_enough_to_disable():
@@ -451,7 +437,6 @@ def test_is_disabled_env_var_true_has_precedence_over_conf_false():
     {
         (_CONFIG_SECTION, _CONFIG_OPTION_CONFIG_PATH): "",
         (_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): "",
-        (_CONFIG_SECTION, _CONFIG_OPTION_DISABLED): "",
     }
 )
 def test_is_disabled_empty_conf_option():
@@ -476,13 +461,6 @@ def test_is_disabled_do_not_fail_if_conf_option_missing():
         ("1", 1),
         ("2   ", 2),
         ("  3", 3),
-        ("4.56", 1),  # default
-        ("asdf", 1),  # default
-        ("true", 1),  # default
-        ("false", 1),  # default
-        ("None", 1),  # default
-        ("", 1),  # default
-        (" ", 1),  # default
         (None, 1),  # default
     ),
 )
@@ -493,30 +471,83 @@ def test_dag_state_change_process_pool_size(var_string, expected):
 
 
 @pytest.mark.parametrize(
-    ("var", "expected"),
+    "var_string",
     (
-        ("False", False),
-        ("True", True),
-        ("t", True),
-        ("true", True),
+        "4.56",
+        "asdf",
+        "true",
+        "false",
+        "None",
+        "",
+        " ",
     ),
 )
-def test_include_full_task_info_reads_config(var, expected):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var}):
-        assert include_full_task_info() is expected
+def test_dag_state_change_process_pool_size_invalid_value_raise_error(var_string):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE): var_string}):
+        with pytest.raises(AirflowConfigException):
+            dag_state_change_process_pool_size()
 
 
 @pytest.mark.parametrize(
-    "var",
-    [
+    ("var_string", "expected"),
+    (
+        ("1", 1),
+        ("2   ", 2),
+        ("  3", 3),
+        (None, 10),  # default
+    ),
+)
+def test_execution_timeout(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_EXECUTION_TIMEOUT): var_string}):
+        result = execution_timeout()
+        assert result == expected
+
+
+@pytest.mark.parametrize(
+    "var_string",
+    (
+        "4.56",
+        "asdf",
+        "true",
+        "false",
+        "None",
+        "",
+        " ",
+    ),
+)
+def test_execution_timeout_invalid_value_raise_error(var_string):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_EXECUTION_TIMEOUT): var_string}):
+        with pytest.raises(AirflowConfigException):
+            execution_timeout()
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_include_full_task_info(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}):
+        result = include_full_task_info()
+        assert result is expected
+
+
+@pytest.mark.parametrize(
+    "var_string",
+    (
         "a",
         "asdf",
+        "None",
         "31",
         "",
         " ",
-    ],
+    ),
 )
-def test_include_full_task_info_raises_exception(var):
-    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var}):
+def test_include_full_task_info_invalid_value_raise_error(var_string):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): var_string}):
         with pytest.raises(AirflowConfigException):
             include_full_task_info()
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): None})
+def test_include_full_task_info_do_not_fail_if_conf_option_missing():
+    assert include_full_task_info() is False
