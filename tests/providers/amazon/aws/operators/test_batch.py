@@ -264,7 +264,6 @@ class TestBatchOperator:
             tags={},
         )
 
-
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
     @mock.patch.object(BatchClientHook, "check_job_success")
@@ -285,9 +284,7 @@ class TestBatchOperator:
                             "env": [
                                 {"name": "string", "value": "string"},
                             ],
-                            "resources": [
-                                {"limits": {"string": "string"}, "requests": {"string": "string"}}
-                            ],
+                            "resources": [{"limits": {"string": "string"}, "requests": {"string": "string"}}],
                         },
                     ],
                     "initContainers": [
@@ -302,9 +299,7 @@ class TestBatchOperator:
                             "env": [
                                 {"name": "string", "value": "string"},
                             ],
-                            "resources": [
-                                {"limits": {"string": "string"}, "requests": {"string": "string"}}
-                            ],
+                            "resources": [{"limits": {"string": "string"}, "requests": {"string": "string"}}],
                         },
                     ],
                     "metadata": {
