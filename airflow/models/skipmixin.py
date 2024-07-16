@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from types import GeneratorType
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from sqlalchemy import select, update
@@ -183,7 +184,7 @@ class SkipMixin(LoggingMixin):
     ):
         """Facade for compatibility for call to internal API."""
         # Ensure we don't serialize a generator object
-        if branch_task_ids and not isinstance(branch_task_ids, str):
+        if branch_task_ids and isinstance(branch_task_ids, GeneratorType):
             branch_task_ids = list(branch_task_ids)
         SkipMixin._skip_all_except(ti=ti, branch_task_ids=branch_task_ids)
 
