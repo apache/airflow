@@ -69,6 +69,7 @@ from airflow.task.priority_strategy import (
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
+from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
@@ -656,6 +657,8 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
+        elif isinstance(var, LazySelectSequence):
+            return cls.serialize(list(var))
         elif isinstance(var, BaseDataset):
             serialized_dataset = encode_dataset_condition(var)
             return cls._encode(serialized_dataset, type_=serialized_dataset.pop("__type"))
