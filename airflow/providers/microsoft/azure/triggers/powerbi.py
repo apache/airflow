@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import AsyncIterator
-
-from msgraph_core import APIVersion
+from typing import TYPE_CHECKING, AsyncIterator
 
 from airflow.providers.microsoft.azure.hooks.powerbi import (
-    PowerBIAsyncHook,
-    PowerBIDatasetRefreshStatus, PowerBIHook,
+    PowerBIDatasetRefreshFields,
+    PowerBIDatasetRefreshStatus,
+    PowerBIHook,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from msgraph_core import APIVersion
 
 
 class PowerBITrigger(BaseTrigger):
@@ -67,7 +69,6 @@ class PowerBITrigger(BaseTrigger):
         super().__init__()
         self.hook = PowerBIHook(
             conn_id=conn_id,
-            timeout=timeout,
             proxies=proxies,
             api_version=api_version,
         )
@@ -117,11 +118,13 @@ class PowerBITrigger(BaseTrigger):
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
         try:
             while self.end_time > time.time():
-                dataset_refresh_status = await self.hook.get_dataset_refresh_status(
+                refresh_details = await self.hook.get_refresh_details_by_refresh_id(
                     dataset_id=self.dataset_id,
                     group_id=self.group_id,
-                    dataset_refresh_id=self.dataset_refresh_id,
+                    refresh_id=self.dataset_refresh_id,
                 )
+                dataset_refresh_status = refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
+
                 if dataset_refresh_status == PowerBIDatasetRefreshStatus.COMPLETED:
                     yield TriggerEvent(
                         {
@@ -150,7 +153,7 @@ class PowerBITrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "error",
-                    "message": f"Timeout: The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}.",
+                    "message": f"Timeout occurred while waiting for dataset refresh to complete: The dataset refresh {self.dataset_refresh_id} has status {dataset_refresh_status}.",
                     "dataset_refresh_id": self.dataset_refresh_id,
                 }
             )
@@ -159,7 +162,9 @@ class PowerBITrigger(BaseTrigger):
             if self.dataset_refresh_id:
                 try:
                     self.log.info(
-                        "Unexpected error %s caught. Cancel pipeline run %s", error, self.dataset_refresh_id
+                        "Unexpected error %s caught. Canceling dataset refresh %s",
+                        error,
+                        self.dataset_refresh_id,
                     )
                     await self.hook.cancel_dataset_refresh(
                         dataset_id=self.dataset_id,
@@ -170,7 +175,7 @@ class PowerBITrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"An error occurred while canceling pipeline: {e}",
+                            "message": f"An error occurred while canceling dataset: {e}",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }
                     )

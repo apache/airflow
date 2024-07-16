@@ -111,6 +111,7 @@ class KiotaRequestAdapterHook(BaseHook):
         timeout: float | None = None,
         proxies: dict | None = None,
         host: str = NationalClouds.Global.value,
+        scopes: list[str] = ["https://graph.microsoft.com/.default"],  # noqa: B006
         api_version: APIVersion | str | None = None,
     ):
         super().__init__()
@@ -118,8 +119,8 @@ class KiotaRequestAdapterHook(BaseHook):
         self.timeout = timeout
         self.proxies = proxies
         self.host = host
+        self.scopes = scopes
         self._api_version = self.resolve_api_version_from_value(api_version)
-
 
     @property
     def api_version(self) -> APIVersion:
@@ -200,7 +201,7 @@ class KiotaRequestAdapterHook(BaseHook):
             proxies = self.proxies or config.get("proxies", {})
             msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
-            scopes = config.get("scopes", ["https://graph.microsoft.com/.default"])
+            scopes = config.get("scopes", self.scopes)
             verify = config.get("verify", True)
             trust_env = config.get("trust_env", False)
             disable_instance_discovery = config.get("disable_instance_discovery", False)

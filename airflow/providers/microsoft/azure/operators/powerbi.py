@@ -19,24 +19,19 @@ from __future__ import annotations
 
 import asyncio
 import time
-import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from msgraph_core import APIVersion
-
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.powerbi import (
-    PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshFields,
-    PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 if TYPE_CHECKING:
+    from msgraph_core import APIVersion
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -60,17 +55,11 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     """
     Refreshes a Power BI dataset.
 
-    By default the operator will wait until the refresh has completed before
-    exiting. The refresh status is checked every 60 seconds as a default. This
-    can be changed by specifying a new value for `check_interval`.
-
     :param dataset_id: The dataset id.
     :param group_id: The workspace id.
     :param wait_for_termination: Wait until the pre-existing or current triggered refresh completes before exiting.
-    :param force_refresh: Force refresh if pre-existing refresh found.
-    :param powerbi_conn_id: Airflow Connection ID that contains the connection
-        information for the Power BI account used for authentication.
-    :param timeout: Time in seconds to wait for a dataset to reach a terminal status for non-asynchronous waits. Used only if ``wait_for_termination`` is True.
+    :param conn_id: Airflow Connection ID that contains the connection information for the Power BI account used for authentication.
+    :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
     """
@@ -85,34 +74,29 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # Indicates all the following parameters must be specified using keyword arguments.
+        *,
         dataset_id: str,
         group_id: str,
         wait_for_termination: bool = True,
-        force_refresh: bool = False,
         conn_id: str = PowerBIHook.default_conn_name,
         timeout: int = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
         check_interval: int = 60,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.hook = PowerBIHook(
             conn_id=conn_id,
-            timeout=timeout,
             proxies=proxies,
             api_version=api_version,
         )
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.wait_for_termination = wait_for_termination
-        self.force_refresh = force_refresh
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
-        self.deferrable = deferrable
 
     @classmethod
     def run_async(cls, future: Any) -> Any:
@@ -121,57 +105,37 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
         self.log.info("Executing Dataset refresh.")
-        request_id = self.run_async(self.hook.trigger_dataset_refresh(
-            dataset_id=self.dataset_id,
-            group_id=self.group_id,
-        ))
+        refresh_id = self.run_async(
+            self.hook.trigger_dataset_refresh(
+                dataset_id=self.dataset_id,
+                group_id=self.group_id,
+            )
+        )
 
-        # Push Dataset Refresh ID to Xcom regardless of what happen durinh the refresh
-        self.xcom_push(context=context, key="powerbi_dataset_refresh_id", value=request_id)
+        # Push Dataset Refresh ID to Xcom regardless of what happen during the refresh
+        self.xcom_push(context=context, key="powerbi_dataset_refresh_id", value=refresh_id)
 
         if self.wait_for_termination:
-            if self.deferrable:
-                end_time = time.time() + self.timeout
-                self.defer(
-                    trigger=PowerBITrigger(
-                        powerbi_conn_id=self.conn_id,
-                        group_id=self.group_id,
-                        dataset_id=self.dataset_id,
-                        dataset_refresh_id=request_id,
-                        end_time=end_time,
-                        check_interval=self.check_interval,
-                        wait_for_termination=self.wait_for_termination,
-                    ),
-                    method_name=self.execute_complete.__name__,
-                )
-            else:
-                self.log.info("Waiting for dataset refresh to terminate.")
-                if self.run_async(self.hook.wait_for_dataset_refresh_status(
-                    request_id=request_id,
-                    dataset_id=self.dataset_id,
+            end_time = time.time() + self.timeout
+            self.defer(
+                trigger=PowerBITrigger(
+                    conn_id=self.conn_id,
                     group_id=self.group_id,
-                    expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
+                    dataset_id=self.dataset_id,
+                    dataset_refresh_id=refresh_id,
+                    end_time=end_time,
                     check_interval=self.check_interval,
-                    timeout=self.timeout,
-                )):
-                    self.log.info("Dataset refresh %s has completed successfully.", request_id)
-                else:
-                    raise PowerBIDatasetRefreshException(
-                        f"Dataset refresh {request_id} has failed or has been cancelled."
-                    )
-        else:
-            if self.deferrable is True:
-                warnings.warn(
-                    "Argument `wait_for_termination` is False and `deferrable` is True , hence "
-                    "`deferrable` parameter doesn't have any effect",
-                    UserWarning,
-                    stacklevel=2,
-                )
+                    wait_for_termination=self.wait_for_termination,
+                ),
+                method_name=self.execute_complete.__name__,
+            )
 
         # Retrieve refresh details after triggering refresh
-        refresh_details = self.run_async(self.hook.get_refresh_details_by_request_id(
-            dataset_id=self.dataset_id, group_id=self.group_id, request_id=request_id
-        ))
+        refresh_details = self.run_async(
+            self.hook.get_refresh_details_by_refresh_id(
+                dataset_id=self.dataset_id, group_id=self.group_id, refresh_id=refresh_id
+            )
+        )
 
         status = str(refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value))
         error = str(refresh_details.get(PowerBIDatasetRefreshFields.ERROR.value))

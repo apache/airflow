@@ -17,20 +17,14 @@
 
 from __future__ import annotations
 
-import logging
-import time
 from enum import Enum
 from typing import TYPE_CHECKING, Any
-
-from msgraph_core import APIVersion
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 
 if TYPE_CHECKING:
-    pass
-
-logger = logging.getLogger(__name__)
+    from msgraph_core import APIVersion
 
 
 class PowerBIDatasetRefreshFields(Enum):
@@ -59,28 +53,27 @@ class PowerBIDatasetRefreshException(AirflowException):
 
 class PowerBIHook(KiotaRequestAdapterHook):
     """
-    A hook to interact with Power BI.
+    A async hook to interact with Power BI.
 
-    :param conn_id: Airflow Connection ID that contains the connection
-        information for the Power BI account used for authentication.
+    :param conn_id: The Power BI connection id.
     """
 
     conn_type: str = "powerbi"
+    conn_name_attr: str = "conn_id"
     default_conn_name: str = "powerbi_default"
     hook_name: str = "Power BI"
 
     def __init__(
         self,
         conn_id: str = default_conn_name,
-        timeout: float | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | str | None = None,
     ):
         super().__init__(
             conn_id=conn_id,
-            timeout=timeout,
             proxies=proxies,
             host="https://api.powerbi.com",
+            scopes=["https://analysis.windows.net/powerbi/api/.default"],
             api_version=api_version,
         )
 
@@ -102,33 +95,9 @@ class PowerBIHook(KiotaRequestAdapterHook):
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
                 "login": "Client ID",
-                "password": "Secret",
+                "password": "Client Secret",
             },
         }
-
-    async def refresh_dataset(self, dataset_id: str, group_id: str) -> str:
-        """
-        Triggers a refresh for the specified dataset from the given group id.
-
-        :param dataset_id: The dataset id.
-        :param group_id: The workspace id.
-
-        :return: Request id of the dataset refresh request.
-        """
-        try:
-            response = await self.run(
-                url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
-                method="POST",
-                path_parameters={
-                    "group_id": group_id,
-                    "dataset_id": dataset_id,
-                },
-            )
-
-            request_id = response.headers["RequestId"]
-            return request_id
-        except AirflowException:
-            raise PowerBIDatasetRefreshException("Failed to trigger dataset refresh")
 
     async def get_refresh_history(
         self,
@@ -152,8 +121,9 @@ class PowerBIHook(KiotaRequestAdapterHook):
                 },
             )
 
-            refresh_histories = response.json().get("value")
+            refresh_histories = response.get("value")
             return [self.raw_to_refresh_details(refresh_history) for refresh_history in refresh_histories]
+
         except AirflowException:
             raise PowerBIDatasetRefreshException("Failed to retrieve refresh history")
 
@@ -188,123 +158,93 @@ class PowerBIHook(KiotaRequestAdapterHook):
         refresh_details = history[0]
         return refresh_details
 
-    async def get_refresh_details_by_request_id(self, dataset_id: str, group_id: str, request_id) -> dict[str, str]:
+    async def get_refresh_details_by_refresh_id(
+        self, dataset_id: str, group_id: str, refresh_id: str
+    ) -> dict[str, str]:
         """
         Get the refresh details of the given request Id.
 
-        :param request_id: Request Id of the Dataset refresh.
+        :param refresh_id: Request Id of the Dataset refresh.
         """
         refresh_histories = await self.get_refresh_history(dataset_id=dataset_id, group_id=group_id)
 
         if len(refresh_histories) == 0:
             raise PowerBIDatasetRefreshException(
-                f"Unable to fetch the details of dataset refresh with Request Id: {request_id}"
+                f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}"
             )
 
-        request_ids = [
+        refresh_ids = [
             refresh_history.get(PowerBIDatasetRefreshFields.REQUEST_ID.value)
             for refresh_history in refresh_histories
         ]
 
-        if request_id not in request_ids:
+        if refresh_id not in refresh_ids:
             raise PowerBIDatasetRefreshException(
-                f"Unable to fetch the details of dataset refresh with Request Id: {request_id}"
+                f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}"
             )
 
-        request_id_index = request_ids.index(request_id)
-        refresh_details = refresh_histories[request_id_index]
+        refresh_details = refresh_histories[refresh_ids.index(refresh_id)]
 
         return refresh_details
 
-    # TODO: This should definitely always be executed through a trigger, as this will be blocking otherwise
-    async def wait_for_dataset_refresh_status(
-        self,
-        *,
-        expected_status: str,
-        request_id: str,
-        dataset_id: str,
-        group_id: str,
-        check_interval: int = 60,
-        timeout: int = 60 * 60 * 24 * 7,
-    ) -> bool:
-        """
-        Wait until the dataset refresh of given request ID has reached the expected status.
-
-        :param expected_status: The desired status to check against a dataset refresh's current status.
-        :param request_id: Request id for the dataset refresh request.
-        :param check_interval: Time in seconds to check on a dataset refresh's status.
-        :param timeout: Time in seconds to wait for a dataset to reach a terminal status or the expected status.
-        :return: Boolean indicating if the dataset refresh has reached the ``expected_status`` before the timeout.
-        """
-        start_time = time.monotonic()
-
-        while start_time + timeout > time.monotonic():
-            dataset_refresh_details = await self.get_refresh_details_by_request_id(
-                dataset_id=dataset_id, group_id=group_id, request_id=request_id
-            )
-            dataset_refresh_status = dataset_refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
-
-            if dataset_refresh_status in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES:
-                return dataset_refresh_status == expected_status
-
-            logger.info(
-                "Current dataset refresh status is %s. Sleeping for %s",
-                dataset_refresh_status,
-                check_interval,
-            )
-            time.sleep(check_interval)
-
-        # Timeout reached
-        return False
-
-    # TODO: Why have a method with another name doing the same thing?
     async def trigger_dataset_refresh(self, *, dataset_id: str, group_id: str) -> str:
         """
-        Triggers the Power BI dataset refresh.
+        Triggers a refresh for the specified dataset from the given group id.
 
-        :param dataset_id: The dataset ID.
-        :param group_id: The workspace ID.
+        :param dataset_id: The dataset id.
+        :param group_id: The workspace id.
 
-        :return: Request ID of the dataset refresh request.
+        :return: Request id of the dataset refresh request.
         """
-        # Start dataset refresh
-        self.log.info("Starting dataset refresh.")
-        return await self.refresh_dataset(dataset_id=dataset_id, group_id=group_id)
+        try:
+            response = await self.run(
+                url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
+                method="POST",
+                path_parameters={
+                    "group_id": group_id,
+                    "dataset_id": dataset_id,
+                },
+            )
 
-    async def get_dataset_refresh_status(
-        self, dataset_id: str, group_id: str, dataset_refresh_id: str
-    ) -> str:
-        """
-        Retrieve the refresh status for the specified dataset refresh from the given group id.
+            request_id = response.get("requestid")
+            return request_id
+        except AirflowException:
+            raise PowerBIDatasetRefreshException("Failed to trigger dataset refresh.")
 
-        :param dataset_id: The dataset Id.
-        :param group_id: The workspace Id.
-        :param dataset_refresh_id: The dataset refresh Id.
+    # async def get_dataset_refresh_status(
+    #     self, dataset_id: str, group_id: str, dataset_refresh_id: str
+    # ) -> str:
+    #     """
+    #     Retrieve the refresh status for the specified dataset refresh from the given group id.
 
-        :return: Dataset refresh status.
-        """
-        response = await self.run(
-            url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
-            response_type=None,
-            path_parameters={
-                "group_id": group_id,
-                "dataset_id": dataset_id,
-            },
-            method="GET",
-        )
-        # clean the raw refresh histories fetched from the API.
-        raw_refresh_histories = response.get("value")
-        clean_refresh_histories = [
-            self.raw_to_refresh_details(refresh_history) for refresh_history in raw_refresh_histories
-        ]
+    #     :param dataset_id: The dataset Id.
+    #     :param group_id: The workspace Id.
+    #     :param dataset_refresh_id: The dataset refresh Id.
 
-        for refresh_history in clean_refresh_histories:
-            if refresh_history.get(PowerBIDatasetRefreshFields.REQUEST_ID.value) == dataset_refresh_id:
-                return str(refresh_history.get(PowerBIDatasetRefreshFields.STATUS.value, "Unknown"))
+    #     :return: Dataset refresh status.
+    #     """
+    #     response = await self.run(
+    #         url="myorg/groups/{group_id}/datasets/{dataset_id}/refreshes",
+    #         response_type=None,
+    #         path_parameters={
+    #             "group_id": group_id,
+    #             "dataset_id": dataset_id,
+    #         },
+    #         method="GET",
+    #     )
+    #     # clean the raw refresh histories fetched from the API.
+    #     raw_refresh_histories = response.get("value")
+    #     clean_refresh_histories = [
+    #         self.raw_to_refresh_details(refresh_history) for refresh_history in raw_refresh_histories
+    #     ]
 
-        raise PowerBIDatasetRefreshException(
-            f"Failed to retrieve the status of dataset refresh with Id: {dataset_refresh_id}"
-        )
+    #     for refresh_history in clean_refresh_histories:
+    #         if refresh_history.get(PowerBIDatasetRefreshFields.REQUEST_ID.value) == dataset_refresh_id:
+    #             return str(refresh_history.get(PowerBIDatasetRefreshFields.STATUS.value, "Unknown"))
+
+    #     raise PowerBIDatasetRefreshException(
+    #         f"Failed to retrieve the status of dataset refresh with Id: {dataset_refresh_id}"
+    #     )
 
     async def cancel_dataset_refresh(self, dataset_id: str, group_id: str, dataset_refresh_id: str) -> None:
         """
