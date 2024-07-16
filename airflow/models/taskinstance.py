@@ -346,20 +346,25 @@ def _run_raw_task(
             # Same metric with tagging
             Stats.incr("ti.finish", tags={**ti.stats_tags, "state": str(ti.state)})
 
-            # if TYPE_CHECKING:
-            #     assert session
+            if TYPE_CHECKING:
+                assert session
 
-            # if ti.state in State.finished and any(
-            #     t.blocked_by_upstream
-            #     for t in ti.get_dagrun(session=session).get_task_instances(session=session)
-            # ):
-            #     downstream_task_ids = ti.task.get_direct_relative_ids(upstream=False)
-            #     session.execute(
-            #         update(TaskInstance)
-            #         .where(TaskInstance.task_id.in_(downstream_task_ids))
-            #         .values(blocked_by_upstream=False)
-            #         .execution_options(synchronize_session=False)
-            #     )
+            if ti.state in State.finished and any(
+                t.blocked_by_upstream
+                for t in ti.get_dagrun(session=session).get_task_instances(session=session)
+            ):
+                downstream_task_ids = ti.task.get_direct_relative_ids(upstream=False)
+                # Skip locked TIs when updating the blocked_by_upstream flag
+                query = session.scalars(
+                    with_row_locks(
+                        select(TaskInstance).where(TaskInstance.task_id.in_(downstream_task_ids)),
+                        of=TaskInstance,
+                        session=session,
+                        skip_locked=True,
+                    )
+                )
+                for downstream_ti in query:
+                    downstream_ti.blocked_by_upstream = False
 
         # Recording SKIPPED or SUCCESS
         ti.clear_next_method_args()

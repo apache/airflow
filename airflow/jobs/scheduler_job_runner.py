@@ -783,25 +783,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            # if ti.state in State.finished and any(
-            #     t.blocked_by_upstream
-            #     for t in ti.get_dagrun(session=session).get_task_instances(session=session)
-            # ):
-            #     # Should this fail to update in the worker, we repeat it here.
-            #     # Get task from the Serialized DAG
-            #     try:
-            #         dag = self.dagbag.get_dag(ti.dag_id)
-            #         task = dag.get_task(ti.task_id)
-            #     except Exception:
-            #         self.log.exception("Failed to get the task of the TaskInstance: %s", ti)
-            #         continue
-            #     downstream_task_ids = task.get_direct_relative_ids(upstream=False)
-            #     session.execute(
-            #         update(TI)
-            #         .where(TI.task_id.in_(downstream_task_ids))
-            #         .values(blocked_by_upstream=False)
-            #         .execution_options(synchronize_session=False)
-            #     )
+            if ti.state in State.finished and any(
+                t.blocked_by_upstream
+                for t in ti.get_dagrun(session=session).get_task_instances(session=session)
+            ):
+                # Should this fail to update in the worker, we repeat it here.
+                # Get task from the Serialized DAG
+                try:
+                    dag = self.dagbag.get_dag(ti.dag_id)
+                    task = dag.get_task(ti.task_id)
+                except Exception:
+                    self.log.exception("Failed to get the task of the TaskInstance: %s", ti)
+                    continue
+                downstream_task_ids = task.get_direct_relative_ids(upstream=False)
+                # Skip locked TIs when updating the blocked_by_upstream flag
+                query = session.scalars(
+                    with_row_locks(
+                        select(TI).where(TI.task_id.in_(downstream_task_ids)),
+                        of=TI,
+                        session=session,
+                        skip_locked=True,
+                    )
+                )
+                for downstream_ti in query:
+                    downstream_ti.blocked_by_upstream = False
 
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
