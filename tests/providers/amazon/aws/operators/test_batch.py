@@ -286,9 +286,7 @@ class TestBatchOperator:
                                 {"name": "string", "value": "string"},
                             ],
                             "resources": [
-                                {"limits": {"string": "string"},
-                                 "requests": {"string": "string"}
-                                }
+                                {"limits": {"string": "string"}, "requests": {"string": "string"}}
                             ],
                         },
                     ],
@@ -305,17 +303,12 @@ class TestBatchOperator:
                                 {"name": "string", "value": "string"},
                             ],
                             "resources": [
-                                {
-                                    "limits": {"string": "string"},
-                                    "requests": {"string": "string"},
-                                },
-                            ]
+                                {"limits": {"string": "string"}, "requests": {"string": "string"}}
+                            ],
                         },
                     ],
                     "metadata": {
-                        "labels": {
-                            "string": "string"
-                        },
+                        "labels": {"string": "string"},
                     },
                 },
             ]
@@ -342,9 +335,7 @@ class TestBatchOperator:
                                     {"name": "string", "value": "string"},
                                 ],
                                 "resources": [
-                                    {"limits": {"string": "string"},
-                                     "requests": {"string": "string"}
-                                    }
+                                    {"limits": {"string": "string"}, "requests": {"string": "string"}}
                                 ],
                             },
                         ],
@@ -361,17 +352,12 @@ class TestBatchOperator:
                                     {"name": "string", "value": "string"},
                                 ],
                                 "resources": [
-                                    {
-                                        "limits": {"string": "string"},
-                                        "requests": {"string": "string"},
-                                    },
-                                ]
+                                    {"limits": {"string": "string"}, "requests": {"string": "string"}}
+                                ],
                             },
                         ],
                         "metadata": {
-                            "labels": {
-                                "string": "string"
-                            },
+                            "labels": {"string": "string"},
                         },
                     },
                 ]
@@ -415,7 +401,9 @@ class TestBatchOperator:
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
-    @pytest.mark.parametrize("override", ["overrides", "node_overrides", "ecs_properties_override", "eks_properties_override"])
+    @pytest.mark.parametrize(
+        "override", ["overrides", "node_overrides", "ecs_properties_override", "eks_properties_override"]
+    )
     @patch(
         "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
         new_callable=mock.PropertyMock,
