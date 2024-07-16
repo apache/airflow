@@ -380,7 +380,7 @@ class DagBag(LoggingMixin):
                 loader.exec_module(new_module)
                 return [new_module]
             except Exception as e:
-                DagContext.autoregistered_dags.clear()
+                DagContext.drop_failing_dags()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
                     self.import_errors[filepath] = traceback.format_exc(

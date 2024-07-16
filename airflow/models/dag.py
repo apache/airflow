@@ -4115,6 +4115,7 @@ def dag(
             # we do this to extract parameters, so we can annotate them on the DAG object.
             # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
             f_sig = signature(f).bind(*args, **kwargs)
+            print(f_sig.arguments)
             # Apply defaults to capture default values if set.
             f_sig.apply_defaults()
 
@@ -4157,6 +4158,7 @@ def dag(
                 dag_display_name=dag_display_name,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                print(f)
                 if f.__doc__ and not dag_obj.doc_md:
                     dag_obj.doc_md = f.__doc__
 
@@ -4215,6 +4217,7 @@ class DagContext:
 
     _context_managed_dags: deque[DAG] = deque()
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
+    dags_to_drop: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 
     @classmethod
@@ -4238,6 +4241,18 @@ class DagContext:
             return cls._context_managed_dags[0]
         except IndexError:
             return None
+    
+    @classmethod
+    def add_current_dag_to_drop_list(cls) -> None:
+        dag = cls.get_current_dag()
+        mod = sys.modules[cls.current_autoregister_module_name]
+        cls.dags_to_drop.add((dag, mod))
+
+    @classmethod
+    def drop_failing_dags(cls) -> None:
+        [cls.autoregistered_dags.remove(dag_and_mod) for dag_and_mod in cls.dags_to_drop]
+        cls.dags_to_drop.clear()
+
 
 
 def _run_inline_trigger(trigger):
