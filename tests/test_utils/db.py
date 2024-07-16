@@ -40,6 +40,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
+    DatasetAliasModel,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -73,6 +74,7 @@ def clear_db_datasets():
         session.query(DatasetDagRunQueue).delete()
         session.query(DagScheduleDatasetReference).delete()
         session.query(TaskOutletDatasetReference).delete()
+        session.query(DatasetAliasModel).delete()
 
 
 def clear_db_dags():
