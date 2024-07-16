@@ -2760,6 +2760,31 @@ class TestTaskInstance:
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert read_task_evaluated
 
+    def test_inlet_unresolved_dataset_alias(self, dag_maker, session):
+        dsa_name = "test_inlet_dataset_extra_dsa"
+
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        session.add(dsa_model)
+        session.commit()
+
+        from airflow.datasets import DatasetAlias
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                with pytest.raises(IndexError):
+                    inlet_events[DatasetAlias(dsa_name)][0]
+
+            read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+
     @pytest.mark.parametrize(
         "slicer, expected",
         [
