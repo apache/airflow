@@ -131,6 +131,23 @@ def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     return _sanitize_uri(str(value))
 
 
+@provide_session
+def expand_alias_to_datasets(
+    alias: str | DatasetAlias, *, session: Session = NEW_SESSION
+) -> list[BaseDataset]:
+    """Expand dataset alias to resolved datasets."""
+    from airflow.models.dataset import DatasetAliasModel
+
+    alias_name = alias.name if isinstance(alias, DatasetAlias) else alias
+
+    dataset_alias_obj = session.scalar(
+        select(DatasetAliasModel).where(DatasetAliasModel.name == alias_name).limit(1)
+    )
+    if dataset_alias_obj:
+        return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
+    return []
+
+
 class BaseDataset:
     """
     Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
@@ -287,7 +304,7 @@ class _DatasetAliasCondition(DatasetAny):
 
     def __init__(self, name: str) -> None:
         self.name = name
-        self.objects = self.expand_datasets()
+        self.objects = expand_alias_to_datasets(name)
 
     def as_expression(self) -> Any:
         """
@@ -296,18 +313,6 @@ class _DatasetAliasCondition(DatasetAny):
         :meta private:
         """
         return {"alias": self.name}
-
-    @provide_session
-    def expand_datasets(self, *, session: Session = NEW_SESSION) -> list[BaseDataset]:
-        """Expand the dataset alias to resolved datasets."""
-        from airflow.models.dataset import DatasetAliasModel
-
-        dataset_alias_obj = session.scalar(
-            select(DatasetAliasModel).where(DatasetAliasModel.name == self.name).limit(1)
-        )
-        if dataset_alias_obj:
-            return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
-        return []
 
 
 class DatasetAll(_DatasetBooleanCondition):
