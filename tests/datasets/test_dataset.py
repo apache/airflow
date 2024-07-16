@@ -37,7 +37,6 @@ from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, Datase
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
-from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
@@ -481,6 +480,7 @@ def test__sanitize_uri_raises_exception():
 
 
 @pytest.mark.db_test
+@pytest.mark.usefixtures("clear_datasets")
 class Test_DatasetAliasCondition:
     @pytest.fixture
     def ds_1(self, session):
@@ -491,9 +491,7 @@ class Test_DatasetAliasCondition:
         session.add(ds_1)
         session.commit()
 
-        yield ds_1
-
-        db.clear_db_datasets()
+        return ds_1
 
     @pytest.fixture
     def dsa_1(self, session):
@@ -504,13 +502,11 @@ class Test_DatasetAliasCondition:
         session.add(dsa_1)
         session.commit()
 
-        yield dsa_1
-
-        db.clear_db_datasets()
+        return dsa_1
 
     @pytest.fixture
     def resolved_dsa_2(self, session, ds_1):
-        """Example dataset alias links to  dataset dsa_1."""
+        """Example dataset alias links to no dataset dsa_1."""
         dsa_name = "test_name_2"
         dsa_2 = DatasetAliasModel(name=dsa_name)
         dsa_2.datasets.append(ds_1)
@@ -518,9 +514,7 @@ class Test_DatasetAliasCondition:
         session.add(dsa_2)
         session.commit()
 
-        yield dsa_2
-
-        db.clear_db_datasets()
+        return dsa_2
 
     def test_expand_datasets_with_clean_dataset_alias(self, dsa_1, ds_1, resolved_dsa_2):
         cond = _DatasetAliasCondition(name=dsa_1.name)
