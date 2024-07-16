@@ -51,21 +51,16 @@ def rotate_items_in_batches_v1(session, model_class, filter_condition=None, batc
     This function is a replacement for yield_per, which is not available in SQLAlchemy 1.x.
     """
     offset = 0
-
     while True:
         query = select(model_class)
         if filter_condition is not None:
             query = query.where(filter_condition)
         query = query.offset(offset).limit(batch_size)
-
         items = session.scalars(query).all()
-
         if not items:
             break  # No more items to process
-
         for item in items:
             item.rotate_fernet_key()
-
         offset += batch_size
 
 
