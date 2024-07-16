@@ -33,7 +33,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.external_task import WorkflowTrigger
-from airflow.utils.file import correct_maybe_zipped
+from airflow.utils.exist import check_for_existence
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -279,7 +279,11 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         # In poke mode this will check dag existence only once
         if self.check_existence and not self._has_checked_existence:
-            self._check_for_existence(session=session)
+            check_for_existence(session=session,
+                                external_dag_id=self.external_dag_id,
+                                external_task_ids=self.external_task_ids,
+                                external_task_group_id=self.external_task_group_id)
+            self._has_checked_existence = True
 
         count_failed = -1
         if self.failed_states:
@@ -357,6 +361,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     allowed_states=self.allowed_states,
                     poke_interval=self.poll_interval,
                     soft_fail=self.soft_fail,
+                    check_existence=self.check_existence
                 ),
                 method_name="execute_complete",
             )
@@ -376,33 +381,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     "name of executed task and Dag."
                 )
 
-    def _check_for_existence(self, session) -> None:
-        dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
-        if not dag_to_wait:
-            raise AirflowException(f"The external DAG {self.external_dag_id} does not exist.")
-
-        if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
-            raise AirflowException(f"The external DAG {self.external_dag_id} was deleted.")
-
-        if self.external_task_ids:
-            refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
-            for external_task_id in self.external_task_ids:
-                if not refreshed_dag_info.has_task(external_task_id):
-                    raise AirflowException(
-                        f"The external task {external_task_id} in "
-                        f"DAG {self.external_dag_id} does not exist."
-                    )
-
-        if self.external_task_group_id:
-            refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
-            if not refreshed_dag_info.has_task_group(self.external_task_group_id):
-                raise AirflowException(
-                    f"The external task group '{self.external_task_group_id}' in "
-                    f"DAG '{self.external_dag_id}' does not exist."
-                )
-
-        self._has_checked_existence = True
 
     def get_count(self, dttm_filter, session, states) -> int:
         """
