@@ -283,12 +283,9 @@ class TestSQLParser:
         ]
 
         sql = """INSERT INTO popular_orders_day_of_week (order_day_of_week)
-    SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
-      FROM top_delivery_times
-            --irrelevant comment
-        )
-        ;
-        """
+        SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
+        FROM top_delivery_times --irrelevant comment
+        );"""
 
         hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = returned_rows
 
@@ -314,10 +311,9 @@ class TestSQLParser:
         mock_parse.return_value = mock_sql_meta
 
         formatted_sql = """INSERT INTO popular_orders_day_of_week (order_day_of_week)
-    SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
-      FROM top_delivery_times
-
-)"""
+        SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
+        FROM top_delivery_times
+        )"""
         expected_schema = "PUBLIC" if parser_returns_schema else "ANOTHER_SCHEMA"
         expected = OperatorLineage(
             inputs=[
