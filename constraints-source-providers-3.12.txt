@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-15T23:14:47.931577
+# This constraints file was automatically generated on 2024-07-16T11:28:41.996290
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -351,7 +351,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.35.13
+openai==1.35.14
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.18.0
@@ -413,7 +413,7 @@ py-partiql-parser==0.5.5
 py4j==0.10.9.7
 pyOpenSSL==24.1.0
 pyarrow-hotfix==0.6
-pyarrow==16.1.0
+pyarrow==17.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycountry==24.6.1
