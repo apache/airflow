@@ -153,3 +153,10 @@ config:
         example: ~
         type: integer
         version_added: 1.9.0
+      include_full_task_info:
+        description: |
+          If true, OpenLineage event will include full task info - potentially containing large fields.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: 1.10.0

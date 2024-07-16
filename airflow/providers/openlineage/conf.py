@@ -145,3 +145,8 @@ def execution_timeout() -> int:
     """[openlineage] execution_timeout."""
     option = conf.get(_CONFIG_SECTION, "execution_timeout", fallback="")
     return _safe_int_convert(str(option).strip(), default=10)
+
+
+@cache
+def include_full_task_info() -> bool:
+    return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")
