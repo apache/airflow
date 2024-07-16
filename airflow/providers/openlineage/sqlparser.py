@@ -322,7 +322,7 @@ class SQLParser(LoggingMixin):
     @classmethod
     def normalize_sql(cls, sql: list[str] | str) -> str:
         """Make sure to return a semicolon-separated SQL statement."""
-        return ";\n".join(stmt.rstrip(" ;\r\n") for stmt in cls.split_sql_string(sql))
+        return ";\n".join(stmt.rstrip(" ;\r\n") for stmt in cls.split_sql_string(sql)).strip()
 
     @classmethod
     def split_sql_string(cls, sql: list[str] | str) -> list[str]:
