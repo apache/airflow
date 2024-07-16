@@ -68,16 +68,16 @@ const XcomEntry = ({
       </Alert>
     );
   } else {
-    // Note:
-    // The Airflow API delivers the XCom value as Python JSON dump
-    // with Python style quotes - which can not be parsed in JavaScript
-    // by default.
-    // Example: {'key': 'value'}
-    // JavaScript expects: {"key": "value"}
-    // So we attempt to replaces string quotes which in 90% of cases will work
-    // It will fail if embedded quotes are in quotes. Then the XCom will be
-    // rendered as string as fallback. Better ideas welcome here.
-    const xcomString = xcom.value.replace(/'/g, '"');
+    let xcomString = "";
+    if (typeof xcom.value !== "string") {
+      try {
+        xcomString = JSON.stringify(xcom.value);
+      } catch (e) {
+        // skip
+      }
+    } else {
+      xcomString = xcom.value as string;
+    }
     content = <RenderedJsonField content={xcomString} />;
   }
 
