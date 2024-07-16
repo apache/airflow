@@ -516,7 +516,7 @@ class Test_DatasetAliasCondition:
 
         return dsa_2
 
-    def test_expand_datasets_with_clean_dataset_alias(self, dsa_1, ds_1, resolved_dsa_2):
+    def test_init(self, dsa_1, ds_1, resolved_dsa_2):
         cond = _DatasetAliasCondition(name=dsa_1.name)
         assert cond.objects == []
 
