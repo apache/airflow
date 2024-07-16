@@ -146,20 +146,6 @@ class PowerBIHook(KiotaRequestAdapterHook):
             PowerBIDatasetRefreshFields.ERROR.value: str(refresh_details.get("serviceExceptionJson")),
         }
 
-    async def get_latest_refresh_details(self, dataset_id: str, group_id: str) -> dict[str, str] | None:
-        """
-        Get the refresh details of the most recent dataset refresh in the refresh history of the data source.
-
-        :return: Dictionary containing refresh status and end time if refresh history exists, otherwise None.
-        """
-        history = await self.get_refresh_history(dataset_id=dataset_id, group_id=group_id)
-
-        if len(history) == 0:
-            return None
-
-        refresh_details = history[0]
-        return refresh_details
-
     async def get_refresh_details_by_refresh_id(
         self, dataset_id: str, group_id: str, refresh_id: str
     ) -> dict[str, str]:

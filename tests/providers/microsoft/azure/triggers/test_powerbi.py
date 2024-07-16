@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from unittest import mock
 from unittest.mock import patch
@@ -29,9 +28,6 @@ from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefres
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.conftest import get_airflow_connection
-
-logging.basicConfig(level=logging.DEBUG)
-mylogger = logging.getLogger()
 
 POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
@@ -100,6 +96,7 @@ def test_powerbi_trigger_serialization():
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
 async def test_powerbi_trigger_run_inprogress(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+    """Assert task isn't completed until timeout if dataset refresh is in progress."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.IN_PROGRESS}
     task = asyncio.create_task(powerbi_trigger.run().__anext__())
     await asyncio.sleep(0.5)
@@ -112,6 +109,7 @@ async def test_powerbi_trigger_run_inprogress(mock_get_refresh_details_by_refres
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
 async def test_powerbi_trigger_run_failed(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+    """Assert event is triggered upon failed dataset refresh."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}
 
     generator = powerbi_trigger.run()
@@ -130,6 +128,7 @@ async def test_powerbi_trigger_run_failed(mock_get_refresh_details_by_refresh_id
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
 async def test_powerbi_trigger_run_completed(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+    """Assert event is triggered upon successful dataset refresh."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.COMPLETED}
 
     generator = powerbi_trigger.run()

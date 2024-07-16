@@ -17,17 +17,19 @@
 
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
-    PowerBIDatasetRefreshException,
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
+from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
@@ -122,31 +124,7 @@ def test_execute_no_wait_for_termination(mock_powerbi_hook, latest_refresh_detai
     ]
 
 
-_get_wait_for_status_and_latest_refresh_details_args = [
-    (True, None),
-    (False, None),
-    (True, COMPLETED_REFRESH_DETAILS),
-    (False, COMPLETED_REFRESH_DETAILS),
-    (True, FAILED_REFRESH_DETAILS),
-    (False, FAILED_REFRESH_DETAILS),
-]
-
-
-@pytest.mark.parametrize(
-    argnames=("wait_for_status_return_value", "latest_refresh_details"),
-    argvalues=_get_wait_for_status_and_latest_refresh_details_args,
-    ids=[
-        (
-            f"wait_for_status_detail_{argval[1][PowerBIDatasetRefreshFields.STATUS.value]}_return_value_{argval[0]}"
-            if argval[1] is not None
-            else f"wait_for_status_detail_None_return_value_{argval[0]}"
-        )
-        for argval in _get_wait_for_status_and_latest_refresh_details_args
-    ],
-)
-def test_execute_wait_for_termination_with_Deferrable(
-    mock_powerbi_hook, wait_for_status_return_value, latest_refresh_details
-):
+def test_execute_wait_for_termination_with_Deferrable(mock_powerbi_hook):
     operator = PowerBIDatasetRefreshOperator(
         wait_for_termination=True,
         **CONFIG,
@@ -156,28 +134,44 @@ def test_execute_wait_for_termination_with_Deferrable(
 
     # Magic mock the hook methods
     mock_powerbi_hook.trigger_dataset_refresh = AsyncMock(return_value=NEW_REFRESH_REQUEST_ID)
-    mock_powerbi_hook.get_refresh_details_by_request_id = MagicMock(return_value=latest_refresh_details)
 
-    # Act and assert
-    if wait_for_status_return_value is False:
-        with pytest.raises(PowerBIDatasetRefreshException):
-            operator.execute(context)
-    else:
+    with pytest.raises(TaskDeferred) as exc:
         operator.execute(context)
-        assert mock_powerbi_hook.trigger_dataset_refresh.called
-        assert mock_powerbi_hook.get_refresh_details_by_request_id.called
-        mock_powerbi_hook.wait_for_dataset_refresh_status.assert_called_once_with(
-            request_id=NEW_REFRESH_REQUEST_ID,
-            dataset_id=DATASET_ID,
-            group_id=GROUP_ID,
-            expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
+
+    assert mock_powerbi_hook.trigger_dataset_refresh.called
+    assert isinstance(exc.value.trigger, PowerBITrigger), "Trigger is not a PowerBITriiger"
+
+    assert context["ti"].xcom_push.call_count == 1
+    assert context["ti"].xcom_push.call_args_list == [
+        call(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID, execution_date=None),
+    ]
+
+
+def test_powerbi_operator_async_execute_complete_success():
+    """Assert that execute_complete log success message"""
+    operator = PowerBIDatasetRefreshOperator(
+        wait_for_termination=True,
+        **CONFIG,
+    )
+    context = {"ti": MagicMock()}
+    with mock.patch.object(operator.log, "info") as mock_log_info:
+        operator.execute_complete(
+            context=context,
+            event={"status": "success", "message": "success", "dataset_refresh_id": "1234"},
         )
-        assert context["ti"].xcom_push.call_count == 3
-        assert context["ti"].xcom_push.call_args_list == [
-            call(
-                key="powerbi_dataset_refresh_id",
-                value=NEW_REFRESH_REQUEST_ID,
-            ),
-            call(key="powerbi_dataset_refresh_status", value=PowerBIDatasetRefreshStatus.COMPLETED),
-            call(key="powerbi_dataset_refresh_error", value="None"),
-        ]
+    mock_log_info.assert_called_with("success")
+    assert context["ti"].xcom_push.call_count == 1
+
+
+def test_powerbi_operator_async_execute_complete_fail():
+    """Assert that execute_complete raise exception on error"""
+    operator = PowerBIDatasetRefreshOperator(
+        wait_for_termination=True,
+        **CONFIG,
+    )
+    context = {"ti": MagicMock()}
+    with pytest.raises(AirflowException):
+        operator.execute_complete(
+            context=context,
+            event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
+        )
