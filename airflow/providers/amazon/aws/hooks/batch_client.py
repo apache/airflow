@@ -124,7 +124,7 @@ class BatchProtocol(Protocol):
         :param ecsPropertiesOverride: the same parameter that boto3 will receive
 
         :param eksPropertiesOverride: the same parameter that boto3 will receive
-        
+
         :param tags: the same parameter that boto3 will receive
 
         :return: an API response
