@@ -297,9 +297,6 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return any(x.evaluate(statuses=statuses) for x in self.objects)
-
     @provide_session
     def expand_datasets(self, *, session: Session = NEW_SESSION) -> list[BaseDataset]:
         """Expand the dataset alias to resolved datasets."""
