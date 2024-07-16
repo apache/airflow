@@ -28,6 +28,7 @@ from sqlalchemy.sql import select
 from airflow.datasets import (
     BaseDataset,
     Dataset,
+    DatasetAlias,
     DatasetAll,
     DatasetAny,
     _DatasetAliasCondition,
@@ -161,8 +162,8 @@ def test_datasetbooleancondition_evaluate_iter():
     Ensures DatasetAny evaluate returns True with any true condition, DatasetAll evaluate returns False if
     any condition is false, and both classes correctly iterate over datasets without duplication.
     """
-    any_condition = DatasetAny(dataset1, dataset2)
-    all_condition = DatasetAll(dataset1, dataset2)
+    any_condition = DatasetAny(dataset1, dataset2, dataset_alias_1)
+    all_condition = DatasetAll(dataset1, dataset2, dataset_alias_1)
     assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
     assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
 
@@ -384,6 +385,7 @@ dataset2 = Dataset(uri="s3://bucket2/data2")
 dataset3 = Dataset(uri="s3://bucket3/data3")
 dataset4 = Dataset(uri="s3://bucket4/data4")
 dataset5 = Dataset(uri="s3://bucket5/data5")
+dataset_alias_1 = DatasetAlias(name="alias_name")
 
 test_cases = [
     (lambda: dataset1, dataset1),
