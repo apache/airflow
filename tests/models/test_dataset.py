@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Plugin to demonstrate timetable registration and accommodate example DAGs.
-
-This simply forwards the timetable from ``airflow.example_dags``, so we can make
-it discoverable to unit tests without exposing the entire subpackage.
-"""
 
 from __future__ import annotations
 
-from airflow.example_dags.plugins.workday import AfterWorkdayTimetable, WorkdayTimetablePlugin
+from airflow.datasets import DatasetAlias
+from airflow.models.dataset import DatasetAliasModel
 
-__all__ = ["AfterWorkdayTimetable", "WorkdayTimetablePlugin"]
+
+class TestDatasetAliasModel:
+    def test_from_public(self):
+        dataset_alias = DatasetAlias(name="test_alias")
+        dataset_alias_model = DatasetAliasModel.from_public(dataset_alias)
+
+        assert dataset_alias_model.name == "test_alias"

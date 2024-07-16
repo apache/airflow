@@ -101,7 +101,7 @@ dependencies:
   - azure-kusto-data>=4.1.0
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
-  - azure-mgmt-containerinstance>=9.0.0
+  - azure-mgmt-containerinstance>=10.1.0
   - msgraph-core>=1.0.0
 
 devel-dependencies:

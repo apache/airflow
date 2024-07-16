@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import logging
 import os
-from operator import itemgetter
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import unquote
 
 from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
+from packaging.version import Version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
@@ -34,11 +35,14 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.security import permissions
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
+from airflow.version import version
+from airflow.www import auth
 from airflow.www.views import AirflowBaseView
 
 if TYPE_CHECKING:
@@ -49,6 +53,21 @@ REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
 REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
 
 airflow_app = cast(AirflowApp, current_app)
+
+
+def get_auth_decorator():
+    # TODO: remove this if block when min_airflow_version is set to higher than 2.8.0
+    if Version(version) < Version("2.8"):
+        return auth.has_access(
+            [
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            ]
+        )
+
+    from airflow.auth.managers.models.resource_details import DagAccessEntity
+
+    return auth.has_access_dag("POST", DagAccessEntity.RUN)
 
 
 def _get_databricks_task_id(task: BaseOperator) -> str:
@@ -207,7 +226,6 @@ def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSI
 def get_xcom_result(
     ti_key: TaskInstanceKey,
     key: str,
-    ti: TaskInstance | None,
 ) -> Any:
     result = XCom.get_value(
         ti_key=ti_key,
@@ -230,7 +248,6 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
         *,
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
-        ti = None
         if not ti_key:
             ti = get_task_instance(operator, dttm)
             ti_key = ti.key
@@ -246,8 +263,7 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
             self.log.debug("Finding the launch task for job run metadata %s", ti_key.task_id)
             launch_task_id = get_launch_task_id(task_group)
             ti_key = _get_launch_task_key(ti_key, task_id=launch_task_id)
-        # Should we catch the exception here if there is no return value?
-        metadata = get_xcom_result(ti_key, "return_value", ti)
+        metadata = get_xcom_result(ti_key, "return_value")
 
         hook = DatabricksHook(metadata.conn_id)
         return f"https://{hook.host}/#job/{metadata.job_id}/run/{metadata.run_id}"
@@ -265,7 +281,6 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         *,
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
-        ti = None
         if not ti_key:
             ti = get_task_instance(operator, dttm)
             ti_key = ti.key
@@ -274,8 +289,8 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
             "Creating link to repair all tasks for databricks job run %s",
             task_group.group_id,
         )
-        # Should we catch the exception here if there is no return value?
-        metadata = get_xcom_result(ti_key, "return_value", ti)
+
+        metadata = get_xcom_result(ti_key, "return_value")
 
         tasks_str = self.get_tasks_to_run(ti_key, operator, self.log)
         self.log.debug("tasks to rerun: %s", tasks_str)
@@ -359,7 +374,6 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         *,
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
-        ti = None
         if not ti_key:
             ti = get_task_instance(operator, dttm)
             ti_key = ti.key
@@ -375,11 +389,11 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         )
         dag = airflow_app.dag_bag.get_dag(ti_key.dag_id)
         task = dag.get_task(ti_key.task_id)
-        # Should we catch the exception here if there is no return value?
+
         if ".launch" not in ti_key.task_id:
             launch_task_id = get_launch_task_id(task_group)
             ti_key = _get_launch_task_key(ti_key, task_id=launch_task_id)
-        metadata = get_xcom_result(ti_key, "return_value", ti)
+        metadata = get_xcom_result(ti_key, "return_value")
 
         query_params = {
             "dag_id": ti_key.dag_id,
@@ -396,31 +410,41 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 
     default_view = "repair"
 
-    @expose("/repair_databricks_job", methods=("GET",))
-    def repair(self):
-        databricks_conn_id, databricks_run_id, dag_id, tasks_to_repair = itemgetter(
-            "databricks_conn_id", "databricks_run_id", "dag_id", "tasks_to_repair"
-        )(request.values)
+    @expose("/repair_databricks_job/<string:dag_id>/<string:run_id>", methods=("GET",))
+    @get_auth_decorator()
+    def repair(self, dag_id: str, run_id: str):
         view = conf.get("webserver", "dag_default_view")
         return_url = self._get_return_url(dag_id, view)
-        run_id = request.values.get("run_id").replace(
-            " ", "+"
-        )  # get run id separately since we need to modify it
+
+        tasks_to_repair = request.values.get("tasks_to_repair")
+        self.log.info("Tasks to repair: %s", tasks_to_repair)
         if not tasks_to_repair:
-            # If there are no tasks to repair, we return.
             flash("No tasks to repair. Not sending repair request.")
             return redirect(return_url)
-        self.log.info("Tasks to repair: %s", tasks_to_repair)
+
+        databricks_conn_id = request.values.get("databricks_conn_id")
+        databricks_run_id = request.values.get("databricks_run_id")
+
+        if not databricks_conn_id:
+            flash("No Databricks connection ID provided. Cannot repair tasks.")
+            return redirect(return_url)
+
+        if not databricks_run_id:
+            flash("No Databricks run ID provided. Cannot repair tasks.")
+            return redirect(return_url)
+
         self.log.info("Repairing databricks job %s", databricks_run_id)
         res = _repair_task(
             databricks_conn_id=databricks_conn_id,
-            databricks_run_id=databricks_run_id,
+            databricks_run_id=int(databricks_run_id),
             tasks_to_repair=tasks_to_repair.split(","),
             logger=self.log,
         )
         self.log.info("Repairing databricks job query for run %s sent", databricks_run_id)
 
         self.log.info("Clearing tasks to rerun in airflow")
+
+        run_id = unquote(run_id)
         _clear_task_instances(dag_id, run_id, tasks_to_repair.split(","), self.log)
         flash(f"Databricks repair job is starting!: {res}")
         return redirect(return_url)
@@ -433,8 +457,6 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
 repair_databricks_view = RepairDatabricksTasks()
 
 repair_databricks_package = {
-    "name": "Repair Databricks View",
-    "category": "Repair Databricks Plugin",
     "view": repair_databricks_view,
 }
 
