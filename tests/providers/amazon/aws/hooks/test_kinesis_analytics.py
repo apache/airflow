@@ -16,22 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+import pytest
+
+from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 
 
-class KinesisAnalyticsV2Hook(AwsBaseHook):
-    """
-    Interact with Amazon Kinesis Analytics V2.
-
-    Provide thin wrapper around :external+boto3:py:class:`boto3.client("kinesisanalyticsv2") <KinesisAnalyticsV2.Client>`.
-
-    Additional arguments (such as ``aws_conn_id``) may be specified and
-    are passed down to the underlying AwsBaseHook.
-
-    .. seealso::
-        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-    """
-
-    def __init__(self, *args, **kwargs) -> None:
-        kwargs["client_type"] = "kinesisanalyticsv2"
-        super().__init__(*args, **kwargs)
+class TestKinesisAnalyticsV2Hook:
+    @pytest.mark.parametrize(
+        "test_hook, service_name",
+        [pytest.param(KinesisAnalyticsV2Hook(), "kinesisanalyticsv2", id="kinesisanalyticsv2")],
+    )
+    def test_kinesis_analytics_v2_hook(self, test_hook, service_name):
+        kinesis_analytics_hook = KinesisAnalyticsV2Hook()
+        assert kinesis_analytics_hook.conn is not None
