@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import types
+from cgitb import Hook
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -41,6 +42,8 @@ from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    from airflow.lineage.hook import HookLineageReader
+
     try:
         import importlib_metadata as metadata
     except ImportError:
@@ -75,6 +78,7 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
+hook_lineage_reader_classes: list[type[Hook]] | None = None
 priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
 """
 Mapping of class names to class of OperatorLinks registered by plugins.
@@ -176,7 +180,11 @@ class AirflowPlugin:
     # A list of timetable classes that can be used for DAG scheduling.
     timetables: list[type[Timetable]] = []
 
+    # A list of listeners that can be used for tracking task and DAG states.
     listeners: list[ModuleType | object] = []
+
+    # A list of hook lineage reader classes that can be used for reading lineage information from a hook.
+    hook_lineage_readers: list[type[HookLineageReader]] = []
 
     # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
     priority_weight_strategies: list[type[PriorityWeightStrategy]] = []
@@ -481,6 +489,25 @@ def initialize_timetables_plugins():
         for plugin in plugins
         for timetable_class in plugin.timetables
     }
+
+
+def initialize_hook_lineage_readers_plugins():
+    """Collect hook lineage reader classes registered by plugins."""
+    global hook_lineage_reader_classes
+
+    if hook_lineage_reader_classes is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize hook lineage readers plugins")
+
+    hook_lineage_reader_classes = []
+    for plugin in plugins:
+        hook_lineage_reader_classes.extend(plugin.hook_lineage_readers)
 
 
 def integrate_executor_plugins() -> None:
