@@ -67,13 +67,15 @@ if TYPE_CHECKING:
 
 def is_venv_installed() -> bool:
     """
-    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
+    Check if the virtualenv package is installed by importing the library and checking for any errors.
 
-    :return: True if it is. Whichever way of checking it works, is fine.
+    :return: True if it is installed, False otherwise.
     """
-    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
+    try:
+        subprocess.check_output(["python", "-c", "import virtualenv"], stderr=subprocess.STDOUT)
         return True
-    return False
+    except subprocess.CalledProcessError:
+        return False
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
