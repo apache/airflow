@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Python.
-"""
+"""Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Python."""
 
 from __future__ import annotations
 
@@ -32,7 +30,7 @@ from airflow.providers.google.cloud.operators.dataflow import DataflowStopJobOpe
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_python"
 
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
@@ -57,7 +55,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataflow"],
+    tags=["example", "dataflow", "python"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
