@@ -202,6 +202,17 @@ TEST_TEMPLATE_PATH = "test_template_path"
 
 SYNC_DEPRECATION_WARNING = "The 'sync' parameter is deprecated and will be removed after {}."
 
+TEST_TRAINING_PIPELINE_DATA = {
+    "model_to_upload": {
+        "name": "projects/test-project/locations/us-central1/models/test-model",
+        "display_name": "test-model",
+    },
+    "training_task_metadata": {"backingCustomJob": "prefix/test-custom-job"},
+}
+TEST_TRAINING_PIPELINE_DATA_NO_MODEL = {
+    "training_task_metadata": {"backingCustomJob": "prefix/test-custom-job"}
+}
+
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -418,9 +429,15 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             exc.value.trigger, CustomContainerTrainingJobTrigger
         ), "Trigger is not a CustomContainerTrainingJobTrigger"
 
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.xcom_push"))
+    @mock.patch(
+        VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook.extract_model_id")
+    )
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
-    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+    def test_execute_complete_success(
+        self, mock_hook, mock_hook_extract_model_id, mock_xcom_push, mock_link_persist
+    ):
         task = CreateCustomContainerTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -443,12 +460,18 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             project_id=GCP_PROJECT,
             deferrable=True,
         )
-        expected_result = {}
-        mock_hook.return_value.exists.return_value = False
-        mock_xcom_push.return_value = None
+        expected_result = TEST_TRAINING_PIPELINE_DATA["model_to_upload"]
+        mock_hook_extract_model_id.return_value = "test-model"
         actual_result = task.execute_complete(
-            context=None, event={"status": "success", "message": "", "job": {}}
+            context=None,
+            event={
+                "status": "success",
+                "message": "",
+                "job": TEST_TRAINING_PIPELINE_DATA,
+            },
         )
+        mock_xcom_push.assert_called_with(None, key="model_id", value="test-model")
+        mock_link_persist.assert_called_once_with(context=None, task_instance=task, model_id="test-model")
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self):
@@ -476,6 +499,49 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
         )
         with pytest.raises(AirflowException):
             task.execute_complete(context=None, event={"status": "error", "message": "test message"})
+
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.xcom_push"))
+    @mock.patch(
+        VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook.extract_model_id")
+    )
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
+    def test_execute_complete_no_model_produced(
+        self,
+        mock_hook,
+        hook_extract_model_id,
+        mock_xcom_push,
+        mock_link_persist,
+    ):
+        task = CreateCustomContainerTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            args=ARGS,
+            container_uri=CONTAINER_URI,
+            command=COMMAND_2,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        expected_result = None
+        hook_extract_model_id.return_value = None
+        actual_result = task.execute_complete(
+            context=None,
+            event={"status": "success", "message": "", "job": TEST_TRAINING_PIPELINE_DATA_NO_MODEL},
+        )
+        mock_xcom_push.assert_called_once()
+        mock_link_persist.assert_not_called()
+        assert actual_result == expected_result
 
 
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
@@ -698,9 +764,19 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             exc.value.trigger, CustomPythonPackageTrainingJobTrigger
         ), "Trigger is not a CustomPythonPackageTrainingJobTrigger"
 
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.xcom_push"))
+    @mock.patch(
+        VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook.extract_model_id")
+    )
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
-    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+    def test_execute_complete_success(
+        self,
+        mock_hook,
+        hook_extract_model_id,
+        mock_xcom_push,
+        mock_link_persist,
+    ):
         task = CreateCustomPythonPackageTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -724,12 +800,18 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             project_id=GCP_PROJECT,
             deferrable=True,
         )
-        expected_result = {}
-        mock_hook.return_value.exists.return_value = False
-        mock_xcom_push.return_value = None
+        expected_result = TEST_TRAINING_PIPELINE_DATA["model_to_upload"]
+        hook_extract_model_id.return_value = "test-model"
         actual_result = task.execute_complete(
-            context=None, event={"status": "success", "message": "", "job": {}}
+            context=None,
+            event={
+                "status": "success",
+                "message": "",
+                "job": TEST_TRAINING_PIPELINE_DATA,
+            },
         )
+        mock_xcom_push.assert_called_with(None, key="model_id", value="test-model")
+        mock_link_persist.assert_called_once_with(context=None, task_instance=task, model_id="test-model")
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self):
@@ -758,6 +840,49 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
         )
         with pytest.raises(AirflowException):
             task.execute_complete(context=None, event={"status": "error", "message": "test message"})
+
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.xcom_push"))
+    @mock.patch(
+        VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook.extract_model_id")
+    )
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
+    def test_execute_complete_no_model_produced(
+        self,
+        mock_hook,
+        hook_extract_model_id,
+        mock_xcom_push,
+        mock_link_persist,
+    ):
+        task = CreateCustomPythonPackageTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
+            python_module_name=PYTHON_MODULE_NAME,
+            container_uri=CONTAINER_URI,
+            args=ARGS,
+            replica_count=REPLICA_COUNT,
+            machine_type=MACHINE_TYPE,
+            accelerator_type=ACCELERATOR_TYPE,
+            accelerator_count=ACCELERATOR_COUNT,
+            training_fraction_split=TRAINING_FRACTION_SPLIT,
+            validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+            test_fraction_split=TEST_FRACTION_SPLIT,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        expected_result = None
+        actual_result = task.execute_complete(
+            context=None,
+            event={"status": "success", "message": "", "job": TEST_TRAINING_PIPELINE_DATA_NO_MODEL},
+        )
+        mock_xcom_push.assert_called_once()
+        mock_link_persist.assert_not_called()
+        assert actual_result == expected_result
 
 
 class TestVertexAICreateCustomTrainingJobOperator:
@@ -959,9 +1084,17 @@ class TestVertexAICreateCustomTrainingJobOperator:
             exc.value.trigger, CustomTrainingJobTrigger
         ), "Trigger is not a CustomTrainingJobTrigger"
 
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook.extract_model_id"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))
-    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+    def test_execute_complete_success(
+        self,
+        mock_hook,
+        hook_extract_model_id,
+        mock_xcom_push,
+        mock_link_persist,
+    ):
         task = CreateCustomTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -978,12 +1111,18 @@ class TestVertexAICreateCustomTrainingJobOperator:
             project_id=GCP_PROJECT,
             deferrable=True,
         )
-        expected_result = {}
-        mock_hook.return_value.exists.return_value = False
-        mock_xcom_push.return_value = None
+        expected_result = TEST_TRAINING_PIPELINE_DATA["model_to_upload"]
+        hook_extract_model_id.return_value = "test-model"
         actual_result = task.execute_complete(
-            context=None, event={"status": "success", "message": "", "job": {}}
+            context=None,
+            event={
+                "status": "success",
+                "message": "",
+                "job": TEST_TRAINING_PIPELINE_DATA,
+            },
         )
+        mock_xcom_push.assert_called_with(None, key="model_id", value="test-model")
+        mock_link_persist.assert_called_once_with(context=None, task_instance=task, model_id="test-model")
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self):
@@ -1005,6 +1144,41 @@ class TestVertexAICreateCustomTrainingJobOperator:
         )
         with pytest.raises(AirflowException):
             task.execute_complete(context=None, event={"status": "error", "message": "test message"})
+
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIModelLink.persist"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook.extract_model_id"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))
+    def test_execute_complete_no_model_produced(
+        self,
+        mock_hook,
+        hook_extract_model_id,
+        mock_xcom_push,
+        mock_link_persist,
+    ):
+        task = CreateCustomTrainingJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            staging_bucket=STAGING_BUCKET,
+            display_name=DISPLAY_NAME,
+            script_path=PYTHON_PACKAGE,
+            args=PYTHON_PACKAGE_CMDARGS,
+            container_uri=CONTAINER_URI,
+            requirements=[],
+            replica_count=1,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            deferrable=True,
+        )
+        expected_result = None
+        hook_extract_model_id.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": {}}
+        )
+        mock_xcom_push.assert_called_once()
+        mock_link_persist.assert_not_called()
+        assert actual_result == expected_result
 
 
 class TestVertexAIDeleteCustomTrainingJobOperator:

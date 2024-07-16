@@ -39,7 +39,7 @@ with DAG(
         task_id="slack_webhook_send_text",
         slack_webhook_conn_id=SLACK_WEBHOOK_CONN_ID,
         message=(
-            "Apache Airflow™ is an open-source platform for developing, "
+            "Apache Airflow® is an open-source platform for developing, "
             "scheduling, and monitoring batch-oriented workflows."
         ),
     )
@@ -55,7 +55,7 @@ with DAG(
                 "text": {
                     "type": "mrkdwn",
                     "text": (
-                        "*<https://github.com/apache/airflow|Apache Airflow™>* "
+                        "*<https://github.com/apache/airflow|Apache Airflow®>* "
                         "is an open-source platform for developing, scheduling, "
                         "and monitoring batch-oriented workflows."
                     ),

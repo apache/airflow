@@ -47,6 +47,7 @@ export interface GridData {
   dagRuns: DagRun[];
   groups: Task;
   ordering: RunOrdering;
+  errors: string[];
 }
 
 export const emptyGridData: GridData = {
@@ -57,6 +58,7 @@ export const emptyGridData: GridData = {
     instances: [],
   },
   ordering: [],
+  errors: [],
 };
 
 const formatOrdering = (data: GridData) => ({
@@ -132,6 +134,17 @@ const useGridData = () => {
       }
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(response.dagRuns)) stopRefresh();
+      // if any errors returned then show as toast message
+      if (response.errors.length > 0) {
+        response.errors.forEach((errorMsg) => {
+          const error = Error(errorMsg);
+          errorToast({
+            title: "Error",
+            error,
+          });
+        });
+      }
+
       return response;
     },
     {

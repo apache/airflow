@@ -278,7 +278,10 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
             print("Could not pickle the DAG")
             print(e)
             raise e
-    executor = ExecutorLoader.get_default_executor()
+    if ti.executor:
+        executor = ExecutorLoader.load_executor(ti.executor)
+    else:
+        executor = ExecutorLoader.get_default_executor()
     executor.job_id = None
     executor.start()
     print("Sending to executor.")

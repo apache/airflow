@@ -435,7 +435,12 @@
     "devel-deps": [
       "deltalake>=0.12.0"
     ],
-    "plugins": [],
+    "plugins": [
+      {
+        "name": "databricks_workflow",
+        "plugin-class": "airflow.providers.databricks.plugins.databricks_workflow.DatabricksWorkflowPlugin"
+      }
+    ],
     "cross-providers-deps": [
       "common.sql"
     ],
@@ -775,7 +780,7 @@
       "azure-identity>=1.3.1",
       "azure-keyvault-secrets>=4.1.0",
       "azure-kusto-data>=4.1.0",
-      "azure-mgmt-containerinstance>=9.0.0",
+      "azure-mgmt-containerinstance>=10.1.0",
       "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb>=3.0.0",
       "azure-mgmt-datafactory>=2.0.0",

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
@@ -26,7 +27,13 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+)
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -68,6 +75,7 @@ class DatasetManager(LoggingMixin):
         dataset: Dataset,
         extra=None,
         session: Session = NEW_SESSION,
+        source_alias_names: Iterable[str] | None = None,
         **kwargs,
     ) -> DatasetEvent | None:
         """
@@ -100,6 +108,11 @@ class DatasetManager(LoggingMixin):
                 }
             )
         dataset_event = DatasetEvent(**event_kwargs)
+        if source_alias_names:
+            dataset_alias_models = session.scalars(
+                select(DatasetAliasModel).where(DatasetAliasModel.name.in_(source_alias_names))
+            )
+            dataset_event.source_aliases.extend(dataset_alias_models)
         session.add(dataset_event)
         session.flush()
 
