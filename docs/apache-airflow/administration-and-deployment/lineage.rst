@@ -89,6 +89,49 @@ has outlets defined (e.g. by using ``add_outlets(..)`` or has out of the box sup
 
 .. _precedence: https://docs.python.org/3/reference/expressions.html
 
+Hook Lineage
+------------
+
+Airflow provides a powerful feature for tracking data lineage not only between tasks but also from hooks used within those tasks.
+This functionality helps you understand how data flows throughout your Airflow pipelines.
+
+A global instance of ``HookLineageCollector`` serves as the central hub for collecting lineage information.
+Hooks can send details about datasets they interact with to this collector.
+The collector then uses this data to construct AIP-60 compliant Datasets, a standard format for describing datasets.
+
+.. code-block:: python
+
+    from airflow.lineage.hook_lineage import get_hook_lineage_collector
+
+
+    class CustomHook(BaseHook):
+        def run(self):
+            # run actual code
+            collector = get_hook_lineage_collector()
+            collector.add_input_dataset(self, dataset_kwargs={"scheme": "file", "path": "/tmp/in"})
+            collector.add_output_dataset(self, dataset_kwargs={"scheme": "file", "path": "/tmp/out"})
+
+Lineage data collected by the ``HookLineageCollector`` can be accessed using an instance of ``HookLineageReader``,
+which is registered in an Airflow plugin.
+
+.. code-block:: python
+
+    from airflow.lineage.hook_lineage import HookLineageReader
+    from airflow.plugins_manager import AirflowPlugin
+
+
+    class CustomHookLineageReader(HookLineageReader):
+        def get_inputs(self):
+            return self.lineage_collector.collected_datasets.inputs
+
+
+    class HookLineageCollectionPlugin(AirflowPlugin):
+        name = "HookLineageCollectionPlugin"
+        hook_lineage_readers = [CustomHookLineageReader]
+
+If no ``HookLineageReader`` is registered within Airflow, a default ``NoOpCollector`` is used instead.
+This collector does not create AIP-60 compliant datasets or collect lineage information.
+
 
 Lineage Backend
 ---------------

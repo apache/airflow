@@ -181,7 +181,7 @@ can become the Mentor and guide the proposed candidates on how they can become a
 
 1.  Candidate Proposer
 
-    This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
+    This is the person who launches the DISCUSS thread & makes the case for a PMC member promotion
 
 2.  Candidate Mentor
 

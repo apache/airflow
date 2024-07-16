@@ -725,7 +725,7 @@ class AirflowBaseView(BaseView):
 
     if not conf.getboolean("core", "unit_test_mode"):
         executor, _ = ExecutorLoader.import_default_executor_cls()
-        extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
+        extra_args["sqlite_warning"] = settings.engine and (settings.engine.dialect.name == "sqlite")
         if not executor.is_production:
             extra_args["production_executor_warning"] = executor.__name__
         extra_args["otel_metrics_on"] = conf.getboolean("metrics", "otel_on")
@@ -3350,15 +3350,24 @@ class Airflow(AirflowBaseView):
         if run_states:
             query = query.where(DagRun.state.in_(run_states))
 
+        # Retrieve, sort and encode the previous DAG Runs
         dag_runs = wwwutils.sorted_dag_runs(
             query, ordering=dag.timetable.run_ordering, limit=num_runs, session=session
         )
+        encoded_runs = []
+        encoding_errors = []
+        for dr in dag_runs:
+            encoded_dr, error = wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder)
+            if error:
+                encoding_errors.append(error)
+            else:
+                encoded_runs.append(encoded_dr)
 
-        encoded_runs = [wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder) for dr in dag_runs]
         data = {
             "groups": dag_to_grid(dag, dag_runs, session),
             "dag_runs": encoded_runs,
             "ordering": dag.timetable.run_ordering,
+            "errors": encoding_errors,
         }
         # avoid spaces to reduce payload size
         return (
@@ -4514,13 +4523,13 @@ class ProviderView(AirflowBaseView):
             text = match_obj.group(1)
             url = match_obj.group(2)
 
-            # parsing the url to check if ita a valid url
+            # parsing the url to check if it's a valid url
             parsed_url = urlparse(url)
             if not (parsed_url.scheme == "http" or parsed_url.scheme == "https"):
                 # returning the original raw text
                 return escape(match_obj.group(0))
 
-            return Markup(f'<a href="{url}">{text}</a>')
+            return Markup(f'<a href="{url}" target="_blank" rel="noopener noreferrer">{text}</a>')
 
         cd = escape(description)
         cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)

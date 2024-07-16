@@ -94,6 +94,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param subnet_ids: The subnet resource IDs for a container group
     :param dns_config: The DNS configuration for a container group.
     :param diagnostics: Container group diagnostic information (Log Analytics).
+    :param priority: Container group priority, Possible values include: 'Regular', 'Spot'
 
     **Example**::
 
@@ -129,6 +130,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     "workspaceKey": "workspaceKey",
                 }
             },
+            priority="Regular",
             command=["/bin/echo", "world"],
             task_id="start_container",
         )
@@ -163,6 +165,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         subnet_ids: list[ContainerGroupSubnetId] | None = None,
         dns_config: DnsConfiguration | None = None,
         diagnostics: ContainerGroupDiagnostics | None = None,
+        priority: str | None = "Regular",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -203,6 +206,13 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.subnet_ids = subnet_ids
         self.dns_config = dns_config
         self.diagnostics = diagnostics
+        self.priority = priority
+        if self.priority not in ["Regular", "Spot"]:
+            raise AirflowException(
+                "Invalid value for the priority argument. "
+                "Please set 'Regular' or 'Spot' as the priority. "
+                f"Found `{self.priority}`."
+            )
 
     def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
@@ -278,6 +288,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 subnet_ids=self.subnet_ids,
                 dns_config=self.dns_config,
                 diagnostics=self.diagnostics,
+                priority=self.priority,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)

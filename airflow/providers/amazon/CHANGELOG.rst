@@ -46,6 +46,7 @@ Features
 
 * ``Do not dynamically determine op links for emr serverless (#40627)``
 * ``Be able to remove ACL in S3 hook's copy_object (#40518)``
+* ``feat(aws): provide the context to check_fn in S3 sensor (#40686)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -53,6 +54,9 @@ Bug Fixes
 * ``fix OpenLineage extraction for AthenaOperator (#40545)``
 * ``Reduce memory footprint of s3 key trigger (#40473)``
 * ``Adding cluster to ecs trigger event to avoid defer error (#40482)``
+* ``Fix deferrable AWS SageMaker operators (#40706)``
+* ``Make 'AwsAuthManager' compatible with only Airflow >= 2.9 (#40690)``
+* ``Add serialization opt to s3 operator (#40659)``
 
 Misc
 ~~~~
@@ -60,12 +64,16 @@ Misc
 * ``Use base aws classes in AWS Glue Data Catalog Sensors (#40492)``
 * ``Use base aws classes in AWS Glue Crawlers Operators/Sensors/Triggers (#40504)``
 * ``Share data loader to across asyncio boto sessions (#40658)``
+* ``Send executor logs to task logs in 'EcsExecutor' (#40468)``
+* ``Send executor logs to task logs in 'AwsBatchExecutor' (#40698)``
+
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix docs build re aws changelog (#40488)``
    * ``Remove todo re bucket_name decorator in s3 hook (#40485)``
    * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+   * ``Prepare docs 1st wave July 2024 (#40644)``
 
 8.25.0
 ......
