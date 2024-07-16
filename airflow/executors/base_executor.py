@@ -147,7 +147,7 @@ class BaseExecutor(LoggingMixin):
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
-    def log_task_event(self, *, ti_key: TaskInstanceKey, description:str):
+    def log_task_event(self, *, ti_key: TaskInstanceKey, description: str):
         """Log an event to the task instance event log."""
         self._task_event_logs.append((ti_key, description))
 
