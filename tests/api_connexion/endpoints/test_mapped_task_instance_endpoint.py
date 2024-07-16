@@ -98,7 +98,7 @@ class TestMappedTaskInstanceEndpoint:
             count = dag["success"] + dag["running"]
             with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
                 task1 = BaseOperator(task_id="op1")
-                mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+                mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
 
             dr = dag_maker.create_dagrun(run_id=f"run_{dag_id}")
 
@@ -221,6 +221,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "duration": None,
             "end_date": None,
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": "default",
             "executor_config": "{}",
             "hostname": "",
             "map_index": 0,
@@ -447,6 +448,24 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
 
         response = self.client.get(
             "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?queue=test_queue",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 0
+        assert response.json["task_instances"] == []
+
+    @provide_session
+    def test_mapped_task_instances_with_executor(self, one_task_with_mapped_tis, session):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?executor=default",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 3
+        assert len(response.json["task_instances"]) == 3
+
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped?executor=no_exec",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200

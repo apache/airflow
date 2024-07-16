@@ -88,6 +88,7 @@ class DagFileStat(NamedTuple):
     last_finish_time: datetime | None
     last_duration: timedelta | None
     run_count: int
+    last_num_of_db_queries: int
 
 
 class DagParsingSignal(enum.Enum):
@@ -351,7 +352,12 @@ class DagFileProcessorManager(LoggingMixin):
     """
 
     DEFAULT_FILE_STAT = DagFileStat(
-        num_dags=0, import_errors=0, last_finish_time=None, last_duration=None, run_count=0
+        num_dags=0,
+        import_errors=0,
+        last_finish_time=None,
+        last_duration=None,
+        run_count=0,
+        last_num_of_db_queries=0,
     )
 
     def __init__(
@@ -769,7 +775,8 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.exception("Error removing old import errors")
 
             def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
-                """Get "full" paths to DAGs if inside ZIP files.
+                """
+                Get "full" paths to DAGs if inside ZIP files.
 
                 This is the format used by the remove/delete functions.
                 """
@@ -850,7 +857,18 @@ class DagFileProcessorManager(LoggingMixin):
         # Last Runtime: If the process ran before, how long did it take to
         # finish in seconds
         # Last Run: When the file finished processing in the previous run.
-        headers = ["File Path", "PID", "Runtime", "# DAGs", "# Errors", "Last Runtime", "Last Run"]
+        # Last # of DB Queries: The number of queries performed to the
+        # Airflow database during last parsing of the file.
+        headers = [
+            "File Path",
+            "PID",
+            "Runtime",
+            "# DAGs",
+            "# Errors",
+            "Last Runtime",
+            "Last Run",
+            "Last # of DB Queries",
+        ]
 
         rows = []
         now = timezone.utcnow()
@@ -866,14 +884,35 @@ class DagFileProcessorManager(LoggingMixin):
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
                 Stats.gauge(f"dag_processing.last_run.seconds_ago.{file_name}", seconds_ago)
+            last_num_of_db_queries = self.get_last_num_of_db_queries(file_path)
 
-            rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
+            rows.append(
+                (
+                    file_path,
+                    processor_pid,
+                    runtime,
+                    num_dags,
+                    num_errors,
+                    last_runtime,
+                    last_run,
+                    last_num_of_db_queries,
+                )
+            )
 
         # Sort by longest last runtime. (Can't sort None values in python3)
         rows.sort(key=lambda x: x[5] or 0.0, reverse=True)
 
         formatted_rows = []
-        for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
+        for (
+            file_path,
+            pid,
+            runtime,
+            num_dags,
+            num_errors,
+            last_runtime,
+            last_run,
+            last_num_of_db_queries,
+        ) in rows:
             formatted_rows.append(
                 (
                     file_path,
@@ -883,6 +922,7 @@ class DagFileProcessorManager(LoggingMixin):
                     num_errors,
                     f"{last_runtime:.2f}s" if last_runtime else None,
                     last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None,
+                    last_num_of_db_queries,
                 )
             )
         log_str = (
@@ -945,6 +985,17 @@ class DagFileProcessorManager(LoggingMixin):
         """
         stat = self._file_stats.get(file_path)
         return stat.import_errors if stat else None
+
+    def get_last_num_of_db_queries(self, file_path) -> int | None:
+        """
+        Retrieve the number of queries performed to the Airflow database during last parsing of the file.
+
+        :param file_path: the path to the file that was processed
+        :return: the number of queries performed to the Airflow database during last parsing of the file,
+            or None if the file was never processed.
+        """
+        stat = self._file_stats.get(file_path)
+        return stat.last_num_of_db_queries if stat else None
 
     def get_last_finish_time(self, file_path) -> datetime | None:
         """
@@ -1031,13 +1082,14 @@ class DagFileProcessorManager(LoggingMixin):
         last_finish_time = timezone.utcnow()
 
         if processor.result is not None:
-            num_dags, count_import_errors = processor.result
+            num_dags, count_import_errors, last_num_of_db_queries = processor.result
         else:
             self.log.error(
                 "Processor for %s exited with return code %s.", processor.file_path, processor.exit_code
             )
             count_import_errors = -1
             num_dags = 0
+            last_num_of_db_queries = 0
 
         last_duration = last_finish_time - processor.start_time
         stat = DagFileStat(
@@ -1046,6 +1098,7 @@ class DagFileProcessorManager(LoggingMixin):
             last_finish_time=last_finish_time,
             last_duration=last_duration,
             run_count=self.get_run_count(processor.file_path) + 1,
+            last_num_of_db_queries=last_num_of_db_queries,
         )
         self._file_stats[processor.file_path] = stat
         file_name = Path(processor.file_path).stem
@@ -1242,6 +1295,7 @@ class DagFileProcessorManager(LoggingMixin):
                     last_finish_time=now,
                     last_duration=duration,
                     run_count=self.get_run_count(file_path) + 1,
+                    last_num_of_db_queries=0,
                 )
                 self._file_stats[processor.file_path] = stat
 

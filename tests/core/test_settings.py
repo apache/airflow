@@ -230,14 +230,24 @@ class TestUpdatedConfigNames:
         assert session_lifetime_config == default_timeout_minutes
 
 
+_local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")
+
+
 @pytest.mark.parametrize(
     ["value", "expectation"],
     [
-        (
-            "sqlite:///./relative_path.db",
-            pytest.raises(AirflowConfigException, match=r"Cannot use relative path:"),
+        ("sqlite:///./relative_path.db", _local_db_path_error),
+        ("sqlite:///relative/path.db", _local_db_path_error),
+        pytest.param(
+            "sqlite:///C:/path/to/db",
+            _local_db_path_error,
+            marks=pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows"),
         ),
-        # Should not raise an exception
+        pytest.param(
+            r"sqlite:///C:\path\to\db",
+            _local_db_path_error,
+            marks=pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows"),
+        ),
         ("sqlite://", contextlib.nullcontext()),
     ],
 )

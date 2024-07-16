@@ -139,7 +139,8 @@ class OpenLineageAdapter(LoggingMixin):
         )
 
     def emit(self, event: RunEvent):
-        """Emit OpenLineage event.
+        """
+        Emit OpenLineage event.
 
         :param event: Event to be emitted.
         :return: Redacted Event.
@@ -295,11 +296,17 @@ class OpenLineageAdapter(LoggingMixin):
         """
         error_facet = {}
         if error:
-            if isinstance(error, BaseException):
+            stack_trace = None
+            if isinstance(error, BaseException) and error.__traceback__:
                 import traceback
 
-                error = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
-            error_facet = {"errorMessage": ErrorMessageRunFacet(message=error, programmingLanguage="python")}
+                stack_trace = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
+
+            error_facet = {
+                "errorMessage": ErrorMessageRunFacet(
+                    message=str(error), programmingLanguage="python", stackTrace=stack_trace
+                )
+            }
 
         event = RunEvent(
             eventType=RunState.FAIL,
@@ -427,12 +434,7 @@ class OpenLineageAdapter(LoggingMixin):
                 namespace=conf.namespace(),
                 name=parent_job_name or job_name,
             )
-            facets.update(
-                {
-                    "parent": parent_run_facet,
-                    "parentRun": parent_run_facet,  # Keep sending this for the backward compatibility
-                }
-            )
+            facets.update({"parent": parent_run_facet})
 
         if run_facets:
             facets.update(run_facets)

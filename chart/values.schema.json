@@ -752,7 +752,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.01.19-0.16.0"
+                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1026,6 +1026,11 @@
                             "type": "string"
                         }
                     },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -1071,6 +1076,11 @@
                         "additionalProperties": {
                             "type": "string"
                         }
+                    },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
                     },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
@@ -1591,6 +1601,10 @@
                             "type": "boolean",
                             "default": true
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                        },
                         "size": {
                             "description": "Volume size for worker StatefulSet.",
                             "type": "string",
@@ -1864,7 +1878,7 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into workers (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
@@ -2936,6 +2950,10 @@
                             "type": "string",
                             "default": "100Gi"
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                        },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
                             "type": [
@@ -3344,6 +3362,11 @@
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
                             "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                        },
+                        "usePgbouncer": {
+                            "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 }
@@ -3912,6 +3935,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     }
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into create user job pod (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into create user job",
                     "type": "array",
@@ -4253,6 +4284,14 @@
                             }
                         }
                     ]
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into migrate database job (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",
@@ -7601,6 +7640,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "annotations": {
+                    "description": "Annotations for the redis.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -8420,6 +8467,14 @@
                         },
                         "credentialsSecret": {
                             "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "sshKey": {
+                            "description": "SSH private key",
                             "type": [
                                 "string",
                                 "null"
@@ -11807,6 +11862,27 @@
                             ]
                         }
                     }
+                }
+            }
+        },
+        "persistentVolumeClaimRetentionPolicy": {
+            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
+            "type": [
+                "object",
+                "null"
+            ],
+            "default": null,
+            "additionalProperties": false,
+            "properties": {
+                "whenDeleted": {
+                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
+                    "type": "string",
+                    "default": "Retain"
+                },
+                "whenScaled": {
+                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
+                    "type": "string",
+                    "default": "Retain"
                 }
             }
         }

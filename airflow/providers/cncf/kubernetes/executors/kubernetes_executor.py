@@ -159,16 +159,7 @@ class KubernetesExecutor(BaseExecutor):
 
         pods = []
         for namespace in namespaces:
-            # Dynamic Client list pods is throwing TypeError when there are no matching pods to return
-            # This bug was fixed in MR https://github.com/kubernetes-client/python/pull/2155
-            # TODO: Remove the try-except clause once we upgrade the K8 Python client version which
-            # includes the above MR
-            try:
-                pods.extend(
-                    dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items
-                )
-            except TypeError:
-                continue
+            pods.extend(dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items)
 
         return pods
 

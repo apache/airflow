@@ -39,6 +39,7 @@ from airflow.providers.openlineage.utils.sql import (
     get_table_schemas,
 )
 from airflow.typing_compat import TypedDict
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -116,19 +117,27 @@ def from_table_meta(
     return Dataset(namespace=namespace, name=name if not is_uppercase else name.upper())
 
 
-class SQLParser:
-    """Interface for openlineage-sql.
+class SQLParser(LoggingMixin):
+    """
+    Interface for openlineage-sql.
 
     :param dialect: dialect specific to the database
     :param default_schema: schema applied to each table with no schema parsed
     """
 
     def __init__(self, dialect: str | None = None, default_schema: str | None = None) -> None:
+        super().__init__()
         self.dialect = dialect
         self.default_schema = default_schema
 
     def parse(self, sql: list[str] | str) -> SqlMeta | None:
         """Parse a single or a list of SQL statements."""
+        self.log.debug(
+            "OpenLineage calling SQL parser with SQL %s dialect %s schema %s",
+            sql,
+            self.dialect,
+            self.default_schema,
+        )
         return parse(sql=sql, dialect=self.dialect, default_schema=self.default_schema)
 
     def parse_table_schemas(
@@ -151,6 +160,7 @@ class SQLParser:
             "database": database or database_info.database,
             "use_flat_cross_db_query": database_info.use_flat_cross_db_query,
         }
+        self.log.info("PRE getting schemas for input and output tables")
         return get_table_schemas(
             hook,
             namespace,
@@ -235,7 +245,8 @@ class SQLParser:
         sqlalchemy_engine: Engine | None = None,
         use_connection: bool = True,
     ) -> OperatorLineage:
-        """Parse SQL statement(s) and generate OpenLineage metadata.
+        """
+        Parse SQL statement(s) and generate OpenLineage metadata.
 
         Generated OpenLineage metadata contains:
 
@@ -335,9 +346,8 @@ class SQLParser:
             return split_statement(sql)
         return [obj for stmt in sql for obj in cls.split_sql_string(stmt) if obj != ""]
 
-    @classmethod
     def create_information_schema_query(
-        cls,
+        self,
         tables: list[DbTableMeta],
         normalize_name: Callable[[str], str],
         is_cross_db: bool,
@@ -349,7 +359,7 @@ class SQLParser:
         sqlalchemy_engine: Engine | None = None,
     ) -> str:
         """Create SELECT statement to query information schema table."""
-        tables_hierarchy = cls._get_tables_hierarchy(
+        tables_hierarchy = self._get_tables_hierarchy(
             tables,
             normalize_name=normalize_name,
             database=database,

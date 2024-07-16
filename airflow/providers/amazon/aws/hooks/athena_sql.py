@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 
 
 class AthenaSQLHook(AwsBaseHook, DbApiHook):
-    """Interact with Amazon Athena.
+    """
+    Interact with Amazon Athena.
 
     Provide wrapper around PyAthena library.
 

@@ -24,7 +24,7 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -64,6 +64,10 @@ TEST_VERSION = {
     "runtimeVersion": "1.6",
 }
 MLENGINE_AI_PATH = "airflow.providers.google.cloud.operators.mlengine.{}"
+DEPRECATION_MESSAGE = (
+    r"This operator is deprecated\. All the functionality of legacy "
+    r"MLEngine and new features are available on the Vertex AI platform\. "
+)
 
 
 class TestMLEngineStartBatchPredictionJobOperator:
@@ -119,18 +123,22 @@ class TestMLEngineStartBatchPredictionJobOperator:
         )
         hook_instance.create_job.return_value = success_message
 
-        prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id="test_prediction",
-            project_id="test-project",
-            region=input_with_model["region"],
-            data_format=input_with_model["dataFormat"],
-            input_paths=input_with_model["inputPaths"],
-            output_path=input_with_model["outputPath"],
-            model_name=input_with_model["modelName"].split("/")[-1],
-            labels={"some": "labels"},
-            dag=self.dag,
-            task_id="test-prediction",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            prediction_task = MLEngineStartBatchPredictionJobOperator(
+                job_id="test_prediction",
+                project_id="test-project",
+                region=input_with_model["region"],
+                data_format=input_with_model["dataFormat"],
+                input_paths=input_with_model["inputPaths"],
+                output_path=input_with_model["outputPath"],
+                model_name=input_with_model["modelName"].split("/")[-1],
+                labels={"some": "labels"},
+                dag=self.dag,
+                task_id="test-prediction",
+            )
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -161,18 +169,22 @@ class TestMLEngineStartBatchPredictionJobOperator:
         )
         hook_instance.create_job.return_value = success_message
 
-        prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id="test_prediction",
-            project_id="test-project",
-            region=input_with_version["region"],
-            data_format=input_with_version["dataFormat"],
-            input_paths=input_with_version["inputPaths"],
-            output_path=input_with_version["outputPath"],
-            model_name=input_with_version["versionName"].split("/")[-3],
-            version_name=input_with_version["versionName"].split("/")[-1],
-            dag=self.dag,
-            task_id="test-prediction",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            prediction_task = MLEngineStartBatchPredictionJobOperator(
+                job_id="test_prediction",
+                project_id="test-project",
+                region=input_with_version["region"],
+                data_format=input_with_version["dataFormat"],
+                input_paths=input_with_version["inputPaths"],
+                output_path=input_with_version["outputPath"],
+                model_name=input_with_version["versionName"].split("/")[-3],
+                version_name=input_with_version["versionName"].split("/")[-1],
+                dag=self.dag,
+                task_id="test-prediction",
+            )
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -198,18 +210,21 @@ class TestMLEngineStartBatchPredictionJobOperator:
             resp=httplib2.Response({"status": 404}), content=b"some bytes"
         )
         hook_instance.create_job.return_value = success_message
-
-        prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id="test_prediction",
-            project_id="test-project",
-            region=input_with_uri["region"],
-            data_format=input_with_uri["dataFormat"],
-            input_paths=input_with_uri["inputPaths"],
-            output_path=input_with_uri["outputPath"],
-            uri=input_with_uri["uri"],
-            dag=self.dag,
-            task_id="test-prediction",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            prediction_task = MLEngineStartBatchPredictionJobOperator(
+                job_id="test_prediction",
+                project_id="test-project",
+                region=input_with_uri["region"],
+                data_format=input_with_uri["dataFormat"],
+                input_paths=input_with_uri["inputPaths"],
+                output_path=input_with_uri["outputPath"],
+                uri=input_with_uri["uri"],
+                dag=self.dag,
+                task_id="test-prediction",
+            )
         prediction_output = prediction_task.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -228,7 +243,10 @@ class TestMLEngineStartBatchPredictionJobOperator:
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["uri"] = "gs://fake-uri/saved_model"
         task_args["model_name"] = "fake_model"
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
 
@@ -237,14 +255,20 @@ class TestMLEngineStartBatchPredictionJobOperator:
         task_args["uri"] = "gs://fake-uri/saved_model"
         task_args["model_name"] = "fake_model"
         task_args["version_name"] = "fake_version"
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["version_name"] = "bare_version"
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
             "Missing model: Batch prediction expects a model "
@@ -253,7 +277,10 @@ class TestMLEngineStartBatchPredictionJobOperator:
 
         # Test that none of uri, model, model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(AirflowException) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
             "Missing model origin: Batch prediction expects a "
@@ -270,18 +297,21 @@ class TestMLEngineStartBatchPredictionJobOperator:
         hook_instance.create_job.side_effect = HttpError(
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
-
-        prediction_task = MLEngineStartBatchPredictionJobOperator(
-            job_id="test_prediction",
-            project_id="test-project",
-            region=input_with_model["region"],
-            data_format=input_with_model["dataFormat"],
-            input_paths=input_with_model["inputPaths"],
-            output_path=input_with_model["outputPath"],
-            model_name=input_with_model["modelName"].split("/")[-1],
-            dag=self.dag,
-            task_id="test-prediction",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            prediction_task = MLEngineStartBatchPredictionJobOperator(
+                job_id="test_prediction",
+                project_id="test-project",
+                region=input_with_model["region"],
+                data_format=input_with_model["dataFormat"],
+                input_paths=input_with_model["inputPaths"],
+                output_path=input_with_model["outputPath"],
+                model_name=input_with_model["modelName"].split("/")[-1],
+                dag=self.dag,
+                task_id="test-prediction",
+            )
         with pytest.raises(HttpError):
             prediction_task.execute(None)
         mock_hook.assert_called_once_with(
@@ -296,31 +326,38 @@ class TestMLEngineStartBatchPredictionJobOperator:
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args["uri"] = "a uri"
 
-        with pytest.raises(RuntimeError) as ctx:
+        with pytest.raises(RuntimeError) as ctx, pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
 
         assert "A failure message" == str(ctx.value)
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineStartBatchPredictionJobOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            job_id="{{ 'job_id' }}",
-            region="{{ 'region' }}",
-            input_paths="{{ 'input_paths' }}",
-            output_path="{{ 'output_path' }}",
-            model_name="{{ 'model_name' }}",
-            version_name="{{ 'version_name' }}",
-            uri="{{ 'uri' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            data_format="data_format",
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineStartBatchPredictionJobOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                job_id="{{ 'job_id' }}",
+                region="{{ 'region' }}",
+                input_paths="{{ 'input_paths' }}",
+                output_path="{{ 'output_path' }}",
+                model_name="{{ 'model_name' }}",
+                version_name="{{ 'version_name' }}",
+                uri="{{ 'uri' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                data_format="data_format",
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineStartBatchPredictionJobOperator = ti.task
         assert task.project_id == "project_id"
@@ -347,7 +384,11 @@ class TestMLEngineTrainingCancelJobOperator:
         hook_instance = mock_hook.return_value
         hook_instance.cancel_job.return_value = success_response
 
-        cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
         cancel_training_op.execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -367,8 +408,11 @@ class TestMLEngineTrainingCancelJobOperator:
         hook_instance.cancel_job.side_effect = HttpError(
             resp=httplib2.Response({"status": http_error_code}), content=b"Forbidden"
         )
-
-        cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            cancel_training_op = MLEngineTrainingCancelJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(HttpError) as ctx:
             cancel_training_op.execute(context=MagicMock())
 
@@ -385,17 +429,21 @@ class TestMLEngineTrainingCancelJobOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineTrainingCancelJobOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            job_id="{{ 'job_id' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineTrainingCancelJobOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                job_id="{{ 'job_id' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineTrainingCancelJobOperator = ti.task
         assert task.project_id == "project_id"
@@ -404,16 +452,22 @@ class TestMLEngineTrainingCancelJobOperator:
 
 
 class TestMLEngineModelOperator:
+    deprecation_message = "This operator is deprecated. Consider using operators for specific operations:"
+
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_create_model(self, mock_hook):
-        task = MLEngineManageModelOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model=TEST_MODEL,
-            operation="create",
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=self.deprecation_message,
+        ):
+            task = MLEngineManageModelOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model=TEST_MODEL,
+                operation="create",
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         task.execute(context=MagicMock())
 
@@ -427,14 +481,18 @@ class TestMLEngineModelOperator:
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_get_model(self, mock_hook):
-        task = MLEngineManageModelOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model=TEST_MODEL,
-            operation="get",
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=self.deprecation_message,
+        ):
+            task = MLEngineManageModelOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model=TEST_MODEL,
+                operation="get",
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         result = task.execute(context=MagicMock())
 
@@ -449,29 +507,37 @@ class TestMLEngineModelOperator:
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_fail(self, mock_hook):
-        task = MLEngineManageModelOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model=TEST_MODEL,
-            operation="invalid",
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=self.deprecation_message,
+        ):
+            task = MLEngineManageModelOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model=TEST_MODEL,
+                operation="invalid",
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(ValueError):
             task.execute(None)
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineManageModelOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model="{{ 'model' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=self.deprecation_message,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineManageModelOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model="{{ 'model' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineManageModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -482,13 +548,17 @@ class TestMLEngineModelOperator:
 class TestMLEngineCreateModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_create_model(self, mock_hook):
-        task = MLEngineCreateModelOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model=TEST_MODEL,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineCreateModelOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model=TEST_MODEL,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         task.execute(context=MagicMock())
 
@@ -502,17 +572,21 @@ class TestMLEngineCreateModelOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineCreateModelOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model="{{ 'model' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineCreateModelOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model="{{ 'model' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineCreateModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -523,13 +597,17 @@ class TestMLEngineCreateModelOperator:
 class TestMLEngineGetModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_get_model(self, mock_hook):
-        task = MLEngineGetModelOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineGetModelOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         result = task.execute(context=MagicMock())
 
@@ -544,17 +622,21 @@ class TestMLEngineGetModelOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineGetModelOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineGetModelOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineGetModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -565,14 +647,18 @@ class TestMLEngineGetModelOperator:
 class TestMLEngineDeleteModelOperator:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success_delete_model(self, mock_hook):
-        task = MLEngineDeleteModelOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delete_contents=True,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineDeleteModelOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+                delete_contents=True,
+            )
 
         task.execute(context=MagicMock())
 
@@ -586,17 +672,21 @@ class TestMLEngineDeleteModelOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineDeleteModelOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineDeleteModelOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineDeleteModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -605,6 +695,7 @@ class TestMLEngineDeleteModelOperator:
 
 
 class TestMLEngineVersionOperator:
+    deprecation_message = "This operator is deprecated. Consider using operators for specific operations:"
     VERSION_DEFAULT_ARGS = {
         "project_id": "test-project",
         "model_name": "test-model",
@@ -616,8 +707,11 @@ class TestMLEngineVersionOperator:
         success_response = {"name": "some-name", "done": True}
         hook_instance = mock_hook.return_value
         hook_instance.create_version.return_value = success_response
-
-        training_op = MLEngineManageVersionOperator(version=TEST_VERSION, **self.VERSION_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=self.deprecation_message,
+        ):
+            training_op = MLEngineManageVersionOperator(version=TEST_VERSION, **self.VERSION_DEFAULT_ARGS)
         training_op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -632,19 +726,23 @@ class TestMLEngineVersionOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineManageVersionOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            version="{{ 'version' }}",
-            version_name="{{ 'version_name' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=self.deprecation_message,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineManageVersionOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                version="{{ 'version' }}",
+                version_name="{{ 'version_name' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineManageVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -657,14 +755,18 @@ class TestMLEngineVersionOperator:
 class TestMLEngineCreateVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
-        task = MLEngineCreateVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            version=TEST_VERSION,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineCreateVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version=TEST_VERSION,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         task.execute(context=MagicMock())
 
@@ -677,41 +779,53 @@ class TestMLEngineCreateVersion:
         )
 
     def test_missing_model_name(self):
-        task = MLEngineCreateVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=None,
-            version=TEST_VERSION,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineCreateVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                version=TEST_VERSION,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     def test_missing_version(self):
-        task = MLEngineCreateVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            version=None,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineCreateVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineCreateVersionOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            version="{{ 'version' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineCreateVersionOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                version="{{ 'version' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineCreateVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -723,14 +837,18 @@ class TestMLEngineCreateVersion:
 class TestMLEngineSetDefaultVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
-        task = MLEngineSetDefaultVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            version_name=TEST_VERSION_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineSetDefaultVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version_name=TEST_VERSION_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         task.execute(context=MagicMock())
 
@@ -743,41 +861,53 @@ class TestMLEngineSetDefaultVersion:
         )
 
     def test_missing_model_name(self):
-        task = MLEngineSetDefaultVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=None,
-            version_name=TEST_VERSION_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineSetDefaultVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                version_name=TEST_VERSION_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     def test_missing_version_name(self):
-        task = MLEngineSetDefaultVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            version_name=None,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineSetDefaultVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version_name=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineSetDefaultVersionOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            version_name="{{ 'version_name' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineSetDefaultVersionOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                version_name="{{ 'version_name' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineSetDefaultVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -789,13 +919,17 @@ class TestMLEngineSetDefaultVersion:
 class TestMLEngineListVersions:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
-        task = MLEngineListVersionsOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineListVersionsOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         task.execute(context=MagicMock())
 
@@ -809,28 +943,36 @@ class TestMLEngineListVersions:
         )
 
     def test_missing_model_name(self):
-        task = MLEngineListVersionsOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=None,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineListVersionsOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineListVersionsOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineListVersionsOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineListVersionsOperator = ti.task
         assert task.project_id == "project_id"
@@ -841,14 +983,18 @@ class TestMLEngineListVersions:
 class TestMLEngineDeleteVersion:
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
     def test_success(self, mock_hook):
-        task = MLEngineDeleteVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            version_name=TEST_VERSION_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-            impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineDeleteVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version_name=TEST_VERSION_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            )
 
         task.execute(context=MagicMock())
 
@@ -861,41 +1007,53 @@ class TestMLEngineDeleteVersion:
         )
 
     def test_missing_version_name(self):
-        task = MLEngineDeleteVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=TEST_MODEL_NAME,
-            version_name=None,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineDeleteVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=TEST_MODEL_NAME,
+                version_name=None,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     def test_missing_model_name(self):
-        task = MLEngineDeleteVersionOperator(
-            task_id="task-id",
-            project_id=TEST_PROJECT_ID,
-            model_name=None,
-            version_name=TEST_VERSION_NAME,
-            gcp_conn_id=TEST_GCP_CONN_ID,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            task = MLEngineDeleteVersionOperator(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                model_name=None,
+                version_name=TEST_VERSION_NAME,
+                gcp_conn_id=TEST_GCP_CONN_ID,
+            )
         with pytest.raises(AirflowException):
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineDeleteVersionOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            model_name="{{ 'model_name' }}",
-            version_name="{{ 'version_name' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineDeleteVersionOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                model_name="{{ 'model_name' }}",
+                version_name="{{ 'version_name' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineDeleteVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -934,7 +1092,11 @@ class TestMLEngineStartTrainingJobOperator:
         mock_hook.return_value.create_job_without_waiting_result.return_value = "test_training"
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
 
-        training_op = MLEngineStartTrainingJobOperator(deferrable=False, **self.TRAINING_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(deferrable=False, **self.TRAINING_DEFAULT_ARGS)
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -967,17 +1129,21 @@ class TestMLEngineStartTrainingJobOperator:
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
         mock_hook.return_value.create_job_without_waiting_result.return_value = success_response
 
-        training_op = MLEngineStartTrainingJobOperator(
-            runtime_version="1.6",
-            python_version="3.5",
-            job_dir="gs://some-bucket/jobs/test_training",
-            master_type="n1-standard-4",
-            master_config={
-                "acceleratorConfig": {"count": "1", "type": "NVIDIA_TESLA_P4"},
-            },
-            deferrable=False,
-            **custom_training_default_args,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(
+                runtime_version="1.6",
+                python_version="3.5",
+                job_dir="gs://some-bucket/jobs/test_training",
+                master_type="n1-standard-4",
+                master_config={
+                    "acceleratorConfig": {"count": "1", "type": "NVIDIA_TESLA_P4"},
+                },
+                deferrable=False,
+                **custom_training_default_args,
+            )
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1022,7 +1188,11 @@ class TestMLEngineStartTrainingJobOperator:
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
         mock_hook.return_value.create_job_without_waiting_result.return_value = response
 
-        training_op = MLEngineStartTrainingJobOperator(**arguments)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(**arguments)
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1088,15 +1258,19 @@ class TestMLEngineStartTrainingJobOperator:
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
         mock_hook.return_value.create_job_without_waiting_result.return_value = success_response
 
-        training_op = MLEngineStartTrainingJobOperator(
-            runtime_version="1.6",
-            python_version="3.5",
-            job_dir="gs://some-bucket/jobs/test_training",
-            service_account="test@serviceaccount.com",
-            **self.TRAINING_DEFAULT_ARGS,
-            hyperparameters=hyperparams,
-            deferrable=False,
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(
+                runtime_version="1.6",
+                python_version="3.5",
+                job_dir="gs://some-bucket/jobs/test_training",
+                service_account="test@serviceaccount.com",
+                **self.TRAINING_DEFAULT_ARGS,
+                hyperparameters=hyperparams,
+                deferrable=False,
+            )
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1118,7 +1292,11 @@ class TestMLEngineStartTrainingJobOperator:
         mock_hook.return_value.get_job.return_value = {"job_id": "test_training"}
         mock_wait_for_job.return_value = {"state": "SUCCEEDED"}
 
-        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         training_op.execute(MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -1132,7 +1310,11 @@ class TestMLEngineStartTrainingJobOperator:
             resp=httplib2.Response({"status": "403"}), content=b"content"
         )
 
-        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(HttpError):
             training_op.execute(MagicMock())
 
@@ -1149,7 +1331,11 @@ class TestMLEngineStartTrainingJobOperator:
         mock_wait_for_job.return_value = {"state": "FAILED", "errorMessage": "A failure message"}
         mock_hook.return_value.create_job_without_waiting_result.return_value = failure_response
 
-        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
         with pytest.raises(RuntimeError) as ctx:
             training_op.execute(MagicMock())
 
@@ -1164,29 +1350,33 @@ class TestMLEngineStartTrainingJobOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator):
-        ti = create_task_instance_of_operator(
-            MLEngineStartTrainingJobOperator,
-            # Templated fields
-            project_id="{{ 'project_id' }}",
-            job_id="{{ 'job_id' }}",
-            region="{{ 'region' }}",
-            package_uris="{{ 'package_uris' }}",
-            training_python_module="{{ 'training_python_module' }}",
-            training_args="{{ 'training_args' }}",
-            scale_tier="{{ 'scale_tier' }}",
-            master_type="{{ 'master_type' }}",
-            master_config="{{ 'master_config' }}",
-            runtime_version="{{ 'runtime_version' }}",
-            python_version="{{ 'python_version' }}",
-            job_dir="{{ 'job_dir' }}",
-            service_account="{{ 'service_account' }}",
-            hyperparameters="{{ 'hyperparameters' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=DEPRECATION_MESSAGE,
+        ):
+            ti = create_task_instance_of_operator(
+                MLEngineStartTrainingJobOperator,
+                # Templated fields
+                project_id="{{ 'project_id' }}",
+                job_id="{{ 'job_id' }}",
+                region="{{ 'region' }}",
+                package_uris="{{ 'package_uris' }}",
+                training_python_module="{{ 'training_python_module' }}",
+                training_args="{{ 'training_args' }}",
+                scale_tier="{{ 'scale_tier' }}",
+                master_type="{{ 'master_type' }}",
+                master_config="{{ 'master_config' }}",
+                runtime_version="{{ 'runtime_version' }}",
+                python_version="{{ 'python_version' }}",
+                job_dir="{{ 'job_dir' }}",
+                service_account="{{ 'service_account' }}",
+                hyperparameters="{{ 'hyperparameters' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         ti.render_templates()
         task: MLEngineStartTrainingJobOperator = ti.task
         assert task.project_id == "project_id"
@@ -1227,20 +1417,24 @@ def test_async_create_training_job_should_execute_successfully(mock_hook):
     """
     mock_hook.return_value.create_job_without_waiting_result.return_value = "test_training"
 
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_GCP_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
 
     with pytest.raises(TaskDeferred) as exc:
         op.execute(create_context(op))
@@ -1253,20 +1447,24 @@ def test_async_create_training_job_should_execute_successfully(mock_hook):
 def test_async_create_training_job_should_throw_exception():
     """Tests that an AirflowException is raised in case of error event"""
 
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_GCP_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
 
     with pytest.raises(AirflowException):
         op.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
@@ -1297,20 +1495,24 @@ def create_context(task):
 def test_async_create_training_job_logging_should_execute_successfully():
     """Asserts that logging occurs as expected"""
 
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_GCP_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
     with mock.patch.object(op.log, "info") as mock_log_info:
         op.execute_complete(
             context=create_context(op),
@@ -1326,20 +1528,24 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(moc
     )
     mock_hook.return_value.get_job.return_value = {"job_id": "test_training"}
 
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_GCP_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
     with pytest.raises(TaskDeferred):
         op.execute(create_context(op))
 
@@ -1351,20 +1557,24 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(moc
 
 
 def test_async_create_training_job_should_throw_exception_if_job_id_none():
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_GCP_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=None,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=None,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
     with pytest.raises(
         AirflowException, match=r"An unique job id is required for Google MLEngine training job."
     ):
@@ -1372,60 +1582,72 @@ def test_async_create_training_job_should_throw_exception_if_job_id_none():
 
 
 def test_async_create_training_job_should_throw_exception_if_project_id_none():
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=None,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=None,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_custom_none():
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=TEST_PACKAGE_URIS,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        master_config={"config": "config"},
-        master_type=None,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=TEST_PACKAGE_URIS,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            master_config={"config": "config"},
+            master_type=None,
+            deferrable=True,
+        )
     with pytest.raises(AirflowException, match=r"master_type must be set when master_config is provided"):
         op.execute(create_context(op))
 
 
 def test_async_create_training_job_should_throw_exception_if_package_none():
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=None,
-        training_python_module=None,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=None,
+            training_python_module=None,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            deferrable=True,
+        )
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
@@ -1435,22 +1657,26 @@ def test_async_create_training_job_should_throw_exception_if_package_none():
 
 
 def test_async_create_training_job_should_throw_exception_if_uris_none():
-    op = MLEngineStartTrainingJobOperator(
-        task_id=TEST_TASK_ID,
-        project_id=TEST_PROJECT_ID,
-        region=TEST_REGION,
-        job_id=TEST_JOB_ID,
-        runtime_version=TEST_RUNTIME_VERSION,
-        python_version=TEST_PYTHON_VERSION,
-        job_dir=TEST_JOB_DIR,
-        package_uris=None,
-        training_python_module=TEST_TRAINING_PYTHON_MODULE,
-        training_args=TEST_TRAINING_ARGS,
-        labels=TEST_LABELS,
-        master_config={"config": "config"},
-        master_type="type",
-        deferrable=True,
-    )
+    with pytest.warns(
+        AirflowProviderDeprecationWarning,
+        match=DEPRECATION_MESSAGE,
+    ):
+        op = MLEngineStartTrainingJobOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            job_id=TEST_JOB_ID,
+            runtime_version=TEST_RUNTIME_VERSION,
+            python_version=TEST_PYTHON_VERSION,
+            job_dir=TEST_JOB_DIR,
+            package_uris=None,
+            training_python_module=TEST_TRAINING_PYTHON_MODULE,
+            training_args=TEST_TRAINING_ARGS,
+            labels=TEST_LABELS,
+            master_config={"config": "config"},
+            master_type="type",
+            deferrable=True,
+        )
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "

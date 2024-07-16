@@ -52,8 +52,8 @@ class KafkaBaseHook(BaseHook):
             },
         }
 
-    def _get_client(self, config):
-        raise NotImplementedError
+    def _get_client(self, config) -> Any:
+        return AdminClient(config)
 
     @cached_property
     def get_conn(self) -> Any:

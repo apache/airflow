@@ -767,6 +767,7 @@ class TestShortCircuitOperator(BasePythonTest):
 virtualenv_string_args: list[str] = []
 
 
+@pytest.mark.execution_timeout(120)
 class BaseTestPythonVirtualenvOperator(BasePythonTest):
     def test_template_fields(self):
         assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)

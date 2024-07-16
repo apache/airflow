@@ -74,6 +74,17 @@ Then you can build your image by ``cd``-ing to the directory with the Dockerfile
    docker build -t my-airflow-image \
     --build-arg aws_default_region=YOUR_DEFAULT_REGION .
 
+Note: It is important that images are built and run under the same architecture. For example,
+for users on Apple Silicon, you may want to specify the arch using ``docker buildx``:
+
+.. code-block:: bash
+
+  docker buildx build --platform=linux/amd64 -t my-airflow-image \
+    --build-arg aws_default_region=YOUR_DEFAULT_REGION .
+
+See
+`here <https://docs.docker.com/reference/cli/docker/buildx/>`__ for more information
+about using ``docker buildx``.
 
 The second method is to use the build-time arguments
 (``aws_access_key_id``, ``aws_secret_access_key``,

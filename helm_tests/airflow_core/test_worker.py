@@ -82,6 +82,24 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_persistent_volume_claim_retention_policy(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "persistence": {
+                        "enabled": True,
+                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {
+            "whenDeleted": "Delete",
+        } == jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0])
+
     def test_should_template_extra_containers(self):
         docs = render_chart(
             values={
@@ -755,7 +773,7 @@ class TestWorker:
     @pytest.mark.parametrize(
         "globalScope, localScope, precedence",
         [
-            ({}, {}, "true"),
+            ({}, {}, "false"),
             ({}, {"safeToEvict": True}, "true"),
             ({}, {"safeToEvict": False}, "false"),
             (
@@ -1048,7 +1066,7 @@ class TestWorkerKedaAutoScaler:
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
 
-    def test_mysql_db_backend_keda(self):
+    def test_mysql_db_backend_keda_worker(self):
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql"}},

@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 DATAFLOW_BASE_LINK = "/dataflow/jobs"
 DATAFLOW_JOB_LINK = DATAFLOW_BASE_LINK + "/{region}/{job_id}?project={project_id}"
 
+DATAFLOW_PIPELINE_BASE_LINK = "/dataflow/pipelines"
+DATAFLOW_PIPELINE_LINK = DATAFLOW_PIPELINE_BASE_LINK + "/{location}/{pipeline_name}?project={project_id}"
+
 
 class DataflowJobLink(BaseGoogleLink):
     """Helper class for constructing Dataflow Job Link."""
@@ -50,4 +53,26 @@ class DataflowJobLink(BaseGoogleLink):
             context,
             key=DataflowJobLink.key,
             value={"project_id": project_id, "region": region, "job_id": job_id},
+        )
+
+
+class DataflowPipelineLink(BaseGoogleLink):
+    """Helper class for constructing Dataflow Pipeline Link."""
+
+    name = "Dataflow Pipeline"
+    key = "dataflow_pipeline_config"
+    format_str = DATAFLOW_PIPELINE_LINK
+
+    @staticmethod
+    def persist(
+        operator_instance: BaseOperator,
+        context: Context,
+        project_id: str | None,
+        location: str | None,
+        pipeline_name: str | None,
+    ):
+        operator_instance.xcom_push(
+            context,
+            key=DataflowPipelineLink.key,
+            value={"project_id": project_id, "location": location, "pipeline_name": pipeline_name},
         )

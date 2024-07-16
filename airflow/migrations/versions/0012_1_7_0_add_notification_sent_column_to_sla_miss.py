@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``notification_sent`` column to ``sla_miss`` table.
+"""
+Add ``notification_sent`` column to ``sla_miss`` table.
 
 Revision ID: bbc73705a13e
 Revises: 4446e08588

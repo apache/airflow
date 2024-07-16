@@ -390,6 +390,9 @@ class AirflowConfigParser(ConfigParser):
             "worker_pods_pending_timeout_check_interval",
             "2.6.0",
         ),
+        ("fab", "update_fab_perms"): ("webserver", "update_fab_perms", "2.9.0"),
+        ("fab", "auth_rate_limited"): ("webserver", "auth_rate_limited", "2.9.0"),
+        ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
     }
 
     # A mapping of new configurations to a list of old configurations for when one configuration
@@ -705,7 +708,8 @@ class AirflowConfigParser(ConfigParser):
                         file.write("\n")
 
     def restore_core_default_configuration(self) -> None:
-        """Restore default configuration for core Airflow.
+        """
+        Restore default configuration for core Airflow.
 
         It does not restore configuration for providers. If you want to restore configuration for
         providers, you need to call ``load_providers_configuration`` method.
@@ -807,7 +811,8 @@ class AirflowConfigParser(ConfigParser):
                     )
 
     def _validate_sqlite3_version(self):
-        """Validate SQLite version.
+        """
+        Validate SQLite version.
 
         Some features in storing rendered fields require SQLite >= 3.15.0.
         """

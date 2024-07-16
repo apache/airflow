@@ -62,6 +62,7 @@ TESTABLE_INTEGRATIONS = [
     "qdrant",
     "redis",
     "trino",
+    "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
@@ -160,6 +161,11 @@ def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
 
 
+@lru_cache(maxsize=None)
+def all_selective_test_types_except_providers() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+
+
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
@@ -223,7 +229,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 
 
 def get_default_platform_machine() -> str:
-    machine = platform.uname().machine
+    machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
     machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
@@ -365,6 +371,7 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "RNHTTR",
     "ryanahamilton",
     "ryw",
     "saguziel",
@@ -433,7 +440,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.15.0"
+HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None

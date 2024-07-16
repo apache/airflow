@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""AWS Batch services.
+"""
+AWS Batch services.
 
 .. seealso::
 
@@ -54,7 +55,8 @@ if TYPE_CHECKING:
 
 
 class BatchOperator(BaseOperator):
-    """Execute a job on AWS Batch.
+    """
+    Execute a job on AWS Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -236,7 +238,8 @@ class BatchOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> str | None:
-        """Submit and monitor an AWS Batch job.
+        """
+        Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -287,7 +290,8 @@ class BatchOperator(BaseOperator):
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
     def submit_job(self, context: Context):
-        """Submit an AWS Batch job.
+        """
+        Submit an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -342,7 +346,8 @@ class BatchOperator(BaseOperator):
         )
 
     def monitor_job(self, context: Context):
-        """Monitor an AWS Batch job.
+        """
+        Monitor an AWS Batch job.
 
         This can raise an exception or an AirflowTaskTimeout if the task was
         created with ``execution_timeout``.
@@ -434,7 +439,8 @@ class BatchOperator(BaseOperator):
 
 
 class BatchCreateComputeEnvironmentOperator(BaseOperator):
-    """Create an AWS Batch compute environment.
+    """
+    Create an AWS Batch compute environment.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

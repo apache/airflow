@@ -425,10 +425,9 @@ class TestCliDags:
             disable_retry=False,
         )
 
-    @mock.patch("workday.AfterWorkdayTimetable.get_next_workday")
     @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
     @mock.patch("airflow.cli.commands.dag_command.DagRun")
-    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_get_next_workday):
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run):
         """
         when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -441,8 +440,6 @@ class TestCliDags:
             start_date + timedelta(days=1),
             start_date + timedelta(days=2),
         ]
-        mock_get_next_workday.side_effect = workdays
-
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -455,7 +452,10 @@ class TestCliDags:
                 "--dry-run",
             ]
         )
-        dag_command.dag_backfill(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=workdays):
+            dag_command.dag_backfill(cli_args)
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
     def test_next_execution(self, tmp_path):
@@ -717,10 +717,19 @@ class TestCliDags:
         mock_yesno.assert_not_called()
         dag_command.dag_unpause(args)
 
-    def test_pause_non_existing_dag_error(self):
+    def test_pause_non_existing_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
-        with pytest.raises(AirflowException):
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_pause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No unpaused DAGs were found"
+
+    def test_unpause_non_existing_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_unpause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No paused DAGs were found"
 
     def test_unpause_already_unpaused_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
@@ -874,7 +883,11 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -903,7 +916,13 @@ class TestCliDags:
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
-                mock.call().test(execution_date=mock.ANY, run_conf=None, session=mock.ANY),
+                mock.call().test(
+                    execution_date=mock.ANY,
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
+                ),
             ]
         )
 
@@ -927,7 +946,9 @@ class TestCliDags:
                 mock.call().test(
                     execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
+                    use_executor=False,
                     session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -947,16 +968,19 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("workday.AfterWorkdayTimetable")
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
         """
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -964,7 +988,10 @@ class TestCliDags:
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
         )
-        dag_command.dag_test(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
+            dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
@@ -1024,3 +1051,24 @@ class TestCliDags:
             assert mock_run.call_args_list[0] == ((trigger,), {})
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
+
+    @mock.patch("airflow.models.taskinstance.TaskInstance._execute_task_with_callbacks")
+    def test_dag_test_with_mark_success(self, mock__execute_task_with_callbacks):
+        """
+        option `--mark-success-pattern` should mark matching tasks as success without executing them.
+        """
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "test",
+                "example_sensor_decorator",
+                datetime(2024, 1, 1, 0, 0, 0).isoformat(),
+                "--mark-success-pattern",
+                "wait_for_upstream",
+            ]
+        )
+        dag_command.dag_test(cli_args)
+
+        # only second operator was actually executed, first one was marked as success
+        assert len(mock__execute_task_with_callbacks.call_args_list) == 1
+        assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"

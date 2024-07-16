@@ -24,7 +24,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
@@ -608,14 +608,7 @@ class TestSQLCheckOperatorDbHook:
         ) as mock_get_conn:
             if database:
                 self._operator.database = database
-            if database:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning,
-                    match='The "schema" variable has been renamed to "database" as it contained the database name.Please use "database" to set the database name.',
-                ):
-                    assert isinstance(self._operator._hook, PostgresHook)
-            else:
-                assert isinstance(self._operator._hook, PostgresHook)
+            assert isinstance(self._operator._hook, PostgresHook)
             mock_get_conn.assert_called_once_with(self.conn_id)
 
     def test_not_allowed_conn_type(self):
