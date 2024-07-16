@@ -264,7 +264,7 @@ class TestBatchOperator:
             tags={},
         )
 
-    
+
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
     @mock.patch.object(BatchClientHook, "check_job_success")
