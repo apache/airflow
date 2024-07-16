@@ -79,18 +79,14 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         group_id: str,
         wait_for_termination: bool = True,
         conn_id: str = PowerBIHook.default_conn_name,
-        timeout: int = 60 * 60 * 24 * 7,
+        timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
         check_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.hook = PowerBIHook(
-            conn_id=conn_id,
-            proxies=proxies,
-            api_version=api_version,
-        )
+        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.wait_for_termination = wait_for_termination
@@ -124,6 +120,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     dataset_id=self.dataset_id,
                     dataset_refresh_id=refresh_id,
                     end_time=end_time,
+                    timeout=self.timeout,
                     check_interval=self.check_interval,
                     wait_for_termination=self.wait_for_termination,
                 ),

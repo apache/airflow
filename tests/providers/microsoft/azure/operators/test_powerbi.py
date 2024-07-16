@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call
+from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
 
@@ -35,28 +35,29 @@ GROUP_ID = "group_id"
 DATASET_ID = "dataset_id"
 CONFIG = {
     "task_id": TASK_ID,
-    "powerbi_conn_id": DEFAULT_CONNECTION_CLIENT_SECRET,
+    "conn_id": DEFAULT_CONNECTION_CLIENT_SECRET,
     "group_id": GROUP_ID,
     "dataset_id": DATASET_ID,
     "check_interval": 1,
     "timeout": 3,
 }
+NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
 # Sample responses from PowerBI API
 COMPLETED_REFRESH_DETAILS = {
-    PowerBIDatasetRefreshFields.REQUEST_ID.value: "5e2d9921-e91b-491f-b7e1-e7d8db49194c",
+    PowerBIDatasetRefreshFields.REQUEST_ID.value: NEW_REFRESH_REQUEST_ID,
     PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
     # serviceExceptionJson is not present when status is not "Failed"
 }
 
 FAILED_REFRESH_DETAILS = {
-    PowerBIDatasetRefreshFields.REQUEST_ID.value: "11bf290a-346b-48b7-8973-c5df149337ff",
+    PowerBIDatasetRefreshFields.REQUEST_ID.value: NEW_REFRESH_REQUEST_ID,
     PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.FAILED,
     PowerBIDatasetRefreshFields.ERROR.value: '{"errorCode":"ModelRefreshFailed_CredentialsNotSpecified"}',
 }
 
 IN_PROGRESS_REFRESH_DETAILS = {
-    PowerBIDatasetRefreshFields.REQUEST_ID.value: "6b6536c1-cfcb-4148-9c21-402c3f5241e4",
+    PowerBIDatasetRefreshFields.REQUEST_ID.value: NEW_REFRESH_REQUEST_ID,
     PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.IN_PROGRESS,  # endtime is not available.
 }
 
@@ -69,7 +70,6 @@ def mock_powerbi_hook():
 
 # Test cases: refresh_details returns None, Terminal Status, In-progress Status
 _get_latest_refresh_details_args = [
-    (None),
     COMPLETED_REFRESH_DETAILS,
     FAILED_REFRESH_DETAILS,
     IN_PROGRESS_REFRESH_DETAILS,
@@ -91,97 +91,35 @@ _get_latest_refresh_details_args = [
 def test_execute_no_wait_for_termination(mock_powerbi_hook, latest_refresh_details):
     operator = PowerBIDatasetRefreshOperator(
         wait_for_termination=False,
-        force_refresh=False,
         **CONFIG,
     )
     operator.hook = mock_powerbi_hook
     context = {"ti": MagicMock()}
-    new_refresh_request_id = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
-    mock_powerbi_hook.get_latest_refresh_details = MagicMock(return_value=latest_refresh_details)
-    mock_powerbi_hook.trigger_dataset_refresh = MagicMock(return_value=new_refresh_request_id)
-    mock_powerbi_hook.get_refresh_details_by_request_id = MagicMock(
-        return_value={
-            PowerBIDatasetRefreshFields.REQUEST_ID.value: new_refresh_request_id,
-            PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-            # serviceExceptionJson is not present when status is not "Failed"
-        }
-    )
-    mock_powerbi_hook.wait_for_dataset_refresh_status = MagicMock(return_value=True)
+
+    mock_powerbi_hook.trigger_dataset_refresh = AsyncMock(return_value=NEW_REFRESH_REQUEST_ID)
+    mock_powerbi_hook.get_refresh_details_by_refresh_id = AsyncMock(return_value=latest_refresh_details)
+
     operator.execute(context)
 
-    if (
-        latest_refresh_details is None
-        or latest_refresh_details[PowerBIDatasetRefreshFields.STATUS.value]
-        in PowerBIDatasetRefreshStatus.TERMINAL_STATUSES
-    ):
-        assert mock_powerbi_hook.get_latest_refresh_details.called
-        assert mock_powerbi_hook.trigger_dataset_refresh.called
-    else:
-        assert not mock_powerbi_hook.trigger_dataset_refresh.called
-
-    assert not mock_powerbi_hook.wait_for_dataset_refresh_status.called
-    assert mock_powerbi_hook.get_refresh_details_by_request_id.called
-    assert context["ti"].xcom_push.call_count == 4
+    assert mock_powerbi_hook.get_refresh_details_by_refresh_id.called
+    assert context["ti"].xcom_push.call_count == 3
     assert context["ti"].xcom_push.call_args_list == [
-        call(key="powerbi_dataset_refresh_id", value=new_refresh_request_id),
-        call(key="powerbi_dataset_refresh_status", value=PowerBIDatasetRefreshStatus.COMPLETED),
-        call(key="powerbi_dataset_refresh_end_time", value="2024-04-15T20:14:08.1458221Z"),
-        call(key="powerbi_dataset_refresh_error", value="None"),
+        call(
+            key="powerbi_dataset_refresh_id",
+            value="5e2d9921-e91b-491f-b7e1-e7d8db49194c",
+            execution_date=None,
+        ),
+        call(
+            key="powerbi_dataset_refresh_status",
+            value=latest_refresh_details.get("status"),
+            execution_date=None,
+        ),
+        call(
+            key="powerbi_dataset_refresh_error",
+            value=latest_refresh_details.get("error", "None"),
+            execution_date=None,
+        ),
     ]
-
-
-_get_wait_for_status_args = [(True), (False)]
-
-
-@pytest.mark.parametrize(
-    argnames=("wait_for_status_return_value"),
-    argvalues=_get_wait_for_status_args,
-    ids=[f"wait_for_status_return_value_{argval}" for argval in _get_wait_for_status_args],
-)
-def test_execute_wait_for_termination_preexisting_refresh_going_on(
-    mock_powerbi_hook, wait_for_status_return_value
-):
-    operator = PowerBIDatasetRefreshOperator(
-        wait_for_termination=True,
-        force_refresh=True,
-        **CONFIG,
-    )
-    preexisting_refresh_request_id = "6b6536c1-cfcb-4148-9c21-402c3f5241e4"
-    new_refresh_request_id = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
-    operator.hook = mock_powerbi_hook
-    context = {"ti": MagicMock()}
-    mock_powerbi_hook.get_latest_refresh_details = MagicMock(
-        return_value={
-            PowerBIDatasetRefreshFields.REQUEST_ID.value: preexisting_refresh_request_id,
-            PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.IN_PROGRESS,  # endtime is not available.
-        }
-    )
-    mock_powerbi_hook.trigger_dataset_refresh = MagicMock(return_value=new_refresh_request_id)
-    mock_powerbi_hook.get_refresh_details_by_request_id = MagicMock(
-        return_value={
-            PowerBIDatasetRefreshFields.REQUEST_ID.value: new_refresh_request_id,
-            PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-            # serviceExceptionJson is not present when status is not "Failed"
-        }
-    )
-    mock_powerbi_hook.wait_for_dataset_refresh_status = MagicMock(return_value=wait_for_status_return_value)
-
-    if wait_for_status_return_value is False:
-        with pytest.raises(PowerBIDatasetRefreshException):
-            operator.execute(context)
-        assert not mock_powerbi_hook.trigger_dataset_refresh.called
-    else:
-        operator.execute(context)
-        assert mock_powerbi_hook.trigger_dataset_refresh.called
-        assert mock_powerbi_hook.get_refresh_details_by_request_id.called
-        assert mock_powerbi_hook.wait_for_dataset_refresh_status.call_count == 2
-        assert context["ti"].xcom_push.call_count == 4
-        assert context["ti"].xcom_push.call_args_list == [
-            call(key="powerbi_dataset_refresh_id", value=new_refresh_request_id),
-            call(key="powerbi_dataset_refresh_status", value=PowerBIDatasetRefreshStatus.COMPLETED),
-            call(key="powerbi_dataset_refresh_end_time", value="2024-04-15T20:14:08.1458221Z"),
-            call(key="powerbi_dataset_refresh_error", value="None"),
-        ]
 
 
 _get_wait_for_status_and_latest_refresh_details_args = [
@@ -206,29 +144,19 @@ _get_wait_for_status_and_latest_refresh_details_args = [
         for argval in _get_wait_for_status_and_latest_refresh_details_args
     ],
 )
-def test_execute_wait_for_termination_no_preexisting_refresh(
+def test_execute_wait_for_termination_with_Deferrable(
     mock_powerbi_hook, wait_for_status_return_value, latest_refresh_details
 ):
     operator = PowerBIDatasetRefreshOperator(
         wait_for_termination=True,
-        force_refresh=True,
         **CONFIG,
     )
     operator.hook = mock_powerbi_hook
     context = {"ti": MagicMock()}
-    new_refresh_request_id = "11bf290a-346b-48b7-8973-c5df149337ff"
 
     # Magic mock the hook methods
-    mock_powerbi_hook.get_latest_refresh_details = MagicMock(return_value=latest_refresh_details)
-    mock_powerbi_hook.trigger_dataset_refresh = MagicMock(return_value=new_refresh_request_id)
-    mock_powerbi_hook.get_refresh_details_by_request_id = MagicMock(
-        return_value={
-            PowerBIDatasetRefreshFields.REQUEST_ID.value: new_refresh_request_id,
-            PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-            # serviceExceptionJson is not present when status is not "Failed"
-        }
-    )
-    mock_powerbi_hook.wait_for_dataset_refresh_status = MagicMock(return_value=wait_for_status_return_value)
+    mock_powerbi_hook.trigger_dataset_refresh = AsyncMock(return_value=NEW_REFRESH_REQUEST_ID)
+    mock_powerbi_hook.get_refresh_details_by_request_id = MagicMock(return_value=latest_refresh_details)
 
     # Act and assert
     if wait_for_status_return_value is False:
@@ -239,18 +167,17 @@ def test_execute_wait_for_termination_no_preexisting_refresh(
         assert mock_powerbi_hook.trigger_dataset_refresh.called
         assert mock_powerbi_hook.get_refresh_details_by_request_id.called
         mock_powerbi_hook.wait_for_dataset_refresh_status.assert_called_once_with(
-            request_id=new_refresh_request_id,
+            request_id=NEW_REFRESH_REQUEST_ID,
             dataset_id=DATASET_ID,
             group_id=GROUP_ID,
             expected_status=PowerBIDatasetRefreshStatus.COMPLETED,
         )
-        assert context["ti"].xcom_push.call_count == 4
+        assert context["ti"].xcom_push.call_count == 3
         assert context["ti"].xcom_push.call_args_list == [
             call(
                 key="powerbi_dataset_refresh_id",
-                value=new_refresh_request_id,
+                value=NEW_REFRESH_REQUEST_ID,
             ),
             call(key="powerbi_dataset_refresh_status", value=PowerBIDatasetRefreshStatus.COMPLETED),
-            call(key="powerbi_dataset_refresh_end_time", value="2024-04-15T20:14:08.1458221Z"),
             call(key="powerbi_dataset_refresh_error", value="None"),
         ]

@@ -22,7 +22,6 @@ import time
 from typing import TYPE_CHECKING, AsyncIterator
 
 from airflow.providers.microsoft.azure.hooks.powerbi import (
-    PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
@@ -67,11 +66,7 @@ class PowerBITrigger(BaseTrigger):
         wait_for_termination: bool = True,
     ):
         super().__init__()
-        self.hook = PowerBIHook(
-            conn_id=conn_id,
-            proxies=proxies,
-            api_version=api_version,
-        )
+        self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.dataset_refresh_id = dataset_refresh_id
@@ -86,7 +81,6 @@ class PowerBITrigger(BaseTrigger):
             "airflow.providers.microsoft.azure.triggers.powerbi.PowerBITrigger",
             {
                 "conn_id": self.conn_id,
-                "timeout": self.timeout,
                 "proxies": self.proxies,
                 "api_version": api_version,
                 "dataset_id": self.dataset_id,
@@ -103,10 +97,6 @@ class PowerBITrigger(BaseTrigger):
         return self.hook.conn_id
 
     @property
-    def timeout(self) -> float | None:
-        return self.hook.timeout
-
-    @property
     def proxies(self) -> dict | None:
         return self.hook.proxies
 
@@ -117,18 +107,20 @@ class PowerBITrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
         try:
+            dataset_refresh_status = None
             while self.end_time > time.time():
                 refresh_details = await self.hook.get_refresh_details_by_refresh_id(
                     dataset_id=self.dataset_id,
                     group_id=self.group_id,
                     refresh_id=self.dataset_refresh_id,
                 )
-                dataset_refresh_status = refresh_details.get(PowerBIDatasetRefreshFields.STATUS.value)
+
+                dataset_refresh_status = refresh_details.get("status")
 
                 if dataset_refresh_status == PowerBIDatasetRefreshStatus.COMPLETED:
                     yield TriggerEvent(
                         {
-                            "status": {dataset_refresh_status},
+                            "status": dataset_refresh_status,
                             "message": f"The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}.",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }
@@ -137,7 +129,7 @@ class PowerBITrigger(BaseTrigger):
                 elif dataset_refresh_status == PowerBIDatasetRefreshStatus.FAILED:
                     yield TriggerEvent(
                         {
-                            "status": {dataset_refresh_status},
+                            "status": dataset_refresh_status,
                             "message": f"The dataset refresh {self.dataset_refresh_id} has {dataset_refresh_status}.",
                             "dataset_refresh_id": self.dataset_refresh_id,
                         }

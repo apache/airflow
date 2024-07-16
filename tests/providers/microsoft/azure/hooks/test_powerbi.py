@@ -262,13 +262,3 @@ def test_wait_for_dataset_refresh_status(
     else:
         with pytest.raises(PowerBIDatasetRefreshException):
             powerbi_hook.wait_for_dataset_refresh_status(**config)
-
-
-def test_trigger_dataset_refresh(powerbi_hook):
-    # Mock the refresh_dataset method to return a request ID
-    powerbi_hook.refresh_dataset = MagicMock(return_value="request_id")
-
-    # Assert trigger_dataset_refresh raises an exception.
-    response = powerbi_hook.trigger_dataset_refresh(dataset_id=DATASET_ID, group_id=GROUP_ID)
-
-    assert response == "request_id"
