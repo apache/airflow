@@ -639,10 +639,10 @@ class TestSparkSubmitHook:
         assert dict_cmd["--principal"] == "will-override"
 
     @patch(
-        "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._get_keytab_from_base64",
+        "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._create_keytab_path_from_base64_keytab",
         return_value="privileged_user.keytab",
     )
-    def test_resolve_connection_keytab_set_connection(self, mock_get_keytab_from_base64):
+    def test_resolve_connection_keytab_set_connection(self, mock_create_keytab_path_from_base64_keytab):
         # Given
         hook = SparkSubmitHook(conn_id="spark_keytab_set")
 
@@ -664,8 +664,10 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "privileged_user.keytab"
 
-    @patch("airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._get_keytab_from_base64")
-    def test_resolve_connection_keytab_value_override(self, mock_get_keytab_from_base64):
+    @patch(
+        "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook._create_keytab_path_from_base64_keytab"
+    )
+    def test_resolve_connection_keytab_value_override(self, mock_create_keytab_path_from_base64_keytab):
         # Given
         hook = SparkSubmitHook(conn_id="spark_keytab_set", keytab="will-override")
 
@@ -686,7 +688,9 @@ class TestSparkSubmitHook:
         }
         assert connection == expected_spark_connection
         assert dict_cmd["--keytab"] == "will-override"
-        assert not mock_get_keytab_from_base64.called, "Should not call _get_keytab_from_base64"
+        assert (
+            not mock_create_keytab_path_from_base64_keytab.called
+        ), "Should not call _create_keytab_path_from_base64_keytab"
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
@@ -1033,7 +1037,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_get_keytab_from_base64_with_new_keytab(
+    def test_create_keytab_path_from_base64_keytab_with_new_keytab(
         self,
         mock_open,
         mock_exists,
@@ -1051,7 +1055,7 @@ class TestSparkSubmitHook:
         mock_exists.return_value = False
 
         # When
-        keytab = hook._get_keytab_from_base64(base64_keytab, None)
+        keytab = hook._create_keytab_path_from_base64_keytab(base64_keytab, None)
 
         # Then
         assert keytab == "resolved_path/airflow_keytab-uuid"
@@ -1062,7 +1066,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_get_keytab_from_base64_with_new_keytab_with_principal(
+    def test_create_keytab_path_from_base64_keytab_with_new_keytab_with_principal(
         self,
         mock_open,
         mock_exists,
@@ -1079,7 +1083,7 @@ class TestSparkSubmitHook:
         mock_exists.return_value = False
 
         # When
-        keytab = hook._get_keytab_from_base64(base64_keytab, principal)
+        keytab = hook._create_keytab_path_from_base64_keytab(base64_keytab, principal)
 
         # Then
         assert keytab == f"resolved_path/airflow_keytab-{principal}"
@@ -1089,7 +1093,7 @@ class TestSparkSubmitHook:
     @patch("pathlib.Path.resolve")
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
-    def test_get_keytab_from_base64_with_existing_keytab(
+    def test_create_keytab_path_from_base64_keytab_with_existing_keytab(
         self,
         mock_open,
         mock_exists,
@@ -1107,7 +1111,7 @@ class TestSparkSubmitHook:
         _mock_open.read.return_value = keytab_value
 
         # When
-        keytab = hook._get_keytab_from_base64(base64_keytab.decode("UTF-8"), principal)
+        keytab = hook._create_keytab_path_from_base64_keytab(base64_keytab.decode("UTF-8"), principal)
 
         # Then
         assert keytab == f"resolved_path/airflow_keytab-{principal}"

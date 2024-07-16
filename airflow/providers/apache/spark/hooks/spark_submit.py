@@ -296,7 +296,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._keytab is not None:
                 conn_data["keytab"] = self._keytab
             elif base64_keytab is not None:
-                conn_data["keytab"] = self._get_keytab_from_base64(base64_keytab, conn_data["principal"])
+                conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
+                    base64_keytab, conn_data["principal"]
+                )
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
@@ -310,7 +312,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def get_conn(self) -> Any:
         pass
 
-    def _get_keytab_from_base64(self, base64_keytab: str, principal: str | None) -> str:
+    def _create_keytab_path_from_base64_keytab(self, base64_keytab: str, principal: str | None) -> str:
         _uuid = uuid.uuid4()
         temp_dir_path = Path(tempfile.gettempdir()).resolve()
         temp_file_name = f"airflow_keytab-{principal or _uuid}"
