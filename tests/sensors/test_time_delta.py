@@ -34,7 +34,6 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEV_NULL = "/dev/null"
 TEST_DAG_ID = "unit_tests"
-REFERENCE_TIME = pendulum.now("UTC").replace(microsecond=0, second=0, minute=0)
 
 
 class TestTimedeltaSensor:
@@ -55,15 +54,17 @@ class TestTimeDeltaSensorAsync:
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
 
     @pytest.mark.parametrize(
-        "data_interval_end, delta, should_deffer",
-        [
-            (REFERENCE_TIME.add(hours=-1, minutes=-1), timedelta(hours=1), False),
-            (REFERENCE_TIME, timedelta(hours=1), True),
-        ],
+        "should_deffer",
+        [False, True],
     )
     @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
-    def test_timedelta_sensor(self, defer_mock, data_interval_end, delta, should_deffer):
+    def test_timedelta_sensor(self, defer_mock, should_deffer):
+        delta = timedelta(hours=1)
         op = TimeDeltaSensorAsync(task_id="timedelta_sensor_check", delta=delta, dag=self.dag)
+        if should_deffer:
+            data_interval_end = pendulum.now("UTC").add(hours=1)
+        else:
+            data_interval_end = pendulum.now("UTC").replace(microsecond=0, second=0, minute=0).add(hours=-1)
         op.execute({"data_interval_end": data_interval_end})
         if should_deffer:
             defer_mock.assert_called_once()
