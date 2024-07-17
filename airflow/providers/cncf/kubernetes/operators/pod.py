@@ -766,7 +766,7 @@ class KubernetesPodOperator(BaseOperator):
 
                     pod_log_status = self.pod_manager.fetch_container_logs(
                         pod=self.pod,
-                        container_name=self.BASE_CONTAINER_NAME,
+                        container_name=self.base_container_name,
                         follow=follow,
                         since_time=last_log_time,
                     )
