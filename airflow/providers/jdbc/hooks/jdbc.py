@@ -23,7 +23,9 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
+from sqlalchemy.engine import URL
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -148,6 +150,23 @@ class JdbcHook(DbApiHook):
         if not self._driver_class:
             self._driver_class = self.default_driver_class
         return self._driver_class
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
+        if sqlalchemy_scheme is None:
+            raise AirflowException(
+                "The parameter 'sqlalchemy_scheme' must be defined in extra for JDBC connections!"
+            )
+        return URL.create(
+            drivername=sqlalchemy_scheme,
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+        )
 
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(self.get_conn_id())
