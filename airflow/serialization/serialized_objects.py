@@ -855,7 +855,7 @@ class BaseSerialization:
             if class_identity == "airflow.models.param.Param":
                 serialized_params.append((k, cls._serialize_param(v)))
             else:
-                # Auto-boy other values into Params object like it is done by DAG parsing as well
+                # Auto-box other values into Params object like it is done by DAG parsing as well
                 serialized_params.append((k, cls._serialize_param(Param(v))))
         return serialized_params
 
