@@ -21,7 +21,7 @@ import json
 import uuid
 from json import JSONEncoder
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from attrs import define
@@ -34,6 +34,7 @@ from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
     _is_name_redactable,
+    get_airflow_run_facet,
     get_fully_qualified_class_name,
     is_operator_disabled,
 )
@@ -227,3 +228,39 @@ def test_is_operator_disabled(mock_disabled_operators):
         "airflow.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
+
+
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_includes_full_task_info(mock_include_full_task_info):
+    mock_include_full_task_info.return_value = True
+    # There should be no 'bash_command' in excludes and it's not in includes - so
+    # it's a good choice for checking TaskInfo vs TaskInfoComplete
+    assert (
+        "bash_command"
+        in get_airflow_run_facet(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            BashOperator(task_id="bash_op", bash_command="sleep 1"),
+            MagicMock(),
+        )["airflow"].task
+    )
+
+
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_does_not_include_full_task_info(mock_include_full_task_info):
+    from airflow.operators.bash import BashOperator
+
+    mock_include_full_task_info.return_value = False
+    # There should be no 'bash_command' in excludes and it's not in includes - so
+    # it's a good choice for checking TaskInfo vs TaskInfoComplete
+    assert (
+        "bash_command"
+        not in get_airflow_run_facet(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            BashOperator(task_id="bash_op", bash_command="sleep 1"),
+            MagicMock(),
+        )["airflow"].task
+    )

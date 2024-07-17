@@ -260,6 +260,10 @@ class ExecutionCallableRunner:
         for metadata in _run():
             if isinstance(metadata, Metadata):
                 self.outlet_events[metadata.uri].extra.update(metadata.extra)
+
+                if metadata.alias_name:
+                    self.outlet_events[metadata.alias_name].add(metadata.uri, extra=metadata.extra)
+
                 continue
             self.logger.warning("Ignoring unknown data of %r received from task", type(metadata))
             if self.logger.isEnabledFor(logging.DEBUG):

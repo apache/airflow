@@ -34,7 +34,13 @@ from sqlalchemy.orm import Query
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
 from airflow.www import utils
-from airflow.www.utils import CustomSQLAInterface, DagRunCustomSQLAInterface, json_f, wrapped_markdown
+from airflow.www.utils import (
+    CustomSQLAInterface,
+    DagRunCustomSQLAInterface,
+    encode_dag_run,
+    json_f,
+    wrapped_markdown,
+)
 from tests.test_utils.config import conf_vars
 
 
@@ -321,7 +327,7 @@ class TestAttrRenderer:
 
     def test_encode_dag_run_none(self):
         no_dag_run_result = utils.encode_dag_run(None)
-        assert no_dag_run_result is None
+        assert no_dag_run_result == (None, None)
 
     def test_json_f_webencoder(self):
         dag_run_conf = {
@@ -536,6 +542,49 @@ class TestWrappedMarkdown:
                 from markupsafe import escape
 
                 assert escape(HTML) in rendered
+
+    @pytest.mark.parametrize(
+        "dag_run,expected_val",
+        [
+            [None, (None, None)],
+            [
+                DagRun(run_id="run_id_1", conf={}),
+                (
+                    {
+                        "conf": None,
+                        "conf_is_json": False,
+                        "data_interval_end": None,
+                        "data_interval_start": None,
+                        "end_date": None,
+                        "execution_date": None,
+                        "external_trigger": None,
+                        "last_scheduling_decision": None,
+                        "note": None,
+                        "queued_at": None,
+                        "run_id": "run_id_1",
+                        "run_type": None,
+                        "start_date": None,
+                        "state": None,
+                    },
+                    None,
+                ),
+            ],
+        ],
+    )
+    def test_encode_dag_run(self, dag_run, expected_val):
+        val = encode_dag_run(dag_run)
+        assert val == expected_val
+
+    def test_encode_dag_run_circular_reference(self):
+        conf = {}
+        conf["a"] = conf
+        dr = DagRun(run_id="run_id_1", conf=conf)
+        encoded_dr, error = encode_dag_run(dr)
+        assert encoded_dr is None
+        assert error == (
+            f"Circular reference detected in the DAG Run config (#{dr.run_id}). "
+            f"You should check your webserver logs for more details."
+        )
 
 
 class TestFilter:
