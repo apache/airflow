@@ -55,20 +55,20 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 - [ ] Web UI
   - [ ] Show logs while executing
   - [x] Show logs after completion
-- [ ] Configurability
-- [ ] Documentation
+- [x] Configurability
+- [x] Documentation
   - [x] References in Airflow core
   - [x] Provider Package docs
 - [ ] Tests
   - [ ] Pytest
   - [ ] Breeze integration tests in Github
-- [ ] Known problems
-  - [ ] AIP-44 related
+- [x] Known problems
+  - [x] AIP-44 related
     - [x] Mapped Tasks?
     - [x] Branching Operator/SkipMixin
-    - [ ] RenderedTaskinstanceFields
-    - [ ] Templated Fields?
-    - [ ] AIP-44 Integration Tests
+    - [x] RenderedTaskinstanceFields
+    - [x] Templated Fields?
+    - [x] AIP-44 Integration Tests
 - [ ] AIP-69
   - [x] Draft
   - [x] Update specs
