@@ -107,7 +107,6 @@ class MsSqlHook(DbApiHook):
 
     @lru_cache
     def get_primary_keys(self, table: str) -> list[str]:
-        self.log.info("Getting primary keys for table '%s'", table)
         primary_keys = self.run(
             f"""
             SELECT c.name
@@ -121,7 +120,7 @@ class MsSqlHook(DbApiHook):
             """,
             handler=fetch_all_handler,
         )
-        return [pk[0] for pk in primary_keys]
+        return [pk[0] for pk in primary_keys]  # type: ignore
 
     def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
         """
