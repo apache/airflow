@@ -24,8 +24,8 @@ from unittest.mock import Mock, patch
 
 import jaydebeapi
 import pytest
-from airflow.exceptions import AirflowException
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 from airflow.utils import db
@@ -196,9 +196,7 @@ class TestJdbcHook:
             hook.sqlalchemy_url
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme(self):
-        conn_params = dict(
-            extra=json.dumps(dict(sqlalchemy_scheme="mssql"))
-        )
+        conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql")))
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
