@@ -413,11 +413,7 @@ class DagRun(Base, LoggingMixin):
         query = (
             select(cls)
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-            .where(
-                cls.state == state,
-                cls.run_type != DagRunType.BACKFILL_JOB,
-                cls.next_schedulable <= timezone.utcnow(),
-            )
+            .where(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .where(DagModel.is_paused == false(), DagModel.is_active == true())
         )
