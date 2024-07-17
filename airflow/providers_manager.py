@@ -91,6 +91,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
+    from airflow.datasets import Dataset
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.typing_compat import Literal
@@ -426,6 +427,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
         self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
+        self._dataset_factories: dict[str, Callable[..., Dataset]] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -523,11 +525,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_filesystems()
 
     @provider_info_cache("dataset_uris")
-    def initialize_providers_dataset_uri_handlers(self):
+    def initialize_providers_dataset_uri_handlers_and_factories(self):
         """Lazy initialization of provider dataset URI handlers."""
         self.initialize_providers_list()
-        self._discover_dataset_uri_handlers()
+        self._discover_dataset_uri_handlers_and_factories()
 
+    @provider_info_cache("hook_lineage_writers")
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
         """Lazy initialization of providers hooks."""
@@ -878,7 +881,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     self._fs_set.add(fs_module_name)
         self._fs_set = set(sorted(self._fs_set))
 
-    def _discover_dataset_uri_handlers(self) -> None:
+    def _discover_dataset_uri_handlers_and_factories(self) -> None:
         from airflow.datasets import normalize_noop
 
         for provider_package, provider in self._provider_dict.items():
@@ -893,6 +896,13 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 elif not (handler := _correctness_check(provider_package, handler_path, provider)):
                     continue
                 self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
+                factory_path = handler_info.get("factory")
+                if not (
+                    factory_path is not None
+                    and (factory := _correctness_check(provider_package, factory_path, provider))
+                ):
+                    continue
+                self._dataset_factories.update((scheme, factory) for scheme in schemes)
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -1290,8 +1300,13 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._fs_set)
 
     @property
+    def dataset_factories(self) -> dict[str, Callable[..., Dataset]]:
+        self.initialize_providers_dataset_uri_handlers_and_factories()
+        return self._dataset_factories
+
+    @property
     def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initialize_providers_dataset_uri_handlers()
+        self.initialize_providers_dataset_uri_handlers_and_factories()
         return self._dataset_uri_handlers
 
     @property

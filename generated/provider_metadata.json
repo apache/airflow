@@ -415,6 +415,10 @@
         "8.25.0": {
             "associated_airflow_version": "2.9.2",
             "date_released": "2024-06-27T07:50:54Z"
+        },
+        "8.26.0": {
+            "associated_airflow_version": "2.9.2",
+            "date_released": "2024-07-15T11:42:08Z"
         }
     },
     "apache.beam": {
@@ -8297,6 +8301,10 @@
         "1.4.1": {
             "associated_airflow_version": "2.9.2",
             "date_released": "2024-05-30T06:38:14Z"
+        },
+        "2.0.0": {
+            "associated_airflow_version": "2.9.2",
+            "date_released": "2024-07-15T11:42:08Z"
         }
     },
     "yandex": {

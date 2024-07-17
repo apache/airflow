@@ -33,6 +33,7 @@ PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "operator_extra_links",
     "registered_operator_link_classes",
     "timetable_classes",
+    "hook_lineage_reader_classes",
 ]
 
 
