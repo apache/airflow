@@ -20,7 +20,7 @@
 Add try_number to audit log.
 
 Revision ID: 41b3bc7c0272
-Revises: d482b7261ff9
+Revises: ec3471c1e067
 Create Date: 2024-07-11 14:48:58.998259
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "41b3bc7c0272"
-down_revision = "d482b7261ff9"
+down_revision = "ec3471c1e067"
 branch_labels = None
 depends_on = None
 airflow_version = "2.10.0"
