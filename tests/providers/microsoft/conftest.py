@@ -164,13 +164,13 @@ def mock_context(task) -> Context:
 
 
 def load_json(*args: str):
-    directory = currentframe().f_back.f_globals['__name__'].split(".")[-3]
+    directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]
     with open(join(dirname(__file__),directory, join(*args)), encoding="utf-8") as file:
         return json.load(file)
 
 
 def load_file(*args: str, mode="r", encoding="utf-8"):
-    directory = currentframe().f_back.f_globals['__name__'].split(".")[-3]
+    directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]
     with open(join(dirname(__file__), directory, join(*args)), mode=mode, encoding=encoding) as file:
         return file.read()
 
