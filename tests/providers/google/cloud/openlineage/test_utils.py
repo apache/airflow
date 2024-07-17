@@ -17,42 +17,20 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 from google.cloud.bigquery.table import Table
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.column_lineage_dataset import (
-        ColumnLineageDatasetFacet,
-        Fields,
-        InputField,
-    )
-    from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.column_lineage_dataset import (
-            ColumnLineageDatasetFacet,
-            Fields,
-            InputField,
-        )
-        from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    except ImportError:
-        from openlineage.client.facet import (
-            ColumnLineageDatasetFacet,
-            ColumnLineageDatasetFacetFieldsAdditional as Fields,
-            ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
-            DocumentationDatasetFacet,
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-        )
-        from openlineage.client.run import Dataset
-
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    DocumentationDatasetFacet,
+    Fields,
+    InputField,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+)
 from airflow.providers.google.cloud.openlineage.utils import (
     get_facets_from_bq_table,
     get_identity_column_lineage_facet,

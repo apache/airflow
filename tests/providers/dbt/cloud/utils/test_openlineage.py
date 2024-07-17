@@ -44,6 +44,7 @@ class MockResponse:
 
 
 def emit_event(event):
+    # since 1.15.0 there was v2 facets introduced
     if parse(__version__) >= parse("1.15.0"):
         assert event.run.facets["parent"].run.runId == TASK_UUID
         assert event.run.facets["parent"].job.name == f"{DAG_ID}.{TASK_ID}"

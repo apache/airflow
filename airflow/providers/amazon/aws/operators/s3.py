@@ -324,11 +324,7 @@ class S3CopyObjectOperator(BaseOperator):
         )
 
     def get_openlineage_facets_on_start(self):
-        try:
-            from openlineage.client.event_v2 import Dataset
-        except ImportError:
-            from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(
@@ -442,11 +438,7 @@ class S3CreateObjectOperator(BaseOperator):
             s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
 
     def get_openlineage_facets_on_start(self):
-        try:
-            from openlineage.client.event_v2 import Dataset
-        except ImportError:
-            from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         bucket, key = S3Hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
@@ -552,29 +544,12 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement _on_complete because object keys are resolved in execute()."""
-        if TYPE_CHECKING:
-            from openlineage.client.event_v2 import Dataset
-            from openlineage.client.generated.lifecycle_state_change_dataset import (
-                LifecycleStateChange,
-                LifecycleStateChangeDatasetFacet,
-                PreviousIdentifier,
-            )
-        else:
-            try:
-                from openlineage.client.event_v2 import Dataset
-                from openlineage.client.generated.lifecycle_state_change_dataset import (
-                    LifecycleStateChange,
-                    LifecycleStateChangeDatasetFacet,
-                    PreviousIdentifier,
-                )
-            except ImportError:
-                from openlineage.client.facet import (
-                    LifecycleStateChange,
-                    LifecycleStateChangeDatasetFacet,
-                    LifecycleStateChangeDatasetFacetPreviousIdentifier as PreviousIdentifier,
-                )
-                from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            PreviousIdentifier,
+        )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         if not self._keys:
@@ -747,11 +722,7 @@ class S3FileTransformOperator(BaseOperator):
             self.log.info("Upload successful")
 
     def get_openlineage_facets_on_start(self):
-        try:
-            from openlineage.client.event_v2 import Dataset
-        except ImportError:
-            from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(

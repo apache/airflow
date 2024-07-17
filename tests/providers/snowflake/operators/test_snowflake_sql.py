@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -37,33 +36,14 @@ except ImportError:
         return MagicMock()
 
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.column_lineage_dataset import (
-        ColumnLineageDatasetFacet,
-        Fields,
-        InputField,
-    )
-    from openlineage.client.generated.sql_job import SQLJobFacet
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.column_lineage_dataset import (
-            ColumnLineageDatasetFacet,
-            Fields,
-            InputField,
-        )
-        from openlineage.client.generated.sql_job import SQLJobFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            ColumnLineageDatasetFacet,
-            ColumnLineageDatasetFacetFieldsAdditional as Fields,
-            ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
-            SqlJobFacet as SQLJobFacet,
-        )
-        from openlineage.client.run import Dataset
-
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    Fields,
+    InputField,
+    SQLJobFacet,
+)
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 

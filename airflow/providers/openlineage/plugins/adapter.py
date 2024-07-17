@@ -303,7 +303,7 @@ class OpenLineageAdapter(LoggingMixin):
                 stack_trace = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
             error_facet = {
                 "errorMessage": error_message_run.ErrorMessageRunFacet(
-                    message=error, programmingLanguage="python", stackTrace=stack_trace
+                    message=str(error), programmingLanguage="python", stackTrace=stack_trace
                 )
             }
 

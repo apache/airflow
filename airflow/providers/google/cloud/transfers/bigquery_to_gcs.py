@@ -289,22 +289,12 @@ class BigQueryToGCSOperator(BaseOperator):
         """Implement on_complete as we will include final BQ job id."""
         from pathlib import Path
 
-        if TYPE_CHECKING:
-            from openlineage.client.event_v2 import Dataset
-            from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-            from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
-        else:
-            try:
-                from openlineage.client.event_v2 import Dataset
-                from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-                from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
-            except ImportError:
-                from openlineage.client.facet import (
-                    ExternalQueryRunFacet,
-                    SymlinksDatasetFacet,
-                    SymlinksDatasetFacetIdentifiers as Identifier,
-                )
-                from openlineage.client.run import Dataset
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            ExternalQueryRunFacet,
+            Identifier,
+            SymlinksDatasetFacet,
+        )
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.openlineage.utils import (
             get_facets_from_bq_table,

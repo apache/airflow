@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -228,26 +228,13 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         """Implement _on_complete because we rely on return value of a query."""
         import re
 
-        if TYPE_CHECKING:
-            from openlineage.client.event_v2 import Dataset
-            from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-            from openlineage.client.generated.extraction_error_run import Error, ExtractionErrorRunFacet
-            from openlineage.client.generated.sql_job import SQLJobFacet
-        else:
-            try:
-                from openlineage.client.event_v2 import Dataset
-                from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-                from openlineage.client.generated.extraction_error_run import Error, ExtractionErrorRunFacet
-                from openlineage.client.generated.sql_job import SQLJobFacet
-            except ImportError:
-                from openlineage.client.facet import (
-                    ExternalQueryRunFacet,
-                    ExtractionError as Error,
-                    ExtractionErrorRunFacet,
-                    SqlJobFacet as SQLJobFacet,
-                )
-                from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Error,
+            ExternalQueryRunFacet,
+            ExtractionErrorRunFacet,
+            SQLJobFacet,
+        )
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 

@@ -19,30 +19,18 @@ from __future__ import annotations
 
 import os
 from contextlib import closing
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    from openlineage.client.generated.sql_job import SQLJobFacet
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-        from openlineage.client.generated.sql_job import SQLJobFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-            SqlJobFacet as SQLJobFacet,
-        )
-        from openlineage.client.run import Dataset
-
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+)
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone

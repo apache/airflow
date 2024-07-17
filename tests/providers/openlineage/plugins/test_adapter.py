@@ -481,6 +481,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                         run=parent_run.Run(runId=parent_run_id),
                         job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
                     ),
+                    "errorMessage": error_message_run.ErrorMessageRunFacet(
+                        message="Error message", programmingLanguage="python", stackTrace=None
+                    ),
                     "externalQuery": external_query_run.ExternalQueryRunFacet(
                         externalQueryId="123", source="source"
                     ),

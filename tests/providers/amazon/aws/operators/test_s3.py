@@ -23,35 +23,11 @@ import shutil
 import sys
 from io import BytesIO
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import boto3
 import pytest
 from moto import mock_aws
-
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.lifecycle_state_change_dataset import (
-        LifecycleStateChange,
-        LifecycleStateChangeDatasetFacet,
-        PreviousIdentifier,
-    )
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.lifecycle_state_change_dataset import (
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            PreviousIdentifier,
-        )
-    except ImportError:
-        from openlineage.client.facet import (
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            LifecycleStateChangeDatasetFacetPreviousIdentifier as PreviousIdentifier,
-        )
-        from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -67,6 +43,12 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListOperator,
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
+)
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    PreviousIdentifier,
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow

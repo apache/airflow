@@ -19,34 +19,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.lifecycle_state_change_dataset import (
-        LifecycleStateChange,
-        LifecycleStateChangeDatasetFacet,
-        PreviousIdentifier,
-    )
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.lifecycle_state_change_dataset import (
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            PreviousIdentifier,
-        )
-    except ImportError:
-        from openlineage.client.facet import (
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            LifecycleStateChangeDatasetFacetPreviousIdentifier as PreviousIdentifier,
-        )
-        from openlineage.client.run import Dataset
-
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    PreviousIdentifier,
+)
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
     GCSCreateBucketOperator,

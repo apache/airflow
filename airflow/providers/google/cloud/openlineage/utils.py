@@ -23,36 +23,18 @@ from attr import define, field
 
 if TYPE_CHECKING:
     from google.cloud.bigquery.table import Table
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.base import RunFacet
-    from openlineage.client.generated.column_lineage_dataset import (
-        ColumnLineageDatasetFacet,
-        Fields,
-        InputField,
-    )
-    from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-else:
-    try:
-        from openlineage.client.generated.base import RunFacet
-        from openlineage.client.generated.column_lineage_dataset import (
-            ColumnLineageDatasetFacet,
-            Fields,
-            InputField,
-        )
-        from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    except ImportError:
-        from openlineage.client.facet import (
-            BaseFacet as RunFacet,
-            ColumnLineageDatasetFacet,
-            ColumnLineageDatasetFacetFieldsAdditional as Fields,
-            ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
-            DocumentationDatasetFacet,
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-        )
 
+    from airflow.providers.common.compat.openlineage.facet import Dataset
+
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    DocumentationDatasetFacet,
+    Fields,
+    InputField,
+    RunFacet,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+)
 from airflow.providers.google import __version__ as provider_version
 
 BIGQUERY_NAMESPACE = "bigquery"

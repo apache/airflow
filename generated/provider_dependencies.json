@@ -404,6 +404,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "openlineage"
     ],
     "excluded-python-versions": [],
@@ -578,6 +579,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "openlineage"
     ],
     "excluded-python-versions": [],
@@ -597,6 +599,7 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
+      "apache-airflow-providers-common-compat>=1.1.0",
       "apache-airflow-providers-common-sql>=1.7.2",
       "apache-airflow>=2.7.0",
       "asgiref>=3.5.2",
@@ -668,6 +671,7 @@
       "apache.beam",
       "apache.cassandra",
       "cncf.kubernetes",
+      "common.compat",
       "common.sql",
       "facebook",
       "microsoft.azure",
@@ -1151,6 +1155,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "openlineage",
       "ssh"
     ],
@@ -1194,6 +1199,7 @@
   },
   "snowflake": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.1.0",
       "apache-airflow-providers-common-sql>=1.14.1",
       "apache-airflow>=2.7.0",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
@@ -1205,6 +1211,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql",
       "openlineage"
     ],

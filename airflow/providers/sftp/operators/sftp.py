@@ -23,7 +23,7 @@ import os
 import socket
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 import paramiko
 
@@ -201,14 +201,7 @@ class SFTPOperator(BaseOperator):
             input: file://<local_host>/path
             output: file://<remote_host>:<remote_port>/path.
         """
-        if TYPE_CHECKING:
-            from openlineage.client.event_v2 import Dataset
-        else:
-            try:
-                from openlineage.client.event_v2 import Dataset
-            except ImportError:
-                from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         scheme = "file"

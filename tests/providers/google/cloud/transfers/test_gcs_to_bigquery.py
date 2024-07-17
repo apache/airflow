@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -26,45 +25,22 @@ import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.column_lineage_dataset import (
-        ColumnLineageDatasetFacet,
-        Fields,
-        InputField,
-    )
-    from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-    from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.column_lineage_dataset import (
-            ColumnLineageDatasetFacet,
-            Fields,
-            InputField,
-        )
-        from openlineage.client.generated.documentation_dataset import DocumentationDatasetFacet
-        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-        from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            ColumnLineageDatasetFacet,
-            ColumnLineageDatasetFacetFieldsAdditional as Fields,
-            ColumnLineageDatasetFacetFieldsAdditionalInputFields as InputField,
-            DocumentationDatasetFacet,
-            ExternalQueryRunFacet,
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-        )
-        from openlineage.client.run import Dataset
-
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    DocumentationDatasetFacet,
+    ExternalQueryRunFacet,
+    Fields,
+    Identifier,
+    InputField,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SymlinksDatasetFacet,
+)
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 from airflow.utils.timezone import datetime

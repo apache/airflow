@@ -23,13 +23,14 @@ import traceback
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset, InputDataset, OutputDataset
-    from openlineage.client.generated.base import RunFacet
-    from openlineage.client.generated.output_statistics_output_dataset import (
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset,
+        InputDataset,
+        OutputDataset,
         OutputStatisticsOutputDatasetFacet,
+        RunFacet,
+        SchemaDatasetFacet,
     )
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet
-
     from airflow.providers.google.cloud.openlineage.utils import BigQueryJobRunFacet
 
 
@@ -64,16 +65,7 @@ class _BigQueryOpenLineageMixin:
             - SchemaDatasetFacet
             - OutputStatisticsOutputDatasetFacet
         """
-        if TYPE_CHECKING:
-            from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-            from openlineage.client.generated.sql_job import SQLJobFacet
-        else:
-            try:
-                from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-                from openlineage.client.generated.sql_job import SQLJobFacet
-            except ImportError:
-                from openlineage.client.facet import ExternalQueryRunFacet, SqlJobFacet as SQLJobFacet
-
+        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet, SQLJobFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
@@ -115,18 +107,11 @@ class _BigQueryOpenLineageMixin:
         )
 
     def get_facets(self, job_id: str):
+        from airflow.providers.common.compat.openlineage.facet import ErrorMessageRunFacet
         from airflow.providers.google.cloud.openlineage.utils import (
             BigQueryErrorRunFacet,
             get_from_nullable_chain,
         )
-
-        if TYPE_CHECKING:
-            from openlineage.client.generated.error_message_run import ErrorMessageRunFacet
-        else:
-            try:
-                from openlineage.client.generated.error_message_run import ErrorMessageRunFacet
-            except ImportError:
-                from openlineage.client.facet import ErrorMessageRunFacet
 
         inputs = []
         outputs = []
@@ -234,15 +219,8 @@ class _BigQueryOpenLineageMixin:
     def _get_statistics_dataset_facet(
         properties,
     ) -> OutputStatisticsOutputDatasetFacet | None:
+        from airflow.providers.common.compat.openlineage.facet import OutputStatisticsOutputDatasetFacet
         from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-
-        if not TYPE_CHECKING:
-            try:
-                from openlineage.client.generated.output_statistics_output_dataset import (
-                    OutputStatisticsOutputDatasetFacet,
-                )
-            except ImportError:
-                from openlineage.client.facet import OutputStatisticsOutputDatasetFacet
 
         query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
         if not query_plan:
@@ -256,27 +234,18 @@ class _BigQueryOpenLineageMixin:
         return None
 
     def _get_input_dataset(self, table: dict) -> InputDataset:
-        if not TYPE_CHECKING:
-            try:
-                from openlineage.client.generated.base import InputDataset
-            except ImportError:
-                from openlineage.client.run import InputDataset
+        from airflow.providers.common.compat.openlineage.facet import InputDataset
+
         return cast(InputDataset, self._get_dataset(table, "input"))
 
     def _get_output_dataset(self, table: dict) -> OutputDataset:
-        if not TYPE_CHECKING:
-            try:
-                from openlineage.client.generated.base import OutputDataset
-            except ImportError:
-                from openlineage.client.run import OutputDataset
+        from airflow.providers.common.compat.openlineage.facet import OutputDataset
+
         return cast(OutputDataset, self._get_dataset(table, "output"))
 
     def _get_dataset(self, table: dict, dataset_type: str) -> Dataset:
-        if not TYPE_CHECKING:
-            try:
-                from openlineage.client.generated.base import InputDataset, OutputDataset
-            except ImportError:
-                from openlineage.client.run import InputDataset, OutputDataset
+        from airflow.providers.common.compat.openlineage.facet import InputDataset, OutputDataset
+
         project = table.get("projectId")
         dataset = table.get("datasetId")
         table_name = table.get("tableId")
@@ -317,24 +286,11 @@ class _BigQueryOpenLineageMixin:
         return None
 
     def _get_table_schema(self, table: str) -> SchemaDatasetFacet | None:
+        from airflow.providers.common.compat.openlineage.facet import (
+            SchemaDatasetFacet,
+            SchemaDatasetFacetFields,
+        )
         from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
-
-        if TYPE_CHECKING:
-            from openlineage.client.generated.schema_dataset import (
-                SchemaDatasetFacet,
-                SchemaDatasetFacetFields,
-            )
-        else:
-            try:
-                from openlineage.client.generated.schema_dataset import (
-                    SchemaDatasetFacet,
-                    SchemaDatasetFacetFields,
-                )
-            except ImportError:
-                from openlineage.client.facet import (
-                    SchemaDatasetFacet,
-                    SchemaField as SchemaDatasetFacetFields,
-                )
 
         bq_table = self.client.get_table(table)
 

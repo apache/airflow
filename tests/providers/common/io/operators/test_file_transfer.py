@@ -17,17 +17,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest import mock
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-    except ImportError:
-        from openlineage.client.run import Dataset
-
+from airflow.providers.common.compat.openlineage.facet import Dataset
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.8.0", __file__):

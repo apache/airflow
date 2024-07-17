@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 from contextlib import suppress
-from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -28,31 +27,18 @@ import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
 from google.cloud.exceptions import Conflict
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import InputDataset
-    from openlineage.client.generated.error_message_run import ErrorMessageRunFacet
-    from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-    from openlineage.client.generated.sql_job import SQLJobFacet
-else:
-    try:
-        from openlineage.client.event_v2 import InputDataset
-        from openlineage.client.generated.error_message_run import ErrorMessageRunFacet
-        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-        from openlineage.client.generated.sql_job import SQLJobFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            ErrorMessageRunFacet,
-            ExternalQueryRunFacet,
-            SqlJobFacet as SQLJobFacet,
-        )
-        from openlineage.client.run import InputDataset
-
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferred,
+)
+from airflow.providers.common.compat.openlineage.facet import (
+    ErrorMessageRunFacet,
+    ExternalQueryRunFacet,
+    InputDataset,
+    SQLJobFacet,
 )
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,

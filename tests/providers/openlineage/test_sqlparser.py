@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from openlineage.client.event_v2 import Dataset
-from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset, sql_job
+from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset
 from openlineage.common.sql import DbTableMeta
 
 from airflow.providers.openlineage.sqlparser import DatabaseInfo, GetTableSchemasParams, SQLParser
@@ -338,7 +338,9 @@ class TestSQLParser:
                 schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
             ]
         )
-        assert metadata.outputs[0].facets["columnLineage"] == column_lineage_dataset.ColumnLineageDatasetFacet(
+        assert metadata.outputs[0].facets[
+            "columnLineage"
+        ] == column_lineage_dataset.ColumnLineageDatasetFacet(
             fields={
                 "order_day_of_week": column_lineage_dataset.Fields(
                     inputFields=[

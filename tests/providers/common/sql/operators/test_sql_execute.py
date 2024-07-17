@@ -17,30 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    from openlineage.client.generated.sql_job import SQLJobFacet
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-        from openlineage.client.generated.sql_job import SQLJobFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-            SqlJobFacet as SQLJobFacet,
-        )
-        from openlineage.client.run import Dataset
-
 from airflow.models import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.openlineage.extractors.base import OperatorLineage

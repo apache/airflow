@@ -75,14 +75,7 @@ class FileTransferOperator(BaseOperator):
         src.copy(dst)
 
     def get_openlineage_facets_on_start(self) -> OperatorLineage:
-        if TYPE_CHECKING:
-            from openlineage.client.event_v2 import Dataset
-        else:
-            try:
-                from openlineage.client.event_v2 import Dataset
-            except ImportError:
-                from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         def _prepare_ol_dataset(path: ObjectStoragePath) -> Dataset:

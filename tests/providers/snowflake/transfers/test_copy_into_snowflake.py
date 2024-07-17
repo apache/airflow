@@ -16,32 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 from unittest import mock
 
 import pytest
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-    from openlineage.client.generated.extraction_error_run import Error, ExtractionErrorRunFacet
-    from openlineage.client.generated.sql_job import SQLJobFacet
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-        from openlineage.client.generated.extraction_error_run import Error, ExtractionErrorRunFacet
-        from openlineage.client.generated.sql_job import SQLJobFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            ExternalQueryRunFacet,
-            ExtractionError as Error,
-            ExtractionErrorRunFacet,
-            SqlJobFacet as SQLJobFacet,
-        )
-        from openlineage.client.run import Dataset
-
-
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    Error,
+    ExternalQueryRunFacet,
+    ExtractionErrorRunFacet,
+    SQLJobFacet,
+)
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo
 from airflow.providers.snowflake.transfers.copy_into_snowflake import CopyFromExternalStageToSnowflakeOperator

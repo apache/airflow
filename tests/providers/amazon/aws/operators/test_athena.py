@@ -17,39 +17,24 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset
-    from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    from openlineage.client.generated.sql_job import SQLJobFacet
-    from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
-else:
-    try:
-        from openlineage.client.event_v2 import Dataset
-        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-        from openlineage.client.generated.sql_job import SQLJobFacet
-        from openlineage.client.generated.symlinks_dataset import Identifier, SymlinksDatasetFacet
-    except ImportError:
-        from openlineage.client.facet import (
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-            SqlJobFacet as SQLJobFacet,
-            SymlinksDatasetFacet,
-            SymlinksDatasetFacetIdentifiers as Identifier,
-        )
-        from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    ExternalQueryRunFacet,
+    Identifier,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+    SymlinksDatasetFacet,
+)
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime

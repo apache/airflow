@@ -17,35 +17,18 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
-if TYPE_CHECKING:
-    from openlineage.client.event_v2 import InputDataset, OutputDataset
-    from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-    from openlineage.client.generated.output_statistics_output_dataset import (
-        OutputStatisticsOutputDatasetFacet,
-    )
-    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-else:
-    try:
-        from openlineage.client.event_v2 import InputDataset, OutputDataset
-        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
-        from openlineage.client.generated.output_statistics_output_dataset import (
-            OutputStatisticsOutputDatasetFacet,
-        )
-        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
-    except ImportError:
-        from openlineage.client.facet import (
-            ExternalQueryRunFacet,
-            OutputStatisticsOutputDatasetFacet,
-            SchemaDatasetFacet,
-            SchemaField as SchemaDatasetFacetFields,
-        )
-        from openlineage.client.run import InputDataset, OutputDataset
-
+from airflow.providers.common.compat.openlineage.facet import (
+    ExternalQueryRunFacet,
+    InputDataset,
+    OutputDataset,
+    OutputStatisticsOutputDatasetFacet,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+)
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryOpenLineageMixin
 from airflow.providers.google.cloud.openlineage.utils import (
     BigQueryJobRunFacet,
