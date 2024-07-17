@@ -112,7 +112,9 @@ class DatasetManager(LoggingMixin):
             dataset_alias_models = session.scalars(
                 select(DatasetAliasModel).where(DatasetAliasModel.name.in_(source_alias_names))
             )
-            dataset_event.source_aliases.extend(dataset_alias_models)
+            for dsa in dataset_alias_models:
+                dsa.dataset_events.append(dataset_event)
+                session.add(dsa)
         session.add(dataset_event)
         session.flush()
 
