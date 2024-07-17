@@ -1148,7 +1148,7 @@ class CloudSQLDatabaseHook(BaseHook):
         connects directly to the Google Cloud SQL database.
         """
         if self.database_type == "postgres":
-            db_hook: PostgresHook | MySqlHook = PostgresHook(connection=connection, schema=self.database)
+            db_hook: PostgresHook | MySqlHook = PostgresHook(connection=connection, database=self.database)
         else:
             db_hook = MySqlHook(connection=connection, schema=self.database)
         self.db_hook = db_hook

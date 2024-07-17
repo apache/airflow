@@ -105,7 +105,6 @@
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_load_with_arg
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_query_with_arg
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_with_auto_detect
-- tests/providers/google/cloud/hooks/test_cloud_sql.py::TestCloudSqlDatabaseHook::test_cloudsql_database_hook_get_database_hook
 - tests/providers/google/cloud/hooks/test_gcs.py::TestGCSHook::test_list__error_match_glob_and_invalid_delimiter
 - tests/providers/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithDefaultProjectIdFromConnection::test_error_operation
 - tests/providers/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithDefaultProjectIdFromConnection::test_life_science_client_creation
