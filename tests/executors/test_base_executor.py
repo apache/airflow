@@ -30,6 +30,8 @@ from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
@@ -120,7 +122,7 @@ def test_fail_and_success():
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
-def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
+def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
@@ -128,6 +130,62 @@ def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync)
         mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
         mock.call(
             "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+        ),
+    ]
+    mock_stats_gauge.assert_has_calls(calls)
+
+
+@mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
+@mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
+@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+@mock.patch("airflow.executors.base_executor.Stats.gauge")
+@mock.patch("airflow.executors.executor_loader.ExecutorLoader.get_executor_names")
+def test_gauge_executor_metrics_with_multiple_executors(
+    mock_get_executor_names,
+    mock_stats_gauge,
+    mock_trigger_tasks,
+    mock_sequential_sync,
+    mock_local_sync,
+):
+    mock_get_executor_names.return_value = ["LocalExecutor", "AwsEcsExecutor"]
+    local_executor = LocalExecutor()
+    local_executor.heartbeat()
+    calls = [
+        mock.call(
+            "executor.open_slots.LocalExecutor",
+            value=mock.ANY,
+            tags={"status": "open", "name": "LocalExecutor"},
+        ),
+        mock.call(
+            "executor.queued_tasks.LocalExecutor",
+            value=mock.ANY,
+            tags={"status": "queued", "name": "LocalExecutor"},
+        ),
+        mock.call(
+            "executor.running_tasks.LocalExecutor",
+            value=mock.ANY,
+            tags={"status": "running", "name": "LocalExecutor"},
+        ),
+    ]
+    mock_stats_gauge.assert_has_calls(calls)
+
+    sequential_executor = SequentialExecutor()
+    sequential_executor.heartbeat()
+    calls = [
+        mock.call(
+            "executor.open_slots.SequentialExecutor",
+            value=mock.ANY,
+            tags={"status": "open", "name": "SequentialExecutor"},
+        ),
+        mock.call(
+            "executor.queued_tasks.SequentialExecutor",
+            value=mock.ANY,
+            tags={"status": "queued", "name": "SequentialExecutor"},
+        ),
+        mock.call(
+            "executor.running_tasks.SequentialExecutor",
+            value=mock.ANY,
+            tags={"status": "running", "name": "SequentialExecutor"},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
