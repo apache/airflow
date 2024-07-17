@@ -126,6 +126,8 @@ def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
 def worker(args):
     """Start Airflow Remote worker."""
     api_url = conf.get("remote", "api_url")
+    job_poll_interval = conf.getint("remote", "job_poll_interval")
+    heartbeat_interval = conf.getint("remote", "heartbeat_interval")
     if not api_url:
         raise SystemExit("Error: API URL is not configured, please correct configuration.")
     logger.info("Starting worker with API endpoint %s", api_url)
@@ -156,12 +158,12 @@ def worker(args):
             new_job = _fetch_job(hostname, queues, jobs)
         _check_running_jobs(jobs)
 
-        if drain_worker[0] or datetime.now().timestamp() - last_heartbeat.timestamp() > 10:
+        if drain_worker[0] or datetime.now().timestamp() - last_heartbeat.timestamp() > heartbeat_interval:
             _heartbeat(hostname, jobs, drain_worker[0])
             last_heartbeat = datetime.now()
 
         if not new_job:
-            sleep(5)
+            sleep(job_poll_interval)
             new_job = False
 
     logger.info("Quitting worker, signal being offline.")

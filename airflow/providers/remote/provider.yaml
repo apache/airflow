@@ -59,3 +59,21 @@ config:
         type: string
         example: https://airflow.hosting.org/remote_worker/v1/rpcapi
         default: ~
+      job_poll_interval:
+        description: |
+          Remote worker currently polls for new jobs via HTTP. This parameter defines the number
+          of seconds it should sleep between polls for new jobs.
+          Job polling only happens if the remote worker seeks for new work. Not if busy.
+        version_added: ~
+        type: integer
+        example: "5"
+        default: "5"
+      heartbeat_interval:
+        description: |
+          Remote worker continuously reports status to the central site. This parameter defines
+          how often a status with heartbeat should be sent.
+          During heartbeat status is reported as well as it is checked if a running task is to be terminated.
+        version_added: ~
+        type: integer
+        example: "10"
+        default: "30"
