@@ -135,6 +135,10 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
     mock_stats_gauge.assert_has_calls(calls)
 
 
+@pytest.mark.parametrize(
+    "executor_class, executor_name",
+    [(LocalExecutor, "LocalExecutor"), (SequentialExecutor, "SequentialExecutor")],
+)
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
 @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
@@ -146,46 +150,28 @@ def test_gauge_executor_metrics_with_multiple_executors(
     mock_trigger_tasks,
     mock_sequential_sync,
     mock_local_sync,
+    executor_class,
+    executor_name,
 ):
-    mock_get_executor_names.return_value = ["LocalExecutor", "AwsEcsExecutor"]
-    local_executor = LocalExecutor()
-    local_executor.heartbeat()
-    calls = [
-        mock.call(
-            "executor.open_slots.LocalExecutor",
-            value=mock.ANY,
-            tags={"status": "open", "name": "LocalExecutor"},
-        ),
-        mock.call(
-            "executor.queued_tasks.LocalExecutor",
-            value=mock.ANY,
-            tags={"status": "queued", "name": "LocalExecutor"},
-        ),
-        mock.call(
-            "executor.running_tasks.LocalExecutor",
-            value=mock.ANY,
-            tags={"status": "running", "name": "LocalExecutor"},
-        ),
-    ]
-    mock_stats_gauge.assert_has_calls(calls)
+    mock_get_executor_names.return_value = ["Exec1", "Exec2"]
+    executor = executor_class()
+    executor.heartbeat()
 
-    sequential_executor = SequentialExecutor()
-    sequential_executor.heartbeat()
     calls = [
         mock.call(
-            "executor.open_slots.SequentialExecutor",
+            f"executor.open_slots.{executor_name}",
             value=mock.ANY,
-            tags={"status": "open", "name": "SequentialExecutor"},
+            tags={"status": "open", "name": executor_name},
         ),
         mock.call(
-            "executor.queued_tasks.SequentialExecutor",
+            f"executor.queued_tasks.{executor_name}",
             value=mock.ANY,
-            tags={"status": "queued", "name": "SequentialExecutor"},
+            tags={"status": "queued", "name": executor_name},
         ),
         mock.call(
-            "executor.running_tasks.SequentialExecutor",
+            f"executor.running_tasks.{executor_name}",
             value=mock.ANY,
-            tags={"status": "running", "name": "SequentialExecutor"},
+            tags={"status": "running", "name": executor_name},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
