@@ -165,7 +165,7 @@ def mock_context(task) -> Context:
 
 def load_json(*args: str):
     directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]  # type: ignore
-    with open(join(dirname(__file__),directory, join(*args)), encoding="utf-8") as file:
+    with open(join(dirname(__file__), directory, join(*args)), encoding="utf-8") as file:
         return json.load(file)
 
 
