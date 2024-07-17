@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import random
 import string
+from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
 from typing import TYPE_CHECKING, Any, Iterable, TypeVar
@@ -163,12 +164,14 @@ def mock_context(task) -> Context:
 
 
 def load_json(*args: str):
-    with open(join(dirname(__file__), "azure", join(*args)), encoding="utf-8") as file:
+    directory = currentframe().f_back.f_globals['__name__'].split(".")[-3]
+    with open(join(dirname(__file__),directory, join(*args)), encoding="utf-8") as file:
         return json.load(file)
 
 
 def load_file(*args: str, mode="r", encoding="utf-8"):
-    with open(join(dirname(__file__), "azure", join(*args)), mode=mode, encoding=encoding) as file:
+    directory = currentframe().f_back.f_globals['__name__'].split(".")[-3]
+    with open(join(dirname(__file__), directory, join(*args)), mode=mode, encoding=encoding) as file:
         return file.read()
 
 
