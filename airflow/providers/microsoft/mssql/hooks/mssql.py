@@ -141,7 +141,11 @@ class MsSqlHook(DbApiHook):
             )
 
         primary_keys = self.get_primary_keys(table)
-        columns = [target_field for target_field in target_fields if target_field in set(target_fields).difference(set(primary_keys))]
+        columns = [
+            target_field
+            for target_field in target_fields
+            if target_field in set(target_fields).difference(set(primary_keys))
+        ]
 
         self.log.debug("primary_keys: %s", primary_keys)
         self.log.info("columns: %s", columns)
