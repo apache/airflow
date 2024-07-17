@@ -2605,6 +2605,8 @@ export interface components {
     FilterSourceMapIndex: number;
     /** @description Filter on map index for mapped task. */
     FilterMapIndex: number;
+    /** @description Filter on try_number for task instance. */
+    FilterTryNumber: number;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -3683,6 +3685,10 @@ export interface operations {
         task_id?: components["parameters"]["FilterTaskID"];
         /** Returns objects matched by the Run ID. */
         run_id?: components["parameters"]["FilterRunID"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Filter on try_number for task instance. */
+        try_number?: components["parameters"]["FilterTryNumber"];
         /** The name of event log. */
         event?: components["parameters"]["Event"];
         /** The owner's name of event log. */

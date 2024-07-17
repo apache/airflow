@@ -160,6 +160,7 @@ def test_no_runs(admin_client, dag_without_runs):
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
@@ -406,6 +407,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
@@ -459,6 +461,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
