@@ -50,7 +50,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    from sqlalchemy.engine import URL
+    from sqlalchemy.engine import URL, Inspector
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -252,6 +252,10 @@ class DbApiHook(BaseHook):
         self.log.debug("url: %s", url)
         self.log.debug("engine_kwargs: %s", engine_kwargs)
         return create_engine(url=url, **engine_kwargs)
+
+    @property
+    def inspector(self):
+        return Inspector.from_engine(self.get_sqlalchemy_engine())
 
     def get_pandas_df(
         self,
