@@ -2863,9 +2863,9 @@ class TestTaskInstance:
 
         with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
 
-            @task(outlets=Dataset(ds_uri))
+            @task(outlets=DatasetAlias(dsa_name))
             def write(*, params, outlet_events):
-                outlet_events[ds_uri].extra = {"from": params["i"]}
+                outlet_events[dsa_name].add(Dataset(ds_uri), {"from": params["i"]})
 
             write()
 

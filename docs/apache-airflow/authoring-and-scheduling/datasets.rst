@@ -472,33 +472,24 @@ In the example above, before the DAG "dataset-alias-producer" is executed, the d
 Fetching information from previously emitted dataset events through resolved dataset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As mentioned in :ref:`Fetching information from previously emitted dataset events<fetching_information_from_previously_emitted_dataset_events>`, inlet dataset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use dataset aliases to access the dataset events of the resolved datasets.
+As mentioned in :ref:`Fetching information from previously emitted dataset events<fetching_information_from_previously_emitted_dataset_events>`, inlet dataset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use dataset aliases to access the dataset events triggered by them.
 
 .. code-block:: python
-
-    with DAG(dag_id="dataset-producer"):
-
-        @task(outlets=[Dataset("example-alias")])
-        def produce_dataset_events():
-            pass
-
 
     with DAG(dag_id="dataset-alias-producer"):
 
         @task(outlets=[DatasetAlias("example-alias")])
         def produce_dataset_events(*, outlet_events):
-            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"))
+            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"), extra={"row_count": 1})
 
 
-    with DAG(dag_id="dataset-alias-consumer", schedule=DatasetAlias("example-alias")):
+    with DAG(dag_id="dataset-alias-consumer", schedule=None):
 
         @task(inlets=[DatasetAlias("example-alias")])
         def consume_dataset_alias_events(*, inlet_events):
             events = inlet_events[DatasetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
-
-In the example above, after ``DatasetAlias("example-alias")`` is resolved to ``Dataset("s3://bucket/my-task")``. ``inlet_events[DatasetAlias("example-alias")]`` will be able to access the dataset events of ``Dataset("s3://bucket/my-task")``.
 
 Combining dataset and time-based schedules
 ------------------------------------------

@@ -44,11 +44,10 @@ from airflow.datasets import (
     Dataset,
     DatasetAlias,
     DatasetAliasEvent,
-    expand_alias_to_datasets,
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -280,15 +279,18 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
         else:
             obj = key
 
-        datasets = []
         if isinstance(obj, DatasetAlias):
-            datasets = expand_alias_to_datasets(obj)
+            join_clause = DatasetEvent.source_aliases
+            where_clause = DatasetAliasModel.name == obj.name
         elif isinstance(obj, (Dataset, str)):
-            datasets.append(self._datasets[extract_event_key(obj)])
+            dataset = self._datasets[extract_event_key(obj)]
+            join_clause = DatasetEvent.dataset
+            where_clause = DatasetModel.uri == dataset.uri
+        else:
+            raise ValueError(key)
 
-        dataset_uris = (dataset.uri for dataset in datasets)
         return LazyDatasetEventSelectSequence.from_select(
-            select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri.in_(dataset_uris)),
+            select(DatasetEvent).join(join_clause).where(where_clause),
             order_by=[DatasetEvent.timestamp],
             session=self._session,
         )
