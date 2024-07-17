@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,43 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-root = true
+from __future__ import annotations
 
-[*]
-end_of_line = lf
-indent_style = space
-insert_final_newline = true
-trim_trailing_whitespace = true
-charset = utf-8
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
-[*.py]
-indent_size = 4
-max_line_length = 110
 
-[*.sh]
-indent_size = 4
-
-[*.sql]
-indent_size = 4
-
-[*.js]
-indent_size = 2
-
-[*.ts]
-indent_size = 2
-
-[*.css]
-indent_size = 2
-
-[*.{md,rst}]
-indent_size = 2
-
-[*.{yml,yaml}]
-indent_size = 2
-max_line_length = 110
-
-[*.{htm,html}]
-indent_size = 2
-
-[*.json]
-indent_size = 4
+def test_that_compat_does_not_raise():
+    # On compat tests this goes into ImportError code path
+    assert get_hook_lineage_collector() is not None
