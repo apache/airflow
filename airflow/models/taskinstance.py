@@ -2634,6 +2634,22 @@ class TaskInstance(Base, LoggingMixin):
         return dr
 
     @classmethod
+    @provide_session
+    def ensure_dag(
+        cls, task_instance: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
+    ) -> DAG:
+        """Ensure that task has a dag object associated, might have been removed by serialization."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+        if task_instance.task.dag is None or task_instance.task.dag is ATTRIBUTE_REMOVED:
+            task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
+                dag_id=task_instance.dag_id, session=session
+            )
+        if TYPE_CHECKING:
+            assert task_instance.task.dag
+        return task_instance.task.dag
+
+    @classmethod
     @internal_api_call
     @provide_session
     def _check_and_change_state_before_execution(
