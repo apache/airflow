@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
 from collections import defaultdict
 from functools import cached_property
 from typing import TYPE_CHECKING, Container, Sequence, cast
@@ -53,6 +52,8 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
+    import argparse
+
     from flask_appbuilder.menu import MenuItem
 
     from airflow.auth.managers.models.base_user import BaseUser

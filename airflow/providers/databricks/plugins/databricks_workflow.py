@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import unquote
@@ -46,6 +45,8 @@ from airflow.www import auth
 from airflow.www.views import AirflowBaseView
 
 if TYPE_CHECKING:
+    import logging
+
     from sqlalchemy.orm.session import Session
 
 

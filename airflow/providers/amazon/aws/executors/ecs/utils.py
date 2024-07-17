@@ -23,7 +23,6 @@ Data classes and utility functions used by the ECS executor.
 
 from __future__ import annotations
 
-import datetime
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List
@@ -34,6 +33,8 @@ from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseCo
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    import datetime
+
     from airflow.models.taskinstance import TaskInstanceKey
 
 CommandType = List[str]

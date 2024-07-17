@@ -26,7 +26,6 @@ import re
 import time
 import uuid
 import warnings
-from collections.abc import MutableSequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -67,6 +66,8 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
+    from collections.abc import MutableSequence
+
     from google.api_core import operation
     from google.api_core.retry_async import AsyncRetry
     from google.protobuf.duration_pb2 import Duration

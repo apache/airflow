@@ -16,8 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -31,6 +30,8 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 
+if TYPE_CHECKING:
+    from datetime import datetime
 
 class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
     """TaskOutletDatasetReference DB schema."""

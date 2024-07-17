@@ -17,11 +17,11 @@
 
 from __future__ import annotations
 
-import io
 import sys
 from typing import TYPE_CHECKING, Collection
 
 if TYPE_CHECKING:
+    import io
     from io import IOBase
 
 

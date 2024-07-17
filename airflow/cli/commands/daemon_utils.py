@@ -17,8 +17,7 @@
 from __future__ import annotations
 
 import signal
-from argparse import Namespace
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from daemon import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -26,6 +25,9 @@ from daemon.pidfile import TimeoutPIDLockFile
 from airflow import settings
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+
+if TYPE_CHECKING:
+    from argparse import Namespace
 
 
 def run_command_with_daemon_option(

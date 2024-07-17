@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
@@ -39,6 +38,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel

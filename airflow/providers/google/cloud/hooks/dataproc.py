@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import MutableSequence
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
@@ -49,6 +48,8 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
+    from collections.abc import MutableSequence
+
     from google.api_core.operation import Operation
     from google.api_core.operation_async import AsyncOperation
     from google.api_core.operations_v1.operations_client import OperationsClient

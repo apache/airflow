@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import os
 import pathlib
 import shutil
@@ -30,6 +29,8 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    import logging
+
     from airflow.models.taskinstance import TaskInstance
 
 

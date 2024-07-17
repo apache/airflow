@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -27,6 +26,8 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from sqlalchemy.orm import Session
 
     from airflow.ti_deps.dep_context import DepContext

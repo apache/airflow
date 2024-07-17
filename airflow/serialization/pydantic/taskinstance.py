@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 from typing_extensions import Annotated
@@ -46,6 +45,8 @@ from airflow.utils.pydantic import (
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     import pendulum
     from sqlalchemy.orm import Session
 

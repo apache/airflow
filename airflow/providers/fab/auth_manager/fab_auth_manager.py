@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
@@ -86,6 +85,8 @@ from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
+    import argparse
+
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,

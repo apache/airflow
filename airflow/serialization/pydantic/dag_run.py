@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, List, Optional
 
 from airflow.serialization.pydantic.dag import PydanticDag
@@ -25,6 +24,8 @@ from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict, i
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI

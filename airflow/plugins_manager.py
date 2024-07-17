@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 import types
-from cgitb import Hook
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -42,6 +41,8 @@ from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    from cgitb import Hook
+
     from airflow.lineage.hook import HookLineageReader
 
     try:

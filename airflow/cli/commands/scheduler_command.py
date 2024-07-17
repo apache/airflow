@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 import logging
-from argparse import Namespace
 from contextlib import contextmanager
 from multiprocessing import Process
+from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
@@ -35,6 +35,9 @@ from airflow.utils.cli import process_subdir
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 from airflow.utils.usage_data_collection import usage_data_collection
+
+if TYPE_CHECKING:
+    from argparse import Namespace
 
 log = logging.getLogger(__name__)
 

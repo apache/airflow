@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 
 @dataclass

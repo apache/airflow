@@ -20,7 +20,6 @@ from __future__ import annotations
 import collections.abc
 import functools
 import operator
-from collections.abc import Sized
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Union
 
 import attr
@@ -29,6 +28,8 @@ from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Sized
+
     from sqlalchemy.orm import Session
 
     from airflow.models.operator import Operator

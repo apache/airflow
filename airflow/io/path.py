@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import os
 import shutil
 import typing
 from typing import Any, Mapping
@@ -31,6 +30,8 @@ from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
 
 if typing.TYPE_CHECKING:
+    import os
+
     from fsspec import AbstractFileSystem
 
 
