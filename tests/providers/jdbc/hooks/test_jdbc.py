@@ -201,4 +201,3 @@ class TestJdbcHook:
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
         assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
-

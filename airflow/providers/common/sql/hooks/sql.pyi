@@ -42,10 +42,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage as Operator
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import (
-    Inspector as Inspector,
-    URL as URL,
-)
+from sqlalchemy.engine import Inspector, URL as URL
 from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")
