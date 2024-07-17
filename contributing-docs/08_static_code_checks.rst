@@ -230,6 +230,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-taskinstance-tis-attrs                              | Check that TI and TIS have the same attributes               |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-template-context-variable-in-sync                   | Check all template context variable references are in sync   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-tests-in-the-right-folders                          | Check if tests are in the right folders                      |         |
