@@ -36,7 +36,6 @@ from wtforms.fields import StringField, TextAreaField
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
 from airflow.www import utils
-from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
 from airflow.www.utils import (
     CustomSQLAInterface,
     DagRunCustomSQLAInterface,
@@ -44,6 +43,7 @@ from airflow.www.utils import (
     json_f,
     wrapped_markdown,
 )
+from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
 from tests.test_utils.config import conf_vars
 
 
