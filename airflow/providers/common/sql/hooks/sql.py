@@ -243,8 +243,14 @@ class DbApiHook(BaseHook):
         if engine_kwargs is None:
             engine_kwargs = {}
         engine_kwargs["creator"] = self.get_conn
-        url = self.get_connection(self.get_conn_id()).extra_dejson.get("sqlalchemy_url", self.get_uri())
+
+        try:
+            url = self.sqlalchemy_url
+        except NotImplementedError:
+            url = self.get_uri()
+
         self.log.debug("url: %s", url)
+        self.log.debug("engine_kwargs: %s", engine_kwargs)
         return create_engine(url=url, **engine_kwargs)
 
     def get_pandas_df(
