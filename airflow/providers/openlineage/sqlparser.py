@@ -160,7 +160,6 @@ class SQLParser(LoggingMixin):
             "database": database or database_info.database,
             "use_flat_cross_db_query": database_info.use_flat_cross_db_query,
         }
-        self.log.info("PRE getting schemas for input and output tables")
         return get_table_schemas(
             hook,
             namespace,

@@ -52,6 +52,7 @@ PRE_COMMIT_LIST = [
     "check-extras-order",
     "check-fab-migrations",
     "check-for-inclusive-language",
+    "check-get-lineage-collector-providers",
     "check-google-re2-as-dependency",
     "check-hatch-build-order",
     "check-hooks-apply",
