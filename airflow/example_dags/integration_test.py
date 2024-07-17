@@ -32,6 +32,7 @@ from airflow.models.dag import DAG
 from airflow.models.param import Param
 from airflow.models.variable import Variable
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 
 with DAG(
@@ -109,12 +110,14 @@ with DAG(
             task_id="classic_bash", bash_command="echo Parameter is {{ params.mapping_count }}"
         )
 
+        empty = EmptyOperator(task_id="not_executed")
+
         def python_call():
             print("Hello world")
 
         classic_py = PythonOperator(task_id="classic_python", python_callable=python_call)
 
-        branching() >> [bash(), virtualenv(), variable(), connection(), classic_bash, classic_py]
+        branching() >> [bash(), virtualenv(), variable(), connection(), classic_bash, classic_py, empty]
 
     @task
     def my_teardown():
