@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
 from airflow.models.dag import DagContext
@@ -95,7 +96,8 @@ class SubDagOperator(BaseSensorOperator):
         self.propagate_skipped_state = propagate_skipped_state
 
         self._validate_dag(kwargs)
-        self._validate_pool(session)
+        if not InternalApiConfig.get_use_internal_api():
+            self._validate_pool(session)
 
         warnings.warn(
             """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
