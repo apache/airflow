@@ -878,6 +878,7 @@ Json
 json
 jsonl
 jthomas
+juli
 Jupyter
 jupyter
 jupytercmd
