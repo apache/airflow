@@ -84,6 +84,27 @@ Some caveats:
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
+Limitations of Pre-Release
+--------------------------
+
+As this provider package is an experimental preview not all functions are support and not fully covered.
+If you plan to use the Remote Executor / Worker in the current stage you need to ensure you test properly
+before use. The following features have been initially tested and are working:
+
+- Some core operators
+
+  - ``BashOperator``
+  - ``PythonOperator``
+  - ``@task`` decorator
+  - ``@task.branch`` decorator
+  - ``@task.virtualenv`` decorator
+  - ``@task.bash`` decorator
+  - Dynamic Mapped Tasks
+  - XCom read/write
+  - Variable and Connection access
+  - Setup and Teardown tasks
+
+
 Architecture
 ------------
 
