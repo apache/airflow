@@ -40,6 +40,7 @@ from urllib.parse import urlparse
 import sqlparse
 from more_itertools import chunked
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Inspector
 
 from airflow.exceptions import (
     AirflowException,
@@ -50,7 +51,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    from sqlalchemy.engine import URL, Inspector
+    from sqlalchemy.engine import URL
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -254,7 +255,7 @@ class DbApiHook(BaseHook):
         return create_engine(url=url, **engine_kwargs)
 
     @property
-    def inspector(self):
+    def inspector(self) -> Inspector:
         return Inspector.from_engine(self.get_sqlalchemy_engine())
 
     def get_pandas_df(
