@@ -45,7 +45,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_java"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -62,7 +62,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataflow"],
+    tags=["example", "dataflow", "java"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
@@ -116,6 +116,7 @@ with DAG(
         },
         job_class="org.apache.beam.examples.WordCount",
         dataflow_config={
+            "job_name": "test-java-pipeline-job",
             "check_if_running": CheckJobRunning.WaitForRun,
             "location": LOCATION,
             "poll_sleep": 10,

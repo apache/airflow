@@ -51,6 +51,11 @@ operators:
 xcom:
   - airflow.providers.common.io.xcom.backend
 
+dataset-uris:
+  - schemes: [file]
+    handler: null
+    factory: airflow.providers.common.io.datasets.file.create_dataset
+
 config:
   common.io:
     description: Common IO configuration section

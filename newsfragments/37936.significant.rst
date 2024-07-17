@@ -1,4 +1,0 @@
-Time unit for ``scheduled_duration`` and ``queued_duration`` changed.
-
-``scheduled_duration`` and ``queued_duration`` metrics are now emitted in milliseconds instead of seconds.
-By convention all statsd metrics should be emitted in milliseconds, this is later expected in e.g. prometheus' statsd-exporter.
