@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 
 import pendulum
 
@@ -64,14 +65,26 @@ with DAG(
     # [END howto_operator_bash_template]
     also_run_this >> run_this_last
 
-# [START howto_operator_bash_skip]
-this_will_skip = BashOperator(
-    task_id="this_will_skip",
-    bash_command='echo "hello world"; exit 99;',
-    dag=dag,
-)
-# [END howto_operator_bash_skip]
-this_will_skip >> run_this_last
+    # [START howto_operator_bash_skip]
+    this_will_skip = BashOperator(
+        task_id="this_will_skip",
+        bash_command='echo "hello world"; exit 99;',
+        dag=dag,
+    )
+    # [END howto_operator_bash_skip]
+    this_will_skip >> run_this_last
+
+    # [START howto_operator_bash_result_processor]
+    run_filter_today_changes = BashOperator(
+        task_id="filter_today_changes",
+        bash_command="""
+            jq -c '.[] | select(.lastModified > "{{ data_interval_start | ts_zulu }}" or .created > "{{ data_interval_start | ts_zulu }}")' \\
+            example.json
+        """,
+        result_processor=lambda result: json.loads(result),
+    )
+    # [END howto_operator_bash_result_processor]
+    run_filter_today_changes >> run_this_last
 
 if __name__ == "__main__":
     dag.test()
