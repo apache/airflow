@@ -197,7 +197,7 @@ Result processor
 ----------------
 
 The result_processor parameter allows you to specify a lambda function that processes the output of the bash script
-before it is pushed as an XCom. This feature is particularly useful for manipulating the script's result directly within
++before it is pushed as an XCom. This feature is particularly useful for manipulating the script's result directly within
 the BashOperator, without the need for additional operators or tasks.
 
 For example, consider a scenario where the output of the bash script is a JSON string. With the result_processor, you
