@@ -212,6 +212,10 @@
                     "handler": {
                         "type": ["string", "null"],
                         "description": "Normalization function for specified URI schemes. Import path to a callable taking and returning a SplitResult. 'null' specifies a no-op."
+                    },
+                    "factory": {
+                        "type": ["string", "null"],
+                        "description": "Dataset factory for specified URI. Creates AIP-60 compliant Dataset."
                     }
                 }
             }

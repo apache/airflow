@@ -46,6 +46,8 @@ class SlackNotifier(BaseNotifier):
     :param proxy: Proxy to make the Slack API call. Optional
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``. Optional
     :param attachments: (legacy) A list of attachments to send with the message. Optional
+    :param unfurl_links: Option to indicate whether text url should unfurl. Optional
+    :param unfurl_media: Option to indicate whether media url should unfurl. Optional
     """
 
     template_fields = ("text", "channel", "username", "attachments", "blocks")

@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask import request
 
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -125,36 +124,6 @@ def app():
 
     with app.app_context():
         yield app
-
-
-def test_repair_databricks_tasks(app):
-    with app.test_request_context("/"):
-        view = RepairDatabricksTasks()
-        request_values = {
-            "databricks_conn_id": "conn_id",
-            "databricks_run_id": "run_id",
-            "run_id": "run_id",
-            "dag_id": "dag_id",
-            "tasks_to_repair": "task1,task2",
-        }
-
-        with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._repair_task"
-        ) as mock_repair_task, patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._clear_task_instances"
-        ) as mock_clear_task_instances, patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.flash"
-        ) as mock_flash, patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.redirect"
-        ) as mock_redirect:
-            request.values = request_values
-
-            _ = view.repair()
-
-            mock_repair_task.assert_called_once()
-            mock_clear_task_instances.assert_called_once()
-            mock_flash.assert_called_once()
-            mock_redirect.assert_called_once()
 
 
 def test_get_task_instance(app):

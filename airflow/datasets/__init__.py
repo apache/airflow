@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
 
+from airflow.typing_compat import TypedDict
+
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
@@ -106,16 +108,20 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
-def coerce_to_uri(value: str | Dataset) -> str:
+def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     """
-    Coerce a user input into a sanitized URI.
+    Extract the key of an inlet or an outlet event.
 
     If the input value is a string, it is treated as a URI and sanitized. If the
     input is a :class:`Dataset`, the URI it contains is considered sanitized and
-    returned directly.
+    returned directly. If the input is a :class:`DatasetAlias`, the name it contains
+    will be returned directly.
 
     :meta private:
     """
+    if isinstance(value, DatasetAlias):
+        return value.name
+
     if isinstance(value, Dataset):
         return value.uri
     return _sanitize_uri(str(value))
@@ -157,6 +163,28 @@ class BaseDataset:
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
+
+
+@attr.define()
+class DatasetAlias(BaseDataset):
+    """A represeation of dataset alias which is used to create dataset during the runtime."""
+
+    name: str
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, DatasetAlias):
+            return self.name == other.name
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+
+class DatasetAliasEvent(TypedDict):
+    """A represeation of dataset event to be triggered by a dataset alias."""
+
+    source_alias_name: str
+    dest_dataset_uri: str
 
 
 @attr.define()

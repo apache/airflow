@@ -67,6 +67,7 @@ from sqlalchemy import (
     Text,
     and_,
     case,
+    delete,
     func,
     not_,
     or_,
@@ -82,7 +83,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDataset, Dataset, DatasetAll
+from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -103,7 +104,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -3301,6 +3302,7 @@ class DAG(LoggingMixin):
         # We can't use a set here as we want to preserve order
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
+        outlet_dataset_alias_models: list[DatasetAliasModel] = []
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -3317,7 +3319,14 @@ class DAG(LoggingMixin):
                     input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
-                dataset_outlets = [x for x in task.outlets or [] if isinstance(x, Dataset)]
+                dataset_outlets: list[Dataset] = []
+                dataset_alias_outlets: list[DatasetAlias] = []
+                for outlet in task.outlets:
+                    if isinstance(outlet, Dataset):
+                        dataset_outlets.append(outlet)
+                    elif isinstance(outlet, DatasetAlias):
+                        dataset_alias_outlets.append(outlet)
+
                 if not dataset_outlets:
                     if curr_outlet_references:
                         this_task_outlet_refs = [
@@ -3327,9 +3336,14 @@ class DAG(LoggingMixin):
                         ]
                         for ref in this_task_outlet_refs:
                             curr_outlet_references.remove(ref)
+
                 for d in dataset_outlets:
                     outlet_references[(task.dag_id, task.task_id)].add(d.uri)
                     outlet_datasets[DatasetModel.from_public(d)] = None
+
+                for d_a in dataset_alias_outlets:
+                    outlet_dataset_alias_models.append(DatasetAliasModel.from_public(d_a))
+
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 
@@ -3353,6 +3367,38 @@ class DAG(LoggingMixin):
 
         del new_datasets
         del all_datasets
+
+        # store dataset aliases
+        new_dataset_alias_models: list[DatasetAliasModel] = []
+        if outlet_dataset_alias_models:
+            outlet_dataset_alias_names = [dataset_alias.name for dataset_alias in outlet_dataset_alias_models]
+
+            stored_dataset_alias_names = session.scalars(
+                select(DatasetAliasModel.name).where(DatasetAliasModel.name.in_(outlet_dataset_alias_names))
+            ).fetchall()
+            removed_dataset_alias_names = session.scalars(
+                select(DatasetAliasModel.name).where(
+                    DatasetAliasModel.name.not_in(outlet_dataset_alias_names)
+                )
+            ).fetchall()
+
+            if stored_dataset_alias_names:
+                new_dataset_alias_models = [
+                    dataset_alias_model
+                    for dataset_alias_model in outlet_dataset_alias_models
+                    if dataset_alias_model.name not in stored_dataset_alias_names
+                ]
+            else:
+                new_dataset_alias_models = outlet_dataset_alias_models
+            session.add_all(new_dataset_alias_models)
+
+            if removed_dataset_alias_names:
+                session.execute(
+                    delete(DatasetAliasModel).where(DatasetAliasModel.name.in_(removed_dataset_alias_names))
+                )
+
+        del new_dataset_alias_models
+        del outlet_dataset_alias_models
 
         # reconcile dag-schedule-on-dataset references
         for dag_id, uri_list in dag_references.items():
