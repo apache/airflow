@@ -33,6 +33,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 
@@ -194,3 +195,12 @@ class TaskInstanceHistory(Base):
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
+
+    @property
+    def operator_name(self) -> str | None:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator
+
+    @hybrid_property
+    def task_display_name(self) -> str:
+        return self._task_display_property_value or self.task_id
