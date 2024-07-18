@@ -248,6 +248,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon Managed Service for Apache Flink
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst
+    external-doc-url: https://aws.amazon.com/managed-service-apache-flink/
+    logo: /integration-logos/aws/Amazon-Kinesis-Analytics_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon OpenSearch Serverless
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/opensearchserverless.rst
@@ -435,6 +441,9 @@ operators:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.operators.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.operators.kinesis_analytics
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
@@ -521,6 +530,9 @@ sensors:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.sensors.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.kinesis_analytics
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -624,6 +636,9 @@ hooks:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.kinesis_analytics
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
@@ -703,6 +718,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.kinesis_analytics
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.triggers.opensearch_serverless
