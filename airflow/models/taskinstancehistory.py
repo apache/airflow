@@ -33,7 +33,6 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 
@@ -94,7 +93,7 @@ class TaskInstanceHistory(Base):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
+    task_display_name = Column("task_display_name", String(2000), nullable=True)
 
     dag_run = relationship(
         "DagRun",
@@ -195,12 +194,3 @@ class TaskInstanceHistory(Base):
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
-
-    @property
-    def operator_name(self) -> str | None:
-        """@property: use a more friendly display name for the operator, if set."""
-        return self.custom_operator_name or self.operator
-
-    @hybrid_property
-    def task_display_name(self) -> str:
-        return self._task_display_property_value or self.task_id

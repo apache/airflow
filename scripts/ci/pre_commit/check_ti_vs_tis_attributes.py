@@ -42,7 +42,10 @@ def compare_attributes(path1, path2):
     diff = set(get_class_attributes(path1, "TaskInstance")) - set(
         get_class_attributes(path2, "TaskInstanceHistory")
     )
-    diff = diff - {"_logger_name"}  # exclude attrs not necessary to be in TaskInstanceHistory
+    diff = diff - {
+        "_logger_name",
+        "_task_display_property_value",
+    }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return
     console.print(f"Attributes in TaskInstance but not in TaskInstanceHistory: \n\n {diff}")
