@@ -29,7 +29,6 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.auth.managers.models.resource_details import DagAccessEntity
-from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -41,6 +40,27 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
+
+
+def format_log_entry(host, message):
+    """Ensure each log entry ends with a newline for consistent formatting."""
+    return (host, message if message.endswith("\n") else message + "\n")
+
+
+def fetch_all_logs(task_log_reader, task_instance, try_number, metadata, offset, limit):
+    """Fetch all logs and handle pagination if necessary."""
+    full_log = []
+    while True:
+        logs, metadata = task_log_reader.read_log_chunks(
+            task_instance, try_number, metadata, offset=offset, limit=limit
+        )
+        for sublist in logs:
+            for host, message in sublist:
+                full_log.append(format_log_entry(host, message))
+
+        if metadata.get("end_of_log", False):
+            break
+    return full_log, metadata
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
@@ -67,7 +87,6 @@ def get_log(
             raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
 
     metadata["download_logs"] = full_content or metadata.get("download_logs", False)
-
     task_log_reader = TaskLogReader()
 
     if not task_log_reader.supports_read:
@@ -84,32 +103,24 @@ def get_log(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
+
     ti = session.scalar(query)
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
 
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if dag:
-        try:
-            ti.task = dag.get_task(ti.task_id)
-        except TaskNotFound:
-            pass
-
+    full_log, metadata = fetch_all_logs(task_log_reader, ti, task_try_number, metadata, offset, limit)
     return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
 
-    if return_type == "application/json" or return_type is None:  # default
-        logs, metadata = task_log_reader.read_log_chunks(
-            ti, task_try_number, metadata, offset=offset, limit=limit
+    if return_type in ["application/json", None]:
+        content = f"[{', '.join(f'({repr(host)}, {repr(message.strip())})' for host, message in full_log)}]"
+        response_data = logs_schema.dump(
+            LogResponseObject(continuation_token=URLSafeSerializer(key).dumps(metadata), content=content)
         )
-        # Flatten the logs for JSON formatting, if necessary
-        flattened_logs = [item for sublist in logs for item in sublist]
-        token = URLSafeSerializer(key).dumps(metadata)
-        content = "\n".join(f"{host}: {message}" for host, message in flattened_logs)
-        return logs_schema.dump(LogResponseObject(continuation_token=token, content=content))
-    else:  # text/plain streaming
-        log_stream = task_log_reader.read_log_stream(ti, task_try_number, metadata)
-        return Response(log_stream, headers={"Content-Type": return_type})
+        return response_data
+    else:
+        log_stream = "".join(f"{host}\n{message}" for host, message in full_log)
+        return Response(log_stream, mimetype="text/plain", headers={"Content-Type": "text/plain"})
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
