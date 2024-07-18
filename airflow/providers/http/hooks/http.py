@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import warnings
 from contextlib import suppress
 from functools import cached_property
@@ -38,7 +39,6 @@ from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.utils import json
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
