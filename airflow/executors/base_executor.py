@@ -148,9 +148,9 @@ class BaseExecutor(LoggingMixin):
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
-    def log_task_event(self, *, record: Log):
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
         """Add an event to the log table."""
-        self._task_event_logs.append(record)
+        self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_command(
         self,
@@ -309,13 +309,12 @@ class BaseExecutor(LoggingMixin):
                     attempt.total_tries,
                 )
                 self.log_task_event(
-                    record=Log(
-                        event="task launch failure",
-                        extra=(
-                            "Task was in running set and could not be queued "
-                            f"after {attempt.total_tries} attempts."
-                        ),
-                    )
+                    event="task launch failure",
+                    extra=(
+                        "Task was in running set and could not be queued "
+                        f"after {attempt.total_tries} attempts."
+                    ),
+                    ti_key=key,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]

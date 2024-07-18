@@ -34,7 +34,6 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models import Log
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
@@ -394,24 +393,20 @@ class AwsEcsExecutor(BaseExecutor):
                         reasons_str,
                     )
                     self.log_task_event(
-                        record=Log(
-                            event="ecs task submit failure",
-                            task_instance=task_key,
-                            extra=(
-                                f"Task could not be queued after {attempt_number} attempts. "
-                                f"Marking as failed. Reasons: {reasons_str}"
-                            ),
-                        )
+                        event="ecs task submit failure",
+                        ti_key=task_key,
+                        extra=(
+                            f"Task could not be queued after {attempt_number} attempts. "
+                            f"Marking as failed. Reasons: {reasons_str}"
+                        ),
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
                 self.log_task_event(
-                    record=Log(
-                        event="ecs task submit failure",
-                        extra=f"ECS RunTask Response: {run_task_response}",
-                        task_instance=task_key,
-                    )
+                    event="ecs task submit failure",
+                    extra=f"ECS RunTask Response: {run_task_response}",
+                    ti_key=task_key,
                 )
                 raise EcsExecutorException(
                     "No failures and no ECS tasks provided in response. This should never happen."
@@ -558,7 +553,11 @@ class AwsEcsExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def log_task_event(self, *, record: Log):
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
         with suppress(AttributeError):
-            super().log_task_event(record=record)
+            super().log_task_event(
+                event=event,
+                extra=extra,
+                ti_key=ti_key,
+            )

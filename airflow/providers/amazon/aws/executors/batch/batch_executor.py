@@ -30,7 +30,6 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models import Log
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
     exponential_backoff_retry,
@@ -301,12 +300,10 @@ class AwsBatchExecutor(BaseExecutor):
                         failure_reason,
                     )
                     self.log_task_event(
-                        record=Log(
-                            event="batch job submit failure",
-                            extra=f"This job has been unsuccessfully attempted too many times ({attempt_number}). "
-                            f"Dropping the task. Reason: {failure_reason}",
-                            task_instance=key,
-                        )
+                        event="batch job submit failure",
+                        extra=f"This job has been unsuccessfully attempted too many times ({attempt_number}). "
+                        f"Dropping the task. Reason: {failure_reason}",
+                        ti_key=key,
                     )
                     self.fail(key=key)
                 else:
@@ -467,7 +464,11 @@ class AwsBatchExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def log_task_event(self, *, record: Log):
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
         with suppress(AttributeError):
-            super().log_task_event(record=record)
+            super().log_task_event(
+                event=event,
+                extra=extra,
+                ti_key=ti_key,
+            )
