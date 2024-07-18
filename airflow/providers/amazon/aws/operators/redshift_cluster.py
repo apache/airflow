@@ -285,6 +285,8 @@ class RedshiftCreateClusterOperator(BaseOperator):
         if self.default_iam_role_arn:
             params["DefaultIamRoleArn"] = self.default_iam_role_arn
 
+        # PubliclyAccessible is True by default on Redshift side, hence, we should always set it regardless
+        # of its value
         params["PubliclyAccessible"] = self.publicly_accessible
 
         cluster = redshift_hook.create_cluster(
