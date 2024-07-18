@@ -32,7 +32,7 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 const TAB_PARAM = "tab";
 
-const AllTaskDuration = () => {
+const AllTaskDuration = ({ showBar }: Props) => {
   const { onSelect } = useSelection();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -58,10 +58,19 @@ const AllTaskDuration = () => {
 
     const taskId = children.id;
     legendData.push(taskId);
-    seriesData.push({
-      name: taskId,
-      type: "line",
-    } as SeriesOption);
+
+    if (showBar) {
+      seriesData.push({
+        name: children.runId,
+        type: "bar",
+        stack: "x",
+      } as SeriesOption);
+    } else {
+      seriesData.push({
+        name: taskId,
+        type: "line",
+      } as SeriesOption);
+    }
 
     source[taskId] = children.instances.map((instance) => {
       const runDuration = moment

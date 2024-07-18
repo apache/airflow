@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Flex,
   Divider,
@@ -28,7 +28,10 @@ import {
   Tab,
   Text,
   Button,
+  Box,
+  Checkbox,
 } from "@chakra-ui/react";
+import InfoTooltip from "src/components/InfoTooltip";
 import { useSearchParams } from "react-router-dom";
 
 import useSelection from "src/dag/useSelection";
@@ -175,6 +178,7 @@ const Details = ({
   const children = group?.children;
   const isMapped = group?.isMapped;
   const isGroup = !!children;
+  const [showBar, setShowBar] = useState(false);
 
   const isMappedTaskSummary = !!(
     taskId &&
@@ -465,7 +469,17 @@ const Details = ({
           )}
           {isDag && (
             <TabPanel height="80%">
-              <AllTaskDuration />
+              <Flex justifyContent="right" pr="30px">
+                <Checkbox
+                  isChecked={showBar}
+                  onChange={() => setShowBar(!showBar)}
+                  size="lg"
+                >
+                  Show Bar Chart
+                </Checkbox>
+                <InfoTooltip label="Show bar chart" size={16} />
+              </Flex>
+              <AllTaskDuration showBar={showBar} />
             </TabPanel>
           )}
           {isDag && (
