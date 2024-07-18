@@ -388,7 +388,7 @@ class AwsEcsExecutor(BaseExecutor):
                     reasons_str = ", ".join(failure_reasons)
                     self.log_task_event(
                         record=Log(
-                            event="ecs executor queue error",
+                            event="ecs task submit failure",
                             task_instance=task_key,
                             extra=(
                                 f"Task could not be queued after {attempt_number} attempts. "
@@ -400,7 +400,7 @@ class AwsEcsExecutor(BaseExecutor):
             elif not run_task_response["tasks"]:
                 self.log_task_event(
                     record=Log(
-                        event="ecs runtime error",
+                        event="ecs task submit failure",
                         extra=f"ECS RunTask Response: {run_task_response}",
                         task_instance=task_key,
                     )

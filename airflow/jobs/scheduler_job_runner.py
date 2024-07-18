@@ -843,7 +843,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                session.add(Log(event="task state mismatch", extra=msg, task_instance=ti.key))
+                session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
                 try:
@@ -1660,7 +1660,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if repr(ti) in cleaned_up_task_instances:
                         session.add(
                             Log(
-                                event="task stuck in queued",
+                                event="stuck in queued",
                                 task_instance=ti.key,
                                 extra=(
                                     "Task will be marked as failed. If the task instance has "
@@ -1839,23 +1839,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     simple_task_instance=SimpleTaskInstance.from_ti(ti),
                     msg=str(zombie_message_details),
                 )
-                log_message = (
-                    f"Detected zombie job: {request} "
-                    "(See https://airflow.apache.org/docs/apache-airflow/"
-                    "stable/core-concepts/tasks.html#zombie-undead-tasks)"
-                )
                 session.add(
                     Log(
-                        event="stale heartbeat",
+                        event="heartbeat timeout",
                         task_instance=ti.key,
                         extra=(
-                            "Task has stale heartbeat and will be terminated. "
+                            f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
+                            "seconds) and will be terminated. "
                             "See https://airflow.apache.org/docs/apache-airflow/"
                             "stable/core-concepts/tasks.html#zombie-undead-tasks"
                         ),
                     )
                 )
-                self.log.error(log_message)
+                self.log.error(
+                    "Detected zombie job: %s "
+                    "(See https://airflow.apache.org/docs/apache-airflow/"
+                    "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                    request,
+                )
                 self.job.executor.send_callback(request)
                 Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 

@@ -294,7 +294,7 @@ class AwsBatchExecutor(BaseExecutor):
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
                     self.log_task_event(
                         record=Log(
-                            event="executor queue failure",
+                            event="batch job submit failure",
                             extra=f"This job has been unsuccessfully attempted too many times ({attempt_number}). "
                             f"Dropping the task. Reason: {failure_reason}",
                             task_instance=key,
