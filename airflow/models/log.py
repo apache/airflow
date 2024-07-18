@@ -56,10 +56,12 @@ class Log(Base):
 
         task_owner = None
 
+        self.execution_date = None
         if task_instance:
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
-            self.execution_date = task_instance.execution_date
+            if hasattr(task_instance, "execution_date"):
+                self.execution_date = task_instance.execution_date
             self.run_id = task_instance.run_id
             self.try_number = task_instance.try_number
             self.map_index = task_instance.map_index

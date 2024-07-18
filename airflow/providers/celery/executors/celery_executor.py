@@ -54,6 +54,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import Log
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
@@ -286,10 +287,12 @@ class CeleryExecutor(BaseExecutor):
                     self.task_publish_retries[key] = retries + 1
                     continue
             self.queued_tasks.pop(key)
+            self.log_task_event(record=Log(event="task queued", task_instance=key))
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
                 self.event_buffer[key] = (TaskInstanceState.FAILED, None)
+                self.log_task_event(record=Log(event="task queuing failed", task_instance=key))
             elif result is not None:
                 result.backend = cached_celery_backend
                 self.running.add(key)

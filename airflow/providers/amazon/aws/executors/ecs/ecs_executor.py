@@ -23,9 +23,9 @@ Each Airflow task gets delegated out to an Amazon ECS Task.
 
 from __future__ import annotations
 
-import logging
 import time
 from collections import defaultdict, deque
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Sequence
 
@@ -34,6 +34,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import Log
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
@@ -385,18 +386,32 @@ class AwsEcsExecutor(BaseExecutor):
                     )
                     self.pending_tasks.append(ecs_task)
                 else:
-                    self.send_message_to_task_logs(
-                        logging.ERROR,
-                        "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
+                    reasons_str = ", ".join(failure_reasons)
+                    self.log.error(
+                        "ECS task %s has failed %s times. Marking as failed. Reasons: %s",
                         task_key,
                         attempt_number,
-                        ", ".join(failure_reasons),
-                        ti=task_key,
+                        reasons_str,
+                    )
+                    self.log_task_event(
+                        record=Log(
+                            event="ecs executor queue error",
+                            task_instance=task_key,
+                            extra=(
+                                f"Task could not be queued after {attempt_number} attempts. "
+                                f"Marking as failed. Reasons: {reasons_str}"
+                            ),
+                        )
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
-                self.send_message_to_task_logs(
-                    logging.ERROR, "ECS RunTask Response: %s", run_task_response, ti=task_key
+                self.log.error("ECS RunTask Response: %s", run_task_response)
+                self.log_task_event(
+                    record=Log(
+                        event="ecs runtime error",
+                        extra=f"ECS RunTask Response: {run_task_response}",
+                        task_instance=task_key,
+                    )
                 )
                 raise EcsExecutorException(
                     "No failures and no ECS tasks provided in response. This should never happen."
@@ -543,10 +558,7 @@ class AwsEcsExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+    def log_task_event(self, *, record: Log):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        try:
-            super().send_message_to_task_logs(level, msg, *args, ti=ti)
-        except AttributeError:
-            # ``send_message_to_task_logs`` is added in 2.10.0
-            self.log.error(msg, *args)
+        with suppress(AttributeError):
+            super().log_task_event(record=record)

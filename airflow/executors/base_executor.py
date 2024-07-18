@@ -21,9 +21,8 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
@@ -33,7 +32,6 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -46,6 +44,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.models import Log
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -131,6 +130,16 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
+        self._task_event_logs: deque[Log] = deque()
+        """
+        Deque for storing task event log messages.
+
+        This attribute is only internally public and should not be manipulated
+        directly by subclasses.
+
+        :meta private:
+        """
+
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
@@ -138,6 +147,10 @@ class BaseExecutor(LoggingMixin):
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
+
+    def log_task_event(self, *, record: Log):
+        """Log an event to the task instance event log."""
+        self._task_event_logs.append(record)
 
     def queue_command(
         self,
@@ -289,12 +302,11 @@ class BaseExecutor(LoggingMixin):
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
                 # Otherwise, we give up and remove the task from the queue.
-                self.send_message_to_task_logs(
-                    logging.ERROR,
+
+                self.log.error(
                     "could not queue task %s (still running after %d attempts).",
                     key,
                     attempt.total_tries,
-                    ti=ti,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]
@@ -525,16 +537,6 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
-
-    @cached_property
-    def _task_context_logger(self) -> TaskContextLogger:
-        return TaskContextLogger(
-            component_name="Executor",
-            call_site_logger=self.log,
-        )
-
-    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
-        self._task_context_logger._log(level, msg, *args, ti=ti)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

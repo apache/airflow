@@ -24,7 +24,7 @@ import signal
 import sys
 import time
 import warnings
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
@@ -85,6 +85,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.manager import DagFileProcessorAgent
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.models import Log
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.sqlalchemy import (
         CommitProhibitorGuard,
@@ -740,6 +741,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return len(queued_tis)
 
+    @staticmethod
+    def _process_task_event_logs(log_records: deque[Log], session: Session):
+        objects = (log_records.popleft() for _ in range(len(log_records)))
+        session.bulk_save_objects(objects=objects, preserve_order=False)
+
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
@@ -1066,6 +1072,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         num_finished_events += self._process_executor_events(
                             executor=executor, session=session
                         )
+
+                for executor in self.job.executors:
+                    try:
+                        with create_session() as session:
+                            self._process_task_event_logs(executor._task_event_logs, session)
+                    except Exception:
+                        self.log.exception("Something went wrong when trying to save task event logs.")
+
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 

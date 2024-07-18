@@ -1276,7 +1276,7 @@ export interface components {
        */
       execution_date?: string | null;
       /** @description Name of the user who triggered these events a. */
-      owner?: string;
+      owner?: string | null;
       /** @description Other information that was not included in the other fields, e.g. the complete CLI command. */
       extra?: string | null;
     };
