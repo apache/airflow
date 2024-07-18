@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Fix Sqlite foreign key.
+"""
+Fix Sqlite foreign key.
 
 Revision ID: 856955da8476
 Revises: f23433877c24

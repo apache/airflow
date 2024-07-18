@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role.
+"""
+Remove ``can_read`` permission on config resource for ``User`` and ``Viewer`` role.
 
 Revision ID: 82b7c48c147f
 Revises: e959f08ac86c

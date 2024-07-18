@@ -28,6 +28,7 @@ import warnings
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
+from importlib import reload
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -45,17 +46,22 @@ from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAll, DatasetAny
+from airflow.datasets import Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
     RemovedInAirflow3Warning,
+    UnknownExecutorException,
 )
+from airflow.executors import executor_loader
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
+    DAG_ARGS_EXPECTED_TYPES,
     DagModel,
     DagOwnerAttributes,
     DagTag,
@@ -64,7 +70,13 @@ from airflow.models.dag import (
     get_dataset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
+from airflow.models.dataset import (
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1327,6 +1339,51 @@ class TestDag:
             orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
             assert orphaned_dataset_count == 0
 
+    def test_bulk_write_to_db_dataset_aliases(self):
+        """
+        Ensure that dataset aliases referenced in a dag are correctly loaded into the database.
+        """
+        dag_id1 = "test_dataset_alias_dag1"
+        dag_id2 = "test_dataset_alias_dag2"
+        task_id = "test_dataset_task"
+        da1 = DatasetAlias(name="da1")
+        da2 = DatasetAlias(name="da2")
+        da3 = DatasetAlias(name="da3")
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da1, da2, da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da2, da3])
+        session = settings.Session()
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da2_orm = stored_dataset_aliases[da2.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da2_orm.name == "da2"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 3
+
+        # now that we have verified that a new dag has its dataset alias references recorded properly,
+        # we need to verify that *changes* are recorded properly.
+        # so if any references are *removed*, they should also be deleted from the DB
+        # so let's remove some references and see what happens
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da1])
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+        session.expunge_all()
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 2
+
     def test_sync_to_db(self):
         dag = DAG(
             "dag",
@@ -1967,7 +2024,7 @@ class TestDag:
 
     def test_timetable_and_description_from_dataset(self):
         dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == DatasetTriggeredTimetable()
+        assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
         assert dag.schedule_interval == "Dataset"
         assert dag.timetable.description == "Triggered by datasets"
 
@@ -2770,7 +2827,8 @@ my_postgres_conn:
 
         EmptyOperator(task_id="t1", dag=dag, executor="test.custom.executor")
         with pytest.raises(
-            ValueError, match="The specified executor test.custom.executor for task t1 is not configured"
+            UnknownExecutorException,
+            match="The specified executor test.custom.executor for task t1 is not configured",
         ):
             dag.validate()
 
@@ -3170,6 +3228,17 @@ class TestDagModel:
             ]
         }
 
+    @mock.patch("airflow.models.dag.run_job")
+    def test_dag_executors(self, run_job_mock):
+        dag = DAG(dag_id="test")
+        reload(executor_loader)
+        with conf_vars({("core", "executor"): "SequentialExecutor"}):
+            dag.run()
+            assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
+
+            dag.run(local=True)
+            assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
+
 
 class TestQueries:
     def setup_method(self) -> None:
@@ -3273,27 +3342,25 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert "Regular DAG documentation" in dag.doc_md
 
-    def test_resolve_documentation_template_file_rendered(self, tmp_path):
+    def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
-        path = tmp_path / "testfile.md"
-        path.write_text(
-            """
+        raw_content = """
         {% if True %}
             External Markdown DAG documentation
         {% endif %}
         """
-        )
 
-        @dag_decorator(
-            "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
-        )
+        path = tmp_path / "testfile.md"
+        path.write_text(raw_content)
+
+        @dag_decorator("test-dag", start_date=DEFAULT_DATE, doc_md=str(path))
         def markdown_docs(): ...
 
         dag = markdown_docs()
         assert isinstance(dag, DAG)
         assert dag.dag_id == "test-dag"
-        assert dag.doc_md.strip() == "External Markdown DAG documentation"
+        assert dag.doc_md == raw_content
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
@@ -3926,6 +3993,18 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
     )
+
+
+def test_invalid_type_for_args():
+    with pytest.raises(TypeError):
+        DAG("invalid-default-args", max_consecutive_failed_dag_runs="not_an_int")
+
+
+@mock.patch("airflow.models.dag.validate_instance_args")
+def test_dag_init_validates_arg_types(mock_validate_instance_args):
+    dag = DAG("dag_with_expected_args")
+
+    mock_validate_instance_args.assert_called_once_with(dag, DAG_ARGS_EXPECTED_TYPES)
 
 
 class TestTaskClearingSetupTeardownBehavior:

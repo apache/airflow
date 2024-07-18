@@ -109,7 +109,8 @@ def _creator_note(val):
 
 
 class DagRun(Base, LoggingMixin):
-    """Invocation instance of a DAG.
+    """
+    Invocation instance of a DAG.
 
     A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
     external trigger (i.e. manual runs).
@@ -269,7 +270,8 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState) -> None:
-        """Change the state of the DagRan.
+        """
+        Change the state of the DagRan.
 
         Changes to attributes are implemented in accordance with the following table
         (rows represent old states, columns represent new states):
@@ -649,6 +651,7 @@ class DagRun(Base, LoggingMixin):
         )
 
     @staticmethod
+    @internal_api_call
     @provide_session
     def fetch_task_instance(
         dag_id: str,
@@ -1010,7 +1013,8 @@ class DagRun(Base, LoggingMixin):
         )
 
         def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
-            """Try to expand the ti, if needed.
+            """
+            Try to expand the ti, if needed.
 
             If the ti needs expansion, newly created task instances are
             returned as well as the original ti.
@@ -1100,7 +1104,8 @@ class DagRun(Base, LoggingMixin):
         )
 
     def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: list[TI]) -> None:
-        """Emit the true scheduling delay stats.
+        """
+        Emit the true scheduling delay stats.
 
         The true scheduling delay stats is defined as the time when the first
         task in DAG starts minus the expected DAG run datetime.
@@ -1412,7 +1417,8 @@ class DagRun(Base, LoggingMixin):
             session.rollback()
 
     def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
-        """Check if task increased or reduced in length and handle appropriately.
+        """
+        Check if task increased or reduced in length and handle appropriately.
 
         Task instances that do not already exist are created and returned if
         possible. Expansion only happens if all upstreams are ready; otherwise
@@ -1589,6 +1595,7 @@ class DagRun(Base, LoggingMixin):
                         start_date=timezone.utcnow(),
                         end_date=timezone.utcnow(),
                         duration=0,
+                        try_number=TI.try_number + 1,
                     )
                     .execution_options(
                         synchronize_session=False,

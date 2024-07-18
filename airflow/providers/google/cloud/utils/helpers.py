@@ -25,7 +25,8 @@ def normalize_directory_path(source_object: str | None) -> str | None:
 
 
 def resource_path_to_dict(resource_name: str) -> dict[str, str]:
-    """Convert a path-like GCP resource name into a dictionary.
+    """
+    Convert a path-like GCP resource name into a dictionary.
 
     For example, the path `projects/my-project/locations/my-location/instances/my-instance` will be converted
     to a dict:

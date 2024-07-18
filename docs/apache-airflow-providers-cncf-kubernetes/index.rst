@@ -87,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 8.3.1
+Release: 8.3.3
 
 Provider package
 ----------------
@@ -114,7 +114,7 @@ PIP package             Version required
 ``apache-airflow``      ``>=2.7.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=41.0.0``
-``kubernetes``          ``>=28.1.0,<=29.0.0``
-``kubernetes_asyncio``  ``>=28.1.0,<=29.0.0``
+``kubernetes``          ``>=29.0.0,<=30.1.0``
+``kubernetes_asyncio``  ``>=29.0.0,<=30.1.0``
 ``google-re2``          ``>=1.0``
 ======================  =====================

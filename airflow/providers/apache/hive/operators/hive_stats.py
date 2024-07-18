@@ -31,7 +31,8 @@ if TYPE_CHECKING:
 
 
 class HiveStatsCollectionOperator(BaseOperator):
-    """Gather partition statistics and insert them into MySQL.
+    """
+    Gather partition statistics and insert them into MySQL.
 
     Statistics are gathered with a dynamically generated Presto query and
     inserted with this format. Stats overwrite themselves if you rerun the

@@ -23,6 +23,7 @@ import sys
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
@@ -32,6 +33,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -221,7 +223,10 @@ class BaseExecutor(LoggingMixin):
 
         self.log.debug("%s running task instances", num_running_tasks)
         self.log.debug("%s in queue", num_queued_tasks)
-        self.log.debug("%s open slots", open_slots)
+        if open_slots == 0:
+            self.log.info("Executor parallelism limit reached. 0 open slots.")
+        else:
+            self.log.debug("%s open slots", open_slots)
 
         Stats.gauge(
             "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
@@ -284,8 +289,12 @@ class BaseExecutor(LoggingMixin):
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
                 # Otherwise, we give up and remove the task from the queue.
-                self.log.error(
-                    "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                self.send_message_to_task_logs(
+                    logging.ERROR,
+                    "could not queue task %s (still running after %d attempts).",
+                    key,
+                    attempt.total_tries,
+                    ti=ti,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]
@@ -448,6 +457,11 @@ class BaseExecutor(LoggingMixin):
         else:
             return sys.maxsize
 
+    @property
+    def slots_occupied(self):
+        """Number of tasks this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks)
+
     @staticmethod
     def validate_command(command: list[str]) -> None:
         """
@@ -501,7 +515,8 @@ class BaseExecutor(LoggingMixin):
         )
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Send callback for execution.
+        """
+        Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
@@ -511,9 +526,20 @@ class BaseExecutor(LoggingMixin):
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
 
+    @cached_property
+    def _task_context_logger(self) -> TaskContextLogger:
+        return TaskContextLogger(
+            component_name="Executor",
+            call_site_logger=self.log,
+        )
+
+    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+        self._task_context_logger._log(level, msg, *args, ti=ti)
+
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        """Vends CLI commands to be included in Airflow CLI.
+        """
+        Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
@@ -523,7 +549,8 @@ class BaseExecutor(LoggingMixin):
 
     @classmethod
     def _get_parser(cls) -> argparse.ArgumentParser:
-        """Generate documentation; used by Sphinx argparse.
+        """
+        Generate documentation; used by Sphinx argparse.
 
         :meta private:
         """

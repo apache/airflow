@@ -739,7 +739,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     @staticmethod
     def interpolate_prefix(prefix: str, dt: datetime.datetime) -> str | None:
-        """Interpolate prefix with datetime.
+        """
+        Interpolate prefix with datetime.
 
         :param prefix: The prefix to interpolate
         :param dt: The datetime to interpolate

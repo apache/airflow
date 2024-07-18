@@ -75,7 +75,8 @@ class BaseAuthManager(LoggingMixin):
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
-        """Vends CLI commands to be included in Airflow CLI.
+        """
+        Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this auth manager.
         """

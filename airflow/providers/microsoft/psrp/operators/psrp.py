@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 
 class PsrpOperator(BaseOperator):
-    """PowerShell Remoting Protocol operator.
+    """
+    PowerShell Remoting Protocol operator.
 
     Use one of the 'command', 'cmdlet', or 'powershell' arguments.
 

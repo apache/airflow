@@ -27,6 +27,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
 
 import jwt
+import packaging.version
 import re2
 from deprecated import deprecated
 from flask import flash, g, has_request_context, session
@@ -71,6 +72,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
@@ -125,13 +127,21 @@ log = logging.getLogger(__name__)
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
 
 
-# The following class patches the logout method within AuthView, so it only supports POST method
-# to make CSRF protection effective. You could remove the patch and configure it when it is supported
+# The following logic patches the logout method within AuthView, so it supports POST method
+# to make CSRF protection effective. It is backward-compatible with Airflow versions <= 2.9.2 as it still
+# allows utilizing the GET method for them.
+# You could remove the patch and configure it when it is supported
 # natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+    "2.10.0"
+):
+    _methods = ["GET", "POST"]
+else:
+    _methods = ["POST"]
 
 
 class _ModifiedAuthView(AuthView):
-    @expose("/logout/", methods=["POST"])
+    @expose("/logout/", methods=_methods)
     def logout(self):
         return super().logout()
 
@@ -1523,14 +1533,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.username = username
             user.email = email
             user.active = True
+            self.get_session.add(user)
             user.roles = role if isinstance(role, list) else [role]
             if hashed_password:
                 user.password = hashed_password
             else:
                 user.password = generate_password_hash(password)
-            self.get_session.add(user)
             self.get_session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
+
             return user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
@@ -1637,7 +1648,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.get_session.query(self.user_model).all()
 
     def update_user_auth_stat(self, user, success=True):
-        """Update user authentication stats.
+        """
+        Update user authentication stats.
 
         This is done upon successful/unsuccessful authentication attempts.
 
@@ -2184,7 +2196,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return wraps
 
     def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
-        """There are different OAuth APIs with different ways to retrieve user info.
+        """
+        There are different OAuth APIs with different ways to retrieve user info.
 
         All providers have different ways to retrieve user info.
         """
@@ -2352,7 +2365,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 return _provider.get("token_key", "oauth_token")
 
     def get_oauth_token_secret_name(self, provider):
-        """Get the ``token_secret`` name for the oauth provider.
+        """
+        Get the ``token_secret`` name for the oauth provider.
 
         If none is configured, defaults to ``oauth_secret``. This is configured
         using ``OAUTH_PROVIDERS`` and ``token_secret``.
@@ -2498,7 +2512,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """
 
     def _rotate_session_id(self):
-        """Rotate the session ID.
+        """
+        Rotate the session ID.
 
         We need to do this upon successful authentication when using the
         database session backend.
@@ -2666,7 +2681,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_user_permission_resources(
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
-        """Get resource names with a certain action name that a user has access to.
+        """
+        Get resource names with a certain action name that a user has access to.
 
         Mainly used to fetch all menu permissions on a single db call, will also
         check public permissions and builtin roles

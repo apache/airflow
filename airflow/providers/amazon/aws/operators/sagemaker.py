@@ -60,7 +60,8 @@ def serialize(result: dict) -> dict:
 
 
 class SageMakerBaseOperator(BaseOperator):
-    """This is the base operator for all SageMaker operators.
+    """
+    This is the base operator for all SageMaker operators.
 
     :param config: The configuration necessary to start a training job (templated)
     """
@@ -360,7 +361,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             raise AirflowException(f"Error while running job: {event}")
 
         self.log.info(event["message"])
-        self.serialized_job = serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))
+        self.serialized_job = serialize(self.hook.describe_processing_job(event["job_name"]))
         self.log.info("%s completed successfully.", self.task_id)
         return {"Processing": self.serialized_job}
 
@@ -611,12 +612,11 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        endpoint_info = self.config.get("Endpoint", self.config)
+
+        response = self.hook.describe_endpoint(event["job_name"])
         return {
-            "EndpointConfig": serialize(
-                self.hook.describe_endpoint_config(endpoint_info["EndpointConfigName"])
-            ),
-            "Endpoint": serialize(self.hook.describe_endpoint(endpoint_info["EndpointName"])),
+            "EndpointConfig": serialize(self.hook.describe_endpoint_config(response["EndpointConfigName"])),
+            "Endpoint": serialize(self.hook.describe_endpoint(response["EndpointName"])),
         }
 
 
@@ -996,9 +996,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        return {
-            "Tuning": serialize(self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"]))
-        }
+        return {"Tuning": serialize(self.hook.describe_tuning_job(event["job_name"]))}
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):

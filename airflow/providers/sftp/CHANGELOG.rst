@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+4.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix resource management in SFTPSensor (#40022)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+
 4.10.1
 ......
 

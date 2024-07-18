@@ -34,7 +34,7 @@ LocalFilesystemToGCSOperator
 :class:`~airflow.providers.google.cloud.transfers.local_to_gcs.LocalFilesystemToGCSOperator` allows you to upload
 data from local filesystem to GCS.
 
-When you use this operator, you can optionally compress the data being uploaded.
+When you use this operator, you can optionally compress the data being uploaded. The operator also supports uploading data in multiple chunks optionally.
 
 Below is an example of using this operator to upload a file to GCS.
 

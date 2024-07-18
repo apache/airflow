@@ -73,6 +73,9 @@ spec:
   {{- if and (not $persistence) (.Values.triggerer.strategy) }}
   strategy: {{- toYaml .Values.triggerer.strategy | nindent 4 }}
   {{- end }}
+  {{- if and $persistence .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -156,7 +159,7 @@ spec:
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
-        {{- if and (or .Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.extraInitContainers }}

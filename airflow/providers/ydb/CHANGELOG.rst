@@ -27,7 +27,15 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``support auth key from content and from file (#40390)``
+
 1.0.0
 .....
 
-Initial version of the provider.
+* ``Initial version of the provider (#39996)``

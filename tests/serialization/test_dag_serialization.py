@@ -591,16 +591,10 @@ class TestStringifiedDAGs:
             "params",
             "_processor_dags_folder",
         }
-        compare_serialization_list = {
-            "dataset_triggers",
-        }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             actual = getattr(serialized_dag, field)
             expected = getattr(dag, field)
-            if field in compare_serialization_list:
-                actual = BaseSerialization.serialize(actual)
-                expected = BaseSerialization.serialize(expected)
             assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
@@ -1718,7 +1712,12 @@ class TestStringifiedDAGs:
                 mode="reschedule",
             )
             CustomDepOperator(task_id="hello", bash_command="hi")
-            dag = SerializedDAG.to_dict(dag)
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match=r"Use of a custom dependency detector is deprecated\. "
+                r"Support will be removed in a future release\.",
+            ):
+                dag = SerializedDAG.to_dict(dag)
             assert sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values())) == sorted(
                 [
                     {
@@ -2199,6 +2198,7 @@ class TestStringifiedDAGs:
                 trigger_cls="airflow.triggers.testing.SuccessTrigger",
                 trigger_kwargs=None,
                 next_method="execute_complete",
+                next_kwargs=None,
                 timeout=None,
             )
             start_from_trigger = False
@@ -2216,6 +2216,7 @@ class TestStringifiedDAGs:
                 trigger_cls="airflow.triggers.testing.SuccessTrigger",
                 trigger_kwargs={},
                 next_method="execute_complete",
+                next_kwargs=None,
                 timeout=None,
             )
             start_from_trigger = True
@@ -2239,6 +2240,7 @@ class TestStringifiedDAGs:
                 "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
                 "trigger_kwargs": {},
                 "next_method": "execute_complete",
+                "next_kwargs": None,
                 "timeout": None,
             }
             assert task["__var"]["start_from_trigger"] is True
@@ -2507,21 +2509,31 @@ def test_operator_expand_deserialized_unmap():
 
     ser_mapped = BaseSerialization.serialize(mapped)
     deser_mapped = BaseSerialization.deserialize(ser_mapped)
+    deser_mapped.dag = None
+
     ser_normal = BaseSerialization.serialize(normal)
     deser_normal = BaseSerialization.deserialize(ser_normal)
+    deser_normal.dag = None
     assert deser_mapped.unmap(None) == deser_normal
 
 
 @pytest.mark.db_test
 def test_sensor_expand_deserialized_unmap():
     """Unmap a deserialized mapped sensor should be similar to deserializing a non-mapped sensor"""
-    normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
-    mapped = BashSensor.partial(task_id="a", mode="reschedule").expand(bash_command=[1, 2])
-
-    serialize = SerializedBaseOperator.serialize
-
-    deserialize = SerializedBaseOperator.deserialize
-    assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
+    dag = DAG(dag_id="hello", start_date=None)
+    with dag:
+        normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
+        mapped = BashSensor.partial(task_id="b", mode="reschedule").expand(bash_command=[1, 2])
+    ser_mapped = SerializedBaseOperator.serialize(mapped)
+    deser_mapped = SerializedBaseOperator.deserialize(ser_mapped)
+    deser_mapped.dag = dag
+    deser_unmapped = deser_mapped.unmap(None)
+    ser_normal = SerializedBaseOperator.serialize(normal)
+    deser_normal = SerializedBaseOperator.deserialize(ser_normal)
+    deser_normal.dag = dag
+    comps = set(BashSensor._comps)
+    comps.remove("task_id")
+    assert all(getattr(deser_unmapped, c, None) == getattr(deser_normal, c, None) for c in comps)
 
 
 def test_task_resources_serde():
@@ -2623,6 +2635,10 @@ def test_taskflow_expand_serde():
         "retry_delay": timedelta(seconds=30),
     }
 
+    # this dag is not pickleable in this context, so we have to simply
+    # set it to None
+    deserialized.dag = None
+
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
     # here so we don't need to duplicate tests between pickled and non-pickled
@@ -2718,6 +2734,10 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+    # this dag is not pickleable in this context, so we have to simply
+    # set it to None
+    deserialized.dag = None
 
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done

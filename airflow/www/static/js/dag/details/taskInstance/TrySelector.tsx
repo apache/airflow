@@ -21,41 +21,35 @@ import React from "react";
 import { Text, Box, Flex, Button, Select } from "@chakra-ui/react";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
-import { useTIHistory, useTaskInstance } from "src/api";
-import { getMetaValue } from "src/utils";
+import { useTIHistory } from "src/api";
 import { SimpleStatus } from "src/dag/StatusBox";
 import { formatDuration, getDuration } from "src/datetime_utils";
-
-const dagId = getMetaValue("dag_id");
+import type { TaskInstance } from "src/types/api-generated";
 
 interface Props {
-  taskId?: string;
-  runId?: string;
-  mapIndex?: number;
+  taskInstance: TaskInstance;
   selectedTryNumber?: number;
   onSelectTryNumber?: (tryNumber: number) => void;
 }
 
 const TrySelector = ({
-  taskId,
-  runId,
-  mapIndex,
+  taskInstance,
   selectedTryNumber,
   onSelectTryNumber,
 }: Props) => {
+  const {
+    taskId,
+    dagRunId,
+    dagId,
+    mapIndex,
+    tryNumber: finalTryNumber,
+  } = taskInstance;
   const containerRef = useContainerRef();
 
-  const { data: taskInstance } = useTaskInstance({
-    dagId,
-    dagRunId: runId || "",
-    taskId: taskId || "",
-    mapIndex,
-  });
-  const finalTryNumber = taskInstance?.tryNumber;
   const { data: tiHistory } = useTIHistory({
-    dagId,
+    dagId: dagId || "",
     taskId: taskId || "",
-    runId: runId || "",
+    runId: dagRunId || "",
     mapIndex,
     enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
   });
@@ -75,34 +69,50 @@ const TrySelector = ({
       <Text as="strong">Task Tries</Text>
       {!showDropdown && (
         <Flex my={1} flexWrap="wrap">
-          {tries.map(({ tryNumber, state, startDate, endDate }, i) => (
-            <Tooltip
-              key={tryNumber}
-              label={
-                <Box>
-                  <Text>Status: {state}</Text>
-                  <Text>
-                    Duration: {formatDuration(getDuration(startDate, endDate))}
-                  </Text>
-                </Box>
+          {/* Even without try history showing up we should still show all try numbers */}
+          {Array.from({ length: finalTryNumber }, (_, i) => i + 1).map(
+            (tryNumber, i) => {
+              let attempt;
+              if (tries.length) {
+                attempt = tries[i];
               }
-              hasArrow
-              portalProps={{ containerRef }}
-              placement="top"
-            >
-              <Button
-                variant={selectedTryNumber === tryNumber ? "solid" : "ghost"}
-                colorScheme="blue"
-                onClick={() => onSelectTryNumber?.(tryNumber || i)}
-                data-testid={`log-attempt-select-button-${tryNumber}`}
-              >
-                <Flex>
-                  <Text mr={2}>{tryNumber}</Text>
-                  <SimpleStatus state={state} />
-                </Flex>
-              </Button>
-            </Tooltip>
-          ))}
+              return (
+                <Tooltip
+                  key={tryNumber}
+                  label={
+                    !!attempt && (
+                      <Box>
+                        <Text>Status: {attempt.state}</Text>
+                        <Text>
+                          Duration:{" "}
+                          {formatDuration(
+                            getDuration(attempt.startDate, attempt.endDate)
+                          )}
+                        </Text>
+                      </Box>
+                    )
+                  }
+                  hasArrow
+                  portalProps={{ containerRef }}
+                  placement="top"
+                  isDisabled={!attempt}
+                >
+                  <Button
+                    key={tryNumber}
+                    variant={
+                      selectedTryNumber === tryNumber ? "solid" : "ghost"
+                    }
+                    colorScheme="blue"
+                    onClick={() => onSelectTryNumber?.(tryNumber)}
+                    data-testid={`log-attempt-select-button-${tryNumber}`}
+                  >
+                    {tryNumber}
+                    {!!attempt && <SimpleStatus ml={2} state={attempt.state} />}
+                  </Button>
+                </Tooltip>
+              );
+            }
+          )}
         </Flex>
       )}
       {showDropdown && (

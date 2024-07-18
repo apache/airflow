@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 
 class ArgNotSet:
-    """Sentinel type for annotations, useful when None is not viable.
+    """
+    Sentinel type for annotations, useful when None is not viable.
 
     Use like this::
 
@@ -43,6 +44,25 @@ class ArgNotSet:
 
 NOTSET = ArgNotSet()
 """Sentinel value for argument default. See ``ArgNotSet``."""
+
+
+class AttributeRemoved:
+    """
+    Sentinel type to signal when attribute removed on serialization.
+
+    :meta private:
+    """
+
+    def __getattr__(self, item):
+        raise RuntimeError("Attribute was removed on serialization and must be set again.")
+
+
+ATTRIBUTE_REMOVED = AttributeRemoved()
+"""
+Sentinel value for attributes removed on serialization.
+
+:meta private:
+"""
 
 
 class DagRunType(str, enum.Enum):

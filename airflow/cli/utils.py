@@ -32,7 +32,8 @@ class CliConflictError(Exception):
 
 
 def is_stdout(fileio: IOBase) -> bool:
-    """Check whether a file IO is stdout.
+    """
+    Check whether a file IO is stdout.
 
     The intended use case for this helper is to check whether an argument parsed
     with argparse.FileType points to stdout (by setting the path to ``-``). This

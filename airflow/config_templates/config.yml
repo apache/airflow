@@ -1688,6 +1688,9 @@ webserver:
             When using ``gevent`` you might also want to set the ``_AIRFLOW_PATCH_GEVENT``
             environment variable to ``"1"`` to make sure gevent patching is done as early as possible.
 
+            Be careful to set ``_AIRFLOW_PATCH_GEVENT`` only on the web server as gevent patching may
+            affect the scheduler behavior via the ``multiprocessing`` sockets module and cause crash.
+
             See related Issues / PRs for more details:
 
             * https://github.com/benoitc/gunicorn/issues/2796
@@ -1962,16 +1965,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    update_fab_perms:
-      description: |
-        Update FAB permissions and sync security manager roles
-        on webserver startup
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
@@ -2041,24 +2034,6 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    auth_rate_limited:
-      description: |
-        Boolean for enabling rate limiting on authentication endpoints.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
-    auth_rate_limit:
-      description: |
-        Rate limit for authentication endpoints.
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: "5 per 40 second"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.

@@ -32,6 +32,7 @@ from openlineage.client.utils import RedactMixin
 from packaging.version import Version
 
 from airflow import __version__ as AIRFLOW_VERSION
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
@@ -150,7 +151,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, list, tuple)):
+        if isinstance(value, (set, tuple)):
             return str(list(value))
         return value
 
@@ -206,12 +207,18 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "try_number", "pool", "queued_dttm"]
+    includes = ["duration", "try_number", "pool", "queued_dttm", "log_url"]
     casts = {
         "map_index": lambda ti: (
             ti.map_index if hasattr(ti, "map_index") and getattr(ti, "map_index") != -1 else None
         )
     }
+
+
+class DatasetInfo(InfoJsonEncodable):
+    """Defines encoding Airflow Dataset object to JSON."""
+
+    includes = ["uri", "extra"]
 
 
 class TaskInfo(InfoJsonEncodable):
@@ -225,6 +232,7 @@ class TaskInfo(InfoJsonEncodable):
         "_is_teardown": "is_teardown",
     }
     includes = [
+        "deferrable",
         "depends_on_past",
         "downstream_task_ids",
         "execution_timeout",
@@ -242,6 +250,9 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
+        "trigger_dag_id",
+        "external_dag_id",
+        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
@@ -250,12 +261,34 @@ class TaskInfo(InfoJsonEncodable):
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
+        "operator_class_path": lambda task: get_fully_qualified_class_name(task),
         "task_group": lambda task: (
             TaskGroupInfo(task.task_group)
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
+        "inlets": lambda task: [DatasetInfo(i) for i in task.inlets if isinstance(i, Dataset)],
+        "outlets": lambda task: [DatasetInfo(o) for o in task.outlets if isinstance(o, Dataset)],
     }
+
+
+class TaskInfoComplete(TaskInfo):
+    """Defines encoding BaseOperator/AbstractOperator object to JSON used when user enables full task info."""
+
+    includes = []
+    excludes = [
+        "_BaseOperator__instantiated",
+        "_dag",
+        "_hook",
+        "_log",
+        "_outlets",
+        "_inlets",
+        "_lock_for_execution",
+        "handler",
+        "params",
+        "python_callable",
+        "retry_delay",
+    ]
 
 
 class TaskGroupInfo(InfoJsonEncodable):
@@ -286,7 +319,7 @@ def get_airflow_run_facet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
             taskInstance=TaskInstanceInfo(task_instance),
-            task=TaskInfo(task),
+            task=TaskInfoComplete(task) if conf.include_full_task_info() else TaskInfo(task),
             taskUuid=task_uuid,
         )
     }
@@ -360,12 +393,13 @@ def _get_parsed_dag_tree(dag: DAG) -> dict:
         # Determine the level by counting the leading spaces, assuming 4 spaces per level
         # as defined in airflow.models.dag.DAG._generate_tree_view()
         level = (len(line) - len(stripped_line)) // 4
-        # airflow.models.baseoperator.BaseOperator.__repr__ is used in DAG tree
-        # <Task({op_class}): {task_id}>
-        match = re.match(r"^<Task\((.+)\): (.*?)>$", stripped_line)
+        # airflow.models.baseoperator.BaseOperator.__repr__ or
+        # airflow.models.mappedoperator.MappedOperator.__repr__ is used in DAG tree
+        # <Task({op_class}): {task_id}> or <Mapped({op_class}): {task_id}>
+        match = re.match(r"^<(?:Task|Mapped)\(.+\): (.+)>$", stripped_line)
         if not match:
             return {}
-        current_task_id = match[2]
+        current_task_id = match[1]
 
         if level == 0:  # It's a root task
             task_dict[current_task_id] = {}
