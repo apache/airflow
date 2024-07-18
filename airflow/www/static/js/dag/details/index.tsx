@@ -235,7 +235,9 @@ const Details = ({
     dagRunId: runId || "",
     taskId: taskId || "",
     mapIndex,
-    enabled: mapIndex !== undefined,
+    options: {
+      enabled: mapIndex !== undefined,
+    },
   });
 
   const instance =

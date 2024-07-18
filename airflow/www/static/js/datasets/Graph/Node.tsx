@@ -32,7 +32,7 @@ export interface CustomNodeProps {
   width?: number;
   isSelected?: boolean;
   isHighlighted?: boolean;
-  onSelect: (datasetUri: string, type: string) => void;
+  onSelect: () => void;
   isOpen?: boolean;
   isActive?: boolean;
 }
@@ -62,7 +62,7 @@ const BaseNode = ({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            onSelect(label, "dataset");
+            onSelect();
           }}
           cursor="pointer"
           fontSize={16}
