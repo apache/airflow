@@ -379,18 +379,19 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
-        span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-        with Trace.start_span(
-            span_name="fail",
-            component="BaseExecutor",
-            parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
-        ) as span:
-            span.set_attribute("dag_id", key.dag_id)
-            span.set_attribute("run_id", key.run_id)
-            span.set_attribute("task_id", key.task_id)
-            span.set_attribute("try_number", key.try_number)
-            span.set_attribute("error", True)
+        if "dag_id" in key:
+            trace_id = Trace.get_current_span().get_span_context().trace_id
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="fail",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("error", True)
 
         self.change_state(key, TaskInstanceState.FAILED, info)
 
@@ -401,17 +402,18 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
-        span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-        with Trace.start_span(
-            span_name="success",
-            component="BaseExecutor",
-            parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
-        ) as span:
-            span.set_attribute("dag_id", key.dag_id)
-            span.set_attribute("run_id", key.run_id)
-            span.set_attribute("task_id", key.task_id)
-            span.set_attribute("try_number", key.try_number - 1)
+        if "dag_id" in key:
+            trace_id = Trace.get_current_span().get_span_context().trace_id
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="success",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number - 1)
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 

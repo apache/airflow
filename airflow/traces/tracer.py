@@ -97,7 +97,7 @@ class EmptySpan:
         pass
 
     def is_recording(self):
-        return True
+        return False
 
     def add_event(
         self,
