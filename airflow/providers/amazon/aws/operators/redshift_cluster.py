@@ -256,8 +256,6 @@ class RedshiftCreateClusterOperator(BaseOperator):
             params["ClusterVersion"] = self.cluster_version
         if self.allow_version_upgrade:
             params["AllowVersionUpgrade"] = self.allow_version_upgrade
-        if self.publicly_accessible:
-            params["PubliclyAccessible"] = self.publicly_accessible
         if self.encrypted:
             params["Encrypted"] = self.encrypted
         if self.hsm_client_certificate_identifier:
@@ -286,6 +284,8 @@ class RedshiftCreateClusterOperator(BaseOperator):
             params["AquaConfigurationStatus"] = self.aqua_configuration_status
         if self.default_iam_role_arn:
             params["DefaultIamRoleArn"] = self.default_iam_role_arn
+
+        params["PubliclyAccessible"] = self.publicly_accessible
 
         cluster = redshift_hook.create_cluster(
             self.cluster_identifier,
