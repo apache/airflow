@@ -31,6 +31,7 @@ import pytest
 import yaml
 from botocore.exceptions import ClientError
 from inflection import camelize
+from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -54,6 +55,7 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
+from docs.conf import airflow_version
 from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
@@ -515,11 +517,12 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers.get_all_arns()) == 0
         assert len(mock_executor.pending_tasks) == 0
 
-        events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
-        assert events == [
-            ("ecs task submit failure", "task_a", 1),
-            ("ecs task submit failure", "task_b", 1),
-        ]
+        if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [
+                ("ecs task submit failure", "task_a", 1),
+                ("ecs task submit failure", "task_b", 1),
+            ]
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor):
@@ -596,11 +599,13 @@ class TestAwsEcsExecutor:
 
         RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[0]
         assert mock_executor.ecs.run_task.call_args_list[0].kwargs == RUN_TASK_KWARGS
-        events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
-        assert events == [
-            ("ecs task submit failure", "task_a", 1),
-            ("ecs task submit failure", "task_b", 1),
-        ]
+
+        if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [
+                ("ecs task submit failure", "task_a", 1),
+                ("ecs task submit failure", "task_b", 1),
+            ]
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_task_retry_on_api_failure_all_tasks_fail(self, _, mock_executor, caplog):

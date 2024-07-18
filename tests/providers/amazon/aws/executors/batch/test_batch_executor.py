@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
+from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -43,6 +44,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
+from docs.conf import airflow_version
 from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
@@ -259,8 +261,9 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         submit_job_args["containerOverrides"]["command"] = airflow_commands[0]
         assert mock_executor.batch.submit_job.call_args_list[5].kwargs == submit_job_args
-        log_record = mock_executor._task_event_logs[0]
-        assert log_record.event == "batch job submit failure"
+        if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
+            log_record = mock_executor._task_event_logs[0]
+            assert log_record.event == "batch job submit failure"
 
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_attempt_all_jobs_when_jobs_fail(self, _, mock_executor):
@@ -306,8 +309,9 @@ class TestAwsBatchExecutor:
 
         mock_executor.batch.submit_job.side_effect = failures
         mock_executor.attempt_submit_jobs()
-        events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
-        assert events == [("batch job submit failure", "b", 1)] * 2
+        if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [("batch job submit failure", "b", 1)] * 2
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
         mock_executor.batch.submit_job.side_effect = NoCredentialsError()
