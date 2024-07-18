@@ -26,7 +26,6 @@ from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
-import packaging.version
 import requests
 import tenacity
 from aiohttp import ClientResponseError
@@ -39,7 +38,6 @@ from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.http import airflow_dependency_version
 from airflow.utils import json
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
