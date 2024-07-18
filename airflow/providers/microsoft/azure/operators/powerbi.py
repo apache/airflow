@@ -43,9 +43,9 @@ class PowerBILink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
         url = (
-            f"https://app.powerbi.com"  # type: ignore[attr-defined]
+            "https://app.powerbi.com"  # type: ignore[attr-defined]
             f"/groups/{operator.group_id}/datasets/{operator.dataset_id}"  # type: ignore[attr-defined]
-            f"/details?experience=power-bi"
+            "/details?experience=power-bi"
         )
 
         return url
@@ -100,7 +100,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
-        self.log.info("Executing Dataset refresh.")
+        # TODO: You should use the deferrable mechanism more here instead of running async code in main thread
         refresh_id = self.run_async(
             self.hook.trigger_dataset_refresh(
                 dataset_id=self.dataset_id,
@@ -150,7 +150,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         if event:
             if event["status"] == "error":
                 raise AirflowException(event["message"])
-            else:
-                # Push Dataset refresh status to Xcom
-                self.xcom_push(context=context, key="powerbi_dataset_refresh_status", value=event["status"])
-        self.log.info(event["message"])
+
+            # Push Dataset refresh status to Xcom
+            self.xcom_push(context=context, key="powerbi_dataset_refresh_status", value=event["status"])
