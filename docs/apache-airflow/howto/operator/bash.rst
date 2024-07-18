@@ -188,14 +188,14 @@ Result processor
 ----------------
 
 The result_processor parameter allows you to specify a lambda function that processes the output of the bash script
-before it is pushed as an XCom. This feature is particularly useful for manipulating the script’s result directly within
+before it is pushed as an XCom. This feature is particularly useful for manipulating the script's result directly within
 the BashOperator, without the need for additional operators or tasks.
 
 For example, consider a scenario where the output of the bash script is a JSON string. With the result_processor, you
 can transform this string into a JSON object before storing it in XCom. This simplifies the workflow and ensures that
 downstream tasks receive the processed data in the desired format.
 
-Here’s how you can use the result_processor with the BashOperator:
+Here's how you can use the result_processor with the BashOperator:
 
 .. tab-set::
 
