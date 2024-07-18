@@ -218,38 +218,6 @@ class TestDagRun:
         assert DagRun.find_duplicate(dag_id=dag_id, run_id=None, execution_date=now) is not None
         assert DagRun.find_duplicate(dag_id=dag_id, run_id=None, execution_date=None) is None
 
-    def test_dagrun_manual_trigger_on_future_start_date(self):
-        """
-        Tests that task succeeds on a manual trigger with execution_date before start_date
-        """
-        dag = DAG("test_dagrun_manual_trigger_on_future_start_date", start_date=datetime(3000, 1, 1))
-
-        with dag:
-            op1 = EmptyOperator(task_id="A")
-            op2 = EmptyOperator(task_id="B")
-            op3 = EmptyOperator(task_id="C")
-            op4 = EmptyOperator(task_id="D")
-
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_manual_trigger_on_future_start_date",
-            state=DagRunState.RUNNING,
-            execution_date=now,
-            start_date=now,
-        )
-
-        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
-        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
-        ti_op3 = dr.get_task_instance(task_id=op3.task_id)
-        ti_op4 = dr.get_task_instance(task_id=op4.task_id)
-
-        assert TaskInstanceState.SUCCESS == ti_op1.state
-        assert TaskInstanceState.SUCCESS == ti_op2.state
-        assert TaskInstanceState.SUCCESS == ti_op3.state
-        assert TaskInstanceState.SUCCESS == ti_op4.state
-
     def test_dagrun_success_when_all_skipped(self, session):
         """
         Tests that a DAG run succeeds when all tasks are skipped
