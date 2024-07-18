@@ -278,7 +278,7 @@ You can also run the same commands via ``breeze testing tests`` - by adding the 
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --run-tests-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --run-in-parallel
 
 
 Also - if you want to iterate with the tests you can enter interactive shell and run the tests iteratively -
@@ -291,12 +291,12 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
 support to split all the tests into test-types to run in separate containers and with separate databases
-and you can run the tests using ``--run-tests-in-parallel`` flag (which is automatically enabled when
+and you can run the tests using ``--run-in-parallel`` flag (which is automatically enabled when
 you use ``breeze testing db-tests`` command):
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-tests-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -1145,27 +1145,29 @@ are not part of the public API. We deal with it in one of the following ways:
    you can add more if needed in a similar way.
 
 3) If only some tests are not compatible and use features that are available only in newer airflow version,
-    we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``compat.py``
-    For example:
+   we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``compat.py``
+   For example:
 
-.. code-block::python
+.. code-block:: python
 
   from tests.test_utils.compat import AIRFLOW_V_2_7_PLUS
 
+
   @pytest.mark.skip(not AIRFLOW_V_2_7_PLUS, reason="The tests should be skipped for Airflow < 2.7")
   def some_test_that_only_works_for_airflow_2_7_plus():
-    pass
+      pass
 
 4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
    In this case you can add conditional ``skipif`` markerfor ``RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES``
    to the test. For example:
 
-.. code-block::python
+.. code-block:: python
 
-  @pytest.mark.skipif(RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
-                      reason="Plugin initialization is done early in case of packages")
+  @pytest.mark.skipif(
+      RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Plugin initialization is done early in case of packages"
+  )
   def test_plugin():
-     pass
+      pass
 
 5) Sometimes Pytest collection fails to work, when certain imports used by the tests either do not exist
    or fail with RuntimeError about compatibility ("minimum Airflow version is required") or because they
@@ -1176,7 +1178,7 @@ are not part of the public API. We deal with it in one of the following ways:
 
    For example:
 
-.. code-block::python
+.. code-block:: python
 
    with ignore_provider_compatibility_error("2.8.0", __file__):
        from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
@@ -1221,14 +1223,14 @@ Herr id how to reproduce it.
 
 5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
 
-.. code-block::bash
+.. code-block:: bash
 
   breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
    --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests
 
 6. You can then run tests as usual:
 
-.. code-block::bash
+.. code-block:: bash
 
    pytest tests/providers/<provider>/test.py
 
@@ -1246,7 +1248,7 @@ restart breeze using the command above.
 
 Rebuilding single provider package can be done using this command:
 
-.. code-block::bash
+.. code-block:: bash
 
   breeze release-management prepare-provider-packages \
     --version-suffix-for-pypi dev0 --package-format wheel <provider>
@@ -1263,14 +1265,14 @@ Tests with lowest-direct dependency resolution for Airflow
 
 You can test minimum dependencies that are installed by Airflow by running (for example to run "Core" tests):
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze testing tests --force-lowest-dependencies --test-type "Core"
 
 You can also iterate on the tests and versions of the dependencies by entering breeze shell and
 running the tests from there:
 
-.. code-block::bash
+.. code-block:: bash
 
 
 
@@ -1294,7 +1296,7 @@ Similarly we can test if the provider tests are working for lowest dependencies 
 
 Those tests can be easily run locally with breeze (replace PROVIDER_ID with id of the provider):
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze testing tests --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
 
@@ -1304,7 +1306,7 @@ the dependency in the provider.yaml file of the appropriate provider and re-run 
 You can also iterate on the tests and versions of the dependencies by entering breeze shell and
 running the tests from there:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
 
@@ -1346,7 +1348,7 @@ committing the change will regenerate the dependencies automatically.
 
 After that, re-run the ``breeze shell --force-lowest-dependencies`` command and see if the tests pass.
 
-.. code-block::bash
+.. code-block:: bash
 
    breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
 

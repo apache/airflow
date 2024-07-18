@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Upgrading Airflow™ to a newer version
+Upgrading Airflow® to a newer version
 -------------------------------------
 
 Why you need to upgrade
