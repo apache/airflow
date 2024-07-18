@@ -519,7 +519,7 @@ Writing a custom facet function
 Register the custom facet functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the ``custom_run_facets`` Airflow configuration to register the custom run facet functions by passing 
+Use the ``custom_run_facets`` Airflow configuration to register the custom run facet functions by passing
 a string of semicolon separated full import path to the functions.
 
 .. code-block:: ini

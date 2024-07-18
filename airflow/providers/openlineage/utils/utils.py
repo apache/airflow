@@ -24,7 +24,7 @@ import re
 from contextlib import redirect_stdout, suppress
 from functools import wraps
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 import attrs
 from deprecated import deprecated
@@ -90,14 +90,14 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
     # Append custom run facets by executing the custom_run_facet functions.
     for custom_facet_func in conf.custom_run_facets():
         try:
-            func: type[function] | None = try_import_from_string(custom_facet_func)
+            func: Callable[[Any], dict] | None = try_import_from_string(custom_facet_func)
             if not func:
                 log.warning(
                     "OpenLineage is unable to import custom facet function `%s`; will ignore it.",
                     custom_facet_func,
                 )
                 continue
-            facet: dict[str, dict] | None = func(task_instance)
+            facet: dict[str, dict[Any, Any]] | None = func(task_instance)
             if facet and isinstance(facet, dict):
                 duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
                 if duplicate_facet_keys:

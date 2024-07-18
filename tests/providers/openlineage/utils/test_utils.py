@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, patch
 
 from airflow import DAG
 from airflow.decorators import task
