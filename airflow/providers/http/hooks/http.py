@@ -39,6 +39,7 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
 
+
 DEFAULT_AUTH_TYPES = frozenset(
     {
         "requests.auth.HTTPBasicAuth",
@@ -260,7 +261,8 @@ class HttpHookMixin:
 
 
 class HttpHook(HttpHookMixin, BaseHook):
-    """Interact with HTTP servers.
+    """
+    Interact with HTTP servers.
 
     To configure the auth_type, in addition to the `auth_type` parameter, you can also:
         * set the `auth_type` parameter in the Connection settings.
@@ -279,6 +281,7 @@ class HttpHook(HttpHookMixin, BaseHook):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+    :param auth_args: extra arguments used to initialize the auth_type if different than default HTTPBasicAuth
     """
 
     conn_name_attr = "http_conn_id"
@@ -318,10 +321,11 @@ class HttpHook(HttpHookMixin, BaseHook):
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
-        """Create a Requests HTTP session.
+        """
+        Create a Requests HTTP session.
 
-        :param headers: Additional headers to be passed through as a dictionary.
-            Note: Headers may also be passed in the "Headers" field in the Connection definition
+        :param headers: additional headers to be passed through as a dictionary.
+                        Note: Headers may also be passed in the "Headers" field in the Connection definition
         """
         headers, auth, session_conf = self.load_connection_settings(headers=headers)
 
@@ -354,7 +358,8 @@ class HttpHook(HttpHookMixin, BaseHook):
         extra_options: dict[str, Any] | None = None,
         **request_kwargs: Any,
     ) -> Any:
-        r"""Perform the request.
+        r"""
+        Perform the request.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -391,7 +396,8 @@ class HttpHook(HttpHookMixin, BaseHook):
         return self.run_and_check(session, prepped_request, extra_options)
 
     def check_response(self, response: requests.Response) -> None:
-        """Check the status code and raise on failure.
+        """
+        Check the status code and raise on failure.
 
         :param response: A requests response object.
         :raise AirflowException: If the response contains a status code not
@@ -410,7 +416,8 @@ class HttpHook(HttpHookMixin, BaseHook):
         prepped_request: requests.PreparedRequest,
         extra_options: dict[Any, Any],
     ) -> Any:
-        """Grab extra options, actually run the request, and check the result.
+        """
+        Grab extra options, actually run the request, and check the result.
 
         :param session: the session to be used to execute the request
         :param prepped_request: the prepared request generated in run()
@@ -447,7 +454,8 @@ class HttpHook(HttpHookMixin, BaseHook):
             raise ex
 
     def run_with_advanced_retry(self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
-        """Run the hook with retry.
+        """
+        Run the hook with retry.
 
         This is useful for connectors which might be disturbed by intermittent
         issues and should not instantly fail.
@@ -482,7 +490,8 @@ class HttpHook(HttpHookMixin, BaseHook):
 
 
 class HttpAsyncHook(HttpHookMixin, BaseHook):
-    """Interact with HTTP servers asynchronously.
+    """
+    Interact with HTTP servers asynchronously.
 
     :param method: the API method to be called
     :param http_conn_id: http connection id that has the base
@@ -518,20 +527,23 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
-        """Perform an asynchronous HTTP request call.
+        """
+        Perform an asynchronous HTTP request call.
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
-        headers, auth, session_conf = await sync_to_async(self.load_connection_settings)(headers=headers)
+        _headers, auth, session_conf = await sync_to_async(self.load_connection_settings)(headers=headers)
         session_conf = self._process_session_conf(session_conf)
         session_conf.update(extra_options)
 
@@ -558,11 +570,12 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
-                    headers=headers,
+                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    json=json,
+                    headers=_headers,
                     auth=auth,
-                    **session_conf,
+                    **extra_options,
                 )
                 try:
                     response.raise_for_status()
@@ -599,7 +612,8 @@ class HttpAsyncHook(HttpHookMixin, BaseHook):
         return session_conf
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
-        """Determine whether an exception may successful on a subsequent attempt.
+        """
+        Determine whether an exception may successful on a subsequent attempt.
 
         It considers the following to be retryable:
             - requests_exceptions.ConnectionError
