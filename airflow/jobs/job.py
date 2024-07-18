@@ -250,11 +250,8 @@ class Job(Base, LoggingMixin):
                     if span.is_recording():
                         span.add_event(name="error", attributes={"message": msg})
                 else:
-                    self.log.error(
-                        "%s heartbeat failed with error. Scheduler is in unhealthy state",
-                        self.__class__.__name__,
-                    )
                     msg = f"{self.__class__.__name__} heartbeat failed with error. Scheduler is in unhealthy state"
+                    self.log.error(msg)
                     if span.is_recording():
                         span.add_event(name="error", attributes={"message": msg})
                 # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
