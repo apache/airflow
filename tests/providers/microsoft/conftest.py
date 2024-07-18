@@ -172,7 +172,7 @@ def remove_license_header(content: str) -> str:
     pattern = r"(/\*.*?\*/)|(--.*?(\r?\n|\r))|(#.*?(\r?\n|\r))"
 
     # Use re.DOTALL to allow .* to match newline characters in block comments
-    return re.sub(pattern, '', content, flags=re.DOTALL).strip()
+    return re.sub(pattern, "", content, flags=re.DOTALL).strip()
 
 
 def load_json(*args: str):
