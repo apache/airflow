@@ -40,6 +40,9 @@ def _gen_id(seeds: list[str], as_int: bool = False, type: int = TRACE_ID) -> str
 
 
 def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
+    if dag_run.start_date is None:
+        return 1
+
     """Generate trace id from DagRun."""
     return _gen_id(
         [dag_run.dag_id, str(dag_run.run_id), str(dag_run.start_date.timestamp())],
@@ -58,6 +61,9 @@ def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> st
 
 def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate dag's root span id using dag_run."""
+    if dag_run.start_date is None:
+        return 1
+
     return _gen_id(
         [dag_run.dag_id, str(dag_run.run_id), str(dag_run.start_date.timestamp())],
         as_int,

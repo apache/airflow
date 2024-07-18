@@ -380,7 +380,7 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id is not 1:
+        if trace_id != 1:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
             with Trace.start_span(
                 span_name="fail",
@@ -403,7 +403,7 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id is not 1:
+        if trace_id != 1:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
             with Trace.start_span(
                 span_name="success",

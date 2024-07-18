@@ -270,11 +270,12 @@ class LocalExecutor(BaseExecutor):
                 assert self.executor.result_queue
 
             span = Trace.get_current_span()
-            span.set_attribute("dag_id", key.dag_id)
-            span.set_attribute("run_id", key.run_id)
-            span.set_attribute("task_id", key.task_id)
-            span.set_attribute("try_number", key.try_number - 1)
-            span.set_attribute("commands_to_run", str(command))
+            if span.is_recording():
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number - 1)
+                span.set_attribute("commands_to_run", str(command))
 
             local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)
             self.executor.workers_used += 1
