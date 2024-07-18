@@ -171,8 +171,11 @@ def remove_license_header(content: str) -> str:
     # Define the pattern to match both block and single-line comments
     pattern = r"(/\*.*?\*/)|(--.*?(\r?\n|\r))|(#.*?(\r?\n|\r))"
 
-    # Use re.DOTALL to allow .* to match newline characters in block comments
-    return re.sub(pattern, "", content, flags=re.DOTALL).strip()
+    # Check if there is a license header at the beginning of the file
+    if re.match(pattern, content, flags=re.DOTALL):
+        # Use re.DOTALL to allow .* to match newline characters in block comments
+        return re.sub(pattern, "", content, flags=re.DOTALL).strip()
+    return content.strip()
 
 
 def load_json(*args: str):
