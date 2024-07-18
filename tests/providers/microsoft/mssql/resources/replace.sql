@@ -1,3 +1,22 @@
+/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/
+
 MERGE INTO YAMMER_GROUPS_ACTIVITY_DETAIL AS target
         USING (SELECT %s AS ReportRefreshDate, %s AS UserId, %s AS UserPrincipalName, %s AS LastActivityDate, %s AS IsDeleted, %s AS DeletedDate, %s AS AssignedProducts, %s AS TeamChatMessageCount, %s AS PrivateChatMessageCount, %s AS CallCount, %s AS MeetingCount, %s AS MeetingsOrganizedCount, %s AS MeetingsAttendedCount, %s AS AdHocMeetingsOrganizedCount, %s AS AdHocMeetingsAttendedCount, %s AS ScheduledOne-timeMeetingsOrganizedCount, %s AS ScheduledOne-timeMeetingsAttendedCount, %s AS ScheduledRecurringMeetingsOrganizedCount, %s AS ScheduledRecurringMeetingsAttendedCount, %s AS AudioDuration, %s AS VideoDuration, %s AS ScreenShareDuration, %s AS AudioDurationInSeconds, %s AS VideoDurationInSeconds, %s AS ScreenShareDurationInSeconds, %s AS HasOtherAction, %s AS UrgentMessages, %s AS PostMessages, %s AS TenantDisplayName, %s AS SharedChannelTenantDisplayNames, %s AS ReplyMessages, %s AS IsLicensed, %s AS ReportPeriod, %s AS LoadDate) AS source
         ON target.GroupDisplayName = source.GroupDisplayName AND target.OwnerPrincipalName = source.OwnerPrincipalName AND target.ReportPeriod = source.ReportPeriod AND target.ReportRefreshDate = source.ReportRefreshDate

@@ -263,4 +263,4 @@ class TestMsSqlHook:
             ],
             replace=True,
         )
-        assert sql == load_file("resources", "replace.sql").strip()
+        assert sql == load_file("resources", "replace.sql")
