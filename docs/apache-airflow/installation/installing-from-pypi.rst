@@ -63,7 +63,7 @@ Those are just examples, see further for more explanation why those are the best
 .. note::
 
    Generally speaking, Python community established practice is to perform application installation in a
-   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow™ in a
+   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow® in a
    application dedicated virtual environment created for you. There are also other tools that can be used
    to manage your virtualenv installation and you are free to choose how you are managing the environments.
    Airflow has no limitation regarding to the tool of your choice when it comes to virtual environment.
@@ -80,7 +80,7 @@ Constraints files
 Why we need constraints
 =======================
 
-Airflow™ installation can be tricky because Airflow is both a library and an application.
+Airflow® installation can be tricky because Airflow is both a library and an application.
 
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
@@ -239,10 +239,10 @@ Installation and upgrade scenarios
 
 In order to simplify the installation, we have prepared examples of how to upgrade Airflow and providers.
 
-Installing Airflow™ with extras and providers
+Installing Airflow® with extras and providers
 =============================================
 
-If you need to install extra dependencies of Airflow™, you can use the script below to make an installation
+If you need to install extra dependencies of Airflow®, you can use the script below to make an installation
 a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
 
 .. code-block:: bash
