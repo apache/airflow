@@ -1660,7 +1660,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if repr(ti) in cleaned_up_task_instances:
                         session.add(
                             Log(
-                                event="stuck in queued",
+                                event="task stuck in queued",
                                 task_instance=ti.key,
                                 extra=(
                                     "Task will be marked as failed. If the task instance has "
