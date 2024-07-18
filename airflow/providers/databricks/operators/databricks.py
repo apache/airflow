@@ -503,6 +503,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "json",
         "databricks_conn_id",
+        "tasks",
         "spark_jar_task",
         "notebook_task",
         "spark_python_task",
