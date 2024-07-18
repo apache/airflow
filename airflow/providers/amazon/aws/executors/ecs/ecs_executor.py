@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
-from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Sequence
 
@@ -387,12 +386,6 @@ class AwsEcsExecutor(BaseExecutor):
                     self.pending_tasks.append(ecs_task)
                 else:
                     reasons_str = ", ".join(failure_reasons)
-                    self.log.error(
-                        "ECS task %s has failed %s times. Marking as failed. Reasons: %s",
-                        task_key,
-                        attempt_number,
-                        reasons_str,
-                    )
                     self.log_task_event(
                         record=Log(
                             event="ecs executor queue error",
@@ -405,7 +398,6 @@ class AwsEcsExecutor(BaseExecutor):
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
-                self.log.error("ECS RunTask Response: %s", run_task_response)
                 self.log_task_event(
                     record=Log(
                         event="ecs runtime error",
@@ -558,7 +550,9 @@ class AwsEcsExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def log_task_event(self, *, record: Log):
+    def log_task_event(self, record: Log):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        with suppress(AttributeError):
+        try:
             super().log_task_event(record=record)
+        except AttributeError:
+            self.log.error("Could not log task event; feature only available in Airflow 2.10.0. %s", record)

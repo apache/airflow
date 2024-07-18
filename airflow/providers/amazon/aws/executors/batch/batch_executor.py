@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import contextlib
-import logging
 import time
 from collections import deque
 from copy import deepcopy
@@ -31,6 +30,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import Log
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
     exponential_backoff_retry,
@@ -292,12 +292,13 @@ class AwsBatchExecutor(BaseExecutor):
 
             if failure_reason:
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
-                    self.send_message_to_task_logs(
-                        logging.ERROR,
-                        "This job has been unsuccessfully attempted too many times (%s). Dropping the task. Reason: %s",
-                        attempt_number,
-                        failure_reason,
-                        ti=key,
+                    self.log_task_event(
+                        record=Log(
+                            event="executor queue failure",
+                            extra=f"This job has been unsuccessfully attempted too many times ({attempt_number}). "
+                            f"Dropping the task. Reason: {failure_reason}",
+                            task_instance=key,
+                        )
                     )
                     self.fail(key=key)
                 else:
@@ -458,10 +459,9 @@ class AwsBatchExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+    def log_task_event(self, record: Log):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
         try:
-            super().send_message_to_task_logs(level, msg, *args, ti=ti)
+            super().log_task_event(record=record)
         except AttributeError:
-            # ``send_message_to_task_logs`` is added in 2.10.0
-            self.log.error(msg, *args)
+            self.log.error("Could not log task event; feature only available in Airflow 2.10.0. %s", record)

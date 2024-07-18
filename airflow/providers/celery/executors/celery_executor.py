@@ -479,6 +479,13 @@ class CeleryExecutor(BaseExecutor):
             ),
         ]
 
+    def log_task_event(self, record: Log):
+        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
+        try:
+            super().log_task_event(record=record)
+        except AttributeError:
+            self.log.error("Could not log task event; feature only available in Airflow 2.10.0. %s", record)
+
 
 def _get_parser() -> argparse.ArgumentParser:
     """
