@@ -121,7 +121,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, task_instance, try_number, metadata=None):
+    def _read(self, task_instance, try_number, metadata=None, offset: int = 0, limit: int = 100):
         stream_name = self._render_filename(task_instance, try_number)
         try:
             return (

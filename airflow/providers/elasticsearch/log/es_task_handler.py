@@ -301,7 +301,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
+        self,
+        ti: TaskInstance,
+        try_number: int,
+        metadata: dict | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
