@@ -3503,15 +3503,15 @@ class Airflow(AirflowBaseView):
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
                 for dep in dependencies:
-                    if dep.dependency_type == "dag" or dep.dependency_type == "dataset":
+                    if dep.dependency_type in ("dag", "dataset", "dataset-alias"):
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
                         if dep.node_id not in nodes_dict:
                             nodes_dict[dep.node_id] = node_dict(
                                 dep.node_id, dep.dependency_id, dep.dependency_type
                             )
-                        if dep.source != "dataset":
+                        if dep.source not in ("dataset", "dataset-alias"):
                             edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                        if dep.target != "dataset":
+                        if dep.target not in ("dataset", "dataset-alias"):
                             edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         nodes = list(nodes_dict.values())

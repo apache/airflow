@@ -966,6 +966,15 @@ class DependencyDetector:
                         dependency_id=obj.uri,
                     )
                 )
+            elif isinstance(obj, DatasetAlias):
+                deps.append(
+                    DagDependency(
+                        source=task.dag_id,
+                        target="dataset-alias",
+                        dependency_type="dataset-alias",
+                        dependency_id=obj.name,
+                    )
+                )
         return deps
 
     @staticmethod
@@ -973,13 +982,23 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        for uri, _ in dag.timetable.dataset_condition.iter_datasets():
-            yield DagDependency(
-                source="dataset",
-                target=dag.dag_id,
-                dependency_type="dataset",
-                dependency_id=uri,
-            )
+
+        cond = dag.timetable.dataset_condition
+        for node in cond.expand_as_end_nodes():
+            if isinstance(node, Dataset):
+                yield DagDependency(
+                    source="dataset",
+                    target=dag.dag_id,
+                    dependency_type="dataset",
+                    dependency_id=node.uri,
+                )
+            elif isinstance(node, DatasetAlias):
+                yield DagDependency(
+                    source="dataset-alias",
+                    target=dag.dag_id,
+                    dependency_type="dataset-alias",
+                    dependency_id=node.name,
+                )
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -1790,7 +1809,7 @@ class DagDependency:
     def node_id(self):
         """Node ID for graph rendering."""
         val = f"{self.dependency_type}"
-        if self.dependency_type != "dataset":
+        if self.dependency_type not in ("dataset", "dataset-alias"):
             val += f":{self.source}:{self.target}"
         if self.dependency_id:
             val += f":{self.dependency_id}"

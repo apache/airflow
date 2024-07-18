@@ -191,6 +191,9 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
+    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+        raise NotImplementedError
+
 
 @attr.define()
 class DatasetAlias(BaseDataset):
@@ -205,6 +208,11 @@ class DatasetAlias(BaseDataset):
 
     def __hash__(self) -> int:
         return hash(self.name)
+
+    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+        return {
+            self,
+        }
 
 
 class DatasetAliasEvent(TypedDict):
@@ -273,6 +281,11 @@ class Dataset(os.PathLike, BaseDataset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
+    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+        return {
+            self,
+        }
+
 
 class _DatasetBooleanCondition(BaseDataset):
     """Base class for dataset boolean logic."""
@@ -298,6 +311,17 @@ class _DatasetBooleanCondition(BaseDataset):
                     continue
                 yield k, v
                 seen.add(k)
+
+    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+        end_nodes: set[Dataset | DatasetAlias] = set()
+        for obj in self.objects:
+            if isinstance(obj, Dataset):
+                end_nodes.add(obj)
+            elif isinstance(obj, (_DatasetAliasCondition, DatasetAlias)):
+                end_nodes.add(DatasetAlias(obj.name))
+            else:
+                end_nodes.update(obj.expand_as_end_nodes())
+        return end_nodes
 
 
 class DatasetAny(_DatasetBooleanCondition):
@@ -334,6 +358,9 @@ class _DatasetAliasCondition(DatasetAny):
         self.name = name
         self.objects = expand_alias_to_datasets(name)
 
+    def __repr__(self) -> str:
+        return f"_DatasetAliasCondition({', '.join(map(str, self.objects))})"
+
     def as_expression(self) -> Any:
         """
         Serialize the dataset into its scheduling expression.
@@ -341,6 +368,11 @@ class _DatasetAliasCondition(DatasetAny):
         :meta private:
         """
         return {"alias": self.name}
+
+    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+        return {
+            DatasetAlias(self.name),
+        }
 
 
 class DatasetAll(_DatasetBooleanCondition):
