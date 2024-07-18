@@ -20,10 +20,10 @@
 from __future__ import annotations
 
 from functools import cached_property
-from methodtools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 import pymssql
+from methodtools import lru_cache
 from pymssql import Connection as PymssqlConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
