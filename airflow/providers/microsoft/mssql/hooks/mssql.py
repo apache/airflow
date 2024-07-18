@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from functools import cached_property, lru_cache
+from functools import cached_property
+from methodtools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 import pymssql
@@ -105,7 +106,7 @@ class MsSqlHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
 
-    @lru_cache
+    @lru_cache(maxsize=None)
     def get_primary_keys(self, table: str) -> list[str]:
         primary_keys = self.run(
             f"""
