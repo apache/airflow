@@ -57,7 +57,7 @@ def kinesis_analytics_v2_workflow():
     create_application = KinesisAnalyticsV2CreateApplicationOperator(
         task_id="create_application",
         application_name=application_name,
-        run_time_environment="FLINK-1_18",
+        runtime_environment="FLINK-1_18",
         service_execution_role=test_context[ROLE_ARN_KEY],
         create_application_kwargs={
             "ApplicationConfiguration": {
@@ -185,13 +185,14 @@ def copy_jar_to_s3(bucket: str):
 
 
 @task
-def create_kinesis_stream(stream: str):
+def create_kinesis_stream(stream: str, region: str):
     """
     Create kinesis stream and put some sample data.
 
     :param stream: Name of the kinesis stream.
+    :param region: Region name
     """
-    client = boto3.client("kinesis", region_name=region_name)
+    client = boto3.client("kinesis", region_name=region)
     client.create_stream(StreamName=stream, ShardCount=1, StreamModeDetails={"StreamMode": "PROVISIONED"})
     account_id = boto3.client("sts").get_caller_identity()["Account"]
     waiter = client.get_waiter("stream_exists")
@@ -207,15 +208,15 @@ def create_kinesis_stream(stream: str):
     for _ in range(2):
         data = get_data()
         client.put_record(
-            StreamARN=f"arn:aws:kinesis:{region_name}:{account_id}:stream/{stream}",
+            StreamARN=f"arn:aws:kinesis:{region}:{account_id}:stream/{stream}",
             Data=json.dumps(data),
             PartitionKey=data["ticker"],
         )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_kinesis_stream(stream: str):
-    client = boto3.client("kinesis", region_name=region_name)
+def delete_kinesis_stream(stream: str, region: str):
+    client = boto3.client("kinesis", region_name=region)
     client.delete_stream(StreamName=stream, EnforceConsumerDeletion=True)
 
 
@@ -250,12 +251,12 @@ with DAG(
         # TEST SETUP
         test_context,
         create_bucket,
-        create_kinesis_stream(stream_name),
+        create_kinesis_stream(stream=stream_name, region=region_name),
         copy_jar_to_s3(bucket=bucket_name),
         # TEST BODY
         kinesis_analytics_v2_workflow(),
         # TEST TEARDOWN
-        delete_kinesis_stream(stream_name),
+        delete_kinesis_stream(stream=stream_name, region=region_name),
         delete_bucket,
     )
 

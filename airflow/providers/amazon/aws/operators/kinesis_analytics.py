@@ -43,7 +43,7 @@ class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyti
         :ref:`howto/operator:KinesisAnalyticsV2CreateApplicationOperator`
 
     :param application_name: The name of application. (templated)
-    :param run_time_environment: The runtime environment for the application. (templated)
+    :param runtime_environment: The runtime environment for the application. (templated)
     :param service_execution_role: The IAM role used by the application to access services. (templated)
     :param create_application_kwargs: Create application extra properties. (templated)
     :param application_description: A summary description of the application. (templated)
@@ -65,7 +65,7 @@ class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyti
 
     template_fields: Sequence[str] = aws_template_fields(
         "application_name",
-        "run_time_environment",
+        "runtime_environment",
         "service_execution_role",
         "create_application_kwargs",
         "application_description",
@@ -77,7 +77,7 @@ class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyti
     def __init__(
         self,
         application_name: str,
-        run_time_environment: str,
+        runtime_environment: str,
         service_execution_role: str,
         create_application_kwargs: dict[str, Any] | None = None,
         application_description: str = "Managed Service for Apache Flink application created from Airflow",
@@ -85,7 +85,7 @@ class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyti
     ):
         super().__init__(**kwargs)
         self.application_name = application_name
-        self.run_time_environment = run_time_environment
+        self.runtime_environment = runtime_environment
         self.service_execution_role = service_execution_role
         self.create_application_kwargs = create_application_kwargs or {}
         self.application_description = application_description
@@ -96,7 +96,7 @@ class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyti
             response = self.hook.conn.create_application(
                 ApplicationName=self.application_name,
                 ApplicationDescription=self.application_description,
-                RuntimeEnvironment=self.run_time_environment,
+                RuntimeEnvironment=self.runtime_environment,
                 ServiceExecutionRole=self.service_execution_role,
                 **self.create_application_kwargs,
             )

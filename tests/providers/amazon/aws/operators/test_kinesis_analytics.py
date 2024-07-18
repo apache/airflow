@@ -57,7 +57,7 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
         op = KinesisAnalyticsV2CreateApplicationOperator(
             task_id="create_application_operator",
             application_name="demo",
-            run_time_environment="FLINK_18_9",
+            runtime_environment="FLINK_18_9",
             service_execution_role=self.ROLE_ARN,
             aws_conn_id="fake-conn-id",
             region_name="eu-west-2",
@@ -66,7 +66,7 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
         )
 
         assert op.application_name == "demo"
-        assert op.run_time_environment == "FLINK_18_9"
+        assert op.runtime_environment == "FLINK_18_9"
         assert op.service_execution_role == self.ROLE_ARN
         assert op.hook.client_type == "kinesisanalyticsv2"
         assert op.hook.resource_type is None
@@ -79,7 +79,7 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
         op = KinesisAnalyticsV2CreateApplicationOperator(
             task_id="create_application_operator",
             application_name="demo",
-            run_time_environment="FLINK_18_9",
+            runtime_environment="FLINK_18_9",
             service_execution_role="arn",
         )
 
@@ -94,7 +94,7 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
             task_id="create_application_operator",
             application_name="demo",
             application_description="demo app",
-            run_time_environment="FLINK_18_9",
+            runtime_environment="FLINK_18_9",
             service_execution_role=self.ROLE_ARN,
             create_application_kwargs={
                 "ApplicationConfiguration": {
@@ -134,7 +134,7 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
         operator = KinesisAnalyticsV2CreateApplicationOperator(
             task_id="create_application_operator",
             application_name="demo",
-            run_time_environment="FLINK_18_9",
+            runtime_environment="FLINK_18_9",
             service_execution_role=self.ROLE_ARN,
             create_application_kwargs={"AppId": {"code": "s3://test/flink.jar"}},
             aws_conn_id="fake-conn-id",
