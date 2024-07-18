@@ -30,6 +30,7 @@ import pendulum
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models import Log
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.models import Log
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -301,12 +301,21 @@ class BaseExecutor(LoggingMixin):
                     # if it hasn't been much time since first check, let it be checked again next time
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
-                # Otherwise, we give up and remove the task from the queue.
 
+                # Otherwise, we give up and remove the task from the queue.
                 self.log.error(
                     "could not queue task %s (still running after %d attempts).",
                     key,
                     attempt.total_tries,
+                )
+                self.log_task_event(
+                    record=Log(
+                        event="task launch failure",
+                        extra=(
+                            "Task was in running set and could not be queued "
+                            f"after {attempt.total_tries} attempts."
+                        ),
+                    )
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]
