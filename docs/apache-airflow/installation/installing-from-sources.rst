@@ -23,7 +23,7 @@ Released packages
 
 .. jinja:: official_download_page
 
-    This page describes downloading and verifying Airflow™ version
+    This page describes downloading and verifying Airflow® version
     ``{{ airflow_version }}`` using officially released packages.
     You can also install ``Apache Airflow`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting different version from the drop-down at
@@ -41,7 +41,7 @@ dependencies. In case of ``pip`` it means that at least version 22.1.0 is needed
 2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
 released wheel packages.
 
-The |version| downloads of Airflow™ are available at:
+The |version| downloads of Airflow® are available at:
 
 .. jinja:: official_download_page
 

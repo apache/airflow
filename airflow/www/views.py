@@ -3350,15 +3350,24 @@ class Airflow(AirflowBaseView):
         if run_states:
             query = query.where(DagRun.state.in_(run_states))
 
+        # Retrieve, sort and encode the previous DAG Runs
         dag_runs = wwwutils.sorted_dag_runs(
             query, ordering=dag.timetable.run_ordering, limit=num_runs, session=session
         )
+        encoded_runs = []
+        encoding_errors = []
+        for dr in dag_runs:
+            encoded_dr, error = wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder)
+            if error:
+                encoding_errors.append(error)
+            else:
+                encoded_runs.append(encoded_dr)
 
-        encoded_runs = [wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder) for dr in dag_runs]
         data = {
             "groups": dag_to_grid(dag, dag_runs, session),
             "dag_runs": encoded_runs,
             "ordering": dag.timetable.run_ordering,
+            "errors": encoding_errors,
         }
         # avoid spaces to reduce payload size
         return (
