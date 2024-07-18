@@ -1144,7 +1144,7 @@
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
-    "state": "not-ready"
+    "state": "ready"
   },
   "salesforce": {
     "deps": [
