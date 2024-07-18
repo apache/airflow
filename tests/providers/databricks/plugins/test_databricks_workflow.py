@@ -126,6 +126,7 @@ def app():
         yield app
 
 
+@pytest.mark.db_test
 def test_get_task_instance(app):
     with app.app_context():
         operator = Mock()
@@ -143,6 +144,7 @@ def test_get_task_instance(app):
             assert result == dag_run
 
 
+@pytest.mark.db_test
 def test_workflow_job_run_link(app):
     with app.app_context():
         link = WorkflowJobRunLink()
@@ -177,6 +179,7 @@ def test_workflow_job_run_link(app):
                         assert "https://mockhost/#job/1/run/1" in result
 
 
+@pytest.mark.db_test
 def test_workflow_job_repair_single_failed_link(app):
     with app.app_context():
         link = WorkflowJobRepairSingleTaskLink()
