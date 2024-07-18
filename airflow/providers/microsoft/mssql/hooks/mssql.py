@@ -135,7 +135,7 @@ class MsSqlHook(DbApiHook):
         :return: The generated INSERT or MERGE INTO SQL statement
         """
         if not replace:
-            return super()._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+            return super()._generate_insert_sql(table, values, target_fields, replace, **kwargs)  # type: ignore
 
         primary_keys = self.get_primary_keys(table)
         columns = [
