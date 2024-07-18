@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import warnings
+from contextlib import suppress
+from functools import cached_property
+from json import JSONDecodeError
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
+import packaging.version
 import requests
 import tenacity
 from aiohttp import ClientResponseError
@@ -34,6 +38,10 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
+from airflow.providers.http import airflow_dependency_version
+from airflow.utils import json
+from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -65,6 +73,49 @@ def get_auth_types() -> frozenset[str]:
     if extra_auth_types:
         auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
     return auth_types
+
+
+class ConnectionWithExtra(Connection):
+    def __init__(
+        self,
+        conn_id: str | None = None,
+        conn_type: str | None = None,
+        description: str | None = None,
+        host: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        schema: str | None = None,
+        port: int | None = None,
+        extra: str | dict | None = None,
+        uri: str | None = None,
+    ):
+        super().__init__(conn_id, conn_type, description, host, login, password, schema, port, extra, uri)
+
+    def get_extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Deserialize extra property to JSON.
+
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        """
+        extra = {}
+
+        if self.extra:
+            try:
+                if nested:
+                    for key, value in json.loads(self.extra).items():
+                        extra[key] = value
+                        if isinstance(value, str):
+                            with suppress(JSONDecodeError):
+                                extra[key] = json.loads(value)
+                else:
+                    extra = json.loads(self.extra)
+            except JSONDecodeError:
+                self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
+
+            # Mask sensitive keys from this list
+            mask_secret(extra)
+
+        return extra
 
 
 class HttpHookMixin:
@@ -129,6 +180,28 @@ class HttpHookMixin:
             "relabeling": {},
         }
 
+    @cached_property
+    def connection(self) -> Connection:
+        """
+        This method calls the original get_connection method from the BaseHook and returns a patched version
+        of the Connection class which also has the get_extra_dejson method that has been added in Apache
+        Airflow since 2.10.0. Once the provider depends on Airflow version 2.10.0 or higher, this method and
+        the ConnectionWithExtra class can be removed.
+        """
+        conn = BaseHook.get_connection(conn_id=self.http_conn_id)
+
+        return ConnectionWithExtra(
+            conn_id=self.http_conn_id,
+            conn_type=conn.conn_type,
+            description=conn.description,
+            host=conn.host,
+            login=conn.login,
+            password=conn.password,
+            schema=conn.schema,
+            port=conn.port,
+            extra=conn.extra,
+        )
+
     def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
         """
         Load and update the class with Connection Settings.
@@ -142,7 +215,7 @@ class HttpHookMixin:
         _session_conf = {}
 
         if self.http_conn_id:
-            conn = self.get_connection(self.http_conn_id)
+            conn = self.connection
 
             if conn.host and "://" in conn.host:
                 self.base_url = conn.host

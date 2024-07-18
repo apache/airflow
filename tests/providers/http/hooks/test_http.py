@@ -25,6 +25,7 @@ import os
 from http import HTTPStatus
 from unittest import mock
 
+import packaging.version
 import pytest
 import requests
 import tenacity
@@ -35,6 +36,7 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.http import airflow_dependency_version
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, get_auth_types
 
 DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
@@ -675,6 +677,13 @@ class TestHttpHook:
         hook = HttpHook()
         hook.base_url = base_url
         assert hook.url_from_endpoint(endpoint) == expected_url
+
+    def test_airflow_dependency_version(self):
+        if airflow_dependency_version() >= packaging.version.parse("2.10.0"):
+            raise RuntimeError(
+                "The class ConnectionWithExtra can be removed from the HttpHook since the get_extra_dejson"
+                "method is now available on the Connection class since Apache Airflow 2.10.0+"
+            )
 
 
 class TestHttpAsyncHook:

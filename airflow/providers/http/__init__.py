@@ -37,3 +37,17 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     raise RuntimeError(
         f"The package `apache-airflow-providers-http:{__version__}` needs Apache Airflow 2.7.0+"
     )
+
+
+def airflow_dependency_version():
+    import re
+    import yaml
+
+    from os.path import join, dirname
+
+    with open(join(dirname(__file__), "provider.yaml"), encoding="utf-8") as file:
+        for dependency in yaml.safe_load(file)["dependencies"]:
+            if dependency.startswith('apache-airflow'):
+                match = re.search(r'>=([\d\.]+)', dependency)
+                if match:
+                    return packaging.version.parse(match.group(1))
