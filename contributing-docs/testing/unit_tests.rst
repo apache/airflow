@@ -1464,6 +1464,26 @@ This parameter is also available in Breeze.
 
     breeze testing db-tests --keep-env-variables
 
+Disable database cleanup before each test module
+................................................
+
+By default, the database is cleared from all items before running tests. This is to avoid potential conflicts with
+existing resources in the database when running tests using the database. However, in some scenarios you might want to
+disable this mechanism and keep the database as is. For example, you might want to run tests in parallel against the
+same database. In that case, you need to disable the database cleanup, otherwise the tests are going to conflict with
+each other (one test will delete the resources that another one is creating).
+
+To disable the database cleanup, you need to provide ``--no-db-cleanup`` as pytest CLI argument.
+
+.. code-block:: bash
+
+    pytest tests/core/ --no-db-cleanup
+
+This parameter is also available in Breeze.
+
+.. code-block:: bash
+
+    breeze testing db-tests --no-db-cleanup
 
 Code Coverage
 -------------
