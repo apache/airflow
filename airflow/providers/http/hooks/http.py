@@ -53,7 +53,8 @@ DEFAULT_AUTH_TYPES = frozenset(
 
 @cache
 def get_auth_types() -> frozenset[str]:
-    """Get comma-separated extra auth_types from airflow config.
+    """
+    Get comma-separated extra auth_types from airflow config.
 
     Those auth_types can then be used in Connection configuration.
     """
@@ -67,7 +68,8 @@ def get_auth_types() -> frozenset[str]:
 
 
 class HttpHookMixin:
-    """Common superclass for the HttpHook and HttpAsyncHook.
+    """
+    Common superclass for the HttpHook and HttpAsyncHook.
 
     Implements methods to create a Connection.
     """
@@ -128,7 +130,8 @@ class HttpHookMixin:
         }
 
     def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
-        """Load and update the class with Connection Settings.
+        """
+        Load and update the class with Connection Settings.
 
         Load the settings from the Connection and update the class.
         Returns the headers and auth which are later passed into a request.Session
@@ -184,7 +187,8 @@ class HttpHookMixin:
         return _headers, _auth, _session_conf
 
     def _parse_extra(self, conn_extra: dict) -> dict:
-        """Parse the settings from 'extra' into dict.
+        """
+        Parse the settings from 'extra' into dict.
 
         The "auth_kwargs" and "headers" data from TextAreaField are returned as
         string via the 'extra' field. This method converts the data to dict.
@@ -231,7 +235,8 @@ class HttpHookMixin:
         }
 
     def _load_conn_auth_type(self, module_name: str | None) -> Any:
-        """Load auth_type module from extra Connection parameters.
+        """
+        Load auth_type module from extra Connection parameters.
 
         Check if the auth_type module is listed in 'extra_auth_types' and load it.
         This method protects against the execution of random modules.
