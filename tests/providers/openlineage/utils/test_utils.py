@@ -489,7 +489,9 @@ def test_get_task_groups_details_no_task_groups():
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
 def test_get_custom_facets_with_no_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -502,7 +504,9 @@ def test_get_custom_facets_with_no_function_definition(mock_custom_facet_funcs):
 )
 def test_get_custom_facets_with_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -529,7 +533,11 @@ def test_get_custom_facets_with_function_definition(mock_custom_facet_funcs):
 )
 def test_get_custom_facets_with_return_value_as_none(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=BashOperator(task_id="test-task", bash_command="exit 0;", dag=DAG("test-dag")),
+        task=BashOperator(
+            task_id="test-task",
+            bash_command="exit 0;",
+            dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1)),
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -547,7 +555,9 @@ def test_get_custom_facets_with_return_value_as_none(mock_custom_facet_funcs):
 )
 def test_get_custom_facets_with_multiple_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -576,7 +586,9 @@ def test_get_custom_facets_with_multiple_function_definition(mock_custom_facet_f
 )
 def test_get_custom_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -601,7 +613,9 @@ def test_get_custom_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
 )
 def test_get_custom_facets_with_invalid_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -614,7 +628,9 @@ def test_get_custom_facets_with_invalid_function_definition(mock_custom_facet_fu
 )
 def test_get_custom_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
@@ -627,7 +643,9 @@ def test_get_custom_facets_with_wrong_return_type_function(mock_custom_facet_fun
 )
 def test_get_custom_facets_with_exception(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
-        task=EmptyOperator(task_id="test-task", dag=DAG("test-dag")),
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
         state="running",
     )
     result = get_custom_facets(sample_ti)
