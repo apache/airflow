@@ -885,6 +885,7 @@ class DagFileProcessorManager(LoggingMixin):
                 seconds_ago = (now - last_run).total_seconds()
                 Stats.gauge(f"dag_processing.last_run.seconds_ago.{file_name}", seconds_ago)
             last_num_of_db_queries = self.get_last_num_of_db_queries(file_path)
+            Stats.gauge(f"dag_processing.last_num_of_db_queries.{file_name}", last_num_of_db_queries)
 
             rows.append(
                 (
