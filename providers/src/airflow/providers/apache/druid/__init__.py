@@ -41,13 +41,13 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
 
 def airflow_dependency_version():
     import re
-    import yaml
+    from os.path import dirname, join
 
-    from os.path import join, dirname
+    import yaml
 
     with open(join(dirname(__file__), "provider.yaml"), encoding="utf-8") as file:
         for dependency in yaml.safe_load(file)["dependencies"]:
-            if dependency.startswith('apache-airflow'):
-                match = re.search(r'>=([\d\.]+)', dependency)
+            if dependency.startswith("apache-airflow"):
+                match = re.search(r">=([\d\.]+)", dependency)
                 if match:
                     return packaging.version.parse(match.group(1))
