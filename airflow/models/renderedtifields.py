@@ -157,7 +157,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     @classmethod
     @internal_api_call
     @provide_session
-    def update_runtime_evaluated_template_fields(
+    def _update_runtime_evaluated_template_fields(
         cls, ti: TaskInstance, session: Session = NEW_SESSION
     ) -> None:
         """Update rendered task instance fields for cases where runtime evaluated, not templated."""

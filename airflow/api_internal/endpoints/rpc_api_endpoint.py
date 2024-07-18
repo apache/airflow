@@ -111,7 +111,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagRun.get_previous_scheduled_dagrun,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
-        RenderedTaskInstanceFields.update_runtime_evaluated_template_fields,
+        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
         SkipMixin._skip,
         SkipMixin._skip_all_except,
