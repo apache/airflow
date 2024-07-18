@@ -167,35 +167,44 @@ exit code if you pass ``skip_on_exit_code``).
 .. tab-set::
 
     .. tab-item:: @task.bash
-        :sync: taskflow
+            :sync: taskflow
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START howto_decorator_bash_skip]
-            :end-before: [END howto_decorator_bash_skip]
+            .. code-block:: python
 
-    .. tab-item:: BashOperator
-        :sync: operator
+                @task.bash(result_processor=lambda result: json.loads(result))
+                def bash_task() -> str:
+                    return """
+                        jq -c '.[] | select(.lastModified > "{{ data_interval_start | ts_zulu }}" or .created > "{{ data_interval_start | ts_zulu }}")' \\
+                        example.json
+                    """
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
-            :language: python
-            :start-after: [START howto_operator_bash_skip]
-            :end-before: [END howto_operator_bash_skip]
+        .. tab-item:: BashOperator
+            :sync: operator
+
+            .. code-block:: python
+
+                bash_task = BashOperator(
+                    task_id="filter_today_changes",
+                    bash_command="""
+                        jq -c '.[] | select(.lastModified > "{{ data_interval_start | ts_zulu }}" or .created > "{{ data_interval_start | ts_zulu }}")' \\
+                        example.json
+                    """,
+                    result_processor=lambda result: json.loads(result),
+                )
 
 
 Result processor
 ----------------
 
 The result_processor parameter allows you to specify a lambda function that processes the output of the bash script
-before it is pushed as an XCom. This feature is particularly useful for manipulating the script’s result directly within
+before it is pushed as an XCom. This feature is particularly useful for manipulating the script's result directly within
 the BashOperator, without the need for additional operators or tasks.
 
 For example, consider a scenario where the output of the bash script is a JSON string. With the result_processor, you
 can transform this string into a JSON object before storing it in XCom. This simplifies the workflow and ensures that
 downstream tasks receive the processed data in the desired format.
 
-Here’s how you can use the result_processor with the BashOperator:
+Here's how you can use the result_processor with the BashOperator:
 
 .. tab-set::
 
