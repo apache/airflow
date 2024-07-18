@@ -134,7 +134,7 @@ const DatasetEventCard = ({ datasetEvent }: CardProps) => {
       </GridItem>
       {!isEmpty(extra) && (
         <GridItem colSpan={2}>
-          <Extra extra={datasetEvent.extra} />
+          <Extra extra={extra} />
         </GridItem>
       )}
     </Grid>

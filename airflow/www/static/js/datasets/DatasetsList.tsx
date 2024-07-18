@@ -87,7 +87,6 @@ const DatasetsList = ({ onSelect }: Props) => {
     limit,
     offset,
     order,
-    // uri,
     updatedAfter: dateFilter ? dateOptions[dateFilter] : undefined,
   });
 

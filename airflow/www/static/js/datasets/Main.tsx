@@ -45,7 +45,6 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import DatasetEvents from "./DatasetEvents";
 import DatasetsList from "./DatasetsList";
 import DatasetDetails from "./DatasetDetails";
-// import DatasetEventDetails from "./DatasetEventDetails";
 import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
 import SearchBar from "./SearchBar";

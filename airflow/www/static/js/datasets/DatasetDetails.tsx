@@ -44,7 +44,6 @@ const gridUrl = getMetaValue("grid_url");
 
 interface Props {
   uri: string;
-  // onSelect: (props: OnSelectProps) => void;
 }
 
 const DatasetDetails = ({ uri }: Props) => {

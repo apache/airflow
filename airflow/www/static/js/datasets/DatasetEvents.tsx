@@ -27,11 +27,9 @@ import { useDatasetEvents } from "src/api";
 import { CardList, type CardDef } from "src/components/Table/CardList";
 import type { DatasetEvent } from "src/types/api-generated";
 import DatasetEventCard from "./DatasetEventCard";
-// import type { OnSelectProps } from "./types";
 
 type Props = {
   datasetId?: number;
-  // onSelect?: (props: OnSelectProps) => void;
   showLabel?: boolean;
 };
 
@@ -123,13 +121,6 @@ const Events = ({ datasetId, showLabel }: Props) => {
         pageSize={limit}
         isLoading={isEventsLoading}
         cardDef={cardDef}
-        // onRowClicked={({ original: { datasetUri, timestamp } }: any) => {
-        //   if (onSelect)
-        //     onSelect({
-        //       uri: datasetUri,
-        //       timestamp,
-        //     });
-        // }}
       />
     </Box>
   );
