@@ -38,7 +38,14 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, DatasetAny
+from airflow.datasets import (
+    BaseDataset,
+    Dataset,
+    DatasetAlias,
+    DatasetAll,
+    DatasetAny,
+    expand_alias_to_datasets,
+)
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
@@ -967,14 +974,34 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, DatasetAlias):
-                deps.append(
-                    DagDependency(
-                        source=task.dag_id,
-                        target="dataset-alias",
-                        dependency_type="dataset-alias",
-                        dependency_id=obj.name,
+                datasets = expand_alias_to_datasets(obj)
+                if datasets:
+                    for dataset in datasets:
+                        deps.append(
+                            DagDependency(
+                                source=task.dag_id,
+                                target=f"dataset:{dataset.uri}",
+                                dependency_type="dataset-alias",
+                                dependency_id=obj.name,
+                            )
+                        )
+                        deps.append(
+                            DagDependency(
+                                source=f"dataset-alias:{obj.name}",
+                                target="dataset",
+                                dependency_type="dataset",
+                                dependency_id=dataset.uri,
+                            )
+                        )
+                else:
+                    deps.append(
+                        DagDependency(
+                            source=task.dag_id,
+                            target="dataset-alias",
+                            dependency_type="dataset-alias",
+                            dependency_id=obj.name,
+                        )
                     )
-                )
         return deps
 
     @staticmethod
@@ -993,12 +1020,28 @@ class DependencyDetector:
                     dependency_id=node.uri,
                 )
             elif isinstance(node, DatasetAlias):
-                yield DagDependency(
-                    source="dataset-alias",
-                    target=dag.dag_id,
-                    dependency_type="dataset-alias",
-                    dependency_id=node.name,
-                )
+                datasets = expand_alias_to_datasets(node)
+                if datasets:
+                    for dataset in datasets:
+                        yield DagDependency(
+                            source="dataset",
+                            target=f"dataset-alias:{node.name}",
+                            dependency_type="dataset",
+                            dependency_id=dataset.uri,
+                        )
+                        yield DagDependency(
+                            source=f"dataset:{dataset.uri}",
+                            target=dag.dag_id,
+                            dependency_type="dataset-alias",
+                            dependency_id=node.name,
+                        )
+                else:
+                    yield DagDependency(
+                        source="dataset-alias",
+                        target=dag.dag_id,
+                        dependency_type="dataset-alias",
+                        dependency_id=node.name,
+                    )
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
