@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-import contextlib
 import time
 from collections import deque
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence
 
@@ -292,6 +292,14 @@ class AwsBatchExecutor(BaseExecutor):
 
             if failure_reason:
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
+                    self.log.error(
+                        (
+                            "This job has been unsuccessfully attempted too many times (%s). "
+                            "Dropping the task. Reason: %s"
+                        ),
+                        attempt_number,
+                        failure_reason,
+                    )
                     self.log_task_event(
                         record=Log(
                             event="batch job submit failure",
@@ -318,7 +326,7 @@ class AwsBatchExecutor(BaseExecutor):
                     exec_config=exec_config,
                     attempt_number=attempt_number,
                 )
-                with contextlib.suppress(AttributeError):
+                with suppress(AttributeError):
                     # TODO: Remove this when min_airflow_version is 2.10.0 or higher in Amazon provider.
                     # running_state is added in Airflow 2.10 and only needed to support task adoption
                     # (an optional executor feature).
@@ -459,9 +467,7 @@ class AwsBatchExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def log_task_event(self, record: Log):
+    def log_task_event(self, *, record: Log):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        try:
+        with suppress(AttributeError):
             super().log_task_event(record=record)
-        except AttributeError:
-            self.log.error("Could not log task event; feature only available in Airflow 2.10.0. %s", record)

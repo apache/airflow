@@ -843,6 +843,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
+                self.log.error(msg)
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
@@ -1658,6 +1659,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
                 for ti in stuck_tis:
                     if repr(ti) in cleaned_up_task_instances:
+                        self.log.warning(
+                            "Marking task instance %s stuck in queued as failed. "
+                            "If the task instance has available retries, it will be retried.",
+                            ti,
+                        )
                         session.add(
                             Log(
                                 event="stuck in queued",

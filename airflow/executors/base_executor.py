@@ -149,7 +149,7 @@ class BaseExecutor(LoggingMixin):
         """Executors may need to get things started."""
 
     def log_task_event(self, *, record: Log):
-        """Log an event to the task instance event log."""
+        """Add an event to the log table."""
         self._task_event_logs.append(record)
 
     def queue_command(
