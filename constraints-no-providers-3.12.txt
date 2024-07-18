@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-17T19:20:17.299173
+# This constraints file was automatically generated on 2024-07-18T12:35:18.659954
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -81,7 +81,7 @@ google-re2==1.1.20240702
 googleapis-common-protos==1.63.2
 graphviz==0.20.3
 greenlet==3.0.3
-grpcio==1.64.1
+grpcio==1.65.1
 gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
@@ -161,7 +161,7 @@ rpds-py==0.19.0
 s3fs==2024.6.1
 sentry-sdk==2.10.0
 setproctitle==1.3.3
-setuptools==70.3.0
+setuptools==71.0.1
 six==1.16.0
 sniffio==1.3.1
 sqlparse==0.5.1
