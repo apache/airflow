@@ -54,7 +54,6 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models import Log
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
@@ -287,12 +286,10 @@ class CeleryExecutor(BaseExecutor):
                     self.task_publish_retries[key] = retries + 1
                     continue
             self.queued_tasks.pop(key)
-            self.log_task_event(record=Log(event="task queued", task_instance=key))
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
                 self.event_buffer[key] = (TaskInstanceState.FAILED, None)
-                self.log_task_event(record=Log(event="task queuing failed", task_instance=key))
             elif result is not None:
                 result.backend = cached_celery_backend
                 self.running.add(key)
@@ -478,13 +475,6 @@ class CeleryExecutor(BaseExecutor):
                 subcommands=CELERY_COMMANDS,
             ),
         ]
-
-    def log_task_event(self, record: Log):
-        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        try:
-            super().log_task_event(record=record)
-        except AttributeError:
-            self.log.error("Could not log task event; feature only available in Airflow 2.10.0. %s", record)
 
 
 def _get_parser() -> argparse.ArgumentParser:
