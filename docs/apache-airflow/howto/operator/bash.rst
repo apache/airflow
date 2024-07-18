@@ -202,19 +202,28 @@ Here’s how you can use the result_processor with the BashOperator:
     .. tab-item:: @task.bash
         :sync: taskflow
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START howto_operator_bash_result_processor]
-            :end-before: [END howto_operator_bash_result_processor]
+        .. code-block:: python
+
+            @task.bash(result_processor=lambda result: json.loads(result))
+            def bash_task() -> str:
+                return """
+                    jq -c '.[] | select(.lastModified > "{{ data_interval_start | ts_zulu }}" or .created > "{{ data_interval_start | ts_zulu }}")' \\
+                    example.json
+                """
 
     .. tab-item:: BashOperator
         :sync: operator
 
-        .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
-            :language: python
-            :start-after: [START howto_operator_bash_result_processor]
-            :end-before: [END howto_operator_bash_result_processor]
+        .. code-block:: python
+
+            bash_task = BashOperator(
+                task_id="filter_today_changes",
+                bash_command="""
+                    jq -c '.[] | select(.lastModified > "{{ data_interval_start | ts_zulu }}" or .created > "{{ data_interval_start | ts_zulu }}")' \\
+                    example.json
+                """,
+                result_processor=lambda result: json.loads(result),
+            )
 
 
 Executing commands from files
