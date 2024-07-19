@@ -91,13 +91,21 @@ class AirflowStateRunFacet(BaseFacet):
 
 @define(slots=False)
 class AirflowRunFacet(BaseFacet):
-    """Composite Airflow run facet."""
+    """Composite Airflow task run facet."""
 
     dag: dict
     dagRun: dict
     task: dict
     taskInstance: dict
     taskUuid: str
+
+
+@define(slots=False)
+class AirflowDagRunFacet(BaseFacet):
+    """Composite Airflow DAG run facet."""
+
+    dag: dict
+    dagRun: dict
 
 
 @define(slots=False)

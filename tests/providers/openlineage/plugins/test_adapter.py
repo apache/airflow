@@ -43,14 +43,10 @@ from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.openlineage.conf import (
-    namespace,
-)
+from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
-from airflow.providers.openlineage.plugins.facets import (
-    AirflowStateRunFacet,
-)
+from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowStateRunFacet
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
@@ -518,6 +514,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         run_id=run_id,
         start_date=event_time,
         execution_date=event_time,
+        data_interval=(event_time, event_time),
     )
     dag_run.dag = dag
     generate_static_uuid.return_value = random_uuid
@@ -544,7 +541,28 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                         "nominalTime": NominalTimeRunFacet(
                             nominalStartTime=event_time.isoformat(),
                             nominalEndTime=event_time.isoformat(),
-                        )
+                        ),
+                        "airflowDagRun": AirflowDagRunFacet(
+                            dag={
+                                "timetable": {"delta": 86400.0},
+                                "dag_id": dag_id,
+                                "description": "dag desc",
+                                "owner": "airflow",
+                                "schedule_interval": "86400.0 seconds",
+                                "start_date": "2024-06-01T00:00:00+00:00",
+                                "tags": [],
+                            },
+                            dagRun={
+                                "conf": {},
+                                "dag_id": "dag_id",
+                                "data_interval_start": event_time.isoformat(),
+                                "data_interval_end": event_time.isoformat(),
+                                "external_trigger": None,
+                                "run_id": run_id,
+                                "run_type": None,
+                                "start_date": event_time.isoformat(),
+                            },
+                        ),
                     },
                 ),
                 job=Job(

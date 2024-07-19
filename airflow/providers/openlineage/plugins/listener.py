@@ -420,7 +420,7 @@ class OpenLineageListener:
             nominal_end_time=data_interval_end,
             # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
             # as it causes lack of some TaskGroup attributes and crashes event emission.
-            job_facets={**get_airflow_job_facet(dag_run=dag_run)},
+            job_facets=get_airflow_job_facet(dag_run=dag_run),
         )
 
     @hookimpl
