@@ -55,7 +55,7 @@ class ExasolHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
 
     def get_conn(self) -> ExaConnection:
-        conn_id = getattr(self, self.conn_name_attr)
+        conn_id = self.get_conn_id()
         conn = self.get_connection(conn_id)
         conn_args = {
             "dsn": f"{conn.host}:{conn.port}",
@@ -269,7 +269,7 @@ class ExasolHook(DbApiHook):
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
-                getattr(self, self.conn_name_attr),
+                self.get_conn_id(),
             )
         conn.set_autocommit(autocommit)
 

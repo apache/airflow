@@ -48,6 +48,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.skipmixin import SkipMixin
     from airflow.models.taskinstance import (
@@ -110,6 +111,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagRun.get_previous_scheduled_dagrun,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
+        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
         SkipMixin._skip,
         SkipMixin._skip_all_except,

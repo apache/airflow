@@ -106,7 +106,7 @@ class JdbcHook(DbApiHook):
 
         This is used internally for case-insensitive access of jdbc params.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         return {k.lower(): v for k, v in conn.extra_dejson.items()}
 
     @property
@@ -150,7 +150,7 @@ class JdbcHook(DbApiHook):
         return self._driver_class
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password

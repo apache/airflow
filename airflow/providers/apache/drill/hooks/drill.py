@@ -49,7 +49,7 @@ class DrillHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Establish a connection to Drillbit."""
-        conn_md = self.get_connection(getattr(self, self.conn_name_attr))
+        conn_md = self.get_connection(self.get_conn_id())
         creds = f"{conn_md.login}:{conn_md.password}@" if conn_md.login else ""
         database_url = (
             f"{conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')}://{creds}"
@@ -71,7 +71,7 @@ class DrillHook(DbApiHook):
 
         e.g: ``drill://localhost:8047/dfs``
         """
-        conn_md = self.get_connection(getattr(self, self.conn_name_attr))
+        conn_md = self.get_connection(self.get_conn_id())
         host = conn_md.host
         if conn_md.port is not None:
             host += f":{conn_md.port}"

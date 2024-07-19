@@ -19,15 +19,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, text
+import dill
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+    select,
+    text,
+)
+from sqlalchemy.ext.mutable import MutableDict
 
 from airflow.models.base import Base, StringID
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import (
+    ExecutorConfigType,
+    ExtendedJSON,
+    UtcDateTime,
+)
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
@@ -45,7 +63,35 @@ class TaskInstanceHistory(Base):
     run_id = Column(StringID(), nullable=False)
     map_index = Column(Integer, nullable=False, server_default=text("-1"))
     try_number = Column(Integer, nullable=False)
-    # The rest of the columns are kept in sync with TaskInstance, added at the bottom of this file
+    start_date = Column(UtcDateTime)
+    end_date = Column(UtcDateTime)
+    duration = Column(Float)
+    state = Column(String(20))
+    max_tries = Column(Integer, server_default=text("-1"))
+    hostname = Column(String(1000))
+    unixname = Column(String(1000))
+    job_id = Column(Integer)
+    pool = Column(String(256), nullable=False)
+    pool_slots = Column(Integer, default=1, nullable=False)
+    queue = Column(String(256))
+    priority_weight = Column(Integer)
+    operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
+    queued_dttm = Column(UtcDateTime)
+    queued_by_job_id = Column(Integer)
+    pid = Column(Integer)
+    executor = Column(String(1000))
+    executor_config = Column(ExecutorConfigType(pickler=dill))
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    rendered_map_index = Column(String(250))
+
+    external_executor_id = Column(StringID())
+    trigger_id = Column(Integer)
+    trigger_timeout = Column(DateTime)
+    next_method = Column(String(1000))
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+
+    task_display_name = Column("task_display_name", String(2000), nullable=True)
 
     def __init__(
         self,
@@ -106,26 +152,3 @@ class TaskInstanceHistory(Base):
             ti.set_duration()
         ti_history = TaskInstanceHistory(ti, state=ti_history_state)
         session.add(ti_history)
-
-
-def _copy_column(column):
-    return Column(
-        column.type,
-        nullable=column.nullable,
-        default=column.default,
-        autoincrement=column.autoincrement,
-        unique=column.unique,
-        index=column.index,
-        primary_key=None,
-        server_default=column.server_default,
-        server_onupdate=column.server_onupdate,
-        doc=column.doc,
-        comment=column.comment,
-        info=column.info,
-    )
-
-
-# Add remaining columns from TaskInstance to TaskInstanceHistory, as we want to keep them in sync
-for column in TaskInstance.__table__.columns:
-    if column.name not in TaskInstanceHistory.__table__.columns:
-        setattr(TaskInstanceHistory, column.name, _copy_column(column))

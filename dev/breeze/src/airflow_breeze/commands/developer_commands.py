@@ -53,6 +53,7 @@ from airflow_breeze.commands.common_options import (
     option_max_time,
     option_mount_sources,
     option_mysql_version,
+    option_no_db_cleanup,
     option_postgres_version,
     option_project_name,
     option_pydantic,
@@ -282,6 +283,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_max_time
 @option_mount_sources
 @option_mysql_version
+@option_no_db_cleanup
 @option_pydantic
 @option_platform_single
 @option_postgres_version
@@ -335,6 +337,7 @@ def shell(
     max_time: int | None,
     mount_sources: str,
     mysql_version: str,
+    no_db_cleanup: bool,
     package_format: str,
     platform: str | None,
     postgres_version: str,
@@ -401,6 +404,7 @@ def shell(
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
+        no_db_cleanup=no_db_cleanup,
         package_format=package_format,
         platform=platform,
         postgres_version=postgres_version,
