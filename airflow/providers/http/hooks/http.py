@@ -80,6 +80,7 @@ class ConnectionWithExtra(Connection):
     Implements the get_extra_dejson method which was added in the Connection class in Airflow 2.10.0.
     This patched class must be removed once the http provider depends on Airflow 2.10.0 or higher.
     """
+
     def __init__(
         self,
         conn_id: str | None = None,
