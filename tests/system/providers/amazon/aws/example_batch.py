@@ -25,6 +25,7 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
+from airflow.providers.amazon.aws.operators.ecs import EcsDeregisterTaskDefinitionOperator
 from airflow.providers.amazon.aws.sensors.batch import (
     BatchComputeEnvironmentSensor,
     BatchJobQueueSensor,
@@ -240,6 +241,12 @@ with DAG(
         poke_interval=10,
     )
 
+    deregister_task_definition = EcsDeregisterTaskDefinitionOperator(
+        task_id="deregister_task",
+        task_definition=f"{batch_job_definition_name}:1",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     log_cleanup = prune_logs(
         [
             # Format: ('log group name', 'log stream prefix')
@@ -271,6 +278,7 @@ with DAG(
         wait_for_compute_environment_disabled,
         delete_compute_environment(batch_job_compute_environment_name),
         delete_job_definition(batch_job_definition_name),
+        deregister_task_definition,
         log_cleanup,
     )
 

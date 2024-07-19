@@ -1243,6 +1243,8 @@ paths:
         - $ref: "#/components/parameters/FilterDAGID"
         - $ref: "#/components/parameters/FilterTaskID"
         - $ref: "#/components/parameters/FilterRunID"
+        - $ref: "#/components/parameters/FilterMapIndex"
+        - $ref: "#/components/parameters/FilterTryNumber"
         - $ref: "#/components/parameters/Event"
         - $ref: "#/components/parameters/Owner"
         - $ref: "#/components/parameters/Before"
@@ -4068,6 +4070,7 @@ components:
           type: string
           format: "date-time"
           readOnly: true
+          nullable: true
         end_date:
           type: string
           format: "date-time"
@@ -5586,6 +5589,13 @@ components:
       schema:
         type: integer
       description: Filter on map index for mapped task.
+
+    FilterTryNumber:
+      in: query
+      name: try_number
+      schema:
+        type: integer
+      description: Filter on try_number for task instance.
 
     OrderBy:
       in: query
