@@ -2373,7 +2373,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/clear", methods=["POST"])
     @auth.has_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging(event="marked cleared")
+    @action_logging(event="cleared")
     @provide_session
     def clear(self, *, session: Session = NEW_SESSION):
         """Clear DAG tasks."""
