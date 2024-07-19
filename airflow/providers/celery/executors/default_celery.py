@@ -52,7 +52,7 @@ broker_url = conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 broker_transport_options: dict = conf.getsection("celery_broker_transport_options") or {}
 if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
-        broker_transport_options["visibility_timeout"] = 21600
+        broker_transport_options["visibility_timeout"] = 84600
 
 if "sentinel_kwargs" in broker_transport_options:
     try:
