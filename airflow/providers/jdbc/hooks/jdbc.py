@@ -140,7 +140,7 @@ class JdbcHook(DbApiHook):
         return self._driver_class
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password

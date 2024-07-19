@@ -266,6 +266,11 @@ option_mysql_version = click.option(
     envvar="MYSQL_VERSION",
     show_default=True,
 )
+option_no_db_cleanup = click.option(
+    "--no-db-cleanup",
+    help="Do not clear the database before each test module",
+    is_flag=True,
+)
 option_installation_package_format = click.option(
     "--package-format",
     type=BetterChoice(ALLOWED_INSTALLATION_PACKAGE_FORMATS),

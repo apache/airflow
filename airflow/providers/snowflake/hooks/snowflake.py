@@ -487,7 +487,7 @@ class SnowflakeHook(DbApiHook):
 
         if self.query_ids:
             self.log.debug("openlineage: getting connection to get database info")
-            connection = self.get_connection(getattr(self, self.conn_name_attr))
+            connection = self.get_connection(self.get_conn_id())
             namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
             return OperatorLineage(
                 run_facets={
