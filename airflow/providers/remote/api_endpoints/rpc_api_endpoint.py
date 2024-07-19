@@ -25,6 +25,7 @@ from uuid import uuid4
 
 from flask import Response
 
+from airflow.api_connexion.security import requires_access_custom_view
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 log = logging.getLogger(__name__)
+
+REMOTE_WORKER_API_ROLE = "Remote Worker API"
 
 
 @functools.lru_cache
@@ -63,6 +66,7 @@ def log_and_build_error_response(message, status):
     return Response(response=client_message, status=status)
 
 
+@requires_access_custom_view("POST", REMOTE_WORKER_API_ROLE)
 def remote_worker_api(body: dict[str, Any]) -> APIResponse:
     """Handle Remote Worker API `/remote_worker/v1/rpcapi` endpoint."""
     log.debug("Got request")

@@ -29,11 +29,14 @@ from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.remote.api_endpoints.rpc_api_endpoint import REMOTE_WORKER_API_ROLE
+from airflow.security.permissions import ACTION_CAN_CREATE
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www import utils as wwwutils
 from airflow.www.auth import has_access_view
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+from airflow.www.extensions.init_auth_manager import auth_manager
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
@@ -54,9 +57,13 @@ def _get_api_endpoints() -> Blueprint:
         validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint
     # Need to excemp CSRF to make API usable
-    from airflow.www.app import csrf
+    from airflow.www.app import csrf, get_auth_manager
 
     csrf.exempt(bp)
+    asm = get_auth_manager().appbuilder.sm
+    permission = asm.create_permission(ACTION_CAN_CREATE, REMOTE_WORKER_API_ROLE)
+    role = asm.find_role("Admin")
+    asm.add_permission_to_role(role, permission)
     return bp
 
 
@@ -101,8 +108,8 @@ class RemoteWorkerHosts(BaseView):
         return self.render_template("remote_worker_hosts.html", hosts=hosts)
 
 
-# Check if RemoteExecutor is actually loaded
-REMOTE_EXECUTOR_ACTIVE = conf.getboolean("remote", "api_enabled")
+# Check if RemoteExecutor is actually loaded (auth_manager is set if we run on the webserver)
+REMOTE_EXECUTOR_ACTIVE = conf.getboolean("remote", "api_enabled") and auth_manager
 
 
 class RemoteExecutorPlugin(AirflowPlugin):

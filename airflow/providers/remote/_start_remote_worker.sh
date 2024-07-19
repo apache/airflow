@@ -32,7 +32,11 @@ export AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION=False
 # Ensure logs are smelling like remote and are not visible to other components
 export AIRFLOW__LOGGING__BASE_LOG_FOLDER=remote_logs
 
-airflow remote worker --concurrency 8
+airflow remote worker --concurrency 8 --user admin --password admin
 
 # Eventually start with:
 # airflow remote worker --concurrency 8 --queues remote
+
+
+# Note: Webserver must be started with:
+# AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth AIRFLOW__REMOTE__API_ENABLED=true airflow webserver
