@@ -376,6 +376,7 @@ COMMITTERS = [
     "ryw",
     "saguziel",
     "sekikn",
+    "shahar1",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
