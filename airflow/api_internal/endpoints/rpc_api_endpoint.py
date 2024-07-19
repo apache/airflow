@@ -120,7 +120,6 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance._get_dagrun,
         TaskInstance._set_state,
         TaskInstance.save_to_db,
-        TaskInstance._schedule_downstream_tasks,
         TaskInstance._clear_xcom_data,
         Trigger.from_object,
         Trigger.bulk_fetch,

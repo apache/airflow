@@ -905,8 +905,7 @@ function environment_initialization() {
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
-        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
-        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:9080
     fi
 
     RUN_TESTS=${RUN_TESTS:="false"}
