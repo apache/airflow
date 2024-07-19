@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, cast
 
 import attr
 from sqlalchemy import select
@@ -402,7 +402,8 @@ class _DatasetAliasCondition(DatasetAny):
         """
         if self.objects:
             for obj in self.objects:
-                uri = obj.uri
+                dataset = cast(Dataset, obj)
+                uri = dataset.uri
                 # dataset
                 yield DagDependency(
                     source=f"dataset-alias:{self.name}" if source else "dataset",
