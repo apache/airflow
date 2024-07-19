@@ -108,6 +108,7 @@ class DatasetManager(LoggingMixin):
                 }
             )
         dataset_event = DatasetEvent(**event_kwargs)
+        session.add(dataset_event)
         if source_alias_names:
             dataset_alias_models = session.scalars(
                 select(DatasetAliasModel).where(DatasetAliasModel.name.in_(source_alias_names))
@@ -115,7 +116,6 @@ class DatasetManager(LoggingMixin):
             for dsa in dataset_alias_models:
                 dsa.dataset_events.append(dataset_event)
                 session.add(dsa)
-        session.add(dataset_event)
         session.flush()
 
         cls.notify_dataset_changed(dataset=dataset)
