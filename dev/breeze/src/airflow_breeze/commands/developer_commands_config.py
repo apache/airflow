@@ -183,6 +183,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--max-time",
                 "--verbose-commands",
                 "--keep-env-variables",
+                "--no-db-cleanup",
             ],
         },
     ],
