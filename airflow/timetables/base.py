@@ -58,7 +58,7 @@ class _NullDataset(BaseDataset):
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         return iter(())
 
-    def expand_as_dag_nodes(self, source, target) -> Iterator[DagDependency]:
+    def iter_dag_deps(self, source, target) -> Iterator[DagDependency]:
         return iter(())
 
 

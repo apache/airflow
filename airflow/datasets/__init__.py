@@ -192,7 +192,7 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
-    def expand_as_dag_nodes(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
         raise NotImplementedError
 
 
@@ -210,7 +210,7 @@ class DatasetAlias(BaseDataset):
     def __hash__(self) -> int:
         return hash(self.name)
 
-    def expand_as_dag_nodes(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
         yield DagDependency(
             source=source or "dataset-alias",
             target=target or "dataset-alias",
@@ -285,7 +285,7 @@ class Dataset(os.PathLike, BaseDataset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
-    def expand_as_dag_nodes(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
         yield DagDependency(
             source=source or "dataset",
             target=target or "dataset",
@@ -319,10 +319,10 @@ class _DatasetBooleanCondition(BaseDataset):
                 yield k, v
                 seen.add(k)
 
-    def expand_as_dag_nodes(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
         dag_deps: set[DagDependency] = set()
         for obj in self.objects:
-            for dep in obj.expand_as_dag_nodes(source=source, target=target):
+            for dep in obj.iter_dag_deps(source=source, target=target):
                 if dep in dag_deps:
                     continue
                 yield dep
@@ -374,7 +374,7 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def expand_as_dag_nodes(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+    def iter_dag_deps(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         if self.objects:
             for obj in self.objects:
                 uri = obj.uri
