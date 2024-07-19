@@ -25,12 +25,13 @@ import time
 from functools import partial
 from typing import Callable
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
 from botocore.exceptions import ClientError
 from inflection import camelize
+from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -54,11 +55,14 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
+from airflow.version import version as airflow_version_str
 from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
 ARN1 = "arn1"
 ARN2 = "arn2"
@@ -462,11 +466,8 @@ class TestAwsEcsExecutor:
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
 
-    @mock.patch.object(AwsEcsExecutor, "send_message_to_task_logs")
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_tasks_fail(
-        self, _, mock_send_message_to_task_logs, mock_executor
-    ):
+    def test_attempt_task_runs_attempts_when_tasks_fail(self, _, mock_executor):
         """
         Test case when all tasks fail to run.
 
@@ -474,7 +475,10 @@ class TestAwsEcsExecutor:
         It should preserve the order of tasks, and attempt each task up to
         `MAX_RUN_TASK_ATTEMPTS` times before dropping the task.
         """
-        airflow_keys = [mock.Mock(spec=tuple), mock.Mock(spec=tuple)]
+        airflow_keys = [
+            TaskInstanceKey("a", "task_a", "c", 1, -1),
+            TaskInstanceKey("a", "task_b", "c", 1, -1),
+        ]
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
         commands = [airflow_cmd1, airflow_cmd2]
@@ -515,25 +519,15 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers.get_all_arns()) == 0
         assert len(mock_executor.pending_tasks) == 0
 
-        calls = []
-        for i in range(2):
-            calls.append(
-                call(
-                    logging.ERROR,
-                    "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
-                    airflow_keys[i],
-                    3,
-                    f"Failure {i + 1}",
-                    ti=airflow_keys[i],
-                )
-            )
-        mock_send_message_to_task_logs.assert_has_calls(calls)
+        if airflow_version >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [
+                ("ecs task submit failure", "task_a", 1),
+                ("ecs task submit failure", "task_b", 1),
+            ]
 
-    @mock.patch.object(AwsEcsExecutor, "send_message_to_task_logs")
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_some_tasks_fal(
-        self, _, mock_send_message_to_task_logs, mock_executor
-    ):
+    def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor):
         """
         Test case when one task fail to run, and a new task gets queued.
 
@@ -542,7 +536,10 @@ class TestAwsEcsExecutor:
         `MAX_RUN_TASK_ATTEMPTS` times before dropping the task. If a task succeeds, the task
         should be removed from pending_jobs and into active_workers.
         """
-        airflow_keys = [mock.Mock(spec=tuple), mock.Mock(spec=tuple)]
+        airflow_keys = [
+            TaskInstanceKey("a", "task_a", "c", 1, -1),
+            TaskInstanceKey("a", "task_b", "c", 1, -1),
+        ]
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
         airflow_commands = [airflow_cmd1, airflow_cmd2]
@@ -605,14 +602,9 @@ class TestAwsEcsExecutor:
         RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[0]
         assert mock_executor.ecs.run_task.call_args_list[0].kwargs == RUN_TASK_KWARGS
 
-        mock_send_message_to_task_logs.assert_called_once_with(
-            logging.ERROR,
-            "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
-            airflow_keys[0],
-            3,
-            "Failure 1",
-            ti=airflow_keys[0],
-        )
+        if airflow_version >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [("ecs task submit failure", "task_a", 1)]
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_task_retry_on_api_failure_all_tasks_fail(self, _, mock_executor, caplog):
