@@ -21,16 +21,20 @@ import inspect
 import json
 import logging
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 import requests
 import tenacity
+from requests.auth import HTTPBasicAuth
 from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import ParamSpec
+
+if TYPE_CHECKING:
+    from requests.auth import AuthBase
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
@@ -44,6 +48,7 @@ class InternalApiConfig:
     _initialized = False
     _use_internal_api = False
     _internal_api_endpoint = ""
+    _internal_api_auth: AuthBase | None = None
 
     @staticmethod
     def force_database_direct_access():
@@ -57,7 +62,7 @@ class InternalApiConfig:
         InternalApiConfig._use_internal_api = False
 
     @staticmethod
-    def force_api_access(api_endpoint: str):
+    def force_api_access(api_endpoint: str, auth: AuthBase):
         """
         Force using Internal API with provided endpoint.
 
@@ -67,6 +72,7 @@ class InternalApiConfig:
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = True
         InternalApiConfig._internal_api_endpoint = api_endpoint
+        InternalApiConfig._internal_api_auth = auth
 
     @staticmethod
     def get_use_internal_api():
@@ -81,11 +87,14 @@ class InternalApiConfig:
         return InternalApiConfig._internal_api_endpoint
 
     @staticmethod
+    def get_auth() -> AuthBase | None:
+        return InternalApiConfig._internal_api_auth
+
+    @staticmethod
     def _init_values():
         use_internal_api = conf.getboolean("core", "database_access_isolation", fallback=False)
         if use_internal_api and not _ENABLE_AIP_44:
             raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
-        internal_api_endpoint = ""
         if use_internal_api:
             internal_api_endpoint = conf.get("core", "internal_api_url")
             if internal_api_endpoint.find("/", 8) == -1:
@@ -94,10 +103,14 @@ class InternalApiConfig:
                 "https://"
             ):
                 raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
+            InternalApiConfig._internal_api_endpoint = internal_api_endpoint
+            internal_api_user = conf.get("core", "internal_api_user")
+            internal_api_password = conf.get("core", "internal_api_password")
+            if internal_api_user and internal_api_password:
+                InternalApiConfig._internal_api_auth = HTTPBasicAuth(internal_api_user, internal_api_password)
 
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = use_internal_api
-        InternalApiConfig._internal_api_endpoint = internal_api_endpoint
 
 
 def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
@@ -127,7 +140,8 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
         internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
-        response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
+        auth = InternalApiConfig.get_auth()
+        response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers, auth=auth)
         if response.status_code != 200:
             raise AirflowException(
                 f"Got {response.status_code}:{response.reason} when sending "
