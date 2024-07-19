@@ -571,22 +571,22 @@ class DagFileProcessorManager(LoggingMixin):
             with Trace.start_span(span_name="dag_parsing_loop", component="DagFileProcessorManager") as span:
                 loop_start_time = time.monotonic()
                 ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
-                self.heartbeat()
                 if span.is_recording():
-                    span.add_event(name="heartbeat()")
+                    span.add_event(name="heartbeat")
+                self.heartbeat()
                 if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                     agent_signal = self._direct_scheduler_conn.recv()
 
                     self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                     if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
-                        self.terminate()
                         if span.is_recording():
-                            span.add_event(name="terminate()")
+                            span.add_event(name="terminate")
+                        self.terminate()
                         break
                     elif agent_signal == DagParsingSignal.END_MANAGER:
-                        self.end()
                         if span.is_recording():
-                            span.add_event(name="end()")
+                            span.add_event(name="end")
+                        self.end()
                         sys.exit(os.EX_OK)
                     elif agent_signal == DagParsingSignal.AGENT_RUN_ONCE:
                         # continue the loop to parse dags
@@ -623,28 +623,28 @@ class DagFileProcessorManager(LoggingMixin):
                 DagWarning.purge_inactive_dag_warnings()
                 refreshed_dag_dir = self._refresh_dag_dir()
 
-                self._kill_timed_out_processors()
                 if span.is_recording():
-                    span.add_event(name="_kill_timed_out_processors()")
+                    span.add_event(name="_kill_timed_out_processors")
+                self._kill_timed_out_processors()
 
                 # Generate more file paths to process if we processed all the files already. Note for this
                 # to clear down, we must have cleared all files found from scanning the dags dir _and_ have
                 # cleared all files added as a result of callbacks
                 if not self._file_path_queue:
-                    if span.is_recording():
-                        span.add_event(name="prepare_file_path_queue()")
                     self.emit_metrics()
+                    if span.is_recording():
+                        span.add_event(name="prepare_file_path_queue")
                     self.prepare_file_path_queue()
 
                 # if new files found in dag dir, add them
                 elif refreshed_dag_dir:
                     if span.is_recording():
-                        span.add_event(name="add_new_file_path_to_queue()")
+                        span.add_event(name="add_new_file_path_to_queue")
                     self.add_new_file_path_to_queue()
 
                 self._refresh_requested_filelocs()
                 if span.is_recording():
-                    span.add_event(name="start_new_processes()")
+                    span.add_event(name="start_new_processes")
                 self.start_new_processes()
 
                 # Update number of loop iteration.
@@ -659,13 +659,13 @@ class DagFileProcessorManager(LoggingMixin):
                     self.wait_until_finished()
 
                 # Collect anything else that has finished, but don't kick off any more processors
+                if span.is_recording():
+                    span.add_event(name="collect_results")
                 self.collect_results()
-                if span.is_recording():
-                    span.add_event(name="collect_results()")
 
-                self._print_stat()
                 if span.is_recording():
-                    span.add_event(name="print_stat()")
+                    span.add_event(name="print_stat")
+                self._print_stat()
 
                 all_files_processed = all(self.get_last_finish_time(x) is not None for x in self.file_paths)
                 max_runs_reached = self.max_runs_reached()

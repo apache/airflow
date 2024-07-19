@@ -218,7 +218,7 @@ class Job(Base, LoggingMixin):
                     )
                     sleep_for = max(0, seconds_remaining)
                 if span.is_recording():
-                    span.add_event(name="sleep()", attributes={"sleep_for": sleep_for})
+                    span.add_event(name="sleep", attributes={"sleep_for": sleep_for})
                 sleep(sleep_for)
 
                 job = Job._update_heartbeat(job=self, session=session)

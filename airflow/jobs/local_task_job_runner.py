@@ -207,7 +207,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                         return return_code
 
                     if span.is_recording():
-                        span.add_event(name="perform_heartbeat()")
+                        span.add_event(name="perform_heartbeat")
                     perform_heartbeat(
                         job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
                     )

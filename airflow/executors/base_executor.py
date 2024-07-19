@@ -32,6 +32,7 @@ from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
+from airflow.traces import NO_TRACE_ID
 from airflow.traces.tracer import Trace, gen_context, span
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -380,7 +381,7 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id != 1:
+        if trace_id != NO_TRACE_ID:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
             with Trace.start_span(
                 span_name="fail",
@@ -403,7 +404,7 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id != 1:
+        if trace_id != NO_TRACE_ID:
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
             with Trace.start_span(
                 span_name="success",

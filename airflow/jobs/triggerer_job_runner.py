@@ -366,28 +366,28 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner") as span:
                 # Clean out unused triggers
                 if span.is_recording():
-                    span.add_event(name="Trigger.clean_unused()")
+                    span.add_event(name="Trigger.clean_unused")
                 Trigger.clean_unused()
                 # Load/delete triggers
                 if span.is_recording():
-                    span.add_event(name="load_triggers()")
+                    span.add_event(name="load_triggers")
                 self.load_triggers()
                 # Handle events
                 if span.is_recording():
-                    span.add_event(name="handle_events()")
+                    span.add_event(name="handle_events")
                 self.handle_events()
                 # Handle failed triggers
                 if span.is_recording():
-                    span.add_event(name="handle_failed_triggers()")
+                    span.add_event(name="handle_failed_triggers")
                 self.handle_failed_triggers()
                 if span.is_recording():
-                    span.add_event(name="perform_heartbeat()")
+                    span.add_event(name="perform_heartbeat")
                 perform_heartbeat(
                     self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
                 )
                 # Collect stats
                 if span.is_recording():
-                    span.add_event(name="emit_metrics()")
+                    span.add_event(name="emit_metrics")
                 self.emit_metrics()
             # Idle sleep
             time.sleep(1)
