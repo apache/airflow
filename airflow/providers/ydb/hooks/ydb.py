@@ -221,7 +221,7 @@ class YDBHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         connection_extra: dict[str, Any] = conn.extra_dejson
         database: str | None = connection_extra.get("database")
         return URL.create(
