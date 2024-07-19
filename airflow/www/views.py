@@ -2373,7 +2373,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/clear", methods=["POST"])
     @auth.has_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
+    @action_logging(event="marked cleared")
     @provide_session
     def clear(self, *, session: Session = NEW_SESSION):
         """Clear DAG tasks."""
@@ -2805,7 +2805,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/failed", methods=["POST"])
     @auth.has_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
+    @action_logging(event="marked failed")
     def failed(self):
         """Mark task or task_group as failed."""
         args = request.form
@@ -2856,7 +2856,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/success", methods=["POST"])
     @auth.has_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
+    @action_logging(event="marked success")
     def success(self):
         """Mark task or task_group as success."""
         args = request.form
