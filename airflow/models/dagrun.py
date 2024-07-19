@@ -1582,13 +1582,9 @@ class DagRun(Base, LoggingMixin):
             # this task.
             # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
             elif ti.task.start_trigger_args is not None:
-                from airflow.models.mappedoperator import MappedOperator
 
-                if isinstance(ti.task, MappedOperator):
-                    context = ti.get_template_context()
-                    start_from_trigger = ti.task._expand_start_from_trigger(context=context, session=session)
-                else:
-                    start_from_trigger = ti.task.start_from_trigger
+                context = ti.get_template_context()
+                start_from_trigger = ti.task.expand_start_from_trigger(context=context, session=session)
 
                 if start_from_trigger:
                     ti.start_date = timezone.utcnow()

@@ -1795,6 +1795,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         return self
 
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_from_trigger.
+        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
+        execution directly from triggerer.
+
+        :meta private:
+        """
+        return self.start_from_trigger
+
 
 # TODO: Deprecate for Airflow 3.0
 Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]

@@ -731,12 +731,16 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def _expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
         """
-        Get the kwargs to create the unmapped start_from_trigger.
+        Get the start_from_trigger value of the current abstract operator.
 
-        This method is for allowing mapped operator to start execution from triggerer.
+        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
+        execution directly from triggerer.
+
+        :meta private:
         """
+        # start_from_trigger only makes sense when start_trigger_args exists.
         if not self.start_trigger_args:
             return False
 

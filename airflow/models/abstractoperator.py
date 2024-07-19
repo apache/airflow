@@ -427,6 +427,17 @@ class AbstractOperator(Templater, DAGNode):
         """
         raise NotImplementedError()
 
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
+        execution directly from triggerer.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
     @property
     def priority_weight_total(self) -> int:
         """
