@@ -57,7 +57,7 @@ class _NullDataset(BaseDataset):
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         return iter(())
 
-    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
         return set()
 
 

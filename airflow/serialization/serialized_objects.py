@@ -1011,7 +1011,7 @@ class DependencyDetector:
             return
 
         cond = dag.timetable.dataset_condition
-        for node in cond.expand_as_end_nodes():
+        for node in cond.expand_as_dag_nodes():
             if isinstance(node, Dataset):
                 yield DagDependency(
                     source="dataset",

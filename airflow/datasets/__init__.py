@@ -191,7 +191,7 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
-    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
         raise NotImplementedError
 
 
@@ -209,7 +209,7 @@ class DatasetAlias(BaseDataset):
     def __hash__(self) -> int:
         return hash(self.name)
 
-    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
         return {
             self,
         }
@@ -281,7 +281,7 @@ class Dataset(os.PathLike, BaseDataset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
-    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
         return {
             self,
         }
@@ -312,7 +312,7 @@ class _DatasetBooleanCondition(BaseDataset):
                 yield k, v
                 seen.add(k)
 
-    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
         end_nodes: set[Dataset | DatasetAlias] = set()
         for obj in self.objects:
             if isinstance(obj, Dataset):
@@ -320,7 +320,7 @@ class _DatasetBooleanCondition(BaseDataset):
             elif isinstance(obj, (_DatasetAliasCondition, DatasetAlias)):
                 end_nodes.add(DatasetAlias(obj.name))
             else:
-                end_nodes.update(obj.expand_as_end_nodes())
+                end_nodes.update(obj.expand_as_dag_nodes())
         return end_nodes
 
 
@@ -369,7 +369,7 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def expand_as_end_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
         return {
             DatasetAlias(self.name),
         }
