@@ -193,6 +193,11 @@ class BaseDataset:
         raise NotImplementedError
 
     def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        """
+        Iterate a base dataset as dag dependency.
+
+        :meta private:
+        """
         raise NotImplementedError
 
 
@@ -211,6 +216,11 @@ class DatasetAlias(BaseDataset):
         return hash(self.name)
 
     def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        """
+        Iterate a dataset alias as dag dependency.
+
+        :meta private:
+        """
         yield DagDependency(
             source=source or "dataset-alias",
             target=target or "dataset-alias",
@@ -286,6 +296,11 @@ class Dataset(os.PathLike, BaseDataset):
         return statuses.get(self.uri, False)
 
     def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        """
+        Iterate a dataset as dag dependency.
+
+        :meta private:
+        """
         yield DagDependency(
             source=source or "dataset",
             target=target or "dataset",
@@ -320,6 +335,11 @@ class _DatasetBooleanCondition(BaseDataset):
                 seen.add(k)
 
     def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        """
+        Iterate dataset, dataset aliases and their resolved datasets  as dag dependency.
+
+        :meta private:
+        """
         dag_deps: set[DagDependency] = set()
         for obj in self.objects:
             for dep in obj.iter_dag_deps(source=source, target=target):
@@ -375,6 +395,11 @@ class _DatasetAliasCondition(DatasetAny):
         return {"alias": self.name}
 
     def iter_dag_deps(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+        """
+        Iterate a dataset alias and its resolved datasets  as dag dependency.
+
+        :meta private:
+        """
         if self.objects:
             for obj in self.objects:
                 uri = obj.uri
