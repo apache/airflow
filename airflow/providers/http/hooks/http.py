@@ -75,10 +75,10 @@ def get_auth_types() -> frozenset[str]:
 
 class ConnectionWithExtra(Connection):
     """
-        Patched Connection class added for backward compatibility.
+    Patched Connection class added for backward compatibility.
 
-        Implements the get_extra_dejson method which was added in the Connection class in Airflow 2.10.0.
-        This patched class must be removed once the http provider depends on Airflow 2.10.0 or higher.
+    Implements the get_extra_dejson method which was added in the Connection class in Airflow 2.10.0.
+    This patched class must be removed once the http provider depends on Airflow 2.10.0 or higher.
     """
     def __init__(
         self,
