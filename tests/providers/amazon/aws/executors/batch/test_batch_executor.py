@@ -44,10 +44,11 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
-from docs.conf import airflow_version
+from airflow.version import version as airflow_version_str
 from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
+airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
 
 MOCK_JOB_ID = "batch-job-id"
@@ -261,7 +262,7 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         submit_job_args["containerOverrides"]["command"] = airflow_commands[0]
         assert mock_executor.batch.submit_job.call_args_list[5].kwargs == submit_job_args
-        if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
+        if airflow_version >= (2, 10, 0):
             log_record = mock_executor._task_event_logs[0]
             assert log_record.event == "batch job submit failure"
 
