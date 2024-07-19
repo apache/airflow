@@ -66,7 +66,7 @@ class MsSqlHook(DbApiHook):
 
         :return: The connection object.
         """
-        return self.get_connection(getattr(self, self.conn_name_attr))
+        return self.get_connection(self.get_conn_id())
 
     @property
     def connection_extra_lower(self) -> dict:
