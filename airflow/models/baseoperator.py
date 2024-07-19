@@ -1801,12 +1801,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         Since a BaseOperator is not mapped to begin with, this simply returns
         the original value of start_from_trigger.
-        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
-        execution directly from triggerer.
 
         :meta private:
         """
         return self.start_from_trigger
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
 
 
 # TODO: Deprecate for Airflow 3.0

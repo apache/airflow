@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
     from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
@@ -433,6 +434,16 @@ class AbstractOperator(Templater, DAGNode):
 
         MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
         execution directly from triggerer.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        MappedOperator uses this to unmap start_trigger_args to decide how to start a task from triggerer.
 
         :meta private:
         """

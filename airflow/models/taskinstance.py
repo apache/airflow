@@ -83,6 +83,7 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
+    TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -1617,11 +1618,12 @@ def _defer_task(
         next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
-        if isinstance(ti.task, MappedOperator):
-            context = ti.get_template_context()
-            start_trigger_args = ti.task._expand_start_trigger_args(context=context, session=session)
-        else:
-            start_trigger_args = ti.task.start_trigger_args
+        context = ti.get_template_context()
+        start_trigger_args = ti.task.expand_start_trigger_args(context=context, session=session)
+        if start_trigger_args is None:
+            raise TaskDeferralError(
+                "A none 'None' start_trigger_args has been change to 'None' during expandion"
+            )
 
         trigger_kwargs = start_trigger_args.trigger_kwargs or {}
         next_kwargs = start_trigger_args.next_kwargs

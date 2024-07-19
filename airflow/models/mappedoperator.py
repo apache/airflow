@@ -757,16 +757,14 @@ class MappedOperator(AbstractOperator):
             "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
         )
 
-    def _expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs:
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
         """
         Get the kwargs to create the unmapped start_trigger_args.
 
         This method is for allowing mapped operator to start execution from triggerer.
         """
         if not self.start_trigger_args:
-            raise AirflowException(
-                "Cannot expand start_trigger_args for mapped operator without class level start_trigger_args"
-            )
+            return None
 
         mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
         if self._disallow_kwargs_override:
