@@ -375,26 +375,27 @@ class _DatasetAliasCondition(DatasetAny):
         return {"alias": self.name}
 
     def expand_as_dag_nodes(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
-        # currently only for scheduling
         if self.objects:
             for obj in self.objects:
+                uri = obj.uri
+                # dataset
                 yield DagDependency(
-                    source="dataset",
-                    target=f"dataset-alias:{self.name}",
+                    source=f"dataset-alias:{self.name}" if source else "dataset",
+                    target="dataset" if source else f"dataset-alias:{self.name}",
                     dependency_type="dataset",
-                    dependency_id=obj.uri,
+                    dependency_id=uri,
                 )
-
+                # dataset alias
                 yield DagDependency(
-                    source=f"dataset:{obj.uri}",
-                    target=target,
+                    source=source or f"dataset:{uri}",
+                    target=target or f"dataset:{uri}",
                     dependency_type="dataset-alias",
                     dependency_id=self.name,
                 )
         else:
             yield DagDependency(
-                source="dataset-alias",
-                target=target,
+                source=source or "dataset-alias",
+                target=target or "dataset-alias",
                 dependency_type="dataset-alias",
                 dependency_id=self.name,
             )

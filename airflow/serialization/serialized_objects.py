@@ -43,7 +43,7 @@ from airflow.datasets import (
     DatasetAlias,
     DatasetAll,
     DatasetAny,
-    expand_alias_to_datasets,
+    _DatasetAliasCondition,
 )
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
@@ -974,34 +974,8 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, DatasetAlias):
-                datasets = expand_alias_to_datasets(obj)
-                if datasets:
-                    for dataset in datasets:
-                        deps.append(
-                            DagDependency(
-                                source=task.dag_id,
-                                target=f"dataset:{dataset.uri}",
-                                dependency_type="dataset-alias",
-                                dependency_id=obj.name,
-                            )
-                        )
-                        deps.append(
-                            DagDependency(
-                                source=f"dataset-alias:{obj.name}",
-                                target="dataset",
-                                dependency_type="dataset",
-                                dependency_id=dataset.uri,
-                            )
-                        )
-                else:
-                    deps.append(
-                        DagDependency(
-                            source=task.dag_id,
-                            target="dataset-alias",
-                            dependency_type="dataset-alias",
-                            dependency_id=obj.name,
-                        )
-                    )
+                cond = _DatasetAliasCondition(obj.name)
+                deps.extend(cond.expand_as_dag_nodes(source=task.dag_id))
         return deps
 
     @staticmethod
