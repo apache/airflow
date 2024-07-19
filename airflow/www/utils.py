@@ -828,6 +828,32 @@ class CustomSQLAInterface(SQLAInterface):
                 if hasattr(proxy_instance.remote_attr.prop, "columns"):
                     self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
                     self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
+    
+    def edit(self, item, raise_exception=False) -> bool:
+        from airflow.models import Connection
+
+        try:
+            if isinstance(item, Connection):
+                self.session.merge(item)
+                self.session.commit()
+                self.message = ("Changed Row Message", "success")
+            else:
+                return super().edit(item, raise_exception)  
+            return True
+        except IntegrityError as e:
+            self.message = ("Integrity error occurred while editing.", "warning")
+            log.warning("Integrity error: %s", e)
+            self.session.rollback()
+            if raise_exception:
+                raise e
+            return False
+        except Exception as e:
+            self.message = ("Database error occurred.", "danger")
+            log.exception("Database error")
+            self.session.rollback()
+            if raise_exception:
+                raise e
+            return False
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
