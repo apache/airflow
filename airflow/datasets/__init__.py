@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 import attr
 from sqlalchemy import select
 
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -191,7 +192,7 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
-    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
+    def expand_as_dag_nodes(self, *, source: str, target: str) -> Iterator[DagDependency]:
         raise NotImplementedError
 
 
@@ -209,10 +210,13 @@ class DatasetAlias(BaseDataset):
     def __hash__(self) -> int:
         return hash(self.name)
 
-    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
-        return {
-            self,
-        }
+    def expand_as_dag_nodes(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        yield DagDependency(
+            source=source or "dataset-alias",
+            target=target or "dataset-alias",
+            dependency_type="dataset-alias",
+            dependency_id=self.name,
+        )
 
 
 class DatasetAliasEvent(TypedDict):
@@ -281,10 +285,13 @@ class Dataset(os.PathLike, BaseDataset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
-    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
-        return {
-            self,
-        }
+    def expand_as_dag_nodes(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        yield DagDependency(
+            source=source or "dataset",
+            target=target or "dataset",
+            dependency_type="dataset",
+            dependency_id=self.uri,
+        )
 
 
 class _DatasetBooleanCondition(BaseDataset):
@@ -312,16 +319,14 @@ class _DatasetBooleanCondition(BaseDataset):
                 yield k, v
                 seen.add(k)
 
-    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
-        end_nodes: set[Dataset | DatasetAlias] = set()
+    def expand_as_dag_nodes(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+        dag_deps: set[DagDependency] = set()
         for obj in self.objects:
-            if isinstance(obj, Dataset):
-                end_nodes.add(obj)
-            elif isinstance(obj, (_DatasetAliasCondition, DatasetAlias)):
-                end_nodes.add(DatasetAlias(obj.name))
-            else:
-                end_nodes.update(obj.expand_as_dag_nodes())
-        return end_nodes
+            for dep in obj.expand_as_dag_nodes(source=source, target=target):
+                if dep in dag_deps:
+                    continue
+                yield dep
+                dag_deps.add(dep)
 
 
 class DatasetAny(_DatasetBooleanCondition):
@@ -369,10 +374,30 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def expand_as_dag_nodes(self) -> set[Dataset | DatasetAlias]:
-        return {
-            DatasetAlias(self.name),
-        }
+    def expand_as_dag_nodes(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+        # currently only for scheduling
+        if self.objects:
+            for obj in self.objects:
+                yield DagDependency(
+                    source="dataset",
+                    target=f"dataset-alias:{self.name}",
+                    dependency_type="dataset",
+                    dependency_id=obj.uri,
+                )
+
+                yield DagDependency(
+                    source=f"dataset:{obj.uri}",
+                    target=target,
+                    dependency_type="dataset-alias",
+                    dependency_id=self.name,
+                )
+        else:
+            yield DagDependency(
+                source="dataset-alias",
+                target=target,
+                dependency_type="dataset-alias",
+                dependency_id=self.name,
+            )
 
 
 class DatasetAll(_DatasetBooleanCondition):

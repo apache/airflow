@@ -1010,38 +1010,7 @@ class DependencyDetector:
         if not dag:
             return
 
-        cond = dag.timetable.dataset_condition
-        for node in cond.expand_as_dag_nodes():
-            if isinstance(node, Dataset):
-                yield DagDependency(
-                    source="dataset",
-                    target=dag.dag_id,
-                    dependency_type="dataset",
-                    dependency_id=node.uri,
-                )
-            elif isinstance(node, DatasetAlias):
-                datasets = expand_alias_to_datasets(node)
-                if datasets:
-                    for dataset in datasets:
-                        yield DagDependency(
-                            source="dataset",
-                            target=f"dataset-alias:{node.name}",
-                            dependency_type="dataset",
-                            dependency_id=dataset.uri,
-                        )
-                        yield DagDependency(
-                            source=f"dataset:{dataset.uri}",
-                            target=dag.dag_id,
-                            dependency_type="dataset-alias",
-                            dependency_id=node.name,
-                        )
-                else:
-                    yield DagDependency(
-                        source="dataset-alias",
-                        target=dag.dag_id,
-                        dependency_type="dataset-alias",
-                        dependency_id=node.name,
-                    )
+        yield from dag.timetable.dataset_condition.expand_as_dag_nodes(source="", target=dag.dag_id)
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
