@@ -62,9 +62,9 @@ from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
