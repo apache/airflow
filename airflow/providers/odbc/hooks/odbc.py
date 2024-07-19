@@ -83,7 +83,7 @@ class OdbcHook(DbApiHook):
     def connection(self):
         """The Connection object with ID ``odbc_conn_id``."""
         if not self._connection:
-            self._connection = self.get_connection(getattr(self, self.conn_name_attr))
+            self._connection = self.get_connection(self.get_conn_id())
         return self._connection
 
     @property

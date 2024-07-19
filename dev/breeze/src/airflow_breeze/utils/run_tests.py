@@ -310,6 +310,7 @@ def generate_args_for_pytest(
     python_version: str,
     helm_test_package: str | None,
     keep_env_variables: bool,
+    no_db_cleanup: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
@@ -398,6 +399,8 @@ def generate_args_for_pytest(
         )
     if keep_env_variables:
         args.append("--keep-env-variables")
+    if no_db_cleanup:
+        args.append("--no-db-cleanup")
     return args
 
 
