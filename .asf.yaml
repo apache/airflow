@@ -120,7 +120,6 @@ github:
     - vatsrahul1001
     - cmarteepants
     - romsharon98
-    - shahar1
 
 notifications:
   jobs: jobs@airflow.apache.org
