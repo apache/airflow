@@ -198,9 +198,7 @@ class BashOperator(BaseOperator):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        rtif = RenderedTaskInstanceFields(ti)  # Templates are rendered be default here.
-        RenderedTaskInstanceFields.write(rtif)
-        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id)
+        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields(ti)
 
     def get_env(self, context):
         """Build the set of environment variables to be exposed for the bash command."""
