@@ -1684,7 +1684,7 @@ export interface components {
       task_display_name?: string;
       owner?: string;
       /** Format: date-time */
-      start_date?: string;
+      start_date?: string | null;
       /** Format: date-time */
       end_date?: string | null;
       trigger_rule?: components["schemas"]["TriggerRule"];
