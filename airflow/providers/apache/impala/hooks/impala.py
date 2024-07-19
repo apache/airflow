@@ -35,7 +35,7 @@ class ImpalaHook(DbApiHook):
     hook_name = "Impala"
 
     def get_conn(self) -> Connection:
-        conn_id: str = getattr(self, self.conn_name_attr)
+        conn_id: str = self.get_conn_id()
         connection = self.get_connection(conn_id)
         return connect(
             host=connection.host,
