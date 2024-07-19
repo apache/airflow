@@ -38,6 +38,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_dependencies_collection_schema,
     task_instance_batch_form,
     task_instance_collection_schema,
+    task_instance_history_schema,
     task_instance_reference_collection_schema,
     task_instance_reference_schema,
     task_instance_schema,
@@ -778,20 +779,6 @@ def get_task_instance_try_details(
             orm_object.try_number == task_try_number,
             orm_object.map_index == map_index,
         )
-
-        query = (
-            query.join(orm_object.dag_run)
-            .outerjoin(
-                SlaMiss,
-                and_(
-                    SlaMiss.dag_id == orm_object.dag_id,
-                    SlaMiss.execution_date == DR.execution_date,
-                    SlaMiss.task_id == orm_object.task_id,
-                ),
-            )
-            .add_columns(SlaMiss)
-            .options(joinedload(orm_object.rendered_task_instance_fields))
-        )
         try:
             result = session.execute(query).one_or_none()
         except MultipleResultsFound:
@@ -805,7 +792,7 @@ def get_task_instance_try_details(
     if result is None:
         error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}, map_index={map_index}, try_number={task_try_number}."
         raise NotFound("Task instance not found", detail=error_message)
-    return task_instance_schema.dump(result)
+    return task_instance_history_schema.dump(result[0])
 
 
 @provide_session

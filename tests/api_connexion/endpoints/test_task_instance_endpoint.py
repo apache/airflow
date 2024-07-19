@@ -2707,13 +2707,11 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
             "operator": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -2721,7 +2719,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "success",
             "task_id": "print_the_context",
@@ -2729,10 +2726,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {},
-            "rendered_map_index": None,
-            "trigger": None,
-            "triggerer_job": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2749,13 +2742,11 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
             "max_tries": 0 if try_number == 1 else 1,
-            "note": "placeholder-note",
             "operator": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -2763,7 +2754,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "success" if try_number == 1 else None,
             "task_id": "print_the_context",
@@ -2771,10 +2761,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": try_number,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {},
-            "rendered_map_index": None,
-            "trigger": None,
-            "triggerer_job": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -2818,13 +2804,11 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
-                "execution_date": "2020-01-01T00:00:00+00:00",
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0 if try_number == 1 else 1,
-                "note": "placeholder-note",
                 "operator": "PythonOperator",
                 "pid": 100,
                 "pool": "default_pool",
@@ -2832,7 +2816,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
-                "sla_miss": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "failed" if try_number == 1 else None,
                 "task_id": "print_the_context",
@@ -2840,10 +2823,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "try_number": try_number,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
-                "trigger": None,
-                "triggerer_job": None,
             }
 
     def test_should_respond_200_with_task_state_in_deferred(self, session):
@@ -2882,27 +2861,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         data = response.json
 
-        # this logic in effect replicates mock.ANY for these values
-        values_to_ignore = {
-            "trigger": ["created_date", "id", "triggerer_id"],
-            "triggerer_job": ["executor_class", "hostname", "id", "latest_heartbeat", "start_date"],
-        }
-        for k, v in values_to_ignore.items():
-            for elem in v:
-                del data[k][elem]
-
         assert response.status_code == 200
         assert data == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
             "operator": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -2910,7 +2878,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "failed",
             "task_id": "print_the_context",
@@ -2918,19 +2885,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {},
-            "rendered_map_index": None,
-            "trigger": {
-                "classpath": "none",
-                "kwargs": "{}",
-            },
-            "triggerer_job": {
-                "dag_id": None,
-                "end_date": None,
-                "job_type": "TriggererJob",
-                "state": "running",
-                "unixname": getuser(),
-            },
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
@@ -2942,17 +2896,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
+
         assert response.json == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
-            "note": "placeholder-note",
             "operator": "PythonOperator",
             "pid": 100,
             "pool": "default_pool",
@@ -2960,7 +2913,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "removed",
             "task_id": "print_the_context",
@@ -2968,140 +2920,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {},
-            "rendered_map_index": None,
-            "trigger": None,
-            "triggerer_job": None,
         }
-
-    def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
-        tis = self.create_task_instances(
-            session, task_instances=[{"state": State.FAILED}], with_ti_history=True
-        )
-        session.query()
-        sla_miss = SlaMiss(
-            task_id="print_the_context",
-            dag_id="example_python_operator",
-            execution_date=self.default_time,
-            timestamp=self.default_time,
-        )
-        session.add(sla_miss)
-        rendered_fields = RTIF(tis[0], render_templates=False)
-        session.add(rendered_fields)
-        session.commit()
-        # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
-        response = self.client.get(
-            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
-            environ_overrides={"REMOTE_USER": "test"},
-        )
-        assert response.status_code == 200
-
-        assert response.json == {
-            "dag_id": "example_python_operator",
-            "duration": 10000.0,
-            "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
-            "executor": None,
-            "executor_config": "{}",
-            "hostname": "",
-            "map_index": -1,
-            "max_tries": 0,
-            "note": "placeholder-note",
-            "operator": "PythonOperator",
-            "pid": 100,
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "priority_weight": 9,
-            "queue": "default_queue",
-            "queued_when": None,
-            "sla_miss": {
-                "dag_id": "example_python_operator",
-                "description": None,
-                "email_sent": False,
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "notification_sent": False,
-                "task_id": "print_the_context",
-                "timestamp": "2020-01-01T00:00:00+00:00",
-            },
-            "start_date": "2020-01-02T00:00:00+00:00",
-            "state": "failed",
-            "task_id": "print_the_context",
-            "task_display_name": "print_the_context",
-            "try_number": 1,
-            "unixname": getuser(),
-            "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
-            "rendered_map_index": None,
-            "trigger": None,
-            "triggerer_job": None,
-        }
-
-    def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
-        """Verify we don't duplicate rows through join to RTIF"""
-        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
-        old_ti = tis[0]
-        for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
-            ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
-            ti.try_number = 1
-            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
-                setattr(ti, attr, getattr(old_ti, attr))
-            session.add(ti)
-        session.commit()
-        tis = session.query(TaskInstance).all()
-
-        # Record the task instance history
-        from airflow.models.taskinstance import clear_task_instances
-
-        clear_task_instances(tis, session)
-        # Simulate the try_number increasing to new values in TI
-        for ti in tis:
-            if ti.map_index > 0:
-                ti.try_number += 1
-                session.merge(ti)
-        session.commit()
-
-        # in each loop, we should get the right mapped TI back
-        for map_index in (1, 2):
-            # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
-            response = self.client.get(
-                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
-                f"/print_the_context/{map_index}/tries/1",
-                environ_overrides={"REMOTE_USER": "test"},
-            )
-            assert response.status_code == 200
-
-            assert response.json == {
-                "dag_id": "example_python_operator",
-                "duration": 10000.0,
-                "end_date": "2020-01-03T00:00:00+00:00",
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "executor": None,
-                "executor_config": "{}",
-                "hostname": "",
-                "map_index": map_index,
-                "max_tries": 0,
-                "note": "placeholder-note",
-                "operator": "PythonOperator",
-                "pid": 100,
-                "pool": "default_pool",
-                "pool_slots": 1,
-                "priority_weight": 9,
-                "queue": "default_queue",
-                "queued_when": None,
-                "sla_miss": None,
-                "start_date": "2020-01-02T00:00:00+00:00",
-                "state": "failed",
-                "task_id": "print_the_context",
-                "task_display_name": "print_the_context",
-                "try_number": 1,
-                "unixname": getuser(),
-                "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
-                "trigger": None,
-                "triggerer_job": None,
-            }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
