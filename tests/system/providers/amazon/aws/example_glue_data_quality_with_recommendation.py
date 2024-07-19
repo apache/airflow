@@ -45,8 +45,7 @@ sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).bu
 DAG_ID = "example_glue_data_quality_with_recommendation"
 SAMPLE_DATA = """"Alice",20
     "Bob",25
-    "Charlie",30
-    """
+    "Charlie",30"""
 SAMPLE_FILENAME = "airflow_sample.csv"
 
 
