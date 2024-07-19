@@ -45,6 +45,13 @@ def compare_attributes(path1, path2):
     diff = diff - {
         "_logger_name",
         "_task_display_property_value",
+        "task_instance_note",
+        "dag_run",
+        "trigger",
+        "execution_date",
+        "triggerer_job",
+        "note",
+        "rendered_task_instance_fields",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return
