@@ -1634,7 +1634,7 @@ def _defer_task(
             kwargs=trigger_kwargs,
         )
     else:
-        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
+        raise TaskDeferralError("exception and ti.task.start_trigger_args cannot both be None")
 
     # First, make the trigger entry
     session.add(trigger_row)
