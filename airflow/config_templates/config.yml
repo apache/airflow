@@ -513,6 +513,22 @@ core:
       type: string
       default: ~
       example: 'http://localhost:8080'
+    internal_api_user:
+      description: |
+        (experimental) If internal API is access-protected the user name for basic authentication.
+      version_added: 2.10.0
+      type: string
+      default: ~
+      example: 'api_user'
+    internal_api_password:
+      description: |
+        (experimental) If internal API is access-protected the password for basic authentication.
+        Note: we expect not to hard-code the password but recommend starting the processes via an env
+        ``AIRFLOW__CORE__INTERNAL_API_PASSWORD``.
+      version_added: 2.10.0
+      type: string
+      default: ~
+      example: 'i_willKeep!thisSecret4All?'
     test_connection:
       description: |
         The ability to allow testing connections across Airflow UI, API and CLI.

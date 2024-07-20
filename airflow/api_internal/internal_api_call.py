@@ -22,6 +22,7 @@ import json
 import logging
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar
+from urllib.parse import urlparse
 
 import requests
 import tenacity
@@ -83,14 +84,13 @@ class InternalApiConfig:
         if use_internal_api and not _ENABLE_AIP_44:
             raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
         if use_internal_api:
-            internal_api_endpoint = conf.get("core", "internal_api_url")
-            if internal_api_endpoint.find("/", 8) == -1:
-                internal_api_endpoint = internal_api_endpoint + "/internal_api/v1/rpcapi"
-            if not internal_api_endpoint.startswith("http://") and not internal_api_endpoint.startswith(
-                "https://"
-            ):
+            url_conf = urlparse(conf.get("core", "internal_api_url"))
+            api_path = url_conf.path
+            if len(api_path) < 2:
+                api_path = "/internal_api/v1/rpcapi"
+            if url_conf.scheme in ["http", "https"]:
                 raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
-            InternalApiConfig._internal_api_endpoint = internal_api_endpoint
+            InternalApiConfig._internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
             internal_api_user = conf.get("core", "internal_api_user")
             internal_api_password = conf.get("core", "internal_api_password")
             if internal_api_user and internal_api_password:
