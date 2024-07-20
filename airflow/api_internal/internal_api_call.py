@@ -26,6 +26,7 @@ from urllib.parse import urlparse
 
 import requests
 import tenacity
+from itsdangerous import URLSafeSerializer
 from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
@@ -129,7 +130,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         before_sleep=tenacity.before_log(logger, logging.WARNING),
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
-        data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
+        key = conf.get("webserver", "secret_key")
+        token = URLSafeSerializer(key).dumps("Internal API")
+        data = {"jsonrpc": "2.0", "method": method_name, "params": params_json, "token": token}
         internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
         response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
         if response.status_code != 200:

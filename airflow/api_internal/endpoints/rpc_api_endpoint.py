@@ -24,12 +24,15 @@ from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 from flask import Response
+from itsdangerous import BadSignature, URLSafeSerializer
 
+from airflow.api_connexion.exceptions import BadRequest
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -142,7 +145,14 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
-    log.debug("Got request")
+    key = get_airflow_app().config["SECRET_KEY"]
+    token = str(body.get("token"))
+    try:
+        caller_name = URLSafeSerializer(key).loads(token)
+    except BadSignature:
+        raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
+
+    log.debug("Got request from %s", caller_name)
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
         return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
