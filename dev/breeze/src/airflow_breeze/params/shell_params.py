@@ -168,6 +168,7 @@ class ShellParams:
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
+    no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]

@@ -1281,7 +1281,7 @@ export interface components {
        */
       execution_date?: string | null;
       /** @description Name of the user who triggered these events a. */
-      owner?: string;
+      owner?: string | null;
       /** @description Other information that was not included in the other fields, e.g. the complete CLI command. */
       extra?: string | null;
     };
@@ -1689,7 +1689,7 @@ export interface components {
       task_display_name?: string;
       owner?: string;
       /** Format: date-time */
-      start_date?: string;
+      start_date?: string | null;
       /** Format: date-time */
       end_date?: string | null;
       trigger_rule?: components["schemas"]["TriggerRule"];

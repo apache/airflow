@@ -24,7 +24,7 @@ import signal
 import sys
 import time
 import warnings
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
@@ -44,6 +44,7 @@ from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorExceptio
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
+from airflow.models import Log
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -62,7 +63,6 @@ from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -237,10 +237,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._task_context_logger: TaskContextLogger = TaskContextLogger(
-            component_name=self.job_type,
-            call_site_logger=self.log,
-        )
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -740,6 +736,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return len(queued_tis)
 
+    @staticmethod
+    def _process_task_event_logs(log_records: deque[Log], session: Session):
+        objects = (log_records.popleft() for _ in range(len(log_records)))
+        session.bulk_save_objects(objects=objects, preserve_order=False)
+
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
@@ -842,7 +843,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                self._task_context_logger.error(msg, ti=ti)
+                self.log.error(msg)
+                session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
                 try:
@@ -1066,6 +1068,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         num_finished_events += self._process_executor_events(
                             executor=executor, session=session
                         )
+
+                for executor in self.job.executors:
+                    try:
+                        with create_session() as session:
+                            self._process_task_event_logs(executor._task_event_logs, session)
+                    except Exception:
+                        self.log.exception("Something went wrong when trying to save task event logs.")
+
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 
@@ -1649,11 +1659,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
                 for ti in stuck_tis:
                     if repr(ti) in cleaned_up_task_instances:
-                        self._task_context_logger.warning(
+                        self.log.warning(
                             "Marking task instance %s stuck in queued as failed. "
                             "If the task instance has available retries, it will be retried.",
                             ti,
-                            ti=ti,
+                        )
+                        session.add(
+                            Log(
+                                event="stuck in queued",
+                                task_instance=ti.key,
+                                extra=(
+                                    "Task will be marked as failed. If the task instance has "
+                                    "available retries, it will be retried."
+                                ),
+                            )
                         )
             except NotImplementedError:
                 self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
@@ -1817,22 +1836,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
-        for ti, file_loc, processor_subdir in zombies:
-            zombie_message_details = self._generate_zombie_message_details(ti)
-            request = TaskCallbackRequest(
-                full_filepath=file_loc,
-                processor_subdir=processor_subdir,
-                simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                msg=str(zombie_message_details),
-            )
-            log_message = (
-                f"Detected zombie job: {request} "
-                "(See https://airflow.apache.org/docs/apache-airflow/"
-                "stable/core-concepts/tasks.html#zombie-undead-tasks)"
-            )
-            self._task_context_logger.error(log_message, ti=ti)
-            self.job.executor.send_callback(request)
-            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+        with create_session() as session:
+            for ti, file_loc, processor_subdir in zombies:
+                zombie_message_details = self._generate_zombie_message_details(ti)
+                request = TaskCallbackRequest(
+                    full_filepath=file_loc,
+                    processor_subdir=processor_subdir,
+                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                    msg=str(zombie_message_details),
+                )
+                session.add(
+                    Log(
+                        event="heartbeat timeout",
+                        task_instance=ti.key,
+                        extra=(
+                            f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
+                            "seconds) and will be terminated. "
+                            "See https://airflow.apache.org/docs/apache-airflow/"
+                            "stable/core-concepts/tasks.html#zombie-undead-tasks"
+                        ),
+                    )
+                )
+                self.log.error(
+                    "Detected zombie job: %s "
+                    "(See https://airflow.apache.org/docs/apache-airflow/"
+                    "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                    request,
+                )
+                self.job.executor.send_callback(request)
+                Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
     # [END find_zombies]
 
