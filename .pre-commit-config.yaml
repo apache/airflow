@@ -210,6 +210,14 @@ repos:
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
+      - id: check-taskinstance-tis-attrs
+        name: Check that TI and TIS have the same attributes
+        entry: ./scripts/ci/pre_commit/check_ti_vs_tis_attributes.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.18.0
     hooks:
