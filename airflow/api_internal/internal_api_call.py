@@ -30,7 +30,7 @@ from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.settings import _ENABLE_AIP_44
+from airflow.settings import _ENABLE_AIP_44, force_traceback_session_for_untrusted_components
 from airflow.typing_compat import ParamSpec
 from airflow.utils.jwt_signer import JWTSigner
 
@@ -43,66 +43,51 @@ logger = logging.getLogger(__name__)
 class InternalApiConfig:
     """Stores and caches configuration for Internal API."""
 
-    _initialized = False
     _use_internal_api = False
     _internal_api_endpoint = ""
 
     @staticmethod
-    def force_database_direct_access(message: str):
+    def set_use_database_access(component: str):
         """
         Block current component from using Internal API.
 
         All methods decorated with internal_api_call will always be executed locally.`
         This mode is needed for "trusted" components like Scheduler, Webserver, Internal Api server
         """
-        InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = False
-        if _ENABLE_AIP_44:
-            logger.info("Forcing database direct access. %s", message)
+        if not _ENABLE_AIP_44:
+            raise RuntimeError("The AIP_44 is not enabled so you cannot use it. ")
+        logger.info(
+            "DB isolation mode. But this is a trusted component and DB connection is set. "
+            "Using database direct access when running %s.",
+            component,
+        )
 
     @staticmethod
-    def force_api_access(api_endpoint: str):
-        """
-        Force using Internal API with provided endpoint.
-
-        All methods decorated with internal_api_call will always be executed remote/via API.
-        This mode is needed for remote setups/remote executor.
-        """
-        InternalApiConfig._initialized = True
+    def set_use_internal_api(component: str):
+        if not _ENABLE_AIP_44:
+            raise RuntimeError("The AIP_44 is not enabled so you cannot use it. ")
+        internal_api_url = conf.get("core", "internal_api_url")
+        url_conf = urlparse(internal_api_url)
+        api_path = url_conf.path
+        if api_path in ["", "/"]:
+            # Add the default path if not given in the configuration
+            api_path = "/internal_api/v1/rpcapi"
+        if url_conf.scheme not in ["http", "https"]:
+            raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
+        internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
         InternalApiConfig._use_internal_api = True
-        InternalApiConfig._internal_api_endpoint = api_endpoint
+        InternalApiConfig._internal_api_endpoint = internal_api_endpoint
+        logger.info("DB isolation mode. Using internal_api when running %s.", component)
+        force_traceback_session_for_untrusted_components()
 
     @staticmethod
     def get_use_internal_api():
-        if not InternalApiConfig._initialized:
-            InternalApiConfig._init_values()
         return InternalApiConfig._use_internal_api
 
     @staticmethod
     def get_internal_api_endpoint():
-        if not InternalApiConfig._initialized:
-            InternalApiConfig._init_values()
         return InternalApiConfig._internal_api_endpoint
-
-    @staticmethod
-    def _init_values():
-        use_internal_api = conf.getboolean("core", "database_access_isolation", fallback=False)
-        if use_internal_api and not _ENABLE_AIP_44:
-            raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
-        internal_api_endpoint = ""
-        if use_internal_api:
-            url_conf = urlparse(conf.get("core", "internal_api_url"))
-            api_path = url_conf.path
-            if api_path in ["", "/"]:
-                # Add the default path if not given in the configuration
-                api_path = "/internal_api/v1/rpcapi"
-            if url_conf.scheme not in ["http", "https"]:
-                raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
-            internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
-
-        InternalApiConfig._initialized = True
-        InternalApiConfig._use_internal_api = use_internal_api
-        InternalApiConfig._internal_api_endpoint = internal_api_endpoint
 
 
 def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:

@@ -1200,9 +1200,9 @@ def suppress_info_logs_for_dag_and_fab():
 
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
+    """Clear DB before each test module run."""
     from tests.test_utils.db import clear_all
 
-    """Clear DB before each test module run."""
     if not request.config.option.db_cleanup:
         return
     if skip_db_tests:
@@ -1220,7 +1220,6 @@ def _clear_db(request):
     if dist_option != "no" or hasattr(request.config, "workerinput"):
         # Skip if pytest-xdist detected (controller or worker)
         return
-
     try:
         clear_all()
     except Exception as ex:
