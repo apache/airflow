@@ -75,12 +75,12 @@ class TestRpcApiEndpoint:
         mock_test_method.reset_mock()
         mock_test_method.side_effect = None
         with mock.patch(
-            "airflow.api_internal.endpoints.rpc_api_endpoint._initialize_map"
-        ) as mock_initialize_map:
-            mock_initialize_map.return_value = {
+            "airflow.api_internal.endpoints.rpc_api_endpoint.initialize_method_map"
+        ) as mock_initialize_method_map:
+            mock_initialize_method_map.return_value = {
                 TEST_METHOD_NAME: mock_test_method,
             }
-            yield mock_initialize_map
+            yield mock_initialize_method_map
 
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
