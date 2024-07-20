@@ -23,16 +23,24 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
-from flask import Response
-from itsdangerous import BadSignature, URLSafeSerializer
+from flask import Response, request
+from itsdangerous import BadSignature
+from jwt import (
+    ExpiredSignatureError,
+    ImmatureSignatureError,
+    InvalidAudienceError,
+    InvalidIssuedAtError,
+    InvalidSignatureError,
+)
 
-from airflow.api_connexion.exceptions import BadRequest
+from airflow.api_connexion.exceptions import PermissionDenied
+from airflow.configuration import conf
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -145,14 +153,39 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
-    key = get_airflow_app().config["SECRET_KEY"]
-    token = str(body.get("token"))
+    auth = request.headers.get("Authorization", "")
+    signer = JWTSigner(
+        secret_key=conf.get("webserver", "secret_key"),
+        expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+        audience="api",
+    )
     try:
-        caller_name = URLSafeSerializer(key).loads(token)
+        payload = signer.verify_token(auth)
+        signed_method = payload.get("method")
+        if not signed_method or signed_method != body.get("method"):
+            raise BadSignature("Invalid method in token authorization.")
     except BadSignature:
-        raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
+        raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
+    except InvalidAudienceError:
+        raise PermissionDenied("Invalid audience for the request", exc_info=True)
+    except InvalidSignatureError:
+        raise PermissionDenied("The signature of the request was wrong", exc_info=True)
+    except ImmatureSignatureError:
+        raise PermissionDenied("The signature of the request was sent from the future", exc_info=True)
+    except ExpiredSignatureError:
+        raise PermissionDenied(
+            "The signature of the request has expired. Make sure that all components "
+            "in your system have synchronized clocks.",
+        )
+    except InvalidIssuedAtError:
+        raise PermissionDenied(
+            "The request was issues in the future. Make sure that all components "
+            "in your system have synchronized clocks.",
+        )
+    except Exception:
+        raise PermissionDenied("Unable to authenticate API via token.")
 
-    log.debug("Got request from %s", caller_name)
+    log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
         return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)

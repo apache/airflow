@@ -26,13 +26,13 @@ from urllib.parse import urlparse
 
 import requests
 import tenacity
-from itsdangerous import URLSafeSerializer
 from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import ParamSpec
+from airflow.utils.jwt_signer import JWTSigner
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
@@ -118,9 +118,6 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     See [AIP-44](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-44+Airflow+Internal+API)
     for more information .
     """
-    headers = {
-        "Content-Type": "application/json",
-    }
     from requests.exceptions import ConnectionError
 
     @tenacity.retry(
@@ -130,9 +127,16 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         before_sleep=tenacity.before_log(logger, logging.WARNING),
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
-        key = conf.get("webserver", "secret_key")
-        token = URLSafeSerializer(key).dumps("Internal API")
-        data = {"jsonrpc": "2.0", "method": method_name, "params": params_json, "token": token}
+        signer = JWTSigner(
+            secret_key=conf.get("webserver", "secret_key"),
+            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            audience="api",
+        )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": signer.generate_signed_token({"method": method_name}),
+        }
+        data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
         internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
         response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
         if response.status_code != 200:
