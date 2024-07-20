@@ -22,6 +22,7 @@ import json
 import logging
 from functools import wraps
 from typing import Callable, TypeVar
+from urllib.parse import urlparse
 
 import requests
 import tenacity
@@ -57,6 +58,18 @@ class InternalApiConfig:
         InternalApiConfig._use_internal_api = False
 
     @staticmethod
+    def force_api_access(api_endpoint: str):
+        """
+        Force using Internal API with provided endpoint.
+
+        All methods decorated with internal_api_call will always be executed remote/via API.
+        This mode is needed for remote setups/remote executor.
+        """
+        InternalApiConfig._initialized = True
+        InternalApiConfig._use_internal_api = True
+        InternalApiConfig._internal_api_endpoint = api_endpoint
+
+    @staticmethod
     def get_use_internal_api():
         if not InternalApiConfig._initialized:
             InternalApiConfig._init_values()
@@ -75,10 +88,13 @@ class InternalApiConfig:
             raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
         internal_api_endpoint = ""
         if use_internal_api:
-            internal_api_url = conf.get("core", "internal_api_url")
-            internal_api_endpoint = internal_api_url + "/internal_api/v1/rpcapi"
-            if not internal_api_endpoint.startswith("http://"):
-                raise AirflowConfigException("[core]internal_api_url must start with http://")
+            url_conf = urlparse(conf.get("core", "internal_api_url"))
+            api_path = url_conf.path
+            if len(api_path) < 2:
+                api_path = "/internal_api/v1/rpcapi"
+            if url_conf.scheme in ["http", "https"]:
+                raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
+            InternalApiConfig._internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
 
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = use_internal_api
