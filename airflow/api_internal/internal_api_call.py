@@ -95,7 +95,7 @@ class InternalApiConfig:
                 api_path = "/internal_api/v1/rpcapi"
             if url_conf.scheme not in ["http", "https"]:
                 raise AirflowConfigException("[core]internal_api_url must start with http:// or https://")
-            InternalApiConfig._internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
+            internal_api_endpoint = f"{url_conf.scheme}://{url_conf.netloc}{api_path}"
 
         InternalApiConfig._initialized = True
         InternalApiConfig._use_internal_api = use_internal_api
