@@ -3759,7 +3759,6 @@ class TaskInstance(Base, LoggingMixin):
         return or_(*filters)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _schedule_downstream_tasks(
         cls,

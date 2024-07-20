@@ -72,7 +72,7 @@ class TestInternalApiConfig:
         }
     )
     def test_force_database_direct_access(self):
-        InternalApiConfig.force_database_direct_access()
+        InternalApiConfig.force_database_direct_access("message")
         assert InternalApiConfig.get_use_internal_api() is False
 
 
