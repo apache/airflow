@@ -24,7 +24,10 @@ from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 from flask import Response
+from itsdangerous import BadSignature, URLSafeSerializer
 
+from airflow.api_connexion.exceptions import BadRequest
+from airflow.configuration import conf
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -65,7 +68,14 @@ def log_and_build_error_response(message, status):
 
 def remote_worker_api(body: dict[str, Any]) -> APIResponse:
     """Handle Remote Worker API `/remote_worker/v1/rpcapi` endpoint."""
-    log.debug("Got request")
+    key = conf.get("webserver", "secret_key")
+    token = str(body.get("token"))
+    try:
+        caller_name = URLSafeSerializer(key).loads(token)
+    except BadSignature:
+        raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
+
+    log.debug("Got request from %s", caller_name)
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
         return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)

@@ -36,7 +36,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Archiving of job table
 - [ ] Plugin
   - [x] REST API
-  - [ ] REST API Authentication
+  - [x] REST API Authentication
   - [x] Expose jobs via UI
   - [x] Expose active remote worker
 - [ ] Remote Worker

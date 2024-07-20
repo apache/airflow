@@ -36,3 +36,6 @@ airflow remote worker --concurrency 8
 
 # Eventually start with:
 # airflow remote worker --concurrency 8 --queues remote
+
+# Start webserver with
+# AIRFLOW__REMOTE__API_ENABLED=true airflow webserver
