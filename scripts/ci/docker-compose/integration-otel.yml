@@ -54,7 +54,7 @@ services:
       - ./grafana/volume/provisioning:/grafana/provisioning
 
   jaeger:
-    image: jaegertracing/all-in-one
+    image: jaegertracing/all-in-one:1.57
     container_name: "breeze-jaeger"
     environment:
       COLLECTOR_OTLP_ENABLED: true

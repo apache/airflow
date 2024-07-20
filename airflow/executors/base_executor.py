@@ -21,9 +21,8 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
@@ -31,9 +30,12 @@ import pendulum
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models import Log
 from airflow.stats import Stats
+from airflow.traces import NO_TRACE_ID
+from airflow.traces.tracer import Trace, gen_context, span
+from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
@@ -131,6 +133,16 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
+        self._task_event_logs: deque[Log] = deque()
+        """
+        Deque for storing task event log messages.
+
+        This attribute is only internally public and should not be manipulated
+        directly by subclasses.
+
+        :meta private:
+        """
+
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
@@ -138,6 +150,10 @@ class BaseExecutor(LoggingMixin):
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
+
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+        """Add an event to the log table."""
+        self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_command(
         self,
@@ -211,6 +227,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
+    @span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -227,6 +244,17 @@ class BaseExecutor(LoggingMixin):
             self.log.info("Executor parallelism limit reached. 0 open slots.")
         else:
             self.log.debug("%s open slots", open_slots)
+
+        span = Trace.get_current_span()
+        if span.is_recording():
+            span.add_event(
+                name="executor",
+                attributes={
+                    "executor.open_slots": open_slots,
+                    "executor.queued_tasks": num_queued_tasks,
+                    "executor.running_tasks": num_running_tasks,
+                },
+            )
 
         Stats.gauge(
             "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
@@ -260,12 +288,14 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
+    @span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
+        span = Trace.get_current_span()
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
 
@@ -288,13 +318,20 @@ class BaseExecutor(LoggingMixin):
                     # if it hasn't been much time since first check, let it be checked again next time
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
+
                 # Otherwise, we give up and remove the task from the queue.
-                self.send_message_to_task_logs(
-                    logging.ERROR,
+                self.log.error(
                     "could not queue task %s (still running after %d attempts).",
                     key,
                     attempt.total_tries,
-                    ti=ti,
+                )
+                self.log_task_event(
+                    event="task launch failure",
+                    extra=(
+                        "Task was in running set and could not be queued "
+                        f"after {attempt.total_tries} attempts."
+                    ),
+                    ti_key=key,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]
@@ -302,15 +339,40 @@ class BaseExecutor(LoggingMixin):
                 if key in self.attempts:
                     del self.attempts[key]
                 task_tuples.append((key, command, queue, ti.executor_config))
+                if span.is_recording():
+                    span.add_event(
+                        name="task to trigger",
+                        attributes={"command": str(command), "conf": str(ti.executor_config)},
+                    )
 
         if task_tuples:
             self._process_tasks(task_tuples)
 
+    @span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
+            task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
+            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            links = [{"trace_id": trace_id, "span_id": span_id}]
+
+            # assuming that the span_id will very likely be unique inside the trace
+            with Trace.start_span(
+                span_name=f"{key.dag_id}.{key.task_id}",
+                component="BaseExecutor",
+                span_id=span_id,
+                links=links,
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("command", str(command))
+                span.set_attribute("queue", str(queue))
+                span.set_attribute("executor_config", str(executor_config))
+                del self.queued_tasks[key]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.running.add(key)
 
     def change_state(
         self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
@@ -338,6 +400,20 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
+        trace_id = Trace.get_current_span().get_span_context().trace_id
+        if trace_id != NO_TRACE_ID:
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="fail",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("error", True)
+
         self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
@@ -347,6 +423,19 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
+        trace_id = Trace.get_current_span().get_span_context().trace_id
+        if trace_id != NO_TRACE_ID:
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="success",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number - 1)
+
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def queued(self, key: TaskInstanceKey, info=None) -> None:
@@ -525,16 +614,6 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
-
-    @cached_property
-    def _task_context_logger(self) -> TaskContextLogger:
-        return TaskContextLogger(
-            component_name="Executor",
-            call_site_logger=self.log,
-        )
-
-    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
-        self._task_context_logger._log(level, msg, *args, ti=ti)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
