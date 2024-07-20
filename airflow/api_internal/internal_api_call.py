@@ -27,6 +27,7 @@ from urllib.parse import urlparse
 
 import requests
 import tenacity
+from itsdangerous import URLSafeSerializer
 from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
