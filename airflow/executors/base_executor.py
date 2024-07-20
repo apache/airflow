@@ -260,10 +260,20 @@ class BaseExecutor(LoggingMixin):
         if multiple_executors_configured:
             metric_suffix = name
 
-        open_slots_metric_name = f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
-        queued_tasks_metric_name = f"executor.queued_tasks.{metric_suffix}" if multiple_executors_configured else "executor.queued_tasks"
-        running_tasks_metric_name = f"executor.running_tasks.{metric_suffix}" if multiple_executors_configured else "executor.running_tasks"
-        
+        open_slots_metric_name = (
+            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
+        )
+        queued_tasks_metric_name = (
+            f"executor.queued_tasks.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.queued_tasks"
+        )
+        running_tasks_metric_name = (
+            f"executor.running_tasks.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.running_tasks"
+        )
+
         span = Trace.get_current_span()
         if span.is_recording():
             span.add_event(
