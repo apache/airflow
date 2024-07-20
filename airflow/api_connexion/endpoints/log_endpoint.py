@@ -47,19 +47,29 @@ def format_log_entry(host, message):
     return (host, message if message.endswith("\n") else message + "\n")
 
 
-def fetch_all_logs(task_log_reader, task_instance, try_number, metadata, offset, limit):
+def fetch_all_logs(task_log_reader, task_instance, try_number, metadata, initial_offset, limit):
     """Fetch all logs and handle pagination if necessary."""
     full_log = []
+    current_offset = initial_offset
+    total_data_read = 0
+
     while True:
-        logs, metadata = task_log_reader.read_log_chunks(
-            task_instance, try_number, metadata, offset=offset, limit=limit
+        logs, new_metadata = task_log_reader.read_log_chunks(
+            task_instance, try_number, metadata, offset=current_offset, limit=limit
         )
         for sublist in logs:
             for host, message in sublist:
                 full_log.append(format_log_entry(host, message))
+                total_data_read += len(message)  # Assume length of message contributes to offset
 
-        if metadata.get("end_of_log", False):
+        # Check if the end of log has been reached or if we have read enough data
+        if new_metadata.get("end_of_log", False) or total_data_read >= limit:
+            metadata.update(new_metadata)
             break
+
+        # Update current offset for the next read
+        current_offset += total_data_read
+
     return full_log, metadata
 
 
@@ -91,6 +101,9 @@ def get_log(
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
+
+    if offset < 0 or limit <= 0:
+        raise BadRequest("Offset and Limit must be non-negative, and limit must be greater than 0")
 
     query = (
         select(TaskInstance)
