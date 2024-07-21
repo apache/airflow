@@ -18,7 +18,7 @@
 Airflow Unit Tests
 ==================
 
-All unit tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
+All unit tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
@@ -90,8 +90,8 @@ Airflow tests in the CI environment are split into several test types. You can n
 test types you want to use in various ``breeze testing`` sub-commands in three ways:
 
 * via specifying the ``--test-type`` when you run single test type in ``breeze testing tests`` command
-* via specifying space separating list of test types via ``--paralleltest-types`` or
-  ``--exclude-parallel-test-types`` options when you run tests in parallel (in several testing commands)
+* via specifying space separating list of test types via ``--parallel-test-types`` or
+  ``--excluded-parallel-test-types`` options when you run tests in parallel (in several testing commands)
 
 Those test types are defined:
 
@@ -101,7 +101,7 @@ Those test types are defined:
 * ``Core`` - for the core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders)
 * ``Operators`` - tests for the operators (operators folder with exception of Virtualenv Operator tests and
   External Python Operator tests that have their own test type). They are skipped by the
-``virtualenv_operator`` and ``external_python_operator`` test markers that the tests are marked with.
+  ``virtualenv_operator`` and ``external_python_operator`` test markers that the tests are marked with.
 * ``WWW`` - Tests for the Airflow webserver (www folder)
 * ``Providers`` - Tests for all Providers of Airflow (providers folder)
 * ``PlainAsserts`` - tests that require disabling ``assert-rewrite`` feature of Pytest (usually because
@@ -179,7 +179,7 @@ tests in parallel using ``pytest-xdist`` plugin.
 We have a dedicated, opinionated ``breeze testing non-db-tests`` command as well that runs non-DB tests
 (it is also used in CI to run the non-DB tests, where you do not have to specify extra flags for
 parallel running and you can run all the Non-DB tests
-(or just a subset of them with ``--parallel-test-types`` or ``--exclude-parallel-test-types``) in parallel:
+(or just a subset of them with ``--parallel-test-types`` or ``--excluded-parallel-test-types``) in parallel:
 
 .. code-block:: bash
 
@@ -195,7 +195,7 @@ to exclude them from the default set:.
 
 .. code-block:: bash
 
-    breeze testing non-db-tests --exclude-parallel-test-types "Providers API CLI"
+    breeze testing non-db-tests --excluded-parallel-test-types "Providers API CLI"
 
 You can also run the same commands via ``breeze testing tests`` - by adding the necessary flags manually:
 
@@ -218,8 +218,8 @@ Airflow DB tests
 
 Some of the tests of Airflow require a database to connect to in order to run. Those tests store and read data
 from Airflow DB using Airflow's core code and it's crucial to run the tests against all real databases
-that Airflow supports in order to check if the SQLAlchemy queries are correct and if the database
-  schema is correct.
+that Airflow supports in order to check if the SQLAlchemy queries are correct and if the database schema is
+correct.
 
 Those tests should be marked with ``@pytest.mark.db`` decorator on one of the levels:
 
@@ -256,7 +256,7 @@ below runs the ``Core`` tests with ``postgres`` backend and ``3.8`` Python versi
 We have a dedicated, opinionated ``breeze testing db-tests`` command as well that runs DB tests
 (it is also used in CI to run the DB tests, where you do not have to specify extra flags for
 parallel running and you can run all the DB tests
-(or just a subset of them with ``--parallel-test-types`` or ``--exclude-parallel-test-types``) in parallel:
+(or just a subset of them with ``--parallel-test-types`` or ``--excluded-parallel-test-types``) in parallel:
 
 .. code-block:: bash
 
@@ -272,7 +272,7 @@ to exclude them from the default set:.
 
 .. code-block:: bash
 
-    breeze testing db-tests --exclude-parallel-test-types "Providers API CLI"
+    breeze testing db-tests --excluded-parallel-test-types "Providers API CLI"
 
 You can also run the same commands via ``breeze testing tests`` - by adding the necessary flags manually:
 
@@ -912,7 +912,7 @@ Running Tests using Breeze from the Host
 ........................................
 
 If you wish to only run tests and not to drop into the shell, apply the
-``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
+``tests`` command. You can add extra targets and pytest flags after the ``tests`` command. Note that
 often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
 to breeze command. The Breeze image usually will have all the dependencies needed and it
 will ask you to rebuild the image if it is needed and some new dependencies should be installed.
@@ -1074,10 +1074,11 @@ if the providers still work when installed for older airflow versions.
 The back-compatibility tests based on the configuration specified in the
 ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
 file - where we specify:
-* python version
-* airflow version
+
+* Python version
+* Airflow version
 * which providers should be removed for the tests (exclusions)
-* whether to run tests for this airflow/python version
+* whether to run tests for this Airflow/Python version
 
 Those tests can be used to test compatibility of the providers with past (and future!) releases of airflow.
 For example it could be used to run latest provider versions with released or main
@@ -1464,6 +1465,26 @@ This parameter is also available in Breeze.
 
     breeze testing db-tests --keep-env-variables
 
+Disable database cleanup before each test module
+................................................
+
+By default, the database is cleared from all items before running tests. This is to avoid potential conflicts with
+existing resources in the database when running tests using the database. However, in some scenarios you might want to
+disable this mechanism and keep the database as is. For example, you might want to run tests in parallel against the
+same database. In that case, you need to disable the database cleanup, otherwise the tests are going to conflict with
+each other (one test will delete the resources that another one is creating).
+
+To disable the database cleanup, you need to provide ``--no-db-cleanup`` as pytest CLI argument.
+
+.. code-block:: bash
+
+    pytest tests/core/ --no-db-cleanup
+
+This parameter is also available in Breeze.
+
+.. code-block:: bash
+
+    breeze testing db-tests --no-db-cleanup
 
 Code Coverage
 -------------

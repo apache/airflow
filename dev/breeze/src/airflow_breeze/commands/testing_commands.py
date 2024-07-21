@@ -42,6 +42,7 @@ from airflow_breeze.commands.common_options import (
     option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
+    option_no_db_cleanup,
     option_parallelism,
     option_postgres_version,
     option_pydantic,
@@ -203,6 +204,7 @@ def _run_test(
             parallel_test_types_list=shell_params.parallel_test_types_list,
             helm_test_package=None,
             keep_env_variables=shell_params.keep_env_variables,
+            no_db_cleanup=shell_params.no_db_cleanup,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
@@ -520,6 +522,7 @@ option_force_sa_warnings = click.option(
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
+@option_no_db_cleanup
 @option_package_format
 @option_parallel_test_types
 @option_parallelism
@@ -576,6 +579,7 @@ def command_for_tests(**kwargs):
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
+@option_no_db_cleanup
 @option_package_format
 @option_parallel_test_types
 @option_parallelism
@@ -635,6 +639,7 @@ def command_for_db_tests(**kwargs):
 @option_install_airflow_with_constraints
 @option_keep_env_variables
 @option_mount_sources
+@option_no_db_cleanup
 @option_package_format
 @option_parallel_test_types
 @option_parallelism
@@ -690,6 +695,7 @@ def _run_test_command(
     integration: tuple[str, ...],
     keep_env_variables: bool,
     mount_sources: str,
+    no_db_cleanup: bool,
     parallel_test_types: str,
     parallelism: int,
     package_format: str,
@@ -743,6 +749,7 @@ def _run_test_command(
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
+        no_db_cleanup=no_db_cleanup,
         package_format=package_format,
         parallel_test_types_list=test_list,
         parallelism=parallelism,
@@ -954,6 +961,7 @@ def helm_tests(
         python_version=shell_params.python,
         helm_test_package=helm_test_package,
         keep_env_variables=False,
+        no_db_cleanup=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

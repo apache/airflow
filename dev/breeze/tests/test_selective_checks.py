@@ -159,6 +159,56 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("airflow/api_internal/file.py",),
+                {
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "API Always",
+                    "separate-test-types-list-as-string": "API Always",
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow']",
+                },
+                id="Only API tests and DOCS should run (no provider tests) when only internal_api changed",
+            )
+        ),
+        (
+            pytest.param(
+                ("tests/api/file.py",),
+                {
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "API Always",
+                    "separate-test-types-list-as-string": "API Always",
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow']",
+                },
+                id="Only API tests should run (no provider tests) and no DOCs build when only test API files changed",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow/operators/file.py",),
                 {
                     "affected-providers-list-as-string": None,
