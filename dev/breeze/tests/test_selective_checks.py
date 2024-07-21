@@ -1636,12 +1636,19 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
-            '["self-hosted", "Linux", "X64"]',
-            "true",
-            "true",
+            # TODO: revert it when we fix self-hosted runners
+            '["ubuntu-22.04"]',
+            # '["self-hosted", "Linux", "X64"]',
+            # TODO: revert it when we fix self-hosted runners
+            "false",
+            "false",
+            # "true",
+            # "true",
             "true",
             "false",
-            "true",
+            # TODO: revert it when we fix self-hosted runners
+            "false",
+            # "true",
             "false",
             False,
             id="Push event",
