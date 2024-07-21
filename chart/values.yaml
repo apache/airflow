@@ -2144,6 +2144,7 @@ pgbouncer:
 
   service:
     extraAnnotations: {}
+    ip: ~
 
   # https://www.pgbouncer.org/config.html
   verbose: 0
