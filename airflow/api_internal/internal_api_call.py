@@ -90,7 +90,7 @@ class InternalApiConfig:
         if use_internal_api:
             url_conf = urlparse(conf.get("core", "internal_api_url"))
             api_path = url_conf.path
-            if len(api_path) < 2:
+            if api_path in ["", "/"]:
                 # Add the default path if not given in the configuration
                 api_path = "/internal_api/v1/rpcapi"
             if url_conf.scheme not in ["http", "https"]:
