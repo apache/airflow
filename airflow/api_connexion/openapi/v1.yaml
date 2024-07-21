@@ -3372,6 +3372,7 @@ components:
         owner:
           description: Name of the user who triggered these events a.
           type: string
+          nullable: true
           readOnly: true
         extra:
           description: |
@@ -4070,6 +4071,7 @@ components:
           type: string
           format: "date-time"
           readOnly: true
+          nullable: true
         end_date:
           type: string
           format: "date-time"

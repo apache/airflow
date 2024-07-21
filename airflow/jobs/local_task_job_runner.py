@@ -28,6 +28,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.stats import Stats
+from airflow.traces.tracer import Trace
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -184,39 +185,55 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             # If LocalTaskJob receives SIGTERM, LocalTaskJob passes SIGTERM to _run_raw_task
             # If the state of task_instance is changed, LocalTaskJob sends SIGTERM to _run_raw_task
             while not self.terminating:
-                # Monitor the task to see if it's done. Wait in a syscall
-                # (`os.wait`) for as long as possible so we notice the
-                # subprocess finishing as quick as we can
-                max_wait_time = max(
-                    0,  # Make sure this value is never negative,
-                    min(
-                        (
-                            heartbeat_time_limit
-                            - (timezone.utcnow() - self.job.latest_heartbeat).total_seconds() * 0.75
+                with Trace.start_span(
+                    span_name="local_task_job_loop", component="LocalTaskJobRunner"
+                ) as span:
+                    # Monitor the task to see if it's done. Wait in a syscall
+                    # (`os.wait`) for as long as possible so we notice the
+                    # subprocess finishing as quick as we can
+                    max_wait_time = max(
+                        0,  # Make sure this value is never negative,
+                        min(
+                            (
+                                heartbeat_time_limit
+                                - (timezone.utcnow() - self.job.latest_heartbeat).total_seconds() * 0.75
+                            ),
+                            self.job.heartrate if self.job.heartrate is not None else heartbeat_time_limit,
                         ),
-                        self.job.heartrate if self.job.heartrate is not None else heartbeat_time_limit,
-                    ),
-                )
-                return_code = self.task_runner.return_code(timeout=max_wait_time)
-                if return_code is not None:
-                    self.handle_task_exit(return_code)
-                    return return_code
-
-                perform_heartbeat(
-                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
-                )
-
-                # If it's been too long since we've heartbeat, then it's possible that
-                # the scheduler rescheduled this task, so kill launched processes.
-                # This can only really happen if the worker can't read the DB for a long time
-                time_since_last_heartbeat = (timezone.utcnow() - self.job.latest_heartbeat).total_seconds()
-                if time_since_last_heartbeat > heartbeat_time_limit:
-                    Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
-                    self.log.error("Heartbeat time limit exceeded!")
-                    raise AirflowException(
-                        f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
-                        f"({heartbeat_time_limit}s)."
                     )
+                    return_code = self.task_runner.return_code(timeout=max_wait_time)
+                    if return_code is not None:
+                        self.handle_task_exit(return_code)
+                        return return_code
+
+                    if span.is_recording():
+                        span.add_event(name="perform_heartbeat")
+                    perform_heartbeat(
+                        job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
+                    )
+
+                    # If it's been too long since we've heartbeat, then it's possible that
+                    # the scheduler rescheduled this task, so kill launched processes.
+                    # This can only really happen if the worker can't read the DB for a long time
+                    time_since_last_heartbeat = (
+                        timezone.utcnow() - self.job.latest_heartbeat
+                    ).total_seconds()
+                    if time_since_last_heartbeat > heartbeat_time_limit:
+                        Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
+                        self.log.error("Heartbeat time limit exceeded!")
+                        if span.is_recording():
+                            span.add_event(
+                                name="error",
+                                attributes={
+                                    "message": "Heartbeat time limit exceeded",
+                                    "heartbeat_time_limit(s)": heartbeat_time_limit,
+                                    "time_since_last_heartbeat(s)": time_since_last_heartbeat,
+                                },
+                            )
+                        raise AirflowException(
+                            f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
+                            f"({heartbeat_time_limit}s)."
+                        )
             return return_code
         finally:
             # Print a marker for log grouping of details before task execution

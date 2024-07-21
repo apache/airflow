@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import jinja2
 
+from airflow.io.path import ObjectStoragePath
 from airflow.models.dag import DAG
 from airflow.template.templater import LiteralValue, Templater
 from airflow.utils.context import Context
@@ -51,6 +52,14 @@ class TestTemplater:
         templater.template_ext = [".txt"]
         templater.resolve_template_files()
         assert "Failed to resolve template field 'message'" in caplog.text
+
+    def test_render_object_storage_path(self):
+        templater = Templater()
+        path = ObjectStoragePath("s3://bucket/key/{{ ds }}/part")
+        context = Context({"ds": "2006-02-01"})  # type: ignore
+        jinja_env = templater.get_template_env()
+        rendered_content = templater._render_object_storage_path(path, context, jinja_env)
+        assert rendered_content == ObjectStoragePath("s3://bucket/key/2006-02-01/part")
 
     def test_render_template(self):
         context = Context({"name": "world"})  # type: ignore

@@ -466,13 +466,14 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     log.info("Running %s on host %s", ti, hostname)
 
-    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    # this should be last thing before running, to reduce likelihood of an open session
-    # which can cause trouble if running process in a fork.
-    settings.reconfigure_orm(disable_connection_pool=True)
+    if not InternalApiConfig.get_use_internal_api():
+        # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
+        # behind multiple open sleeping connections while heartbeating, which could
+        # easily exceed the database connection limit when
+        # processing hundreds of simultaneous tasks.
+        # this should be last thing before running, to reduce likelihood of an open session
+        # which can cause trouble if running process in a fork.
+        settings.reconfigure_orm(disable_connection_pool=True)
     task_return_code = None
     try:
         if args.interactive:

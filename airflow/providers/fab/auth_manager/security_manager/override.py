@@ -949,8 +949,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
-        except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
+        except Exception:
+            log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
 
     def get_readable_dags(self, user) -> Iterable[DagModel]:

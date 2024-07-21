@@ -121,7 +121,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     Sensor operators keep executing at a time interval and succeed when
     a criteria is met and fail if and when they time out.
 
-    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :param soft_fail: Set to true to mark the task as SKIPPED on failure.
+           Mutually exclusive with never_fail.
     :param poke_interval: Time that the job should wait in between each try.
         Can be ``timedelta`` or ``float`` seconds.
     :param timeout: Time elapsed before the task times out and fails.
@@ -154,6 +155,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         and AirflowFailException, the sensor will log the error and continue
         its execution. Otherwise, the sensor task fails, and it can be retried
         based on the provided `retries` parameter.
+    :param never_fail: If true, and poke method raises an exception, sensor will be skipped.
+           Mutually exclusive with soft_fail.
     """
 
     ui_color: str = "#e6f1f2"
@@ -173,6 +176,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
         silent_fail: bool = False,
+        never_fail: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -182,7 +186,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
+        if soft_fail is True and never_fail is True:
+            raise ValueError("soft_fail and never_fail are mutually exclusive, you can not provide both.")
+
         self.silent_fail = silent_fail
+        self.never_fail = never_fail
         self._validate_input_values()
 
     @staticmethod
@@ -283,6 +291,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             ) as e:
                 if self.soft_fail:
                     raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                elif self.never_fail:
+                    raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
                 raise e
             except AirflowSkipException as e:
                 raise e
@@ -290,8 +300,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 if self.silent_fail:
                     self.log.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
-                elif self.soft_fail:
-                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                elif self.never_fail:
+                    raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
                 else:
                     raise e
 

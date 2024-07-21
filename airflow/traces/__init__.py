@@ -18,3 +18,4 @@ from __future__ import annotations
 
 TRACEPARENT = "traceparent"
 TRACESTATE = "tracestate"
+NO_TRACE_ID = 1
