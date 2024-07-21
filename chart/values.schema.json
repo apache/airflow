@@ -7029,6 +7029,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "ip": {
+                            "description": "Specific ClusterIP for the PgBouncer Service.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
