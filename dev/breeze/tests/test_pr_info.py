@@ -68,7 +68,7 @@ def test_schedule():
         assert wi.event_name == "schedule"
         assert wi.pr_number is None
         assert wi.get_runs_on() == '["ubuntu-22.04"]'
-        assert wi.is_canary_run() == "false"
+        assert wi.is_canary_run() == "true"
         assert wi.run_coverage() == "false"
 
 
