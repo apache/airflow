@@ -72,9 +72,9 @@ def is_venv_installed() -> bool:
     :return: True if it is installed, False otherwise.
     """
     try:
-        subprocess.check_output(["python", "-c", "import virtualenv"], stderr=subprocess.STDOUT)
+        __import__("virtualenv")
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError, ModuleNotFoundError):
+    except ImportError:
         return False
 
 
