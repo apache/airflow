@@ -54,7 +54,7 @@ class AttributeRemoved:
     """
 
     def __getattr__(self, item):
-        raise RuntimeError("Attribute was removed on serialization and must be set again.")
+        raise RuntimeError(f"Attribute was removed on serialization and must be set again: {item}.")
 
 
 ATTRIBUTE_REMOVED = AttributeRemoved()

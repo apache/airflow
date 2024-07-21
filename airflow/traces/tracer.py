@@ -96,6 +96,9 @@ class EmptySpan:
         """Set multiple attributes at once."""
         pass
 
+    def is_recording(self):
+        return False
+
     def add_event(
         self,
         name: str,

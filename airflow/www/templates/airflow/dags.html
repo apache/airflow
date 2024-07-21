@@ -119,12 +119,6 @@
       <a href={{ get_docs_url("executor/index.html") }}  target="_blank" rel="noopener noreferrer"><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
-  {% if otel_traces_on | default(false) %}
-    {% call show_message(category='warning', dismissible=false) %}
-      OpenTelemetry tracing support is experimental. <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst#running-breeze-with-an-opentelemetry-stack" target="_blank" rel="noopener noreferrer">
-        <b>Click here</b></a> for more information.
-    {% endcall %}
-  {% endif %}
 {% endblock %}
 
 {% block content %}
