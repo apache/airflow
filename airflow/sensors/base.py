@@ -121,7 +121,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     Sensor operators keep executing at a time interval and succeed when
     a criteria is met and fail if and when they time out.
 
-    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :param soft_fail: Set to true to mark the task as SKIPPED on failure.
+           Mutually exclusive with never_fail.
     :param poke_interval: Time that the job should wait in between each try.
         Can be ``timedelta`` or ``float`` seconds.
     :param timeout: Time elapsed before the task times out and fails.
@@ -154,7 +155,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         and AirflowFailException, the sensor will log the error and continue
         its execution. Otherwise, the sensor task fails, and it can be retried
         based on the provided `retries` parameter.
-    :param never_fail: If true, and poke method raises an exception, sensor will be skipped
+    :param never_fail: If true, and poke method raises an exception, sensor will be skipped.
+           Mutually exclusive with soft_fail.
     """
 
     ui_color: str = "#e6f1f2"
