@@ -47,6 +47,7 @@ New Features
 - Add persistent volume claim retention policy (#40271)
 - Add annotations for Redis StatefulSet (#40281)
 - Add ``dags.gitSync.sshKey``, which allows the git-sync private key to be configured in the values file directly (#39936)
+- Add ``extraEnvFrom`` to git-sync containers (#39031)
 
 Improvements
 ^^^^^^^^^^^^
