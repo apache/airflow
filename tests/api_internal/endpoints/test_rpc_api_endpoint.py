@@ -21,9 +21,8 @@ from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
-from itsdangerous import URLSafeSerializer
 
-from airflow.api_connexion.exceptions import BadRequest
+from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -32,6 +31,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www import app
 from tests.test_utils.config import conf_vars
@@ -71,11 +71,6 @@ def equals(a, b) -> bool:
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestRpcApiEndpoint:
-    @pytest.fixture
-    def auth_token(self):
-        key = conf.get("webserver", "secret_key")
-        return URLSafeSerializer(key).dumps("Pytest call to API")
-
     @pytest.fixture(autouse=True)
     def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
         self.app = minimal_app_for_internal_api
@@ -116,18 +111,26 @@ class TestRpcApiEndpoint:
             ),
         ],
     )
-    def test_method(self, input_params, method_result, result_cmp_func, method_params, auth_token):
+    def test_method(self, input_params, method_result, result_cmp_func, method_params):
         mock_test_method.return_value = method_result
 
+        signer = JWTSigner(
+            secret_key=conf.get("webserver", "secret_key"),
+            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            audience="api",
+        )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
+        }
         input_data = {
             "jsonrpc": "2.0",
             "method": TEST_METHOD_NAME,
             "params": input_params,
-            "token": auth_token,
         }
         response = self.client.post(
             "/internal_api/v1/rpcapi",
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             data=json.dumps(input_data),
         )
         assert response.status_code == 200
@@ -140,33 +143,55 @@ class TestRpcApiEndpoint:
 
         mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
-    def test_method_with_exception(self, auth_token):
-        mock_test_method.side_effect = ValueError("Error!!!")
-        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}, "token": auth_token}
-
-        response = self.client.post(
-            "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
+    def test_method_with_exception(self):
+        signer = JWTSigner(
+            secret_key=conf.get("webserver", "secret_key"),
+            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            audience="api",
         )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
+        }
+        mock_test_method.side_effect = ValueError("Error!!!")
+        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}}
+
+        response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
         assert response.status_code == 500
         assert response.data, b"Error executing method: test_method."
         mock_test_method.assert_called_once()
 
-    def test_unknown_method(self, auth_token):
-        data = {"jsonrpc": "2.0", "method": "i-bet-it-does-not-exist", "params": {}, "token": auth_token}
-
-        response = self.client.post(
-            "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
+    def test_unknown_method(self):
+        UNKNOWN_METHOD = "i-bet-it-does-not-exist"
+        signer = JWTSigner(
+            secret_key=conf.get("webserver", "secret_key"),
+            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            audience="api",
         )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": signer.generate_signed_token({"method": UNKNOWN_METHOD}),
+        }
+        data = {"jsonrpc": "2.0", "method": UNKNOWN_METHOD, "params": {}}
+
+        response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
         assert response.status_code == 400
         assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
         mock_test_method.assert_not_called()
 
-    def test_invalid_jsonrpc(self, auth_token):
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}, "token": auth_token}
-
-        response = self.client.post(
-            "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
+    def test_invalid_jsonrpc(self):
+        signer = JWTSigner(
+            secret_key=conf.get("webserver", "secret_key"),
+            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            audience="api",
         )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
+        }
+        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
+
+        response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
         assert response.status_code == 400
         assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
         mock_test_method.assert_not_called()
@@ -179,9 +204,7 @@ class TestRpcApiEndpoint:
             "method": TEST_METHOD_NAME,
             "params": {},
         }
-        with pytest.raises(
-            BadRequest, match="Bad Signature. Please use only the tokens provided by the API."
-        ):
+        with pytest.raises(PermissionDenied, match="Unable to authenticate API via token."):
             self.client.post(
                 "/internal_api/v1/rpcapi",
                 headers={"Content-Type": "application/json"},
@@ -189,11 +212,18 @@ class TestRpcApiEndpoint:
             )
 
     def test_invalid_token(self):
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}, "token": "invalid"}
+        signer = JWTSigner(
+            secret_key=conf.get("webserver", "secret_key"),
+            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            audience="api",
+        )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+        }
+        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
         with pytest.raises(
-            BadRequest, match="Bad Signature. Please use only the tokens provided by the API."
+            PermissionDenied, match="Bad Signature. Please use only the tokens provided by the API."
         ):
-            self.client.post(
-                "/internal_api/v1/rpcapi", headers={"Content-Type": "application/json"}, data=json.dumps(data)
-            )
+            self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
