@@ -289,6 +289,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             ) as e:
                 if self.soft_fail:
                     raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                elif self.never_fail:
+                    raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
                 raise e
             except AirflowSkipException as e:
                 raise e
