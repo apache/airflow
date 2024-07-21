@@ -633,7 +633,9 @@ class KubernetesPodOperator(BaseOperator):
                 )
 
             if self.do_xcom_push:
-                self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
+                self.pod_manager.await_xcom_sidecar_container_start(
+                    pod=self.pod, startup_timeout=self.startup_timeout_seconds
+                )
                 result = self.extract_xcom(pod=self.pod)
             istio_enabled = self.is_istio_enabled(self.pod)
             self.remote_pod = self.pod_manager.await_pod_completion(
