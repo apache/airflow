@@ -422,7 +422,7 @@ _orm_to_model = {
     LogTemplate: LogTemplatePydantic,
     Dataset: DatasetPydantic,
 }
-_type_to_class: dict[DAT, list] = {
+_type_to_class: dict[DAT | str, list] = {
     DAT.BASE_JOB: [JobPydantic, Job],
     DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
@@ -431,6 +431,13 @@ _type_to_class: dict[DAT, list] = {
     DAT.DATA_SET: [DatasetPydantic, Dataset],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
+
+
+def add_pydantic_class_type_mapping(attribute_type: str, orm_class, pydantic_class):
+    _orm_to_model[orm_class] = pydantic_class
+    _type_to_class[attribute_type] = [pydantic_class, orm_class]
+    _class_to_type[pydantic_class] = attribute_type
+    _class_to_type[orm_class] = attribute_type
 
 
 class BaseSerialization:
