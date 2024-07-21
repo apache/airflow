@@ -373,6 +373,10 @@ def workflow_info(context: str) -> WorkflowInfo:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
+    elif event_name == "workflow_dispatch":
+        target_repo = ctx["repository"]
+        head_repo = ctx["repository"]
+        event_name = ctx["event_name"]
     elif event_name == "pull_request_target":
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
