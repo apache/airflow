@@ -154,7 +154,15 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
         raise AirflowException("Provide a start_date and/or end_date")
 
     if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
+        with create_session() as session:
+            query = select(DagModel)
+
+            if args.treat_dag_id_as_regex:
+                query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
+            else:
+                query = query.where(DagModel.dag_id == args.dag_id)
+
+        dags = session.scalars(query).all()
     elif isinstance(dag, list):
         dags = dag
     else:
