@@ -301,9 +301,9 @@ def _run_raw_task(
             if not test_mode:
                 ti.refresh_from_db(lock_for_update=True, session=session)
             ti.state = TaskInstanceState.SKIPPED
+            ti.next_method = None
             _run_finished_callback(callbacks=ti.task.on_skipped_callback, context=context)
             TaskInstance.save_to_db(ti=ti, session=session)
-            return None
         except AirflowRescheduleException as reschedule_exception:
             ti._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             ti.log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
@@ -355,7 +355,8 @@ def _run_raw_task(
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
+        if ti.state == TaskInstanceState.SUCCESS:
+            _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
 
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
