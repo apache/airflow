@@ -155,8 +155,8 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     auth = request.headers.get("Authorization", "")
     signer = JWTSigner(
-        secret_key=conf.get("webserver", "secret_key"),
-        expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+        secret_key=conf.get("core", "internal_api_secret_key"),
+        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
         audience="api",
     )
     try:

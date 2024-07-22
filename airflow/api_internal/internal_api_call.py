@@ -128,8 +128,8 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
         signer = JWTSigner(
-            secret_key=conf.get("webserver", "secret_key"),
-            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
+            secret_key=conf.get("core", "internal_api_secret_key"),
+            expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
             audience="api",
         )
         headers = {

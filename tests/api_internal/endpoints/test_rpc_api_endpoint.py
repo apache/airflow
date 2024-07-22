@@ -85,6 +85,14 @@ class TestRpcApiEndpoint:
             }
             yield mock_initialize_method_map
 
+    @pytest.fixture
+    def signer(self) -> JWTSigner:
+        return JWTSigner(
+            secret_key=conf.get("core", "internal_api_secret_key"),
+            expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+            audience="api",
+        )
+
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
         [
@@ -111,14 +119,8 @@ class TestRpcApiEndpoint:
             ),
         ],
     )
-    def test_method(self, input_params, method_result, result_cmp_func, method_params):
+    def test_method(self, input_params, method_result, result_cmp_func, method_params, signer: JWTSigner):
         mock_test_method.return_value = method_result
-
-        signer = JWTSigner(
-            secret_key=conf.get("webserver", "secret_key"),
-            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
-            audience="api",
-        )
         headers = {
             "Content-Type": "application/json",
             "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
@@ -143,12 +145,7 @@ class TestRpcApiEndpoint:
 
         mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
-    def test_method_with_exception(self):
-        signer = JWTSigner(
-            secret_key=conf.get("webserver", "secret_key"),
-            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
-            audience="api",
-        )
+    def test_method_with_exception(self, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
@@ -161,13 +158,8 @@ class TestRpcApiEndpoint:
         assert response.data, b"Error executing method: test_method."
         mock_test_method.assert_called_once()
 
-    def test_unknown_method(self):
+    def test_unknown_method(self, signer: JWTSigner):
         UNKNOWN_METHOD = "i-bet-it-does-not-exist"
-        signer = JWTSigner(
-            secret_key=conf.get("webserver", "secret_key"),
-            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
-            audience="api",
-        )
         headers = {
             "Content-Type": "application/json",
             "Authorization": signer.generate_signed_token({"method": UNKNOWN_METHOD}),
@@ -179,12 +171,7 @@ class TestRpcApiEndpoint:
         assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
         mock_test_method.assert_not_called()
 
-    def test_invalid_jsonrpc(self):
-        signer = JWTSigner(
-            secret_key=conf.get("webserver", "secret_key"),
-            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
-            audience="api",
-        )
+    def test_invalid_jsonrpc(self, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
@@ -211,12 +198,7 @@ class TestRpcApiEndpoint:
                 data=json.dumps(input_data),
             )
 
-    def test_invalid_token(self):
-        signer = JWTSigner(
-            secret_key=conf.get("webserver", "secret_key"),
-            expiration_time_in_seconds=conf.getint("webserver", "internal_api_clock_grace", fallback=30),
-            audience="api",
-        )
+    def test_invalid_token(self, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
