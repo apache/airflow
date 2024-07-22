@@ -547,6 +547,22 @@ export interface paths {
      */
     post: operations["get_task_instances_batch"];
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
+    /**
+     * Get details of a task instance try.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_task_instance_try_details"];
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+    /**
+     * Get details of a mapped task instance try.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_mapped_task_instance_try_details"];
+  };
   "/variables": {
     /** The collection does not contain data. To get data, you must get a single entity. */
     get: operations["get_variables"];
@@ -4269,6 +4285,68 @@ export interface operations {
       };
     };
   };
+  /**
+   * Get details of a task instance try.
+   *
+   * *New in version 2.10.0*
+   */
+  get_task_instance_try_details: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The task try number. */
+        task_try_number: components["parameters"]["TaskTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get details of a mapped task instance try.
+   *
+   * *New in version 2.10.0*
+   */
+  get_mapped_task_instance_try_details: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+        /** The task try number. */
+        task_try_number: components["parameters"]["TaskTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /** The collection does not contain data. To get data, you must get a single entity. */
   get_variables: {
     parameters: {
@@ -5653,6 +5731,12 @@ export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<
 >;
 export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<
   operations["get_task_instances_batch"]["requestBody"]["content"]["application/json"]
+>;
+export type GetTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
+  operations["get_task_instance_try_details"]["parameters"]["path"]
+>;
+export type GetMappedTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
+  operations["get_mapped_task_instance_try_details"]["parameters"]["path"]
 >;
 export type GetVariablesVariables = CamelCasedPropertiesDeep<
   operations["get_variables"]["parameters"]["query"]
