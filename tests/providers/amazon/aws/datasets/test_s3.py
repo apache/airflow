@@ -17,8 +17,11 @@
 from __future__ import annotations
 
 from airflow.datasets import Dataset
+from airflow.providers.amazon.aws.datasets.s3 import create_dataset
 
 
-def create_dataset(*, path: str, extra=None) -> Dataset:
-    # We assume that we get absolute path starting with /
-    return Dataset(uri=f"file://{path}", extra=extra)
+def test_create_dataset():
+    assert create_dataset(bucket="test-bucket", key="test-path") == Dataset(uri="s3://test-bucket/test-path")
+    assert create_dataset(bucket="test-bucket", key="test-dir/test-path") == Dataset(
+        uri="s3://test-bucket/test-dir/test-path"
+    )

@@ -19,6 +19,5 @@ from __future__ import annotations
 from airflow.datasets import Dataset
 
 
-def create_dataset(*, path: str, extra=None) -> Dataset:
-    # We assume that we get absolute path starting with /
-    return Dataset(uri=f"file://{path}", extra=extra)
+def create_dataset(*, bucket: str, key: str, extra=None) -> Dataset:
+    return Dataset(uri=f"s3://{bucket}/{key}", extra=extra)
