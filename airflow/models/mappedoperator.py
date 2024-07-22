@@ -51,6 +51,7 @@ from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
+from airflow.triggers.base import StartTriggerArgs
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
@@ -81,7 +82,6 @@ if TYPE_CHECKING:
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -688,14 +688,16 @@ class MappedOperator(AbstractOperator):
         """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(
+        self, context: Context, session: Session, *, include_xcom: bool
+    ) -> tuple[Mapping[str, Any], set[int]]:
         """
         Get the kwargs to create the unmapped operator.
 
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
         """
-        return self._get_specified_expand_input().resolve(context, session)
+        return self._get_specified_expand_input().resolve(context, session, include_xcom=include_xcom)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         """
@@ -729,6 +731,69 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
+        execution directly from triggerer.
+
+        :meta private:
+        """
+        # start_from_trigger only makes sense when start_trigger_args exists.
+        if not self.start_trigger_args:
+            return False
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        return mapped_kwargs.get(
+            "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
+        )
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the kwargs to create the unmapped start_trigger_args.
+
+        This method is for allowing mapped operator to start execution from triggerer.
+        """
+        if not self.start_trigger_args:
+            return None
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        trigger_kwargs = mapped_kwargs.get(
+            "trigger_kwargs",
+            self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
+        )
+        next_kwargs = mapped_kwargs.get(
+            "next_kwargs",
+            self.partial_kwargs.get("next_kwargs", self.start_trigger_args.next_kwargs),
+        )
+        timeout = mapped_kwargs.get(
+            "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
+        )
+        return StartTriggerArgs(
+            trigger_cls=self.start_trigger_args.trigger_cls,
+            trigger_kwargs=trigger_kwargs,
+            next_method=self.start_trigger_args.next_method,
+            next_kwargs=next_kwargs,
+            timeout=timeout,
+        )
+
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
@@ -749,7 +814,7 @@ class MappedOperator(AbstractOperator):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
             elif resolve is not None:
-                kwargs, _ = self._expand_mapped_kwargs(*resolve)
+                kwargs, _ = self._expand_mapped_kwargs(*resolve, include_xcom=True)
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
@@ -844,7 +909,7 @@ class MappedOperator(AbstractOperator):
         # set_current_task_session context manager to store the session in the current task.
         session = get_current_task_instance_session()
 
-        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session, include_xcom=True)
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 

@@ -83,6 +83,7 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
+    TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -1617,15 +1618,23 @@ def _defer_task(
         next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
+        context = ti.get_template_context()
+        start_trigger_args = ti.task.expand_start_trigger_args(context=context, session=session)
+        if start_trigger_args is None:
+            raise TaskDeferralError(
+                "A none 'None' start_trigger_args has been change to 'None' during expandion"
+            )
+
+        trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+        next_kwargs = start_trigger_args.next_kwargs
+        next_method = start_trigger_args.next_method
+        timeout = start_trigger_args.timeout
         trigger_row = Trigger(
             classpath=ti.task.start_trigger_args.trigger_cls,
-            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
+            kwargs=trigger_kwargs,
         )
-        next_kwargs = ti.task.start_trigger_args.next_kwargs
-        next_method = ti.task.start_trigger_args.next_method
-        timeout = ti.task.start_trigger_args.timeout
     else:
-        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
+        raise TaskDeferralError("exception and ti.task.start_trigger_args cannot both be None")
 
     # First, make the trigger entry
     session.add(trigger_row)
