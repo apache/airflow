@@ -446,14 +446,99 @@ Conversion from Airflow Table entity to OpenLineage Dataset is made in the follo
 
 .. _custom_facets:openlineage:
 
-Custom facets
+Custom Facets
 =============
 To learn more about facets in OpenLineage, please refer to `facet documentation <https://openlineage.io/docs/spec/facets/>`_.
-Also check out `available Facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/openlineage/client/facet.py>`_
+Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/openlineage/client/facet.py>`_
 
 The OpenLineage spec might not contain all the facets you need to write your extractor,
 in which case you will have to make your own `custom facets <https://openlineage.io/docs/spec/facets/custom-facets>`_.
 More on creating custom facets can be found `here <https://openlineage.io/blog/extending-with-facets/>`_.
+
+Custom Run Facets
+=================
+
+You can inject your own custom facets in the lineage event's run facet using the ``custom_run_facets`` Airflow configuration.
+
+Steps to be taken,
+
+1. Write a function that returns the custom facet. You can write as many custom facet functions as needed.
+2. Register the functions using the ``custom_run_facets`` Airflow configuration.
+
+Once done, Airflow OpenLineage listener will automatically execute these functions during the lineage event generation
+and append their return values to the run facet in the lineage event.
+
+Writing a custom facet function
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Input arguments:** The function should accept the ``TaskInstance`` as an input argument.
+- **Function body:** Perform the logic needed to generate the custom facet. The custom facet should inherit from the ``BaseFacet`` for the ``_producer`` and ``_schemaURL`` to be automatically added for the facet.
+- **Return value:** The custom facet to be added to the lineage event. Return type should be ``dict[str, dict]`` or ``None``. You may choose to return ``None``, if you do not want to add custom facets for certain criteria.
+
+**Example custom facet function**
+
+.. code-block:: python
+
+    import attrs
+    from airflow.models import TaskInstance
+    from openlineage.client.facet import BaseFacet
+
+
+    @attrs.define(slots=False)
+    class MyCustomRunFacet(BaseFacet):
+        """Define a custom facet."""
+
+        name: str
+        jobState: str
+        uniqueName: str
+        displayName: str
+        dagId: str
+        taskId: str
+        cluster: str
+
+
+    def get_my_custom_facet(task_instance: TaskInstance) -> dict[str, dict] | None:
+        operator_name = task_instance.task.operator_name
+        if operator_name == "BashOperator":
+            return
+        job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
+        return {
+            "additional_run_facet": attrs.asdict(
+                MyCustomRunFacet(
+                    name="test-lineage-namespace",
+                    jobState=task_instance.state,
+                    uniqueName=job_unique_name,
+                    displayName=f"{task_instance.dag_id}.{task_instance.task_id}",
+                    dagId=task_instance.dag_id,
+                    taskId=task_instance.task_id,
+                    cluster="TEST",
+                )
+            )
+        }
+
+Register the custom facet functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the ``custom_run_facets`` Airflow configuration to register the custom run facet functions by passing
+a string of semicolon separated full import path to the functions.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    custom_run_facets = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
+
+``AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
+
+.. note::
+
+    - The custom facet functions are only executed at the start of the TaskInstance and added to the OpenLineage START event.
+    - Duplicate functions if registered, will be executed only once.
+    - When duplicate custom facet keys are returned by different functions, the last processed function will be added to the lineage event.
 
 .. _job_hierarchy:openlineage:
 

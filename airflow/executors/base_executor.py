@@ -32,6 +32,9 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import Log
 from airflow.stats import Stats
+from airflow.traces import NO_TRACE_ID
+from airflow.traces.tracer import Trace, gen_context, span
+from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -224,6 +227,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
+    @span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -240,6 +244,17 @@ class BaseExecutor(LoggingMixin):
             self.log.info("Executor parallelism limit reached. 0 open slots.")
         else:
             self.log.debug("%s open slots", open_slots)
+
+        span = Trace.get_current_span()
+        if span.is_recording():
+            span.add_event(
+                name="executor",
+                attributes={
+                    "executor.open_slots": open_slots,
+                    "executor.queued_tasks": num_queued_tasks,
+                    "executor.running_tasks": num_running_tasks,
+                },
+            )
 
         Stats.gauge(
             "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
@@ -273,12 +288,14 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
+    @span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
+        span = Trace.get_current_span()
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
 
@@ -322,15 +339,40 @@ class BaseExecutor(LoggingMixin):
                 if key in self.attempts:
                     del self.attempts[key]
                 task_tuples.append((key, command, queue, ti.executor_config))
+                if span.is_recording():
+                    span.add_event(
+                        name="task to trigger",
+                        attributes={"command": str(command), "conf": str(ti.executor_config)},
+                    )
 
         if task_tuples:
             self._process_tasks(task_tuples)
 
+    @span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
+            task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
+            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            links = [{"trace_id": trace_id, "span_id": span_id}]
+
+            # assuming that the span_id will very likely be unique inside the trace
+            with Trace.start_span(
+                span_name=f"{key.dag_id}.{key.task_id}",
+                component="BaseExecutor",
+                span_id=span_id,
+                links=links,
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("command", str(command))
+                span.set_attribute("queue", str(queue))
+                span.set_attribute("executor_config", str(executor_config))
+                del self.queued_tasks[key]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.running.add(key)
 
     def change_state(
         self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
@@ -358,6 +400,20 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
+        trace_id = Trace.get_current_span().get_span_context().trace_id
+        if trace_id != NO_TRACE_ID:
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="fail",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("error", True)
+
         self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
@@ -367,6 +423,19 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
+        trace_id = Trace.get_current_span().get_span_context().trace_id
+        if trace_id != NO_TRACE_ID:
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="success",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number - 1)
+
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def queued(self, key: TaskInstanceKey, info=None) -> None:

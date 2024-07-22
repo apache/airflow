@@ -945,7 +945,7 @@ exit 0
             ),
             (
                 True,
-                AirflowSkipException,
+                AirflowException,
             ),
         ),
     )
@@ -982,7 +982,6 @@ exit 0
             check_existence=True,
             **kwargs,
         )
-        expected_message = "Skipping due to soft_fail is set to True." if soft_fail else expected_message
         with pytest.raises(expected_exception, match=expected_message):
             op.execute(context={})
 

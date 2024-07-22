@@ -1,1 +1,0 @@
-The chart uses newer version of pgbouncer exporter - ``airflow-pgbouncer-exporter-2024.06.18-0.17.0`` which addresses CVE-2024-24786.

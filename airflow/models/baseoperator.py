@@ -1795,6 +1795,28 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         return self
 
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_from_trigger.
+
+        :meta private:
+        """
+        return self.start_from_trigger
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
+
 
 # TODO: Deprecate for Airflow 3.0
 Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]

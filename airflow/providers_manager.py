@@ -886,23 +886,23 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
         for provider_package, provider in self._provider_dict.items():
             for handler_info in provider.data.get("dataset-uris", []):
-                try:
-                    schemes = handler_info["schemes"]
-                    handler_path = handler_info["handler"]
-                except KeyError:
-                    continue
-                if handler_path is None:
-                    handler = normalize_noop
-                elif not (handler := _correctness_check(provider_package, handler_path, provider)):
-                    continue
-                self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
+                schemes = handler_info.get("schemes")
+                handler_path = handler_info.get("handler")
                 factory_path = handler_info.get("factory")
-                if not (
-                    factory_path is not None
-                    and (factory := _correctness_check(provider_package, factory_path, provider))
-                ):
+                if schemes is None:
                     continue
-                self._dataset_factories.update((scheme, factory) for scheme in schemes)
+
+                if handler_path is not None and (
+                    handler := _correctness_check(provider_package, handler_path, provider)
+                ):
+                    pass
+                else:
+                    handler = normalize_noop
+                self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
+                if factory_path is not None and (
+                    factory := _correctness_check(provider_package, factory_path, provider)
+                ):
+                    self._dataset_factories.update((scheme, factory) for scheme in schemes)
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():

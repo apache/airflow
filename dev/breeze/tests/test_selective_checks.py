@@ -159,6 +159,56 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("airflow/api_internal/file.py",),
+                {
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "API Always",
+                    "separate-test-types-list-as-string": "API Always",
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow']",
+                },
+                id="Only API tests and DOCS should run (no provider tests) when only internal_api changed",
+            )
+        ),
+        (
+            pytest.param(
+                ("tests/api/file.py",),
+                {
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "false",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "API Always",
+                    "separate-test-types-list-as-string": "API Always",
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow']",
+                },
+                id="Only API tests should run (no provider tests) and no DOCs build when only test API files changed",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow/operators/file.py",),
                 {
                     "affected-providers-list-as-string": None,
@@ -519,7 +569,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("airflow/providers/amazon/__init__.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
@@ -535,7 +585,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Always Providers[amazon] "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,"
+                "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
                 "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
@@ -569,7 +619,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("airflow/providers/amazon/file.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
@@ -585,7 +635,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[amazon] "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,"
+                "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
                 "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
@@ -1682,12 +1732,19 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
-            '["self-hosted", "Linux", "X64"]',
-            "true",
-            "true",
+            # TODO: revert it when we fix self-hosted runners
+            '["ubuntu-22.04"]',
+            # '["self-hosted", "Linux", "X64"]',
+            # TODO: revert it when we fix self-hosted runners
+            "false",
+            "false",
+            # "true",
+            # "true",
             "true",
             "false",
-            "true",
+            # TODO: revert it when we fix self-hosted runners
+            "false",
+            # "true",
             "false",
             False,
             id="Push event",

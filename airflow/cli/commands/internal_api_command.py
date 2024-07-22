@@ -222,7 +222,7 @@ def create_app(config=None, testing=False):
     if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
 
-    InternalApiConfig.force_database_direct_access()
+    InternalApiConfig.force_database_direct_access("Gunicorn worker initialization")
 
     csrf = CSRFProtect()
     csrf.init_app(flask_app)

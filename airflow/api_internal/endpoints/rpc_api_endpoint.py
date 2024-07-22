@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 
 
 @functools.lru_cache
-def _initialize_map() -> dict[str, Callable]:
+def initialize_method_map() -> dict[str, Callable]:
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
@@ -120,7 +120,6 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance._get_dagrun,
         TaskInstance._set_state,
         TaskInstance.save_to_db,
-        TaskInstance._schedule_downstream_tasks,
         TaskInstance._clear_xcom_data,
         Trigger.from_object,
         Trigger.bulk_fetch,
@@ -148,7 +147,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     if json_rpc != "2.0":
         return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
 
-    methods_map = _initialize_map()
+    methods_map = initialize_method_map()
     method_name = body.get("method")
     if method_name not in methods_map:
         return log_and_build_error_response(message=f"Unrecognized method: {method_name}.", status=400)
