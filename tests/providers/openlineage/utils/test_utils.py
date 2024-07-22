@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock, patch
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -34,6 +35,7 @@ from airflow.providers.openlineage.utils.utils import (
     _get_tasks_details,
     _safe_get_dag_tree_view,
     get_airflow_job_facet,
+    get_custom_facets,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
@@ -482,3 +484,169 @@ def test_get_task_groups_details_nested():
 
 def test_get_task_groups_details_no_task_groups():
     assert _get_task_groups_details(DAG("test_dag", start_date=datetime.datetime(2024, 6, 1))) == {}
+
+
+@patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
+def test_get_custom_facets_with_no_function_definition(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={"tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet"},
+)
+def test_get_custom_facets_with_function_definition(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {
+        "additional_run_facet": {
+            "_producer": ANY,
+            "_schemaURL": ANY,
+            "name": "test-lineage-namespace",
+            "jobState": "running",
+            "uniqueName": "TEST.test-dag.test-task",
+            "displayName": "test-dag.test-task",
+            "dagId": "test-dag",
+            "taskId": "test-task",
+            "cluster": "TEST",
+        }
+    }
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+    },
+)
+def test_get_custom_facets_with_return_value_as_none(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=BashOperator(
+            task_id="test-task",
+            bash_command="exit 0;",
+            dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1)),
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={
+        "invalid_function",
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+        "tests.providers.openlineage.utils.custom_facet_fixture.return_type_is_not_dict",
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_another_test_facet",
+    },
+)
+def test_get_custom_facets_with_multiple_function_definition(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {
+        "additional_run_facet": {
+            "_producer": ANY,
+            "_schemaURL": ANY,
+            "name": "test-lineage-namespace",
+            "jobState": "running",
+            "uniqueName": "TEST.test-dag.test-task",
+            "displayName": "test-dag.test-task",
+            "dagId": "test-dag",
+            "taskId": "test-task",
+            "cluster": "TEST",
+        },
+        "another_run_facet": {"name": "another-lineage-namespace"},
+    }
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+        "tests.providers.openlineage.utils.custom_facet_fixture.get_duplicate_test_facet_key",
+    },
+)
+def test_get_custom_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {
+        "additional_run_facet": {
+            "_producer": ANY,
+            "_schemaURL": ANY,
+            "name": "test-lineage-namespace",
+            "jobState": "running",
+            "uniqueName": "TEST.test-dag.test-task",
+            "displayName": "test-dag.test-task",
+            "dagId": "test-dag",
+            "taskId": "test-task",
+            "cluster": "TEST",
+        }
+    }
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={"invalid_function"},
+)
+def test_get_custom_facets_with_invalid_function_definition(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={"tests.providers.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
+)
+def test_get_custom_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}
+
+
+@patch(
+    "airflow.providers.openlineage.conf.custom_run_facets",
+    return_value={"tests.providers.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
+)
+def test_get_custom_facets_with_exception(mock_custom_facet_funcs):
+    sample_ti = TaskInstance(
+        task=EmptyOperator(
+            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+        ),
+        state="running",
+    )
+    result = get_custom_facets(sample_ti)
+    assert result == {}

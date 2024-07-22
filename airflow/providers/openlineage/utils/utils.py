@@ -24,7 +24,7 @@ import re
 from contextlib import redirect_stdout, suppress
 from functools import wraps
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 import attrs
 from deprecated import deprecated
@@ -79,11 +79,47 @@ def get_job_name(task: TaskInstance) -> str:
 
 
 def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, Any]:
+    from airflow.providers.openlineage.extractors.manager import try_import_from_string
+
     custom_facets = {}
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
         custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
+
+    # Append custom run facets by executing the custom_run_facet functions.
+    for custom_facet_func in conf.custom_run_facets():
+        try:
+            func: Callable[[Any], dict] | None = try_import_from_string(custom_facet_func)
+            if not func:
+                log.warning(
+                    "OpenLineage is unable to import custom facet function `%s`; will ignore it.",
+                    custom_facet_func,
+                )
+                continue
+            facet: dict[str, dict[Any, Any]] | None = func(task_instance)
+            if facet and isinstance(facet, dict):
+                duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
+                if duplicate_facet_keys:
+                    log.warning(
+                        "Duplicate OpenLineage custom facets key(s) found: `%s` from function `%s`; "
+                        "this will overwrite the previous value.",
+                        ", ".join(duplicate_facet_keys),
+                        custom_facet_func,
+                    )
+                log.debug(
+                    "Adding OpenLineage custom facet with key(s): `%s` from function `%s`.",
+                    tuple(facet),
+                    custom_facet_func,
+                )
+                custom_facets.update(facet)
+        except Exception as exc:
+            log.warning(
+                "Error processing custom facet function `%s`; will ignore it. Error was: %s: %s",
+                custom_facet_func,
+                type(exc).__name__,
+                exc,
+            )
     return custom_facets
 
 
