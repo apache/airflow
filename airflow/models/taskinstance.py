@@ -301,7 +301,6 @@ def _run_raw_task(
             if not test_mode:
                 ti.refresh_from_db(lock_for_update=True, session=session)
             ti.state = TaskInstanceState.SKIPPED
-            ti.next_method = None
             _run_finished_callback(callbacks=ti.task.on_skipped_callback, context=context)
             TaskInstance.save_to_db(ti=ti, session=session)
         except AirflowRescheduleException as reschedule_exception:
