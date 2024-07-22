@@ -485,7 +485,7 @@ Writing a custom facet function
 
     import attrs
     from airflow.models import TaskInstance
-    from openlineage.client.facet import BaseFacet
+    from airflow.providers.common.compat.openlineage.facet import BaseFacet
 
 
     @attrs.define(slots=False)

@@ -40,6 +40,7 @@ PRE_COMMIT_LIST = [
     "check-changelog-has-no-duplicates",
     "check-cncf-k8s-only-for-executors",
     "check-code-deprecations",
+    "check-common-compat-used-for-openlineage",
     "check-compat-cache-on-methods",
     "check-core-deprecation-classes",
     "check-daysago-import-from-utils",

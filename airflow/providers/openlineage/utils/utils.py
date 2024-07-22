@@ -55,6 +55,7 @@ from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.facet_v2 import RunFacet
     from openlineage.client.run import Dataset as OpenLineageDataset
 
     from airflow.models import DagRun, TaskInstance
@@ -345,7 +346,7 @@ class TaskGroupInfo(InfoJsonEncodable):
     ]
 
 
-def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
     if not dag_run.dag:
         return {}
     return {
