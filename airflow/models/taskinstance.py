@@ -303,6 +303,7 @@ def _run_raw_task(
             ti.state = TaskInstanceState.SKIPPED
             _run_finished_callback(callbacks=ti.task.on_skipped_callback, context=context)
             TaskInstance.save_to_db(ti=ti, session=session)
+            return None
         except AirflowRescheduleException as reschedule_exception:
             ti._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             ti.log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
