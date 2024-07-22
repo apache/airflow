@@ -138,11 +138,12 @@ class TestInternalApiCall:
                 "params": BaseSerialization.serialize({}),
             }
         )
-        mock_requests.post.assert_called_once_with(
-            url="http://localhost:8888/internal_api/v1/rpcapi",
-            data=expected_data,
-            headers={"Content-Type": "application/json"},
-        )
+        mock_requests.post.assert_called_once()
+        call_kwargs: dict = mock_requests.post.call_args.kwargs
+        assert call_kwargs["url"] == "http://localhost:8888/internal_api/v1/rpcapi"
+        assert call_kwargs["data"] == expected_data
+        assert call_kwargs["headers"]["Content-Type"] == "application/json"
+        assert "Authorization" in call_kwargs["headers"]
 
     @conf_vars(
         {
@@ -192,11 +193,12 @@ class TestInternalApiCall:
                 ),
             }
         )
-        mock_requests.post.assert_called_once_with(
-            url="http://localhost:8888/internal_api/v1/rpcapi",
-            data=expected_data,
-            headers={"Content-Type": "application/json"},
-        )
+        mock_requests.post.assert_called_once()
+        call_kwargs: dict = mock_requests.post.call_args.kwargs
+        assert call_kwargs["url"] == "http://localhost:8888/internal_api/v1/rpcapi"
+        assert call_kwargs["data"] == expected_data
+        assert call_kwargs["headers"]["Content-Type"] == "application/json"
+        assert "Authorization" in call_kwargs["headers"]
 
     @conf_vars(
         {
@@ -228,11 +230,12 @@ class TestInternalApiCall:
                 ),
             }
         )
-        mock_requests.post.assert_called_once_with(
-            url="http://localhost:8888/internal_api/v1/rpcapi",
-            data=expected_data,
-            headers={"Content-Type": "application/json"},
-        )
+        mock_requests.post.assert_called_once()
+        call_kwargs: dict = mock_requests.post.call_args.kwargs
+        assert call_kwargs["url"] == "http://localhost:8888/internal_api/v1/rpcapi"
+        assert call_kwargs["data"] == expected_data
+        assert call_kwargs["headers"]["Content-Type"] == "application/json"
+        assert "Authorization" in call_kwargs["headers"]
 
     @conf_vars(
         {
@@ -261,8 +264,9 @@ class TestInternalApiCall:
                 "params": BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True),
             }
         )
-        mock_requests.post.assert_called_once_with(
-            url="http://localhost:8888/internal_api/v1/rpcapi",
-            data=expected_data,
-            headers={"Content-Type": "application/json"},
-        )
+        mock_requests.post.assert_called_once()
+        call_kwargs: dict = mock_requests.post.call_args.kwargs
+        assert call_kwargs["url"] == "http://localhost:8888/internal_api/v1/rpcapi"
+        assert call_kwargs["data"] == expected_data
+        assert call_kwargs["headers"]["Content-Type"] == "application/json"
+        assert "Authorization" in call_kwargs["headers"]
