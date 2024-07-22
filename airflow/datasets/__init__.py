@@ -23,11 +23,15 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
+from sqlalchemy import select
 
 from airflow.typing_compat import TypedDict
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
+
+    from sqlalchemy.orm.session import Session
 
 
 from airflow.configuration import conf
@@ -125,6 +129,23 @@ def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     if isinstance(value, Dataset):
         return value.uri
     return _sanitize_uri(str(value))
+
+
+@provide_session
+def expand_alias_to_datasets(
+    alias: str | DatasetAlias, *, session: Session = NEW_SESSION
+) -> list[BaseDataset]:
+    """Expand dataset alias to resolved datasets."""
+    from airflow.models.dataset import DatasetAliasModel
+
+    alias_name = alias.name if isinstance(alias, DatasetAlias) else alias
+
+    dataset_alias_obj = session.scalar(
+        select(DatasetAliasModel).where(DatasetAliasModel.name == alias_name).limit(1)
+    )
+    if dataset_alias_obj:
+        return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
+    return []
 
 
 class BaseDataset:
@@ -233,7 +254,10 @@ class _DatasetBooleanCondition(BaseDataset):
     def __init__(self, *objects: BaseDataset) -> None:
         if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
-        self.objects = objects
+
+        self.objects = [
+            _DatasetAliasCondition(obj.name) if isinstance(obj, DatasetAlias) else obj for obj in objects
+        ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
@@ -269,6 +293,26 @@ class DatasetAny(_DatasetBooleanCondition):
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
+
+
+class _DatasetAliasCondition(DatasetAny):
+    """
+    Use to expand DataAlias as DatasetAny of its resolved Datasets.
+
+    :meta private:
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.objects = expand_alias_to_datasets(name)
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"alias": self.name}
 
 
 class DatasetAll(_DatasetBooleanCondition):

@@ -92,7 +92,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
@@ -2995,6 +2995,12 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
                 self.log.warning('Created a new Dataset(uri="%s") as it did not exists.', uri)
                 dataset_objs_cache[uri] = dataset_obj
+
+            for alias in alias_names:
+                alias_obj = session.scalar(
+                    select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
+                )
+                dataset_obj.aliases.append(alias_obj)
 
             extra = {k: v for k, v in extra_items}
             self.log.info(
