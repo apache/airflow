@@ -148,28 +148,46 @@ Triggering Deferral from Start
 If you want to defer your task directly to the triggerer without going into the worker, you can set class level attribute ``start_with_trigger`` to ``True`` and add a class level attribute ``start_trigger_args`` with an ``StartTriggerArgs`` object with the following 4 attributes to your deferrable operator:
 
 * ``trigger_cls``: An importable path to your trigger class.
-* ``trigger_kwargs``: Keyword arguments to pass to the ``trigger_cls`` when it's initialized.
+* ``trigger_kwargs``: Keyword arguments to pass to the ``trigger_cls`` when it's initialized. **Note that all the arguments need to be serializable. It's the main limitation of this feature.**
 * ``next_method``: The method name on your operator that you want Airflow to call when it resumes.
 * ``next_kwargs``: Additional keyword arguments to pass to the ``next_method`` when it is called.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
-
-This is particularly useful when deferring is the only thing the ``execute`` method does. Here's a basic refinement of the previous example.
+This is particularly useful when deferring is the only thing the ``execute`` method does. Here's a basic refinement of the previous example. In the previous example, we used ``DateTimeTrigger`` which takes an argument ``delta`` with type ``datetime.timedelta`` which is not serializable. Thus, we need to create a new trigger with serializable arguments.
 
 .. code-block:: python
 
-    from datetime import timedelta
+    from __future__ import annotations
+
+    import datetime
+
+    from airflow.triggers.temporal import DateTimeTrigger
+    from airflow.utils import timezone
+
+
+    class HourDeltaTrigger(DateTimeTrigger):
+        def __init__(self, hours: int):
+            moment = timezone.utcnow() + datetime.timedelta(hours=hours)
+            super().__init__(moment=moment)
+
+
+In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``trigger_cls``.
+
+.. code-block:: python
+    from __future__ import annotations
+
     from typing import Any
 
-    from airflow.triggers.base import StartTriggerArgs
     from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
-            trigger_kwargs={"moment": timedelta(hours=1)},
+            # you'll need to change the actual path to the Trigger above
+            trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
+            trigger_kwargs={"hours": 1},
             next_method="execute_complete",
             next_kwargs=None,
             timeout=None,
@@ -179,6 +197,7 @@ This is particularly useful when deferring is the only thing the ``execute`` met
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
+
 
 ``start_from_trigger`` and ``trigger_kwargs`` can also be modified at the instance level for more flexible configuration.
 
@@ -194,8 +213,9 @@ This is particularly useful when deferring is the only thing the ``execute`` met
 
     class WaitTwoHourSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
-            trigger_kwargs={},
+            # you'll need to change the actual path to the Trigger above
+            trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
+            trigger_kwargs={"hours": 1},
             next_method="execute_complete",
             next_kwargs=None,
             timeout=None,
@@ -203,14 +223,14 @@ This is particularly useful when deferring is the only thing the ``execute`` met
 
         def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
             super().__init__(*args, **kwargs)
-            self.start_trigger_args.trigger_kwargs = {"moment": timedelta(hours=1)}
+            self.start_trigger_args.trigger_kwargs = {"hours": 2}
             self.start_from_trigger = True
 
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
 
-To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name. For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work. Note that this works different from mapping an operator without ``start_from_trigger`` support. The whole ``__init__`` method is skipped when mapping an operator whose ``start_from_trigger`` is set to True. Only argument ``trigger_kwargs`` is used and passed into ``trigger_cls``.
+To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". **Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work. Also, this works different from mapping an operator without ``start_from_trigger`` support. The whole ``__init__`` method will be skipped when mapping an operator whose ``start_from_trigger`` is set to True. Only argument ``trigger_kwargs`` is used and passed into ``trigger_cls``.
 
 .. code-block:: python
 
@@ -222,11 +242,13 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
     from airflow.utils.context import Context
 
 
-    class WaitTwoHourSensor(BaseSensorOperator):
+    class WaitHoursSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
-            trigger_kwargs={},
+            # you'll need to change the actual path to the Trigger above
+            trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
+            trigger_kwargs={"hours": 1},
             next_method="execute_complete",
+            next_kwargs=None,
             timeout=None,
         )
 
@@ -237,6 +259,8 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
             start_from_trigger: bool,
             **kwargs: dict[str, Any],
         ) -> None:
+            # This whole method will be skipped during dynamic task mapping.
+
             super().__init__(*args, **kwargs)
             self.start_trigger_args.trigger_kwargs = trigger_kwargs
             self.start_from_trigger = start_from_trigger
@@ -249,8 +273,8 @@ These parameters can be mapped using the ``expand`` and ``partial`` methods. Not
 
 .. code-block:: python
 
-    WaitTwoHourSensor.partial(task_id="transform", start_from_trigger=True).expand(
-        trigger_kwargs=[{"moment": timedelta(hours=2)}, {"moment": timedelta(hours=2)}]
+    WaitHoursSensor.partial(task_id="wait_for_n_hours", start_from_trigger=True).expand(
+        trigger_kwargs=[{"hours": 1}, {"hours": 2}]
     )
 
 Writing Triggers
