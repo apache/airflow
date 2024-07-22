@@ -22,14 +22,14 @@ from flask import Response, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
-from airflow.models import TaskInstance, Trigger
+from airflow.models import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -75,18 +75,17 @@ def get_log(
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
-    query = (
-        select(TaskInstance)
-        .where(
-            TaskInstance.task_id == task_id,
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == dag_run_id,
-            TaskInstance.map_index == map_index,
+
+    def _query(orm_object):
+        return select(orm_object).where(
+            orm_object.task_id == task_id,
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.map_index == map_index,
+            orm_object.try_number == task_try_number,
         )
-        .join(TaskInstance.dag_run)
-        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
-    )
-    ti = session.scalar(query)
+
+    ti = session.scalar(_query(TaskInstance)) or session.scalar(_query(TaskInstanceHistory))
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
