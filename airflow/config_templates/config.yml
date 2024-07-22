@@ -515,7 +515,7 @@ core:
       example: 'http://localhost:8080'
     internal_api_secret_key:
       description: |
-        Secret key used authenticate internal API clients to core. It should be as random as possible.
+        Secret key used to authenticate internal API clients to core. It should be as random as possible.
         However, when running more than 1 instances of webserver / internal API services, make sure all
         of them use the same ``secret_key`` otherwise calls will fail on authentication.
         The authentication token generated using the secret key has a short expiry time though - make
