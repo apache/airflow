@@ -29,10 +29,9 @@
     "deps": [
       "PyAthena>=3.0.10",
       "apache-airflow-providers-common-compat>=1.1.0",
-      "apache-airflow-providers-common-compat>=1.1.0",
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.7.1",
       "asgiref>=2.3.0",
       "boto3>=1.34.90",
       "botocore>=1.34.90",
@@ -575,7 +574,7 @@
   },
   "ftp": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.7.1"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -719,7 +718,7 @@
   "http": {
     "deps": [
       "aiohttp>=3.9.2",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.7.1",
       "asgiref",
       "requests>=2.27.0,<3",
       "requests_toolbelt"
@@ -1149,7 +1148,7 @@
   "sftp": {
     "deps": [
       "apache-airflow-providers-ssh>=2.1.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.7.1",
       "asyncssh>=2.12.0",
       "paramiko>=2.9.0"
     ],

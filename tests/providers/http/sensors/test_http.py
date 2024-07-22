@@ -23,7 +23,12 @@ from unittest.mock import patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
@@ -75,7 +80,7 @@ class TestHttpSensor:
         mock_session_send.return_value = response
 
         def resp_check(_):
-            raise AirflowException("AirflowException raised here!")
+            raise AirflowSensorTimeout("AirflowSensorTimeout raised here!")
 
         task = create_task_of_operator(
             HttpSensor,

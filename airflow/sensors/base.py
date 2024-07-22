@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowPokeFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -128,11 +129,11 @@ class SkipPolicy(str, enum.Enum):
     SKIP_ON_ANY_ERROR = "skip_on_any_error"
 
     # If poke method raises AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException
-    # sensor will be skipped on.
+    # or AirflowPokeFailException sensor will be skipped on.
     SKIP_ON_SOFT_ERROR = "skip_on_soft_error"
 
     # If poke method raises an exception  different from AirflowSensorTimeout, AirflowTaskTimeout,
-    # AirflowSkipException, sensor will ignore exception and re-poke until timeout.
+    # AirflowSkipException or AirflowPokeFailException sensor will ignore exception and re-poke until timeout.
     IGNORE_ERROR = "ignore_error"
 
 
@@ -343,6 +344,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 AirflowSensorTimeout,
                 AirflowTaskTimeout,
                 AirflowFailException,
+                AirflowPokeFailException,
             ) as e:
                 if self.skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
                     raise AirflowSkipException("Skipping due skip_policy set to skip_on_soft_error.") from e

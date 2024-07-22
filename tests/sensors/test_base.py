@@ -27,6 +27,7 @@ import time_machine
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowPokeFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -214,6 +215,7 @@ class TestBaseSensor:
             AirflowSensorTimeout,
             AirflowTaskTimeout,
             AirflowFailException,
+            AirflowPokeFailException,
         ),
     )
     def test_skip_on_soft_error_with_skip_exception(self, make_sensor, exception_cls):
@@ -231,7 +233,7 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
-        (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, Exception),
+        (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, AirflowPokeFailException, Exception),
     )
     def test_skip_on_any_error_with_skip_exception(self, make_sensor, exception_cls):
         sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_ANY_ERROR)

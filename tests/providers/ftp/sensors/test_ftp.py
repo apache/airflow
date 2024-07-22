@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.providers.ftp.hooks.ftp import FTPHook
 from airflow.providers.ftp.sensors.ftp import FTPSensor
 
@@ -52,10 +52,10 @@ class TestFTPSensor:
             "530: Login authentication failed"
         )
 
-        with pytest.raises(error_perm) as ctx:
+        with pytest.raises(AirflowSensorTimeout) as ctx:
             op.execute(None)
 
-        assert "530" in str(ctx.value)
+        assert "530" in str(ctx.value.__cause__)
 
     @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke_fail_on_transient_error(self, mock_hook):
@@ -65,10 +65,10 @@ class TestFTPSensor:
             "434: Host unavailable"
         )
 
-        with pytest.raises(error_perm) as ctx:
+        with pytest.raises(AirflowSensorTimeout) as ctx:
             op.execute(None)
 
-        assert "434" in str(ctx.value)
+        assert "434" in str(ctx.value.__cause__)
 
     @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke_fail_on_transient_error_and_skip(self, mock_hook):

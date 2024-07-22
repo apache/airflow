@@ -25,7 +25,7 @@ import pytest
 from paramiko.sftp import SFTP_FAILURE, SFTP_NO_SUCH_FILE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
 
@@ -53,7 +53,7 @@ class TestSFTPSensor:
         assert not output
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, OSError), (True, AirflowSkipException))
+        "soft_fail, expected_exception", ((False, AirflowSensorTimeout), (True, AirflowSensorTimeout))
     )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_sftp_failure(self, sftp_hook_mock, soft_fail: bool, expected_exception):

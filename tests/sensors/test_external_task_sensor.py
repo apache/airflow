@@ -30,7 +30,13 @@ import pytest
 
 from airflow import exceptions, settings
 from airflow.decorators import task as task_deco
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowPokeFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
@@ -247,7 +253,7 @@ class TestExternalTaskSensor:
             dag=self.dag,
             poke_interval=0.1,
         )
-        with pytest.raises(AirflowException, match="Sensor has timed out"):
+        with pytest.raises(AirflowSensorTimeout, match="Sensor has timed out"):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_group_sensor_success(self):
@@ -274,13 +280,13 @@ class TestExternalTaskSensor:
             dag=self.dag,
         )
         with pytest.raises(
-            AirflowException,
+            AirflowPokeFailException,
             match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG '{TEST_DAG_ID}' failed.",
         ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_catch_overlap_allowed_failed_state(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             ExternalTaskSensor(
                 task_id="test_external_task_sensor_check",
                 external_dag_id=TEST_DAG_ID,
@@ -324,7 +330,7 @@ class TestExternalTaskSensor:
         error_message = rf"Some of the external tasks \['{TEST_TASK_ID}'\] in DAG {TEST_DAG_ID} failed\."
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
-            with pytest.raises(AirflowException, match=error_message):
+            with pytest.raises(AirflowPokeFailException, match=error_message):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
@@ -427,7 +433,7 @@ class TestExternalTaskSensor:
         )
         with caplog.at_level(logging.INFO, logger=op.log.name):
             caplog.clear()
-            with pytest.raises(AirflowException, match=error_message):
+            with pytest.raises(AirflowPokeFailException, match=error_message):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}', '{TEST_TASK_ID_ALTERNATE}'] "
@@ -590,12 +596,12 @@ exit 0
             dag=dag,
         )
 
-        # We need to test for an AirflowException explicitly since
+        # We need to test for an AirflowPokeFailException explicitly since
         # AirflowSensorTimeout is a subclass that will be raised if this does
         # not execute properly.
-        with pytest.raises(AirflowException) as ex_ctx:
+        with pytest.raises(AirflowPokeFailException) as ex_ctx:
             task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert type(ex_ctx.value) is AirflowException
+        assert type(ex_ctx.value) is AirflowPokeFailException
 
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
@@ -830,7 +836,7 @@ exit 0
             dag=self.dag,
         )
         with pytest.raises(
-            AirflowException,
+            AirflowPokeFailException,
             match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG '{TEST_DAG_ID}' failed.",
         ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -885,7 +891,7 @@ exit 0
         (
             (
                 SkipPolicy.NONE,
-                AirflowException,
+                AirflowPokeFailException,
             ),
             (
                 SkipPolicy.SKIP_ON_SOFT_ERROR,
@@ -909,6 +915,8 @@ exit 0
             deferrable=False,
             **kwargs,
         )
+        if skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
+            expected_message = "Skipping due skip_policy set to skip_on_soft_error."
         with pytest.raises(expected_exception, match=expected_message):
             op.execute(context={})
 
@@ -942,11 +950,11 @@ exit 0
         (
             (
                 SkipPolicy.NONE,
-                AirflowException,
+                AirflowPokeFailException,
             ),
             (
                 SkipPolicy.SKIP_ON_SOFT_ERROR,
-                AirflowException,
+                AirflowSkipException,
             ),
         ),
     )
@@ -983,6 +991,8 @@ exit 0
             check_existence=True,
             **kwargs,
         )
+        if skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
+            expected_message = "Skipping due skip_policy set to skip_on_soft_error."
         with pytest.raises(expected_exception, match=expected_message):
             op.execute(context={})
 
@@ -1011,7 +1021,7 @@ class TestExternalTaskAsyncSensor:
         assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
 
     def test_defer_and_fire_failed_state_trigger(self):
-        """Tests that an AirflowException is raised in case of error event"""
+        """Tests that an AirflowPokeFailException is raised in case of error event"""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
@@ -1019,13 +1029,13 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowPokeFailException):
             sensor.execute_complete(
                 context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
             )
 
     def test_defer_and_fire_timeout_state_trigger(self):
-        """Tests that an AirflowException is raised in case of timeout event"""
+        """Tests that an AirflowPokeFailException is raised in case of timeout event"""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
@@ -1033,7 +1043,7 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowPokeFailException):
             sensor.execute_complete(
                 context=mock.MagicMock(),
                 event={"status": "timeout", "message": "Dag was not started within 1 minute, assuming fail."},
