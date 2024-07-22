@@ -178,8 +178,8 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_skip_only_soft_error(self, make_sensor):
-        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR)
+    def test_skip_on_soft_error(self, make_sensor):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
 
         self._run(sensor)
         tis = dr.get_task_instances()
@@ -194,8 +194,8 @@ class TestBaseSensor:
         "exception_cls",
         (ValueError,),
     )
-    def test_skip_only_soft_error_with_exception(self, make_sensor, exception_cls):
-        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR)
+    def test_skip_on_soft_error_with_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
         sensor.poke = Mock(side_effect=[exception_cls(None)])
         with pytest.raises(ValueError):
             self._run(sensor)
@@ -216,8 +216,8 @@ class TestBaseSensor:
             AirflowFailException,
         ),
     )
-    def test_skip_only_soft_error_with_skip_exception(self, make_sensor, exception_cls):
-        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR)
+    def test_skip_on_soft_error_with_skip_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
         sensor.poke = Mock(side_effect=[exception_cls(None)])
 
         self._run(sensor)
@@ -246,10 +246,10 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_skip_only_soft_error_with_retries(self, make_sensor):
+    def test_skip_on_soft_error_with_retries(self, make_sensor):
         sensor, dr = make_sensor(
             return_value=False,
-            skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
             retries=1,
             retry_delay=timedelta(milliseconds=1),
         )
@@ -359,12 +359,12 @@ class TestBaseSensor:
         assert sensor_ti.state == State.FAILED
         assert dummy_ti.state == State.NONE
 
-    def test_skip_only_soft_error_with_reschedule(self, make_sensor, time_machine, session):
+    def test_skip_on_soft_error_with_reschedule(self, make_sensor, time_machine, session):
         sensor, dr = make_sensor(
             return_value=False,
             poke_interval=10,
             timeout=5,
-            skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
             mode="reschedule",
         )
 
@@ -917,7 +917,7 @@ class TestBaseSensor:
             retries=2,
             retry_delay=timedelta(seconds=3),
             mode="reschedule",
-            skip_policy=SkipPolicy.IGNORE_ERRORS,
+            skip_policy=SkipPolicy.IGNORE_ERROR,
         )
 
         def _get_sensor_ti():
@@ -1119,7 +1119,7 @@ class TestAsyncSensor:
     @pytest.mark.parametrize(
         "skip_policy, expected_exception",
         [
-            (SkipPolicy.SKIP_ONLY_SOFT_ERROR, AirflowSkipException),
+            (SkipPolicy.SKIP_ON_SOFT_ERROR, AirflowSkipException),
             (SkipPolicy.NONE, AirflowException),
         ],
     )

@@ -141,8 +141,8 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    def test_basic_sensor_skip_only_soft_error(self, dag_maker):
-        @task.sensor(timeout=0, skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR)
+    def test_basic_sensor_skip_on_soft_error(self, dag_maker):
+        @task.sensor(timeout=0, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
         def sensor_f():
             return PokeReturnValue(is_done=False, xcom_value="xcom_value")
 
@@ -165,8 +165,8 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    def test_basic_sensor_skip_only_soft_error_returns_bool(self, dag_maker):
-        @task.sensor(timeout=0, skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR)
+    def test_basic_sensor_skip_on_soft_error_returns_bool(self, dag_maker):
+        @task.sensor(timeout=0, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
         def sensor_f():
             return False
 

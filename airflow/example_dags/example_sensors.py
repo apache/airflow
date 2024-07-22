@@ -69,7 +69,7 @@ with DAG(
     t2 = TimeSensor(
         task_id="timeout_after_second_date_in_the_future",
         timeout=1,
-        skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+        skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
         target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors]
@@ -82,7 +82,7 @@ with DAG(
     t2a = TimeSensorAsync(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
-        skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+        skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
         target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors_async]
@@ -93,7 +93,7 @@ with DAG(
     t4 = BashSensor(
         task_id="Sensor_fails_after_3_seconds",
         timeout=3,
-        skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+        skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
         bash_command="exit 1",
     )
     # [END example_bash_sensors]
@@ -120,7 +120,7 @@ with DAG(
     t10 = PythonSensor(
         task_id="failure_timeout_sensor_python",
         timeout=3,
-        skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+        skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
         python_callable=failure_callable,
     )
     # [END example_python_sensors]
@@ -129,7 +129,7 @@ with DAG(
     t11 = DayOfWeekSensor(
         task_id="week_day_sensor_failing_on_timeout",
         timeout=3,
-        skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+        skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
         week_day=WeekDay.MONDAY,
     )
     # [END example_day_of_week_sensor]

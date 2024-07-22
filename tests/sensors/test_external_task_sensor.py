@@ -330,7 +330,7 @@ class TestExternalTaskSensor:
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
         ) in caplog.messages
 
-    def test_external_task_sensor_skip_only_soft_error_failed_states_as_skipped(self):
+    def test_external_task_sensor_skip_on_soft_error_failed_states_as_skipped(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
@@ -338,7 +338,7 @@ class TestExternalTaskSensor:
             external_task_id=TEST_TASK_ID,
             allowed_states=[State.FAILED],
             failed_states=[State.SUCCESS],
-            skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
             dag=self.dag,
         )
 
@@ -468,7 +468,7 @@ class TestExternalTaskSensor:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
 
-    def test_external_dag_sensor_skip_only_soft_error_as_skipped(self):
+    def test_external_dag_sensor_skip_on_soft_error_as_skipped(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
         other_dag.create_dagrun(
             run_id="test",
@@ -483,7 +483,7 @@ class TestExternalTaskSensor:
             external_task_id=None,
             allowed_states=[State.FAILED],
             failed_states=[State.SUCCESS],
-            skip_policy=SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
             dag=self.dag,
         )
 
@@ -888,7 +888,7 @@ exit 0
                 AirflowException,
             ),
             (
-                SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+                SkipPolicy.SKIP_ON_SOFT_ERROR,
                 AirflowSkipException,
             ),
         ),
@@ -945,7 +945,7 @@ exit 0
                 AirflowException,
             ),
             (
-                SkipPolicy.SKIP_ONLY_SOFT_ERROR,
+                SkipPolicy.SKIP_ON_SOFT_ERROR,
                 AirflowException,
             ),
         ),
