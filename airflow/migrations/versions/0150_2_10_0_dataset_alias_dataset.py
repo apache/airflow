@@ -58,9 +58,10 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("alias_id", "dataset_id", name=op.f("dataset_alias_dataset_pkey")),
     )
-    with op.batch_alter_table("dataset_alias_dataset", schema=None) as batch_op:
-        batch_op.create_index("idx_dataset_alias_dataset_alias_dataset_id", ["dataset_id"], unique=False)
-        batch_op.create_index("idx_dataset_alias_dataset_alias_id", ["alias_id"], unique=False)
+    op.create_index(
+        "idx_dataset_alias_dataset_alias_dataset_id", "dataset_alias_dataset", ["dataset_id"], unique=False
+    )
+    op.create_index("idx_dataset_alias_dataset_alias_id", "dataset_alias_dataset", ["alias_id"], unique=False)
 
 
 def downgrade():
