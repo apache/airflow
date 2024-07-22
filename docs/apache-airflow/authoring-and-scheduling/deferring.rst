@@ -202,8 +202,8 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 
 ``execution_timeout`` on operators is determined from the *total runtime*, not individual executions between deferrals. This means that if ``execution_timeout`` is set, an operator can fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
 
-Triggering Deferral from Start
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Triggering Deferral from Task Start
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
  .. versionadded:: 2.10.0
 
@@ -236,6 +236,7 @@ This is particularly useful when deferring is the only thing the ``execute`` met
 In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``trigger_cls``.
 
 .. code-block:: python
+
     from __future__ import annotations
 
     from typing import Any
@@ -246,8 +247,8 @@ In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``
 
 
     class WaitOneHourSensor(BaseSensorOperator):
+        # You'll need to change trigger_cls to the actual path to HourDeltaTrigger.
         start_trigger_args = StartTriggerArgs(
-            # you'll need to change the actual path to the Trigger above
             trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
             trigger_kwargs={"hours": 1},
             next_method="execute_complete",
@@ -274,8 +275,8 @@ In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``
 
 
     class WaitTwoHourSensor(BaseSensorOperator):
+        # You'll need to change trigger_cls to the actual path to HourDeltaTrigger.
         start_trigger_args = StartTriggerArgs(
-            # you'll need to change the actual path to the Trigger above
             trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
             trigger_kwargs={"hours": 1},
             next_method="execute_complete",
@@ -305,8 +306,8 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
 
 
     class WaitHoursSensor(BaseSensorOperator):
+        # You'll need to change trigger_cls to the actual path to HourDeltaTrigger.
         start_trigger_args = StartTriggerArgs(
-            # you'll need to change the actual path to the Trigger above
             trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
             trigger_kwargs={"hours": 1},
             next_method="execute_complete",
