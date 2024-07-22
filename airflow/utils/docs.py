@@ -40,7 +40,7 @@ def get_docs_url(page: str | None = None) -> str:
 
 
 def get_project_url_from_metadata(provider_name: str):
-    """Returns the Project-URL from metadata."""
+    """Return the Project-URL from metadata."""
     return metadata.metadata(provider_name).get_all("Project-URL")
 
 
