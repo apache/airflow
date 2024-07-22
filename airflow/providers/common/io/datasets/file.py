@@ -16,9 +16,35 @@
 # under the License.
 from __future__ import annotations
 
+import urllib.parse
+from typing import TYPE_CHECKING
+
 from airflow.datasets import Dataset
+
+if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
+    from openlineage.client.run import Dataset as OpenLineageDataset
 
 
 def create_dataset(*, path: str, extra=None) -> Dataset:
     # We assume that we get absolute path starting with /
     return Dataset(uri=f"file://{path}", extra=extra)
+
+
+def sanitize_uri(uri: SplitResult) -> SplitResult:
+    if not uri.path:
+        raise ValueError("URI format file:// must contain a non-empty path.")
+    return uri
+
+
+def convert_dataset_to_openlineage(dataset: Dataset, lineage_context) -> OpenLineageDataset:
+    """
+    Translate Dataset with valid AIP-60 uri to OpenLineage with assistance from the context.
+
+    Windows paths are not standardized and can produce unexpected behaviour.
+    """
+    from openlineage.client.run import Dataset as OpenLineageDataset
+
+    parsed = urllib.parse.urlsplit(dataset.uri)
+    return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)
