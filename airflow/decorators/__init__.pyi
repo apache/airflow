@@ -119,6 +119,7 @@ class TaskDecoratorCollection:
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
         use_dill: bool = False,
         **kwargs,
     ) -> TaskDecorator:
@@ -162,6 +163,11 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param env_vars: A dictionary containing additional environment variables to set for the virtual
+            environment when it is executed. If this parameter is ``None``, the virtual environment will
+            inherit the environment variables of the parent process (``os.environ``).
+            If a dictionary is provided, it will be merged with ``os.environ``, with the provided
+            environment variables taking precedence in case of overlap.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
@@ -178,6 +184,7 @@ class TaskDecoratorCollection:
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
         use_dill: bool = False,
         **kwargs,
     ) -> TaskDecorator:
@@ -203,6 +210,11 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param env_vars: A dictionary containing additional environment variables to set for the virtual
+            environment when it is executed. If this parameter is ``None``, the virtual environment will
+            inherit the environment variables of the parent process (``os.environ``).
+            If a dictionary is provided, it will be merged with ``os.environ``, with the provided
+            environment variables taking precedence in case of overlap.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.

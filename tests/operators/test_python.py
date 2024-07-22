@@ -950,6 +950,26 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             self.run_as_task(f, op_args=[42], serializer=serializer)
         assert f"Unable to import `{serializer}` module." in caplog.text
 
+    def test_environment_variables(self):
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
+        assert task.execute_callable() == "ABCDE"
+
+    def test_environment_variables_overriding(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "ABCDE")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"})
+        assert task.execute_callable() == "EFGHI"
+
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
