@@ -699,7 +699,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         json = {
             "job_id": 42,
-            "notebook_params": {"dry-run": "true", "oldest-time-to-consider": "1457570074236"},
+            "job_parameters": {"dry-run": "true", "oldest-time-to-consider": "1457570074236"},
         }
 
         notebook_run = DatabricksRunNowOperator(task_id="notebook_run", json=json)
@@ -711,6 +711,8 @@ class DatabricksRunNowOperator(BaseOperator):
 
         job_id = 42
 
+        dbt_commands = ["dbt deps", "dbt seed", "dbt run"]
+
         notebook_params = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 
         python_params = ["douglas adams", "42"]
@@ -718,13 +720,17 @@ class DatabricksRunNowOperator(BaseOperator):
         jar_params = ["douglas adams", "42"]
 
         spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
+        
+        sql_params = {"customer": "alice", "min_order_total": "100.0"}
 
         notebook_run = DatabricksRunNowOperator(
             job_id=job_id,
+            dbt_commands=dbt_commands,
             notebook_params=notebook_params,
             python_params=python_params,
             jar_params=jar_params,
             spark_submit_params=spark_submit_params,
+            sql_params=sql_params
         )
 
     In the case where both the json parameter **AND** the named parameters
@@ -734,12 +740,15 @@ class DatabricksRunNowOperator(BaseOperator):
     Currently the named parameters that ``DatabricksRunNowOperator`` supports are
         - ``job_id``
         - ``job_name``
+        - ``job_parameters``
         - ``json``
+        - ``dbt_commands``
         - ``notebook_params``
         - ``python_params``
         - ``python_named_parameters``
         - ``jar_params``
         - ``spark_submit_params``
+        - ``sql_params``
         - ``idempotency_token``
         - ``repair_run``
         - ``cancel_previous_runs``
@@ -750,9 +759,19 @@ class DatabricksRunNowOperator(BaseOperator):
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
     :param job_name: the name of the existing Databricks job.
-        It must exist only one job with the specified name.
+        There must be only one job with the specified name.
         ``job_id`` and ``job_name`` are mutually exclusive.
         This field will be templated.
+    :param job_parameters: A dict from keys to values that override or augment the job's
+        parameters for this run. Job parameters are passed to any of the job's tasks that
+        accept key-value parameters. Job parameters supersede notebook_params, python_params,
+        python_named_parameters, jar_params, spark_submit_params, and they cannot be used in
+        combination.
+        This field will be templated.
+
+        .. seealso::
+            For more information about job parameters see: :ref:`concepts:job-parameters`.
+            https://docs.databricks.com/en/workflows/jobs/settings.html#add-parameters-for-all-job-tasks
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.1/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -841,11 +860,14 @@ class DatabricksRunNowOperator(BaseOperator):
         "databricks_conn_id",
         "job_id",
         "job_name",
+        "job_parameters",
+        "dbt_commands",
         "notebook_params",
         "python_params",
         "python_named_params",
         "jar_params",
         "spark_submit_params",
+        "sql_params",
         "idempotency_token",
     )
     template_ext: Sequence[str] = (".json-tpl",)
@@ -859,11 +881,14 @@ class DatabricksRunNowOperator(BaseOperator):
         *,
         job_id: str | None = None,
         job_name: str | None = None,
+        job_parameters: dict[str, str,] | None = None,
         json: Any | None = None,
+        dbt_commands: list[str] | None = None,
         notebook_params: dict[str, str] | None = None,
         python_params: list[str] | None = None,
         jar_params: list[str] | None = None,
         spark_submit_params: list[str] | None = None,
+        sql_params: dic[str, str] | None = None,
         python_named_params: dict[str, str] | None = None,
         idempotency_token: str | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -892,11 +917,14 @@ class DatabricksRunNowOperator(BaseOperator):
         self.cancel_previous_runs = cancel_previous_runs
         self.job_id = job_id
         self.job_name = job_name
+        self.job_parameters = job_parameters
+        self.dbt_commands = dbt_commands
         self.notebook_params = notebook_params
         self.python_params = python_params
         self.python_named_params = python_named_params
         self.jar_params = jar_params
         self.spark_submit_params = spark_submit_params
+        self.sql_params = sql_params
         self.idempotency_token = idempotency_token
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -919,11 +947,14 @@ class DatabricksRunNowOperator(BaseOperator):
         self.overridden_json_params = {
             "job_id": self.job_id,
             "job_name": self.job_name,
+            "job_parameters": self.job_parameters,
+            "dbt_commands": self.dbt_commands,
             "notebook_params": self.notebook_params,
             "python_params": self.python_params,
             "python_named_params": self.python_named_params,
             "jar_params": self.jar_params,
             "spark_submit_params": self.spark_submit_params,
+            "sql_params": self.sql_params,
             "idempotency_token": self.idempotency_token,
         }
         _handle_overridden_json_params(self)

@@ -72,12 +72,14 @@ JOB_NAME = "job-name"
 TEMPLATED_JOB_NAME = "job-name-{{ ds }}"
 RENDERED_TEMPLATED_JOB_NAME = f"job-name-{DATE}"
 JOB_DESCRIPTION = "job-description"
+DBT_COMMANDS = ["dbt deps", "dbt seed", "dbt run"]
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RENDERED_TEMPLATED_JAR_PARAMS = [f"/test-{DATE}"]
 TEMPLATED_JAR_PARAMS = ["/test-{{ ds }}"]
 PYTHON_PARAMS = ["john doe", "35"]
 SPARK_SUBMIT_PARAMS = ["--class", "org.apache.spark.examples.SparkPi"]
+SQL_PARAMS = {"customer": "alice", "min_order_total": "100.0"}
 DBT_TASK = {
     "commands": ["dbt deps", "dbt seed", "dbt run"],
     "schema": "jaffle_shop",
@@ -1499,10 +1501,12 @@ class TestDatabricksRunNowOperator:
         Test the _setup_and_validate_json function with json data.
         """
         json = {
+            "dbt_commands": DBT_COMMANDS,
             "notebook_params": NOTEBOOK_PARAMS,
             "jar_params": JAR_PARAMS,
             "python_params": PYTHON_PARAMS,
             "spark_submit_params": SPARK_SUBMIT_PARAMS,
+            "sql_params": SQL_PARAMS,
             "job_id": JOB_ID,
             "repair_run": False,
         }
@@ -1511,10 +1515,12 @@ class TestDatabricksRunNowOperator:
 
         expected = utils._normalise_json_content(
             {
+                "dbt_commands": DBT_COMMANDS,
                 "notebook_params": NOTEBOOK_PARAMS,
                 "jar_params": JAR_PARAMS,
                 "python_params": PYTHON_PARAMS,
                 "spark_submit_params": SPARK_SUBMIT_PARAMS,
+                "sql_params": SQL_PARAMS,
                 "job_id": JOB_ID,
                 "repair_run": False,
             }
@@ -1536,19 +1542,23 @@ class TestDatabricksRunNowOperator:
             task_id=TASK_ID,
             json=json,
             job_id=JOB_ID,
+            dbt_commands=DBT_COMMANDS,
             notebook_params=override_notebook_params,
             python_params=PYTHON_PARAMS,
             jar_params=override_jar_params,
             spark_submit_params=SPARK_SUBMIT_PARAMS,
+            sql_params=SQL_PARAMS
         )
         op._setup_and_validate_json()
 
         expected = utils._normalise_json_content(
             {
+                "dbt_commands": DBT_COMMANDS,
                 "notebook_params": override_notebook_params,
                 "jar_params": override_jar_params,
                 "python_params": PYTHON_PARAMS,
                 "spark_submit_params": SPARK_SUBMIT_PARAMS,
+                "sql_params": SQL_PARAMS,
                 "job_id": JOB_ID,
             }
         )
