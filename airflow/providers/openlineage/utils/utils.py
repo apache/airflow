@@ -37,6 +37,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move t
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowDagRunFacet,
     AirflowJobFacet,
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
@@ -343,6 +344,17 @@ class TaskGroupInfo(InfoJsonEncodable):
         "upstream_group_ids",
         "upstream_task_ids",
     ]
+
+
+def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+    if not dag_run.dag:
+        return {}
+    return {
+        "airflowDagRun": AirflowDagRunFacet(
+            dag=DagInfo(dag_run.dag),
+            dagRun=DagRunInfo(dag_run),
+        )
+    }
 
 
 def get_airflow_run_facet(

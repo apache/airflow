@@ -40,6 +40,7 @@ from openlineage.client.uuid import generate_static_uuid
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
+    get_airflow_dag_run_facet,
     get_airflow_state_run_facet,
 )
 from airflow.stats import Stats
@@ -334,6 +335,7 @@ class OpenLineageAdapter(LoggingMixin):
         job_facets: dict[str, BaseFacet] | None = None,  # Custom job facets
     ):
         try:
+            owner = [x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None
             event = RunEvent(
                 eventType=RunState.START,
                 eventTime=dag_run.start_date.isoformat(),
@@ -341,7 +343,7 @@ class OpenLineageAdapter(LoggingMixin):
                     job_name=dag_run.dag_id,
                     job_type=_JOB_TYPE_DAG,
                     job_description=dag_run.dag.description if dag_run.dag else None,
-                    owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
+                    owners=owner,
                     job_facets=job_facets,
                 ),
                 run=self._build_run(
@@ -352,6 +354,7 @@ class OpenLineageAdapter(LoggingMixin):
                     job_name=dag_run.dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
+                    run_facets=get_airflow_dag_run_facet(dag_run),
                 ),
                 inputs=[],
                 outputs=[],
