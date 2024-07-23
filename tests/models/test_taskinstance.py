@@ -38,6 +38,7 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.datasets import DatasetAlias
 from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
@@ -2699,6 +2700,91 @@ class TestTaskInstance:
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert read_task_evaluated
 
+    def test_inlet_dataset_alias_extra(self, dag_maker, session):
+        ds_uri = "test_inlet_dataset_extra_ds"
+        dsa_name = "test_inlet_dataset_extra_dsa"
+
+        ds_model = DatasetModel(id=1, uri=ds_uri)
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model.datasets.append(ds_model)
+        session.add_all([ds_model, dsa_model])
+        session.commit()
+
+        from airflow.datasets import Dataset, DatasetAlias
+
+        read_task_evaluated = False
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def write(*, ti, outlet_events):
+                outlet_events[dsa_name].add(Dataset(ds_uri), extra={"from": ti.task_id})
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                second_event = inlet_events[DatasetAlias(dsa_name)][1]
+                assert second_event.uri == ds_uri
+                assert second_event.extra == {"from": "write2"}
+
+                last_event = inlet_events[DatasetAlias(dsa_name)][-1]
+                assert last_event.uri == ds_uri
+                assert last_event.extra == {"from": "write3"}
+
+                with pytest.raises(KeyError):
+                    inlet_events["does_not_exist"]
+                with pytest.raises(IndexError):
+                    inlet_events[DatasetAlias(dsa_name)][5]
+
+                nonlocal read_task_evaluated
+                read_task_evaluated = True
+
+            [
+                write.override(task_id="write1")(),
+                write.override(task_id="write2")(),
+                write.override(task_id="write3")(),
+            ] >> read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        # Run "write1", "write2", and "write3" (in this order).
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            ti.run(session=session)
+
+        # Run "read".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert read_task_evaluated
+
+    def test_inlet_unresolved_dataset_alias(self, dag_maker, session):
+        dsa_name = "test_inlet_dataset_extra_dsa"
+
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        session.add(dsa_model)
+        session.commit()
+
+        from airflow.datasets import DatasetAlias
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                with pytest.raises(IndexError):
+                    inlet_events[DatasetAlias(dsa_name)][0]
+
+            read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+
     @pytest.mark.parametrize(
         "slicer, expected",
         [
@@ -2740,6 +2826,66 @@ class TestTaskInstance:
             def read(*, inlet_events):
                 nonlocal result
                 result = [e.extra for e in slicer(inlet_events[ds_uri])]
+
+            read()
+
+        # Run the read DAG.
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "slicer, expected",
+        [
+            (lambda x: x[-2:], [{"from": 8}, {"from": 9}]),
+            (lambda x: x[-5:-3], [{"from": 5}, {"from": 6}]),
+            (lambda x: x[:-8], [{"from": 0}, {"from": 1}]),
+            (lambda x: x[1:-7], [{"from": 1}, {"from": 2}]),
+            (lambda x: x[-8:4], [{"from": 2}, {"from": 3}]),
+            (lambda x: x[-5:5], []),
+        ],
+    )
+    def test_inlet_dataset_alias_extra_slice(self, dag_maker, session, slicer, expected):
+        ds_uri = "test_inlet_dataset_alias_extra_slice_ds"
+        dsa_name = "test_inlet_dataset_alias_extra_slice_dsa"
+
+        ds_model = DatasetModel(id=1, uri=ds_uri)
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model.datasets.append(ds_model)
+        session.add_all([ds_model, dsa_model])
+        session.commit()
+
+        from airflow.datasets import Dataset
+
+        with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def write(*, params, outlet_events):
+                outlet_events[dsa_name].add(Dataset(ds_uri), {"from": params["i"]})
+
+            write()
+
+        # Run the write DAG 10 times.
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, conf={"i": 0})
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+        for i in range(1, 10):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, conf={"i": i})
+            for ti in dr.get_task_instances(session=session):
+                ti.run(session=session)
+
+        result = "the task does not run"
+
+        with dag_maker(dag_id="read", schedule=None, session=session):
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                nonlocal result
+                result = [e.extra for e in slicer(inlet_events[DatasetAlias(dsa_name)])]
 
             read()
 
