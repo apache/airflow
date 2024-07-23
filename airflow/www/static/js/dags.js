@@ -200,9 +200,9 @@ d3.selectAll(".js-last-run-tooltip").on(
 );
 
 function formatCount(count) {
-    if (count >= 1000000) return Math.floor(count / 1000000) + 'M';
-    if (count >= 1000) return Math.floor(count / 1000) + 'k';
-    return count;
+  if (count >= 1000000) return `${Math.floor(count / 1000000)}M`;
+  if (count >= 1000) return `${Math.floor(count / 1000)}k`;
+  return count;
 }
 
 function drawDagStats(selector, dagId, states) {
@@ -253,7 +253,7 @@ function drawDagStats(selector, dagId, states) {
     })
     .attr("fill", "#fff")
     .attr("r", diameter / 2)
-    .attr("title", (d) => d.state || "none")
+    .attr("title", (d) => `${d.state || "none"}: ${d.count}`)
     .on("mouseover", (d) => {
       if (d.count > 0) {
         d3.select(d3.event.currentTarget)
