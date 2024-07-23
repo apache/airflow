@@ -1326,6 +1326,16 @@ def airflow_root_path() -> Path:
     return Path(airflow.__path__[0]).parent
 
 
+@pytest.fixture
+def hook_lineage_collector():
+    from airflow.lineage import hook
+
+    hook._hook_lineage_collector = None
+    hook._hook_lineage_collector = hook.HookLineageCollector()
+    yield hook.get_hook_lineage_collector()
+    hook._hook_lineage_collector = None
+
+
 # This constant is set to True if tests are run with Airflow installed from Packages rather than running
 # the tests within Airflow sources. While most tests in CI are run using Airflow sources, there are
 # also compatibility tests that only use `tests` package and run against installed packages of Airflow in

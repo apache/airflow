@@ -55,6 +55,22 @@ def main():
         conf = write_default_airflow_configuration_if_needed()
         if args.subcommand in ["webserver", "internal-api", "worker"]:
             write_webserver_configuration_if_needed(conf)
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        if args.subcommand in ["worker", "dag-processor", "triggerer", "run"]:
+            # Untrusted components
+            if "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in os.environ:
+                # make sure that the DB is not available for the components that should not access it
+                del os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"]
+                conf.set("database", "sql_alchemy_conn", "none://")
+                from airflow.settings import force_traceback_session_for_untrusted_components
+
+                force_traceback_session_for_untrusted_components()
+        else:
+            # Trusted components
+            from airflow.api_internal.internal_api_call import InternalApiConfig
+
+            InternalApiConfig.force_database_direct_access("Running " + args.subcommand + " command")
+
     args.func(args)
 
 

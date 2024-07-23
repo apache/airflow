@@ -75,7 +75,7 @@ from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.timezone import from_timestamp, parse_timezone
-from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -422,7 +422,7 @@ _orm_to_model = {
     LogTemplate: LogTemplatePydantic,
     Dataset: DatasetPydantic,
 }
-_type_to_class: dict[DAT, list] = {
+_type_to_class: dict[DAT | str, list] = {
     DAT.BASE_JOB: [JobPydantic, Job],
     DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
@@ -431,6 +431,13 @@ _type_to_class: dict[DAT, list] = {
     DAT.DATA_SET: [DatasetPydantic, Dataset],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
+
+
+def add_pydantic_class_type_mapping(attribute_type: str, orm_class, pydantic_class):
+    _orm_to_model[orm_class] = pydantic_class
+    _type_to_class[attribute_type] = [pydantic_class, orm_class]
+    _class_to_type[pydantic_class] = attribute_type
+    _class_to_type[orm_class] = attribute_type
 
 
 class BaseSerialization:
@@ -1322,7 +1329,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
-        op.dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
+        op.dag = AttributeRemoved("dag")  # type: ignore[assignment]
         cls.populate_operator(op, encoded_op)
         return op
 

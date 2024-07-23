@@ -20,10 +20,9 @@ from __future__ import annotations
 import datetime
 import time
 
-from openlineage.client.generated.base import Dataset
-
 from airflow.models.dag import DAG
 from airflow.models.operator import BaseOperator
+from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 

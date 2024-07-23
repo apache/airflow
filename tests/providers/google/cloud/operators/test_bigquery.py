@@ -26,8 +26,6 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
 from google.cloud.exceptions import Conflict
-from openlineage.client.facet import ErrorMessageRunFacet, ExternalQueryRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import (
     AirflowException,
@@ -35,6 +33,12 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferred,
+)
+from airflow.providers.common.compat.openlineage.facet import (
+    ErrorMessageRunFacet,
+    ExternalQueryRunFacet,
+    InputDataset,
+    SQLJobFacet,
 )
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
@@ -1844,7 +1848,7 @@ class TestBigQueryInsertJobOperator:
 
         lineage = op.get_openlineage_facets_on_complete(None)
         assert lineage.inputs == [
-            Dataset(namespace="bigquery", name="airflow-openlineage.new_dataset.test_table")
+            InputDataset(namespace="bigquery", name="airflow-openlineage.new_dataset.test_table")
         ]
 
         assert lineage.run_facets == {
@@ -1852,7 +1856,7 @@ class TestBigQueryInsertJobOperator:
             "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }
-        assert lineage.job_facets == {"sql": SqlJobFacet(query="SELECT * FROM test_table")}
+        assert lineage.job_facets == {"sql": SQLJobFacet(query="SELECT * FROM test_table")}
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_fails_openlineage_events(self, mock_hook):

@@ -83,6 +83,7 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
+    TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -91,7 +92,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
@@ -138,7 +139,7 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import ATTRIBUTE_REMOVED
+from airflow.utils.types import AttributeRemoved
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -934,7 +935,7 @@ def _get_template_context(
         assert task
         assert task.dag
 
-    if task.dag is ATTRIBUTE_REMOVED:
+    if task.dag.__class__ is AttributeRemoved:
         task.dag = dag  # required after deserialization
 
     dag_run = task_instance.get_dagrun(session)
@@ -1287,7 +1288,7 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    if task.dag is ATTRIBUTE_REMOVED:
+    if task.dag.__class__ is AttributeRemoved:
         task.dag = dag  # required after deserialization
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
@@ -1617,15 +1618,23 @@ def _defer_task(
         next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
+        context = ti.get_template_context()
+        start_trigger_args = ti.task.expand_start_trigger_args(context=context, session=session)
+        if start_trigger_args is None:
+            raise TaskDeferralError(
+                "A none 'None' start_trigger_args has been change to 'None' during expandion"
+            )
+
+        trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+        next_kwargs = start_trigger_args.next_kwargs
+        next_method = start_trigger_args.next_method
+        timeout = start_trigger_args.timeout
         trigger_row = Trigger(
             classpath=ti.task.start_trigger_args.trigger_cls,
-            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
+            kwargs=trigger_kwargs,
         )
-        next_kwargs = ti.task.start_trigger_args.next_kwargs
-        next_method = ti.task.start_trigger_args.next_method
-        timeout = ti.task.start_trigger_args.timeout
     else:
-        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
+        raise TaskDeferralError("exception and ti.task.start_trigger_args cannot both be None")
 
     # First, make the trigger entry
     session.add(trigger_row)
@@ -2663,7 +2672,7 @@ class TaskInstance(Base, LoggingMixin):
         """Ensure that task has a dag object associated, might have been removed by serialization."""
         if TYPE_CHECKING:
             assert task_instance.task
-        if task_instance.task.dag is None or task_instance.task.dag is ATTRIBUTE_REMOVED:
+        if task_instance.task.dag is None or task_instance.task.dag.__class__ is AttributeRemoved:
             task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
                 dag_id=task_instance.dag_id, session=session
             )
@@ -2986,6 +2995,12 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
                 self.log.warning('Created a new Dataset(uri="%s") as it did not exists.', uri)
                 dataset_objs_cache[uri] = dataset_obj
+
+            for alias in alias_names:
+                alias_obj = session.scalar(
+                    select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
+                )
+                dataset_obj.aliases.append(alias_obj)
 
             extra = {k: v for k, v in extra_items}
             self.log.info(
@@ -3450,7 +3465,7 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task
             assert ti.task
 
-        if ti.task.dag is ATTRIBUTE_REMOVED:
+        if ti.task.dag.__class__ is AttributeRemoved:
             ti.task.dag = self.task.dag
 
         # If self.task is mapped, this call replaces self.task to point to the
@@ -3759,7 +3774,6 @@ class TaskInstance(Base, LoggingMixin):
         return or_(*filters)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _schedule_downstream_tasks(
         cls,

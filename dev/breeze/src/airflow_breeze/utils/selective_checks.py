@@ -761,19 +761,14 @@ class SelectiveChecks:
                     include_docs=False,
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
-                    try:
-                        candidate_test_types.remove("Providers")
-                    except KeyError:
-                        # In case of API tests Providers could not be in the list originally so we can ignore
-                        # Providers missing in the list.
-                        pass
+                    candidate_test_types.discard("Providers")
                     if split_to_individual_providers:
                         for provider in affected_providers:
                             candidate_test_types.add(f"Providers[{provider}]")
                     else:
                         candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-                elif split_to_individual_providers:
-                    candidate_test_types.remove("Providers")
+                elif split_to_individual_providers and "Providers" in candidate_test_types:
+                    candidate_test_types.discard("Providers")
                     for provider in get_available_packages():
                         candidate_test_types.add(f"Providers[{provider}]")
             get_console().print(

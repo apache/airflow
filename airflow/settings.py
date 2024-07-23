@@ -314,13 +314,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    from airflow.api_internal.internal_api_call import InternalApiConfig
-
-    if InternalApiConfig.get_use_internal_api():
-        Session = TracebackSession
-        engine = None
-        return
-    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
@@ -347,6 +341,14 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             expire_on_commit=False,
         )
     )
+
+
+def force_traceback_session_for_untrusted_components():
+    global Session
+    global engine
+    dispose_orm()
+    Session = TracebackSession
+    engine = None
 
 
 DEFAULT_ENGINE_ARGS = {
