@@ -20,69 +20,47 @@ from typing import TYPE_CHECKING
 
 import attrs
 
-from airflow.providers.common.compat.openlineage.facet import BaseFacet
+from airflow.providers.common.compat.openlineage.facet import RunFacet
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 
 
 @attrs.define(slots=False)
-class MyCustomRunFacet(BaseFacet):
+class MyCustomRunFacet(RunFacet):
     """Define a custom run facet."""
 
     name: str
-    jobState: str
-    uniqueName: str
-    displayName: str
-    dagId: str
-    taskId: str
     cluster: str
 
 
-def get_additional_test_facet(task_instance: TaskInstance) -> dict[str, dict] | None:
-    operator_name = task_instance.task.operator_name if task_instance.task else None
+def get_additional_test_facet(
+    task_instance: TaskInstance, ti_state: TaskInstanceState
+) -> dict[str, RunFacet] | None:
+    operator_name = task_instance.task.operator_name if task_instance.task else ""
     if operator_name == "BashOperator":
         return None
-    job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
     return {
-        "additional_run_facet": attrs.asdict(
-            MyCustomRunFacet(
-                name="test-lineage-namespace",
-                jobState=task_instance.state,
-                uniqueName=job_unique_name,
-                displayName=f"{task_instance.dag_id}.{task_instance.task_id}",
-                dagId=task_instance.dag_id,
-                taskId=task_instance.task_id,
-                cluster="TEST",
-            )
+        "additional_run_facet": MyCustomRunFacet(
+            name=f"test-lineage-namespace-{ti_state}",
+            cluster=f"TEST_{task_instance.dag_id}.{task_instance.task_id}",
         )
     }
 
 
-def get_duplicate_test_facet_key(task_instance: TaskInstance):
-    job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
-    return {
-        "additional_run_facet": attrs.asdict(
-            MyCustomRunFacet(
-                name="test-lineage-namespace",
-                jobState=task_instance.state,
-                uniqueName=job_unique_name,
-                displayName=f"{task_instance.dag_id}.{task_instance.task_id}",
-                dagId=task_instance.dag_id,
-                taskId=task_instance.task_id,
-                cluster="TEST",
-            )
-        )
-    }
+def get_duplicate_test_facet_key(
+    task_instance: TaskInstance, ti_state: TaskInstanceState
+) -> dict[str, RunFacet] | None:
+    return get_additional_test_facet(task_instance, ti_state)
 
 
-def get_another_test_facet(task_instance: TaskInstance):
+def get_another_test_facet(task_instance, ti_state):
     return {"another_run_facet": {"name": "another-lineage-namespace"}}
 
 
-def return_type_is_not_dict(task_instance: TaskInstance):
+def return_type_is_not_dict(task_instance, ti_state):
     return "return type is not dict"
 
 
-def get_custom_facet_throws_exception(task_instance: TaskInstance):
-    raise Exception("fake exception from custom fcet function")
+def get_custom_facet_throws_exception(task_instance, ti_state):
+    raise Exception("fake exception from custom facet function")

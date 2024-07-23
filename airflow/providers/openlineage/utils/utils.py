@@ -55,10 +55,11 @@ from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet
-    from openlineage.client.run import Dataset as OpenLineageDataset
 
     from airflow.models import DagRun, TaskInstance
+    from airflow.utils.state import TaskInstanceState
 
 
 log = logging.getLogger(__name__)
@@ -81,28 +82,32 @@ def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
-def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, Any]:
-    from airflow.providers.openlineage.extractors.manager import try_import_from_string
-
-    custom_facets = {}
+def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
+        return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
+    return {}
+
+
+def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) -> dict[str, RunFacet]:
+    custom_facets = {}
 
     # Append custom run facets by executing the custom_run_facet functions.
     for custom_facet_func in conf.custom_run_facets():
         try:
-            func: Callable[[Any], dict] | None = try_import_from_string(custom_facet_func)
+            func: Callable[[TaskInstance, TaskInstanceState], dict[str, RunFacet]] | None = (
+                try_import_from_string(custom_facet_func)
+            )
             if not func:
                 log.warning(
                     "OpenLineage is unable to import custom facet function `%s`; will ignore it.",
                     custom_facet_func,
                 )
                 continue
-            facet: dict[str, dict[Any, Any]] | None = func(task_instance)
-            if facet and isinstance(facet, dict):
-                duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
+            facets: dict[str, RunFacet] | None = func(ti, ti_state)
+            if facets and isinstance(facets, dict):
+                duplicate_facet_keys = [facet_key for facet_key in facets if facet_key in custom_facets]
                 if duplicate_facet_keys:
                     log.warning(
                         "Duplicate OpenLineage custom facets key(s) found: `%s` from function `%s`; "
@@ -112,10 +117,10 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
                     )
                 log.debug(
                     "Adding OpenLineage custom facet with key(s): `%s` from function `%s`.",
-                    tuple(facet),
+                    tuple(facets),
                     custom_facet_func,
                 )
-                custom_facets.update(facet)
+                custom_facets.update(facets)
         except Exception as exc:
             log.warning(
                 "Error processing custom facet function `%s`; will ignore it. Error was: %s: %s",
