@@ -23,17 +23,19 @@ from unittest.mock import ANY, MagicMock, patch
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.openlineage.plugins.facets import AirflowJobFacet
+from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _get_parsed_dag_tree,
     _get_task_groups_details,
     _get_tasks_details,
     _safe_get_dag_tree_view,
+    get_airflow_dag_run_facet,
     get_airflow_job_facet,
     get_custom_facets,
     get_fully_qualified_class_name,
@@ -42,6 +44,7 @@ from airflow.providers.openlineage.utils.utils import (
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.types import DagRunType
 from tests.test_utils.mock_operators import MockOperator
 
 
@@ -62,7 +65,7 @@ def test_get_airflow_job_facet():
 
         task_0 >> task_10
 
-    dagrun_mock = MagicMock()
+    dagrun_mock = MagicMock(DagRun)
     dagrun_mock.dag = dag
 
     result = get_airflow_job_facet(dagrun_mock)
@@ -99,6 +102,57 @@ def test_get_airflow_job_facet():
                     "is_setup": False,
                     "is_teardown": False,
                 },
+            },
+        )
+    }
+
+
+def test_get_airflow_dag_run_facet():
+    with DAG(
+        dag_id="dag",
+        schedule="@once",
+        start_date=datetime.datetime(2024, 6, 1),
+        tags=["test"],
+    ) as dag:
+        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
+
+        with TaskGroup("section_1", prefix_group_id=True):
+            task_10 = PythonOperator(task_id="task_3", python_callable=lambda: 1)
+
+        task_0 >> task_10
+
+    dagrun_mock = MagicMock(DagRun)
+    dagrun_mock.dag = dag
+    dagrun_mock.conf = {}
+    dagrun_mock.dag_id = dag.dag_id
+    dagrun_mock.data_interval_start = datetime.datetime(2024, 6, 1, 1, 2, 3, tzinfo=datetime.timezone.utc)
+    dagrun_mock.data_interval_end = datetime.datetime(2024, 6, 1, 2, 3, 4, tzinfo=datetime.timezone.utc)
+    dagrun_mock.external_trigger = True
+    dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
+    dagrun_mock.run_type = DagRunType.MANUAL
+    dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
+
+    result = get_airflow_dag_run_facet(dagrun_mock)
+    assert result == {
+        "airflowDagRun": AirflowDagRunFacet(
+            dag={
+                "dag_id": "dag",
+                "description": None,
+                "owner": "airflow",
+                "timetable": {},
+                "schedule_interval": "@once",
+                "start_date": "2024-06-01T00:00:00+00:00",
+                "tags": ["test"],
+            },
+            dagRun={
+                "conf": {},
+                "dag_id": "dag",
+                "data_interval_start": "2024-06-01T01:02:03+00:00",
+                "data_interval_end": "2024-06-01T02:03:04+00:00",
+                "external_trigger": True,
+                "run_id": "manual_2024-06-01T00:00:00+00:00",
+                "run_type": "manual",
+                "start_date": "2024-06-01T01:02:04+00:00",
             },
         )
     }
