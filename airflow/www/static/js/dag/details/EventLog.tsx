@@ -142,6 +142,7 @@ const EventLog = ({ taskId, run, showMapped }: Props) => {
 
     const mapIndex = columnHelper.accessor("mapIndex", {
       header: "Map Index",
+      enableSorting: false,
       meta: {
         skeletonWidth: 10,
       },
@@ -150,6 +151,7 @@ const EventLog = ({ taskId, run, showMapped }: Props) => {
     const rest = [
       columnHelper.accessor("tryNumber", {
         header: "Try Number",
+        enableSorting: false,
         meta: {
           skeletonWidth: 10,
         },
