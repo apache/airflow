@@ -192,7 +192,7 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
-    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate a base dataset as dag dependency.
 
@@ -215,7 +215,7 @@ class DatasetAlias(BaseDataset):
     def __hash__(self) -> int:
         return hash(self.name)
 
-    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate a dataset alias as dag dependency.
 
@@ -295,7 +295,7 @@ class Dataset(os.PathLike, BaseDataset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
-    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate a dataset as dag dependency.
 
@@ -334,7 +334,7 @@ class _DatasetBooleanCondition(BaseDataset):
                 yield k, v
                 seen.add(k)
 
-    def iter_dag_deps(self, *, source: str, target: str) -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate dataset, dataset aliases and their resolved datasets  as dag dependency.
 
@@ -342,7 +342,7 @@ class _DatasetBooleanCondition(BaseDataset):
         """
         dag_deps: set[DagDependency] = set()
         for obj in self.objects:
-            for dep in obj.iter_dag_deps(source=source, target=target):
+            for dep in obj.iter_dag_dependencies(source=source, target=target):
                 if dep in dag_deps:
                     continue
                 yield dep
@@ -394,7 +394,7 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def iter_dag_deps(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """
         Iterate a dataset alias and its resolved datasets  as dag dependency.
 
