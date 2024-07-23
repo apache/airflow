@@ -243,6 +243,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
+        run_facets: dict[str, RunFacet] | None = None,  # Custom run facets
     ) -> RunEvent:
         """
         Emit openlineage event of type COMPLETE.
@@ -254,7 +255,11 @@ class OpenLineageAdapter(LoggingMixin):
         :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param run_facets: custom run facets
         """
+        run_facets = run_facets or {}
+        if task:
+            run_facets = {**task.run_facets, **run_facets}
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=end_time,
@@ -263,7 +268,7 @@ class OpenLineageAdapter(LoggingMixin):
                 job_name=job_name,
                 parent_job_name=parent_job_name,
                 parent_run_id=parent_run_id,
-                run_facets=task.run_facets,
+                run_facets=run_facets,
             ),
             job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
@@ -280,6 +285,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
+        run_facets: dict[str, RunFacet] | None = None,  # Custom run facets
         error: str | BaseException | None = None,
     ) -> RunEvent:
         """
@@ -292,20 +298,22 @@ class OpenLineageAdapter(LoggingMixin):
         :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param run_facets: custom run facets
         :param error: error
         """
-        error_facet = {}
+        run_facets = run_facets or {}
+        if task:
+            run_facets = {**task.run_facets, **run_facets}
+
         if error:
             stack_trace = None
             if isinstance(error, BaseException) and error.__traceback__:
                 import traceback
 
                 stack_trace = "\\n".join(traceback.format_exception(type(error), error, error.__traceback__))
-            error_facet = {
-                "errorMessage": error_message_run.ErrorMessageRunFacet(
-                    message=str(error), programmingLanguage="python", stackTrace=stack_trace
-                )
-            }
+            run_facets["errorMessage"] = error_message_run.ErrorMessageRunFacet(
+                message=str(error), programmingLanguage="python", stackTrace=stack_trace
+            )
 
         event = RunEvent(
             eventType=RunState.FAIL,
@@ -315,7 +323,7 @@ class OpenLineageAdapter(LoggingMixin):
                 job_name=job_name,
                 parent_job_name=parent_job_name,
                 parent_run_id=parent_run_id,
-                run_facets={**task.run_facets, **error_facet},
+                run_facets=run_facets,
             ),
             job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
