@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-23T07:47:46.002333
+# This constraints file was automatically generated on 2024-07-23T15:53:10.131997
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -260,7 +260,7 @@ connexion==2.14.2
 coverage==7.6.0
 crcmod==1.7
 cron-descriptor==1.4.3
-croniter==2.0.7
+croniter==3.0.0
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.6
