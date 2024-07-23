@@ -26,7 +26,7 @@ from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import exists_query
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -157,7 +157,11 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         # There was a DAG run, but the task wasn't active back then.
-        if catchup and last_dagrun.execution_date < ti.task.start_date:
+        if (
+            catchup
+            and last_dagrun.state != DagRunState.RUNNING
+            and last_dagrun.execution_date < ti.task.start_date
+        ):
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
