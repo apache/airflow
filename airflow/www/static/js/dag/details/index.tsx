@@ -42,8 +42,8 @@ import {
   MdOutlineViewTimeline,
   MdSyncAlt,
   MdHourglassBottom,
-  MdPlagiarism,
   MdEvent,
+  MdOutlineEventNote,
 } from "react-icons/md";
 import { BiBracket, BiLogoKubernetes } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -65,7 +65,7 @@ import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
 import TaskDetails from "./task";
-import AuditLog from "./AuditLog";
+import EventLog from "./EventLog";
 import RunDuration from "./dag/RunDuration";
 import Calendar from "./dag/Calendar";
 import RenderedK8s from "./taskInstance/RenderedK8s";
@@ -323,9 +323,9 @@ const Details = ({
             </Text>
           </Tab>
           <Tab>
-            <MdPlagiarism size={16} />
+            <MdOutlineEventNote size={16} />
             <Text as="strong" ml={1}>
-              Audit Log
+              Event Log
             </Text>
           </Tab>
           {isDag && (
@@ -438,8 +438,9 @@ const Details = ({
             <DagCode />
           </TabPanel>
           <TabPanel height="100%">
-            <AuditLog
+            <EventLog
               taskId={isGroup || !taskId ? undefined : taskId}
+              showMapped={isMapped || !taskId}
               run={run}
             />
           </TabPanel>
