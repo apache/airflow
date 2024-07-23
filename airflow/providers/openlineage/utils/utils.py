@@ -42,7 +42,6 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
     AirflowStateRunFacet,
-    BaseFacet,
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
@@ -56,6 +55,7 @@ from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.facet_v2 import RunFacet
     from openlineage.client.run import Dataset as OpenLineageDataset
 
     from airflow.models import DagRun, TaskInstance
@@ -346,7 +346,7 @@ class TaskGroupInfo(InfoJsonEncodable):
     ]
 
 
-def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
     if not dag_run.dag:
         return {}
     return {
@@ -363,7 +363,7 @@ def get_airflow_run_facet(
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
-) -> dict[str, BaseFacet]:
+) -> dict[str, AirflowRunFacet]:
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
@@ -375,7 +375,7 @@ def get_airflow_run_facet(
     }
 
 
-def get_airflow_job_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
     if not dag_run.dag:
         return {}
     return {
@@ -387,7 +387,7 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
     }
 
 
-def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFacet]:
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run.get_state(),

@@ -19,7 +19,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import attrs
-from openlineage.client.facet import BaseFacet
+
+from airflow.providers.common.compat.openlineage.facet import BaseFacet
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance

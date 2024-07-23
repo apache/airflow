@@ -24,7 +24,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from openlineage.client.run import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
 def create_dataset(*, bucket: str, key: str, extra=None) -> Dataset:
@@ -39,7 +39,7 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
 
 def convert_dataset_to_openlineage(dataset: Dataset, lineage_context) -> OpenLineageDataset:
     """Translate Dataset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
-    from openlineage.client.run import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
     bucket, key = S3Hook.parse_s3_url(dataset.uri)
     return OpenLineageDataset(namespace=f"s3://{bucket}", name=key if key else "/")

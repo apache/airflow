@@ -388,6 +388,14 @@ repos:
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/check_airflow_k8s_not_used.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-common-compat-used-for-openlineage
+        name: Check common.compat is used for OL deprecated classes
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/openlineage/
+        entry: ./scripts/ci/pre_commit/check_common_compat_used_for_openlineage.py
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-providers-bug-report-template
         name: Check airflow-bug-report provider list is sorted/unique
         language: python
