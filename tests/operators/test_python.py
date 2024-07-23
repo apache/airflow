@@ -1496,6 +1496,32 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         with pytest.raises(AirflowException, match="Invalid tasks found:"):
             self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
 
+    def test_environment_variables(self):
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'ABCDE'}",
+        ):
+            self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
+
+    def test_environment_variables_overriding(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "ABCDE")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'EFGHI'}",
+        ):
+            self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"})
+
     def test_with_no_caching(self):
         """
         Most of venv tests use caching to speed up the tests. This test ensures that
