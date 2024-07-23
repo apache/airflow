@@ -715,6 +715,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             },
             id="Force Core and Serialization tests to run when tests bash changed",
         ),
+        (
+            pytest.param(
+                ("tests/utils/test_cli_util.py",),
+                {
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
+                    "run-tests": "true",
+                    "run-amazon-tests": "true",
+                    "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                },
+                id="All tests should be run when tests/utils/ change",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
