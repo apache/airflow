@@ -340,13 +340,8 @@ class _DatasetBooleanCondition(BaseDataset):
 
         :meta private:
         """
-        dag_deps: set[DagDependency] = set()
         for obj in self.objects:
-            for dep in obj.iter_dag_dependencies(source=source, target=target):
-                if dep in dag_deps:
-                    continue
-                yield dep
-                dag_deps.add(dep)
+            yield from obj.iter_dag_dependencies(source=source, target=target)
 
 
 class DatasetAny(_DatasetBooleanCondition):
