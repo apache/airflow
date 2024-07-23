@@ -16,9 +16,52 @@
 # under the License.
 from __future__ import annotations
 
+from urllib.parse import urlsplit, urlunsplit
+
+import pytest
+from openlineage.client.run import Dataset as OpenLineageDataset
+
 from airflow.datasets import Dataset
-from airflow.providers.common.io.datasets.file import create_dataset
+from airflow.providers.common.io.datasets.file import (
+    convert_dataset_to_openlineage,
+    create_dataset,
+    sanitize_uri,
+)
+
+
+@pytest.mark.parametrize(
+    ("uri", "expected"),
+    (
+        ("file:///valid/path/", "file:///valid/path/"),
+        ("file://C://dir/file", "file://C://dir/file"),
+    ),
+)
+def test_sanitize_uri_valid(uri, expected):
+    result = sanitize_uri(urlsplit(uri))
+    assert urlunsplit(result) == expected
+
+
+@pytest.mark.parametrize("uri", ("file://",))
+def test_sanitize_uri_invalid(uri):
+    with pytest.raises(ValueError):
+        sanitize_uri(urlsplit(uri))
 
 
 def test_file_dataset():
     assert create_dataset(path="/asdf/fdsa") == Dataset(uri="file:///asdf/fdsa")
+
+
+@pytest.mark.parametrize(
+    ("uri", "ol_dataset"),
+    (
+        ("file:///valid/path", OpenLineageDataset(namespace="file://", name="/valid/path")),
+        (
+            "file://127.0.0.1:8080/dir/file.csv",
+            OpenLineageDataset(namespace="file://127.0.0.1:8080", name="/dir/file.csv"),
+        ),
+        ("file:///C://dir/file", OpenLineageDataset(namespace="file://", name="/C://dir/file")),
+    ),
+)
+def test_convert_dataset_to_openlineage(uri, ol_dataset):
+    result = convert_dataset_to_openlineage(Dataset(uri=uri), None)
+    assert result == ol_dataset
