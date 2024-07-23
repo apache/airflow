@@ -90,6 +90,7 @@ const tabToIndex = (tab?: string) => {
       return 2;
     case "code":
       return 3;
+    case "event_log":
     case "audit_log":
       return 4;
     case "logs":
@@ -130,7 +131,7 @@ const indexToTab = (
     case 3:
       return "code";
     case 4:
-      return "audit_log";
+      return "event_log";
     case 5:
       if (isMappedTaskSummary) return "mapped_tasks";
       if (isTaskInstance) return "logs";
