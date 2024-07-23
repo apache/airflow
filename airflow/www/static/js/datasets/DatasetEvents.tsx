@@ -24,9 +24,9 @@ import { Box, Flex, Heading, Select } from "@chakra-ui/react";
 
 import { useDatasetEvents } from "src/api";
 
-import { CardList, type CardDef } from "src/components/Table/CardList";
+import { CardList, type CardDef } from "src/components/Table";
 import type { DatasetEvent } from "src/types/api-generated";
-import DatasetEventCard from "./DatasetEventCard";
+import DatasetEventCard from "src/components/DatasetEventCard";
 
 type Props = {
   datasetId?: number;

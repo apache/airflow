@@ -18,7 +18,8 @@
  */
 
 import React from "react";
-import { Box, Tooltip } from "@chakra-ui/react";
+import { Box, Link, Tooltip, Flex } from "@chakra-ui/react";
+import { FiLink } from "react-icons/fi";
 
 import { useTaskInstance } from "src/api";
 import type { DatasetEvent } from "src/types/api-generated";
@@ -26,10 +27,13 @@ import { useContainerRef } from "src/context/containerRef";
 import { SimpleStatus } from "src/dag/StatusBox";
 import InstanceTooltip from "src/components/InstanceTooltip";
 import type { TaskInstance } from "src/types";
+import { getMetaValue } from "src/utils";
 
 type SourceTIProps = {
   datasetEvent: DatasetEvent;
 };
+
+const gridUrl = getMetaValue("grid_url");
 
 const SourceTaskInstance = ({ datasetEvent }: SourceTIProps) => {
   const containerRef = useContainerRef();
@@ -47,6 +51,21 @@ const SourceTaskInstance = ({ datasetEvent }: SourceTIProps) => {
     },
   });
 
+  let url = `${gridUrl?.replace(
+    "__DAG_ID__",
+    sourceDagId || ""
+  )}?dag_run_id=${encodeURIComponent(
+    sourceRunId || ""
+  )}&task_id=${encodeURIComponent(sourceTaskId || "")}`;
+
+  if (
+    sourceMapIndex !== null &&
+    sourceMapIndex !== undefined &&
+    sourceMapIndex > -1
+  ) {
+    url = `${url}&map_index=${sourceMapIndex}`;
+  }
+
   return (
     <Box>
       {!!taskInstance && (
@@ -61,9 +80,12 @@ const SourceTaskInstance = ({ datasetEvent }: SourceTIProps) => {
           hasArrow
           placement="top"
         >
-          <Box width="12px">
+          <Flex width="30px">
             <SimpleStatus state={taskInstance.state} mx={1} />
-          </Box>
+            <Link color="blue.600" href={url}>
+              <FiLink size="12px" />
+            </Link>
+          </Flex>
         </Tooltip>
       )}
     </Box>

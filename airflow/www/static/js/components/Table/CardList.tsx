@@ -221,5 +221,3 @@ export const CardList = <TData extends any>({
     </>
   );
 };
-
-export * from "./Cells";

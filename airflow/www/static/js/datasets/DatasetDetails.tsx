@@ -30,15 +30,16 @@ import {
   Box,
 } from "@chakra-ui/react";
 import { MdPlayArrow } from "react-icons/md";
+import { isEmpty } from "lodash";
 
 import { useDataset } from "src/api";
 import { useContainerRef } from "src/context/containerRef";
 import Tooltip from "src/components/Tooltip";
 import { getMetaValue } from "src/utils";
+import RenderedJsonField from "src/components/RenderedJsonField";
 
 import CreateDatasetEventModal from "./CreateDatasetEvent";
 import Events from "./DatasetEvents";
-import Extra from "./Extra";
 
 const gridUrl = getMetaValue("grid_url");
 
@@ -115,10 +116,15 @@ const DatasetDetails = ({ uri }: Props) => {
             </IconButton>
           </Tooltip>
         </GridItem>
-        <GridItem colSpan={5}>
-          <Extra extra={dataset?.extra} />
-        </GridItem>
       </Grid>
+      {dataset?.extra && !isEmpty(dataset?.extra) && (
+        <RenderedJsonField
+          content={dataset.extra}
+          bg="gray.100"
+          maxH="300px"
+          overflow="auto"
+        />
+      )}
       <Box mt={2}>
         {dataset && dataset.id && <Events datasetId={dataset.id} showLabel />}
       </Box>

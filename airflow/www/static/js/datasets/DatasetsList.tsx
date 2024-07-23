@@ -24,25 +24,15 @@ import type { Row, SortingRule } from "react-table";
 import { useSearchParams } from "react-router-dom";
 
 import { useDatasetsSummary } from "src/api";
-import { Table, TimeCell } from "src/components/Table";
+import { CellProps, Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
 import type { DateOption } from "src/api/useDatasetsSummary";
+
 import type { OnSelectProps } from "./types";
 
 interface Props {
   onSelect: (props: OnSelectProps) => void;
-}
-
-interface CellProps {
-  cell: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any;
-    row: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      original: Record<string, any>;
-    };
-  };
 }
 
 const DetailCell = ({ cell: { row } }: CellProps) => {
