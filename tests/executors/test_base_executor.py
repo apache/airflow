@@ -153,6 +153,8 @@ def test_gauge_executor_metrics_with_multiple_executors(
     executor_class,
     executor_name,
 ):
+    # The names of the executors aren't relevant for this test, so long as a list of length > 1
+    # is returned. This forces the executor to use the multiple executors gauge logic.
     mock_get_executor_names.return_value = ["Exec1", "Exec2"]
     executor = executor_class()
     executor.heartbeat()
