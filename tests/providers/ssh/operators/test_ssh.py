@@ -286,7 +286,7 @@ class TestSSHOperator:
         dr = dag_maker.create_dagrun(run_id="test_timeout")
         ti = TaskInstance(task=task, run_id=dr.run_id)
 
-        with mock.patch.object(SSHOperator, 'on_kill') as mock_on_kill:
+        with mock.patch.object(SSHOperator, "on_kill") as mock_on_kill:
             with pytest.raises(AirflowTaskTimeout):
                 ti.run()
 
