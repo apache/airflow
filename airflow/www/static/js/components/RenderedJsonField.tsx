@@ -21,9 +21,17 @@ import React from "react";
 
 import ReactJson from "react-json-view";
 
-import { Flex, Button, Code, Spacer, useClipboard } from "@chakra-ui/react";
+import {
+  Flex,
+  Button,
+  Code,
+  Spacer,
+  useClipboard,
+  useTheme,
+  FlexProps,
+} from "@chakra-ui/react";
 
-interface Props {
+interface Props extends FlexProps {
   content: string;
 }
 
@@ -41,12 +49,13 @@ const JsonParse = (content: string) => {
   return [isJson, contentJson, contentFormatted];
 };
 
-const RenderedJsonField = ({ content }: Props) => {
+const RenderedJsonField = ({ content, ...rest }: Props) => {
   const [isJson, contentJson, contentFormatted] = JsonParse(content);
   const { onCopy, hasCopied } = useClipboard(contentFormatted);
+  const theme = useTheme();
 
   return isJson ? (
-    <Flex>
+    <Flex {...rest} p={2}>
       <ReactJson
         src={contentJson}
         name={false}
@@ -55,7 +64,11 @@ const RenderedJsonField = ({ content }: Props) => {
         indentWidth={2}
         displayDataTypes={false}
         enableClipboard={false}
-        style={{ backgroundColor: "inherit" }}
+        style={{
+          backgroundColor: "inherit",
+          fontSize: theme.fontSizes.md,
+          font: theme.fonts.mono,
+        }}
       />
       <Spacer />
       <Button aria-label="Copy" onClick={onCopy}>
