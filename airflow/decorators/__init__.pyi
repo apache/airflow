@@ -120,6 +120,7 @@ class TaskDecoratorCollection:
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
         **kwargs,
     ) -> TaskDecorator:
@@ -164,10 +165,11 @@ class TaskDecoratorCollection:
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
         :param env_vars: A dictionary containing additional environment variables to set for the virtual
-            environment when it is executed. If this parameter is ``None``, the virtual environment will
-            inherit the environment variables of the parent process (``os.environ``).
-            If a dictionary is provided, it will be merged with ``os.environ``, with the provided
-            environment variables taking precedence in case of overlap.
+            environment when it is executed.
+        :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+            environment. If set to ``True``, the virtual environment will inherit the environment variables
+            of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+            executed with a clean environment.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
@@ -185,6 +187,7 @@ class TaskDecoratorCollection:
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
         **kwargs,
     ) -> TaskDecorator:
@@ -211,10 +214,11 @@ class TaskDecoratorCollection:
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
         :param env_vars: A dictionary containing additional environment variables to set for the virtual
-            environment when it is executed. If this parameter is ``None``, the virtual environment will
-            inherit the environment variables of the parent process (``os.environ``).
-            If a dictionary is provided, it will be merged with ``os.environ``, with the provided
-            environment variables taking precedence in case of overlap.
+            environment when it is executed.
+        :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+            environment. If set to ``True``, the virtual environment will inherit the environment variables
+            of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+            executed with a clean environment.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.

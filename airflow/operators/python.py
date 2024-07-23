@@ -440,6 +440,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
         **kwargs,
     ):
@@ -451,12 +452,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             raise ValueError(f"{type(self).__name__} only supports functions for python_callable arg")
         if inspect.isgeneratorfunction(python_callable):
             raise ValueError(f"{type(self).__name__} does not support using 'yield' in python_callable")
-        if env_vars:
-            for key, value in env_vars.items():
-                if not isinstance(key, str):
-                    raise ValueError(f"env_vars key ${key} must be a string, but got {type(key)}")
-                if not isinstance(value, str):
-                    raise ValueError(f"env_vars value must be a string, but got {type(value)}")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -498,6 +493,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             else []
         )
         self.env_vars = env_vars
+        self.inherit_env = inherit_env
 
     @abstractmethod
     def _iter_serializable_context_keys(self):
@@ -566,6 +562,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
 
+            env_vars = dict(os.environ) if self.inherit_env else {}
+            if self.env_vars:
+                env_vars.update(self.env_vars)
+
             try:
                 execute_in_subprocess(
                     cmd=[
@@ -576,7 +576,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                         os.fspath(string_args_path),
                         os.fspath(termination_log_path),
                     ],
-                    env_vars=self.env_vars,
+                    env=env_vars,
                 )
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
@@ -658,10 +658,11 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
         in a temp folder for every execution.
     :param env_vars: A dictionary containing additional environment variables to set for the virtual
-            environment when it is executed. If this parameter is ``None``, the virtual environment will
-            inherit the environment variables of the parent process (``os.environ``).
-            If a dictionary is provided, it will be merged with ``os.environ``, with the provided
-            environment variables taking precedence in case of overlap.
+        environment when it is executed.
+    :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+        environment. If set to ``True``, the virtual environment will inherit the environment variables
+        of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+        executed with a clean environment.
     :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
@@ -691,6 +692,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
         **kwargs,
     ):
@@ -740,6 +742,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             expect_airflow=expect_airflow,
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
+            inherit_env=inherit_env,
             use_dill=use_dill,
             **kwargs,
         )
@@ -951,10 +954,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :param env_vars: A dictionary containing additional environment variables to set for the virtual
-            environment when it is executed. If this parameter is ``None``, the virtual environment will
-            inherit the environment variables of the parent process (``os.environ``).
-            If a dictionary is provided, it will be merged with ``os.environ``, with the provided
-            environment variables taking precedence in case of overlap.
+        environment when it is executed.
+    :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+        environment. If set to ``True``, the virtual environment will inherit the environment variables
+        of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+        executed with a clean environment.
     :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
@@ -977,6 +981,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         expect_pendulum: bool = False,
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
         **kwargs,
     ):
@@ -995,6 +1000,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             expect_airflow=expect_airflow,
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
+            inherit_env=inherit_env,
             use_dill=use_dill,
             **kwargs,
         )
