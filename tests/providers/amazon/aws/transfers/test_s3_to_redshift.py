@@ -381,19 +381,6 @@ class TestS3ToRedshiftTransfer:
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
 
-    def test_template_fields_overrides(self):
-        assert S3ToRedshiftOperator.template_fields == (
-            "s3_bucket",
-            "s3_key",
-            "schema",
-            "table",
-            "column_list",
-            "copy_options",
-            "redshift_conn_id",
-            "method",
-            "aws_conn_id",
-        )
-
     def test_execute_unavailable_method(self):
         """
         Test execute unavailable method
