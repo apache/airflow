@@ -102,23 +102,9 @@ Writing Triggers
 
 A *Trigger* is written as a class that inherits from ``BaseTrigger``, and implements three methods:
 
-* ``__init__``: A method to receive arguments from operators instantiating it.
+* ``__init__``: A method to receive arguments from operators instantiating it. Since 2.10.0, we're able to start task execution directly from a pre-defined trigger. To utilize this feature, all the arguments in ``__init__`` must be serializable.
 * ``run``: An asynchronous method that runs its logic and yields one or more ``TriggerEvent`` instances as an asynchronous generator.
 * ``serialize``: Returns the information needed to re-construct this trigger, as a tuple of the classpath, and keyword arguments to pass to ``__init__``.
-
-There's some design constraints to be aware of when writing your own trigger:
-
-* The ``run`` method *must be asynchronous* (using Python's asyncio), and correctly ``await`` whenever it does a blocking operation.
-* ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
-* You should assume that a trigger instance can run *more than once*. This can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine. So, you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
-* If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is running in multiple places. If you only fire one event and don't need to pass information back to the operator, you can just set the payload to ``None``.
-* A trigger can suddenly be removed from one triggerer service and started on a new one. For example, if subnets are changed and a network partition results or if there is a deployment. If desired, you can implement the ``cleanup`` method, which is always called after ``run``, whether the trigger exits cleanly or otherwise.
-* In order for any changes to a trigger to be reflected, the *triggerer* needs to be restarted whenever the trigger is modified.
-
-.. note::
-
-    Currently triggers are only used until their first event, because they are only used for resuming deferred tasks, and tasks resume after the first event fires. However, Airflow plans to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
-
 
 This example shows the structure of a basic trigger, a very simplified version of Airflow's ``DateTimeTrigger``:
 
@@ -143,7 +129,6 @@ This example shows the structure of a basic trigger, a very simplified version o
                 await asyncio.sleep(1)
             yield TriggerEvent(self.moment)
 
-
 The code example shows several things:
 
 * ``__init__`` and ``serialize`` are written as a pair. The trigger is instantiated once when it is submitted by the operator as part of its deferral request, then serialized and re-instantiated on any triggerer process that runs the trigger.
@@ -153,6 +138,20 @@ The code example shows several things:
 Triggers can be as complex or as simple as you want, provided they meet the design constraints. They can run in a highly-available fashion, and are auto-distributed among hosts running the triggerer. We encourage you to avoid any kind of persistent state in a trigger. Triggers should get everything they need from their ``__init__``, so they can be serialized and moved around freely.
 
 If you are new to writing asynchronous Python, be very careful when writing your ``run()`` method. Python's async model means that code can block the entire process if it does not correctly ``await`` when it does a blocking operation. Airflow attempts to detect process blocking code and warn you in the triggerer logs when it happens. You can enable extra checks by Python by setting the variable ``PYTHONASYNCIODEBUG=1`` when you are writing your trigger to make sure you're writing non-blocking code. Be especially careful when doing filesystem calls, because if the underlying filesystem is network-backed, it can be blocking.
+
+There's some design constraints to be aware of when writing your own trigger:
+
+* The ``run`` method *must be asynchronous* (using Python's asyncio), and correctly ``await`` whenever it does a blocking operation.
+* ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
+* You should assume that a trigger instance can run *more than once*. This can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine. So, you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
+* If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is running in multiple places. If you only fire one event and don't need to pass information back to the operator, you can just set the payload to ``None``.
+* A trigger can suddenly be removed from one triggerer service and started on a new one. For example, if subnets are changed and a network partition results or if there is a deployment. If desired, you can implement the ``cleanup`` method, which is always called after ``run``, whether the trigger exits cleanly or otherwise.
+* In order for any changes to a trigger to be reflected, the *triggerer* needs to be restarted whenever the trigger is modified.
+
+.. note::
+
+    Currently triggers are only used until their first event, because they are only used for resuming deferred tasks, and tasks resume after the first event fires. However, Airflow plans to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
+
 
 Sensitive information in triggers
 '''''''''''''''''''''''''''''''''
@@ -167,14 +166,6 @@ If you want to trigger deferral, at any place in your operator, you can call ``s
 * ``method_name``: The method name on your operator that you want Airflow to call when it resumes.
 * ``kwargs``: (Optional) Additional keyword arguments to pass to the method when it is called. Defaults to ``{}``.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
-
-When you opt to defer, your operator will stop executing at that point and be removed from its current worker. No state will persist, such as local variables or attributes set on ``self``. When your operator resumes, it resumes as a new instance of it. The only way you can pass state from the old instance of the operator to the new one is with ``method_name`` and ``kwargs``.
-
-When your operator resumes, Airflow adds a ``context`` object and an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results. Or, it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``context`` and ``event`` as a keyword argument.
-
-If your operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
-
-You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
 
 Here's a basic example of how a sensor might trigger deferral:
 
@@ -196,7 +187,15 @@ Here's a basic example of how a sensor might trigger deferral:
             # We have no more work to do here. Mark as complete.
             return
 
-This sensor is just a thin wrapper around the trigger. It defers to the trigger, and specifies a different method to come back to when the trigger fires.  When it returns immediately, it marks the sensor as successful.
+When you opt to defer, your operator will stop executing at that point and be removed from its current worker. No state will persist, such as local variables or attributes set on ``self``. When your operator resumes, it resumes as a new instance of it. The only way you can pass state from the old instance of the operator to the new one is with ``method_name`` and ``kwargs``.
+
+When your operator resumes, Airflow adds a ``context`` object and an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results. Or, it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``context`` and ``event`` as a keyword argument.
+
+If your operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
+
+You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
+
+Let's take a deeper look into the ``WaitOneHourSensor`` example above. This sensor is just a thin wrapper around the trigger. It defers to the trigger, and specifies a different method to come back to when the trigger fires.  When it returns immediately, it marks the sensor as successful.
 
 The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work anywhere inside your operator's code, even when nested many calls deep inside ``execute()``. You can also raise ``TaskDeferred`` manually, which uses the same arguments as ``self.defer``.
 
@@ -339,8 +338,6 @@ These parameters can be mapped using the ``expand`` and ``partial`` methods. Not
     WaitHoursSensor.partial(task_id="wait_for_n_hours", start_from_trigger=True).expand(
         trigger_kwargs=[{"hours": 1}, {"hours": 2}]
     )
-
-
 
 High Availability
 -----------------
