@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import random
+import time
 from datetime import timedelta
 from unittest import mock
 
@@ -269,27 +270,27 @@ class TestSSHOperator:
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
 
-    def test_on_kill_called_on_timeout(self, dag_maker, caplog):
-        with dag_maker():
-            op = SSHOperator(
-                task_id="test_on_kill",
+    def test_timeout_triggers_on_kill(self, request, dag_maker):
+        def command_sleep_forever(*args, **kwargs):
+            time.sleep(100)  # This will be interrupted by the timeout
+
+        self.exec_ssh_client_command.side_effect = command_sleep_forever
+
+        with dag_maker(dag_id=f"dag_{request.node.name}"):
+            task = SSHOperator(
+                task_id="test_timeout",
                 ssh_hook=self.hook,
-                command="sleep 300",
-                execution_timeout=timedelta(seconds=5),  # Set a short timeout for testing
+                command="sleep 100",
+                execution_timeout=timedelta(seconds=1),
             )
-        dr = dag_maker.create_dagrun(run_id="test_on_kill_run")
-        ti = TaskInstance(task=op, run_id=dr.run_id)
+        dr = dag_maker.create_dagrun(run_id="test_timeout")
+        ti = TaskInstance(task=task, run_id=dr.run_id)
 
-        with mock.patch.object(op, 'on_kill') as mock_on_kill:
+        with mock.patch.object(SSHOperator, 'on_kill') as mock_on_kill:
             with pytest.raises(AirflowTaskTimeout):
-                with caplog.at_level('INFO'):
-                    op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-                    mock_on_kill.assert_called_once()
+                ti.run()
 
-        op.on_kill()
+            # Wait a bit to ensure on_kill has time to be called
+            time.sleep(1)
 
-        # Print captured logs
-        for record in caplog.records:
-            print(record.message)
-
-        assert "SSH client closed." in caplog.text
+            mock_on_kill.assert_called_once()
