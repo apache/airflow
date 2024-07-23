@@ -19,9 +19,9 @@ from __future__ import annotations
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
-from openlineage.client.run import Dataset as OpenLineageDataset
 
 from airflow.datasets import Dataset
+from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 from airflow.providers.common.io.datasets.file import (
     convert_dataset_to_openlineage,
     create_dataset,

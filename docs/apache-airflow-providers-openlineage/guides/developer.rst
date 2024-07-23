@@ -152,7 +152,7 @@ As there is some processing made in ``execute`` method, and there is no relevant
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """
-        from openlineage.client.run import Dataset
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         return OperatorLineage(
@@ -303,8 +303,12 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
 
 .. code-block:: python
 
-    from openlineage.client.facet import BaseFacet, ExternalQueryRunFacet, SqlJobFacet
-    from openlineage.client.run import Dataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        BaseFacet,
+        Dataset,
+        ExternalQueryRunFacet,
+        SQLJobFacet,
+    )
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.providers.openlineage.extractors.base import BaseExtractor
@@ -333,7 +337,7 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
                 inputs=[Dataset(namespace="bigquery", name=self.bq_table_reference)],
                 outputs=[Dataset(namespace=self.s3_path, name=self.s3_file_name)],
                 job_facets={
-                    "sql": SqlJobFacet(
+                    "sql": SQLJobFacet(
                         query="EXPORT INTO ... OPTIONS(FORMAT=csv, SEP=';' ...) AS SELECT * FROM ... "
                     )
                 },
@@ -481,7 +485,7 @@ Writing a custom facet function
 
     import attrs
     from airflow.models import TaskInstance
-    from openlineage.client.facet import BaseFacet
+    from airflow.providers.common.compat.openlineage.facet import BaseFacet
 
 
     @attrs.define(slots=False)
