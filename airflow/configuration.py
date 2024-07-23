@@ -226,6 +226,14 @@ class AirflowConfigParser(ConfigParser):
                 original_replacement[2],
             )
 
+    def _warn_deprecate_task_log_prefix_template(self):
+        if self.get("logging", "task_log_prefix_template", fallback=None):
+            warnings.warn(
+                "The 'task_log_prefix_template' option in [logging] is deprecated and will be removed in Airflow 3.0",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
     def is_template(self, section: str, key) -> bool:
         """
         Return whether the value is templated.
@@ -740,6 +748,7 @@ class AirflowConfigParser(ConfigParser):
 
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
+        self._warn_deprecate_task_log_prefix_template()
         self.is_validated = True
 
     def _upgrade_auth_backends(self):
