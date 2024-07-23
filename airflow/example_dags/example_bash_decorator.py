@@ -99,13 +99,10 @@ def example_bash_decorator():
 
     @task.bash
     def get_file_stats() -> str:
-        from shlex import quote
+        from shlex import join
 
         files = _get_files_in_cwd()
-        cmd = "stat "
-
-        # sdanitizing the file names
-        cmd += " ".join(quote(file) for file in files)
+        cmd = join(["stat", *files])
 
         return cmd
 
