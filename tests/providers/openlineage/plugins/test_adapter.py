@@ -354,6 +354,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                 )
             },
         ),
+        run_facets={
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+        },
     )
 
     assert (
@@ -370,6 +373,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                         ),
                         "externalQuery": external_query_run.ExternalQueryRunFacet(
                             externalQueryId="123", source="source"
+                        ),
+                        "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                            externalQueryId="999", source="source"
                         ),
                     },
                 ),
@@ -467,6 +473,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
             },
             job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
         ),
+        run_facets={
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+        },
         error=ValueError("Error message"),
     )
 
@@ -486,6 +495,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                     ),
                     "externalQuery": external_query_run.ExternalQueryRunFacet(
                         externalQueryId="123", source="source"
+                    ),
+                    "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                        externalQueryId="999", source="source"
                     ),
                 },
             ),
