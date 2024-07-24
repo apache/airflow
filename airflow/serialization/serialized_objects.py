@@ -35,6 +35,7 @@ import lazy_object_proxy
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, DatasetAny
@@ -676,6 +677,12 @@ class BaseSerialization:
             )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
+        elif isinstance(var, TaskCallbackRequest):
+            return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
+        elif isinstance(var, DagCallbackRequest):
+            return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
+        elif isinstance(var, SlaCallbackRequest):
+            return cls._encode(var.to_json(), type_=DAT.SLA_CALLBACK_REQUEST)
         elif var.__class__ == Context:
             d = {}
             for k, v in var._context.items():
@@ -793,6 +800,12 @@ class BaseSerialization:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
+        elif type_ == DAT.TASK_CALLBACK_REQUEST:
+            return TaskCallbackRequest.from_json(var)
+        elif type_ == DAT.DAG_CALLBACK_REQUEST:
+            return DagCallbackRequest.from_json(var)
+        elif type_ == DAT.SLA_CALLBACK_REQUEST:
+            return SlaCallbackRequest.from_json(var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             return _type_to_class[type_][0].model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:

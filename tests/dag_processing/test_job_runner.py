@@ -576,13 +576,12 @@ class TestDagProcessorJobRunner:
                 > (freezed_base_time - manager.processor.get_last_finish_time("file_1.py")).total_seconds()
             )
 
-    @mock.patch("sqlalchemy.orm.session.Session.delete")
     @mock.patch("zipfile.is_zipfile", return_value=True)
     @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
     @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     def test_file_paths_in_queue_sorted_by_priority(
-        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile, session_delete
+        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
     ):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
@@ -614,7 +613,9 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == deque(
             ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
         )
-        assert session_delete.call_args[0][0].fileloc == parsing_request.fileloc
+        with create_session() as session2:
+            parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
+        assert parsing_request_after is None
 
     def test_scan_stale_dags(self):
         """
