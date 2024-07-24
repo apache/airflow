@@ -119,6 +119,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         )
         headers = {
             "Content-Type": "application/json",
+            "Accept": "application/json",
             "Authorization": signer.generate_signed_token({"method": method_name}),
         }
         data = {"jsonrpc": "2.0", "method": method_name, "params": params_json}
