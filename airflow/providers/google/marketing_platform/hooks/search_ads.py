@@ -20,17 +20,19 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from googleapiclient.discovery import Resource
 
 
-class GoogleSearchAdsHook(GoogleBaseHook):
+class GoogleSearchAdsReportingHook(GoogleBaseHook):
     """Hook for the Google Search Ads 360 Reporting API."""
 
     _conn: build | None = None
@@ -39,20 +41,40 @@ class GoogleSearchAdsHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str | None = None,
-        gcp_conn_id: str = "google_cloud_default",
+        gcp_conn_id: str = "google_search_ads_default",
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
         )
         self.api_version = api_version or self.default_api_version
 
+    def _get_config(self) -> None:
+        """
+        Set up Google Search Ads config from Connection.
+
+        This pulls the connections from db, and uses it to set up
+        ``google_search_ads_client``.
+        """
+        conn = self.get_connection(self.gcp_conn_id)
+        if "google_search_ads_client" not in conn.extra_dejson:
+            raise AirflowException("google_search_ads_client not found in extra field")
+
+        self.google_search_ads_config = conn.extra_dejson["google_search_ads_client"]
+
+    def get_credentials(self) -> Credentials:
+        """Return the credential instance for search ads."""
+        self._get_config()
+        self.logger().info(f"Credential configuration: {self.google_search_ads_config}")
+        return Credentials(**self.google_search_ads_config)
+
     def get_conn(self) -> Resource:
         if not self._conn:
-            http_authorized = self._authorize()
+            creds = self.get_credentials()
+
             self._conn = build(
                 "searchads360",
                 self.api_version,
-                http=http_authorized,
+                credentials=creds,
                 cache_discovery=False,
             )
         return self._conn
@@ -121,7 +143,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         """
         resource_name = f"customers/{customer_id}/customColumns/{custom_column_id}"
         response = (
-            self.customer_service.custom_columns()
+            self.customer_service.customColumns()
             .get(resourceName=resource_name)
             .execute(num_retries=self.num_retries)
         )
@@ -135,7 +157,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         :param customer_id: The customer id
         """
         response = (
-            self.customer_service.custom_columns()
+            self.customer_service.customColumns()
             .list(customerId=customer_id)
             .execute(num_retries=self.num_retries)
         )
@@ -174,3 +196,35 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         response = self.fields_service.search(body=params).execute(num_retries=self.num_retries)
         self.log.info("Retrieved fields: %s", response)
         return response
+
+
+class GoogleSearchAdsHook(GoogleBaseHook):
+    """Hook for Google Search Ads 360."""
+
+    _conn: build | None = None
+
+    def __init__(
+        self,
+        api_version: str = "v2",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
+        self.api_version = api_version
+
+    def get_conn(self):
+        """Retrieve connection to Google SearchAds."""
+        if not self._conn:
+            http_authorized = self._authorize()
+            self._conn = build(
+                "doubleclicksearch",
+                self.api_version,
+                http=http_authorized,
+                cache_discovery=False,
+            )
+        return self._conn

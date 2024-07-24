@@ -21,7 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
+from airflow.providers.google.marketing_platform.hooks.search_ads import (
+    GoogleSearchAdsHook,
+    GoogleSearchAdsReportingHook,
+)
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 GCP_CONN_ID = "google_cloud_default"
@@ -30,28 +33,30 @@ CUSTOMER_ID = "customer_id"
 QUERY = "SELECT * FROM campaigns WHERE segments.date DURING LAST_30_DAYS"
 
 
-class TestGoogleSearchAdsHook:
+class TestGoogleSearchAdsReportingHook:
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)
+            self.hook = GoogleSearchAdsReportingHook(gcp_conn_id=GCP_CONN_ID)
 
-    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook._authorize")
+    @mock.patch(
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.get_credentials"
+    )
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
-    def test_gen_conn(self, mock_build, mock_authorize):
+    def test_gen_conn(self, mock_build, mock_get_credentials):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
             "searchads360",
             API_VERSION,
-            http=mock_authorize.return_value,
+            credentials=mock_get_credentials.return_value,
             cache_discovery=False,
         )
         assert mock_build.return_value == result
 
     @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.customer_service"
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.customer_service"
     )
     @pytest.mark.parametrize(
         "given_args, expected_args_extras",
@@ -85,25 +90,25 @@ class TestGoogleSearchAdsHook:
         assert return_value == result
 
     @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.customer_service"
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.customer_service"
     )
     def test_get_custom_column(self, customer_service_mock):
         custom_column_id = "custom_column_id"
         return_value = {"resourceName": 1}
         (
-            customer_service_mock.custom_columns.return_value.get.return_value.execute
+            customer_service_mock.customColumns.return_value.get.return_value.execute
         ).return_value = return_value
 
         result = self.hook.get_custom_column(customer_id=CUSTOMER_ID, custom_column_id=custom_column_id)
 
-        customer_service_mock.custom_columns.return_value.get.assert_called_once_with(
+        customer_service_mock.customColumns.return_value.get.assert_called_once_with(
             resourceName=f"customers/{CUSTOMER_ID}/customColumns/{custom_column_id}"
         )
 
         assert return_value == result
 
     @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.customer_service"
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.customer_service"
     )
     def test_list_custom_columns(self, customer_service_mock):
         return_value = {
@@ -113,17 +118,17 @@ class TestGoogleSearchAdsHook:
             ]
         }
         (
-            customer_service_mock.custom_columns.return_value.list.return_value.execute
+            customer_service_mock.customColumns.return_value.list.return_value.execute
         ).return_value = return_value
 
         result = self.hook.list_custom_columns(customer_id=CUSTOMER_ID)
 
-        customer_service_mock.custom_columns.return_value.list.assert_called_once_with(customerId=CUSTOMER_ID)
+        customer_service_mock.customColumns.return_value.list.assert_called_once_with(customerId=CUSTOMER_ID)
 
         assert return_value == result
 
     @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.fields_service"
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.fields_service"
     )
     def test_get_field(self, fields_service_mock):
         field_name = "field_name"
@@ -140,7 +145,7 @@ class TestGoogleSearchAdsHook:
         assert return_value == result
 
     @mock.patch(
-        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.fields_service"
+        "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsReportingHook.fields_service"
     )
     @pytest.mark.parametrize(
         "given_args, expected_args_extras",
@@ -166,3 +171,24 @@ class TestGoogleSearchAdsHook:
         fields_service_mock.search.assert_called_once_with(body=expected_args)
 
         assert return_value == result
+
+
+class TestSearchAdsHook:
+    def setup_method(self):
+        with mock.patch(
+            "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleBaseHook.__init__",
+            new=mock_base_gcp_hook_default_project_id,
+        ):
+            self.hook = GoogleSearchAdsHook(gcp_conn_id=GCP_CONN_ID)
+
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook._authorize")
+    @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.build")
+    def test_gen_conn(self, mock_build, mock_authorize):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            "doubleclicksearch",
+            "v2",
+            http=mock_authorize.return_value,
+            cache_discovery=False,
+        )
+        assert mock_build.return_value == result

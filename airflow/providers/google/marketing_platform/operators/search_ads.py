@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
+from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsReportingHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -46,7 +46,7 @@ class _GoogleSearchAdsBaseOperator(BaseOperator):
         self,
         *,
         api_version: str = "v0",
-        gcp_conn_id: str = "google_cloud_default",
+        gcp_conn_id: str = "google_search_ads_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -55,7 +55,7 @@ class _GoogleSearchAdsBaseOperator(BaseOperator):
 
     @cached_property
     def hook(self):
-        return GoogleSearchAdsHook(
+        return GoogleSearchAdsReportingHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
         )
@@ -162,7 +162,7 @@ class GoogleSearchAdsGetFieldOperator(_GoogleSearchAdsBaseOperator):
     def execute(self, context: Context) -> Any:
         self.log.info("Retrieving the metadata for the field '%s'", self.field_name)
         response = self.hook.get_field(field_name=self.field_name)
-        self.log.info("Retrieved field: %s", response["resource_name"])
+        self.log.info("Retrieved field: %s", response["resourceName"])
         return response
 
 
@@ -292,5 +292,5 @@ class GoogleSearchAdsListCustomColumnsOperator(_GoogleSearchAdsBaseOperator):
     def execute(self, context: Context):
         self.log.info("Listing the custom columns for %s", self.customer_id)
         response = self.hook.list_custom_columns(customer_id=self.customer_id)
-        self.log.info("Num of retrieved custom column: %d", len(response.get("results")))
+        self.log.info("Num of retrieved custom column: %d", len(response.get("customColumns")))
         return response
