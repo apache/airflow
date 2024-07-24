@@ -111,6 +111,7 @@ In some cases, you may need to define additional schemas for new data structures
 These schemas are defined to structure and validate the data handled by the API. Once defined, you can include these schemas in the OpenAPI specification file (e.g., v1.yaml) and reference them in the API endpoint definitions.
 
 For example, in v1.yaml, you might add:
+
 .. code-block:: yaml
 
    components:
