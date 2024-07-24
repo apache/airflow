@@ -36,6 +36,7 @@ from jwt import (
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.dag import _create_orm_dagrun
 from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
@@ -90,6 +91,7 @@ def initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
+        _create_orm_dagrun,
         DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
