@@ -319,6 +319,11 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         Session = SkipDBTestsSession
         engine = None
         return
+    if conf.get("database", "sql_alchemy_conn") == "none://":
+        from airflow.api_internal.internal_api_call import InternalApiConfig
+
+        InternalApiConfig.set_use_internal_api("ORM reconfigured in forked process.")
+        return
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
 
@@ -344,9 +349,14 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
 
 def force_traceback_session_for_untrusted_components():
+    log.info("Forcing TracebackSession for untrusted components.")
     global Session
     global engine
-    dispose_orm()
+    try:
+        dispose_orm()
+    except NameError:
+        # This exception might be thrown in case the ORM has not been initialized yet.
+        pass
     Session = TracebackSession
     engine = None
 

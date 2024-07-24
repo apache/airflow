@@ -56,6 +56,11 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
     return ProvidersManager().dataset_uri_handlers.get(scheme)
 
 
+def _get_normalized_scheme(uri: str) -> str:
+    parsed = urllib.parse.urlsplit(uri)
+    return parsed.scheme.lower()
+
+
 def _sanitize_uri(uri: str) -> str:
     """
     Sanitize a dataset URI.
@@ -72,7 +77,8 @@ def _sanitize_uri(uri: str) -> str:
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
-    normalized_scheme = parsed.scheme.lower()
+    if not (normalized_scheme := _get_normalized_scheme(uri)):
+        return uri
     if normalized_scheme.startswith("x-"):
         return uri
     if normalized_scheme == "airflow":
@@ -230,6 +236,28 @@ class Dataset(os.PathLike, BaseDataset):
 
     def __hash__(self) -> int:
         return hash(self.uri)
+
+    @property
+    def normalized_uri(self) -> str | None:
+        """
+        Returns the normalized and AIP-60 compliant URI whenever possible.
+
+        If we can't retrieve the scheme from URI or no normalizer is provided or if parsing fails,
+        it returns None.
+
+        If a normalizer for the scheme exists and parsing is successful we return the normalizer result.
+        """
+        if not (normalized_scheme := _get_normalized_scheme(self.uri)):
+            return None
+
+        if (normalizer := _get_uri_normalizer(normalized_scheme)) is None:
+            return None
+        parsed = urllib.parse.urlsplit(self.uri)
+        try:
+            normalized_uri = normalizer(parsed)
+            return urllib.parse.urlunsplit(normalized_uri)
+        except ValueError:
+            return None
 
     def as_expression(self) -> Any:
         """

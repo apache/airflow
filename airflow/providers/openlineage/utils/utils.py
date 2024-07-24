@@ -37,11 +37,11 @@ from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move t
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowDagRunFacet,
     AirflowJobFacet,
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
     AirflowStateRunFacet,
-    BaseFacet,
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
@@ -55,7 +55,11 @@ from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
+    from openlineage.client.facet_v2 import RunFacet
+
     from airflow.models import DagRun, TaskInstance
+    from airflow.utils.state import TaskInstanceState
 
 
 log = logging.getLogger(__name__)
@@ -78,28 +82,32 @@ def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
-def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, Any]:
-    from airflow.providers.openlineage.extractors.manager import try_import_from_string
-
-    custom_facets = {}
+def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
+        return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
+    return {}
+
+
+def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) -> dict[str, RunFacet]:
+    custom_facets = {}
 
     # Append custom run facets by executing the custom_run_facet functions.
     for custom_facet_func in conf.custom_run_facets():
         try:
-            func: Callable[[Any], dict] | None = try_import_from_string(custom_facet_func)
+            func: Callable[[TaskInstance, TaskInstanceState], dict[str, RunFacet]] | None = (
+                try_import_from_string(custom_facet_func)
+            )
             if not func:
                 log.warning(
                     "OpenLineage is unable to import custom facet function `%s`; will ignore it.",
                     custom_facet_func,
                 )
                 continue
-            facet: dict[str, dict[Any, Any]] | None = func(task_instance)
-            if facet and isinstance(facet, dict):
-                duplicate_facet_keys = [facet_key for facet_key in facet.keys() if facet_key in custom_facets]
+            facets: dict[str, RunFacet] | None = func(ti, ti_state)
+            if facets and isinstance(facets, dict):
+                duplicate_facet_keys = [facet_key for facet_key in facets if facet_key in custom_facets]
                 if duplicate_facet_keys:
                     log.warning(
                         "Duplicate OpenLineage custom facets key(s) found: `%s` from function `%s`; "
@@ -109,10 +117,10 @@ def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, An
                     )
                 log.debug(
                     "Adding OpenLineage custom facet with key(s): `%s` from function `%s`.",
-                    tuple(facet),
+                    tuple(facets),
                     custom_facet_func,
                 )
-                custom_facets.update(facet)
+                custom_facets.update(facets)
         except Exception as exc:
             log.warning(
                 "Error processing custom facet function `%s`; will ignore it. Error was: %s: %s",
@@ -211,7 +219,19 @@ class InfoJsonEncodable(dict):
                     setattr(self, field, getattr(self.obj, field))
                     self._fields.append(field)
         else:
-            for field, val in self.obj.__dict__.items():
+            if hasattr(self.obj, "__dict__"):
+                obj_fields = self.obj.__dict__
+            elif attrs.has(self.obj.__class__):  # e.g. attrs.define class with slots=True has no __dict__
+                obj_fields = {
+                    field.name: getattr(self.obj, field.name) for field in attrs.fields(self.obj.__class__)
+                }
+            else:
+                raise ValueError(
+                    "Cannot iterate over fields: "
+                    f"The object of type {type(self.obj).__name__} neither has a __dict__ attribute "
+                    "nor is defined as an attrs class."
+                )
+            for field, val in obj_fields.items():
                 if field not in self._fields and field not in self.excludes and field not in self.renames:
                     setattr(self, field, val)
                     self._fields.append(field)
@@ -343,13 +363,24 @@ class TaskGroupInfo(InfoJsonEncodable):
     ]
 
 
+def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
+    if not dag_run.dag:
+        return {}
+    return {
+        "airflowDagRun": AirflowDagRunFacet(
+            dag=DagInfo(dag_run.dag),
+            dagRun=DagRunInfo(dag_run),
+        )
+    }
+
+
 def get_airflow_run_facet(
     dag_run: DagRun,
     dag: DAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
-) -> dict[str, BaseFacet]:
+) -> dict[str, AirflowRunFacet]:
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
@@ -361,7 +392,7 @@ def get_airflow_run_facet(
     }
 
 
-def get_airflow_job_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
     if not dag_run.dag:
         return {}
     return {
@@ -373,7 +404,7 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
     }
 
 
-def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFacet]:
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run.get_state(),
@@ -635,3 +666,31 @@ def should_use_external_connection(hook) -> bool:
     if not _IS_AIRFLOW_2_10_OR_HIGHER:
         return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
     return True
+
+
+def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageDataset | None:
+    """
+    Convert a Dataset with an AIP-60 compliant URI to an OpenLineageDataset.
+
+    This function returns None if no URI normalizer is defined, no dataset converter is found or
+    some core Airflow changes are missing and ImportError is raised.
+    """
+    try:
+        from airflow.datasets import _get_normalized_scheme
+        from airflow.providers_manager import ProvidersManager
+
+        ol_converters = ProvidersManager().dataset_to_openlineage_converters
+        normalized_uri = dataset.normalized_uri
+    except (ImportError, AttributeError):
+        return None
+
+    if normalized_uri is None:
+        return None
+
+    if not (normalized_scheme := _get_normalized_scheme(normalized_uri)):
+        return None
+
+    if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
+        return None
+
+    return airflow_to_ol_converter(Dataset(uri=normalized_uri, extra=dataset.extra), lineage_context)

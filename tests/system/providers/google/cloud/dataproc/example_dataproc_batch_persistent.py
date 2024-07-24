@@ -28,17 +28,21 @@ from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
+    DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_batch_ps"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-REGION = "europe-west1"
-CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("-", "_")
+REGION = "europe-north1"
+CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 
 CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
@@ -98,6 +102,14 @@ with DAG(
     )
     # [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
 
+    delete_batch = DataprocDeleteBatchOperator(
+        task_id="delete_batch",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch_id=BATCH_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     delete_cluster = DataprocDeleteClusterOperator(
         task_id="delete_cluster",
         project_id=PROJECT_ID,
@@ -117,6 +129,7 @@ with DAG(
         # TEST BODY
         >> create_batch
         # TEST TEARDOWN
+        >> delete_batch
         >> delete_cluster
         >> delete_bucket
     )
