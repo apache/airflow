@@ -106,7 +106,7 @@ class TestGetLog:
             f"{self.DAG_ID}_copy", start_date=timezone.parse(self.default_time), session=session
         ) as dummy_dag:
             EmptyOperator(task_id=self.TASK_ID)
-        dag_maker.create_dagrun(
+        dr2 = dag_maker.create_dagrun(
             run_id=self.RUN_ID,
             run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
@@ -117,8 +117,23 @@ class TestGetLog:
         for ti in dr.task_instances:
             ti.try_number = 1
             ti.hostname = "localhost"
-
-        self.ti = dr.task_instances[0]
+            session.merge(ti)
+        for ti in dr2.task_instances:
+            ti.try_number = 1
+            ti.hostname = "localhost"
+            session.merge(ti)
+        session.flush()
+        dag.clear()
+        dummy_dag.clear()
+        for ti in dr.task_instances:
+            ti.try_number = 2
+            ti.hostname = "localhost"
+            session.merge(ti)
+        for ti in dr2.task_instances:
+            ti.try_number = 2
+            ti.hostname = "localhost"
+            session.merge(ti)
+        session.flush()
 
     @pytest.fixture
     def configure_loggers(self, tmp_path, create_log_template):
@@ -130,6 +145,10 @@ class TestGetLog:
 
         log = dir_path / "attempt=1.log"
         log.write_text("Log for testing.")
+
+        # try number 2
+        log = dir_path / "attempt=2.log"
+        log.write_text("Log for testing 2.")
 
         # MAPPED_TASK_ID
         for map_index in range(3):
@@ -146,6 +165,10 @@ class TestGetLog:
             log = dir_path / "attempt=1.log"
             log.write_text("Log for testing.")
 
+            # try number 2
+            log = dir_path / "attempt=2.log"
+            log.write_text("Log for testing 2.")
+
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config["handlers"]["task"]["base_log_folder"] = self.log_dir
@@ -159,47 +182,60 @@ class TestGetLog:
     def teardown_method(self):
         clear_db_runs()
 
-    def test_should_respond_200_json(self):
+    @pytest.mark.parametrize("try_number", [1, 2])
+    def test_should_respond_200_json(self, try_number):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
             query_string={"token": token},
             headers={"Accept": "application/json"},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        expected_filename = (
-            f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt=1.log"
-        )
+        expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
+        log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert (
             response.json["content"]
-            == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\nLog for testing.')]"
+            == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\n{log_content}')]"
         )
         info = serializer.loads(response.json["continuation_token"])
-        assert info == {
-            "download_logs": False,
-            "end_of_log": True,
-            "log_pos": 16,
-        }  # Added {download_logs: False} into info, why's that happening?
+        assert info == {"download_logs": False, "end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
         assert 200 == response.status_code
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string",
+        "request_url, expected_filename, extra_query_string, try_number",
         [
             (
                 f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1.log",
                 {},
+                1,
             ),
             (
                 f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=1.log",
                 {"map_index": 0},
+                1,
+            ),
+            # try_number 2
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/2",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=2.log",
+                {},
+                2,
+            ),
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/2",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=2.log",
+                {"map_index": 0},
+                2,
             ),
         ],
     )
-    def test_should_respond_200_text_plain(self, request_url, expected_filename, extra_query_string):
+    def test_should_respond_200_text_plain(
+        self, request_url, expected_filename, extra_query_string, try_number
+    ):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         key = self.app.config["SECRET_KEY"]
@@ -213,27 +249,44 @@ class TestGetLog:
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert 200 == response.status_code
+
+        log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
+
         assert (
             response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
         )
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string",
+        "request_url, expected_filename, extra_query_string, try_number",
         [
             (
                 f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1.log",
                 {},
+                1,
             ),
             (
                 f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/1",
                 f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=1.log",
                 {"map_index": 0},
+                1,
+            ),
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/2",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=2.log",
+                {},
+                2,
+            ),
+            (
+                f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{MAPPED_TASK_ID}/logs/2",
+                f"LOG_DIR/dag_id={DAG_ID}/run_id={RUN_ID}/task_id={MAPPED_TASK_ID}/map_index=0/attempt=2.log",
+                {"map_index": 0},
+                2,
             ),
         ],
     )
-    def test_get_logs_of_removed_task(self, request_url, expected_filename, extra_query_string):
+    def test_get_logs_of_removed_task(self, request_url, expected_filename, extra_query_string, try_number):
         expected_filename = expected_filename.replace("LOG_DIR", str(self.log_dir))
 
         # Recreate DAG without tasks
@@ -254,18 +307,21 @@ class TestGetLog:
         )
 
         assert 200 == response.status_code
+
+        log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert (
             response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
         )
 
-    def test_get_logs_response_with_ti_equal_to_none(self):
+    @pytest.mark.parametrize("try_number", [1, 2])
+    def test_get_logs_response_with_ti_equal_to_none(self, try_number):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/1",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/{try_number}",
             query_string={"token": token},
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -277,7 +333,8 @@ class TestGetLog:
             "type": EXCEPTIONS_LINK_MAP[404],
         }
 
-    def test_get_logs_with_metadata_as_download_large_file(self):
+    @pytest.mark.parametrize("try_number", [1, 2])
+    def test_get_logs_with_metadata_as_download_large_file(self, try_number):
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
             first_return = ([[("", "1st line")]], [{}])
             second_return = ([[("", "2nd line")]], [{"end_of_log": False}])
@@ -287,7 +344,7 @@ class TestGetLog:
 
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
-                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
+                f"taskInstances/{self.TASK_ID}/logs/{try_number}?full_content=True",
                 headers={"Accept": "text/plain"},
                 environ_overrides={"REMOTE_USER": "test"},
             )
@@ -297,8 +354,9 @@ class TestGetLog:
             assert "3rd line" in response.data.decode("utf-8")
             assert "should never be read" not in response.data.decode("utf-8")
 
+    @pytest.mark.parametrize("try_number", [1, 2])
     @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
-    def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
+    def test_get_logs_for_handler_without_read_method(self, mock_log_reader, try_number):
         type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
 
         key = self.app.config["SECRET_KEY"]
@@ -307,7 +365,7 @@ class TestGetLog:
 
         # check guessing
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
             query_string={"token": token},
             headers={"Content-Type": "application/jso"},
             environ_overrides={"REMOTE_USER": "test"},

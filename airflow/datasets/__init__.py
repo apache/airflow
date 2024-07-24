@@ -23,11 +23,15 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
 import attr
+from sqlalchemy import select
 
 from airflow.typing_compat import TypedDict
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
+
+    from sqlalchemy.orm.session import Session
 
 
 from airflow.configuration import conf
@@ -52,6 +56,11 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
     return ProvidersManager().dataset_uri_handlers.get(scheme)
 
 
+def _get_normalized_scheme(uri: str) -> str:
+    parsed = urllib.parse.urlsplit(uri)
+    return parsed.scheme.lower()
+
+
 def _sanitize_uri(uri: str) -> str:
     """
     Sanitize a dataset URI.
@@ -68,7 +77,8 @@ def _sanitize_uri(uri: str) -> str:
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
-    normalized_scheme = parsed.scheme.lower()
+    if not (normalized_scheme := _get_normalized_scheme(uri)):
+        return uri
     if normalized_scheme.startswith("x-"):
         return uri
     if normalized_scheme == "airflow":
@@ -125,6 +135,23 @@ def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     if isinstance(value, Dataset):
         return value.uri
     return _sanitize_uri(str(value))
+
+
+@provide_session
+def expand_alias_to_datasets(
+    alias: str | DatasetAlias, *, session: Session = NEW_SESSION
+) -> list[BaseDataset]:
+    """Expand dataset alias to resolved datasets."""
+    from airflow.models.dataset import DatasetAliasModel
+
+    alias_name = alias.name if isinstance(alias, DatasetAlias) else alias
+
+    dataset_alias_obj = session.scalar(
+        select(DatasetAliasModel).where(DatasetAliasModel.name == alias_name).limit(1)
+    )
+    if dataset_alias_obj:
+        return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in dataset_alias_obj.datasets]
+    return []
 
 
 class BaseDataset:
@@ -210,6 +237,28 @@ class Dataset(os.PathLike, BaseDataset):
     def __hash__(self) -> int:
         return hash(self.uri)
 
+    @property
+    def normalized_uri(self) -> str | None:
+        """
+        Returns the normalized and AIP-60 compliant URI whenever possible.
+
+        If we can't retrieve the scheme from URI or no normalizer is provided or if parsing fails,
+        it returns None.
+
+        If a normalizer for the scheme exists and parsing is successful we return the normalizer result.
+        """
+        if not (normalized_scheme := _get_normalized_scheme(self.uri)):
+            return None
+
+        if (normalizer := _get_uri_normalizer(normalized_scheme)) is None:
+            return None
+        parsed = urllib.parse.urlsplit(self.uri)
+        try:
+            normalized_uri = normalizer(parsed)
+            return urllib.parse.urlunsplit(normalized_uri)
+        except ValueError:
+            return None
+
     def as_expression(self) -> Any:
         """
         Serialize the dataset into its scheduling expression.
@@ -233,7 +282,10 @@ class _DatasetBooleanCondition(BaseDataset):
     def __init__(self, *objects: BaseDataset) -> None:
         if not all(isinstance(o, BaseDataset) for o in objects):
             raise TypeError("expect dataset expressions in condition")
-        self.objects = objects
+
+        self.objects = [
+            _DatasetAliasCondition(obj.name) if isinstance(obj, DatasetAlias) else obj for obj in objects
+        ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
@@ -269,6 +321,26 @@ class DatasetAny(_DatasetBooleanCondition):
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
+
+
+class _DatasetAliasCondition(DatasetAny):
+    """
+    Use to expand DataAlias as DatasetAny of its resolved Datasets.
+
+    :meta private:
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.objects = expand_alias_to_datasets(name)
+
+    def as_expression(self) -> Any:
+        """
+        Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"alias": self.name}
 
 
 class DatasetAll(_DatasetBooleanCondition):

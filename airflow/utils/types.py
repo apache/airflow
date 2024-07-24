@@ -53,11 +53,16 @@ class AttributeRemoved:
     :meta private:
     """
 
+    def __init__(self, attribute_name: str):
+        self.attribute_name = attribute_name
+
     def __getattr__(self, item):
-        raise RuntimeError("Attribute was removed on serialization and must be set again.")
+        raise RuntimeError(
+            f"Attribute {self.attribute_name} was removed on "
+            f"serialization and must be set again - found when accessing {item}."
+        )
 
 
-ATTRIBUTE_REMOVED = AttributeRemoved()
 """
 Sentinel value for attributes removed on serialization.
 

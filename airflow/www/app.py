@@ -137,7 +137,7 @@ def create_app(config=None, testing=False):
     flask_app.json_provider_class = AirflowJsonProvider
     flask_app.json = AirflowJsonProvider(flask_app)
 
-    InternalApiConfig.force_database_direct_access()
+    InternalApiConfig.force_database_direct_access("Gunicorn worker initialization")
 
     csrf.init_app(flask_app)
 

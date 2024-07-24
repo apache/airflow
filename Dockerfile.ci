@@ -905,8 +905,7 @@ function environment_initialization() {
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
-        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
-        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:9080
     fi
 
     RUN_TESTS=${RUN_TESTS:="false"}
@@ -1272,7 +1271,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.1.2
-ARG AIRFLOW_UV_VERSION=0.2.22
+ARG AIRFLOW_UV_VERSION=0.2.28
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1296,7 +1295,7 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.1.2
-ARG AIRFLOW_UV_VERSION=0.2.22
+ARG AIRFLOW_UV_VERSION=0.2.28
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\

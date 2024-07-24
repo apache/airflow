@@ -21,9 +21,9 @@ import socket
 from unittest import mock
 
 import pytest
-from openlineage.client.run import Dataset
 
 from airflow.models import DAG, Connection
+from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.ftp.operators.ftp import (
     FTPFileTransmitOperator,
     FTPOperation,

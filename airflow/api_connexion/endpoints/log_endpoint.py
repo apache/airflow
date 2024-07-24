@@ -30,6 +30,7 @@ from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import TaskInstance, Trigger
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
@@ -118,6 +119,16 @@ def get_log(
     )
 
     ti = session.scalar(query)
+    if ti is None:
+        query = select(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == task_id,
+            TaskInstanceHistory.dag_id == dag_id,
+            TaskInstanceHistory.run_id == dag_run_id,
+            TaskInstanceHistory.map_index == map_index,
+            TaskInstanceHistory.try_number == task_try_number,
+        )
+        ti = session.scalar(query)
+
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")

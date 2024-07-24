@@ -23,13 +23,24 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
-from flask import Response
+from flask import Response, request
+from itsdangerous import BadSignature
+from jwt import (
+    ExpiredSignatureError,
+    ImmatureSignatureError,
+    InvalidAudienceError,
+    InvalidIssuedAtError,
+    InvalidSignatureError,
+)
 
+from airflow.api_connexion.exceptions import PermissionDenied
+from airflow.configuration import conf
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -39,7 +50,7 @@ log = logging.getLogger(__name__)
 
 
 @functools.lru_cache
-def _initialize_map() -> dict[str, Callable]:
+def initialize_method_map() -> dict[str, Callable]:
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
@@ -120,7 +131,6 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance._get_dagrun,
         TaskInstance._set_state,
         TaskInstance.save_to_db,
-        TaskInstance._schedule_downstream_tasks,
         TaskInstance._clear_xcom_data,
         Trigger.from_object,
         Trigger.bulk_fetch,
@@ -143,12 +153,44 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
+    auth = request.headers.get("Authorization", "")
+    signer = JWTSigner(
+        secret_key=conf.get("core", "internal_api_secret_key"),
+        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        audience="api",
+    )
+    try:
+        payload = signer.verify_token(auth)
+        signed_method = payload.get("method")
+        if not signed_method or signed_method != body.get("method"):
+            raise BadSignature("Invalid method in token authorization.")
+    except BadSignature:
+        raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
+    except InvalidAudienceError:
+        raise PermissionDenied("Invalid audience for the request", exc_info=True)
+    except InvalidSignatureError:
+        raise PermissionDenied("The signature of the request was wrong", exc_info=True)
+    except ImmatureSignatureError:
+        raise PermissionDenied("The signature of the request was sent from the future", exc_info=True)
+    except ExpiredSignatureError:
+        raise PermissionDenied(
+            "The signature of the request has expired. Make sure that all components "
+            "in your system have synchronized clocks.",
+        )
+    except InvalidIssuedAtError:
+        raise PermissionDenied(
+            "The request was issues in the future. Make sure that all components "
+            "in your system have synchronized clocks.",
+        )
+    except Exception:
+        raise PermissionDenied("Unable to authenticate API via token.")
+
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
         return log_and_build_error_response(message="Expected jsonrpc 2.0 request.", status=400)
 
-    methods_map = _initialize_map()
+    methods_map = initialize_method_map()
     method_name = body.get("method")
     if method_name not in methods_map:
         return log_and_build_error_response(message=f"Unrecognized method: {method_name}.", status=400)

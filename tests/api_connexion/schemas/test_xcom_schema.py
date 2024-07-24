@@ -25,7 +25,7 @@ from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
     xcom_collection_item_schema,
     xcom_collection_schema,
-    xcom_schema,
+    xcom_schema_string,
 )
 from airflow.models import DagRun, XCom
 from airflow.utils.dates import parse_execution_date
@@ -199,7 +199,7 @@ class TestXComSchema:
             value=pickle.dumps(b"test_binary"),
         )
         xcom_model = session.query(XCom).first()
-        deserialized_xcom = xcom_schema.dump(xcom_model)
+        deserialized_xcom = xcom_schema_string.dump(xcom_model)
         assert deserialized_xcom == {
             "key": "test_key",
             "timestamp": self.default_time,
@@ -220,7 +220,7 @@ class TestXComSchema:
             "dag_id": "test_dag",
             "value": b"test_binary",
         }
-        result = xcom_schema.load(xcom_dump)
+        result = xcom_schema_string.load(xcom_dump)
         assert result == {
             "key": "test_key",
             "timestamp": self.default_time_parsed,

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from attrs import define
 from deprecated import deprecated
-from openlineage.client.facet import BaseFacet
+from openlineage.client.facet_v2 import JobFacet, RunFacet
 from openlineage.client.utils import RedactMixin
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
     category=AirflowProviderDeprecationWarning,
 )
 @define(slots=False)
-class AirflowMappedTaskRunFacet(BaseFacet):
+class AirflowMappedTaskRunFacet(RunFacet):
     """Run facet containing information about mapped tasks."""
 
     mapIndex: int
@@ -48,7 +48,7 @@ class AirflowMappedTaskRunFacet(BaseFacet):
 
 
 @define(slots=False)
-class AirflowJobFacet(BaseFacet):
+class AirflowJobFacet(JobFacet):
     """
     Composite Airflow job facet.
 
@@ -71,7 +71,7 @@ class AirflowJobFacet(BaseFacet):
 
 
 @define(slots=False)
-class AirflowStateRunFacet(BaseFacet):
+class AirflowStateRunFacet(RunFacet):
     """
     Airflow facet providing state information.
 
@@ -90,7 +90,7 @@ class AirflowStateRunFacet(BaseFacet):
 
 
 @define(slots=False)
-class AirflowRunFacet(BaseFacet):
+class AirflowRunFacet(RunFacet):
     """Composite Airflow run facet."""
 
     dag: dict
@@ -98,6 +98,14 @@ class AirflowRunFacet(BaseFacet):
     task: dict
     taskInstance: dict
     taskUuid: str
+
+
+@define(slots=False)
+class AirflowDagRunFacet(RunFacet):
+    """Composite Airflow DAG run facet."""
+
+    dag: dict
+    dagRun: dict
 
 
 @define(slots=False)
@@ -120,7 +128,7 @@ class UnknownOperatorInstance(RedactMixin):
     category=AirflowProviderDeprecationWarning,
 )
 @define(slots=False)
-class UnknownOperatorAttributeRunFacet(BaseFacet):
+class UnknownOperatorAttributeRunFacet(RunFacet):
     """RunFacet that describes unknown operators in an Airflow DAG."""
 
     unknownItems: list[UnknownOperatorInstance]

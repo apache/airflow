@@ -17,27 +17,34 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import Generic, TypeVar, Union
 
 from attrs import Factory, define
+from openlineage.client.event_v2 import Dataset as OLDataset
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from openlineage.client.facet import BaseFacet as BaseFacet_V1
+from openlineage.client.facet_v2 import JobFacet, RunFacet
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
-if TYPE_CHECKING:
-    from openlineage.client.facet import BaseFacet
-    from openlineage.client.run import Dataset
+# this is not to break static checks compatibility with v1 OpenLineage facet classes
+DatasetSubclass = TypeVar("DatasetSubclass", bound=OLDataset)
+BaseFacetSubclass = TypeVar("BaseFacetSubclass", bound=Union[BaseFacet_V1, RunFacet, JobFacet])
 
 
 @define
-class OperatorLineage:
+class OperatorLineage(Generic[DatasetSubclass, BaseFacetSubclass]):
     """Structure returned from lineage extraction."""
 
-    inputs: list[Dataset] = Factory(list)
-    outputs: list[Dataset] = Factory(list)
-    run_facets: dict[str, BaseFacet] = Factory(dict)
-    job_facets: dict[str, BaseFacet] = Factory(dict)
+    inputs: list[DatasetSubclass] = Factory(list)
+    outputs: list[DatasetSubclass] = Factory(list)
+    run_facets: dict[str, BaseFacetSubclass] = Factory(dict)
+    job_facets: dict[str, BaseFacetSubclass] = Factory(dict)
 
 
 class BaseExtractor(ABC, LoggingMixin):
