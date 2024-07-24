@@ -64,7 +64,7 @@ class InternalApiConfig:
         )
 
     @staticmethod
-    def set_use_internal_api(component: str):
+    def set_use_internal_api(component: str, allow_tests_to_use_db: bool = False):
         if not _ENABLE_AIP_44:
             raise RuntimeError("The AIP_44 is not enabled so you cannot use it. ")
         internal_api_url = conf.get("core", "internal_api_url")
@@ -79,7 +79,7 @@ class InternalApiConfig:
         InternalApiConfig._use_internal_api = True
         InternalApiConfig._internal_api_endpoint = internal_api_endpoint
         logger.info("DB isolation mode. Using internal_api when running %s.", component)
-        force_traceback_session_for_untrusted_components()
+        force_traceback_session_for_untrusted_components(allow_tests_to_use_db=allow_tests_to_use_db)
 
     @staticmethod
     def get_use_internal_api():
