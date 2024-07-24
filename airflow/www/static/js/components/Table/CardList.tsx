@@ -21,20 +21,17 @@
  * Custom wrapper of react-table using Chakra UI components
  */
 
-import React, { useEffect, useRef, forwardRef, RefObject } from "react";
+import React, { useEffect } from "react";
 import {
   Flex,
-  Table as ChakraTable,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   IconButton,
   Text,
-  useColorModeValue,
-  Checkbox,
-  CheckboxProps,
+  SimpleGrid,
+  Box,
+  Progress,
+  Skeleton,
+  BoxProps,
+  SimpleGridProps,
 } from "@chakra-ui/react";
 import {
   useTable,
@@ -42,38 +39,21 @@ import {
   usePagination,
   useRowSelect,
   Column,
-  Hooks,
   SortingRule,
   Row,
 } from "react-table";
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
-import {
-  TiArrowUnsorted,
-  TiArrowSortedDown,
-  TiArrowSortedUp,
-} from "react-icons/ti";
+import { flexRender } from "@tanstack/react-table";
 
-interface IndeterminateCheckboxProps extends CheckboxProps {
-  indeterminate?: boolean;
+export interface CardDef<TData> {
+  card: (props: { row: TData }) => any;
+  gridProps?: SimpleGridProps;
+  meta?: {
+    customSkeleton?: JSX.Element;
+  };
 }
 
-const IndeterminateCheckbox = forwardRef<
-  HTMLInputElement,
-  IndeterminateCheckboxProps
->(({ indeterminate, checked, ...rest }, ref) => {
-  const defaultRef = useRef<HTMLInputElement>(null);
-  const resolvedRef = (ref as RefObject<HTMLInputElement>) || defaultRef;
-
-  useEffect(() => {
-    if (resolvedRef.current) {
-      resolvedRef.current.indeterminate = !!indeterminate;
-    }
-  }, [resolvedRef, indeterminate]);
-
-  return <Checkbox ref={resolvedRef} isChecked={checked} {...rest} />;
-});
-
-interface TableProps {
+interface TableProps<TData> extends BoxProps {
   data: object[];
   columns: Column<object>[];
   manualPagination?: {
@@ -90,10 +70,12 @@ interface TableProps {
   isLoading?: boolean;
   selectRows?: (selectedRows: number[]) => void;
   onRowClicked?: (row: Row<object>, e: unknown) => void;
+  cardDef: CardDef<TData>;
 }
 
-export const Table = ({
+export const CardList = <TData extends any>({
   data,
+  cardDef,
   columns,
   manualPagination,
   manualSort,
@@ -101,10 +83,9 @@ export const Table = ({
   isLoading = false,
   selectRows,
   onRowClicked,
-}: TableProps) => {
+  ...otherProps
+}: TableProps<TData>) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
-  const oddColor = useColorModeValue("gray.50", "gray.900");
-  const hoverColor = useColorModeValue("gray.100", "gray.700");
 
   const pageCount = totalEntries
     ? Math.ceil(totalEntries / pageSize) || 1
@@ -114,30 +95,9 @@ export const Table = ({
   const upperCount = lowerCount + data.length - 1;
 
   // Don't show row selection if selectRows doesn't exist
-  const selectProps = selectRows
-    ? [
-        useRowSelect,
-        (hooks: Hooks) => {
-          hooks.visibleColumns.push((cols) => [
-            {
-              id: "selection",
-              // eslint-disable-next-line react/no-unstable-nested-components
-              Cell: ({ row }) => (
-                <div>
-                  <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
-                </div>
-              ),
-            },
-            ...cols,
-          ]);
-        },
-      ]
-    : [];
+  const selectProps = selectRows ? [useRowSelect] : [];
 
   const {
-    getTableProps,
-    getTableBodyProps,
-    allColumns,
     prepareRow,
     page,
     canPreviousPage,
@@ -190,75 +150,49 @@ export const Table = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRowIds, selectRows]);
 
+  const defaultGridProps = { column: { base: 1 }, spacing: 0 };
+
   return (
     <>
-      <ChakraTable {...getTableProps()}>
-        <Thead>
-          <Tr>
-            {allColumns.map((column) => (
-              <Th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                <Flex>
-                  {column.render("Header")}
-                  {column.isSorted &&
-                    (column.isSortedDesc ? (
-                      <TiArrowSortedDown
-                        aria-label="sorted descending"
-                        style={{ display: "inline" }}
-                        size="1em"
-                      />
-                    ) : (
-                      <TiArrowSortedUp
-                        aria-label="sorted ascending"
-                        style={{ display: "inline" }}
-                        size="1em"
-                      />
-                    ))}
-                  {!column.isSorted && column.canSort && (
-                    <TiArrowUnsorted
-                      aria-label="unsorted"
-                      style={{ display: "inline" }}
-                      size="1em"
-                    />
-                  )}
-                </Flex>
-              </Th>
-            ))}
-          </Tr>
-        </Thead>
-        <Tbody {...getTableBodyProps()}>
-          {!data.length && !isLoading && (
-            <Tr>
-              <Td colSpan={2}>No Data found.</Td>
-            </Tr>
-          )}
+      <Box overflow="auto" width="100%" {...otherProps}>
+        <Progress
+          size="xs"
+          isIndeterminate
+          visibility={isLoading ? "visible" : "hidden"}
+        />
+        {!isLoading && !page.length && (
+          <Text fontSize="small">No data found</Text>
+        )}
+        <SimpleGrid {...defaultGridProps}>
           {page.map((row) => {
             prepareRow(row);
             return (
-              <Tr
-                {...row.getRowProps()}
-                _odd={{ backgroundColor: oddColor }}
-                _hover={
-                  onRowClicked && {
-                    backgroundColor: hoverColor,
-                    cursor: "pointer",
-                  }
-                }
+              <Box
+                key={row.id}
+                _hover={onRowClicked && { cursor: "pointer" }}
                 onClick={
-                  onRowClicked
-                    ? (e: unknown) => onRowClicked(row, e)
+                  onRowClicked && !isLoading
+                    ? (e) => onRowClicked(row, e)
                     : undefined
                 }
               >
-                {row.cells.map((cell) => (
-                  <Td {...cell.getCellProps()} py={3}>
-                    {cell.render("Cell")}
-                  </Td>
-                ))}
-              </Tr>
+                {isLoading && (
+                  <Skeleton
+                    data-testid="skeleton"
+                    height={80}
+                    width="100%"
+                    display="inline-block"
+                  />
+                )}
+                {!isLoading &&
+                  flexRender(cardDef.card, {
+                    row: row.original as unknown as TData,
+                  })}
+              </Box>
             );
           })}
-        </Tbody>
-      </ChakraTable>
+        </SimpleGrid>
+      </Box>
       {(canPreviousPage || canNextPage) && (
         <Flex alignItems="center" justifyContent="flex-start" my={4}>
           <IconButton
@@ -287,6 +221,3 @@ export const Table = ({
     </>
   );
 };
-
-export * from "./CardList";
-export * from "./Cells";

@@ -17,20 +17,8 @@
  * under the License.
  */
 
-import React from "react";
-import { Code } from "@chakra-ui/react";
-import type { CellContext } from "@tanstack/react-table";
-
-import Time from "src/components/Time";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const TimeCell = ({ getValue }: CellContext<any, any>) => {
-  const value = getValue();
-  return <Time dateTime={value} />;
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const CodeCell = ({ getValue }: CellContext<any, any>) => {
-  const value = getValue();
-  return value ? <Code>{value}</Code> : null;
+export type OnSelectProps = {
+  uri?: string;
+  timestamp?: string;
+  dagId?: string;
 };

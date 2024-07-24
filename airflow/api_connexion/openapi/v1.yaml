@@ -3430,6 +3430,16 @@ components:
           type: string
           readOnly: true
           nullable: true
+        map_index:
+          description: The Map Index
+          type: integer
+          readOnly: true
+          nullable: true
+        try_number:
+          description: The Try Number
+          type: integer
+          readOnly: true
+          nullable: true
         event:
           description: A key describing the type of event.
           type: string
@@ -3459,6 +3469,7 @@ components:
         Collection of event logs.
 
         *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+        *Changed in version 2.10.0*&#58; 'try_number' and 'map_index' fields are added.
       allOf:
         - type: object
           properties:
@@ -3487,7 +3498,7 @@ components:
         stack_trace:
           type: string
           readOnly: true
-          description: The full stackstrace..
+          description: The full stackstrace.
 
     ImportErrorCollection:
       type: object
