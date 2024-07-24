@@ -19,217 +19,278 @@
 
 from __future__ import annotations
 
-import json
-from tempfile import NamedTemporaryFile
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GoogleSearchAdsInsertReportOperator(BaseOperator):
+class _GoogleSearchAdsBaseOperator(BaseOperator):
     """
-    Inserts a report request into the reporting system.
+    Base class to use in NextGen operator.
 
-    .. seealso:
-        For API documentation check:
-        https://developers.google.com/search-ads/v2/reference/reports/request
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleSearchAdsInsertReportOperator`
-
-    :param report: Report to be generated
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param api_version: The version of the API that will be requested for example 'v0'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
     """
 
     template_fields: Sequence[str] = (
-        "report",
-        "impersonation_chain",
+        "api_version",
+        "gcp_conn_id",
     )
-    template_ext: Sequence[str] = (".json",)
 
     def __init__(
         self,
         *,
-        report: dict[str, Any],
-        api_version: str = "v2",
+        api_version: str = "v0",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+
+    @cached_property
+    def hook(self):
+        return GoogleSearchAdsHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+        )
+
+
+class GoogleSearchAdsSearchOperator(_GoogleSearchAdsBaseOperator):
+    """
+    Search a report by query.
+
+    .. seealso:
+        For API documentation check:
+        https://developers.google.com/search-ads/reporting/api/reference/rest/v0/customers.searchAds360/search
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSearchAdsSearchOperator`
+
+    :param customer_id: The ID of the customer being queried.
+    :param query: The query to execute.
+    :param page_token: Token of the page to retrieve. If not specified, the first page of results will be
+        returned. Use the value obtained from `next_page_token` in the previous response
+        in order to request the next page of results.
+    :param page_size: Number of elements to retrieve in a single page. When too large a page is requested,
+        the server may decide to further limit the number of returned resources.
+        Default is 10000.
+    :param return_total_results_count: If true, the total number of results that match the query ignoring
+        the LIMIT clause will be included in the response. Default is false.
+    :param summary_row_setting: Determines whether a summary row will be returned. By default,
+        summary row is not returned. If requested, the summary row will be sent
+        in a response by itself after all others query results are returned.
+    :param validate_only: If true, the request is validated but not executed. Default is false.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param api_version: The version of the API that will be requested for example 'v0'.
+    """
+
+    template_fields: Sequence[str] = (
+        *_GoogleSearchAdsBaseOperator.template_fields,
+        "page_token",
+        "page_size",
+    )
+
+    def __init__(
+        self,
+        *,
+        customer_id: str,
+        query: str,
+        page_token: str | None = None,
+        page_size: int = 10000,
+        return_total_results_count: bool = False,
+        summary_row_setting: str | None = None,
+        validate_only: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.report = report
-        self.api_version = api_version
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.impersonation_chain = impersonation_chain
-
-    def prepare_template(self) -> None:
-        # If .json is passed then we have to read the file
-        if isinstance(self.report, str) and self.report.endswith(".json"):
-            with open(self.report) as file:
-                self.report = json.load(file)
+        self.customer_id = customer_id
+        self.query = query
+        self.page_token = page_token
+        self.page_size = page_size
+        self.return_total_results_count = return_total_results_count
+        self.summary_row_setting = summary_row_setting
+        self.validate_only = validate_only
 
     def execute(self, context: Context):
-        hook = GoogleSearchAdsHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            api_version=self.api_version,
-            impersonation_chain=self.impersonation_chain,
+        self.log.info("Querying Search Ads")
+        response = self.hook.search(
+            customer_id=self.customer_id,
+            query=self.query,
+            page_size=self.page_size,
+            page_token=self.page_token,
+            return_total_results_count=self.return_total_results_count,
+            summary_row_setting=self.summary_row_setting,
+            validate_only=self.validate_only,
         )
-        self.log.info("Generating Search Ads report")
-        response = hook.insert_report(report=self.report)
-        report_id = response.get("id")
-        self.xcom_push(context, key="report_id", value=report_id)
-        self.log.info("Report generated, id: %s", report_id)
+        self.log.info("Query result: %s", response)
         return response
 
 
-class GoogleSearchAdsDownloadReportOperator(BaseOperator):
+class GoogleSearchAdsGetFieldOperator(_GoogleSearchAdsBaseOperator):
     """
-    Downloads a report to GCS bucket.
+    Retrieve metadata for a resource or a field.
 
     .. seealso:
         For API documentation check:
-        https://developers.google.com/search-ads/v2/reference/reports/getFile
+        https://developers.google.com/search-ads/reporting/api/reference/rest/v0/searchAds360Fields/get
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleSearchAdsGetfileReportOperator`
+        :ref:`howto/operator:GoogleSearchAdsGetFieldOperator`
 
-    :param report_id: ID of the report.
-    :param bucket_name: The bucket to upload to.
-    :param report_name: The report name to set when uploading the local file. If not provided then
-        report_id is used.
-    :param gzip: Option to compress local file or file data for upload
-    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param field_name: The name of the field.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
+    :param api_version: The version of the API that will be requested for example 'v0'.
+    """
+
+    def __init__(
+        self,
+        *,
+        field_name: str,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.field_name = field_name
+
+    def execute(self, context: Context) -> Any:
+        self.log.info("Retrieving the metadata for the field '%s'", self.field_name)
+        response = self.hook.get_field(field_name=self.field_name)
+        self.log.info("Retrieved field: %s", response["resource_name"])
+        return response
+
+
+class GoogleSearchAdsSearchFieldsOperator(_GoogleSearchAdsBaseOperator):
+    """
+    Retrieve metadata for resource(s) or field(s) by the query syntax.
+
+    .. seealso:
+        For API documentation check:
+        https://developers.google.com/search-ads/reporting/api/reference/rest/v0/searchAds360Fields/search
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSearchAdsSearchFieldsOperator`
+
+    :param query: The query string to execute.
+    :param page_token: Token of the page to retrieve. If not specified, the first page of results will be
+        returned. Use the value obtained from `next_page_token` in the previous response
+        in order to request the next page of results.
+    :param page_size: Number of elements to retrieve in a single page. When too large a page is requested,
+        the server may decide to further limit the number of returned resources.
+        Default 10000.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param api_version: The version of the API that will be requested for example 'v0'.
     """
 
     template_fields: Sequence[str] = (
-        "report_name",
-        "report_id",
-        "bucket_name",
-        "impersonation_chain",
+        *_GoogleSearchAdsBaseOperator.template_fields,
+        "page_token",
+        "page_size",
     )
 
     def __init__(
         self,
         *,
-        report_id: str,
-        bucket_name: str,
-        report_name: str | None = None,
-        gzip: bool = True,
-        chunk_size: int = 10 * 1024 * 1024,
-        api_version: str = "v2",
-        gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
+        query: str,
+        page_token: str | None = None,
+        page_size: int = 10000,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.query = query
+
+        self.page_token = page_token
+        self.page_size = page_size
+
+    def execute(self, context: Context) -> Any:
+        self.log.info("Retrieving the metadata for %s", self.query)
+        response = self.hook.search_fields(
+            query=self.query,
+            page_token=self.page_token,
+            page_size=self.page_size,
+        )
+        self.log.info("Num of fields retrieved, #%d", len(response["results"]))
+        return response
+
+
+class GoogleSearchAdsGetCustomColumnOperator(_GoogleSearchAdsBaseOperator):
+    """
+    Retrieve details of a custom column for the given customer_id and campaign_id.
+
+    .. seealso:
+        For API documentation check:
+        https://developers.google.com/search-ads/reporting/api/reference/rest/v0/customers.customColumns/get
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSearchAdsGetCustomColumnOperator`
+
+    :param customer_id: The customer ID for the custom column.
+    :param custom_column_id: The ID for the custom column.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param api_version: The version of the API that will be requested for example 'v0'.
+    """
+
+    def __init__(
+        self,
+        *,
+        customer_id: str,
+        custom_column_id: str,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.report_id = report_id
-        self.api_version = api_version
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.report_id = report_id
-        self.chunk_size = chunk_size
-        self.gzip = gzip
-        self.bucket_name = bucket_name
-        self.report_name = report_name
-        self.impersonation_chain = impersonation_chain
-
-    def _resolve_file_name(self, name: str) -> str:
-        csv = ".csv"
-        gzip = ".gz"
-        if not name.endswith(csv):
-            name += csv
-        if self.gzip:
-            name += gzip
-        return name
-
-    @staticmethod
-    def _set_bucket_name(name: str) -> str:
-        bucket = name if not name.startswith("gs://") else name[5:]
-        return bucket.strip("/")
-
-    @staticmethod
-    def _handle_report_fragment(fragment: bytes) -> bytes:
-        fragment_records = fragment.split(b"\n", 1)
-        if len(fragment_records) > 1:
-            return fragment_records[1]
-        return b""
+        self.customer_id = customer_id
+        self.custom_column_id = custom_column_id
 
     def execute(self, context: Context):
-        hook = GoogleSearchAdsHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            api_version=self.api_version,
-            impersonation_chain=self.impersonation_chain,
+        self.log.info(
+            "Retrieving the custom column for the customer %s with the id of %s",
+            self.customer_id,
+            self.custom_column_id,
         )
-
-        gcs_hook = GCSHook(
-            gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            impersonation_chain=self.impersonation_chain,
+        response = self.hook.get_custom_column(
+            customer_id=self.customer_id,
+            custom_column_id=self.custom_column_id,
         )
+        self.log.info("Retrieved custom column: %s", response["id"])
+        return response
 
-        # Resolve file name of the report
-        report_name = self.report_name or self.report_id
-        report_name = self._resolve_file_name(report_name)
 
-        response = hook.get(report_id=self.report_id)
-        if not response["isReportReady"]:
-            raise AirflowException(f"Report {self.report_id} is not ready yet")
+class GoogleSearchAdsListCustomColumnsOperator(_GoogleSearchAdsBaseOperator):
+    """
+    List all custom columns.
 
-        # Resolve report fragments
-        fragments_count = len(response["files"])
+    .. seealso:
+        For API documentation check:
+        https://developers.google.com/search-ads/reporting/api/reference/rest/v0/customers.customColumns/list
 
-        # Download chunks of report's data
-        self.log.info("Downloading Search Ads report %s", self.report_id)
-        with NamedTemporaryFile() as temp_file:
-            for i in range(fragments_count):
-                byte_content = hook.get_file(report_fragment=i, report_id=self.report_id)
-                fragment = byte_content if i == 0 else self._handle_report_fragment(byte_content)
-                temp_file.write(fragment)
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleSearchAdsListCustomColumnsOperator`
 
-            temp_file.flush()
+    :param customer_id: The customer ID for the custom column.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param api_version: The version of the API that will be requested for example 'v0'.
+    """
 
-            bucket_name = self._set_bucket_name(self.bucket_name)
-            gcs_hook.upload(
-                bucket_name=bucket_name,
-                object_name=report_name,
-                gzip=self.gzip,
-                filename=temp_file.name,
-            )
-        self.xcom_push(context, key="file_name", value=report_name)
+    def __init__(
+        self,
+        *,
+        customer_id: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.customer_id = customer_id
+
+    def execute(self, context: Context):
+        self.log.info("Listing the custom columns for %s", self.customer_id)
+        response = self.hook.list_custom_columns(customer_id=self.customer_id)
+        self.log.info("Num of retrieved custom column: %d", len(response.get("results")))
+        return response

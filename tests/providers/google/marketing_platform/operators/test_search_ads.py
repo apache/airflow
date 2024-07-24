@@ -17,160 +17,148 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from tempfile import NamedTemporaryFile
 from unittest import mock
 
-import pytest
-
-from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.search_ads import (
-    GoogleSearchAdsDownloadReportOperator,
-    GoogleSearchAdsInsertReportOperator,
+    GoogleSearchAdsGetCustomColumnOperator,
+    GoogleSearchAdsGetFieldOperator,
+    GoogleSearchAdsListCustomColumnsOperator,
+    GoogleSearchAdsSearchFieldsOperator,
+    GoogleSearchAdsSearchOperator,
 )
-from airflow.utils import timezone
-from airflow.utils.session import create_session
 
-API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
-
-DEFAULT_DATE = timezone.datetime(2021, 1, 1)
-END_DATE = timezone.datetime(2021, 1, 2)
-REPORT_ID = "report_id"
-BUCKET_NAME = "test_bucket"
-REPORT_NAME = "test_report.csv"
-FILE_NAME = "test"
+API_VERSION = "v0"
+CUSTOMER_ID = "customer_id"
 
 
-class TestGoogleSearchAdsInsertReportOperator:
+class TestGoogleSearchAdsSearchOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.GoogleSearchAdsInsertReportOperator.xcom_push"
-    )
-    def test_execute(self, xcom_mock, mock_base_op, hook_mock):
-        report = {"report": "test"}
-        hook_mock.return_value.insert_report.return_value = {"id": REPORT_ID}
-        op = GoogleSearchAdsInsertReportOperator(report=report, api_version=API_VERSION, task_id="test_task")
-        op.execute(context=None)
-        hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
-        )
-        hook_mock.return_value.insert_report.assert_called_once_with(report=report)
-        xcom_mock.assert_called_once_with(None, key="report_id", value=REPORT_ID)
-
-    def test_prepare_template(self):
-        report = {"key": "value"}
-        with NamedTemporaryFile("w+", suffix=".json") as f:
-            f.write(json.dumps(report))
-            f.flush()
-            op = GoogleSearchAdsInsertReportOperator(
-                report=report, api_version=API_VERSION, task_id="test_task"
-            )
-            op.prepare_template()
-
-        assert isinstance(op.report, dict)
-        assert op.report == report
-
-
-@pytest.mark.skip_if_database_isolation_mode
-@pytest.mark.db_test
-class TestGoogleSearchAdsDownloadReportOperator:
-    def setup_method(self):
-        with create_session() as session:
-            session.query(TI).delete()
-
-    def teardown_method(self):
-        with create_session() as session:
-            session.query(TI).delete()
-
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.NamedTemporaryFile")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GCSHook")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
-    @mock.patch(
-        "airflow.providers.google.marketing_platform."
-        "operators.search_ads.GoogleSearchAdsDownloadReportOperator.xcom_push"
-    )
-    def test_execute(self, xcom_mock, hook_mock, gcs_hook_mock, tempfile_mock):
-        temp_file_name = "TEMP"
-        data = b"data"
-
-        hook_mock.return_value.get.return_value = {"files": [0], "isReportReady": True}
-        hook_mock.return_value.get_file.return_value = data
-        tempfile_mock.return_value.__enter__.return_value.name = temp_file_name
-
-        op = GoogleSearchAdsDownloadReportOperator(
-            report_id=REPORT_ID,
-            report_name=FILE_NAME,
-            bucket_name=BUCKET_NAME,
+    def test_execute(self, mock_base_op, hook_mock):
+        query = "SELECT * FROM campaigns WHERE segments.date DURING LAST_30_DAYS"
+        hook_mock.return_value.search.return_value = {"results": []}
+        op = GoogleSearchAdsSearchOperator(
+            customer_id=CUSTOMER_ID,
+            query=query,
             api_version=API_VERSION,
             task_id="test_task",
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
-            api_version=API_VERSION,
-            impersonation_chain=None,
+            api_version="v0",
         )
-        hook_mock.return_value.get_file.assert_called_once_with(report_fragment=0, report_id=REPORT_ID)
-        tempfile_mock.return_value.__enter__.return_value.write.assert_called_once_with(data)
-        gcs_hook_mock.return_value.upload.assert_called_once_with(
-            bucket_name=BUCKET_NAME,
-            gzip=True,
-            object_name=FILE_NAME + ".csv.gz",
-            filename=temp_file_name,
+        hook_mock.return_value.search.assert_called_once_with(
+            customer_id=CUSTOMER_ID,
+            query=query,
+            page_size=10000,
+            page_token=None,
+            return_total_results_count=False,
+            summary_row_setting=None,
+            validate_only=False,
         )
-        xcom_mock.assert_called_once_with(None, key="file_name", value=FILE_NAME + ".csv.gz")
 
-    @pytest.mark.parametrize(
-        "test_bucket_name",
-        [BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"],
-    )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.NamedTemporaryFile")
-    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GCSHook")
+
+class TestGoogleSearchAdsGetFieldOperator:
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
-    def test_set_bucket_name(self, hook_mock, gcs_hook_mock, tempfile_mock, test_bucket_name):
-        temp_file_name = "TEMP"
-        data = b"data"
-
-        hook_mock.return_value.get.return_value = {"files": [0], "isReportReady": True}
-        hook_mock.return_value.get_file.return_value = data
-        tempfile_mock.return_value.__enter__.return_value.name = temp_file_name
-
-        dag = DAG(
-            dag_id="test_set_bucket_name",
-            start_date=DEFAULT_DATE,
-            schedule=None,
-            catchup=False,
-        )
-
-        if BUCKET_NAME not in test_bucket_name:
-
-            @dag.task
-            def f():
-                return BUCKET_NAME
-
-            taskflow_op = f()
-            taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        op = GoogleSearchAdsDownloadReportOperator(
-            report_id=REPORT_ID,
-            report_name=FILE_NAME,
-            bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    def test_execute(self, mock_base_op, hook_mock):
+        field_name = "the_field"
+        hook_mock.return_value.get_field.return_value = {
+            "name": field_name,
+            "resource_name": f"searchAds360Fields/{field_name}",
+        }
+        op = GoogleSearchAdsGetFieldOperator(
+            field_name=field_name,
             api_version=API_VERSION,
             task_id="test_task",
-            dag=dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        op.execute(context=None)
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version="v0",
+        )
+        hook_mock.return_value.get_field.assert_called_once_with(
+            field_name=field_name,
+        )
 
-        gcs_hook_mock.return_value.upload.assert_called_once_with(
-            bucket_name=BUCKET_NAME,
-            gzip=True,
-            object_name=FILE_NAME + ".csv.gz",
-            filename=temp_file_name,
+
+class TestGoogleSearchAdsSearchFieldsOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    def test_execute(self, mock_base_op, hook_mock):
+        field_name = "the_field"
+        query = (
+            "SELECT "
+            "  name, category, selectable, filterable, sortable, selectable_with, data_type, "
+            "  is_repeated "
+            "WHERE "
+            "  name LIKE 'ad_group.%'"
+        )
+        hook_mock.return_value.search_fields.return_value = {
+            "results": [{"name": field_name, "resource_name": f"searchAds360Fields/{field_name}"}]
+        }
+        op = GoogleSearchAdsSearchFieldsOperator(
+            query=query,
+            api_version=API_VERSION,
+            task_id="test_task",
+        )
+        op.execute(context=None)
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version="v0",
+        )
+        hook_mock.return_value.search_fields.assert_called_once_with(
+            query=query,
+            page_token=None,
+            page_size=10000,
+        )
+
+
+class TestGoogleSearchAdsGetCustomColumnOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    def test_execute(self, mock_base_op, hook_mock):
+        custom_column_id = "custom_column_id"
+        hook_mock.return_value.get_custom_column.return_value = {"id": custom_column_id}
+        op = GoogleSearchAdsGetCustomColumnOperator(
+            customer_id=CUSTOMER_ID,
+            custom_column_id=custom_column_id,
+            api_version=API_VERSION,
+            task_id="test_task",
+        )
+        op.execute(context=None)
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version="v0",
+        )
+        hook_mock.return_value.get_custom_column.assert_called_once_with(
+            customer_id=CUSTOMER_ID,
+            custom_column_id=custom_column_id,
+        )
+
+
+class TestGoogleSearchAdsListCustomColumnsOperator:
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
+    @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.BaseOperator")
+    def test_execute(self, mock_base_op, hook_mock):
+        customs_columns = [
+            {"id": "custom_column_id_1"},
+            {"id": "custom_column_id_2"},
+            {"id": "custom_column_id_3"},
+        ]
+        hook_mock.return_value.list_custom_columns.return_value = {"results": customs_columns}
+        op = GoogleSearchAdsListCustomColumnsOperator(
+            customer_id=CUSTOMER_ID,
+            api_version=API_VERSION,
+            task_id="test_task",
+        )
+        op.execute(context=None)
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version="v0",
+        )
+        hook_mock.return_value.list_custom_columns.assert_called_once_with(
+            customer_id=CUSTOMER_ID,
         )
