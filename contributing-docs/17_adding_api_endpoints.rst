@@ -95,8 +95,8 @@ Step 3: Run Pre-commit Hooks
    pre-commit run --all-files
 
 
-### Optional: Adding Schemas
-
+Optional: Adding Schemas
+-----------------------------
 In some cases, you may need to define additional schemas for new data structures. For example, if you are adding an endpoint that involves new data objects or collections, you may define a schema in a Python file. Here's an example:
 
 .. code-block:: python
