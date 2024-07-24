@@ -30,6 +30,7 @@ Step 1: Define the Endpoint in ``v1.yaml``
 4. Describe the responses, including status codes, content types, and schema details.
 
 Example:
+
 .. code-block:: yaml
 
    paths:
@@ -67,6 +68,7 @@ Step 2: Implement the Endpoint Logic
 4. Add error handling for potential issues like missing parameters or invalid data.
 
 Example:
+
 .. code-block:: python
 
    @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
