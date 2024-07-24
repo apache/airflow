@@ -976,7 +976,7 @@ class DependencyDetector:
             elif isinstance(obj, DatasetAlias):
                 cond = _DatasetAliasCondition(obj.name)
 
-                deps.extend(iter(set(cond.iter_dag_dependencies(source=task.dag_id, target=""))))
+                deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
 
     @staticmethod
@@ -985,9 +985,7 @@ class DependencyDetector:
         if not dag:
             return
 
-        yield from iter(
-            set(dag.timetable.dataset_condition.iter_dag_dependencies(source="", target=dag.dag_id))
-        )
+        yield from dag.timetable.dataset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
