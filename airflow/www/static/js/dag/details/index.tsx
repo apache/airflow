@@ -28,7 +28,6 @@ import {
   Tab,
   Text,
   Button,
-  Box,
   Checkbox,
 } from "@chakra-ui/react";
 import InfoTooltip from "src/components/InfoTooltip";

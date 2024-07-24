@@ -32,6 +32,10 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 const TAB_PARAM = "tab";
 
+interface Props {
+  showBar: boolean;
+}
+
 const AllTaskDuration = ({ showBar }: Props) => {
   const { onSelect } = useSelection();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -61,7 +65,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
 
     if (showBar) {
       seriesData.push({
-        name: children.runId,
+        name: taskId,
         type: "bar",
         stack: "x",
       } as SeriesOption);
@@ -73,6 +77,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
     }
 
     source[taskId] = children.instances.map((instance) => {
+      // @ts-ignore
       const runDuration = moment
         .duration(
           instance.startDate
@@ -89,6 +94,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
 
   // @ts-ignore
   function formatTooltip(value) {
+    // @ts-ignore
     return moment.utc(value * 1000).format("HH[h]:mm[m]:ss[s]");
   }
 
@@ -133,6 +139,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
       name: `Duration`,
       axisLabel: {
         formatter(value: number) {
+          // @ts-ignore
           const duration = moment.utc(value * 1000);
           return duration.format("HH[h]:mm[m]:ss[s]");
         },
