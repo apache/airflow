@@ -18,7 +18,17 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
+import {
+  Text,
+  Flex,
+  Table,
+  Tbody,
+  Tr,
+  Td,
+  Code,
+  Box,
+  useTheme,
+} from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { useTIHistory } from "src/api";
@@ -62,6 +72,7 @@ const dagId = getMetaValue("dag_id");
 const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isGroup = !!group?.children;
   const summary: React.ReactNode[] = [];
+  const theme = useTheme();
 
   const { runId, taskId } = gridInstance || {};
 
@@ -376,7 +387,10 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
 		      } else {
                         <Flex alignItems="right">
                           <SyntaxHighlighter
-                            fontSize="md"
+                            customStyle={{
+                              fontSize: theme.fontSizes.md,
+                              font: theme.fonts.mono,
+                            }}
                             language={language}
                             style={oneLight}
                             wrapLongLines
