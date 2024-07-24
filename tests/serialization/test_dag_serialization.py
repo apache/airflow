@@ -2284,8 +2284,8 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.triggers.testing.SuccessTrigger",
-                trigger_kwargs=None,
+                trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+                trigger_kwargs={"delta": timedelta(seconds=1)},
                 next_method="execute_complete",
                 next_kwargs=None,
                 timeout=None,
@@ -2294,7 +2294,7 @@ class TestStringifiedDAGs:
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.start_trigger_args.trigger_kwargs = {}
+                self.start_trigger_args.trigger_kwargs = {"delta": timedelta(seconds=2)}
                 self.start_from_trigger = True
 
             def execute_complete(self):
@@ -2323,16 +2323,28 @@ class TestStringifiedDAGs:
             Test2Operator(task_id="test_task_2")
 
         serialized_obj = SerializedDAG.to_dict(dag)
+        tasks = serialized_obj["dag"]["tasks"]
 
-        for task in serialized_obj["dag"]["tasks"]:
-            assert task["__var"]["start_trigger_args"] == {
-                "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
-                "trigger_kwargs": {},
-                "next_method": "execute_complete",
-                "next_kwargs": None,
-                "timeout": None,
-            }
-            assert task["__var"]["start_from_trigger"] is True
+        assert tasks[0]["__var"]["start_trigger_args"] == {
+            "__type": "START_TRIGGER_ARGS",
+            "trigger_cls": "airflow.triggers.temporal.TimeDeltaTrigger",
+            # "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "next_method": "execute_complete",
+            "next_kwargs": None,
+            "timeout": None,
+        }
+        assert tasks[0]["__var"]["start_from_trigger"] is True
+
+        assert tasks[1]["__var"]["start_trigger_args"] == {
+            "__type": "START_TRIGGER_ARGS",
+            "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
+            "trigger_kwargs": {"__type": "dict", "__var": {}},
+            "next_method": "execute_complete",
+            "next_kwargs": None,
+            "timeout": None,
+        }
+        assert tasks[1]["__var"]["start_from_trigger"] is True
 
 
 def test_kubernetes_optional():
