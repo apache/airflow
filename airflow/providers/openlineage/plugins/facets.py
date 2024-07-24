@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from attrs import define
 from deprecated import deprecated
-from openlineage.client.facet import BaseFacet
+from openlineage.client.facet_v2 import JobFacet, RunFacet
 from openlineage.client.utils import RedactMixin
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
     category=AirflowProviderDeprecationWarning,
 )
 @define(slots=False)
-class AirflowMappedTaskRunFacet(BaseFacet):
+class AirflowMappedTaskRunFacet(RunFacet):
     """Run facet containing information about mapped tasks."""
 
     mapIndex: int
@@ -47,8 +47,8 @@ class AirflowMappedTaskRunFacet(BaseFacet):
         )
 
 
-@define(slots=False)
-class AirflowJobFacet(BaseFacet):
+@define(slots=True)
+class AirflowJobFacet(JobFacet):
     """
     Composite Airflow job facet.
 
@@ -70,8 +70,8 @@ class AirflowJobFacet(BaseFacet):
     tasks: dict
 
 
-@define(slots=False)
-class AirflowStateRunFacet(BaseFacet):
+@define(slots=True)
+class AirflowStateRunFacet(RunFacet):
     """
     Airflow facet providing state information.
 
@@ -90,8 +90,8 @@ class AirflowStateRunFacet(BaseFacet):
 
 
 @define(slots=False)
-class AirflowRunFacet(BaseFacet):
-    """Composite Airflow task run facet."""
+class AirflowRunFacet(RunFacet):
+    """Composite Airflow run facet."""
 
     dag: dict
     dagRun: dict
@@ -100,8 +100,8 @@ class AirflowRunFacet(BaseFacet):
     taskUuid: str
 
 
-@define(slots=False)
-class AirflowDagRunFacet(BaseFacet):
+@define(slots=True)
+class AirflowDagRunFacet(RunFacet):
     """Composite Airflow DAG run facet."""
 
     dag: dict
@@ -128,7 +128,7 @@ class UnknownOperatorInstance(RedactMixin):
     category=AirflowProviderDeprecationWarning,
 )
 @define(slots=False)
-class UnknownOperatorAttributeRunFacet(BaseFacet):
+class UnknownOperatorAttributeRunFacet(RunFacet):
     """RunFacet that describes unknown operators in an Airflow DAG."""
 
     unknownItems: list[UnknownOperatorInstance]

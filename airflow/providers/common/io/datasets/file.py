@@ -24,7 +24,7 @@ from airflow.datasets import Dataset
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from openlineage.client.run import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
 def create_dataset(*, path: str, extra=None) -> Dataset:
@@ -44,7 +44,7 @@ def convert_dataset_to_openlineage(dataset: Dataset, lineage_context) -> OpenLin
 
     Windows paths are not standardized and can produce unexpected behaviour.
     """
-    from openlineage.client.run import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
     parsed = urllib.parse.urlsplit(dataset.uri)
     return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)

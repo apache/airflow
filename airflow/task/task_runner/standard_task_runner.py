@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING
 import psutil
 from setproctitle import setproctitle
 
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.stats import Stats
@@ -73,6 +72,11 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
+            from airflow.api_internal.internal_api_call import InternalApiConfig
+            from airflow.configuration import conf
+
+            if conf.getboolean("core", "database_access_isolation", fallback=False):
+                InternalApiConfig.set_use_internal_api("Forked task runner")
             # Start a new process group
             set_new_process_group()
 

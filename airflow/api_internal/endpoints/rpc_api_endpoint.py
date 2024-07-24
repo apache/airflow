@@ -36,6 +36,7 @@ from jwt import (
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
@@ -89,13 +90,21 @@ def initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
-        DagFileProcessor.update_import_errors,
-        DagFileProcessor.manage_slas,
-        DagFileProcessorManager.deactivate_stale_dags,
+        DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
         DagModel.get_current,
+        DagFileProcessor._execute_task_callbacks,
+        DagFileProcessor.execute_callbacks,
+        DagFileProcessor.execute_callbacks_without_dag,
+        DagFileProcessor.manage_slas,
+        DagFileProcessor.save_dag_to_db,
+        DagFileProcessor.update_import_errors,
+        DagFileProcessor._validate_task_pools_and_update_dag_warnings,
+        DagFileProcessorManager._fetch_callbacks,
+        DagFileProcessorManager._get_priority_filelocs,
         DagFileProcessorManager.clear_nonexistent_import_errors,
+        DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
         DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
@@ -124,6 +133,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun._get_log_template,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
+        SerializedDagModel.remove_deleted_dags,
         SkipMixin._skip,
         SkipMixin._skip_all_except,
         TaskInstance._check_and_change_state_before_execution,
