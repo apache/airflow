@@ -24,10 +24,13 @@ import type { DagRun as DagRunType } from "src/types";
 import { CardDef, CardList } from "src/components/Table";
 import type { DatasetEvent } from "src/types/api-generated";
 import DatasetEventCard from "src/components/DatasetEventCard";
+import { getMetaValue } from "src/utils";
 
 interface Props {
   runId: DagRunType["runId"];
 }
+
+const dagId = getMetaValue("dag_id");
 
 const cardDef: CardDef<DatasetEvent> = {
   card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
@@ -37,7 +40,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   const {
     data: { datasetEvents = [] },
     isLoading,
-  } = useUpstreamDatasetEvents({ runId });
+  } = useUpstreamDatasetEvents({ dagRunId: runId, dagId });
 
   const columns = useMemo(
     () => [
