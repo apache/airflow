@@ -56,6 +56,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+```
 
 Step 2: Implement the Endpoint Logic
 ------------------------------------
@@ -76,7 +77,8 @@ def get_example(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     # Implementation details here
-    pass```
+    pass
+```
 
 Step 3: Run Pre-commit Hooks
 -----------------------------
@@ -86,7 +88,7 @@ Step 3: Run Pre-commit Hooks
 
 ```bash
 pre-commit run --all-files
-
+```
 ### Optional: Adding Schemas
 
 In some cases, you may need to define additional schemas for new data structures. For example, if you are adding an endpoint that involves new data objects or collections, you may define a schema in a Python file. Here's an example:
@@ -115,7 +117,8 @@ components:
           description: Current page number.
         page_size:
           type: integer
-          description: Number of logs per page.```
+          description: Number of logs per page.
+```
 
 Including schemas helps in automatically generating API documentation and ensures consistent data structures across the API.
 
