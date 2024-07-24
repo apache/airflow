@@ -56,6 +56,17 @@ if not keep_env_variables:
         "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
         "kerberos": {"kerberos": {"*"}},
     }
+    if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
+        _KEEP_CONFIGS_SETTINGS["always"].update(
+            {
+                "core": {
+                    "internal_api_url",
+                    "database_access_isolation",
+                    "internal_api_secret_key",
+                    "internal_api_clock_grace",
+                },
+            }
+        )
     _ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
     _KEEP_CONFIGS: dict[str, set[str]] = {}
     for keep_settings_key in ("always", *_ENABLED_INTEGRATIONS):
@@ -214,6 +225,14 @@ def trace_sql(request):
             )
 
         yield
+
+
+@pytest.fixture(autouse=True, scope="session")
+def set_db_isolation_mode():
+    if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
+        from airflow.api_internal.internal_api_call import InternalApiConfig
+
+        InternalApiConfig.set_use_internal_api("tests", allow_tests_to_use_db=True)
 
 
 def pytest_addoption(parser: pytest.Parser):
