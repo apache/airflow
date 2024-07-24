@@ -47,7 +47,7 @@ class AirflowMappedTaskRunFacet(RunFacet):
         )
 
 
-@define(slots=False)
+@define(slots=True)
 class AirflowJobFacet(JobFacet):
     """
     Composite Airflow job facet.
@@ -70,7 +70,7 @@ class AirflowJobFacet(JobFacet):
     tasks: dict
 
 
-@define(slots=False)
+@define(slots=True)
 class AirflowStateRunFacet(RunFacet):
     """
     Airflow facet providing state information.
@@ -100,7 +100,7 @@ class AirflowRunFacet(RunFacet):
     taskUuid: str
 
 
-@define(slots=False)
+@define(slots=True)
 class AirflowDagRunFacet(RunFacet):
     """Composite Airflow DAG run facet."""
 
