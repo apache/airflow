@@ -379,6 +379,9 @@ class TestProviderManager:
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
+        from pprint import pprint
+
+        pprint(provider_manager.field_behaviours)
         assert len(connections_with_field_behaviours) > 16
 
     def test_extra_links(self):

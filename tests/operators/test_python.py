@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 import pickle
@@ -40,6 +41,7 @@ from slugify import slugify
 
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
+from airflow.models import Connection
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
@@ -56,7 +58,7 @@ from airflow.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.utils import timezone
+from airflow.utils import db, timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv
@@ -963,6 +965,72 @@ venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     opcls = PythonVirtualenvOperator
 
+    @classmethod
+    def setup_class(cls) -> None:
+        for conn_id, extra in [
+            (
+                "test_no_requirements_no_system_site_packages",
+                {
+                    "requirements": "",
+                    "system_site_packages": False,
+                },
+            ),
+            (
+                "test_pip_install_options",
+                {
+                    "requirements": "funcsigs==0.4.0",
+                    "system_site_packages": False,
+                    "pip_install_options": "--no-deps",
+                },
+            ),
+            (
+                "test_system_site_packages_priority",
+                {
+                    "requirements": "funcsigs==0.4\ndill",
+                    "system_site_packages": True,
+                    "pip_install_options": "--no-deps",
+                },
+            ),
+            (
+                "test_requirements_list",
+                {
+                    "requirements": "pyyaml\nfuncsigs==0.4",
+                    "python_version": "3.9",
+                    "system_site_packages": False,
+                    "pip_install_options": "--no-deps",
+                },
+            ),
+            (
+                "test_prepare_python_virtualenv",
+                {
+                    "requirements": "funcsigs==0.4",
+                    "python_version": "3.8",
+                    "system_site_packages": False,
+                    "pip_install_options": "--no-cache-dir",
+                },
+            ),
+            (
+                "test_compare_random_order_requirements",
+                {
+                    "requirements": "flask\napache-airflow==2.2.0\ndill",
+                    "python_version": "3.9",
+                    "system_site_packages": False,
+                    "pip_install_options": "--no-cache-dir",
+                },
+            ),
+            (
+                "test_compare_index_urls",
+                {
+                    "requirements": "flask\napache-airflow==2.2.0\ndill",
+                    "python_version": "3.9",
+                    "system_site_packages": False,
+                    "pip_install_options": "--no-cache-dir",
+                    "index_urls": "https://pypi.org/simple,https://pypi.example.com/simple",
+                },
+            ),
+        ]:
+            db.merge_conn(Connection(conn_type="python_venv", conn_id=conn_id, extra=json.dumps(extra)))
+
     @staticmethod
     def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python_version"] = python_version
@@ -1382,15 +1450,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pytest.param(None, id="default"),
         ],
     )
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
-    def test_serializer_by_venv_conn(self, mock_conn, serializer):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": None,
-            "system_site_packages": False,
-        }
-        mock_conn.return_value = mock_obj
-
+    def test_serializer_by_venv_conn(self, serializer):
         def f(
             # basic
             ds_nodash,
@@ -1415,25 +1475,20 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ):
             pass
 
-        self.run_as_task(f, serializer=serializer, venv_conn_id="some_conn")
+        self.run_as_task(
+            f, serializer=serializer, venv_conn_id="test_no_requirements_no_system_site_packages"
+        )
 
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
     @mock.patch("airflow.operators.python.prepare_virtualenv")
-    def test_pip_install_options_by_venv_conn(self, mocked_prepare_virtualenv, mock_conn):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": "funcsigs==0.4",
-            "system_site_packages": False,
-            "pip_install_options": "--no-deps",
-        }
-        mock_conn.return_value = mock_obj
-
+    def test_pip_install_options_by_venv_conn(self, mocked_prepare_virtualenv):
         def f():
             import funcsigs  # noqa: F401
 
         mocked_prepare_virtualenv.side_effect = prepare_virtualenv
 
-        self.run_as_task(f, venv_conn_id="some_conn", python_version=None, venv_cache_path=None)
+        self.run_as_task(
+            f, venv_conn_id="test_pip_install_options", python_version=None, venv_cache_path=None
+        )
         mocked_prepare_virtualenv.assert_called_with(
             index_urls=None,
             venv_directory=mock.ANY,
@@ -1443,23 +1498,19 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
 
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
     @mock.patch("airflow.operators.python.prepare_virtualenv")
-    def test_system_site_packages_priority_by_venv_conn(self, mocked_prepare_virtualenv, mock_conn):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": "funcsigs==0.4\ndill",
-            "system_site_packages": True,
-            "pip_install_options": "--no-deps",
-        }
-        mock_conn.return_value = mock_obj
-
+    def test_system_site_packages_priority_by_venv_conn(self, mocked_prepare_virtualenv):
         def f():
             import funcsigs  # noqa: F401
 
         mocked_prepare_virtualenv.side_effect = prepare_virtualenv
 
-        self.run_as_task(f, venv_conn_id="some_conn", system_site_packages=False, venv_cache_path=None)
+        self.run_as_task(
+            f,
+            venv_conn_id="test_system_site_packages_priority",
+            system_site_packages=False,
+            venv_cache_path=None,
+        )
         mocked_prepare_virtualenv.assert_called_with(
             index_urls=mock.ANY,
             venv_directory=mock.ANY,
@@ -1477,29 +1528,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
         ],
     )
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
     @mock.patch("airflow.operators.python.prepare_virtualenv")
     def test_requirements_list_by_venv_conn(
         self,
         mocked_prepare_virtualenv,
-        mock_conn,
         serializer,
     ):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": "pyyaml\nfuncsigs==0.4",
-            "python_version": "3.9",
-            "system_site_packages": False,
-            "pip_install_options": "--no-deps",
-        }
-        mock_conn.return_value = mock_obj
-
         def f():
             import funcsigs  # noqa: F401
 
         mocked_prepare_virtualenv.side_effect = prepare_virtualenv
 
-        self.run_as_task(f, venv_conn_id="some_conn", serializer=serializer, python_version=None)
+        self.run_as_task(f, venv_conn_id="test_requirements_list", serializer=serializer, python_version=None)
 
         requirements_file_path = mocked_prepare_virtualenv.call_args[1]["requirements_file_path"]
         with open(requirements_file_path) as file:
@@ -1511,22 +1551,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             assert serializer in requirements
 
     @mock.patch("airflow.utils.python_virtualenv.execute_in_subprocess")
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
     @mock.patch("airflow.operators.python.prepare_virtualenv")
     def test_prepare_python_virtualenv_by_venv_conn(
-        self,
-        mocked_prepare_virtualenv,
-        mock_conn,
-        mock_execute_in_subprocess,
+        self, mocked_prepare_virtualenv, mock_execute_in_subprocess
     ):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": "funcsigs==0.4",
-            "python_version": "3.8",
-            "system_site_packages": False,
-            "pip_install_options": "--no-cache-dir",
-        }
-        mock_conn.return_value = mock_obj
         mock_execute_in_subprocess.side_effect = execute_in_subprocess
 
         def f():
@@ -1534,7 +1562,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         mocked_prepare_virtualenv.side_effect = prepare_virtualenv
 
-        self.run_as_task(f, venv_conn_id="some_conn", python_version=None)
+        self.run_as_task(f, venv_conn_id="test_prepare_python_virtualenv", python_version=None)
 
         venv_directory = mocked_prepare_virtualenv.call_args[1]["venv_directory"]
         requirements_file_path = mocked_prepare_virtualenv.call_args[1]["requirements_file_path"]
@@ -1555,19 +1583,8 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pytest.param(None, id="default"),
         ],
     )
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
     @mock.patch("airflow.models.variable.Variable.get")
-    def test_compare_random_order_requirements_between_inputs_and_venv_conn(
-        self, mock_get, mock_conn, serializer
-    ):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": "flask\napache-airflow==2.2.0\ndill",
-            "python_version": "3.9",
-            "system_site_packages": False,
-            "pip_install_options": "--no-cache-dir",
-        }
-        mock_conn.return_value = mock_obj
+    def test_compare_random_order_requirements_between_inputs_and_venv_conn(self, mock_get, serializer):
         mock_get.return_value = ""
 
         def f():
@@ -1576,7 +1593,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         t1 = PythonVirtualenvOperator(
             task_id="task1",
             python_callable=f,
-            venv_conn_id="some_conn",
+            venv_conn_id="test_compare_random_order_requirements",
             serializer=serializer,
         )
         with t1.apply_virtualenv_hook():
@@ -1605,18 +1622,8 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pytest.param(None, id="default"),
         ],
     )
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
     @mock.patch("airflow.models.variable.Variable.get")
-    def test_compare_index_urls_between_inputs_and_venv_conn(self, mock_get, mock_conn, serializer):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {
-            "requirements": "flask\napache-airflow==2.2.0\ndill",
-            "python_version": "3.9",
-            "system_site_packages": False,
-            "pip_install_options": "--no-cache-dir",
-            "index_urls": "https://pypi.org/simple,https://pypi.example.com/simple",
-        }
-        mock_conn.return_value = mock_obj
+    def test_compare_index_urls_between_inputs_and_venv_conn(self, mock_get, serializer):
         mock_get.return_value = ""
 
         def f():
@@ -1625,7 +1632,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         t1 = PythonVirtualenvOperator(
             task_id="task1",
             python_callable=f,
-            venv_conn_id="some_conn",
+            venv_conn_id="test_compare_index_urls",
             serializer=serializer,
         )
         with t1.apply_virtualenv_hook():

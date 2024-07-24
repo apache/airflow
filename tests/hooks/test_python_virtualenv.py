@@ -17,15 +17,33 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.python_virtualenv import PythonVirtualenvHook
+from airflow.models import Connection
+from airflow.utils import db
+from tests.test_utils.db import clear_db_connections
 
 
 class TestPythonVirtualenvHook:
+    @classmethod
+    def setup_class(cls) -> None:
+        for conn_id, extra in [
+            ("use_requirements", {"requirements": "apache-airflow==2.1.0\nfuncsigs==1.0.2"}),
+            ("use_system_site_packages", {"system_site_packages": True}),
+            ("use_pip_options", {"pip_install_options": "--no-cache-dir --proxy=http://proxy:3128"}),
+            ("use_index_urls", {"index_urls": "https://pypi.org/simple,https://pypi.example.com/simple"}),
+        ]:
+            db.merge_conn(Connection(conn_type="python_venv", conn_id=conn_id, extra=json.dumps(extra)))
+
+    @classmethod
+    def teardown_class(cls) -> None:
+        clear_db_connections()
+
     def test_python_virtualenv_set_connection_with_wrong_connection(self):
         with pytest.raises(AirflowNotFoundException):
             PythonVirtualenvHook(venv_conn_id="some_conn")
@@ -35,41 +53,21 @@ class TestPythonVirtualenvHook:
         PythonVirtualenvHook(venv_conn_id="some_conn")
         mock_conn.assert_called_once_with("some_conn")
 
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
-    def test_parse_requirements_in_python_virtualenv_hook(self, mock_conn):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {"requirements": "apache-airflow==2.1.0\nfuncsigs==1.0.2"}
-        mock_conn.return_value = mock_obj
-
-        hook = PythonVirtualenvHook(venv_conn_id="some_conn")
+    def test_parse_requirements_in_python_virtualenv_hook(self):
+        hook = PythonVirtualenvHook(venv_conn_id="use_requirements")
         assert "apache-airflow==2.1.0" in hook.requirements
         assert "funcsigs==1.0.2" in hook.requirements
 
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
-    def test_parse_system_site_packages_in_python_virtualenv_hook(self, mock_conn):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {"system_site_packages": True}
-        mock_conn.return_value = mock_obj
-
-        hook = PythonVirtualenvHook(venv_conn_id="some_conn")
+    def test_parse_system_site_packages_in_python_virtualenv_hook(self):
+        hook = PythonVirtualenvHook(venv_conn_id="use_system_site_packages")
         assert hook.system_site_packages
 
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
-    def test_parse_pip_install_options_in_python_virtualenv_hook(self, mock_conn):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {"pip_install_options": "--no-cache-dir --proxy=http://proxy:3128"}
-        mock_conn.return_value = mock_obj
-
-        hook = PythonVirtualenvHook(venv_conn_id="some_conn")
+    def test_parse_pip_install_options_in_python_virtualenv_hook(self):
+        hook = PythonVirtualenvHook(venv_conn_id="use_pip_options")
         assert "--no-cache-dir" in hook.pip_install_options
         assert "--proxy=http://proxy:3128" in hook.pip_install_options
 
-    @mock.patch("airflow.hooks.python_virtualenv.PythonVirtualenvHook.get_connection")
-    def test_parse_index_urls_in_python_virtualenv_hook(self, mock_conn):
-        mock_obj = mock.Mock()
-        mock_obj.extra_dejson = {"index_urls": "https://pypi.org/simple,https://pypi.example.com/simple"}
-        mock_conn.return_value = mock_obj
-
-        hook = PythonVirtualenvHook(venv_conn_id="some_conn")
+    def test_parse_index_urls_in_python_virtualenv_hook(self):
+        hook = PythonVirtualenvHook(venv_conn_id="use_index_urls")
         assert "https://pypi.org/simple" in hook.index_urls
         assert "https://pypi.example.com/simple" in hook.index_urls
