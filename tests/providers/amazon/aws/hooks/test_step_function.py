@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowFailException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 
 
@@ -64,7 +64,9 @@ class TestStepFunctionHook:
     def test_redrive_execution_without_name_should_fail(self, mock_conn):
         mock_conn.redrive_execution.return_value = {"redriveDate": datetime(2024, 1, 1)}
 
-        with pytest.raises(AirflowException, match="Execution name is required to start RedriveExecution"):
+        with pytest.raises(
+            AirflowFailException, match="Execution name is required to start RedriveExecution"
+        ):
             StepFunctionHook().start_execution(
                 state_machine_arn="arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
                 is_redrive_execution=True,

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowFailException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -61,7 +61,7 @@ class StepFunctionHook(AwsBaseHook):
         """
         if is_redrive_execution:
             if not name:
-                raise AirflowException(
+                raise AirflowFailException(
                     "Execution name is required to start RedriveExecution for %s.", state_machine_arn
                 )
             elements = state_machine_arn.split(":stateMachine:")
