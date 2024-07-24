@@ -355,13 +355,10 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                 >;
 
                 const templateFieldsRenderers =
-                  taskInstance.templateFieldsRenderers as Record<
-                    string,
-                    string
-                  >;
+                  instance.templateFieldsRenderers as Record<string, string>;
 
-                  const field = renderedFields[key];
-		  let validJSON = false;
+                const field = renderedFields[key];
+                let validJSON = false;
                 let fieldString = field as unknown as string;
                 const renderer = templateFieldsRenderers[key] || null;
                 const language: string = renderer
@@ -371,8 +368,8 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                 if (field) {
                   if (typeof field !== "string") {
                     try {
-			fieldString = JSON.stringify(field, null, 4);
-			validJSON = true;
+                      fieldString = JSON.stringify(field, null, 4);
+                      validJSON = true;
                     } catch (e) {
                       // skip
                     }
@@ -382,29 +379,30 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-		      if (validJSON) {
+                        {validJSON && (
                           <RenderedJsonField content={fieldString} />
-		      } else {
-                        <Flex alignItems="right">
-                          <SyntaxHighlighter
-                            customStyle={{
-                              fontSize: theme.fontSizes.md,
-                              font: theme.fonts.mono,
-                            }}
-                            language={language}
-                            style={oneLight}
-                            wrapLongLines
-                          >
-                            {fieldString}
-                          </SyntaxHighlighter>
-                          <ClipboardButton
-                            ml={2}
-                            mt={2}
-                            iconOnly
-                            value={fieldString}
-                          />
-                              </Flex>
-		      }
+                        )}
+                        {!validJSON && (
+                          <Flex alignItems="right">
+                            <SyntaxHighlighter
+                              customStyle={{
+                                fontSize: theme.fontSizes.md,
+                                font: theme.fonts.mono,
+                              }}
+                              language={language}
+                              style={oneLight}
+                              wrapLongLines
+                            >
+                              {fieldString}
+                            </SyntaxHighlighter>
+                            <ClipboardButton
+                              ml={2}
+                              mt={2}
+                              iconOnly
+                              value={fieldString}
+                            />
+                          </Flex>
+                        )}
                       </Td>
                     </Tr>
                   );
