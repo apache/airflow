@@ -33,9 +33,10 @@ from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     get_airflow_job_facet,
+    get_airflow_mapped_task_facet,
     get_airflow_run_facet,
-    get_custom_facets,
     get_job_name,
+    get_user_provided_run_facets,
     is_operator_disabled,
     is_selective_lineage_enabled,
     print_warning,
@@ -43,13 +44,13 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.settings import configure_orm
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun, TaskInstance
-    from airflow.utils.state import TaskInstanceState
 
 _openlineage_listener: OpenLineageListener | None = None
 _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
@@ -163,7 +164,8 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **get_custom_facets(task_instance),
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
+                    **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
             )
@@ -233,6 +235,7 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
@@ -327,6 +330,7 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                 error=error,
             )
             Stats.gauge(
@@ -420,7 +424,7 @@ class OpenLineageListener:
             nominal_end_time=data_interval_end,
             # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
             # as it causes lack of some TaskGroup attributes and crashes event emission.
-            job_facets={**get_airflow_job_facet(dag_run=dag_run)},
+            job_facets=get_airflow_job_facet(dag_run=dag_run),
         )
 
     @hookimpl

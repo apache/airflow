@@ -23,13 +23,25 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
-from flask import Response
+from flask import Response, request
+from itsdangerous import BadSignature
+from jwt import (
+    ExpiredSignatureError,
+    ImmatureSignatureError,
+    InvalidAudienceError,
+    InvalidIssuedAtError,
+    InvalidSignatureError,
+)
 
+from airflow.api_connexion.exceptions import PermissionDenied
+from airflow.configuration import conf
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
 from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -78,13 +90,21 @@ def initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
-        DagFileProcessor.update_import_errors,
-        DagFileProcessor.manage_slas,
-        DagFileProcessorManager.deactivate_stale_dags,
+        DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
         DagModel.get_current,
+        DagFileProcessor._execute_task_callbacks,
+        DagFileProcessor.execute_callbacks,
+        DagFileProcessor.execute_callbacks_without_dag,
+        DagFileProcessor.manage_slas,
+        DagFileProcessor.save_dag_to_db,
+        DagFileProcessor.update_import_errors,
+        DagFileProcessor._validate_task_pools_and_update_dag_warnings,
+        DagFileProcessorManager._fetch_callbacks,
+        DagFileProcessorManager._get_priority_filelocs,
         DagFileProcessorManager.clear_nonexistent_import_errors,
+        DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
         DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
@@ -113,6 +133,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun._get_log_template,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
+        SerializedDagModel.remove_deleted_dags,
         SkipMixin._skip,
         SkipMixin._skip_all_except,
         TaskInstance._check_and_change_state_before_execution,
@@ -142,6 +163,44 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
+    content_type = request.headers.get("Content-Type")
+    if content_type != "application/json":
+        raise PermissionDenied("Expected Content-Type: application/json")
+    accept = request.headers.get("Accept")
+    if accept != "application/json":
+        raise PermissionDenied("Expected Accept: application/json")
+    auth = request.headers.get("Authorization", "")
+    signer = JWTSigner(
+        secret_key=conf.get("core", "internal_api_secret_key"),
+        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        audience="api",
+    )
+    try:
+        payload = signer.verify_token(auth)
+        signed_method = payload.get("method")
+        if not signed_method or signed_method != body.get("method"):
+            raise BadSignature("Invalid method in token authorization.")
+    except BadSignature:
+        raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
+    except InvalidAudienceError:
+        raise PermissionDenied("Invalid audience for the request")
+    except InvalidSignatureError:
+        raise PermissionDenied("The signature of the request was wrong")
+    except ImmatureSignatureError:
+        raise PermissionDenied("The signature of the request was sent from the future")
+    except ExpiredSignatureError:
+        raise PermissionDenied(
+            "The signature of the request has expired. Make sure that all components "
+            "in your system have synchronized clocks.",
+        )
+    except InvalidIssuedAtError:
+        raise PermissionDenied(
+            "The request was issues in the future. Make sure that all components "
+            "in your system have synchronized clocks.",
+        )
+    except Exception:
+        raise PermissionDenied("Unable to authenticate API via token.")
+
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":

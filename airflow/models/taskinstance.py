@@ -139,7 +139,7 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import ATTRIBUTE_REMOVED
+from airflow.utils.types import AttributeRemoved
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -935,7 +935,7 @@ def _get_template_context(
         assert task
         assert task.dag
 
-    if task.dag is ATTRIBUTE_REMOVED:
+    if task.dag.__class__ is AttributeRemoved:
         task.dag = dag  # required after deserialization
 
     dag_run = task_instance.get_dagrun(session)
@@ -1288,7 +1288,7 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    if task.dag is ATTRIBUTE_REMOVED:
+    if task.dag.__class__ is AttributeRemoved:
         task.dag = dag  # required after deserialization
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
@@ -2672,7 +2672,7 @@ class TaskInstance(Base, LoggingMixin):
         """Ensure that task has a dag object associated, might have been removed by serialization."""
         if TYPE_CHECKING:
             assert task_instance.task
-        if task_instance.task.dag is None or task_instance.task.dag is ATTRIBUTE_REMOVED:
+        if task_instance.task.dag is None or task_instance.task.dag.__class__ is AttributeRemoved:
             task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
                 dag_id=task_instance.dag_id, session=session
             )
@@ -3465,7 +3465,7 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task
             assert ti.task
 
-        if ti.task.dag is ATTRIBUTE_REMOVED:
+        if ti.task.dag.__class__ is AttributeRemoved:
             ti.task.dag = self.task.dag
 
         # If self.task is mapped, this call replaces self.task to point to the

@@ -16,8 +16,38 @@
 # under the License.
 from __future__ import annotations
 
+import urllib.parse
+
+import pytest
+
 from airflow.datasets import Dataset
-from airflow.providers.amazon.aws.datasets.s3 import create_dataset
+from airflow.providers.amazon.aws.datasets.s3 import (
+    convert_dataset_to_openlineage,
+    create_dataset,
+    sanitize_uri,
+)
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+
+def test_sanitize_uri():
+    uri = sanitize_uri(urllib.parse.urlsplit("s3://bucket/dir/file.txt"))
+    result = sanitize_uri(uri)
+    assert result.scheme == "s3"
+    assert result.netloc == "bucket"
+    assert result.path == "/dir/file.txt"
+
+
+def test_sanitize_uri_no_netloc():
+    with pytest.raises(ValueError):
+        sanitize_uri(urllib.parse.urlsplit("s3://"))
+
+
+def test_sanitize_uri_no_path():
+    uri = sanitize_uri(urllib.parse.urlsplit("s3://bucket"))
+    result = sanitize_uri(uri)
+    assert result.scheme == "s3"
+    assert result.netloc == "bucket"
+    assert result.path == ""
 
 
 def test_create_dataset():
@@ -25,3 +55,25 @@ def test_create_dataset():
     assert create_dataset(bucket="test-bucket", key="test-dir/test-path") == Dataset(
         uri="s3://test-bucket/test-dir/test-path"
     )
+
+
+def test_sanitize_uri_trailing_slash():
+    uri = sanitize_uri(urllib.parse.urlsplit("s3://bucket/"))
+    result = sanitize_uri(uri)
+    assert result.scheme == "s3"
+    assert result.netloc == "bucket"
+    assert result.path == "/"
+
+
+def test_convert_dataset_to_openlineage_valid():
+    uri = "s3://bucket/dir/file.txt"
+    ol_dataset = convert_dataset_to_openlineage(dataset=Dataset(uri=uri), lineage_context=S3Hook())
+    assert ol_dataset.namespace == "s3://bucket"
+    assert ol_dataset.name == "dir/file.txt"
+
+
+@pytest.mark.parametrize("uri", ("s3://bucket", "s3://bucket/"))
+def test_convert_dataset_to_openlineage_no_path(uri):
+    ol_dataset = convert_dataset_to_openlineage(dataset=Dataset(uri=uri), lineage_context=S3Hook())
+    assert ol_dataset.namespace == "s3://bucket"
+    assert ol_dataset.name == "/"

@@ -38,16 +38,17 @@ import { useDatasetGraphs } from "src/api/useDatasetDependencies";
 
 import Node, { CustomNodeProps } from "./Node";
 import Legend from "./Legend";
+import type { OnSelectProps } from "../types";
 
 interface Props {
-  selectedNodeId: string | null;
-  onSelectNode: (id: string, type: string) => void;
+  selectedNodeId?: string;
+  onSelect?: (props: OnSelectProps) => void;
 }
 
 const nodeTypes = { custom: Node };
 const edgeTypes = { custom: Edge };
 
-const Graph = ({ selectedNodeId, onSelectNode }: Props) => {
+const Graph = ({ selectedNodeId, onSelect }: Props) => {
   const { colors } = useTheme();
   const { setCenter } = useReactFlow();
   const containerRef = useContainerRef();
@@ -84,7 +85,13 @@ const Graph = ({ selectedNodeId, onSelectNode }: Props) => {
         type: c.value.class,
         width: c.width,
         height: c.height,
-        onSelect: onSelectNode,
+        onSelect: () => {
+          if (onSelect) {
+            if (c.value.class === "dataset") onSelect({ uri: c.value.label });
+            else if (c.value.class === "dag")
+              onSelect({ dagId: c.value.label });
+          }
+        },
         isSelected: selectedNodeId === c.value.label,
         isHighlighted: edges.some(
           (e) => e.data.rest.isSelected && e.id.includes(c.id)

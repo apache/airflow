@@ -40,7 +40,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
-    DatasetAliasModel,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -50,7 +49,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
-from tests.test_utils.compat import ParseImportError
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ParseImportError
 
 
 def clear_db_runs():
@@ -74,7 +73,10 @@ def clear_db_datasets():
         session.query(DatasetDagRunQueue).delete()
         session.query(DagScheduleDatasetReference).delete()
         session.query(TaskOutletDatasetReference).delete()
-        session.query(DatasetAliasModel).delete()
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.models.dataset import DatasetAliasModel
+
+            session.query(DatasetAliasModel).delete()
 
 
 def clear_db_dags():

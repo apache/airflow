@@ -43,7 +43,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.types import ATTRIBUTE_REMOVED, DagRunType
+from airflow.utils.types import AttributeRemoved, DagRunType
 from tests.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
@@ -117,7 +117,7 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     # roundtrip ti
     sered = BaseSerialization.serialize(ti, use_pydantic_models=True)
     desered = BaseSerialization.deserialize(sered, use_pydantic_models=True)
-    assert desered.task.dag is ATTRIBUTE_REMOVED
+    assert desered.task.dag.__class__ is AttributeRemoved
     assert "operator_class" not in sered["__var"]["task"]
 
     assert desered.task.__class__ == MappedOperator
@@ -135,7 +135,7 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     # dag already has this task
     assert dag.has_task(desered.task.task_id) is True
     # but the task has no dag
-    assert desered.task.dag is ATTRIBUTE_REMOVED
+    assert desered.task.dag.__class__ is AttributeRemoved
     # and there are no upstream / downstreams on the task cus those are wiped out on serialization
     # and this is wrong / not great but that's how it is
     assert desered.task.upstream_task_ids == set()

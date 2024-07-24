@@ -17,18 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import attr
 
 from airflow.datasets import Dataset
-from airflow.hooks.base import BaseHook
-from airflow.io.store import ObjectStore
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-# Store context what sent lineage.
-LineageContext = Union[BaseHook, ObjectStore]
+if TYPE_CHECKING:
+    from airflow.hooks.base import BaseHook
+    from airflow.io.path import ObjectStoragePath
+
+    # Store context what sent lineage.
+    LineageContext = Union[BaseHook, ObjectStoragePath]
 
 _hook_lineage_collector: HookLineageCollector | None = None
 

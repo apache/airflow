@@ -19,10 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
-from openlineage.client.run import Dataset
-
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+)
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -93,12 +96,12 @@ def test_execute_openlineage_events():
             facets={
                 "schema": SchemaDatasetFacet(
                     fields=[
-                        SchemaField(name="custkey", type="bigint"),
-                        SchemaField(name="name", type="varchar(25)"),
-                        SchemaField(name="address", type="varchar(40)"),
-                        SchemaField(name="nationkey", type="bigint"),
-                        SchemaField(name="phone", type="varchar(15)"),
-                        SchemaField(name="acctbal", type="double"),
+                        SchemaDatasetFacetFields(name="custkey", type="bigint"),
+                        SchemaDatasetFacetFields(name="name", type="varchar(25)"),
+                        SchemaDatasetFacetFields(name="address", type="varchar(40)"),
+                        SchemaDatasetFacetFields(name="nationkey", type="bigint"),
+                        SchemaDatasetFacetFields(name="phone", type="varchar(15)"),
+                        SchemaDatasetFacetFields(name="acctbal", type="double"),
                     ]
                 )
             },
@@ -107,4 +110,4 @@ def test_execute_openlineage_events():
 
     assert len(lineage.outputs) == 0
 
-    assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
