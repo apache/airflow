@@ -27,7 +27,7 @@ import warnings
 import weakref
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
 
 import attrs
 import lazy_object_proxy
@@ -348,6 +348,42 @@ def decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     if priority_weight_strategy_class is None:
         raise _PriorityWeightStrategyNotRegistered(var)
     return priority_weight_strategy_class()
+
+
+def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
+    """
+    Encode a StartTriggerArgs.
+
+    :meta private:
+    """
+    serialize_kwargs = (
+        lambda key: BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
+    )
+    return {
+        "__type": "START_TRIGGER_ARGS",
+        "trigger_cls": var.trigger_cls,
+        "trigger_kwargs": serialize_kwargs("trigger_kwargs"),
+        "next_method": var.next_method,
+        "next_kwargs": serialize_kwargs("next_kwargs"),
+        "timeout": var.timeout.total_seconds() if var.timeout else None,
+    }
+
+
+def decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
+    """
+    Decode a StartTriggerArgs.
+
+    :meta private:
+    """
+    deserialize_kwargs = lambda key: BaseSerialization.deserialize(var[key]) if var[key] is not None else None
+
+    return StartTriggerArgs(
+        trigger_cls=var["trigger_cls"],
+        trigger_kwargs=deserialize_kwargs("trigger_kwargs"),
+        next_method=var["next_method"],
+        next_kwargs=deserialize_kwargs("next_kwargs"),
+        timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
+    )
 
 
 class _XComRef(NamedTuple):
@@ -1088,7 +1124,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
         serialize_op["start_trigger_args"] = (
-            op.start_trigger_args.serialize() if op.start_trigger_args else None
+            encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
         )
         serialize_op["start_from_trigger"] = op.start_from_trigger
 
@@ -1276,8 +1312,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
         start_trigger_args = None
-        if encoded_op.get("start_trigger_args", None):
-            start_trigger_args = StartTriggerArgs(**encoded_op.get("start_trigger_args", None))
+        encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
+        if encoded_start_trigger_args:
+            encoded_start_trigger_args = cast(dict, encoded_start_trigger_args)
+            start_trigger_args = decode_start_trigger_args(encoded_start_trigger_args)
         setattr(op, "start_trigger_args", start_trigger_args)
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
