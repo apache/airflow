@@ -1573,7 +1573,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for task in dag.task_dict.values()
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             ]
-            dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
+            dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 

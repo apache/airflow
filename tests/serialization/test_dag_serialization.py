@@ -1796,6 +1796,30 @@ class TestStringifiedDAGs:
                     "dependency_type": "dataset",
                     "dependency_id": "d1",
                 },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
             ],
             key=lambda x: tuple(x.values()),
         )
