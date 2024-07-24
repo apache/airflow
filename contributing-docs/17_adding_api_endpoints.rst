@@ -1,19 +1,19 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+.. Licensed to the Apache Software Foundation (ASF) under one
+   or more contributor license agreements.  See the NOTICE file
+   distributed with this work for additional information
+   regarding copyright ownership.  The ASF licenses this file
+   to you under the Apache License, Version 2.0 (the
+   "License"); you may not use this file except in compliance
+   with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..   http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+.. Unless required by applicable law or agreed to in writing,
+   software distributed under the License is distributed on an
+   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+   KIND, either express or implied.  See the License for the
+   specific language governing permissions and limitations
+   under the License.
 
 Adding a New API Endpoint in Apache Airflow
 ===========================================
@@ -30,33 +30,33 @@ Step 1: Define the Endpoint in ``v1.yaml``
 4. Describe the responses, including status codes, content types, and schema details.
 
 Example:
-```yaml
-paths:
-  /example/endpoint:
-    get:
-      summary: Example API endpoint
-      description: This endpoint provides an example response.
-      parameters:
-        - name: example_param
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-```
+.. code-block:: yaml
+
+   paths:
+     /example/endpoint:
+       get:
+         summary: Example API endpoint
+         description: This endpoint provides an example response.
+         parameters:
+           - name: example_param
+             in: query
+             required: true
+             schema:
+               type: string
+         responses:
+           "200":
+             description: Successful response
+             content:
+               application/json:
+                 schema:
+                   type: object
+                   properties:
+                     message:
+                       type: string
+           "400":
+             $ref: "#/components/responses/BadRequest"
+           "404":
+             $ref: "#/components/responses/NotFound"
 
 Step 2: Implement the Endpoint Logic
 ------------------------------------
@@ -66,19 +66,19 @@ Step 2: Implement the Endpoint Logic
 4. Add error handling for potential issues like missing parameters or invalid data.
 
 Example:
-```python
-@security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
-@provide_session
-@unify_bucket_name_and_key
-@provide_bucket_name
-def get_example(
-    *,
-    example_param: str,
-    session: Session = NEW_SESSION,
-) -> APIResponse:
-    # Implementation details here
-    pass
-```
+.. code-block:: python
+
+   @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
+   @provide_session
+   @unify_bucket_name_and_key
+   @provide_bucket_name
+   def get_example(
+       *,
+       example_param: str,
+       session: Session = NEW_SESSION,
+   ) -> APIResponse:
+       # Implementation details here
+       pass
 
 Step 3: Run Pre-commit Hooks
 -----------------------------
@@ -86,39 +86,42 @@ Step 3: Run Pre-commit Hooks
 2. Pre-commit hooks include static code checks, formatting, and other validations.
 3. Run the following command to execute all pre-commit hooks:
 
-```bash
-pre-commit run --all-files
-```
+.. code-block:: bash
+
+   pre-commit run --all-files
+
 ### Optional: Adding Schemas
 
 In some cases, you may need to define additional schemas for new data structures. For example, if you are adding an endpoint that involves new data objects or collections, you may define a schema in a Python file. Here's an example:
 
-```python
-class TaskLogPageSchema(Schema):
-    """Schema for task log pagination details."""
-    total_pages = fields.Int(description="Total number of pages for task logs.")
-    current_page = fields.Int(description="Current page number.")
-    page_size = fields.Int(description="Number of logs per page.")```
+.. code-block:: python
+
+   class TaskLogPageSchema(Schema):
+       """Schema for task log pagination details."""
+
+       total_pages = fields.Int(description="Total number of pages for task logs.")
+       current_page = fields.Int(description="Current page number.")
+       page_size = fields.Int(description="Number of logs per page.")
 
 These schemas are defined to structure and validate the data handled by the API. Once defined, you can include these schemas in the OpenAPI specification file (e.g., v1.yaml) and reference them in the API endpoint definitions.
 
 For example, in v1.yaml, you might add:
-```yaml
-components:
-  schemas:
-    TaskLogPage:
-      type: object
-      properties:
-        total_pages:
-          type: integer
-          description: Total number of pages for task logs.
-        current_page:
-          type: integer
-          description: Current page number.
-        page_size:
-          type: integer
-          description: Number of logs per page.
-```
+.. code-block:: yaml
+
+   components:
+     schemas:
+       TaskLogPage:
+         type: object
+         properties:
+           total_pages:
+             type: integer
+             description: Total number of pages for task logs.
+           current_page:
+             type: integer
+             description: Current page number.
+           page_size:
+             type: integer
+             description: Number of logs per page.
 
 Including schemas helps in automatically generating API documentation and ensures consistent data structures across the API.
 
