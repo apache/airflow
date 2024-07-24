@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 
+from airflow.exceptions import AirflowFailException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -43,6 +44,7 @@ class StepFunctionHook(AwsBaseHook):
         state_machine_arn: str,
         name: str | None = None,
         state_machine_input: dict | str | None = None,
+        is_redrive_execution: bool = False,
     ) -> str:
         """
         Start Execution of the State Machine.
@@ -51,10 +53,26 @@ class StepFunctionHook(AwsBaseHook):
             - :external+boto3:py:meth:`SFN.Client.start_execution`
 
         :param state_machine_arn: AWS Step Function State Machine ARN.
+        :param is_redrive_execution: Restarts unsuccessful executions of Standard workflows that did not
+            complete successfully in the last 14 days.
         :param name: The name of the execution.
         :param state_machine_input: JSON data input to pass to the State Machine.
         :return: Execution ARN.
         """
+        if is_redrive_execution:
+            if not name:
+                raise AirflowFailException(
+                    "Execution name is required to start RedriveExecution for %s.", state_machine_arn
+                )
+            elements = state_machine_arn.split(":stateMachine:")
+            execution_arn = f"{elements[0]}:execution:{elements[1]}:{name}"
+            self.conn.redrive_execution(executionArn=execution_arn)
+            self.log.info(
+                "Successfully started RedriveExecution for Step Function State Machine: %s.",
+                state_machine_arn,
+            )
+            return execution_arn
+
         execution_args = {"stateMachineArn": state_machine_arn}
         if name is not None:
             execution_args["name"] = name

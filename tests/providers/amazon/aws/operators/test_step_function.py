@@ -159,7 +159,7 @@ class TestStepFunctionStartExecutionOperator:
             aws_conn_id=None,
         )
         assert op.execute(mocked_context) == hook_response
-        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT)
+        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT, False)
         self.mocked_details_link.assert_called_once_with(
             aws_partition=mock.ANY,
             context=mock.ANY,
@@ -189,7 +189,7 @@ class TestStepFunctionStartExecutionOperator:
         )
         with pytest.raises(TaskDeferred):
             operator.execute(None)
-        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT)
+        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, INPUT, False)
 
     @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
     @pytest.mark.parametrize("execution_arn", [pytest.param(None, id="none"), pytest.param("", id="empty")])
@@ -200,3 +200,35 @@ class TestStepFunctionStartExecutionOperator:
         )
         with pytest.raises(AirflowException, match="Failed to start State Machine execution"):
             op.execute({})
+
+    @mock.patch.object(StepFunctionStartExecutionOperator, "hook")
+    def test_start_redrive_execution(self, mocked_hook, mocked_context):
+        hook_response = (
+            "arn:aws:states:us-east-1:123456789012:execution:"
+            "pseudo-state-machine:020f5b16-b1a1-4149-946f-92dd32d97934"
+        )
+        mocked_hook.start_execution.return_value = hook_response
+        op = StepFunctionStartExecutionOperator(
+            task_id=self.TASK_ID,
+            state_machine_arn=STATE_MACHINE_ARN,
+            name=NAME,
+            is_redrive_execution=True,
+            state_machine_input=None,
+            aws_conn_id=None,
+        )
+        assert op.execute(mocked_context) == hook_response
+        mocked_hook.start_execution.assert_called_once_with(STATE_MACHINE_ARN, NAME, None, True)
+        self.mocked_details_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            state_machine_arn=STATE_MACHINE_ARN,
+        )
+        self.mocked_executions_details_link.assert_called_once_with(
+            aws_partition=mock.ANY,
+            context=mock.ANY,
+            operator=mock.ANY,
+            region_name=mock.ANY,
+            execution_arn=EXECUTION_ARN,
+        )
