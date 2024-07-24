@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-23T15:44:58.311048
+# This constraints file was automatically generated on 2024-07-24T07:43:48.740288
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -369,7 +369,7 @@ opentelemetry-proto==1.25.0
 opentelemetry-sdk==1.25.0
 opentelemetry-semantic-conventions==0.46b0
 opsgenie-sdk==2.1.5
-oracledb==2.2.1
+oracledb==2.3.0
 ordered-set==4.1.0
 oss2==2.18.6
 packaging==24.1
@@ -435,7 +435,7 @@ pyodbc==5.1.0
 pyparsing==3.1.2
 pypsrp==0.8.1
 pyspark==3.5.1
-pyspnego==0.11.0
+pyspnego==0.11.1
 pytest-asyncio==0.23.8
 pytest-cov==5.0.0
 pytest-custom-exit-code==0.3.0
@@ -558,12 +558,12 @@ typed_ast==1.5.5
 types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316
 types-PyMySQL==1.1.0.20240524
-types-PyYAML==6.0.12.20240311
+types-PyYAML==6.0.12.20240724
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==2.0.5.20240722
-types-docutils==0.21.0.20240711
+types-docutils==0.21.0.20240724
 types-paramiko==3.4.0.20240423
 types-protobuf==5.27.0.20240626
 types-pyOpenSSL==24.1.0.20240722
@@ -572,7 +572,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240425
 types-requests==2.32.0.20240712
-types-setuptools==71.1.0.20240723
+types-setuptools==71.1.0.20240724
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -585,14 +585,14 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.2
-uv==0.2.27
+uv==0.2.28
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
 virtualenv==20.26.3
 watchtower==3.2.0
 wcwidth==0.2.13
-weaviate-client==4.6.7
+weaviate-client==4.7.0
 websocket-client==1.8.0
 wheel==0.43.0
 wirerope==0.4.7
