@@ -58,6 +58,7 @@ Example:
            "404":
              $ref: "#/components/responses/NotFound"
 
+
 Step 2: Implement the Endpoint Logic
 ------------------------------------
 1. In the appropriate Python file, implement the endpoint's logic.
@@ -80,6 +81,7 @@ Example:
        # Implementation details here
        pass
 
+
 Step 3: Run Pre-commit Hooks
 -----------------------------
 1. Ensure all code meets the project's quality standards by running pre-commit hooks.
@@ -89,6 +91,7 @@ Step 3: Run Pre-commit Hooks
 .. code-block:: bash
 
    pre-commit run --all-files
+
 
 ### Optional: Adding Schemas
 
