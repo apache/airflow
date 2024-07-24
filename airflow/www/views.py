@@ -137,7 +137,7 @@ from airflow.utils.types import NOTSET
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager, is_auth_manager_initialized
 from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
@@ -688,6 +688,9 @@ def method_not_allowed(error):
 
 def show_traceback(error):
     """Show Traceback for a given error."""
+    if not is_auth_manager_initialized():
+        # this is the case where internal API component is used and auth manager is not used/initialized
+        return ("Error calling the API", 500)
     is_logged_in = get_auth_manager().is_logged_in()
     return (
         render_template(

@@ -163,6 +163,12 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
+    content_type = request.headers.get("Content-Type")
+    if content_type != "application/json":
+        raise PermissionDenied("Expected Content-Type: application/json")
+    accept = request.headers.get("Accept")
+    if accept != "application/json":
+        raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
@@ -177,11 +183,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     except BadSignature:
         raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
     except InvalidAudienceError:
-        raise PermissionDenied("Invalid audience for the request", exc_info=True)
+        raise PermissionDenied("Invalid audience for the request")
     except InvalidSignatureError:
-        raise PermissionDenied("The signature of the request was wrong", exc_info=True)
+        raise PermissionDenied("The signature of the request was wrong")
     except ImmatureSignatureError:
-        raise PermissionDenied("The signature of the request was sent from the future", exc_info=True)
+        raise PermissionDenied("The signature of the request was sent from the future")
     except ExpiredSignatureError:
         raise PermissionDenied(
             "The signature of the request has expired. Make sure that all components "
