@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
     reason="To be removed in the next release. Make sure to use information from AirflowRunFacet instead.",
     category=AirflowProviderDeprecationWarning,
 )
-@define(slots=False)
+@define
 class AirflowMappedTaskRunFacet(RunFacet):
     """Run facet containing information about mapped tasks."""
 
@@ -47,7 +47,7 @@ class AirflowMappedTaskRunFacet(RunFacet):
         )
 
 
-@define(slots=True)
+@define
 class AirflowJobFacet(JobFacet):
     """
     Composite Airflow job facet.
@@ -70,7 +70,7 @@ class AirflowJobFacet(JobFacet):
     tasks: dict
 
 
-@define(slots=True)
+@define
 class AirflowStateRunFacet(RunFacet):
     """
     Airflow facet providing state information.
@@ -89,7 +89,7 @@ class AirflowStateRunFacet(RunFacet):
     tasksState: dict[str, str]
 
 
-@define(slots=False)
+@define
 class AirflowRunFacet(RunFacet):
     """Composite Airflow run facet."""
 
@@ -100,7 +100,7 @@ class AirflowRunFacet(RunFacet):
     taskUuid: str
 
 
-@define(slots=True)
+@define
 class AirflowDagRunFacet(RunFacet):
     """Composite Airflow DAG run facet."""
 
@@ -108,7 +108,7 @@ class AirflowDagRunFacet(RunFacet):
     dagRun: dict
 
 
-@define(slots=False)
+@define
 class UnknownOperatorInstance(RedactMixin):
     """
     Describes an unknown operator.
@@ -127,7 +127,7 @@ class UnknownOperatorInstance(RedactMixin):
     reason="To be removed in the next release. Make sure to use information from AirflowRunFacet instead.",
     category=AirflowProviderDeprecationWarning,
 )
-@define(slots=False)
+@define
 class UnknownOperatorAttributeRunFacet(RunFacet):
     """RunFacet that describes unknown operators in an Airflow DAG."""
 
