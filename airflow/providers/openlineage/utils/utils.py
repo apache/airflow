@@ -219,7 +219,19 @@ class InfoJsonEncodable(dict):
                     setattr(self, field, getattr(self.obj, field))
                     self._fields.append(field)
         else:
-            for field, val in self.obj.__dict__.items():
+            if hasattr(self.obj, "__dict__"):
+                obj_fields = self.obj.__dict__
+            elif attrs.has(self.obj.__class__):  # e.g. attrs.define class with slots=True has no __dict__
+                obj_fields = {
+                    field.name: getattr(self.obj, field.name) for field in attrs.fields(self.obj.__class__)
+                }
+            else:
+                raise ValueError(
+                    "Cannot iterate over fields: "
+                    f"The object of type {type(self.obj).__name__} neither has a __dict__ attribute "
+                    "nor is defined as an attrs class."
+                )
+            for field, val in obj_fields.items():
                 if field not in self._fields and field not in self.excludes and field not in self.renames:
                     setattr(self, field, val)
                     self._fields.append(field)
