@@ -17,21 +17,8 @@
  * under the License.
  */
 
-import React from "react";
-
-import Time from "src/components/Time";
-
-export interface CellProps {
-  cell: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any;
-    row: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      original: Record<string, any>;
-    };
-  };
-}
-
-export const TimeCell = ({ cell: { value } }: CellProps) => (
-  <Time dateTime={value} />
-);
+export type OnSelectProps = {
+  uri?: string;
+  timestamp?: string;
+  dagId?: string;
+};
