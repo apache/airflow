@@ -28,6 +28,8 @@ from airflow.models import Connection
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 class TestPythonVirtualenvHook:
     @classmethod
