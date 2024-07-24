@@ -666,14 +666,16 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
         in a temp folder for every execution.
     :param venv_conn_id: The ID of Python Virtualenv Connection.
-        If set, the other arguments in the Operator will override the values from the connection.
+        If set, the other arguments will override the values from the connection.
     :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
+        {"requirements", "index_urls", "venv_cache_path", "venv_conn_id"}.union(
+            PythonOperator.template_fields
+        )
     )
     template_ext: Sequence[str] = (".txt",)
 
@@ -739,7 +741,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = None
         self.venv_cache_path = venv_cache_path
         self.venv_conn_id = venv_conn_id
-        self._hook: PythonVirtualenvHook | None = None
         super().__init__(
             python_callable=python_callable,
             serializer=serializer,
@@ -766,12 +767,14 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if self._is_system_site_packages_set:
             system_site_packages = self.system_site_packages
         props["system_site_packages"] = system_site_packages
+        index_urls = hook.index_urls
+        if self.index_urls is not None:
+            index_urls = self.index_urls
+        props["index_urls"] = index_urls
         if python_version := self.python_version or hook.python_version:
             props["python_version"] = python_version
         if pip_install_options := self.pip_install_options or hook.pip_install_options:
             props["pip_install_options"] = pip_install_options
-        if index_urls := self.index_urls or hook.index_urls:
-            props["index_urls"] = index_urls
         if venv_cache_path := self.venv_cache_path or hook.venv_cache_path:
             props["venv_cache_path"] = venv_cache_path
         return props

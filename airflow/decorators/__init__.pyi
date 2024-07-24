@@ -118,6 +118,7 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
+        venv_conn_id: None | str = None,
         show_return_value_in_logs: bool = True,
         use_dill: bool = False,
         **kwargs,
@@ -162,6 +163,8 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param venv_conn_id: The ID of Python Virtualenv Connection.
+            If set, the other arguments will override the values from the connection.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.

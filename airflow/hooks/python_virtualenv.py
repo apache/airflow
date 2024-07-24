@@ -45,7 +45,12 @@ class PythonVirtualenvHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password", "extra"],
             "relabeling": {},
-            "placeholders": {"python_version": f"{v.major}.{v.minor}"},
+            "placeholders": {
+                "python_version": f"{v.major}.{v.minor}",
+                "requirements": "Example)\nnumpy==1.13.3\npandas==0.20.3",
+                "pip_install_options": "--no-cache-dir",
+                "index_urls": "https://pypi.org/simple/",
+            },
         }
 
     @classmethod
@@ -58,13 +63,16 @@ class PythonVirtualenvHook(BaseHook):
         return {
             "requirements": StringField(
                 lazy_gettext("Requirements"),
-                description=lazy_gettext("Python requirement strings separated by newline."),
+                description=lazy_gettext("Python Requirements follows PEP 508 format."),
                 widget=BS3TextAreaFieldWidget(),
                 validators=[InputRequired()],
             ),
             "python_version": StringField(
                 lazy_gettext("Python Version"),
-                description=lazy_gettext("The Python version to run the virtual environment with."),
+                description=lazy_gettext(
+                    "The Python version to run the virtual environment with. "
+                    "If left empty, the python executable used at runtime will be used."
+                ),
                 widget=BS3TextFieldWidget(),
                 validators=[Optional()],
             ),
