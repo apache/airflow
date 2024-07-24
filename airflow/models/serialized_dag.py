@@ -245,6 +245,7 @@ class SerializedDagModel(Base):
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
+    @internal_api_call
     @provide_session
     def remove_deleted_dags(
         cls,
