@@ -30,11 +30,41 @@ const restApiEnabled = getMetaValue("rest_api_enabled") === "True";
 const connectionTestUrl = getMetaValue("test_url");
 
 // Define editor var which may get populated if extra field exists on the connection
-let editor;
+let editors;
 
 function decode(str) {
   return new DOMParser().parseFromString(str, "text/html").documentElement
     .textContent;
+}
+
+// Function to convert textArea to CodeMirror for JSON fields
+function convertTextAreaToCodeMirror(textAreaId) {
+  const textAreaElem = document.getElementById(textAreaId);
+
+  if (!textAreaElem) return;
+  if ($(textAreaElem).is(":hidden")) return;
+
+  // Add class to identify JSON fields
+  if (textAreaElem.classList.contains("json_field")) return;
+
+  editors = {};
+  textAreaElem.classList.add("json_field");
+
+  // Change TextArea widget to CodeMirror
+  editors[textAreaId] = CodeMirror.fromTextArea(textAreaElem, {
+    mode: { name: "javascript", json: true },
+    gutters: ["CodeMirror-lint-markers"],
+    lineWrapping: true,
+    lint: true,
+  });
+
+  // beautify JSON but only if it is not equal to default value of empty string
+  const jsonData = editors[textAreaId].getValue();
+  if (jsonData !== "") {
+    const data = JSON.parse(jsonData);
+    const formattedData = JSON.stringify(data, null, 2);
+    editors[textAreaId].setValue(formattedData);
+  }
 }
 
 /**
@@ -119,6 +149,10 @@ function applyFieldBehaviours(connection) {
         const placeholder = connection.placeholders[field];
         document.getElementById(field).placeholder = placeholder;
       });
+    }
+
+    if (Array.isArray(connection.json_fields)) {
+      connection.json_fields.forEach(convertTextAreaToCodeMirror);
     }
   }
 }
@@ -340,9 +374,9 @@ $(document).ready(() => {
     hideAlert();
     // save the contents of the CodeMirror editor to the textArea if it is populated
     // (i.e., connection type has extra field)
-    if (Object.prototype.hasOwnProperty.call(editor, "save")) {
+    Object.values(editors).forEach((editor) => {
       editor.save();
-    }
+    });
     $.ajax({
       url: connectionTestUrl,
       type: "post",
@@ -367,26 +401,6 @@ $(document).ready(() => {
   // Initialize the form by setting a connection type.
   changeConnType(connTypeElem.value);
 
-  // Get all textarea elements
-  const textAreas = document.getElementsByTagName("textarea");
-
-  Array.from(textAreas).forEach((textArea) => {
-    if (textArea.id !== "description" && !$(textArea).is(":hidden")) {
-      // Change TextArea widget to CodeMirror
-      editor = CodeMirror.fromTextArea(textArea, {
-        mode: { name: "javascript", json: true },
-        gutters: ["CodeMirror-lint-markers"],
-        lineWrapping: true,
-        lint: true,
-      });
-
-      // beautify JSON but only if it is not equal to default value of empty string
-      const jsonData = editor.getValue();
-      if (jsonData !== "") {
-        const data = JSON.parse(jsonData);
-        const formattedData = JSON.stringify(data, null, 2);
-        editor.setValue(formattedData);
-      }
-    }
-  });
+  // Convert extra field to CodeMirror if it exists
+  convertTextAreaToCodeMirror("extra");
 });

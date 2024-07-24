@@ -1125,6 +1125,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     hook_class.__name__,
                 )
                 return
+
+            if not customized_fields.get("json_fields"):
+                customized_fields["json_fields"] = ["extra"]
+
             self._field_behaviours[connection_type] = customized_fields
         except Exception as e:
             log.warning(

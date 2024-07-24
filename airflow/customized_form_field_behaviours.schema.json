@@ -22,6 +22,13 @@
       "additionalProperties": {
         "type": "string"
       }
+    },
+    "json_fields": {
+      "description": "List of fields that are in JSON format.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": true,
