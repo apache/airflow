@@ -481,7 +481,7 @@ Writing a custom facet function
     from airflow.providers.common.compat.openlineage.facet import RunFacet
 
 
-    @attrs.define(slots=False)
+    @attrs.define
     class MyCustomRunFacet(RunFacet):
         """Define a custom facet."""
 
