@@ -64,6 +64,10 @@ class AirflowSensorTimeout(AirflowException):
     """Raise when there is a timeout on sensor polling."""
 
 
+class AirflowPokeFailException(AirflowException):
+    """Raise when a sensor must not try to poke again."""
+
+
 class AirflowRescheduleException(AirflowException):
     """
     Raise when the task should be re-scheduled at a later time.
