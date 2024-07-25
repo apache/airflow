@@ -226,7 +226,7 @@ class TestWorkflowTrigger:
             "skipped_states": None,
             "allowed_states": self.STATES,
             "poke_interval": 5,
-            "soft_fail": False,
+            "fail_policy": "none",
         }
 
 

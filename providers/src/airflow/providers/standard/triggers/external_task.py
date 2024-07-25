@@ -26,6 +26,7 @@ from sqlalchemy import func
 from airflow.models import DagRun
 from airflow.providers.standard.utils.sensor_helper import _get_count
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sensors.base import FailPolicy
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -49,7 +50,7 @@ class WorkflowTrigger(BaseTrigger):
     :param skipped_states: States considered as skipped for external tasks.
     :param allowed_states: States considered as successful for external tasks.
     :param poke_interval: The interval (in seconds) for poking the external tasks.
-    :param soft_fail: If True, the trigger will not fail the entire DAG on external task failure.
+
     """
 
     def __init__(
@@ -63,7 +64,7 @@ class WorkflowTrigger(BaseTrigger):
         skipped_states: typing.Iterable[str] | None = None,
         allowed_states: typing.Iterable[str] | None = None,
         poke_interval: float = 2.0,
-        soft_fail: bool = False,
+        fail_policy: str = FailPolicy.NONE,
         **kwargs,
     ):
         self.external_dag_id = external_dag_id
@@ -74,7 +75,7 @@ class WorkflowTrigger(BaseTrigger):
         self.allowed_states = allowed_states
         self.logical_dates = logical_dates
         self.poke_interval = poke_interval
-        self.soft_fail = soft_fail
+        self.fail_policy = fail_policy
         self.execution_dates = execution_dates
         super().__init__(**kwargs)
 
@@ -96,7 +97,7 @@ class WorkflowTrigger(BaseTrigger):
                 "allowed_states": self.allowed_states,
                 **_dates,
                 "poke_interval": self.poke_interval,
-                "soft_fail": self.soft_fail,
+                "fail_policy": self.fail_policy,
             },
         )
 
