@@ -220,7 +220,7 @@ The following features are supported in the Trigger UI Form:
     If no ``title`` is defined the parameter name/key is used instead.
   - The :class:`~airflow.models.param.Param` attribute ``description`` is rendered below an entry field as help text in gray color.
     If you want to provide special formatting or links you need to use the Param attribute
-    ``description_md``. See tutorial DAG ``example_params_ui_tutorial`` for an example.
+    ``description_md``. See tutorial DAG `example_params_ui_tutorial <https://github.com/apache/airflow/blob/main/airflow/example_dags/example_params_ui_tutorial.py>`_ for an example.
   - The :class:`~airflow.models.param.Param` attribute ``type`` influences how a field is rendered. The following types are supported:
 
       .. list-table::
@@ -350,12 +350,13 @@ The following features are supported in the Trigger UI Form:
 - To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger``
   and add query parameter to the URL in the form ``name=value``, for example ``/dags/example_params_ui_tutorial/trigger?required_field=some%20text``.
   To pre-define the run id of the DAG run, use the URL parameter ``run_id``.
+- Fields can be required or not. If the defined fields are typed they are getting required by default (else they would not pass JSON schema validation) - to make typed fields optional you must permit the optional "null" type.
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
     ``schedule=None`` the parameter value validation is made at time of trigger.
 
-For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
+For examples also please take a look to two example DAGs provided: `example_params_trigger_ui <https://github.com/apache/airflow/blob/main/airflow/example_dags/example_params_trigger_ui.py>`_ and `example_params_ui_tutorial <https://github.com/apache/airflow/blob/main/airflow/example_dags/example_params_ui_tutorial.py>`_.
 
 .. image:: ../img/trigger-dag-tutorial-form.png
 
