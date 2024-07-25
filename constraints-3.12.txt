@@ -1,7 +1,7 @@
 
 #
-# This constraints file was automatically generated on 2024-07-22T15:56:11.793595
-# via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
+# This constraints file was automatically generated on 2024-07-25T12:08:34.338970
+# via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
 #
@@ -223,7 +223,7 @@ azure-storage-file-share==12.17.0
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 backoff==2.2.1
-bcrypt==4.1.3
+bcrypt==4.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
@@ -260,7 +260,7 @@ connexion==2.14.2
 coverage==7.6.0
 crcmod==1.7
 cron-descriptor==1.4.3
-croniter==2.0.7
+croniter==3.0.0
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -308,14 +308,14 @@ google-api-python-client==2.137.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.32.0
-google-cloud-aiplatform==1.59.0
+google-cloud-aiplatform==1.60.0
 google-cloud-appengine-logging==1.4.4
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.4
 google-cloud-batch==0.17.22
 google-cloud-bigquery-datatransfer==3.15.4
 google-cloud-bigquery==3.20.1
-google-cloud-bigtable==2.24.0
+google-cloud-bigtable==2.25.0
 google-cloud-build==3.24.1
 google-cloud-compute==1.19.1
 google-cloud-container==2.49.0
@@ -342,7 +342,7 @@ google-cloud-secret-manager==2.20.1
 google-cloud-spanner==3.47.0
 google-cloud-speech==2.26.1
 google-cloud-storage-transfer==1.11.4
-google-cloud-storage==2.17.0
+google-cloud-storage==2.18.0
 google-cloud-tasks==2.16.4
 google-cloud-texttospeech==2.16.4
 google-cloud-translate==3.15.4
@@ -462,7 +462,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.36.1
+openai==1.37.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.19.0
@@ -470,17 +470,17 @@ openlineage-python==1.19.0
 openlineage_sql==1.19.0
 openpyxl==3.1.5
 opensearch-py==2.6.0
-opentelemetry-api==1.25.0
-opentelemetry-exporter-otlp-proto-common==1.25.0
-opentelemetry-exporter-otlp-proto-grpc==1.25.0
-opentelemetry-exporter-otlp-proto-http==1.25.0
-opentelemetry-exporter-otlp==1.25.0
-opentelemetry-exporter-prometheus==0.46b0
-opentelemetry-proto==1.25.0
-opentelemetry-sdk==1.25.0
-opentelemetry-semantic-conventions==0.46b0
+opentelemetry-api==1.26.0
+opentelemetry-exporter-otlp-proto-common==1.26.0
+opentelemetry-exporter-otlp-proto-grpc==1.26.0
+opentelemetry-exporter-otlp-proto-http==1.26.0
+opentelemetry-exporter-otlp==1.26.0
+opentelemetry-exporter-prometheus==0.47b0
+opentelemetry-proto==1.26.0
+opentelemetry-sdk==1.26.0
+opentelemetry-semantic-conventions==0.47b0
 opsgenie-sdk==2.1.5
-oracledb==2.2.1
+oracledb==2.3.0
 ordered-set==4.1.0
 oss2==2.18.6
 packaging==24.1
@@ -515,7 +515,7 @@ prison==0.2.1
 prometheus_client==0.20.0
 prompt_toolkit==3.0.47
 proto-plus==1.24.0
-protobuf==4.25.3
+protobuf==4.25.4
 psutil==6.0.0
 psycopg2-binary==2.9.9
 ptyprocess==0.7.0
@@ -546,7 +546,7 @@ pyodbc==5.1.0
 pyparsing==3.1.2
 pypsrp==0.8.1
 pyspark==3.5.1
-pyspnego==0.11.0
+pyspnego==0.11.1
 pytest-asyncio==0.23.8
 pytest-cov==5.0.0
 pytest-custom-exit-code==0.3.0
@@ -556,7 +556,7 @@ pytest-mock==3.14.0
 pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
-pytest==8.3.1
+pytest==8.3.2
 python-arango==8.0.0
 python-daemon==3.0.1
 python-dateutil==2.9.0.post0
@@ -576,7 +576,7 @@ readme_renderer==43.0
 redis==5.0.7
 redshift-connector==2.1.2
 referencing==0.35.1
-regex==2024.5.15
+regex==2024.7.24
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -591,7 +591,7 @@ rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
 rich==13.7.1
-rpds-py==0.19.0
+rpds-py==0.19.1
 rsa==4.9
 ruff==0.4.5
 s3fs==2023.12.2
@@ -600,7 +600,7 @@ scramp==1.4.5
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.10.0
+sentry-sdk==2.11.0
 setproctitle==1.3.3
 setuptools==66.1.1
 shapely==2.0.5
@@ -612,7 +612,7 @@ smbprotocol==1.13.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.11.0
+snowflake-connector-python==3.12.0
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.5
@@ -643,7 +643,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-std-uritemplate==1.0.3
+std-uritemplate==1.0.5
 strictyaml==1.7.3
 sympy==1.13.1
 tableauserverclient==0.31
@@ -669,12 +669,12 @@ typed_ast==1.5.5
 types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316
 types-PyMySQL==1.1.0.20240524
-types-PyYAML==6.0.12.20240311
+types-PyYAML==6.0.12.20240724
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==2.0.5.20240722
-types-docutils==0.21.0.20240711
+types-docutils==0.21.0.20240724
 types-paramiko==3.4.0.20240423
 types-protobuf==5.27.0.20240626
 types-pyOpenSSL==24.1.0.20240722
@@ -683,7 +683,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240425
 types-requests==2.32.0.20240712
-types-setuptools==71.0.0.20240722
+types-setuptools==71.1.0.20240724
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -696,14 +696,14 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.2
-uv==0.2.27
+uv==0.2.28
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
 virtualenv==20.26.3
 watchtower==3.2.0
 wcwidth==0.2.13
-weaviate-client==4.6.7
+weaviate-client==4.7.1
 websocket-client==1.8.0
 wheel==0.43.0
 wirerope==0.4.7
