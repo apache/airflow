@@ -38,6 +38,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.sensors.base import SkipPolicy
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
     ExternalTaskSensor,
@@ -329,7 +330,7 @@ class TestExternalTaskSensor:
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
         ) in caplog.messages
 
-    def test_external_task_sensor_soft_fail_failed_states_as_skipped(self):
+    def test_external_task_sensor_skip_on_soft_error_failed_states_as_skipped(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
@@ -337,7 +338,7 @@ class TestExternalTaskSensor:
             external_task_id=TEST_TASK_ID,
             allowed_states=[State.FAILED],
             failed_states=[State.SUCCESS],
-            soft_fail=True,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
             dag=self.dag,
         )
 
@@ -467,7 +468,7 @@ class TestExternalTaskSensor:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
 
-    def test_external_dag_sensor_soft_fail_as_skipped(self):
+    def test_external_dag_sensor_skip_on_soft_error_as_skipped(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
         other_dag.create_dagrun(
             run_id="test",
@@ -482,7 +483,7 @@ class TestExternalTaskSensor:
             external_task_id=None,
             allowed_states=[State.FAILED],
             failed_states=[State.SUCCESS],
-            soft_fail=True,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
             dag=self.dag,
         )
 
@@ -880,14 +881,14 @@ exit 0
         ),
     )
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        "skip_policy, expected_exception",
         (
             (
-                False,
+                SkipPolicy.NONE,
                 AirflowException,
             ),
             (
-                True,
+                SkipPolicy.SKIP_ON_SOFT_ERROR,
                 AirflowSkipException,
             ),
         ),
@@ -895,7 +896,7 @@ exit 0
     @mock.patch("airflow.sensors.external_task.ExternalTaskSensor.get_count")
     @mock.patch("airflow.sensors.external_task.ExternalTaskSensor._get_dttm_filter")
     def test_fail_poke(
-        self, _get_dttm_filter, get_count, soft_fail, expected_exception, kwargs, expected_message
+        self, _get_dttm_filter, get_count, skip_policy, expected_exception, kwargs, expected_message
     ):
         _get_dttm_filter.return_value = []
         get_count.return_value = 1
@@ -904,7 +905,7 @@ exit 0
             external_dag_id=TEST_DAG_ID,
             allowed_states=["success"],
             dag=self.dag,
-            soft_fail=soft_fail,
+            skip_policy=skip_policy,
             deferrable=False,
             **kwargs,
         )
@@ -937,14 +938,14 @@ exit 0
         ),
     )
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        "skip_policy, expected_exception",
         (
             (
-                False,
+                SkipPolicy.NONE,
                 AirflowException,
             ),
             (
-                True,
+                SkipPolicy.SKIP_ON_SOFT_ERROR,
                 AirflowException,
             ),
         ),
@@ -959,7 +960,7 @@ exit 0
         exists,
         get_dag,
         _get_dttm_filter,
-        soft_fail,
+        skip_policy,
         expected_exception,
         response_get_current,
         response_exists,
@@ -978,7 +979,7 @@ exit 0
             external_dag_id=TEST_DAG_ID,
             allowed_states=["success"],
             dag=self.dag,
-            soft_fail=soft_fail,
+            skip_policy=skip_policy,
             check_existence=True,
             **kwargs,
         )
