@@ -45,14 +45,14 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [END howto_operator_vision_enums_import]
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_gcp_vision_annotate_image"
+DAG_ID = "gcp_vision_annotate_image"
 
 LOCATION = "europe-west1"
 
-BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
+BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 FILE_NAME = "image1.jpg"
 
 GCP_VISION_ANNOTATE_IMAGE_URL = f"gs://{BUCKET_NAME}/{FILE_NAME}"
@@ -80,7 +80,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "vision"],
+    tags=["example", "vision", "annotate_image"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", project_id=PROJECT_ID, bucket_name=BUCKET_NAME
@@ -173,8 +173,10 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
         create_bucket,
         copy_single_file,
+        # TEST BODY
         annotate_image,
         annotate_image_result,
         detect_text,
@@ -185,6 +187,7 @@ with DAG(
         detect_labels_result,
         detect_safe_search,
         detect_safe_search_result,
+        # TEST TEARDOWN
         delete_bucket,
     )
 

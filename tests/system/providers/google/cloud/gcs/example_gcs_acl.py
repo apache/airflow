@@ -35,8 +35,9 @@ from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+GCS_ACL_ENTITY = os.environ.get("SYSTEM_TESTS_GCS_ACL_ENTITY", "allUsers")
 
 DAG_ID = "gcs_acl"
 
@@ -45,7 +46,6 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 FILE_NAME = "example_upload.txt"
 UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
-GCS_ACL_ENTITY = "allUsers"
 GCS_ACL_BUCKET_ROLE = "OWNER"
 GCS_ACL_OBJECT_ROLE = "OWNER"
 
