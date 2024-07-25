@@ -35,7 +35,8 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
+from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5

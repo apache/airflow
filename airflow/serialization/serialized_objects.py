@@ -25,7 +25,6 @@ import inspect
 import logging
 import warnings
 import weakref
-from dataclasses import dataclass
 from inspect import signature
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
@@ -38,7 +37,14 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, DatasetAny
+from airflow.datasets import (
+    BaseDataset,
+    Dataset,
+    DatasetAlias,
+    DatasetAll,
+    DatasetAny,
+    _DatasetAliasCondition,
+)
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
@@ -52,6 +58,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
@@ -966,6 +973,10 @@ class DependencyDetector:
                         dependency_id=obj.uri,
                     )
                 )
+            elif isinstance(obj, DatasetAlias):
+                cond = _DatasetAliasCondition(obj.name)
+
+                deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
 
     @staticmethod
@@ -973,13 +984,8 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        for uri, _ in dag.timetable.dataset_condition.iter_datasets():
-            yield DagDependency(
-                source="dataset",
-                target=dag.dag_id,
-                dependency_type="dataset",
-                dependency_id=uri,
-            )
+
+        yield from dag.timetable.dataset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -1562,12 +1568,12 @@ class SerializedDAG(DAG, BaseSerialization):
 
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
 
-            dag_deps = {
+            dag_deps = [
                 dep
                 for task in dag.task_dict.values()
                 for dep in SerializedBaseOperator.detect_dependencies(task)
-            }
-            dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
+            ]
+            dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
@@ -1771,30 +1777,6 @@ class TaskGroupSerialization(BaseSerialization):
         group.upstream_task_ids.update(cls.deserialize(encoded_group["upstream_task_ids"]))
         group.downstream_task_ids.update(cls.deserialize(encoded_group["downstream_task_ids"]))
         return group
-
-
-@dataclass(frozen=True, order=True)
-class DagDependency:
-    """
-    Dataclass for representing dependencies between DAGs.
-
-    These are calculated during serialization and attached to serialized DAGs.
-    """
-
-    source: str
-    target: str
-    dependency_type: str
-    dependency_id: str | None = None
-
-    @property
-    def node_id(self):
-        """Node ID for graph rendering."""
-        val = f"{self.dependency_type}"
-        if self.dependency_type != "dataset":
-            val += f":{self.source}:{self.target}"
-        if self.dependency_id:
-            val += f":{self.dependency_id}"
-        return val
 
 
 def _has_kubernetes() -> bool:

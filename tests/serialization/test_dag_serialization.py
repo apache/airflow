@@ -60,11 +60,11 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
@@ -1795,6 +1795,30 @@ class TestStringifiedDAGs:
                     "target": "test",
                     "dependency_type": "dataset",
                     "dependency_id": "d1",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
                 },
             ],
             key=lambda x: tuple(x.values()),
