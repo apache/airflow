@@ -132,8 +132,8 @@ MAX_NUM_DATABASE_USER_SESSIONS = 50000
 # allows utilizing the GET method for them.
 # You could remove the patch and configure it when it is supported
 # natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) <= packaging.version.parse(
-    "2.9.2"
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+    "2.10.0"
 ):
     _methods = ["GET", "POST"]
 else:
@@ -958,8 +958,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
-        except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
+        except Exception:
+            log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
 
     def get_readable_dags(self, user) -> Iterable[DagModel]:

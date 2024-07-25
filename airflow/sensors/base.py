@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import datetime
+import enum
 import functools
 import hashlib
 import time
 import traceback
+import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
@@ -37,6 +39,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    RemovedInAirflow3Warning,
     TaskDeferralError,
 )
 from airflow.executors.executor_loader import ExecutorLoader
@@ -51,6 +54,7 @@ from airflow.utils import timezone
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -114,6 +118,24 @@ def _orig_start_date(
     )
 
 
+class SkipPolicy(str, enum.Enum):
+    """Class with sensor's skip policies."""
+
+    # if poke method raise an exception, sensor will not be skipped on.
+    NONE = "none"
+
+    # If poke method raises an exception, sensor will be skipped on.
+    SKIP_ON_ANY_ERROR = "skip_on_any_error"
+
+    # If poke method raises AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException
+    # sensor will be skipped on.
+    SKIP_ON_SOFT_ERROR = "skip_on_soft_error"
+
+    # If poke method raises an exception  different from AirflowSensorTimeout, AirflowTaskTimeout,
+    # AirflowSkipException, sensor will ignore exception and re-poke until timeout.
+    IGNORE_ERROR = "ignore_error"
+
+
 class BaseSensorOperator(BaseOperator, SkipMixin):
     """
     Sensor operators are derived from this class and inherit these attributes.
@@ -121,7 +143,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     Sensor operators keep executing at a time interval and succeed when
     a criteria is met and fail if and when they time out.
 
-    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :param soft_fail: deprecated parameter same effect than SkipPolicy.SKIP_ON_SOFT_ERROR
+           Mutually exclusive with skip_policy and silent_fail.
     :param poke_interval: Time that the job should wait in between each try.
         Can be ``timedelta`` or ``float`` seconds.
     :param timeout: Time elapsed before the task times out and fails.
@@ -149,11 +172,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
     :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
-    :param silent_fail: If true, and poke method raises an exception different from
-        AirflowSensorTimeout, AirflowTaskTimeout, AirflowSkipException
-        and AirflowFailException, the sensor will log the error and continue
-        its execution. Otherwise, the sensor task fails, and it can be retried
-        based on the provided `retries` parameter.
+    :param silent_fail: deprecated parameter same effect than SkipPolicy.IGNORE_ERROR
+           Mutually exclusive with skip_policy and soft_fail.
+    :param skip_policy: defines the rule by which sensor skip itself. Options are:
+        ``{ none | skip_on_any_error | skip_on_soft_error | ignore_error }``
+        default is ``none``. Options can be set as string or
+        using the constants defined in the static class ``airflow.sensors.base.SkipPolicy``
+        Mutually exclusive with soft_fail and silent_fail.
     """
 
     ui_color: str = "#e6f1f2"
@@ -173,6 +198,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
         silent_fail: bool = False,
+        skip_policy: str | ArgNotSet = NOTSET,  # SkipPolicy.NONE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -182,7 +208,44 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
+        if skip_policy != NOTSET:
+            if sum([soft_fail, silent_fail]) > 0:
+                raise ValueError(
+                    "skip_policy and deprecated soft_fail and silent_fail parameters are mutually exclusive."
+                )
+
+            if skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
+                self.soft_fail = True
+            elif skip_policy == SkipPolicy.IGNORE_ERROR:
+                self.silent_fail = True
+        else:
+            if sum([soft_fail, silent_fail]) > 1:
+                raise ValueError(
+                    "soft_fail and silent_fail are mutually exclusive, you can not provide more than one."
+                )
+
+            if soft_fail:
+                warnings.warn(
+                    "`soft_fail` is deprecated and will be removed in a future version. "
+                    "Please provide skip_policy=SkipPolicy.skip_on_soft_error instead.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=3,
+                )
+                skip_policy = SkipPolicy.SKIP_ON_SOFT_ERROR
+            elif silent_fail:
+                warnings.warn(
+                    "`silent_fail` is deprecated and will be removed in a future version. "
+                    "Please provide skip_policy=SkipPolicy.IGNORE_ERRORS instead.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=3,
+                )
+                skip_policy = SkipPolicy.IGNORE_ERROR
+
+            else:
+                skip_policy = SkipPolicy.NONE
+
         self.silent_fail = silent_fail
+        self.skip_policy = skip_policy
         self._validate_input_values()
 
     @staticmethod
@@ -281,17 +344,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 AirflowTaskTimeout,
                 AirflowFailException,
             ) as e:
-                if self.soft_fail:
-                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                if self.skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
+                    raise AirflowSkipException("Skipping due skip_policy set to skip_on_soft_error.") from e
+                elif self.skip_policy == SkipPolicy.SKIP_ON_ANY_ERROR:
+                    raise AirflowSkipException("Skipping due skip_policy set to SKIP_ON_ANY_ERROR.") from e
                 raise e
             except AirflowSkipException as e:
                 raise e
             except Exception as e:
-                if self.silent_fail:
+                if self.skip_policy == SkipPolicy.IGNORE_ERROR:
                     self.log.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
-                elif self.soft_fail:
-                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                elif self.skip_policy == SkipPolicy.SKIP_ON_ANY_ERROR:
+                    raise AirflowSkipException("Skipping due to SKIP_ON_ANY_ERROR is set to True.") from e
                 else:
                     raise e
 
@@ -307,7 +372,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     f"the specified timeout of {self.timeout}."
                 )
 
-                if self.soft_fail:
+                if self.skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
                     raise AirflowSkipException(message)
                 else:
                     raise AirflowSensorTimeout(message)
@@ -330,7 +395,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         try:
             return super().resume_execution(next_method, next_kwargs, context)
         except (AirflowException, TaskDeferralError) as e:
-            if self.soft_fail:
+            if self.skip_policy == SkipPolicy.SKIP_ON_SOFT_ERROR:
                 raise AirflowSkipException(str(e)) from e
             raise
 

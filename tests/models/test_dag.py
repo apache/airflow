@@ -46,7 +46,7 @@ from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAll, DatasetAny
+from airflow.datasets import Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
@@ -70,7 +70,13 @@ from airflow.models.dag import (
     get_dataset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
+from airflow.models.dataset import (
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1332,6 +1338,51 @@ class TestDag:
             assert non_orphaned_dataset_count == 4
             orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
             assert orphaned_dataset_count == 0
+
+    def test_bulk_write_to_db_dataset_aliases(self):
+        """
+        Ensure that dataset aliases referenced in a dag are correctly loaded into the database.
+        """
+        dag_id1 = "test_dataset_alias_dag1"
+        dag_id2 = "test_dataset_alias_dag2"
+        task_id = "test_dataset_task"
+        da1 = DatasetAlias(name="da1")
+        da2 = DatasetAlias(name="da2")
+        da3 = DatasetAlias(name="da3")
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da1, da2, da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da2, da3])
+        session = settings.Session()
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da2_orm = stored_dataset_aliases[da2.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da2_orm.name == "da2"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 3
+
+        # now that we have verified that a new dag has its dataset alias references recorded properly,
+        # we need to verify that *changes* are recorded properly.
+        # so if any references are *removed*, they should also be deleted from the DB
+        # so let's remove some references and see what happens
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da1])
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+        session.expunge_all()
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 2
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -2981,6 +3032,54 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    def test_dags_needing_dagruns_dataset_aliases(self, dag_maker, session):
+        # link dataset_alias hello_alias to dataset hello
+        dataset_model = DatasetModel(uri="hello")
+        dataset_alias_model = DatasetAliasModel(name="hello_alias")
+        dataset_alias_model.datasets.append(dataset_model)
+        session.add_all([dataset_model, dataset_alias_model])
+        session.commit()
+
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            max_active_runs=1,
+            schedule=[DatasetAlias(name="hello_alias")],
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+
+        # there's no queue record yet, so no runs needed at this time.
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == []
+
+        # add queue records so we'll need a run
+        dag_model = dag_maker.dag_model
+        dataset_model: DatasetModel = dag_model.schedule_datasets[0]
+        session.add(DatasetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        session.flush()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == [dag_model]
+
+        # create run so we don't need a run anymore (due to max active runs)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.DATASET_TRIGGERED,
+            state=DagRunState.QUEUED,
+            execution_date=pendulum.now("UTC"),
+        )
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == []
+
+        # increase max active runs and we should now need another run
+        dag_maker.dag_model.max_active_runs = 2
+        session.flush()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        dag_models = query.all()
+        assert dag_models == [dag_model]
+
     def test_max_active_runs_not_none(self):
         dag = DAG(dag_id="test_max_active_runs_not_none", start_date=timezone.datetime(2038, 1, 1))
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
@@ -3172,6 +3271,7 @@ class TestDagModel:
                     Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
                     Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
                 ),
+                DatasetAlias(name="test_name"),
             ),
             start_date=datetime.datetime.min,
         )
@@ -3182,6 +3282,7 @@ class TestDagModel:
             "any": [
                 "s3://dag1/output_1.txt",
                 {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+                {"alias": "test_name"},
             ]
         }
 

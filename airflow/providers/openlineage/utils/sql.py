@@ -23,8 +23,8 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from attrs import define
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import schema_dataset
 from sqlalchemy import Column, MetaData, Table, and_, or_, union_all
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ class TableSchema:
     table: str
     schema: str | None
     database: str | None
-    fields: list[SchemaField]
+    fields: list[schema_dataset.SchemaDatasetFacetFields]
 
     def to_dataset(self, namespace: str, database: str | None = None, schema: str | None = None) -> Dataset:
         # Prefix the table name with database and schema name using
@@ -73,7 +73,7 @@ class TableSchema:
         return Dataset(
             namespace=namespace,
             name=name,
-            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if self.fields else {},
+            facets={"schema": schema_dataset.SchemaDatasetFacet(fields=self.fields)} if self.fields else {},
         )
 
 
@@ -122,7 +122,7 @@ def parse_query_result(cursor) -> list[TableSchema]:
     for row in cursor.fetchall():
         table_schema_name: str = row[ColumnIndex.SCHEMA]
         table_name: str = row[ColumnIndex.TABLE_NAME]
-        table_column: SchemaField = SchemaField(
+        table_column = schema_dataset.SchemaDatasetFacetFields(
             name=row[ColumnIndex.COLUMN_NAME],
             type=row[ColumnIndex.UDT_NAME],
             description=None,

@@ -17,6 +17,13 @@
  under the License.
  -->
 
+# v2.9.1
+
+## Major changes:
+
+   - Add max_consecutive_failed_dag_runs in API spec ([#39830](https://github.com/apache/airflow/pull/39830))
+
+
 # v2.9.0
 
 ## Major changes:

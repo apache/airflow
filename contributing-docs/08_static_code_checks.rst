@@ -150,6 +150,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-code-deprecations                                   | Check deprecations categories in decorators                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-compat-cache-on-methods                             | Check that compat cache do not use on class methods          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
@@ -173,6 +175,8 @@ require Breeze Docker image to be built locally.
 | check-fab-migrations                                      | Check no migration is done on FAB related table              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-get-lineage-collector-providers                     | Check providers import hook lineage code from compat         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -227,6 +231,8 @@ require Breeze Docker image to be built locally.
 | check-system-tests-present                                | Check if system tests have required segments of code         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-taskinstance-tis-attrs                              | Check that TI and TIS have the same attributes               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-template-context-variable-in-sync                   | Check all template context variable references are in sync   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

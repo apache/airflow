@@ -21,7 +21,7 @@ import json
 import uuid
 from json import JSONEncoder
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from attrs import define
@@ -34,6 +34,7 @@ from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
     _is_name_redactable,
+    get_airflow_run_facet,
     get_fully_qualified_class_name,
     is_operator_disabled,
 )
@@ -101,6 +102,28 @@ def test_info_json_encodable():
         casts = {"iwanttobeint": lambda x: int(x.imastring)}
         renames = {"_faulty_name": "goody_name"}
 
+    @define
+    class Test:
+        exclude_1: str
+        imastring: str
+        _faulty_name: str
+        donotcare: str
+
+    obj = Test("val", "123", "not_funny", "abc")
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {
+        "iwanttobeint": 123,
+        "goody_name": "not_funny",
+        "donotcare": "abc",
+    }
+
+
+def test_info_json_encodable_without_slots():
+    class TestInfo(InfoJsonEncodable):
+        excludes = ["exclude_1", "exclude_2", "imastring"]
+        casts = {"iwanttobeint": lambda x: int(x.imastring)}
+        renames = {"_faulty_name": "goody_name"}
+
     @define(slots=False)
     class Test:
         exclude_1: str
@@ -121,7 +144,7 @@ def test_info_json_encodable_list_does_not_flatten():
     class TestInfo(InfoJsonEncodable):
         includes = ["alist"]
 
-    @define(slots=False)
+    @define
     class Test:
         alist: list[str]
 
@@ -134,7 +157,7 @@ def test_info_json_encodable_list_does_include_nonexisting():
     class TestInfo(InfoJsonEncodable):
         includes = ["exists", "doesnotexist"]
 
-    @define(slots=False)
+    @define
     class Test:
         exists: str
 
@@ -190,7 +213,7 @@ def test_redact_with_exclusions(monkeypatch):
             self.password = "passwd"
             self.transparent = "123"
 
-    @define(slots=False)
+    @define
     class NestedMixined(RedactMixin):
         _skip_redact = ["nested_field"]
         password: str
@@ -227,3 +250,39 @@ def test_is_operator_disabled(mock_disabled_operators):
         "airflow.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
+
+
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_includes_full_task_info(mock_include_full_task_info):
+    mock_include_full_task_info.return_value = True
+    # There should be no 'bash_command' in excludes and it's not in includes - so
+    # it's a good choice for checking TaskInfo vs TaskInfoComplete
+    assert (
+        "bash_command"
+        in get_airflow_run_facet(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            BashOperator(task_id="bash_op", bash_command="sleep 1"),
+            MagicMock(),
+        )["airflow"].task
+    )
+
+
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_does_not_include_full_task_info(mock_include_full_task_info):
+    from airflow.operators.bash import BashOperator
+
+    mock_include_full_task_info.return_value = False
+    # There should be no 'bash_command' in excludes and it's not in includes - so
+    # it's a good choice for checking TaskInfo vs TaskInfoComplete
+    assert (
+        "bash_command"
+        not in get_airflow_run_facet(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            BashOperator(task_id="bash_op", bash_command="sleep 1"),
+            MagicMock(),
+        )["airflow"].task
+    )

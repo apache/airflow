@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.9.2"
+defaultAirflowTag: "2.9.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.9.2"
+airflowVersion: "2.9.3"
 
 # Images
 images:
@@ -342,6 +342,11 @@ extraSecrets: {}
 #   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
+#   'proxy-config':
+#     stringData: |
+#        HTTP_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        HTTPS_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        NO_PROXY: "localhost,127.0.0.1,.svc.cluster.local,kubernetes.default.svc"
 
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
@@ -2655,6 +2660,11 @@ dags:
     # For backwards compatibility, wait will be used if it is specified.
     period: 5s
     wait: ~
+    # add variables from secret into gitSync containers, such proxy-config
+    envFrom: ~
+    # envFrom: |
+    #   - secretRef:
+    #       name: 'proxy-config'
 
     containerName: git-sync
     uid: 65533

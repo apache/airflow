@@ -17,15 +17,9 @@
 """
 This module provides functions for safely retrieving and handling OpenLineage configurations.
 
-To prevent errors caused by invalid user-provided configuration values, we use ``conf.get()``
-to fetch values as strings and perform safe conversions using custom functions.
-
-Any invalid configuration values should be treated as incorrect and replaced with default values.
-For example, if the default for boolean ``custom_ol_var`` is False, any non-true value provided:
-``"asdf"``, ``12345``, ``{"key": 1}`` or empty string, will result in False being used.
-
-By using default values for invalid configuration values, we ensure that the configurations are handled
-safely, preventing potential runtime errors due to conversion issues.
+For the legacy boolean env variables `OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE` and `OPENLINEAGE_DISABLED`,
+any string not equal to "true", "1", or "t" should be treated as False, to maintain backward compatibility.
+Support for legacy variables will be removed in Airflow 3.
 """
 
 from __future__ import annotations
@@ -51,13 +45,6 @@ def _is_true(arg: Any) -> bool:
     return str(arg).lower().strip() in ("true", "1", "t")
 
 
-def _safe_int_convert(arg: Any, default: int) -> int:
-    try:
-        return int(arg)
-    except (ValueError, TypeError):
-        return default
-
-
 @cache
 def config_path(check_legacy_env_var: bool = True) -> str:
     """[openlineage] config_path."""
@@ -70,11 +57,11 @@ def config_path(check_legacy_env_var: bool = True) -> str:
 @cache
 def is_source_enabled() -> bool:
     """[openlineage] disable_source_code."""
-    option = conf.get(_CONFIG_SECTION, "disable_source_code", fallback="")
-    if not option:
-        option = os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", "")
-    # when disable_source_code is True, is_source_enabled() should be False
-    return not _is_true(option)
+    option = conf.getboolean(_CONFIG_SECTION, "disable_source_code", fallback="False")
+    if option is False:  # Check legacy variable
+        option = _is_true(os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", ""))
+    # when disable_source_code is True, is_source_enabled() should be False; hence the "not"
+    return not option
 
 
 @cache
@@ -87,8 +74,7 @@ def disabled_operators() -> set[str]:
 @cache
 def selective_enable() -> bool:
     """[openlineage] selective_enable."""
-    option = conf.get(_CONFIG_SECTION, "selective_enable", fallback="")
-    return _is_true(option)
+    return conf.getboolean(_CONFIG_SECTION, "selective_enable", fallback="False")
 
 
 @cache
@@ -98,6 +84,17 @@ def custom_extractors() -> set[str]:
     if not option:
         option = os.getenv("OPENLINEAGE_EXTRACTORS", "")
     return set(extractor.strip() for extractor in option.split(";") if extractor.strip())
+
+
+@cache
+def custom_run_facets() -> set[str]:
+    """[openlineage] custom_run_facets."""
+    option = conf.get(_CONFIG_SECTION, "custom_run_facets", fallback="")
+    return set(
+        custom_facet_function.strip()
+        for custom_facet_function in option.split(";")
+        if custom_facet_function.strip()
+    )
 
 
 @cache
@@ -121,13 +118,12 @@ def transport() -> dict[str, Any]:
 @cache
 def is_disabled() -> bool:
     """[openlineage] disabled + check if any configuration is present."""
-    option = conf.get(_CONFIG_SECTION, "disabled", fallback="")
-    if _is_true(option):
+    if conf.getboolean(_CONFIG_SECTION, "disabled", fallback="False"):
         return True
 
-    option = os.getenv("OPENLINEAGE_DISABLED", "")
-    if _is_true(option):
+    if _is_true(os.getenv("OPENLINEAGE_DISABLED", "")):  # Check legacy variable
         return True
+
     # Check if both 'transport' and 'config_path' are not present and also
     # if legacy 'OPENLINEAGE_URL' environment variables is not set
     return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
@@ -136,12 +132,16 @@ def is_disabled() -> bool:
 @cache
 def dag_state_change_process_pool_size() -> int:
     """[openlineage] dag_state_change_process_pool_size."""
-    option = conf.get(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback="")
-    return _safe_int_convert(str(option).strip(), default=1)
+    return conf.getint(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback="1")
 
 
 @cache
 def execution_timeout() -> int:
     """[openlineage] execution_timeout."""
-    option = conf.get(_CONFIG_SECTION, "execution_timeout", fallback="")
-    return _safe_int_convert(str(option).strip(), default=10)
+    return conf.getint(_CONFIG_SECTION, "execution_timeout", fallback="10")
+
+
+@cache
+def include_full_task_info() -> bool:
+    """[openlineage] include_full_task_info."""
+    return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")

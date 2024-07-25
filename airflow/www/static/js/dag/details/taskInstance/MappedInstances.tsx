@@ -25,10 +25,9 @@ import type { Row, SortingRule } from "react-table";
 import { formatDuration, getDuration } from "src/datetime_utils";
 import { useMappedInstances } from "src/api";
 import { StatusWithNotes } from "src/dag/StatusBox";
-import { Table } from "src/components/Table";
+import { Table, CellProps } from "src/components/Table";
 import Time from "src/components/Time";
 import { useOffsetTop } from "src/utils";
-import type { CellProps } from "src/components/Table";
 
 interface Props {
   dagId: string;
@@ -94,8 +93,11 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Map Index",
         accessor: "mapIndex",
-        Cell: ({ cell: { row } }: CellProps) =>
-          row.original.renderedMapIndex || row.original.mapIndex,
+        Cell: ({
+          cell: {
+            row: { original },
+          },
+        }: CellProps) => original.renderedMapIndex || original.mapIndex,
       },
       {
         Header: "State",

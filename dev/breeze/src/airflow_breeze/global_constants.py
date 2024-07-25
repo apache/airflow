@@ -32,9 +32,11 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
 # we use self airflow, vm-based, amd hosted runner as a default
+# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
+RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
 # TODO: when we have it properly set-up with labels we should change it to
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -87,7 +89,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.26.15", "v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -159,6 +161,11 @@ REGULAR_DOC_PACKAGES = [
 @lru_cache(maxsize=None)
 def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+
+
+@lru_cache(maxsize=None)
+def all_selective_test_types_except_providers() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
 
 
 class SelectiveUnitTestTypes(Enum):
@@ -323,6 +330,7 @@ COMMITTERS = [
     "Fokko",
     "KevinYang21",
     "Lee-W",
+    "RNHTTR",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
@@ -366,11 +374,12 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
-    "RNHTTR",
+    "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
+    "shahar1",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -435,7 +444,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.15.0"
+HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None

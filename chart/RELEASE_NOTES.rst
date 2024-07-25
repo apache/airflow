@@ -23,6 +23,57 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.15.0 (2024-07-24)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.9.3`` (#40816)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.9.3``, previously it was ``2.9.2``.
+
+Default PgBouncer Exporter image has been updated (#40318)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The PgBouncer Exporter image has been updated to ``airflow-pgbouncer-exporter-2024.06.18-0.17.0``, which addresses CVE-2024-24786.
+
+New Features
+^^^^^^^^^^^^
+
+- Add git-sync container lifecycle hooks (#40369)
+- Add init containers for jobs (#40454)
+- Add persistent volume claim retention policy (#40271)
+- Add annotations for Redis StatefulSet (#40281)
+- Add ``dags.gitSync.sshKey``, which allows the git-sync private key to be configured in the values file directly (#39936)
+- Add ``extraEnvFrom`` to git-sync containers (#39031)
+
+Improvements
+^^^^^^^^^^^^
+
+- Link in ``UIAlert`` to production guide when a dynamic webserver secret is used now opens in a new tab (#40635)
+- Support disabling helm hooks on ``extraConfigMaps`` and ``extraSecrets`` (#40294)
+
+Bug Fixes
+^^^^^^^^^
+
+- Add git-sync ssh secret to DAG processor (#40691)
+- Fix duplicated ``safeToEvict`` annotations (#40554)
+- Add missing ``triggerer.keda.usePgbouncer`` to values.yaml (#40614)
+- Trim leading ``//`` character using mysql backend (#40401)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Updating chart download link to use the Apache download CDN (#40618)
+
+Misc
+^^^^
+
+- Update PgBouncer exporter image to ``airflow-pgbouncer-exporter-2024.06.18-0.17.0`` (#40318)
+- Default airflow version to 2.9.3 (#40816)
+- Fix ``startupProbe`` timing comment (#40412)
 
 Airflow Helm Chart 1.14.0 (2024-06-18)
 --------------------------------------

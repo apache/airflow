@@ -65,7 +65,9 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     dagRunId: runId,
     taskId,
     mapIndex,
-    enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    options: {
+      enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    },
   });
 
   const showTaskSchedulingDependencies =

@@ -25,6 +25,7 @@ state: ready
 source-date-epoch: 1716287191
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.1.0
   - 1.0.0
 
 dependencies:

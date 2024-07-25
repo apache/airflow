@@ -50,6 +50,7 @@ from airflow_breeze.global_constants import (
     SelectiveUnitTestTypes,
     all_helm_test_packages,
     all_selective_test_types,
+    all_selective_test_types_except_providers,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
@@ -85,6 +86,10 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "PythonVenv Serialization WWW"
 )
 
+ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
+    "API Always BranchExternalPython BranchPythonVenv CLI Core "
+    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
+)
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
 
@@ -108,6 +113,7 @@ class FileGroupForCi(Enum):
     ALL_DEV_PYTHON_FILES = "all_dev_python_files"
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
+    TESTS_UTILS_FILES = "test_utils_files"
 
 
 T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
@@ -215,6 +221,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
             r".*/provider\.yaml$",
+        ],
+        FileGroupForCi.TESTS_UTILS_FILES: [
+            r"^tests/utils/",
         ],
     }
 )
@@ -455,9 +464,18 @@ class SelectiveChecks:
         if self._should_run_all_tests_and_versions():
             return True
         if self._matching_files(
-            FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            FileGroupForCi.ENVIRONMENT_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because env files changed[/]")
+            return True
+        if self._matching_files(
+            FileGroupForCi.TESTS_UTILS_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
@@ -744,30 +762,26 @@ class SelectiveChecks:
                 break
         if count_remaining_files > 0:
             get_console().print(
-                f"[warning]We should run all tests. There are {count_remaining_files} changed "
-                "files that seems to fall into Core/Other category[/]"
+                f"[warning]We should run all core tests except providers."
+                f"There are {count_remaining_files} changed files that seems to fall "
+                f"into Core/Other category[/]"
             )
             get_console().print(remaining_files)
-            candidate_test_types.update(all_selective_test_types())
+            candidate_test_types.update(all_selective_test_types_except_providers())
         else:
             if "Providers" in candidate_test_types or "API" in candidate_test_types:
                 affected_providers = self._find_all_providers_affected(
                     include_docs=False,
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
-                    try:
-                        candidate_test_types.remove("Providers")
-                    except KeyError:
-                        # In case of API tests Providers could not be in the list originally so we can ignore
-                        # Providers missing in the list.
-                        pass
+                    candidate_test_types.discard("Providers")
                     if split_to_individual_providers:
                         for provider in affected_providers:
                             candidate_test_types.add(f"Providers[{provider}]")
                     else:
                         candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-                elif split_to_individual_providers:
-                    candidate_test_types.remove("Providers")
+                elif split_to_individual_providers and "Providers" in candidate_test_types:
+                    candidate_test_types.discard("Providers")
                     for provider in get_available_packages():
                         candidate_test_types.add(f"Providers[{provider}]")
             get_console().print(

@@ -35,6 +35,10 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
 )
+from airflow.providers.databricks.plugins.databricks_workflow import (
+    WorkflowJobRepairSingleTaskLink,
+    WorkflowJobRunLink,
+)
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import _normalise_json_content, validate_trigger_event
 
@@ -259,7 +263,23 @@ class DatabricksCreateJobsOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = (
+        "json",
+        "databricks_conn_id",
+        "name",
+        "description",
+        "tags",
+        "tasks",
+        "job_clusters",
+        "email_notifications",
+        "webhook_notifications",
+        "notification_settings",
+        "timeout_seconds",
+        "schedule",
+        "max_concurrent_runs",
+        "git_source",
+        "access_control_list",
+    )
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
     ui_fgcolor = "#fff"
@@ -296,21 +316,19 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
-        self.overridden_json_params = {
-            "name": name,
-            "description": description,
-            "tags": tags,
-            "tasks": tasks,
-            "job_clusters": job_clusters,
-            "email_notifications": email_notifications,
-            "webhook_notifications": webhook_notifications,
-            "notification_settings": notification_settings,
-            "timeout_seconds": timeout_seconds,
-            "schedule": schedule,
-            "max_concurrent_runs": max_concurrent_runs,
-            "git_source": git_source,
-            "access_control_list": access_control_list,
-        }
+        self.name = name
+        self.description = description
+        self.tags = tags
+        self.tasks = tasks
+        self.job_clusters = job_clusters
+        self.email_notifications = email_notifications
+        self.webhook_notifications = webhook_notifications
+        self.notification_settings = notification_settings
+        self.timeout_seconds = timeout_seconds
+        self.schedule = schedule
+        self.max_concurrent_runs = max_concurrent_runs
+        self.git_source = git_source
+        self.access_control_list = access_control_list
 
     @cached_property
     def _hook(self):
@@ -323,6 +341,22 @@ class DatabricksCreateJobsOperator(BaseOperator):
         )
 
     def _setup_and_validate_json(self):
+        self.overridden_json_params = {
+            "name": self.name,
+            "description": self.description,
+            "tags": self.tags,
+            "tasks": self.tasks,
+            "job_clusters": self.job_clusters,
+            "email_notifications": self.email_notifications,
+            "webhook_notifications": self.webhook_notifications,
+            "notification_settings": self.notification_settings,
+            "timeout_seconds": self.timeout_seconds,
+            "schedule": self.schedule,
+            "max_concurrent_runs": self.max_concurrent_runs,
+            "git_source": self.git_source,
+            "access_control_list": self.access_control_list,
+        }
+
         _handle_overridden_json_params(self)
 
         if "name" not in self.json:
@@ -466,7 +500,25 @@ class DatabricksSubmitRunOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = (
+        "json",
+        "databricks_conn_id",
+        "tasks",
+        "spark_jar_task",
+        "notebook_task",
+        "spark_python_task",
+        "spark_submit_task",
+        "pipeline_task",
+        "dbt_task",
+        "new_cluster",
+        "existing_cluster_id",
+        "libraries",
+        "run_name",
+        "timeout_seconds",
+        "idempotency_token",
+        "access_control_list",
+        "git_source",
+    )
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -512,23 +564,21 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
-        self.overridden_json_params = {
-            "tasks": tasks,
-            "spark_jar_task": spark_jar_task,
-            "notebook_task": notebook_task,
-            "spark_python_task": spark_python_task,
-            "spark_submit_task": spark_submit_task,
-            "pipeline_task": pipeline_task,
-            "dbt_task": dbt_task,
-            "new_cluster": new_cluster,
-            "existing_cluster_id": existing_cluster_id,
-            "libraries": libraries,
-            "run_name": run_name,
-            "timeout_seconds": timeout_seconds,
-            "idempotency_token": idempotency_token,
-            "access_control_list": access_control_list,
-            "git_source": git_source,
-        }
+        self.tasks = tasks
+        self.spark_jar_task = spark_jar_task
+        self.notebook_task = notebook_task
+        self.spark_python_task = spark_python_task
+        self.spark_submit_task = spark_submit_task
+        self.pipeline_task = pipeline_task
+        self.dbt_task = dbt_task
+        self.new_cluster = new_cluster
+        self.existing_cluster_id = existing_cluster_id
+        self.libraries = libraries
+        self.run_name = run_name
+        self.timeout_seconds = timeout_seconds
+        self.idempotency_token = idempotency_token
+        self.access_control_list = access_control_list
+        self.git_source = git_source
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -548,6 +598,24 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def _setup_and_validate_json(self):
+        self.overridden_json_params = {
+            "tasks": self.tasks,
+            "spark_jar_task": self.spark_jar_task,
+            "notebook_task": self.notebook_task,
+            "spark_python_task": self.spark_python_task,
+            "spark_submit_task": self.spark_submit_task,
+            "pipeline_task": self.pipeline_task,
+            "dbt_task": self.dbt_task,
+            "new_cluster": self.new_cluster,
+            "existing_cluster_id": self.existing_cluster_id,
+            "libraries": self.libraries,
+            "run_name": self.run_name,
+            "timeout_seconds": self.timeout_seconds,
+            "idempotency_token": self.idempotency_token,
+            "access_control_list": self.access_control_list,
+            "git_source": self.git_source,
+        }
+
         _handle_overridden_json_params(self)
 
         if "run_name" not in self.json or self.json["run_name"] is None:
@@ -768,7 +836,18 @@ class DatabricksRunNowOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = (
+        "json",
+        "databricks_conn_id",
+        "job_id",
+        "job_name",
+        "notebook_params",
+        "python_params",
+        "python_named_params",
+        "jar_params",
+        "spark_submit_params",
+        "idempotency_token",
+    )
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -811,16 +890,14 @@ class DatabricksRunNowOperator(BaseOperator):
         self.deferrable = deferrable
         self.repair_run = repair_run
         self.cancel_previous_runs = cancel_previous_runs
-        self.overridden_json_params = {
-            "job_id": job_id,
-            "job_name": job_name,
-            "notebook_params": notebook_params,
-            "python_params": python_params,
-            "python_named_params": python_named_params,
-            "jar_params": jar_params,
-            "spark_submit_params": spark_submit_params,
-            "idempotency_token": idempotency_token,
-        }
+        self.job_id = job_id
+        self.job_name = job_name
+        self.notebook_params = notebook_params
+        self.python_params = python_params
+        self.python_named_params = python_named_params
+        self.jar_params = jar_params
+        self.spark_submit_params = spark_submit_params
+        self.idempotency_token = idempotency_token
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
@@ -839,6 +916,16 @@ class DatabricksRunNowOperator(BaseOperator):
         )
 
     def _setup_and_validate_json(self):
+        self.overridden_json_params = {
+            "job_id": self.job_id,
+            "job_name": self.job_name,
+            "notebook_params": self.notebook_params,
+            "python_params": self.python_params,
+            "python_named_params": self.python_named_params,
+            "jar_params": self.jar_params,
+            "spark_submit_params": self.spark_submit_params,
+            "idempotency_token": self.idempotency_token,
+        }
         _handle_overridden_json_params(self)
 
         if "job_id" in self.json and "job_name" in self.json:
@@ -958,6 +1045,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
         super().__init__(**kwargs)
 
+        if self._databricks_workflow_task_group is not None:
+            self.operator_extra_links = (
+                WorkflowJobRunLink(),
+                WorkflowJobRepairSingleTaskLink(),
+            )
+        else:
+            # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
+            self.operator_extra_links = (DatabricksJobRunLink(),)
+
     @cached_property
     def _hook(self) -> DatabricksHook:
         return self._get_hook(caller=self.caller)
@@ -1016,12 +1112,17 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             raise ValueError("Must specify either existing_cluster_id or new_cluster.")
         return run_json
 
-    def _launch_job(self) -> int:
+    def _launch_job(self, context: Context | None = None) -> int:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
         self.databricks_run_id = self._hook.submit_run(run_json)
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
+
+        if self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
+            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
+
         return self.databricks_run_id
 
     def _handle_terminal_run_state(self, run_state: RunState) -> None:
@@ -1040,7 +1141,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Retrieve the Databricks task corresponding to the current Airflow task."""
         if self.databricks_run_id is None:
             raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        return {task["task_key"]: task for task in self._hook.get_run(self.databricks_run_id)["tasks"]}[
+        tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
+
+        # Because the task_key remains the same across multiple runs, and the Databricks API does not return
+        # tasks sorted by their attempts/start time, we sort the tasks by start time. This ensures that we
+        # map the latest attempt (whose status is to be monitored) of the task run to the task_key while
+        # building the {task_key: task} map below.
+        sorted_task_runs = sorted(tasks, key=lambda x: x["start_time"])
+
+        return {task["task_key"]: task for task in sorted_task_runs}[
             self._get_databricks_task_id(self.task_id)
         ]
 
@@ -1125,7 +1234,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
         else:
-            self._launch_job()
+            self._launch_job(context=context)
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
