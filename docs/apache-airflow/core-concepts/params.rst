@@ -350,7 +350,8 @@ The following features are supported in the Trigger UI Form:
 - To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger``
   and add query parameter to the URL in the form ``name=value``, for example ``/dags/example_params_ui_tutorial/trigger?required_field=some%20text``.
   To pre-define the run id of the DAG run, use the URL parameter ``run_id``.
-- Fields can be required or not. If the defined fields are typed they are getting required by default (else they would not pass JSON schema validation) - to make typed fields optional you must permit the optional "null" type.
+- Fields can be required or optional. Typed fields are required by default to ensure they pass JSON schema validation. To make typed fields optional, you must allow the "null" type.
+- Fields without a "section" will be rendered in the default area. Additional sections will be collapsed by default.
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
