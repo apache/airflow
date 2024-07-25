@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-24T15:49:07.383279
+# This constraints file was automatically generated on 2024-07-25T07:45:44.083920
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -321,7 +321,7 @@ google-api-python-client==2.137.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.32.0
-google-cloud-aiplatform==1.59.0
+google-cloud-aiplatform==1.60.0
 google-cloud-appengine-logging==1.4.4
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.4
@@ -491,15 +491,15 @@ openlineage-python==1.19.0
 openlineage_sql==1.19.0
 openpyxl==3.1.5
 opensearch-py==2.6.0
-opentelemetry-api==1.25.0
-opentelemetry-exporter-otlp-proto-common==1.25.0
-opentelemetry-exporter-otlp-proto-grpc==1.25.0
-opentelemetry-exporter-otlp-proto-http==1.25.0
-opentelemetry-exporter-otlp==1.25.0
-opentelemetry-exporter-prometheus==0.46b0
-opentelemetry-proto==1.25.0
-opentelemetry-sdk==1.25.0
-opentelemetry-semantic-conventions==0.46b0
+opentelemetry-api==1.26.0
+opentelemetry-exporter-otlp-proto-common==1.26.0
+opentelemetry-exporter-otlp-proto-grpc==1.26.0
+opentelemetry-exporter-otlp-proto-http==1.26.0
+opentelemetry-exporter-otlp==1.26.0
+opentelemetry-exporter-prometheus==0.47b0
+opentelemetry-proto==1.26.0
+opentelemetry-sdk==1.26.0
+opentelemetry-semantic-conventions==0.47b0
 opsgenie-sdk==2.1.5
 oracledb==2.3.0
 ordered-set==4.1.0
@@ -538,7 +538,7 @@ prison==0.2.1
 prometheus_client==0.20.0
 prompt_toolkit==3.0.47
 proto-plus==1.24.0
-protobuf==4.25.3
+protobuf==4.25.4
 psutil==6.0.0
 psycopg2-binary==2.9.9
 ptyprocess==0.7.0
@@ -602,7 +602,7 @@ readme_renderer==43.0
 redis==5.0.7
 redshift-connector==2.1.2
 referencing==0.35.1
-regex==2024.5.15
+regex==2024.7.24
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -638,7 +638,7 @@ smbprotocol==1.13.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.11.0
+snowflake-connector-python==3.12.0
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.5
