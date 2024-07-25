@@ -19,12 +19,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import boto3
 import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue_session import GlueSessionHook, GlueSessionStates
 from airflow.providers.amazon.aws.operators.glue_session import (
     GlueCreateSessionOperator,
+    GlueDeleteSessionOperator,
     GlueSessionBaseOperator,
 )
 from airflow.utils.types import NOTSET
@@ -45,7 +47,15 @@ WAITERS_TEST_CASES = [
 ]
 
 
-class TestEcsBaseOperator:
+class GlueSessionBaseTestCase:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.client = boto3.client("glue", region_name="eu-west-3")
+        monkeypatch.setattr(GlueSessionHook, "conn", self.client)
+        monkeypatch.setenv("AIRFLOW_CONN_AWS_TEST_CONN", '{"conn_type": "aws"}')
+
+
+class TestGlueSessionBaseOperator(GlueSessionBaseTestCase):
     """Test Base Glue Session Operator."""
 
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
@@ -80,7 +90,7 @@ class TestEcsBaseOperator:
             m.assert_called_once()
 
 
-class TestGlueCreateSessionOperator:
+class TestGlueCreateSessionOperator(GlueSessionBaseTestCase):
     @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         ti: TaskInstance = create_task_instance_of_operator(
@@ -254,3 +264,17 @@ class TestGlueCreateSessionOperator:
         op.execute({})
         mock_conn.create_session.assert_called_once()
         mock_wait.assert_not_called()
+
+
+class TestGlueDeleteSessionOperator(GlueSessionBaseTestCase):
+    @pytest.mark.db_test
+    def test_render_template(self, create_task_instance_of_operator):
+        ti: TaskInstance = create_task_instance_of_operator(
+            GlueDeleteSessionOperator,
+            dag_id=DAG_ID,
+            task_id=TASK_ID,
+            session_id="{{ dag.dag_id }}",
+        )
+        rendered_template: GlueDeleteSessionOperator = ti.render_templates()
+
+        assert DAG_ID == rendered_template.session_id

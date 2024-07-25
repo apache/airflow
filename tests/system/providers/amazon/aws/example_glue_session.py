@@ -152,7 +152,7 @@ with DAG(
 
     # [START howto_operator_glue_session]
     delete_glue_session = GlueDeleteSessionOperator(
-        task_id="create_glue_session",
+        task_id="delete_glue_session",
         session_id=glue_session_id,
     )
     # [END howto_operator_glue_session]
