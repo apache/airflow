@@ -41,6 +41,7 @@ from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.sensors.base import FailPolicy
 from airflow.typing_compat import Literal
 
 # Please keep this in sync with __init__.py's __all__.
@@ -687,7 +688,7 @@ class TaskDecoratorCollection:
         *,
         poke_interval: float = ...,
         timeout: float = ...,
-        soft_fail: bool = False,
+        fail_policy: FailPolicy = ...,
         mode: str = ...,
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
@@ -699,7 +700,7 @@ class TaskDecoratorCollection:
         :param poke_interval: Time in seconds that the job should wait in
             between each try
         :param timeout: Time, in seconds before the task times out and fails.
-        :param soft_fail: Set to true to mark the task as SKIPPED on failure
+        :param fail_policy: TODO.
         :param mode: How the sensor operates.
             Options are: ``{ poke | reschedule }``, default is ``poke``.
             When set to ``poke`` the sensor is taking up a worker slot for its

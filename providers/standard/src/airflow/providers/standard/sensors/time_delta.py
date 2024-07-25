@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, NoReturn
 from packaging.version import Version
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
@@ -102,15 +101,10 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
             return True
-        try:
-            if AIRFLOW_V_3_0_PLUS:
-                trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
-            else:
-                trigger = DateTimeTrigger(moment=target_dttm)
-        except (TypeError, ValueError) as e:
-            if self.soft_fail:
-                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
-            raise
+        if AIRFLOW_V_3_0_PLUS:
+            trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
+        else:
+            trigger = DateTimeTrigger(moment=target_dttm)
 
         # todo: remove backcompat when min airflow version greater than 2.11
         timeout: int | float | timedelta
