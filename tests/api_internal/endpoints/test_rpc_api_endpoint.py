@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
-from itsdangerous import URLSafeSerializer
 
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
@@ -143,7 +142,6 @@ class TestRpcApiEndpoint:
             "jsonrpc": "2.0",
             "method": TEST_METHOD_NAME,
             "params": input_params,
-            "token": auth_token,
         }
         response = self.client.post(
             "/internal_api/v1/rpcapi",
@@ -167,7 +165,7 @@ class TestRpcApiEndpoint:
             "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
         }
         mock_test_method.side_effect = ValueError("Error!!!")
-        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}, "token": auth_token}
+        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}}
 
         response = self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
         assert response.status_code == 500
