@@ -326,7 +326,7 @@ Manipulating queued dataset events through REST API
 
 .. versionadded:: 2.9
 
-In this example, the DAG "waiting_for_dataset_1_and_2" will be triggered when tasks update both datasets "dataset-1" and "dataset-2". Once "dataset-1" is updated, Airflow creates a record. This ensures that Airflow knows to trigger the DAG when "dataset-2" is updated. We call such records queued dataset events.
+In this example, the DAG ``waiting_for_dataset_1_and_2`` will be triggered when tasks update both datasets "dataset-1" and "dataset-2". Once "dataset-1" is updated, Airflow creates a record. This ensures that Airflow knows to trigger the DAG when "dataset-2" is updated. We call such records queued dataset events.
 
 .. code-block:: python
 
