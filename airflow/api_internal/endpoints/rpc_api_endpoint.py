@@ -131,6 +131,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun.get_previous_scheduled_dagrun,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
+        DagRun._get_task_instances,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
         SerializedDagModel.remove_deleted_dags,
