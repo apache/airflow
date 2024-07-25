@@ -29,6 +29,7 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
+from airflow.sensors.base import FailPolicy
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weekday import WeekDay
 
@@ -68,7 +69,7 @@ with DAG(
     t2 = TimeSensor(
         task_id="timeout_after_second_date_in_the_future",
         timeout=1,
-        soft_fail=True,
+        fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
         target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors]
@@ -81,7 +82,7 @@ with DAG(
     t2a = TimeSensorAsync(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
-        soft_fail=True,
+        fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
         target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors_async]
@@ -89,7 +90,12 @@ with DAG(
     # [START example_bash_sensors]
     t3 = BashSensor(task_id="Sensor_succeeds", bash_command="exit 0")
 
-    t4 = BashSensor(task_id="Sensor_fails_after_3_seconds", timeout=3, soft_fail=True, bash_command="exit 1")
+    t4 = BashSensor(
+        task_id="Sensor_fails_after_3_seconds",
+        timeout=3,
+        fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
+        bash_command="exit 1",
+    )
     # [END example_bash_sensors]
 
     t5 = BashOperator(task_id="remove_file", bash_command="rm -rf /tmp/temporary_file_for_testing")
@@ -112,13 +118,19 @@ with DAG(
     t9 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
 
     t10 = PythonSensor(
-        task_id="failure_timeout_sensor_python", timeout=3, soft_fail=True, python_callable=failure_callable
+        task_id="failure_timeout_sensor_python",
+        timeout=3,
+        fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
+        python_callable=failure_callable,
     )
     # [END example_python_sensors]
 
     # [START example_day_of_week_sensor]
     t11 = DayOfWeekSensor(
-        task_id="week_day_sensor_failing_on_timeout", timeout=3, soft_fail=True, week_day=WeekDay.MONDAY
+        task_id="week_day_sensor_failing_on_timeout",
+        timeout=3,
+        fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
+        week_day=WeekDay.MONDAY,
     )
     # [END example_day_of_week_sensor]
 

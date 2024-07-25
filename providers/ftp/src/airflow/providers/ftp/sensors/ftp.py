@@ -22,6 +22,7 @@ import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowPokeFailException
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -87,7 +88,7 @@ class FTPSensor(BaseSensorOperator):
                 if (error_code != 550) and (
                     self.fail_on_transient_errors or (error_code not in self.transient_errors)
                 ):
-                    raise e
+                    raise AirflowPokeFailException from e
 
                 return False
 

@@ -25,7 +25,7 @@ import pytest
 from paramiko.sftp import SFTP_FAILURE, SFTP_NO_SUCH_FILE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowPokeFailException
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
 
@@ -58,7 +58,7 @@ class TestSFTPSensor:
 
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         context = {"ds": "1970-01-01"}
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowPokeFailException):
             sftp_sensor.poke(context)
 
     def test_hook_not_created_during_init(self):
