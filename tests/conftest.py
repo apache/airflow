@@ -235,6 +235,12 @@ def set_db_isolation_mode():
         InternalApiConfig.set_use_internal_api("tests", allow_tests_to_use_db=True)
 
 
+def skip_if_database_isolation_mode(item):
+    if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
+        for _ in item.iter_markers(name="skip_if_database_isolation_mode"):
+            pytest.skip("This test is skipped because it is not allowed in database isolation mode.")
+
+
 def pytest_addoption(parser: pytest.Parser):
     """Add options parser for custom plugins."""
     group = parser.getgroup("airflow")
@@ -458,6 +464,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
+    config.addinivalue_line("markers", "skip_if_database_isolation_mode: skip if DB isolation is enabled")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
@@ -697,6 +704,7 @@ def pytest_runtest_setup(item):
         skip_if_platform_doesnt_match(marker)
     for marker in item.iter_markers(name="backend"):
         skip_if_wrong_backend(marker, item)
+    skip_if_database_isolation_mode(item)
     selected_backend = item.config.option.backend
     if selected_backend:
         skip_if_not_marked_with_backend(selected_backend, item)
