@@ -97,6 +97,59 @@ When writing a deferrable operators these are the main points to consider:
             return
 
 
+Exiting deferred task from Triggers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ .. versionadded:: 2.10.0
+
+If you want to exit your task directly from the triggerer without going into the worker, you can specify the instance level attribute ``end_from_trigger`` with the attributes of your deferrable operator, as discussed above. This can save some resources needed to start a new worker.
+
+Triggers can have two options: they can either send execution back to the worker or end the task instance directly. If the trigger ends the task instance itself, the ``method_name`` does not matter and can be ``None``. Otherwise, provide ``method_name`` that should be used when resuming execution in the task.
+
+.. code-block:: python
+
+    class WaitFiveHourSensorAsync(BaseSensorOperator):
+        # this sensor always exits from trigger.
+        def __init__(self, **kwargs) -> None:
+            super().__init__(**kwargs)
+            self.end_from_trigger = True
+
+        def execute(self, context: Context) -> NoReturn:
+            self.defer(
+                method_name=None,
+                trigger=WaitFiveHourTrigger(duration=timedelta(hours=5), end_from_trigger=self.end_from_trigger),
+            )
+
+
+``TaskSuccessEvent`` and ``TaskFailureEvent`` are the two events that can be used to end the task instance directly. This marks the task with the state ``task_instance_state`` and optionally pushes xcom if applicable. Here's an example of how to use these events:
+
+.. code-block:: python
+
+
+    class WaitFiveHourTrigger(BaseTrigger):
+        def __init__(self, duration: timedelta, *, end_from_trigger: bool = False):
+            super().__init__()
+            self.duration = duration
+            self.end_from_trigger = end_from_trigger
+
+        def serialize(self) -> tuple[str, dict[str, Any]]:
+            return (
+                "your_module.WaitFiveHourTrigger",
+                {"duration": self.duration, "end_from_trigger": self.end_from_trigger},
+            )
+
+        async def run(self) -> AsyncIterator[TriggerEvent]:
+            await asyncio.sleep(self.duration.total_seconds())
+            if self.end_from_trigger:
+                yield TaskSuccessEvent()
+            else:
+                yield TriggerEvent({"duration": self.duration})
+
+In the above example, the trigger will end the task instance directly if ``end_from_trigger`` is set to ``True`` by yielding ``TaskSuccessEvent``. Otherwise, it will resume the task instance with the method specified in the operator.
+
+.. note::
+    Exiting from the trigger works only when listeners are not integrated for the deferrable operator. Currently, when deferrable operator has the ``end_from_trigger`` attribute set to ``True`` and listeners are integrated it raises an exception during parsing to indicate this limitation. While writing the custom trigger, ensure that the trigger is not set to end the task instance directly if the listeners are added from plugins. If the ``end_from_trigger`` attribute is changed to different attribute by author of trigger, the DAG parsing would not raise any exception and the listeners dependent on this task would not work. This limitation will be addressed in future releases.
+
 Writing Triggers
 ~~~~~~~~~~~~~~~~
 
