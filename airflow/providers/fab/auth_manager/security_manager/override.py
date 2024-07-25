@@ -1348,8 +1348,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Add the missing ones to the table for admin.
         """
         session = self.appbuilder.get_session
+        prefixes = getattr(permissions, "PREFIX_LIST", [permissions.RESOURCE_DAG_PREFIX])
         dag_resources = session.scalars(
-            select(Resource).where(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+            select(Resource).where(or_(*[Resource.name.like(f"{prefix}%") for prefix in prefixes]))
         )
         resource_ids = [resource.id for resource in dag_resources]
 

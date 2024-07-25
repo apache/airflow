@@ -88,6 +88,7 @@ RESOURCE_DETAILS_MAP = {
         prefix=RESOURCE_DAG_RUN_PREFIX,
     ),
 }
+PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
 PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
 
 
