@@ -31,7 +31,7 @@ from setproctitle import setproctitle
 from sqlalchemy import delete, event, func, or_, select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     SlaCallbackRequest,
@@ -749,7 +749,12 @@ class DagFileProcessor(LoggingMixin):
                     if isinstance(request, TaskCallbackRequest):
                         cls._execute_task_callbacks(dagbag, request, unit_test_mode, session=session)
                     elif isinstance(request, SlaCallbackRequest):
-                        DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
+                        if InternalApiConfig.get_use_internal_api():
+                            cls.logger().warning(
+                                "SlaCallbacks are not supported when the Internal API is enabled"
+                            )
+                        else:
+                            DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
                     elif isinstance(request, DagCallbackRequest):
                         cls._execute_dag_callbacks(dagbag, request, session=session)
                 except Exception:
