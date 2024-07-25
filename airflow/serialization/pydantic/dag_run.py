@@ -19,10 +19,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, List, Optional
 
+from airflow.models.dagrun import DagRun
 from airflow.serialization.pydantic.dag import PydanticDag
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict, is_pydantic_2_installed
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -62,18 +62,25 @@ class DagRunPydantic(BaseModelPydantic):
     def logical_date(self) -> datetime:
         return self.execution_date
 
-    @provide_session
     def get_task_instances(
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
-        session: Session = NEW_SESSION,
+        session=None,
     ) -> list[TI]:
         """
         Return the task instances for this dag run.
 
-        TODO: make it works for AIP-44
+        Redirect to DagRun.fetch_task_instances method.
+        Keep this method because it is widely used across the code.
         """
-        raise NotImplementedError()
+        task_ids = DagRun._get_partial_task_ids(self.dag)
+        return DagRun.fetch_task_instances(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_ids=task_ids,
+            state=state,
+            session=session,
+        )
 
     def get_task_instance(
         self,

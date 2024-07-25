@@ -560,6 +560,7 @@ repos:
         entry: ./scripts/ci/pre_commit/new_session_in_provide_session.py
         pass_filenames: true
         files: ^airflow/.+\.py$
+        exclude: ^airflow/serialization/pydantic/.*
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
