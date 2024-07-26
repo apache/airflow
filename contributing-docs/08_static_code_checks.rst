@@ -309,8 +309,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-airflow                                              | * Run mypy for airflow                                       | *       |
-|                                                           | * Run mypy for airflow (manual)                              |         |
+| mypy-airflow                                              | Run mypy for airflow (manual)                                | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | mypy-dev                                                  | * Run mypy for dev                                           | *       |
 |                                                           | * Run mypy for dev (manual)                                  |         |
