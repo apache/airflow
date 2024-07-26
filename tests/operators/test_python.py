@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 import pickle
@@ -39,7 +40,11 @@ import pytest
 from slugify import slugify
 
 from airflow.decorators import task_group
-from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    DeserializingResultError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
@@ -58,7 +63,7 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.python_virtualenv import prepare_virtualenv
+from airflow.utils.python_virtualenv import context_to_json, prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -1425,6 +1430,61 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pass
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
+
+    def test_current_context(self):
+        def f():
+            import json
+
+            from airflow.operators.python import get_current_context
+
+            context = get_current_context()
+            return json.dumps(context)
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+        context = ti.get_template_context()
+        as_json = context_to_json(context)
+
+        context_from_json = json.loads(as_json)
+        context_xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
+        context_from_xcom = json.loads(context_xcom)
+
+        ignore = [
+            "task_instance.end_date",
+            "task_instance.state",
+            "ti.end_date",
+            "ti.state",
+        ]
+        for ignore_key in ignore:
+            nested_from_json = context_from_json
+            nested_from_xcom = context_from_xcom
+            keys = ignore_key.split(".")
+            paths, key = keys[:-1], keys[-1]
+            for path in paths:
+                nested_from_json = nested_from_json[path]
+                nested_from_xcom = nested_from_xcom[path]
+
+            nested_from_json.pop(key, None)
+            nested_from_xcom.pop(key, None)
+
+        assert context_from_json == context_from_xcom
+
+    def test_current_context_not_found_error(self):
+        def f():
+            import json
+
+            from airflow.operators.python import get_current_context
+
+            context = get_current_context()
+            return json.dumps(context)
+
+        with pytest.raises(
+            AirflowException,
+            match="Current context was requested but no context was found! "
+            "Are you running within an airflow task?",
+        ):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
