@@ -718,6 +718,7 @@
   "http": {
     "deps": [
       "aiohttp>=3.9.2",
+      "apache-airflow-providers-common-compat>=1.1.0",
       "apache-airflow>=2.7.1",
       "asgiref",
       "requests>=2.27.0,<3",
@@ -725,7 +726,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1147,6 +1150,7 @@
   },
   "sftp": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.1.0",
       "apache-airflow-providers-ssh>=2.1.0",
       "apache-airflow>=2.7.1",
       "asyncssh>=2.12.0",

@@ -27,6 +27,7 @@ from paramiko.sftp import SFTP_NO_SUCH_FILE
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.providers.common.compat import is_at_least_2_10_0
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
@@ -66,6 +67,8 @@ class SFTPSensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if is_at_least_2_10_0():
+            super().check_2_10_0_deprecated_args(kwargs.keys())
         self.path = path
         self.file_pattern = file_pattern
         self.hook: SFTPHook | None = None

@@ -37,9 +37,3 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     raise RuntimeError(
         f"The package `apache-airflow-providers-http:{__version__}` needs Apache Airflow 2.7.1+"
     )
-
-
-def is_at_least_2_10_0() -> bool:
-    return packaging.version.parse(
-        packaging.version.parse(airflow_version).base_version
-    ) >= packaging.version.parse("2.10.0")

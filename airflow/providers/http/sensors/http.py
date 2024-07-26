@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.http import is_at_least_2_10_0
+from airflow.providers.common.compat import is_at_least_2_10_0
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
