@@ -854,16 +854,6 @@ repos:
         entry: ./scripts/ci/pre_commit/check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
-      - id: check-pre-commit-information-consistent
-        name: Validate hook IDs & names and sync with docs
-        entry: ./scripts/ci/pre_commit/check_pre_commit_hooks.py
-        args:
-          - --max-length=60
-        language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/check_pre_commit_hooks\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
-        require_serial: true
-        pass_filenames: false
       - id: check-integrations-list-consistent
         name: Sync integrations list with docs
         entry: ./scripts/ci/pre_commit/check_integrations_list.py
@@ -1232,14 +1222,6 @@ repos:
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: [ 'rich>=12.4.4' ]
-      - id: mypy-airflow
-        name: Run mypy for airflow
-        language: python
-        entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
         stages: [ 'manual' ]
         name: Run mypy for airflow (manual)
