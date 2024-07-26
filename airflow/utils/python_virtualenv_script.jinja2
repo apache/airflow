@@ -64,6 +64,20 @@ with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
 {% endif %}
 
+{% if use_airflow_context | default(false) -%}
+if len(sys.argv) > 5:
+    import json
+    from types import ModuleType
+
+    class _MockPython(ModuleType):
+        @staticmethod
+        def get_current_context():
+            with open(sys.argv[5]) as file:
+                return json.load(file)
+
+    MockPython = _MockPython("MockPython")
+    sys.modules["airflow.operators.python"] = MockPython
+{% endif %}
 
 try:
     res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
