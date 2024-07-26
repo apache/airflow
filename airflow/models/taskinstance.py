@@ -3252,10 +3252,6 @@ class TaskInstance(Base, LoggingMixin):
 
         :param fail_stop: if true, stop remaining tasks in dag
         """
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
-        )
-
         if error:
             if isinstance(error, BaseException):
                 tb = TaskInstance.get_truncated_error_traceback(error, truncate_to=ti._execute_task)
@@ -3328,6 +3324,10 @@ class TaskInstance(Base, LoggingMixin):
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
+
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
+        )
 
         return {
             "ti": ti,
