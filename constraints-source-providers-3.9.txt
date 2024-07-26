@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-25T07:37:52.094973
+# This constraints file was automatically generated on 2024-07-26T19:40:22.024023
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -76,7 +76,7 @@ anyascii==0.3.2
 anyio==4.4.0
 apache-beam==2.57.0
 apispec==6.6.1
-apprise==1.8.0
+apprise==1.8.1
 argcomplete==3.4.0
 asana==3.2.3
 asgiref==3.8.1
@@ -155,7 +155,7 @@ connexion==2.14.2
 coverage==7.6.0
 crcmod==1.7
 cron-descriptor==1.4.3
-croniter==3.0.0
+croniter==3.0.3
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -204,7 +204,7 @@ gitdb==4.0.11
 google-ads==24.1.0
 google-analytics-admin==0.22.8
 google-api-core==2.19.1
-google-api-python-client==2.137.0
+google-api-python-client==2.138.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.32.0
@@ -229,7 +229,7 @@ google-cloud-dataproc==5.10.1
 google-cloud-dlp==3.18.1
 google-cloud-kms==2.24.1
 google-cloud-language==2.13.4
-google-cloud-logging==3.10.0
+google-cloud-logging==3.11.0
 google-cloud-memcache==1.9.4
 google-cloud-monitoring==2.22.1
 google-cloud-orchestration-airflow==1.13.0
@@ -370,7 +370,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.37.0
+openai==1.37.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.19.0
@@ -468,7 +468,7 @@ pytest-mock==3.14.0
 pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
-pytest==8.3.1
+pytest==8.3.2
 python-arango==8.0.0
 python-daemon==3.0.1
 python-dateutil==2.9.0.post0
@@ -587,7 +587,7 @@ types-PyYAML==6.0.12.20240724
 types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
-types-croniter==2.0.5.20240722
+types-croniter==3.0.0.20240726
 types-docutils==0.21.0.20240724
 types-paramiko==3.4.0.20240423
 types-protobuf==5.27.0.20240626
@@ -595,9 +595,9 @@ types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240316
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
-types-redis==4.6.0.20240425
+types-redis==4.6.0.20240726
 types-requests==2.31.0.6
-types-setuptools==71.1.0.20240724
+types-setuptools==71.1.0.20240726
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -618,7 +618,7 @@ vine==5.1.0
 virtualenv==20.26.3
 watchtower==3.2.0
 wcwidth==0.2.13
-weaviate-client==4.7.0
+weaviate-client==4.7.1
 websocket-client==1.8.0
 wirerope==0.4.7
 wrapt==1.16.0
