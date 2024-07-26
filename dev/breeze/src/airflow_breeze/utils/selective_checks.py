@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_ARM_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
     TESTABLE_INTEGRATIONS,
     GithubEvents,
@@ -1141,6 +1142,10 @@ class SelectiveChecks:
     @cached_property
     def runs_on_as_json_self_hosted(self) -> str:
         return RUNS_ON_SELF_HOSTED_RUNNER
+
+    @cached_property
+    def runs_on_as_json_self_hosted_arm(self) -> str:
+        return RUNS_ON_SELF_HOSTED_ARM_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:

@@ -24,8 +24,8 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-self-hosted-arm:
+        description: "The array of labels (in json form) determining self-hosted ARM runners."
         required: true
         type: string
       do-build:
@@ -108,17 +108,11 @@ ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
 CI ${{ inputs.platform }} image\
 ${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    # The ARM images need to be built using self-hosted runners as ARM macos public runners
-    # do not yet allow us to run docker effectively and fast.
-    # https://github.com/actions/runner-images/issues/9254#issuecomment-1917916016
-    # https://github.com/abiosoft/colima/issues/970
-    # https://github.com/actions/runner/issues/1456
-    # See https://github.com/apache/airflow/pull/38640
     # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted-arm) }}
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}
@@ -157,9 +151,6 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/update_providers_dependencies.py
         if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
         if: inputs.do-build == 'true'
@@ -185,6 +176,3 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
         if: inputs.do-build == 'true'
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.do-build == 'true' && inputs.platform == 'linux/arm64'

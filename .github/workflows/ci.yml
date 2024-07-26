@@ -110,6 +110,7 @@ jobs:
       runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
       runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-arm: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-arm }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
       is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
@@ -191,7 +192,7 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-arm: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted-arm }}
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
@@ -249,6 +250,7 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-arm: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted-arm }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -644,7 +646,7 @@ jobs:
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-arm: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted-arm }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}

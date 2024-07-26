@@ -24,8 +24,8 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-self-hosted-arm:
+        description: "The array of labels (in json form) determining self-hosted ARM runners."
         required: true
         type: string
       image-tag:
@@ -137,7 +137,7 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-arm: ${{ inputs.runs-on-as-json-self-hosted-arm }}
       cache-type: "Regular AMD"
       include-prod-images: "true"
       push-latest-images: "true"
@@ -150,28 +150,28 @@ jobs:
       docker-cache: ${{ inputs.docker-cache }}
     if: inputs.canary-run == 'true'
 
-  #  push-buildx-cache-to-github-registry-arm:
-  #    name: Push Regular ARM Image Cache
-  #    needs: [update-constraints]
-  #    uses: ./.github/workflows/push-image-cache.yml
-  #    permissions:
-  #      contents: read
-  #      packages: write
-  #    secrets: inherit
-  #    with:
-  #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-  #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-  #      cache-type: "Regular ARM"
-  #      include-prod-images: "true"
-  #      push-latest-images: "true"
-  #      platform: "linux/arm64"
-  #      python-versions: ${{ inputs.python-versions }}
-  #      branch: ${{ inputs.branch }}
-  #      constraints-branch: ${{ inputs.constraints-branch }}
-  #      use-uv: "true"
-  #      include-success-outputs: ${{ inputs.include-success-outputs }}
-  #      docker-cache: ${{ inputs.docker-cache }}
-  #    if: inputs.canary-run == 'true'
+  push-buildx-cache-to-github-registry-arm:
+    name: Push Regular ARM Image Cache
+    needs: [update-constraints]
+    uses: ./.github/workflows/push-image-cache.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+    with:
+      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted-arm: ${{ inputs.runs-on-as-json-self-hosted-arm }}
+      cache-type: "Regular ARM"
+      include-prod-images: "true"
+      push-latest-images: "true"
+      platform: "linux/arm64"
+      python-versions: ${{ inputs.python-versions }}
+      branch: ${{ inputs.branch }}
+      constraints-branch: ${{ inputs.constraints-branch }}
+      use-uv: "true"
+      include-success-outputs: ${{ inputs.include-success-outputs }}
+      docker-cache: ${{ inputs.docker-cache }}
+    if: inputs.canary-run == 'true'
 
   summarize-warnings:
     timeout-minutes: 15
