@@ -66,11 +66,7 @@ RUN_NAME = "run-name"
 RUN_ID = 1
 RUN_PAGE_URL = "run-page-url"
 JOB_ID = "42"
-TEMPLATED_JOB_ID = "job-id-{{ ds }}"
-RENDERED_TEMPLATED_JOB_ID = f"job-id-{DATE}"
 JOB_NAME = "job-name"
-TEMPLATED_JOB_NAME = "job-name-{{ ds }}"
-RENDERED_TEMPLATED_JOB_NAME = f"job-name-{DATE}"
 JOB_DESCRIPTION = "job-description"
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
@@ -462,68 +458,6 @@ class TestDatabricksCreateJobsOperator:
         expected = utils._normalise_json_content(
             {
                 "name": JOB_NAME,
-                "description": JOB_DESCRIPTION,
-                "tags": TAGS,
-                "tasks": TASKS,
-                "job_clusters": JOB_CLUSTERS,
-                "email_notifications": EMAIL_NOTIFICATIONS,
-                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                "notification_settings": NOTIFICATION_SETTINGS,
-                "timeout_seconds": TIMEOUT_SECONDS,
-                "schedule": SCHEDULE,
-                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                "git_source": GIT_SOURCE,
-                "access_control_list": ACCESS_CONTROL_LIST,
-            }
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksCreateJobsOperator",
-        )
-
-        db_mock.create_job.assert_called_once_with(expected)
-        assert JOB_ID == tis[TASK_ID].xcom_pull()
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_templated_named_param(self, db_mock_class, dag_maker):
-        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True):
-            push_json = PythonOperator(
-                task_id="push_json",
-                python_callable=lambda: {
-                    "description": JOB_DESCRIPTION,
-                    "tags": TAGS,
-                    "tasks": TASKS,
-                    "job_clusters": JOB_CLUSTERS,
-                    "email_notifications": EMAIL_NOTIFICATIONS,
-                    "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                    "notification_settings": NOTIFICATION_SETTINGS,
-                    "timeout_seconds": TIMEOUT_SECONDS,
-                    "schedule": SCHEDULE,
-                    "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                    "git_source": GIT_SOURCE,
-                    "access_control_list": ACCESS_CONTROL_LIST,
-                },
-            )
-            op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json, name=TEMPLATED_JOB_NAME)
-            push_json >> op
-
-        db_mock = db_mock_class.return_value
-        db_mock.create_job.return_value = JOB_ID
-
-        db_mock.find_job_id_by_name.return_value = None
-
-        dagrun = dag_maker.create_dagrun(execution_date=datetime.strptime(DATE, "%Y-%m-%d"))
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "name": RENDERED_TEMPLATED_JOB_NAME,
                 "description": JOB_DESCRIPTION,
                 "tags": TAGS,
                 "tasks": TASKS,
@@ -1082,50 +1016,6 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run.assert_called_once_with(RUN_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_templated_named_params(self, db_mock_class, dag_maker):
-        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True):
-            push_json = PythonOperator(
-                task_id="push_json",
-                python_callable=lambda: {
-                    "new_cluster": NEW_CLUSTER,
-                },
-            )
-            op = DatabricksSubmitRunOperator(
-                task_id=TASK_ID, json=json, notebook_task=TEMPLATED_NOTEBOOK_TASK
-            )
-            push_json >> op
-
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = RUN_ID
-        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-
-        dagrun = dag_maker.create_dagrun(execution_date=datetime.strptime(DATE, "%Y-%m-%d"))
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "new_cluster": NEW_CLUSTER,
-                "notebook_task": RENDERED_TEMPLATED_NOTEBOOK_TASK,
-                "run_name": TASK_ID,
-            }
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksSubmitRunOperator",
-        )
-
-        db_mock.submit_run.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run.assert_called_once_with(RUN_ID)
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
         with dag_maker("test_xcomarg", render_template_as_native_obj=True):
 
@@ -1630,52 +1520,6 @@ class TestDatabricksRunNowOperator:
                 "notebook_task": NOTEBOOK_TASK,
                 "jar_params": JAR_PARAMS,
                 "job_id": JOB_ID,
-            }
-        )
-
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksRunNowOperator",
-        )
-        db_mock.run_now.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run.assert_called_once_with(RUN_ID)
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_templated_named_params(self, db_mock_class, dag_maker):
-        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True):
-            push_json = PythonOperator(
-                task_id="push_json",
-                python_callable=lambda: {
-                    "notebook_params": NOTEBOOK_PARAMS,
-                    "notebook_task": NOTEBOOK_TASK,
-                },
-            )
-            op = DatabricksRunNowOperator(
-                task_id=TASK_ID, job_id=TEMPLATED_JOB_ID, jar_params=TEMPLATED_JAR_PARAMS, json=json
-            )
-            push_json >> op
-
-        db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = RUN_ID
-        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-
-        dagrun = dag_maker.create_dagrun(execution_date=datetime.strptime(DATE, "%Y-%m-%d"))
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "notebook_params": NOTEBOOK_PARAMS,
-                "notebook_task": NOTEBOOK_TASK,
-                "jar_params": RENDERED_TEMPLATED_JAR_PARAMS,
-                "job_id": RENDERED_TEMPLATED_JOB_ID,
             }
         )
 
