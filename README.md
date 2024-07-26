@@ -490,7 +490,7 @@ released in `2.8.2rc1`, and eventually in `2.8.2`.
 and prepare `alpha`, `beta` releases for the next `MINOR` version, the PRs merged to main will still be
 released in the next `MINOR` release until `rc` version is cut. This is happening because the `v2-*-test`
 and `v2-*-stable` branches are rebased on top of main when next `beta` and `rc` releases are prepared.
-For example when we cut `2.10.0beta1` version, anything merged to main before `2.10.0rc1` is released,
+For example, when we cut `2.10.0beta1` version, anything merged to main before `2.10.0rc1` is released,
 will find its way to 2.10.0rc1.
 
 3. Then, once we prepare the first RC candidate for the MINOR release, we stop moving the `v2-*-test` and
