@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from flask import url_for
 
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -142,6 +143,17 @@ def test_get_task_instance(app):
         ):
             result = get_task_instance(operator, dttm, session)
             assert result == dag_run
+
+
+def test_get_return_url_dag_id_run_id(app):
+    dag_id = "example_dag"
+    run_id = "example_run"
+
+    expected_url = url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id)
+
+    with app.app_context():
+        actual_url = RepairDatabricksTasks._get_return_url(dag_id, run_id)
+    assert actual_url == expected_url, f"Expected {expected_url}, got {actual_url}"
 
 
 @pytest.mark.db_test
