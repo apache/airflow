@@ -36,6 +36,7 @@ from jwt import (
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
 from airflow.jobs.job import Job, most_recent_job
+from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
@@ -89,13 +90,21 @@ def initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
-        DagFileProcessor.update_import_errors,
-        DagFileProcessor.manage_slas,
-        DagFileProcessorManager.deactivate_stale_dags,
+        DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
         DagModel.get_current,
+        DagFileProcessor._execute_task_callbacks,
+        DagFileProcessor.execute_callbacks,
+        DagFileProcessor.execute_callbacks_without_dag,
+        DagFileProcessor.manage_slas,
+        DagFileProcessor.save_dag_to_db,
+        DagFileProcessor.update_import_errors,
+        DagFileProcessor._validate_task_pools_and_update_dag_warnings,
+        DagFileProcessorManager._fetch_callbacks,
+        DagFileProcessorManager._get_priority_filelocs,
         DagFileProcessorManager.clear_nonexistent_import_errors,
+        DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
         DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
@@ -122,8 +131,10 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun.get_previous_scheduled_dagrun,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
+        DagRun._get_task_instances,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
+        SerializedDagModel.remove_deleted_dags,
         SkipMixin._skip,
         SkipMixin._skip_all_except,
         TaskInstance._check_and_change_state_before_execution,
@@ -153,6 +164,12 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
+    content_type = request.headers.get("Content-Type")
+    if content_type != "application/json":
+        raise PermissionDenied("Expected Content-Type: application/json")
+    accept = request.headers.get("Accept")
+    if accept != "application/json":
+        raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
@@ -167,11 +184,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     except BadSignature:
         raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
     except InvalidAudienceError:
-        raise PermissionDenied("Invalid audience for the request", exc_info=True)
+        raise PermissionDenied("Invalid audience for the request")
     except InvalidSignatureError:
-        raise PermissionDenied("The signature of the request was wrong", exc_info=True)
+        raise PermissionDenied("The signature of the request was wrong")
     except ImmatureSignatureError:
-        raise PermissionDenied("The signature of the request was sent from the future", exc_info=True)
+        raise PermissionDenied("The signature of the request was sent from the future")
     except ExpiredSignatureError:
         raise PermissionDenied(
             "The signature of the request has expired. Make sure that all components "
@@ -204,13 +221,14 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     except Exception:
         return log_and_build_error_response(message="Error deserializing parameters.", status=400)
 
-    log.debug("Calling method %s\nparams: %s", method_name, params)
+    log.info("Calling method %s\nparams: %s", method_name, params)
     try:
         # Session must be created there as it may be needed by serializer for lazy-loaded fields.
         with create_session() as session:
             output = handler(**params, session=session)
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
+            log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)

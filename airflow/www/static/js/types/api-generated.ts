@@ -1289,6 +1289,10 @@ export interface components {
       task_id?: string | null;
       /** @description The DAG Run ID */
       run_id?: string | null;
+      /** @description The Map Index */
+      map_index?: number | null;
+      /** @description The Try Number */
+      try_number?: number | null;
       /** @description A key describing the type of event. */
       event?: string;
       /**
@@ -1305,6 +1309,7 @@ export interface components {
      * @description Collection of event logs.
      *
      * *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+     * *Changed in version 2.10.0*&#58; 'try_number' and 'map_index' fields are added.
      */
     EventLogCollection: {
       event_logs?: components["schemas"]["EventLog"][];
@@ -1319,7 +1324,7 @@ export interface components {
       timestamp?: string;
       /** @description The filename */
       filename?: string;
-      /** @description The full stackstrace.. */
+      /** @description The full stackstrace. */
       stack_trace?: string;
     };
     /**

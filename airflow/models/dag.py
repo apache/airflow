@@ -306,7 +306,6 @@ def _triggerer_is_healthy():
     return job and job.is_alive()
 
 
-@internal_api_call
 @provide_session
 def _create_orm_dagrun(
     dag,

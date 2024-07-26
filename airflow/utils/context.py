@@ -280,8 +280,9 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
             obj = key
 
         if isinstance(obj, DatasetAlias):
+            dataset_alias = self._dataset_aliases[obj.name]
             join_clause = DatasetEvent.source_aliases
-            where_clause = DatasetAliasModel.name == obj.name
+            where_clause = DatasetAliasModel.name == dataset_alias.name
         elif isinstance(obj, (Dataset, str)):
             dataset = self._datasets[extract_event_key(obj)]
             join_clause = DatasetEvent.dataset

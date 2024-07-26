@@ -74,8 +74,14 @@ OpenLineage defines a few methods for implementation in Operators. Those are ref
   def get_openlineage_facets_on_failure(ti: TaskInstance) -> OperatorLineage:
       ...
 
-OpenLineage methods get called respectively when task instance changes state to RUNNING, SUCCESS and FAILED.
-If there's no ``on_complete`` or ``on_failure`` method, the ``on_start`` gets called instead.
+OpenLineage methods get called respectively when task instance changes state to:
+
+- RUNNING -> ``get_openlineage_facets_on_start()``
+- SUCCESS -> ``get_openlineage_facets_on_complete()``
+- FAILED -> ``get_openlineage_facets_on_failure()``
+
+At least one of the following methods must be implemented: ``get_openlineage_facets_on_start()`` or ``get_openlineage_facets_on_complete()``.
+For more details on what methods are called when others are missing, see :ref:`ol-methods-best-practices:openlineage`.
 
 Instead of returning complete OpenLineage event, the provider defines ``OperatorLineage`` structure to be returned by Operators:
 
@@ -89,6 +95,8 @@ Instead of returning complete OpenLineage event, the provider defines ``Operator
       job_facets: dict[str, BaseFacet] = Factory(dict)
 
 OpenLineage integration itself takes care to enrich it with things like general Airflow facets, proper event time and type, creating proper OpenLineage RunEvent.
+
+.. _ol-methods-best-practices:openlineage:
 
 How to properly implement OpenLineage methods?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -114,7 +122,10 @@ called, and there's no relevant runtime data, there might be no point to impleme
 - the ``get_openlineage_facets_on_start`` method can provide all the data. And in reverse, if everything is unknown
 before execute, there might be no point in writing ``_on_start`` method.
 Similarly, if there's no relevant failure data - or the failure conditions are unknown,
-implementing ``get_openlineage_facets_on_failure`` is probably not worth it.
+implementing ``get_openlineage_facets_on_failure`` is probably not worth it. In general:
+if there's no ``on_failure`` method, the ``on_complete`` method gets called instead.
+If there's no ``on_failure`` and ``on_complete`` method, the ``on_start`` gets called instead (both at the task start and task completion).
+If there's no ``on_start`` method the lineage information will not be included in START event, and the ``on_complete`` method will be called upon task completion.
 
 How to test OpenLineage methods?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -184,7 +195,7 @@ Interface
 Custom Extractors have to derive from :class:`BaseExtractor <airflow.providers.openlineage.extractors.base.BaseExtractor>`
 and implement at least two methods: ``_execute_extraction`` and ``get_operator_classnames``.
 
-BaseOperator defines two methods: ``extract`` and ``extract_on_complete``, that are called and used to provide actual lineage data.
+BaseExtractor defines two methods: ``extract`` and ``extract_on_complete``, that are called and used to provide actual lineage data.
 The difference is that ``extract`` is called before Operator's ``execute`` method, while ``extract_on_complete`` is called after.
 By default, ``extract`` calls ``_execute_extraction`` method implemented in custom Extractor, and ``extract_on_complete``
 calls the ``extract`` method. If you want to provide some additional information available after the task execution, you can
@@ -481,7 +492,7 @@ Writing a custom facet function
     from airflow.providers.common.compat.openlineage.facet import RunFacet
 
 
-    @attrs.define(slots=False)
+    @attrs.define
     class MyCustomRunFacet(RunFacet):
         """Define a custom facet."""
 

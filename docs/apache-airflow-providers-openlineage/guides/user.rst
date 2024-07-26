@@ -191,6 +191,26 @@ If not set, it's using ``default`` namespace. Provide the name of the namespace 
 
 .. _options:disable:
 
+Timeout
+^^^^^^^
+
+To add a layer of isolation between task execution and OpenLineage, adding a level of assurance that OpenLineage execution does not
+interfere with task execution in a way other than taking time, OpenLineage methods run in separate process.
+The code runs with default timeout of 10 seconds. You can increase this by setting the ``execution_timeout`` value.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    execution_timeout = 60
+
+``AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT=60
+
+
 Disable
 ^^^^^^^
 You can disable sending OpenLineage events without uninstalling OpenLineage provider by setting

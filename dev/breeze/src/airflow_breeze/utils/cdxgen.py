@@ -414,6 +414,7 @@ class SbomCoreJob(SbomApplicationJob):
         url = (
             f"http://127.0.0.1:{port}/sbom?path=/app/{file_url}&"
             f"projectName=apache-airflow&installDeps=false&"
+            f"lifecycle=pre-build&"
             f"projectVersion={self.airflow_version}&"
             f"multiProject=true"
         )

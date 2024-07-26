@@ -18,12 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import settings
-from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
@@ -75,24 +71,6 @@ SQL_DROP_TABLE = f"DROP TABLE IF EXISTS {REDSHIFT_TABLE};"
 DATA = "0, 'Airflow', 'testing'"
 
 
-@task
-def create_connection(conn_id_name: str, cluster_id: str):
-    redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="redshift",
-        host=cluster_endpoint["Endpoint"]["Address"],
-        login=DB_LOGIN,
-        password=DB_PASS,
-        port=cluster_endpoint["Endpoint"]["Port"],
-        schema=cluster_endpoint["DBName"],
-    )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
-
-
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
@@ -105,7 +83,6 @@ with DAG(
     security_group_id = test_context[SECURITY_GROUP_KEY]
     cluster_subnet_group_name = test_context[CLUSTER_SUBNET_GROUP_KEY]
     redshift_cluster_identifier = f"{env_id}-redshift-cluster"
-    conn_id_name = f"{env_id}-conn-id"
     sg_name = f"{env_id}-sg"
     bucket_name = f"{env_id}-bucket"
 
@@ -133,8 +110,6 @@ with DAG(
         poke_interval=5,
         timeout=60 * 30,
     )
-
-    set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
 
     create_object = S3CreateObjectOperator(
         task_id="create_object",
@@ -165,7 +140,12 @@ with DAG(
     # [START howto_transfer_redshift_to_s3]
     transfer_redshift_to_s3 = RedshiftToS3Operator(
         task_id="transfer_redshift_to_s3",
-        redshift_conn_id=conn_id_name,
+        redshift_data_api_kwargs={
+            "database": DB_NAME,
+            "cluster_identifier": redshift_cluster_identifier,
+            "db_user": DB_LOGIN,
+            "wait_for_completion": True,
+        },
         s3_bucket=bucket_name,
         s3_key=S3_KEY,
         schema="PUBLIC",
@@ -182,7 +162,12 @@ with DAG(
     # [START howto_transfer_s3_to_redshift]
     transfer_s3_to_redshift = S3ToRedshiftOperator(
         task_id="transfer_s3_to_redshift",
-        redshift_conn_id=conn_id_name,
+        redshift_data_api_kwargs={
+            "database": DB_NAME,
+            "cluster_identifier": redshift_cluster_identifier,
+            "db_user": DB_LOGIN,
+            "wait_for_completion": True,
+        },
         s3_bucket=bucket_name,
         s3_key=S3_KEY_2,
         schema="PUBLIC",
@@ -194,7 +179,12 @@ with DAG(
     # [START howto_transfer_s3_to_redshift_multiple_keys]
     transfer_s3_to_redshift_multiple = S3ToRedshiftOperator(
         task_id="transfer_s3_to_redshift_multiple",
-        redshift_conn_id=conn_id_name,
+        redshift_data_api_kwargs={
+            "database": DB_NAME,
+            "cluster_identifier": redshift_cluster_identifier,
+            "db_user": DB_LOGIN,
+            "wait_for_completion": True,
+        },
         s3_bucket=bucket_name,
         s3_key=S3_KEY_PREFIX,
         schema="PUBLIC",
@@ -231,7 +221,6 @@ with DAG(
         create_bucket,
         create_cluster,
         wait_cluster_available,
-        set_up_connection,
         create_object,
         create_table_redshift_data,
         insert_data,

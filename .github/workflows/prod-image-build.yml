@@ -188,7 +188,7 @@ jobs:
 
   build-prod-images:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         # yamllint disable-line rule:line-length
         python-version: ${{ inputs.do-build == 'true' && fromJSON(inputs.python-versions) || fromJSON('[""]') }}

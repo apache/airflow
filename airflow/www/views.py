@@ -137,7 +137,7 @@ from airflow.utils.types import NOTSET
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager, is_auth_manager_initialized
 from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
@@ -688,6 +688,9 @@ def method_not_allowed(error):
 
 def show_traceback(error):
     """Show Traceback for a given error."""
+    if not is_auth_manager_initialized():
+        # this is the case where internal API component is used and auth manager is not used/initialized
+        return ("Error calling the API", 500)
     is_logged_in = get_auth_manager().is_logged_in()
     return (
         render_template(
@@ -1161,6 +1164,7 @@ class Airflow(AirflowBaseView):
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/datasets.html",
+            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
         )
 
@@ -3499,16 +3503,27 @@ class Airflow(AirflowBaseView):
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
                 for dep in dependencies:
-                    if dep.dependency_type == "dag" or dep.dependency_type == "dataset":
+                    if dep.dependency_type in ("dag", "dataset", "dataset-alias"):
+                        # add node
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
                         if dep.node_id not in nodes_dict:
                             nodes_dict[dep.node_id] = node_dict(
                                 dep.node_id, dep.dependency_id, dep.dependency_type
                             )
-                        if dep.source != "dataset":
-                            edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                        if dep.target != "dataset":
-                            edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+
+                        # add edge
+
+                        # not start dep
+                        if dep.source != dep.dependency_type:
+                            source = dep.source if ":" in dep.source else f"dag:{dep.source}"
+                            target = dep.node_id
+                            edge_tuples.add((source, target))
+
+                        # not end dep
+                        if dep.target != dep.dependency_type:
+                            source = dep.node_id
+                            target = dep.target if ":" in dep.target else f"dag:{dep.target}"
+                            edge_tuples.add((source, target))
 
         nodes = list(nodes_dict.values())
         edges = [{"source": source, "target": target} for source, target in edge_tuples]

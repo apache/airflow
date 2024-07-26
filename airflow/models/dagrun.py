@@ -625,7 +625,7 @@ class DagRun(Base, LoggingMixin):
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
         """
-        task_ids = self.dag.task_ids if self.dag and self.dag.partial else None
+        task_ids = DagRun._get_partial_task_ids(self.dag)
         return DagRun.fetch_task_instances(
             dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
         )
@@ -1677,6 +1677,10 @@ class DagRun(Base, LoggingMixin):
             stacklevel=2,
         )
         return self.get_log_template(session=session).filename
+
+    @staticmethod
+    def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
+        return dag.task_ids if dag and dag.partial else None
 
 
 class DagRunNote(Base):

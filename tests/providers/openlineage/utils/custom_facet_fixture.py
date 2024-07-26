@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 
 
-@attrs.define(slots=False)
+@attrs.define
 class MyCustomRunFacet(RunFacet):
     """Define a custom run facet."""
 
