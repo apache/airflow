@@ -734,7 +734,7 @@ class TestGetPaginationLog:
             "download_logs": False,
             "end_of_log": False,
             "log_pos": 18,
-        }  # Find out why download_logs is being appended
+        }  # TODO: Understand why download_logs is being set/reset to false
         assert 200 == response.status_code
 
     def test_invalid_pagination(self):
