@@ -495,7 +495,9 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         _, _ = dag_run.update_state(execute_callbacks=True)
+        task = dag_run.get_task_instances()[0]
 
+        assert task.state == TaskInstanceState.SKIPPED
         assert DagRunState.SUCCESS == dag_run.state
         mock_on_success.assert_called_once()
 
