@@ -1087,34 +1087,6 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
       or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
-    statsd_on:
-      description: |
-        Enables sending metrics to StatsD.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "False"
-    statsd_host:
-      description: |
-        Specifies the host address where the StatsD daemon (or server) is running
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "localhost"
-    statsd_port:
-      description: |
-        Specifies the port on which the StatsD daemon (or server) is listening to
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "8125"
-    statsd_prefix:
-      description: |
-        Defines the namespace for all metrics sent from Airflow to StatsD
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "airflow"
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
@@ -1183,7 +1155,7 @@ metrics:
       version_added: 2.6.0
       type: string
       example: ~
-      default: "False"
+      default: "True"
     otel_host:
       description: |
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
@@ -2367,7 +2339,7 @@ scheduler:
       default: "30"
     pool_metrics_interval:
       description: |
-        How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
+        How often (in seconds) should pool usage stats be sent to metrics agent (if otel_on is enabled)
       version_added: 2.0.0
       type: float
       example: ~

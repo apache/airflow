@@ -103,8 +103,8 @@ images:
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
-  statsd:
-    repository: quay.io/prometheus/statsd-exporter
+  otel:
+    repository: quay.io/prometheus/otel-exporter
     tag: v0.26.1
     pullPolicy: IfNotPresent
   redis:
@@ -1977,9 +1977,9 @@ flower:
   labels: {}
   env: []
 
-# StatsD settings
-statsd:
-  # Add custom annotations to the statsd configmap
+# otel settings
+otel:
+  # Add custom annotations to the otel configmap
   configMapAnnotations: {}
 
   enabled: true
@@ -1987,9 +1987,9 @@ statsd:
   revisionHistoryLimit: ~
 
   # Arguments for StatsD exporter command.
-  args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+  args: []
 
-  # Annotations to add to the StatsD Deployment.
+  # Annotations to add to the OTEL Deployment.
   annotations: {}
 
   # Create ServiceAccount
@@ -2007,7 +2007,7 @@ statsd:
     annotations: {}
 
   uid: 65534
-  # When not set, `statsd.uid` will be used
+  # When not set, `otel.uid` will be used
 
   # (deprecated, use `securityContexts` instead)
   securityContext: {}
@@ -2015,7 +2015,7 @@ statsd:
   #  fsGroup: 0
   #  runAsGroup: 0
 
-  # Detailed default security context for statsd deployments for container and pod level
+  # Detailed default security context for otel deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -2036,7 +2036,7 @@ statsd:
   service:
     extraAnnotations: {}
 
-  # Select certain nodes for StatsD pods.
+  # Select certain nodes for OTEL pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -2044,12 +2044,12 @@ statsd:
 
   priorityClassName: ~
 
-  # Additional mappings for StatsD exporter.
+  # Additional mappings for OTEL exporter.
   # If set, will merge default mapping and extra mappings, default mapping has higher priority.
   # So, if you want to change some default mapping, please use `overrideMappings`
   extraMappings: []
 
-  # Override mappings for StatsD exporter.
+  # Override mappings for OTEL exporter.
   # If set, will ignore setting item in default and `extraMappings`.
   # So, If you use it, ensure all mapping item contains in it.
   overrideMappings: []
@@ -2369,8 +2369,8 @@ ports:
   workerLogs: 8793
   triggererLogs: 8794
   redisDB: 6379
-  statsdIngest: 9125
-  statsdScrape: 9102
+  otelIngest: 8889
+  otelScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
   # rpcServer support is experimental / dev purpose only and will later be renamed
@@ -2486,10 +2486,10 @@ config:
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
     colored_console_log: 'False'
   metrics:
-    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: 9125
-    statsd_prefix: airflow
-    statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
+    otel_on: '{{ ternary "True" "False" .Values.otel.enabled }}'
+    otel_port: 8889
+    otel_prefix: airflow
+    otel_host: '{{ printf "%s-otel" (include "airflow.fullname" .) }}'
   webserver:
     enable_proxy_fix: 'True'
     # For Airflow 1.10
@@ -2499,11 +2499,10 @@ config:
     worker_concurrency: 16
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'
-    # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
-    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: 9125
-    statsd_prefix: airflow
-    statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
+    otel_on: '{{ ternary "True" "False" .Values.otel.enabled }}'
+    otel_port: 8889
+    otel_prefix: airflow
+    otel_host: '{{ printf "%s-otel" (include "airflow.fullname" .) }}'
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
     run_duration: 41460
   elasticsearch:

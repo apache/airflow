@@ -20,39 +20,7 @@
 Metrics Configuration
 =====================
 
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__
-or `OpenTelemetry <https://opentelemetry.io/>`__.
-
-Setup - StatsD
---------------
-
-To use StatsD you must first install the required packages:
-
-.. code-block:: bash
-
-   pip install 'apache-airflow[statsd]'
-
-then add the following lines to your configuration file e.g. ``airflow.cfg``
-
-.. code-block:: ini
-
-    [metrics]
-    statsd_on = True
-    statsd_host = localhost
-    statsd_port = 8125
-    statsd_prefix = airflow
-
-If you want to use a custom StatsD client instead of the default one provided by Airflow,
-the following key must be added to the configuration file alongside the module path of your
-custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`.
-
-.. code-block:: ini
-
-    [metrics]
-    statsd_custom_client_path = x.y.customclient
-
-See :doc:`../modules_management` for details on how Python and Airflow manage modules.
-
+Airflow can be set up to send metrics to `OpenTelemetry <https://opentelemetry.io/>`__.
 
 Setup - OpenTelemetry
 ---------------------

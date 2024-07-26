@@ -51,10 +51,6 @@ class _Stats(type):
                 from airflow.metrics import datadog_logger
 
                 cls.__class__.factory = datadog_logger.get_dogstatsd_logger
-            elif conf.getboolean("metrics", "statsd_on"):
-                from airflow.metrics import statsd_logger
-
-                cls.__class__.factory = statsd_logger.get_statsd_logger
             elif conf.getboolean("metrics", "otel_on"):
                 from airflow.metrics import otel_logger
 
