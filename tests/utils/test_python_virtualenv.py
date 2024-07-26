@@ -139,6 +139,7 @@ class TestPrepareVirtualenv:
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
 
+    @pytest.mark.db_test
     def test_dump_airflow_context(self, create_task_instance):
         import json
         from datetime import datetime
