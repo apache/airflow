@@ -163,23 +163,11 @@ def context_to_json(context: Context) -> str:
     from airflow.models.param import ParamsDict
     from airflow.models.taskinstance import SimpleTaskInstance
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.utils.context import Context
 
     context_copy: dict[str, Any] = {}
 
-    deprecated = {
-        "execution_date",
-        "next_ds",
-        "next_ds_nodash",
-        "next_execution_date",
-        "prev_ds",
-        "prev_ds_nodash",
-        "prev_execution_date",
-        "prev_execution_date_success",
-        "tomorrow_ds",
-        "tomorrow_ds_nodash",
-        "yesterday_ds",
-        "yesterday_ds_nodash",
-    }
+    deprecated: set[str] = set(Context._DEPRECATION_REPLACEMENTS)  # type: ignore[attr-defined]
     exclude = {
         "conf",
         "conn",
