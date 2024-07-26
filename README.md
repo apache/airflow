@@ -482,10 +482,9 @@ PRs merged to `main` (unless they get reverted), will find their way to the next
 if the last release is `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
 is `2.8.0` and all PRs merged to main will be released in `2.8.0`. However, some PRs (bug-fixes and
 doc-only changes) when merged, can be cherry-picked to current `MINOR` branch and released in the
-next `PATCHLEVEL` release for example `2.8.1` is already released and we are working on `2.9.0dev`,
-marking a PR with `2.8.2` milestone will mean that it will be cherry-picked to `v2-8-test` branch and
-released in `2.8.2rc1` and eventually in `2.8.2`.
-
+next `PATCHLEVEL` release. For example, if `2.8.1` is already released and we are working on `2.9.0dev`,  then
+marking a PR with `2.8.2` milestone means that it will be cherry-picked to `v2-8-test` branch and
+released in `2.8.2rc1`, and eventually in `2.8.2`.
 
 2. When we prepare to the next `MINOR` release, we cut new `v2-*-test` and `v2-*-stable` branch
 and prepare `alpha`, `beta` releases for the next `MINOR` version, the PRs merged to main will still be
