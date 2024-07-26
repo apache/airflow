@@ -145,6 +145,7 @@ def test_get_task_instance(app):
             assert result == dag_run
 
 
+@pytest.mark.db_test
 def test_get_return_url_dag_id_run_id(app):
     dag_id = "example_dag"
     run_id = "example_run"
