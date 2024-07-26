@@ -191,49 +191,8 @@ def context_to_json(context: Context) -> str:
         "triggering_dataset_events",
         "var",
     } | deprecated
-    include = {
-        "dag",
-        "dag_run",
-        "data_interval_end",
-        "data_interval_start",
-        "ds",
-        "ds_nodash",
-        "exception",
-        "execution_date",
-        "expanded_ti_count",
-        "logical_date",
-        "map_index_template",
-        "next_ds",
-        "next_ds_nodash",
-        "next_execution_date",
-        "params",
-        "prev_data_interval_start_success",
-        "prev_data_interval_end_success",
-        "prev_ds",
-        "prev_ds_nodash",
-        "prev_execution_date",
-        "prev_execution_date_success",
-        "prev_start_date_success",
-        "prev_end_date_success",
-        "reason",
-        "run_id",
-        "task_instance",
-        "task_instance_key_str",
-        "test_mode",
-        "templates_dict",
-        "ti",
-        "tomorrow_ds",
-        "tomorrow_ds_nodash",
-        "ts",
-        "ts_nodash",
-        "ts_nodash_with_tz",
-        "try_number",
-        "yesterday_ds",
-        "yesterday_ds_nodash",
-    }
 
-    select = include - exclude
-    context_copy = {key: context.get(key, None) for key in context.keys() if key in select}
+    context_copy = {key: context.get(key, None) for key in context.keys() if key not in exclude}
 
     dag = context_copy.pop("dag", None)
     if dag is not None:
