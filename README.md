@@ -486,7 +486,7 @@ next `PATCHLEVEL` release. For example, if `2.8.1` is already released and we ar
 marking a PR with `2.8.2` milestone means that it will be cherry-picked to `v2-8-test` branch and
 released in `2.8.2rc1`, and eventually in `2.8.2`.
 
-2. When we prepare to the next `MINOR` release, we cut new `v2-*-test` and `v2-*-stable` branch
+2. When we prepare for the next `MINOR` release, we cut new `v2-*-test` and `v2-*-stable` branch
 and prepare `alpha`, `beta` releases for the next `MINOR` version, the PRs merged to main will still be
 released in the next `MINOR` release until `rc` version is cut. This is happening because the `v2-*-test`
 and `v2-*-stable` branches are rebased on top of main when next `beta` and `rc` releases are prepared.
