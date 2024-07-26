@@ -391,13 +391,13 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     setup_event_handlers(engine)
 
+    if conf.has_option("database", "sql_alchemy_session_args"):
+        session_args = conf.getimport("database", "sql_alchemy_session_args")
+    else:
+        session_args = {}
+
     Session = scoped_session(
-        sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=engine,
-            expire_on_commit=False,
-        )
+        sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False, **session_args)
     )
 
 
