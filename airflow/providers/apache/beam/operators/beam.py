@@ -92,7 +92,8 @@ class BeamDataflowMixin(metaclass=ABCMeta):
 
     def __get_dataflow_job_name(self) -> str:
         return DataflowHook.build_dataflow_job_name(
-            self.dataflow_config.job_name, self.dataflow_config.append_job_name
+            self.dataflow_config.job_name,  # type: ignore
+            self.dataflow_config.append_job_name,
         )
 
     def __get_dataflow_pipeline_options(
@@ -193,6 +194,9 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
         else:
             self.dataflow_config = self.dataflow_config or DataflowConfiguration()
+
+        if not self.dataflow_config.job_name:
+            self.dataflow_config.job_name = self.task_id
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(

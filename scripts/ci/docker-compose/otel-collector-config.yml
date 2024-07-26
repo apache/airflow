@@ -27,6 +27,11 @@ processors:
   batch:
 
 exporters:
+  otlp/jaeger:
+    endpoint: breeze-jaeger:4317
+    tls:
+      insecure: true
+
   logging:
     verbosity: detailed
   prometheus:
@@ -39,7 +44,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging]
+      exporters: [logging, otlp/jaeger]
 
     metrics:
       receivers: [otlp]

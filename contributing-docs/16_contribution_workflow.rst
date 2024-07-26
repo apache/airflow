@@ -112,7 +112,7 @@ to make them immediately visible in the environment.
 
 .. code-block:: bash
 
-   mkvirtualenv myenv --python=python3.9
+   python3 -m venv venv && source venv/bin/activate
 
 5. Initialize the created environment:
 

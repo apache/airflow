@@ -180,7 +180,8 @@ class BashOperator(BaseOperator):
 
     @staticmethod
     def refresh_bash_command(ti: TaskInstance) -> None:
-        """Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
+        """
+        Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
 
         TaskInstance.get_rendered_template_fields() cannot be used because this will retrieve the
         RenderedTaskInstanceFields from the metadatabase which doesn't have the runtime-evaluated bash_command
@@ -190,9 +191,7 @@ class BashOperator(BaseOperator):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        rtif = RenderedTaskInstanceFields(ti)  # Templates are rendered be default here.
-        RenderedTaskInstanceFields.write(rtif)
-        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id)
+        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields(ti)
 
     def get_env(self, context):
         """Build the set of environment variables to be exposed for the bash command."""

@@ -41,7 +41,7 @@ with DAG(
         task_id="slack_post_text",
         channel=SLACK_CHANNEL,
         text=(
-            "Apache Airflow™ is an open-source platform for developing, "
+            "Apache Airflow® is an open-source platform for developing, "
             "scheduling, and monitoring batch-oriented workflows."
         ),
     )
@@ -57,7 +57,7 @@ with DAG(
                 "text": {
                     "type": "mrkdwn",
                     "text": (
-                        "*<https://github.com/apache/airflow|Apache Airflow™>* "
+                        "*<https://github.com/apache/airflow|Apache Airflow®>* "
                         "is an open-source platform for developing, scheduling, "
                         "and monitoring batch-oriented workflows."
                     ),

@@ -139,7 +139,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
-        kwargs: dict[str, Any] = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+        kwargs: dict[str, Any] = {
+            "label_selector": f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True",
+        }
         if resource_version:
             kwargs["resource_version"] = resource_version
         if kube_config.kube_client_request_args:
@@ -230,7 +232,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.kube_config.worker_pod_pending_fatal_container_state_reasons
                 and "status" in event["raw_object"]
             ):
-                self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
                 # Init containers and base container statuses to check.
                 # Skipping the other containers statuses check.
                 container_statuses_to_check = []
@@ -250,10 +251,18 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 and container_status_state["waiting"]["message"] == "pull QPS exceeded"
                             ):
                                 continue
+                            self.log.error(
+                                "Event: %s has container %s with fatal reason %s",
+                                pod_name,
+                                container_status["name"],
+                                container_status_state["waiting"]["reason"],
+                            )
                             self.watcher_queue.put(
                                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
                             )
                             break
+                else:
+                    self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
@@ -264,14 +273,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
             # send it along to the scheduler once.
-            # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
-            # a deletion timestamp, we've already seen the initial Succeeded event and sent it
-            # along to the scheduler.
-            if (
-                event["type"] == "DELETED"
-                or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
-                or pod.metadata.deletion_timestamp
-            ):
+            # If our event type is DELETED, or the pod has a deletion timestamp, we've already
+            # seen the initial Succeeded event and sent it along to the scheduler.
+            if event["type"] == "DELETED" or pod.metadata.deletion_timestamp:
                 self.log.info(
                     "Skipping event for Succeeded pod %s - event for this pod already sent to executor",
                     pod_name,

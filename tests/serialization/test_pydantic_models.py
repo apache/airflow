@@ -27,7 +27,7 @@ from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models import MappedOperator
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetEvent,
@@ -43,7 +43,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import AttributeRemoved, DagRunType
 from tests.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
@@ -78,8 +78,8 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
         "_needs_expansion": True,
         "_task_type": "_PythonDecoratedOperator",
         "downstream_task_ids": [],
-        "next_method": None,
-        "start_trigger": None,
+        "start_from_trigger": False,
+        "start_trigger_args": None,
         "_operator_name": "@task",
         "ui_fgcolor": "#000",
         "ui_color": "#ffefeb",
@@ -89,7 +89,7 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
         "task_id": "target",
     }
 
-    with dag_maker():
+    with dag_maker() as dag:
 
         @task
         def source():
@@ -117,7 +117,7 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     # roundtrip ti
     sered = BaseSerialization.serialize(ti, use_pydantic_models=True)
     desered = BaseSerialization.deserialize(sered, use_pydantic_models=True)
-
+    assert desered.task.dag.__class__ is AttributeRemoved
     assert "operator_class" not in sered["__var"]["task"]
 
     assert desered.task.__class__ == MappedOperator
@@ -130,9 +130,22 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
 
     assert isinstance(desered.task.operator_class, dict)
 
-    resered = BaseSerialization.serialize(desered, use_pydantic_models=True)
-    deresered = BaseSerialization.deserialize(resered, use_pydantic_models=True)
-    assert deresered.task.operator_class == desered.task.operator_class == op_class_dict_expected
+    # let's check that we can safely add back dag...
+    assert isinstance(dag, DAG)
+    # dag already has this task
+    assert dag.has_task(desered.task.task_id) is True
+    # but the task has no dag
+    assert desered.task.dag.__class__ is AttributeRemoved
+    # and there are no upstream / downstreams on the task cus those are wiped out on serialization
+    # and this is wrong / not great but that's how it is
+    assert desered.task.upstream_task_ids == set()
+    assert desered.task.downstream_task_ids == set()
+    # add the dag back
+    desered.task.dag = dag
+    # great, no error
+    # but still, there are no upstream downstreams
+    assert desered.task.upstream_task_ids == set()
+    assert desered.task.downstream_task_ids == set()
 
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
@@ -215,12 +228,14 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
+    execution_date = timezone.utcnow()
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=timezone.utcnow(),
+        execution_date=execution_date,
         state=None,
         session=session,
+        data_interval=(execution_date, execution_date),
     )
     ds1_event = DatasetEvent(dataset_id=1)
     ds2_event_1 = DatasetEvent(dataset_id=2)

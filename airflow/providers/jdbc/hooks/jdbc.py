@@ -44,7 +44,8 @@ def suppress_and_warn(*exceptions: type[BaseException]):
 
 
 class JdbcHook(DbApiHook):
-    """General hook for JDBC access.
+    """
+    General hook for JDBC access.
 
     JDBC URL, username and password will be taken from the predefined connection.
     Note that the whole JDBC URL must be specified in the "host" field in the DB.
@@ -105,7 +106,7 @@ class JdbcHook(DbApiHook):
 
         This is used internally for case-insensitive access of jdbc params.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         return {k.lower(): v for k, v in conn.extra_dejson.items()}
 
     @property
@@ -149,7 +150,7 @@ class JdbcHook(DbApiHook):
         return self._driver_class
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
@@ -163,7 +164,8 @@ class JdbcHook(DbApiHook):
         return conn
 
     def set_autocommit(self, conn: jaydebeapi.Connection, autocommit: bool) -> None:
-        """Set autocommit for the given connection.
+        """
+        Set autocommit for the given connection.
 
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
@@ -172,7 +174,8 @@ class JdbcHook(DbApiHook):
             conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
-        """Get autocommit setting for the provided connection.
+        """
+        Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
         :return: connection autocommit setting. True if ``autocommit`` is set

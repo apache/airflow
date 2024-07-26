@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
@@ -59,6 +59,7 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
     Will defers itself to avoid taking up a worker slot while it is waiting.
 
     :param delta: time length to wait after the data interval before succeeding.
+    :param end_from_trigger: End the task directly from the triggerer without going into the worker.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -66,11 +67,18 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
     """
 
-    def execute(self, context: Context) -> NoReturn:
+    def __init__(self, *, end_from_trigger: bool = False, delta, **kwargs) -> None:
+        super().__init__(delta=delta, **kwargs)
+        self.end_from_trigger = end_from_trigger
+
+    def execute(self, context: Context) -> bool | NoReturn:
         target_dttm = context["data_interval_end"]
         target_dttm += self.delta
+        if timezone.utcnow() > target_dttm:
+            # If the target datetime is in the past, return immediately
+            return True
         try:
-            trigger = DateTimeTrigger(moment=target_dttm)
+            trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
         except (TypeError, ValueError) as e:
             if self.soft_fail:
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
@@ -78,6 +86,6 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
         self.defer(trigger=trigger, method_name="execute_complete")
 
-    def execute_complete(self, context, event=None) -> None:
-        """Execute for when the trigger fires - return immediately."""
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        """Handle the event when the trigger fires and return immediately."""
         return None

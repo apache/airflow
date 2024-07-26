@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+8.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Solve failing KPO task with task decorator and imported typing elements (#40642)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+8.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Scheduler restarting due to too many completed pods in cluster (#40183)``
+
+Misc
+~~~~
+
+* ``Bump minimum kubernetes lib version to kubernetes 29.0.0 (#40253)``
+
+8.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes KubernetesPodTrigger failing running pods with timeout (#40019)``
+* ``Refresh properties on KubernetesPodOperator on token expiration also when logging (#39789)``
+* ``Fix reattach_on_restart parameter for the sync mode (#39329)``
+* ``Avoid resetting adopted task instances when retrying for kubernetes executor (#39406)``
+
+Misc
+~~~~
+
+* ``Include fatal reason for pod pending events (#39924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+   * ``Resolve common providers deprecations in tests (#40036)``
+
 8.3.0
 .....
 

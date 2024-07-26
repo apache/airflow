@@ -177,3 +177,23 @@ or you can define the same operator in the deferrable mode:
     :dedent: 4
     :start-after: [START howto_operator_run_airflow_cli_command_deferrable_mode]
     :end-before: [END howto_operator_run_airflow_cli_command_deferrable_mode]
+
+Check if a DAG run has completed
+--------------------------------
+
+You can use sensor that checks if a DAG run has completed in your environments, use:
+:class:`~airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerDAGRunSensor`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_dag_run]
+    :end-before: [END howto_sensor_dag_run]
+
+or you can define the same sensor in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/composer/example_cloud_composer.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_dag_run_deferrable_mode]
+    :end-before: [END howto_sensor_dag_run_deferrable_mode]

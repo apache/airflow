@@ -77,8 +77,8 @@ const Calendar = () => {
 
   // We need to split the data into multiple years of calendars
   if (startYear !== endYear) {
-    for (let y = startYear; y <= endYear; y += 1) {
-      const index = y - startYear;
+    for (let y = endYear; y >= startYear; y -= 1) {
+      const index = endYear - y;
       const yearStartDate = y === startYear ? startDate : `${y}-01-01`;
       const yearEndDate = `${y}-12-31`;
       calendarOption.push({
@@ -182,6 +182,7 @@ const Calendar = () => {
           color: "gray",
           opacity: 0.6,
         },
+        show: false,
       },
     ],
     calendar: calendarOption,
@@ -195,10 +196,10 @@ const Calendar = () => {
   };
 
   return (
-    <Box height="100%">
+    <Box height={`${calendarOption.length * 165}px`} width="900px">
       <Flex>
         <InfoTooltip
-          label="        Only showing the next year of planned DAG runs or the next 2000 runs,
+          label="Only showing the next year of planned DAG runs or the next 2000 runs,
           whichever comes first."
           size={16}
         />

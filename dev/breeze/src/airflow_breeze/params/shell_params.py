@@ -55,6 +55,7 @@ from airflow_breeze.global_constants import (
     TESTABLE_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
+    GithubEvents,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -149,6 +150,7 @@ class ShellParams:
     extra_args: tuple = ()
     force_build: bool = False
     force_sa_warnings: bool = True
+    force_lowest_dependencies: bool = False
     forward_credentials: bool = False
     forward_ports: bool = True
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
@@ -162,10 +164,12 @@ class ShellParams:
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
+    keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
+    no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
@@ -457,11 +461,13 @@ class ShellParams:
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
 
-    @cached_property
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
-        passed to it.
+        passed to it. We cannot cache this property because it can be run few times after modifying shell
+        params - for example when we first run "pull" on images before tests anda then run tests - each
+        separately with different test types.
 
         This is the only place where you need to add environment variables if you want to pass them to
         docker or docker-compose.
@@ -488,11 +494,12 @@ class ShellParams:
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
         _set_var(_env, "BREEZE", "true")
         _set_var(_env, "BREEZE_INIT_COMMAND", None, "")
+        _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
         _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
-        _set_var(_env, "CI_EVENT_TYPE", None, "pull_request")
+        _set_var(_env, "CI_EVENT_TYPE", None, GithubEvents.PULL_REQUEST.value)
         _set_var(_env, "CI_JOB_ID", None, "0")
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)
@@ -507,8 +514,11 @@ class ShellParams:
         _set_var(_env, "DOCKER_IS_ROOTLESS", self.rootless_docker)
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
+        _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
+        _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
@@ -522,6 +532,7 @@ class ShellParams:
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
+        _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
@@ -539,8 +550,6 @@ class ShellParams:
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
-        _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
-        _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
         _set_var(_env, "RUN_SYSTEM_TESTS", self.run_system_tests)

@@ -181,7 +181,7 @@ can become the Mentor and guide the proposed candidates on how they can become a
 
 1.  Candidate Proposer
 
-    This is the person who launches the DISCUSS thread & makes the case for a PMC promotion
+    This is the person who launches the DISCUSS thread & makes the case for a PMC member promotion
 
 2.  Candidate Mentor
 
@@ -222,7 +222,9 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
     * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
     * If you had been a collaborator role before getting committer, remove your Github ID from ``.asf.yaml``.
-7.  Raise PR to airflow site with the following:
-    * List your name in the committers list
-    `Airflow-Site committers.json <https://github.com/apache/airflow-site/blob/main/landing-pages/site/data/committers.json>`__.
-    * Post entry in `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.
+7.  Raise a PR to `airflow-site <https://github.com/apache/airflow-site>`_ repository with the following additions:
+
+    * List your name(s) in the `committers list <https://github.com/apache/airflow-site/blob/main/landing-pages/site/data/committers.json>`__.
+    * Post an entry in `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.
+
+    **A kind request**: If there are other committers who joined around the same time, please create a unified PR for all of you together.

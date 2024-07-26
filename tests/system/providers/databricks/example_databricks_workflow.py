@@ -23,7 +23,10 @@ import os
 from datetime import timedelta
 
 from airflow.models.dag import DAG
-from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
+from airflow.providers.databricks.operators.databricks import (
+    DatabricksNotebookOperator,
+    DatabricksTaskOperator,
+)
 from airflow.providers.databricks.operators.databricks_workflow import DatabricksWorkflowTaskGroup
 from airflow.utils.timezone import datetime
 
@@ -34,6 +37,9 @@ DATABRICKS_NOTIFICATION_EMAIL = os.getenv("DATABRICKS_NOTIFICATION_EMAIL", "your
 
 GROUP_ID = os.getenv("DATABRICKS_GROUP_ID", "1234").replace(".", "_")
 USER = os.environ.get("USER")
+
+QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
 
 job_cluster_spec = [
     {
@@ -95,6 +101,7 @@ with dag:
             job_cluster_key="Shared_job_cluster",
             execution_timeout=timedelta(seconds=600),
         )
+
         notebook_2 = DatabricksNotebookOperator(
             task_id="workflow_notebook_2",
             databricks_conn_id=DATABRICKS_CONN_ID,
@@ -103,7 +110,37 @@ with dag:
             job_cluster_key="Shared_job_cluster",
             notebook_params={"foo": "bar", "ds": "{{ ds }}"},
         )
-        notebook_1 >> notebook_2
+
+        task_operator_nb_1 = DatabricksTaskOperator(
+            task_id="nb_1",
+            databricks_conn_id="databricks_conn",
+            job_cluster_key="Shared_job_cluster",
+            task_config={
+                "notebook_task": {
+                    "notebook_path": "/Shared/Notebook_1",
+                    "source": "WORKSPACE",
+                },
+                "libraries": [
+                    {"pypi": {"package": "Faker"}},
+                    {"pypi": {"package": "simplejson"}},
+                ],
+            },
+        )
+
+        sql_query = DatabricksTaskOperator(
+            task_id="sql_query",
+            databricks_conn_id="databricks_conn",
+            task_config={
+                "sql_task": {
+                    "query": {
+                        "query_id": QUERY_ID,
+                    },
+                    "warehouse_id": WAREHOUSE_ID,
+                }
+            },
+        )
+
+        notebook_1 >> notebook_2 >> task_operator_nb_1 >> sql_query
     # [END howto_databricks_workflow_notebook]
 
     from tests.system.utils.watcher import watcher

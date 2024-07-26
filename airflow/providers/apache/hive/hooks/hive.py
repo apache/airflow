@@ -55,7 +55,8 @@ def get_context_from_env_var() -> dict[Any, Any]:
 
 
 class HiveCliHook(BaseHook):
-    """Simple wrapper around the hive CLI.
+    """
+    Simple wrapper around the hive CLI.
 
     It also supports the ``beeline``
     a lighter CLI that runs JDBC and is replacing the heavier
@@ -645,7 +646,8 @@ class HiveMetastoreHook(BaseHook):
             return client.check_for_named_partition(schema, table, partition_name)
 
     def get_table(self, table_name: str, db: str = "default") -> Any:
-        """Get a metastore table object.
+        """
+        Get a metastore table object.
 
         >>> hh = HiveMetastoreHook()
         >>> t = hh.get_table(db="airflow", table_name="static_babynames")

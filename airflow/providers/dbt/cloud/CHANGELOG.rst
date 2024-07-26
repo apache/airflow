@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'retry_from_failure' parameter to DbtCloudRunJobOperator (#38868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DbtCloudRunJobOperator' to Use Correct Status Parameters for 'reuse_existing_run' (#40048)``
+
 3.8.1
 .....
 

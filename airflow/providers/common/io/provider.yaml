@@ -51,6 +51,12 @@ operators:
 xcom:
   - airflow.providers.common.io.xcom.backend
 
+dataset-uris:
+  - schemes: [file]
+    handler: airflow.providers.common.io.datasets.file.sanitize_uri
+    to_openlineage_converter: airflow.providers.common.io.datasets.file.convert_dataset_to_openlineage
+    factory: airflow.providers.common.io.datasets.file.create_dataset
+
 config:
   common.io:
     description: Common IO configuration section

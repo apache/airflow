@@ -19,7 +19,6 @@ from __future__ import annotations
 from contextlib import nullcontext
 from importlib import reload
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
 
@@ -28,6 +27,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
@@ -169,13 +169,11 @@ class TestExecutorLoader:
         ],
     )
     def test_get_hybrid_executors_from_config(self, executor_config, expected_executors_list):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
             executors = ExecutorLoader._get_executor_names()
             assert executors == expected_executors_list
 
     def test_init_executors(self):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
             executors = ExecutorLoader.init_executors()
             executor_name = ExecutorLoader.get_default_executor_name()
@@ -198,7 +196,6 @@ class TestExecutorLoader:
         ],
     )
     def test_get_hybrid_executors_from_config_duplicates_should_fail(self, executor_config):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
             with pytest.raises(
                 AirflowConfigException, match=r".+Duplicate executors are not yet supported.+"
@@ -217,7 +214,6 @@ class TestExecutorLoader:
         ],
     )
     def test_get_hybrid_executors_from_config_core_executors_bad_config_format(self, executor_config):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
             with pytest.raises(AirflowConfigException):
                 ExecutorLoader._get_executor_names()
@@ -235,7 +231,6 @@ class TestExecutorLoader:
         ],
     )
     def test_should_support_import_executor_from_core(self, executor_config, expected_value):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert expected_value == executor.__name__
@@ -251,7 +246,6 @@ class TestExecutorLoader:
         ],
     )
     def test_should_support_import_plugins(self, executor_config):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert "FakeExecutor" == executor.__name__
@@ -266,24 +260,10 @@ class TestExecutorLoader:
         ],
     )
     def test_should_support_import_custom_path(self, executor_config):
-        ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
             executor, import_source = ExecutorLoader.import_default_executor_cls()
             assert "FakeExecutor" == executor.__name__
             assert import_source == ConnectorSource.CUSTOM_PATH
-
-    @pytest.mark.parametrize(
-        "executor_config",
-        [
-            ("tests.executors.test_executor_loader.FakeExecutor, CeleryExecutor"),
-            ("CeleryExecutor, LocalExecutor"),
-            ("my_cool_alias:tests.executors.test_executor_loader.FakeExecutor"),
-        ],
-    )
-    def test_block_use_of_hybrid_exec(self, executor_config):
-        with conf_vars({("core", "executor"): executor_config}):
-            with pytest.raises(AirflowConfigException):
-                ExecutorLoader._get_executor_names()
 
     @pytest.mark.db_test
     @pytest.mark.backend("mysql", "postgres")
@@ -311,26 +291,41 @@ class TestExecutorLoader:
             ExecutorLoader.validate_database_executor_compatibility(executor)
 
     def test_load_executor(self):
-        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
-            with conf_vars({("core", "executor"): "LocalExecutor"}):
-                ExecutorLoader.init_executors()
-                assert isinstance(ExecutorLoader.load_executor("LocalExecutor"), LocalExecutor)
-                assert isinstance(
-                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
-                )
-                assert isinstance(ExecutorLoader.load_executor(None), LocalExecutor)
+        with conf_vars({("core", "executor"): "LocalExecutor"}):
+            ExecutorLoader.init_executors()
+            assert isinstance(ExecutorLoader.load_executor("LocalExecutor"), LocalExecutor)
+            assert isinstance(ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor)
+            assert isinstance(ExecutorLoader.load_executor(None), LocalExecutor)
 
     def test_load_executor_alias(self):
-        with patch.object(ExecutorLoader, "block_use_of_hybrid_exec"):
-            with conf_vars(
-                {("core", "executor"): "local_exec:airflow.executors.local_executor.LocalExecutor"}
-            ):
-                ExecutorLoader.init_executors()
-                assert isinstance(ExecutorLoader.load_executor("local_exec"), LocalExecutor)
-                assert isinstance(
-                    ExecutorLoader.load_executor("airflow.executors.local_executor.LocalExecutor"),
-                    LocalExecutor,
-                )
-                assert isinstance(
-                    ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor
-                )
+        with conf_vars({("core", "executor"): "local_exec:airflow.executors.local_executor.LocalExecutor"}):
+            ExecutorLoader.init_executors()
+            assert isinstance(ExecutorLoader.load_executor("local_exec"), LocalExecutor)
+            assert isinstance(
+                ExecutorLoader.load_executor("airflow.executors.local_executor.LocalExecutor"),
+                LocalExecutor,
+            )
+            assert isinstance(ExecutorLoader.load_executor(executor_loader._executor_names[0]), LocalExecutor)
+
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor", autospec=True)
+    def test_load_custom_executor_with_classname(self, mock_executor):
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "executor",
+                ): "my_alias:airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+            }
+        ):
+            ExecutorLoader.init_executors()
+            assert isinstance(ExecutorLoader.load_executor("my_alias"), AwsEcsExecutor)
+            assert isinstance(ExecutorLoader.load_executor("AwsEcsExecutor"), AwsEcsExecutor)
+            assert isinstance(
+                ExecutorLoader.load_executor(
+                    "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
+                ),
+                AwsEcsExecutor,
+            )
+            assert isinstance(
+                ExecutorLoader.load_executor(executor_loader._executor_names[0]), AwsEcsExecutor
+            )

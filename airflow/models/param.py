@@ -297,7 +297,8 @@ class ParamsDict(MutableMapping[str, Any]):
 
 
 class DagParam(ResolveMixin):
-    """DAG run parameter reference.
+    """
+    DAG run parameter reference.
 
     This binds a simple Param object to a name within a DAG instance, so that it
     can be resolved during the runtime via the ``{{ context }}`` dictionary. The
@@ -328,7 +329,7 @@ class DagParam(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         with contextlib.suppress(KeyError):
             return context["dag_run"].conf[self._name]

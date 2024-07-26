@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import os
+from argparse import Namespace
 
 import argcomplete
 
@@ -35,7 +36,8 @@ import argcomplete
 # any possible import cycles with settings downstream.
 from airflow import configuration
 from airflow.cli import cli_parser
-from airflow.configuration import write_webserver_configuration_if_needed
+from airflow.configuration import AirflowConfigParser, write_webserver_configuration_if_needed
+from airflow.exceptions import AirflowException
 
 
 def main():
@@ -55,7 +57,33 @@ def main():
         conf = write_default_airflow_configuration_if_needed()
         if args.subcommand in ["webserver", "internal-api", "worker"]:
             write_webserver_configuration_if_needed(conf)
+    configure_internal_api(args, conf)
+
     args.func(args)
+
+
+def configure_internal_api(args: Namespace, conf: AirflowConfigParser):
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        if args.subcommand in ["worker", "dag-processor", "triggerer", "run"]:
+            # Untrusted components
+            if "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in os.environ:
+                # make sure that the DB is not available for the components that should not access it
+                os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "none://"
+                conf.set("database", "sql_alchemy_conn", "none://")
+            from airflow.api_internal.internal_api_call import InternalApiConfig
+
+            InternalApiConfig.set_use_internal_api(args.subcommand)
+        else:
+            # Trusted components (this setting is mostly for Breeze where db_isolation and DB are both set
+            db_connection_url = conf.get("database", "sql_alchemy_conn")
+            if not db_connection_url or db_connection_url == "none://":
+                raise AirflowException(
+                    f"Running trusted components {args.subcommand} in db isolation mode "
+                    f"requires connection to be configured via database/sql_alchemy_conn."
+                )
+            from airflow.api_internal.internal_api_call import InternalApiConfig
+
+            InternalApiConfig.set_use_database_access(args.subcommand)
 
 
 if __name__ == "__main__":

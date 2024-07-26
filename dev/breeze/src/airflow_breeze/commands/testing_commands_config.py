@@ -52,6 +52,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--integration",
                 "--backend",
+                "--database-isolation",
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
@@ -84,6 +85,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--airflow-constraints-reference",
+                "--force-lowest-dependencies",
                 "--github-repository",
                 "--image-tag",
                 "--install-airflow-with-constraints",
@@ -95,6 +97,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--skip-docker-compose-down",
                 "--skip-providers",
+                "--keep-env-variables",
+                "--no-db-cleanup",
             ],
         },
     ],
@@ -146,6 +150,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--airflow-constraints-reference",
+                "--force-lowest-dependencies",
                 "--github-repository",
                 "--image-tag",
                 "--install-airflow-with-constraints",
@@ -157,6 +162,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--skip-docker-compose-down",
                 "--skip-providers",
+                "--keep-env-variables",
+                "--no-db-cleanup",
             ],
         },
     ],
@@ -165,6 +172,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Select tests to run",
             "options": [
                 "--parallel-test-types",
+                "--database-isolation",
                 "--excluded-parallel-test-types",
             ],
         },
@@ -211,6 +219,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--airflow-constraints-reference",
+                "--force-lowest-dependencies",
                 "--github-repository",
                 "--image-tag",
                 "--install-airflow-with-constraints",
@@ -222,6 +231,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--skip-docker-compose-down",
                 "--skip-providers",
+                "--keep-env-variables",
+                "--no-db-cleanup",
             ],
         },
     ],

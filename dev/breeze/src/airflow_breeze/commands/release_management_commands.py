@@ -770,7 +770,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1541,7 +1541,7 @@ def run_publish_docs_in_parallel(
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -3357,7 +3357,7 @@ def generate_issue_content(
                 continue
             # Ignore doc-only and skipped PRs
             label_names = [label.name for label in pr.labels]
-            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+            if not is_helm_chart and ("type:doc-only" in label_names or "changelog:skip" in label_names):
                 continue
 
             pull_requests[pr_number] = pr

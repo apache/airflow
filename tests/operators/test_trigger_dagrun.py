@@ -22,9 +22,10 @@ import tempfile
 from datetime import datetime
 from unittest import mock
 
+import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, DagRunAlreadyExists
+from airflow.exceptions import AirflowException, DagRunAlreadyExists, RemovedInAirflow3Warning, TaskDeferred
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -35,7 +36,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test
@@ -50,8 +51,8 @@ from airflow.operators.empty import EmptyOperator
 
 dag = DAG(
     dag_id='{TRIGGERED_DAG_ID}',
-    default_args={{'start_date': datetime(2019, 1, 1)}},
-    schedule_interval=None
+    schedule=None,
+    start_date=datetime(2019, 1, 1),
 )
 
 task = EmptyOperator(task_id='test', dag=dag)
@@ -91,7 +92,7 @@ class TestDagRunOperator:
         """
         Asserts whether the correct extra links url will be created.
 
-        Specifically it tests whether the correct dag id and date are passed to
+        Specifically it tests whether the correct dag id and run id are passed to
         the method which constructs the final url.
         Note: We can't run that method to generate the url itself because the Flask app context
         isn't available within the test logic, so it is mocked here.
@@ -110,7 +111,7 @@ class TestDagRunOperator:
         args, _ = mock_build_url.call_args
         expected_args = {
             "dag_id": triggered_dag_run.dag_id,
-            "base_date": triggered_dag_run.logical_date.isoformat(),
+            "dag_run_id": triggered_dag_run.run_id,
         }
         assert expected_args in args
 
@@ -550,12 +551,16 @@ class TestDagRunOperator:
     def test_trigger_dagrun_with_execution_date(self):
         """Test TriggerDagRunOperator with custom execution_date (deprecated parameter)"""
         custom_execution_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
-        task = TriggerDagRunOperator(
-            task_id="test_trigger_dagrun_with_execution_date",
-            trigger_dag_id=TRIGGERED_DAG_ID,
-            execution_date=custom_execution_date,
-            dag=self.dag,
-        )
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_trigger_dagrun_with_execution_date",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                execution_date=custom_execution_date,
+                dag=self.dag,
+            )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         with create_session() as session:
@@ -564,3 +569,80 @@ class TestDagRunOperator:
             assert dagrun.logical_date == custom_execution_date
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_execution_date)
             self.assert_extra_link(dagrun, task, session)
+
+    @pytest.mark.parametrize(
+        argnames=["trigger_logical_date"],
+        argvalues=[
+            pytest.param(DEFAULT_DATE, id=f"logical_date={DEFAULT_DATE}"),
+            pytest.param(None, id="logical_date=None"),
+        ],
+    )
+    def test_dagstatetrigger_execution_dates(self, trigger_logical_date):
+        """Ensure that the DagStateTrigger is called with the triggered DAG's logical date."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            logical_date=trigger_logical_date,
+            wait_for_completion=True,
+            poke_interval=5,
+            allowed_states=[DagRunState.QUEUED],
+            deferrable=True,
+            dag=self.dag,
+        )
+
+        mock_task_defer = mock.MagicMock(side_effect=task.defer)
+        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(TaskDeferred):
+            task.execute({"task_instance": mock.MagicMock()})
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+
+        assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
+            pendulum.instance(dagruns[0].logical_date)
+        ]
+
+    def test_dagstatetrigger_execution_dates_with_clear_and_reset(self):
+        """Check DagStateTrigger is called with the triggered DAG's logical date on subsequent defers."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            trigger_run_id="custom_run_id",
+            wait_for_completion=True,
+            poke_interval=5,
+            allowed_states=[DagRunState.QUEUED],
+            deferrable=True,
+            reset_dag_run=True,
+            dag=self.dag,
+        )
+
+        mock_task_defer = mock.MagicMock(side_effect=task.defer)
+        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(TaskDeferred):
+            task.execute({"task_instance": mock.MagicMock()})
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            triggered_logical_date = dagruns[0].logical_date
+            assert len(dagruns) == 1
+
+        assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
+            pendulum.instance(triggered_logical_date)
+        ]
+
+        # Simulate the TriggerDagRunOperator task being cleared (aka executed again). A DagRunAlreadyExists
+        # exception should be raised because of the previous DAG run.
+        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(
+            (DagRunAlreadyExists, TaskDeferred)
+        ):
+            task.execute({"task_instance": mock.MagicMock()})
+
+        # Still only one DAG run should exist for the triggered DAG since the DAG will be cleared since the
+        # TriggerDagRunOperator task is configured with `reset_dag_run=True`.
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+
+        # The second DagStateTrigger call should still use the original `logical_date` value.
+        assert mock_task_defer.call_args_list[1].kwargs["trigger"].execution_dates == [
+            pendulum.instance(triggered_logical_date)
+        ]

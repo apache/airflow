@@ -18,20 +18,10 @@
  */
 
 import React from "react";
-import {
-  Alert,
-  AlertIcon,
-  Box,
-  Spinner,
-  Text,
-  Table,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-} from "@chakra-ui/react";
+import { Box, Spinner, Text, Table, Tbody, Tr, Th, Td } from "@chakra-ui/react";
 
 import { useTaskFailedDependency } from "src/api";
+import ErrorAlert from "src/components/ErrorAlert";
 
 interface Props {
   dagId: string;
@@ -60,13 +50,7 @@ const TaskFailedDependency = ({ dagId, runId, taskId, mapIndex }: Props) => {
       <br />
 
       {isLoading && <Spinner size="md" thickness="4px" speed="0.65s" />}
-      {!!error && (
-        <Alert status="error" marginBottom="10px">
-          <AlertIcon />
-          An error occurred while fetching task dependencies.
-        </Alert>
-      )}
-
+      <ErrorAlert error={error} />
       {dependencies && (
         <Box mt={3}>
           <Text>Dependencies Blocking Task From Getting Scheduled</Text>

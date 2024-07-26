@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Drop ``KubeResourceVersion`` and ``KubeWorkerId``.
+"""
+Drop ``KubeResourceVersion`` and ``KubeWorkerId``.
 
 Revision ID: bef4f3d11e8b
 Revises: e1a11ece99cc

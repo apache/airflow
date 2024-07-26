@@ -19,19 +19,19 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
-import {
-  CodeCell,
-  DatasetLink,
-  Table,
-  TaskInstanceLink,
-  TimeCell,
-} from "src/components/Table";
 import { useUpstreamDatasetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
+import { CardDef, CardList } from "src/components/Table";
+import type { DatasetEvent } from "src/types/api-generated";
+import DatasetEventCard from "src/components/DatasetEventCard";
 
 interface Props {
   runId: DagRunType["runId"];
 }
+
+const cardDef: CardDef<DatasetEvent> = {
+  card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
+};
 
 const DatasetTriggerEvents = ({ runId }: Props) => {
   const {
@@ -42,25 +42,24 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   const columns = useMemo(
     () => [
       {
-        Header: "Dataset URI",
+        Header: "When",
+        accessor: "timestamp",
+      },
+      {
+        Header: "Dataset",
         accessor: "datasetUri",
-        Cell: DatasetLink,
       },
       {
         Header: "Source Task Instance",
         accessor: "sourceTaskId",
-        Cell: TaskInstanceLink,
       },
       {
-        Header: "When",
-        accessor: "timestamp",
-        Cell: TimeCell,
+        Header: "Triggered Runs",
+        accessor: "createdDagruns",
       },
       {
         Header: "Extra",
         accessor: "extra",
-        Cell: CodeCell,
-        disableSortBy: true,
       },
     ],
     []
@@ -74,7 +73,12 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
         Dataset Events
       </Text>
       <Text>Dataset updates that triggered this DAG run.</Text>
-      <Table data={data} columns={columns} isLoading={isLoading} />
+      <CardList
+        data={data}
+        columns={columns}
+        isLoading={isLoading}
+        cardDef={cardDef}
+      />
     </Box>
   );
 };

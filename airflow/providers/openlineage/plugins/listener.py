@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import logging
+import os
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime
 from typing import TYPE_CHECKING
 
+import psutil
 from openlineage.client.serde import Serde
 from packaging.version import Version
+from setproctitle import getproctitle, setproctitle
 
 from airflow import __version__ as AIRFLOW_VERSION, settings
 from airflow.listeners import hookimpl
@@ -30,21 +32,25 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
+    get_airflow_job_facet,
+    get_airflow_mapped_task_facet,
     get_airflow_run_facet,
-    get_custom_facets,
     get_job_name,
+    get_user_provided_run_facets,
     is_operator_disabled,
     is_selective_lineage_enabled,
     print_warning,
 )
+from airflow.settings import configure_orm
 from airflow.stats import Stats
+from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun, TaskInstance
-    from airflow.utils.state import TaskInstanceState
 
 _openlineage_listener: OpenLineageListener | None = None
 _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
@@ -55,6 +61,18 @@ def _get_try_number_success(val):
     if _IS_AIRFLOW_2_10_OR_HIGHER:
         return val.try_number
     return val.try_number - 1
+
+
+def _executor_initializer():
+    """
+    Initialize worker processes for the executor used for DagRun listener.
+
+    This function must be picklable, so it cannot be defined as an inner method or local function.
+
+    Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
+    the Airflow database.
+    """
+    settings.configure_orm()
 
 
 class OpenLineageListener:
@@ -128,12 +146,11 @@ class OpenLineageListener:
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
 
-            start_date = task_instance.start_date if task_instance.start_date else datetime.now()
+            start_date = task_instance.start_date if task_instance.start_date else timezone.utcnow()
             data_interval_start = (
                 dagrun.data_interval_start.isoformat() if dagrun.data_interval_start else None
             )
             data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
-
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
@@ -147,7 +164,8 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **get_custom_facets(task_instance),
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
+                    **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
             )
@@ -156,7 +174,7 @@ class OpenLineageListener:
                 len(Serde.to_json(redacted_event).encode("utf-8")),
             )
 
-        on_running()
+        self._execute(on_running, "on_running", use_fork=True)
 
     @hookimpl
     def on_task_instance_success(
@@ -208,7 +226,7 @@ class OpenLineageListener:
                     dagrun, task, complete=True, task_instance=task_instance
                 )
 
-            end_date = task_instance.end_date if task_instance.end_date else datetime.now()
+            end_date = task_instance.end_date if task_instance.end_date else timezone.utcnow()
 
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
@@ -217,13 +235,14 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
                 len(Serde.to_json(redacted_event).encode("utf-8")),
             )
 
-        on_success()
+        self._execute(on_success, "on_success", use_fork=True)
 
     if _IS_AIRFLOW_2_10_OR_HIGHER:
 
@@ -302,7 +321,7 @@ class OpenLineageListener:
                     dagrun, task, complete=True, task_instance=task_instance
                 )
 
-            end_date = task_instance.end_date if task_instance.end_date else datetime.now()
+            end_date = task_instance.end_date if task_instance.end_date else timezone.utcnow()
 
             redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
@@ -311,6 +330,7 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                 error=error,
             )
             Stats.gauge(
@@ -318,19 +338,54 @@ class OpenLineageListener:
                 len(Serde.to_json(redacted_event).encode("utf-8")),
             )
 
-        on_failure()
+        self._execute(on_failure, "on_failure", use_fork=True)
+
+    def _execute(self, callable, callable_name: str, use_fork: bool = False):
+        if use_fork:
+            self._fork_execute(callable, callable_name)
+        else:
+            callable()
+
+    def _terminate_with_wait(self, process: psutil.Process):
+        process.terminate()
+        try:
+            # Waiting for max 3 seconds to make sure process can clean up before being killed.
+            process.wait(timeout=3)
+        except psutil.TimeoutExpired:
+            # If it's not dead by then, then force kill.
+            process.kill()
+
+    def _fork_execute(self, callable, callable_name: str):
+        self.log.debug("Will fork to execute OpenLineage process.")
+        pid = os.fork()
+        if pid:
+            process = psutil.Process(pid)
+            try:
+                self.log.debug("Waiting for process %s", pid)
+                process.wait(conf.execution_timeout())
+            except psutil.TimeoutExpired:
+                self.log.warning(
+                    "OpenLineage process %s expired. This should not affect process execution.", pid
+                )
+                self._terminate_with_wait(process)
+            except BaseException:
+                # Kill the process directly.
+                self._terminate_with_wait(process)
+            self.log.debug("Process with pid %s finished - parent", pid)
+        else:
+            setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
+            configure_orm(disable_connection_pool=True)
+            self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
+            callable()
+            self.log.debug("Process with current pid finishes after %s", callable_name)
+            os._exit(0)
 
     @property
     def executor(self) -> ProcessPoolExecutor:
-        def initializer():
-            # Re-configure the ORM engine as there are issues with multiple processes
-            # if process calls Airflow DB.
-            settings.configure_orm()
-
         if not self._executor:
             self._executor = ProcessPoolExecutor(
                 max_workers=conf.dag_state_change_process_pool_size(),
-                initializer=initializer,
+                initializer=_executor_initializer,
             )
         return self._executor
 
@@ -367,6 +422,9 @@ class OpenLineageListener:
             msg=msg,
             nominal_start_time=data_interval_start,
             nominal_end_time=data_interval_end,
+            # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
+            # as it causes lack of some TaskGroup attributes and crashes event emission.
+            job_facets=get_airflow_job_facet(dag_run=dag_run),
         )
 
     @hookimpl

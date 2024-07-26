@@ -51,11 +51,15 @@ class TestPagerdutyEventsHook:
             "dedup_key": "samplekeyhere",
         }
         requests_mock.post("https://events.pagerduty.com/v2/enqueue", json=mock_response_body)
-        resp = hook.create_event(
-            summary="test",
-            source="airflow_test",
-            severity="error",
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="This method will be deprecated. Please use the `PagerdutyEventsHook.send_event` to interact with the Events API",
+        ):
+            resp = hook.create_event(
+                summary="test",
+                source="airflow_test",
+                severity="error",
+            )
         assert resp == mock_response_body
 
     def test_create_change_event(self, requests_mock, events_connections):

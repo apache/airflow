@@ -146,8 +146,7 @@ class FTPFileTransmitOperator(BaseOperator):
                 input: file://hostname/path
                 output file://<conn.host>:<conn.port>/path.
         """
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         scheme = "file"

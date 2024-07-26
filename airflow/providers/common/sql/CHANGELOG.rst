@@ -25,6 +25,33 @@
 Changelog
 ---------
 
+1.14.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: DbApiHook.insert_rows unnecessarily restarting connections (#40615)``
+
+Misc
+~~~~
+
+* ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve postgres deprecations in tests (#40392)``
+
+1.14.1
+......
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``standardizes template fields for 'BaseSQLOperator' and adds 'database' as a templated field (#39826)``
+
 1.14.0
 ......
 

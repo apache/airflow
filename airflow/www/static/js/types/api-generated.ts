@@ -474,6 +474,8 @@ export interface paths {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
       };
     };
   };
@@ -544,6 +546,22 @@ export interface paths {
      * This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it would run in to maximum HTTP request URL length limits.
      */
     post: operations["get_task_instances_batch"];
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
+    /**
+     * Get details of a task instance try.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_task_instance_try_details"];
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+    /**
+     * Get details of a mapped task instance try.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_mapped_task_instance_try_details"];
   };
   "/variables": {
     /** The collection does not contain data. To get data, you must get a single entity. */
@@ -1266,6 +1284,10 @@ export interface components {
       task_id?: string | null;
       /** @description The DAG Run ID */
       run_id?: string | null;
+      /** @description The Map Index */
+      map_index?: number | null;
+      /** @description The Try Number */
+      try_number?: number | null;
       /** @description A key describing the type of event. */
       event?: string;
       /**
@@ -1274,7 +1296,7 @@ export interface components {
        */
       execution_date?: string | null;
       /** @description Name of the user who triggered these events a. */
-      owner?: string;
+      owner?: string | null;
       /** @description Other information that was not included in the other fields, e.g. the complete CLI command. */
       extra?: string | null;
     };
@@ -1282,6 +1304,7 @@ export interface components {
      * @description Collection of event logs.
      *
      * *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+     * *Changed in version 2.10.0*&#58; 'try_number' and 'map_index' fields are added.
      */
     EventLogCollection: {
       event_logs?: components["schemas"]["EventLog"][];
@@ -1296,7 +1319,7 @@ export interface components {
       timestamp?: string;
       /** @description The filename */
       filename?: string;
-      /** @description The full stackstrace.. */
+      /** @description The full stackstrace. */
       stack_trace?: string;
     };
     /**
@@ -1497,6 +1520,12 @@ export interface components {
       /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
       queued_when?: string | null;
       pid?: number | null;
+      /**
+       * @description Executor the task is configured to run on or None (which indicates the default executor)
+       *
+       * *New in version 2.10.0*
+       */
+      executor?: string | null;
       executor_config?: string;
       sla_miss?: components["schemas"]["SLAMiss"];
       /**
@@ -1591,8 +1620,13 @@ export interface components {
     } & components["schemas"]["CollectionInfo"];
     /** @description Full representations of XCom entry. */
     XCom: components["schemas"]["XComCollectionItem"] & {
-      /** @description The value */
-      value?: string;
+      /** @description The value(s), */
+      value?: Partial<string> &
+        Partial<number> &
+        Partial<number> &
+        Partial<boolean> &
+        Partial<unknown[]> &
+        Partial<{ [key: string]: unknown }>;
     };
     /**
      * @description DAG details.
@@ -1676,7 +1710,7 @@ export interface components {
       task_display_name?: string;
       owner?: string;
       /** Format: date-time */
-      start_date?: string;
+      start_date?: string | null;
       /** Format: date-time */
       end_date?: string | null;
       trigger_rule?: components["schemas"]["TriggerRule"];
@@ -1688,6 +1722,7 @@ export interface components {
       wait_for_downstream?: boolean;
       retries?: number;
       queue?: string | null;
+      executor?: string | null;
       pool?: string;
       pool_slots?: number;
       execution_timeout?: components["schemas"]["TimeDelta"];
@@ -1700,6 +1735,12 @@ export interface components {
       template_fields?: string[];
       sub_dag?: components["schemas"]["DAG"];
       downstream_task_ids?: string[];
+      /**
+       * @description Task documentation in markdown.
+       *
+       * *New in version 2.10.0*
+       */
+      doc_md?: string | null;
     };
     /** @description Collection of tasks. */
     TaskCollection: {
@@ -2233,6 +2274,8 @@ export interface components {
       pool?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       queue?: string[];
+      /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
+      executor?: string[];
     };
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
@@ -2561,6 +2604,8 @@ export interface components {
     FilterPool: string[];
     /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
     FilterQueue: string[];
+    /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
+    FilterExecutor: string[];
     /**
      * @description List of tags to filter results.
      *
@@ -2579,6 +2624,8 @@ export interface components {
     FilterSourceMapIndex: number;
     /** @description Filter on map index for mapped task. */
     FilterMapIndex: number;
+    /** @description Filter on try_number for task instance. */
+    FilterTryNumber: number;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -3657,6 +3704,10 @@ export interface operations {
         task_id?: components["parameters"]["FilterTaskID"];
         /** Returns objects matched by the Run ID. */
         run_id?: components["parameters"]["FilterRunID"];
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Filter on try_number for task instance. */
+        try_number?: components["parameters"]["FilterTryNumber"];
         /** The name of event log. */
         event?: components["parameters"]["Event"];
         /** The owner's name of event log. */
@@ -3964,6 +4015,8 @@ export interface operations {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -4192,6 +4245,8 @@ export interface operations {
         pool?: components["parameters"]["FilterPool"];
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         queue?: components["parameters"]["FilterQueue"];
+        /** The value can be repeated to retrieve multiple matching values (OR condition). */
+        executor?: components["parameters"]["FilterExecutor"];
         /**
          * The name of the field to order the results by.
          * Prefix a field name with `-` to reverse the sort order.
@@ -4233,6 +4288,68 @@ export interface operations {
       content: {
         "application/json": components["schemas"]["ListTaskInstanceForm"];
       };
+    };
+  };
+  /**
+   * Get details of a task instance try.
+   *
+   * *New in version 2.10.0*
+   */
+  get_task_instance_try_details: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The task try number. */
+        task_try_number: components["parameters"]["TaskTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get details of a mapped task instance try.
+   *
+   * *New in version 2.10.0*
+   */
+  get_mapped_task_instance_try_details: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+        /** The task try number. */
+        task_try_number: components["parameters"]["TaskTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /** The collection does not contain data. To get data, you must get a single entity. */
@@ -4410,6 +4527,15 @@ export interface operations {
          * *New in version 2.4.0*
          */
         deserialize?: boolean;
+        /**
+         * Whether to convert the XCom value to be a string. XCom values can be of Any data type.
+         *
+         * If set to true (default) the Any value will be returned as string, e.g. a Python representation
+         * of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
+         *
+         * *New in version 2.10.0*
+         */
+        stringify?: boolean;
       };
     };
     responses: {
@@ -5610,6 +5736,12 @@ export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<
 >;
 export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<
   operations["get_task_instances_batch"]["requestBody"]["content"]["application/json"]
+>;
+export type GetTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
+  operations["get_task_instance_try_details"]["parameters"]["path"]
+>;
+export type GetMappedTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
+  operations["get_mapped_task_instance_try_details"]["parameters"]["path"]
 >;
 export type GetVariablesVariables = CamelCasedPropertiesDeep<
   operations["get_variables"]["parameters"]["query"]

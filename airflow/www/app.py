@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import timedelta
+from os.path import isabs
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -100,7 +101,7 @@ def create_app(config=None, testing=False):
     flask_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"] = require_confirmation_dag_change
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
-    if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
+    if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(
             f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
@@ -136,7 +137,8 @@ def create_app(config=None, testing=False):
     flask_app.json_provider_class = AirflowJsonProvider
     flask_app.json = AirflowJsonProvider(flask_app)
 
-    InternalApiConfig.force_database_direct_access()
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        InternalApiConfig.set_use_database_access("Gunicorn worker initialization")
 
     csrf.init_app(flask_app)
 

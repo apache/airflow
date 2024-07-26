@@ -34,8 +34,8 @@ The DAG itself doesn't care about *what* is happening inside the tasks; it is me
 Declaring a DAG
 ---------------
 
-There are three ways to declare a DAG - either you can use a context manager,
-which will add the DAG to anything inside it implicitly:
+There are three ways to declare a DAG - either you can use ``with`` statement (context manager),
+which will add anything inside it to the DAG implicitly:
 
 .. code-block:: python
    :emphasize-lines: 6-10
@@ -108,7 +108,7 @@ Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` m
     first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
-There are also shortcuts to declaring more complex dependencies. If you want to make two lists of tasks depend on all parts of each other, you can't use either of the approaches above, so you need to use ``cross_downstream``::
+There are also shortcuts to declaring more complex dependencies. If you want to make a list of tasks depend on another list of tasks, you can't use either of the approaches above, so you need to use ``cross_downstream``::
 
     from airflow.models.baseoperator import cross_downstream
 
@@ -550,7 +550,7 @@ Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tas
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
 .. code-block:: python
-   :emphasize-lines: 10
+   :emphasize-lines: 4,12
 
     from airflow.decorators import task_group
 
@@ -816,7 +816,7 @@ doesn't support many advanced features, please check its
 
 With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
 
-* The ``*`` character will any number of characters, except ``/``
+* The ``*`` character will match any number of characters, except ``/``
 * The ``?`` character will match any single character, except ``/``
 * The range notation, e.g. ``[a-zA-Z]``, can be used to match one of the characters in a range
 * A pattern can be negated by prefixing with ``!``. Patterns are evaluated in order so

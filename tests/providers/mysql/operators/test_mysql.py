@@ -22,13 +22,17 @@ from contextlib import closing
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
-from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+)
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.mysql.operators.mysql import MySqlOperator
 from airflow.utils import timezone
 from tests.providers.mysql.hooks.test_mysql import MySqlContext
 
@@ -36,6 +40,7 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
+MYSQL_DEFAULT = "mysql_default"
 
 
 @pytest.mark.backend("mysql")
@@ -60,7 +65,7 @@ class TestMySql:
                 dummy VARCHAR(50)
             );
             """
-            op = MySqlOperator(task_id="basic_mysql", sql=sql, dag=self.dag)
+            op = SQLExecuteQueryOperator(task_id="basic_mysql", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
@@ -71,10 +76,8 @@ class TestMySql:
                 "TRUNCATE TABLE test_airflow",
                 "INSERT INTO test_airflow VALUES ('X')",
             ]
-            op = MySqlOperator(
-                task_id="mysql_operator_test_multi",
-                sql=sql,
-                dag=self.dag,
+            op = SQLExecuteQueryOperator(
+                task_id="mysql_operator_test_multi", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -85,11 +88,12 @@ class TestMySql:
         """
         with MySqlContext(client):
             sql = "SELECT 1;"
-            op = MySqlOperator(
+            op = SQLExecuteQueryOperator(
                 task_id="test_mysql_operator_test_schema_overwrite",
                 sql=sql,
                 dag=self.dag,
                 database="foobar",
+                conn_id=MYSQL_DEFAULT,
             )
 
             from MySQLdb import OperationalError
@@ -102,7 +106,9 @@ class TestMySql:
         path.write_text('{\n "foo": "{{ ds }}"}')
 
         with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent)):
-            task = MySqlOperator(task_id="op1", parameters=path.name, sql="SELECT 1")
+            task = SQLExecuteQueryOperator(
+                task_id="op1", parameters=path.name, sql="SELECT 1", conn_id=MYSQL_DEFAULT
+            )
 
         task.resolve_template_files()
 
@@ -117,7 +123,7 @@ class TestMySql:
                 dummy VARCHAR(50)
             );
             """
-            op = MySqlOperator(task_id="basic_mysql", sql=sql, dag=self.dag)
+            op = SQLExecuteQueryOperator(task_id="basic_mysql", sql=sql, dag=self.dag, conn_id=MYSQL_DEFAULT)
 
             lineage = op.get_openlineage_facets_on_start()
             assert len(lineage.inputs) == 0
@@ -139,17 +145,14 @@ def test_execute_openlineage_events(connection_port):
 
     dbapi_hook = MySqlHookForTests()
 
-    class SQLExecuteQueryOperatorForTest(MySqlOperator):
-        def get_db_hook(self):
-            return dbapi_hook
-
     sql = """CREATE TABLE IF NOT EXISTS popular_orders_day_of_week (
         order_day_of_week VARCHAR(64) NOT NULL,
         order_placed_on   TIMESTAMP NOT NULL,
         orders_placed     INTEGER NOT NULL
     );
 FORGOT TO COMMENT"""
-    op = SQLExecuteQueryOperatorForTest(task_id="mysql-operator", sql=sql)
+    op = SQLExecuteQueryOperator(task_id="mysql-operator", sql=sql)
+    op._hook = dbapi_hook
     DB_SCHEMA_NAME = "PUBLIC"
     rows = [
         (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_day_of_week", 1, "varchar"),
@@ -170,15 +173,15 @@ FORGOT TO COMMENT"""
             facets={
                 "schema": SchemaDatasetFacet(
                     fields=[
-                        SchemaField(name="order_day_of_week", type="varchar"),
-                        SchemaField(name="order_placed_on", type="timestamp"),
-                        SchemaField(name="orders_placed", type="int4"),
+                        SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                        SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                        SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                     ]
                 )
             },
         )
     ]
 
-    assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
 
     assert lineage.run_facets["extractionError"].failedTasks == 1

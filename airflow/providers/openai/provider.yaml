@@ -24,10 +24,11 @@ description: |
     `OpenAI <https://platform.openai.com/docs/introduction>`__
 
 state: ready
-source-date-epoch: 1716288183
+source-date-epoch: 1718605162
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.2.2
   - 1.2.1
   - 1.2.0
   - 1.1.0
@@ -43,7 +44,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - openai[datalib]>=1.23
+  - openai[datalib]>=1.32.0
 
 hooks:
   - integration-name: OpenAI

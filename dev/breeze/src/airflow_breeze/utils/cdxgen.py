@@ -320,16 +320,16 @@ constraints-{airflow_version}/constraints-{python_version}.txt
 
 @dataclass
 class SbomApplicationJob:
-    python_version: str
+    python_version: str | None
     target_path: Path
 
     @abstractmethod
     def produce(self, output: Output | None, port: int) -> tuple[int, str]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_job_name(self) -> str:
-        pass
+        raise NotImplementedError
 
 
 @dataclass
@@ -337,35 +337,67 @@ class SbomCoreJob(SbomApplicationJob):
     airflow_version: str
     application_root_path: Path
     include_provider_dependencies: bool
+    include_python: bool
+    include_npm: bool
 
     def get_job_name(self) -> str:
-        return f"{self.airflow_version}:python{self.python_version}"
+        name = f"{self.airflow_version}"
+        if self.python_version:
+            name += f":python{self.python_version}"
+        if self.include_python and not self.include_npm:
+            name += ":python-only"
+        if self.include_npm and not self.include_python:
+            name += ":npm-only"
+        if self.include_provider_dependencies:
+            name += ":full"
+        return name
+
+    def get_files_directory(self, root_path: Path):
+        source_dir = root_path / self.airflow_version
+        if self.include_python:
+            source_dir = source_dir / "python"
+        if self.include_npm:
+            source_dir = source_dir / "npm"
+        if self.include_provider_dependencies:
+            source_dir = source_dir / "full"
+        if self.python_version:
+            source_dir = source_dir / f"python{self.python_version}"
+        return source_dir
 
     def download_dependency_files(self, output: Output | None) -> bool:
-        source_dir = self.application_root_path / self.airflow_version / f"python{self.python_version}"
+        source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
         lock_file_relative_path = "airflow/www/yarn.lock"
-        download_file_from_github(
-            tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
-        )
-        if not download_constraints_file(
-            airflow_version=self.airflow_version,
-            python_version=self.python_version,
-            include_provider_dependencies=self.include_provider_dependencies,
-            output_file=source_dir / "requirements.txt",
-        ):
-            get_console(output=output).print(
-                f"[warning]Failed to download constraints file for "
-                f"{self.airflow_version} and {self.python_version}. Skipping"
+        if self.include_npm:
+            download_file_from_github(
+                tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
             )
-            return False
+        else:
+            (source_dir / "yarn.lock").unlink(missing_ok=True)
+        if self.include_python:
+            if not download_constraints_file(
+                airflow_version=self.airflow_version,
+                python_version=self.python_version,
+                include_provider_dependencies=self.include_provider_dependencies,
+                output_file=source_dir / "requirements.txt",
+            ):
+                get_console(output=output).print(
+                    f"[warning]Failed to download constraints file for "
+                    f"{self.airflow_version} and {self.python_version}. Skipping"
+                )
+                (source_dir / "requirements.txt").unlink(missing_ok=True)
+                return False
+        else:
+            (source_dir / "requirements.txt").unlink(missing_ok=True)
         return True
 
     def produce(self, output: Output | None, port: int) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
-            f"[info]Updating sbom for Airflow {self.airflow_version} and python {self.python_version}"
+            f"[info]Updating sbom for Airflow {self.airflow_version} and python {self.python_version}:"
+            f"include_provider_dependencies={self.include_provider_dependencies}, "
+            f"python={self.include_python}, npm={self.include_npm}"
         )
         if not self.download_dependency_files(output):
             return 0, f"SBOM Generate {self.airflow_version}:{self.python_version}"
@@ -373,9 +405,18 @@ class SbomCoreJob(SbomApplicationJob):
         get_console(output=output).print(
             f"[info]Generating sbom for Airflow {self.airflow_version} and python {self.python_version} with cdxgen"
         )
+
+        file_url = (
+            self.get_files_directory(self.application_root_path)
+            .relative_to(self.application_root_path)
+            .as_posix()
+        )
         url = (
-            f"http://127.0.0.1:{port}/sbom?path=/app/{self.airflow_version}/python{self.python_version}&"
-            f"project-name=apache-airflow&project-version={self.airflow_version}&multiProject=true"
+            f"http://127.0.0.1:{port}/sbom?path=/app/{file_url}&"
+            f"projectName=apache-airflow&installDeps=false&"
+            f"lifecycle=pre-build&"
+            f"projectVersion={self.airflow_version}&"
+            f"multiProject=true"
         )
 
         get_console(output=output).print(
@@ -393,9 +434,17 @@ class SbomCoreJob(SbomApplicationJob):
                     f"SBOM Generate {self.airflow_version}:python{self.python_version}",
                 )
             self.target_path.write_bytes(response.content)
-            get_console(output=output).print(
-                f"[success]Generated SBOM for {self.airflow_version}:python{self.python_version}"
-            )
+            suffix = ""
+            if self.python_version:
+                suffix += f":python{self.python_version}"
+            if not self.include_npm or not self.include_python:
+                if self.include_npm:
+                    suffix += ":npm-only"
+                else:
+                    suffix += ":python-only"
+            if self.include_provider_dependencies:
+                suffix += ":full"
+            get_console(output=output).print(f"[success]Generated SBOM for {self.airflow_version}:{suffix}")
 
         return 0, f"SBOM Generate {self.airflow_version}:python{self.python_version}"
 

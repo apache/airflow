@@ -104,6 +104,16 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "true"
         type: string
+      force-lowest-dependencies:
+        description: "Whether to force lowest dependencies for the tests or not (true/false)"
+        required: false
+        default: "false"
+        type: string
+      monitor-delay-time-in-seconds:
+        description: "How much time to wait between printing parallel monitor summary"
+        required: false
+        default: 20
+        type: number
 jobs:
   tests:
     timeout-minutes: 120
@@ -128,6 +138,7 @@ jobs:
       DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
       DOWNGRADE_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
+      FORCE_LOWEST_DEPENDENCIES: "${{ inputs.force-lowest-dependencies }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -140,6 +151,7 @@ jobs:
       PYDANTIC: "${{ inputs.pydantic }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
+      AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -183,6 +195,9 @@ jobs:
           fi
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          python-version: ${{ matrix.python-version }}
         if: success()
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure

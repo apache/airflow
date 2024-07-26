@@ -51,7 +51,7 @@ from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import LocalKubernetesExecutor
-from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
+from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, SkipPolicy, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -178,8 +178,8 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_soft_fail(self, make_sensor):
-        sensor, dr = make_sensor(False, soft_fail=True)
+    def test_skip_on_soft_error(self, make_sensor):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
 
         self._run(sensor)
         tis = dr.get_task_instances()
@@ -192,15 +192,32 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
+        (ValueError,),
+    )
+    def test_skip_on_soft_error_with_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
+        with pytest.raises(ValueError):
+            self._run(sensor)
+
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.FAILED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    @pytest.mark.parametrize(
+        "exception_cls",
         (
             AirflowSensorTimeout,
             AirflowTaskTimeout,
             AirflowFailException,
-            Exception,
         ),
     )
-    def test_soft_fail_with_non_skip_exception(self, make_sensor, exception_cls):
-        sensor, dr = make_sensor(False, soft_fail=True)
+    def test_skip_on_soft_error_with_skip_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
         sensor.poke = Mock(side_effect=[exception_cls(None)])
 
         self._run(sensor)
@@ -212,9 +229,29 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_soft_fail_with_retries(self, make_sensor):
+    @pytest.mark.parametrize(
+        "exception_cls",
+        (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, Exception),
+    )
+    def test_skip_on_any_error_with_skip_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, skip_policy=SkipPolicy.SKIP_ON_ANY_ERROR)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
+
+        self._run(sensor)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.SKIPPED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    def test_skip_on_soft_error_with_retries(self, make_sensor):
         sensor, dr = make_sensor(
-            return_value=False, soft_fail=True, retries=1, retry_delay=timedelta(milliseconds=1)
+            return_value=False,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
+            retries=1,
+            retry_delay=timedelta(milliseconds=1),
         )
 
         # first run times out and task instance is skipped
@@ -322,9 +359,13 @@ class TestBaseSensor:
         assert sensor_ti.state == State.FAILED
         assert dummy_ti.state == State.NONE
 
-    def test_soft_fail_with_reschedule(self, make_sensor, time_machine, session):
+    def test_skip_on_soft_error_with_reschedule(self, make_sensor, time_machine, session):
         sensor, dr = make_sensor(
-            return_value=False, poke_interval=10, timeout=5, soft_fail=True, mode="reschedule"
+            return_value=False,
+            poke_interval=10,
+            timeout=5,
+            skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR,
+            mode="reschedule",
         )
 
         def _get_tis():
@@ -421,6 +462,71 @@ class TestBaseSensor:
         # fourth poke return True and task succeeds
 
         time_machine.coordinates.shift(sensor.poke_interval)
+        self._run(sensor)
+
+        sensor_ti, dummy_ti = _get_tis()
+        assert sensor_ti.state == State.SUCCESS
+        assert dummy_ti.state == State.NONE
+
+    def test_ok_with_reschedule_and_exponential_backoff(
+        self, make_sensor, time_machine, task_reschedules_for_ti, session
+    ):
+        sensor, dr = make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=36000,
+            mode="reschedule",
+            exponential_backoff=True,
+        )
+
+        def _get_tis():
+            tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
+            yield next(x for x in tis if x.task_id == SENSOR_OP)
+            yield next(x for x in tis if x.task_id == DUMMY_OP)
+
+        false_count = 10
+        sensor.poke = Mock(side_effect=[False] * false_count + [True])
+
+        task_start_date = timezone.utcnow()
+
+        time_machine.move_to(task_start_date, tick=False)
+        curr_date = task_start_date
+
+        def run_duration():
+            return (timezone.utcnow() - task_start_date).total_seconds()
+
+        new_interval = 0
+
+        sensor_ti, dummy_ti = _get_tis()
+        assert dummy_ti.state == State.NONE
+        assert sensor_ti.state == State.NONE
+
+        # ordinarily the scheduler does this
+        sensor_ti.state = State.SCHEDULED
+        sensor_ti.try_number += 1  # first TI run
+        session.commit()
+
+        # loop poke returns false
+        for _poke_count in range(1, false_count + 1):
+            curr_date = curr_date + timedelta(seconds=new_interval)
+            time_machine.coordinates.shift(new_interval)
+            self._run(sensor)
+            sensor_ti, dummy_ti = _get_tis()
+            assert sensor_ti.state == State.UP_FOR_RESCHEDULE
+            # verify another row in task_reschedule table
+            task_reschedules = task_reschedules_for_ti(sensor_ti)
+            assert len(task_reschedules) == _poke_count
+            old_interval = new_interval
+            new_interval = sensor._get_next_poke_interval(task_start_date, run_duration, _poke_count)
+            assert old_interval < new_interval  # actual test
+            assert task_reschedules[-1].start_date == curr_date
+            assert task_reschedules[-1].reschedule_date == curr_date + timedelta(seconds=new_interval)
+            assert dummy_ti.state == State.NONE
+
+        # last poke returns True and task succeeds
+        curr_date = curr_date + timedelta(seconds=new_interval)
+        time_machine.coordinates.shift(new_interval)
         self._run(sensor)
 
         sensor_ti, dummy_ti = _get_tis()
@@ -811,7 +917,7 @@ class TestBaseSensor:
             retries=2,
             retry_delay=timedelta(seconds=3),
             mode="reschedule",
-            silent_fail=True,
+            skip_policy=SkipPolicy.IGNORE_ERROR,
         )
 
         def _get_sensor_ti():
@@ -1011,14 +1117,14 @@ class TestPokeModeOnly:
 
 class TestAsyncSensor:
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        "skip_policy, expected_exception",
         [
-            (True, AirflowSkipException),
-            (False, AirflowException),
+            (SkipPolicy.SKIP_ON_SOFT_ERROR, AirflowSkipException),
+            (SkipPolicy.NONE, AirflowException),
         ],
     )
-    def test_fail_after_resuming_deferred_sensor(self, soft_fail, expected_exception):
-        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
+    def test_fail_after_resuming_deferred_sensor(self, skip_policy, expected_exception):
+        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", skip_policy=skip_policy)
         ti = TaskInstance(task=async_sensor)
         ti.next_method = "execute_complete"
         with pytest.raises(expected_exception):
