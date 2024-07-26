@@ -68,6 +68,15 @@ class AirbyteHook(HttpHook):
         self.api_version: str = api_version
         self.api_type: str = api_type
 
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {"login": "Client ID", "password": "Client Secret"},
+            "placeholders": {},
+        }
+
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
         """Get Headers, tenants from the connection details."""
         connection: Connection = await sync_to_async(self.get_connection)(self.http_conn_id)
