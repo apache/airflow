@@ -40,24 +40,25 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.providers.google.cloud.sensors.dataplex import DataplexTaskStateSensor
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "project_id")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_dataplex"
+DAG_ID = "dataplex"
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
 SPARK_FILE_NAME = "spark_example_pi.py"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-LAKE_ID = f"test-lake-dataplex-{ENV_ID}"
+LAKE_ID = f"lake-{DAG_ID}-{ENV_ID}".replace("_", "-")
 REGION = "us-central1"
 
 SERVICE_ACC = f"{PROJECT_ID}@appspot.gserviceaccount.com"
 
 SPARK_FILE_FULL_PATH = f"gs://{BUCKET_NAME}/{SPARK_FILE_NAME}"
-DATAPLEX_TASK_ID = f"test-task-{ENV_ID}"
+DATAPLEX_TASK_ID = f"task-{DAG_ID}-{ENV_ID}".replace("_", "-")
 TRIGGER_SPEC_TYPE = "ON_DEMAND"
 
 # [START howto_dataplex_configuration]

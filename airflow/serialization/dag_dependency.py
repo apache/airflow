@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,9 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-import pyspark
+from dataclasses import dataclass
 
-sc = pyspark.SparkContext()
-rdd = sc.parallelize(["Hello,", "world!"])
-words = sorted(rdd.collect())
-print(words)
+
+@dataclass(frozen=True, order=True)
+class DagDependency:
+    """
+    Dataclass for representing dependencies between DAGs.
+
+    These are calculated during serialization and attached to serialized DAGs.
+    """
+
+    source: str
+    target: str
+    dependency_type: str
+    dependency_id: str | None = None
+
+    @property
+    def node_id(self):
+        """Node ID for graph rendering."""
+        val = f"{self.dependency_type}"
+        if self.dependency_type not in ("dataset", "dataset-alias"):
+            val += f":{self.source}:{self.target}"
+        if self.dependency_id:
+            val += f":{self.dependency_id}"
+        return val

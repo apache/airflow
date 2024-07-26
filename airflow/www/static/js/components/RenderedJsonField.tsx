@@ -19,7 +19,7 @@
 
 import React from "react";
 
-import ReactJson from "react-json-view";
+import ReactJson, { ReactJsonViewProps } from "react-json-view";
 
 import {
   Flex,
@@ -32,15 +32,20 @@ import {
 } from "@chakra-ui/react";
 
 interface Props extends FlexProps {
-  content: string;
+  content: string | object;
+  jsonProps?: Omit<ReactJsonViewProps, "src">;
 }
 
-const JsonParse = (content: string) => {
+const JsonParse = (content: string | object) => {
   let contentJson = null;
   let contentFormatted = "";
   let isJson = false;
   try {
-    contentJson = JSON.parse(content);
+    if (typeof content === "string") {
+      contentJson = JSON.parse(content);
+    } else {
+      contentJson = content;
+    }
     contentFormatted = JSON.stringify(contentJson, null, 4);
     isJson = true;
   } catch (e) {
@@ -49,7 +54,7 @@ const JsonParse = (content: string) => {
   return [isJson, contentJson, contentFormatted];
 };
 
-const RenderedJsonField = ({ content, ...rest }: Props) => {
+const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
   const [isJson, contentJson, contentFormatted] = JsonParse(content);
   const { onCopy, hasCopied } = useClipboard(contentFormatted);
   const theme = useTheme();
@@ -69,14 +74,15 @@ const RenderedJsonField = ({ content, ...rest }: Props) => {
           fontSize: theme.fontSizes.md,
           font: theme.fonts.mono,
         }}
+        {...jsonProps}
       />
       <Spacer />
-      <Button aria-label="Copy" onClick={onCopy}>
+      <Button aria-label="Copy" onClick={onCopy} position="sticky" top={0}>
         {hasCopied ? "Copied!" : "Copy"}
       </Button>
     </Flex>
   ) : (
-    <Code fontSize="md">{content}</Code>
+    <Code fontSize="md">{content as string}</Code>
   );
 };
 
