@@ -51,6 +51,7 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-http
+  - airbyte-api
 
 integrations:
   - integration-name: Airbyte

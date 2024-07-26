@@ -23,6 +23,8 @@ import time
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, Sequence
 
+from airbyte_api.models import JobStatusEnum
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
@@ -55,7 +57,6 @@ class AirbyteJobSensor(BaseSensorOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
-        api_type: Literal["config", "cloud"] = "config",
         **kwargs,
     ) -> None:
         if deferrable:
@@ -80,29 +81,25 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.airbyte_conn_id = airbyte_conn_id
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
-        self.api_type = api_type
 
     def poke(self, context: Context) -> bool:
         hook = AirbyteHook(
             airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
         )
         job = hook.get_job(job_id=self.airbyte_job_id)
-        if self.api_type == "config":
-            status = job.json()["job"]["status"]
-        else:
-            status = job.json()["status"]
+        status = job.status
 
-        if status == hook.FAILED:
+        if status == JobStatusEnum.FAILED:
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job failed: \n{job}"
             raise AirflowException(message)
-        elif status == hook.CANCELLED:
+        elif status == JobStatusEnum.CANCELLED:
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job was cancelled: \n{job}"
             raise AirflowException(message)
-        elif status == hook.SUCCEEDED:
+        elif status == JobStatusEnum.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
             return True
-        elif status == hook.ERROR:
-            self.log.info("Job %s attempt has failed.", self.airbyte_job_id)
 
         self.log.info("Waiting for job %s to complete.", self.airbyte_job_id)
         return False
@@ -116,15 +113,12 @@ class AirbyteJobSensor(BaseSensorOperator):
                 airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
             )
             job = hook.get_job(job_id=(int(self.airbyte_job_id)))
-            if self.api_type == "config":
-                state = job.json()["job"]["status"]
-            else:
-                state = job.json()["status"]
+            state = job.status
             end_time = time.time() + self.timeout
 
             self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
 
-            if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
+            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(
@@ -136,12 +130,12 @@ class AirbyteJobSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
-            elif state == hook.SUCCEEDED:
+            elif state == JobStatusEnum.SUCCEEDED:
                 self.log.info("%s completed successfully.", self.task_id)
                 return
-            elif state == hook.ERROR:
+            elif state == JobStatusEnum.FAILED:
                 raise AirflowException(f"Job failed:\n{job}")
-            elif state == hook.CANCELLED:
+            elif state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
             else:
                 raise AirflowException(

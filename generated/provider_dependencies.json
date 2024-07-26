@@ -1,6 +1,7 @@
 {
   "airbyte": {
     "deps": [
+      "airbyte-api",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0"
     ],
