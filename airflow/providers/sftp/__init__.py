@@ -32,8 +32,8 @@ __all__ = ["__version__"]
 __version__ = "4.10.2"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.7.0"
+    "2.7.1"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-sftp:{__version__}` needs Apache Airflow 2.7.0+"
+        f"The package `apache-airflow-providers-sftp:{__version__}` needs Apache Airflow 2.7.1+"
     )
