@@ -164,7 +164,7 @@ def context_to_json(context: Context) -> str:
     from airflow.models.taskinstance import SimpleTaskInstance
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 
-    context_copy: dict[str, Any] = dict(context)
+    context_copy: dict[str, Any] = {}
 
     deprecated = {
         "execution_date",
