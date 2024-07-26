@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.7.2
+.....
+
+Latest change: 2024-07-16
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`519b0d028c <https://github.com/apache/airflow/commit/519b0d028c4bd8a27dbd10785139a260fb98154b>`_  2024-07-16   ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+=================================================================================================  ===========  =======================================================================
+
 5.7.1
 .....
 
-Latest change: 2024-05-14
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `1489cf7a03 <https://github.com/apache/airflow/commit/1489cf7a0372898ab5f905fa7b56f3b1327d2cfe>`_  2024-05-14   ``Fix deferrable mode for BeamRunJavaPipelineOperator (#39371)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

@@ -36,15 +36,14 @@ except ImportError:
         return MagicMock()
 
 
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    SqlJobFacet,
-)
-from openlineage.client.run import Dataset
-
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    Fields,
+    InputField,
+    SQLJobFacet,
+)
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
@@ -254,9 +253,9 @@ def test_execute_openlineage_events(should_use_external_connection):
             facets={
                 "columnLineage": ColumnLineageDatasetFacet(
                     fields={
-                        "additional_constant": ColumnLineageDatasetFacetFieldsAdditional(
+                        "additional_constant": Fields(
                             inputFields=[
-                                ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                InputField(
                                     namespace="snowflake://test_account.us-east.aws",
                                     name="DATABASE.PUBLIC.little_table",
                                     field="additional_constant",
@@ -271,6 +270,6 @@ def test_execute_openlineage_events(should_use_external_connection):
         )
     ]
 
-    assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
 
     assert lineage.run_facets["extractionError"].failedTasks == 1

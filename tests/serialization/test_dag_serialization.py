@@ -60,11 +60,11 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
@@ -1735,6 +1735,95 @@ class TestStringifiedDAGs:
                 ],
                 key=lambda x: tuple(x.values()),
             )
+
+    @pytest.mark.db_test
+    def test_dag_deps_datasets_with_duplicate_dataset(self):
+        """
+        Check that dag_dependencies node is populated correctly for a DAG with duplicate datasets.
+        """
+        from airflow.sensors.external_task import ExternalTaskSensor
+
+        d1 = Dataset("d1")
+        d2 = Dataset("d2")
+        d3 = Dataset("d3")
+        d4 = Dataset("d4")
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
+            ExternalTaskSensor(
+                task_id="task1",
+                external_dag_id="external_dag_id",
+                mode="reschedule",
+            )
+            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
+
+            @dag.task(outlets=[d4])
+            def other_dataset_writer(x):
+                pass
+
+            other_dataset_writer.expand(x=[1, 2])
+
+        dag = SerializedDAG.to_dict(dag)
+        actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
+        expected = sorted(
+            [
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d4",
+                },
+                {
+                    "source": "external_dag_id",
+                    "target": "test",
+                    "dependency_type": "sensor",
+                    "dependency_id": "task1",
+                },
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d3",
+                },
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d2",
+                },
+                {
+                    "source": "dataset",
+                    "target": "test",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d1",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+            ],
+            key=lambda x: tuple(x.values()),
+        )
+        assert actual == expected
 
     @pytest.mark.db_test
     def test_dag_deps_datasets(self):

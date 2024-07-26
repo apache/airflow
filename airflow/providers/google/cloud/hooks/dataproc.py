@@ -274,7 +274,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         operation: Operation,
         timeout: float | None = None,
-        result_retry: AsyncRetry | _MethodDefault = DEFAULT,
+        result_retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
     ) -> Any:
         """Wait for a long-lasting operation to complete."""
         try:

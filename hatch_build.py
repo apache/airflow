@@ -40,6 +40,7 @@ GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provi
 PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 PRE_INSTALLED_PROVIDERS = [
+    "common.compat",
     "common.io",
     "common.sql",
     "fab>=1.0.2",

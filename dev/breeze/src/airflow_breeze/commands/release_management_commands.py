@@ -3357,7 +3357,7 @@ def generate_issue_content(
                 continue
             # Ignore doc-only and skipped PRs
             label_names = [label.name for label in pr.labels]
-            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+            if not is_helm_chart and ("type:doc-only" in label_names or "changelog:skip" in label_names):
                 continue
 
             pull_requests[pr_number] = pr

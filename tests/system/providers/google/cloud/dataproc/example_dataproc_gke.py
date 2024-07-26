@@ -41,13 +41,16 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteClusterOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "dataproc-gke"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "dataproc_gke"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 REGION = "us-central1"
-CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 GKE_CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}-gke".replace("_", "-")
 WORKLOAD_POOL = f"{PROJECT_ID}.svc.id.goog"
 GKE_CLUSTER_CONFIG = {
@@ -57,6 +60,7 @@ GKE_CLUSTER_CONFIG = {
     },
     "initial_node_count": 1,
 }
+
 GKE_NAMESPACE = os.environ.get("GKE_NAMESPACE", f"{CLUSTER_NAME}")
 # [START how_to_cloud_dataproc_create_cluster_in_gke_config]
 
@@ -70,7 +74,8 @@ VIRTUAL_CLUSTER_CONFIG = {
                     "roles": ["DEFAULT"],
                     "node_pool_config": {
                         "config": {
-                            "preemptible": True,
+                            "preemptible": False,
+                            "machine_type": "e2-standard-4",
                         }
                     },
                 }
@@ -130,7 +135,6 @@ with DAG(
         # TEST BODY
         >> create_cluster_in_gke
         # TEST TEARDOWN
-        # >> delete_gke_cluster
         >> delete_dataproc_cluster
         >> delete_gke_cluster
     )

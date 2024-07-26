@@ -261,6 +261,7 @@ Another way to achieve the same is by accessing ``outlet_events`` in a task's ex
 
 There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
 
+.. _fetching_information_from_previously_emitted_dataset_events:
 
 Fetching information from previously emitted dataset events
 -----------------------------------------------------------
@@ -438,6 +439,56 @@ Only one dataset event is emitted for an added dataset, even if it is added to t
         outlet_events["my-task-outputs-2"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
         # This line will emit an additional dataset event as the extra is different.
         outlet_events["my-task-outputs-3"].add(Dataset("s3://bucket/my-task"), extra={"k2": "v2"})
+
+Scheduling based on dataset aliases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Since dataset events added to an alias are just simple dataset events, a downstream depending on the actual dataset can read dataset events of it normally, without considering the associated aliases. A downstream can also depend on a dataset alias. The authoring syntax is referencing the ``DatasetAlias`` by name, and the associated dataset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=DatasetAlias("xxx")`` if and only if the alias is resolved into ``Dataset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``DatasetAlias("out")`` gets associated with at least one dataset at runtime, regardless of the dataset's identity. The downstream DAG is not triggered if no datasets are associated to the alias for a particular given task run. This also means we can do conditional dataset-triggering.
+
+.. code-block:: python
+
+    with DAG(dag_id="dataset-producer"):
+
+        @task(outlets=[Dataset("example-alias")])
+        def produce_dataset_events():
+            pass
+
+
+    with DAG(dag_id="dataset-alias-producer"):
+
+        @task(outlets=[DatasetAlias("example-alias")])
+        def produce_dataset_events(*, outlet_events):
+            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"))
+
+
+    with DAG(dag_id="dataset-consumer", schedule=Dataset("s3://bucket/my-task")):
+        ...
+
+    with DAG(dag_id="dataset-alias-consumer", schedule=DatasetAlias("example-alias")):
+        ...
+
+In the example above, before the DAG "dataset-alias-producer" is executed, the dataset alias ``DatasetAlias("example-alias")`` is not yet resolved to ``Dataset("s3://bucket/my-task")``. Consequently, completing the execution of the DAG "dataset-producer" will only trigger the DAG "dataset-consumer" and not the DAG "dataset-alias-consumer". However, upon triggering the DAG "dataset-alias-producer", the ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``, and it will produce a dataset event that triggers the DAG "dataset-consumer". At this point, ``DatasetAlias("example-alias")`` is resolved to ``Dataset("s3://bucket/my-task")``. Therefore, completing the execution of either DAG "dataset-producer" or "dataset-alias-producer" will trigger both the DAG "dataset-consumer" and "dataset-alias-consumer".
+
+
+Fetching information from previously emitted dataset events through resolved dataset aliases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As mentioned in :ref:`Fetching information from previously emitted dataset events<fetching_information_from_previously_emitted_dataset_events>`, inlet dataset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use dataset aliases to access the dataset events triggered by them.
+
+.. code-block:: python
+
+    with DAG(dag_id="dataset-alias-producer"):
+
+        @task(outlets=[DatasetAlias("example-alias")])
+        def produce_dataset_events(*, outlet_events):
+            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"), extra={"row_count": 1})
+
+
+    with DAG(dag_id="dataset-alias-consumer", schedule=None):
+
+        @task(inlets=[DatasetAlias("example-alias")])
+        def consume_dataset_alias_events(*, inlet_events):
+            events = inlet_events[DatasetAlias("example-alias")]
+            last_row_count = events[-1].extra["row_count"]
 
 
 Combining dataset and time-based schedules

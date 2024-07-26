@@ -100,7 +100,7 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
         )
 
-        dag_file_processor.process_file(file_path, [], False, session)
+        dag_file_processor.process_file(file_path, [], False)
 
     def test_newly_added_import_error(self, tmp_path, session):
         dag_import_error_listener.clear()

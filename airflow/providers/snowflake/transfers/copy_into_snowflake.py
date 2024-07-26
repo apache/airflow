@@ -228,14 +228,13 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         """Implement _on_complete because we rely on return value of a query."""
         import re
 
-        from openlineage.client.facet import (
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Error,
             ExternalQueryRunFacet,
-            ExtractionError,
             ExtractionErrorRunFacet,
-            SqlJobFacet,
+            SQLJobFacet,
         )
-        from openlineage.client.run import Dataset
-
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
@@ -261,7 +260,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
                 totalTasks=len(query_results),
                 failedTasks=len(extraction_error_files),
                 errors=[
-                    ExtractionError(
+                    Error(
                         errorMessage="Unable to extract Dataset namespace and name.",
                         stackTrace=None,
                         task=file_uri,
@@ -293,6 +292,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         return OperatorLineage(
             inputs=input_datasets,
             outputs=[Dataset(namespace=snowflake_namespace, name=dest_name)],
-            job_facets={"sql": SqlJobFacet(query=query)},
+            job_facets={"sql": SQLJobFacet(query=query)},
             run_facets=run_facets,
         )

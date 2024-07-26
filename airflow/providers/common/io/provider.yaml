@@ -53,7 +53,8 @@ xcom:
 
 dataset-uris:
   - schemes: [file]
-    handler: null
+    handler: airflow.providers.common.io.datasets.file.sanitize_uri
+    to_openlineage_converter: airflow.providers.common.io.datasets.file.convert_dataset_to_openlineage
     factory: airflow.providers.common.io.datasets.file.create_dataset
 
 config:
