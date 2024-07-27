@@ -131,7 +131,9 @@ def worker(args):
     if not api_url:
         raise SystemExit("Error: API URL is not configured, please correct configuration.")
     logger.info("Starting worker with API endpoint %s", api_url)
-    InternalApiConfig.force_api_access(api_url)
+    # export remote API to be used for internal API
+    os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
+    InternalApiConfig.set_use_internal_api("remote-worker")
 
     hostname: str = args.remote_hostname or _hostname()
     queues: list[str] | None = args.queues.split(",") if args.queues else None
