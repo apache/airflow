@@ -30,6 +30,7 @@ from airflow.models.dag import DAG
 from airflow.models.param import Param, ParamsDict
 from airflow.utils.trigger_rule import TriggerRule
 
+# [START params_trigger]
 with DAG(
     dag_id=Path(__file__).stem,
     dag_display_name="Params Trigger UI",
@@ -100,3 +101,4 @@ with DAG(
     french_greetings = generate_french_greeting.expand(name=names)
     lang_select >> [english_greetings, german_greetings, french_greetings]
     results_print = print_greetings(english_greetings, german_greetings, french_greetings)
+# [END params_trigger]
