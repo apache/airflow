@@ -24,6 +24,7 @@ The DAG should work in all standard setups without error.
 from __future__ import annotations
 
 from datetime import datetime
+from time import sleep
 
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowNotFoundException
@@ -120,7 +121,19 @@ with DAG(
         branching() >> [bash(), virtualenv(), variable(), connection(), classic_bash, classic_py, empty]
 
     @task
+    def long_running():
+        print("This task runs for 15 minutes")
+        for i in range(15):
+            sleep(60)
+            print(f"Running for {i + 1} minutes now.")
+        print("Long running task completed.")
+
+    @task
     def my_teardown():
         print("Assume this is a teardown task")
 
-    my_setup().as_setup() >> [mapping_task_group(), standard_tasks_group()] >> my_teardown().as_teardown()
+    (
+        my_setup().as_setup()
+        >> [mapping_task_group(), standard_tasks_group(), long_running()]
+        >> my_teardown().as_teardown()
+    )
