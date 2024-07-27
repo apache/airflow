@@ -358,7 +358,7 @@ The following features are supported in the Trigger UI Form:
     ``schedule=None`` the parameter value validation is made at time of trigger.
 
 For examples, please take a look at the two example DAGs provided: :ref:`Params trigger example DAG <params-trigger-ui>` and :ref:`Params UI example DAG <params-ui-tutorial>`.
- 
+
 .. _params-trigger-ui:
 .. exampleinclude:: /../../airflow/example_dags/example_params_trigger_ui.py
     :language: python

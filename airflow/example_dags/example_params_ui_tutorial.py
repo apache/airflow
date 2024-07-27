@@ -31,7 +31,6 @@ from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.models.param import Param, ParamsDict
 
-
 with DAG(
     dag_id=Path(__file__).stem,
     dag_display_name="Params UI tutorial",
@@ -242,7 +241,7 @@ with DAG(
         "hidden_secret_field": Param("constant value", const="constant value"),
     },
 ) as dag:
-# [START section_3]
+    # [START section_3]
     @task(task_display_name="Show used parameters")
     def show_params(**kwargs) -> None:
         params: ParamsDict = kwargs["params"]
