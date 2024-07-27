@@ -208,7 +208,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         """
         Pull XCom value.
 
@@ -437,7 +437,7 @@ class PlainXComArg(XComArg):
         )
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         ti = context["ti"]
         if TYPE_CHECKING:
             assert isinstance(ti, TaskInstance)
@@ -551,7 +551,7 @@ class MapXComArg(XComArg):
         return self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         value = self.arg.resolve(context, session=session, include_xcom=include_xcom)
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
@@ -632,7 +632,7 @@ class ZipXComArg(XComArg):
         return max(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
@@ -707,7 +707,7 @@ class ConcatXComArg(XComArg):
         return sum(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
