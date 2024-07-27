@@ -201,6 +201,9 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
+        # Incremental 24.7.0 has broken `python -m virtualenv` command when run in /opt/airflow directory
+        # This limit should be removed after fixing https://github.com/twisted/incremental/issues/106
+        "incremental<=22.10.0",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
