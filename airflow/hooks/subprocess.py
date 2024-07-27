@@ -24,6 +24,7 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
 
 from airflow.hooks.base import BaseHook
+from airflow.utils.platform import IS_WINDOWS
 
 SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
 
@@ -80,7 +81,8 @@ class SubprocessHook(BaseHook):
                 stderr=STDOUT,
                 cwd=cwd,
                 env=env if env or env == {} else os.environ,
-                preexec_fn=pre_exec,
+                preexec_fn=pre_exec if not IS_WINDOWS else None,
+                close_fds=IS_WINDOWS
             )
 
             self.log.info("Output:")
