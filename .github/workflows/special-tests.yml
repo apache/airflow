@@ -171,8 +171,8 @@ jobs:
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
-  tests-in-progress-disabled:
-    name: "In progress disabled test"
+  tests-database-isolation:
+    name: "Database isolation test"
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
       contents: read
@@ -180,9 +180,9 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      enable-aip-44: "false"
-      test-name: "InProgressDisabled-Postgres"
-      test-scope: "All"
+      database-isolation: "true"
+      test-name: "DatabaseIsolation-Postgres"
+      test-scope: "DB"
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"

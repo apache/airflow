@@ -60,7 +60,6 @@ from airflow.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.pydantic import is_pydantic_2_installed
@@ -89,9 +88,7 @@ CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
 HAS_PYDANTIC_2 = is_pydantic_2_installed()
-USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(
-    not HAS_PYDANTIC_2 or not _ENABLE_AIP_44, reason="`pydantic<2` or AIP-44 is not enabled"
-)
+USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not HAS_PYDANTIC_2, reason="`pydantic<2`")
 
 
 class BasePythonTest:
@@ -1017,6 +1014,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert task.execute_callable() == "EFGHI"
 
     @USE_AIRFLOW_CONTEXT_MARKER
+    @pytest.mark.skip_if_database_isolation_mode
     def test_current_context(self):
         def f():
             from airflow.operators.python import get_current_context
@@ -1068,6 +1066,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             )
 
     @USE_AIRFLOW_CONTEXT_MARKER
+    @pytest.mark.skip_if_database_isolation_mode
     def test_use_airflow_context_touch_other_variables(self):
         def f():
             from airflow.operators.python import get_current_context
@@ -1093,19 +1092,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
-        with pytest.raises(AirflowException, match=re.escape(error_msg)):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-
-    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
-    def test_use_airflow_context_without_aip_44_error(self):
-        def f():
-            from airflow.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        error_msg = "`get_current_context()` needs to be used with Pydantic 2."
         with pytest.raises(AirflowException, match=re.escape(error_msg)):
             self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
 
@@ -1410,6 +1397,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         "AssertRewritingHook including captured stdout and we need to run "
         "it with `--assert=plain` pytest option and PYTEST_PLAIN_ASSERTS=true .",
     )
+    # TODO(potiuk) check if this can be fixed in the future - for now we are skipping tests with venv
+    # and airflow context in DB isolation mode as they are passing None as DAG.
+    @pytest.mark.skip_if_database_isolation_mode
     def test_airflow_context(self, serializer):
         def f(
             # basic
@@ -1531,6 +1521,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
     @USE_AIRFLOW_CONTEXT_MARKER
+    @pytest.mark.skip_if_database_isolation_mode
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.operators.python import get_current_context
@@ -1874,6 +1865,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
         return kwargs
 
     @USE_AIRFLOW_CONTEXT_MARKER
+    @pytest.mark.skip_if_database_isolation_mode
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.operators.python import get_current_context

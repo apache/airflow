@@ -30,7 +30,7 @@ from urllib3.exceptions import NewConnectionError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.settings import _ENABLE_AIP_44, force_traceback_session_for_untrusted_components
+from airflow.settings import force_traceback_session_for_untrusted_components
 from airflow.typing_compat import ParamSpec
 from airflow.utils.jwt_signer import JWTSigner
 
@@ -55,8 +55,6 @@ class InternalApiConfig:
         This mode is needed for "trusted" components like Scheduler, Webserver, Internal Api server
         """
         InternalApiConfig._use_internal_api = False
-        if not _ENABLE_AIP_44:
-            raise RuntimeError("The AIP_44 is not enabled so you cannot use it. ")
         logger.info(
             "DB isolation mode. But this is a trusted component and DB connection is set. "
             "Using database direct access when running %s.",
@@ -65,8 +63,6 @@ class InternalApiConfig:
 
     @staticmethod
     def set_use_internal_api(component: str, allow_tests_to_use_db: bool = False):
-        if not _ENABLE_AIP_44:
-            raise RuntimeError("The AIP_44 is not enabled so you cannot use it. ")
         internal_api_url = conf.get("core", "internal_api_url")
         url_conf = urlparse(internal_api_url)
         api_path = url_conf.path

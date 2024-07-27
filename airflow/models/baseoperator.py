@@ -1512,10 +1512,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     data_interval=info.data_interval,
                 )
                 ti = TaskInstance(self, run_id=dr.run_id)
+                session.add(ti)
                 ti.dag_run = dr
                 session.add(dr)
                 session.flush()
-
+                session.commit()
             ti.run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,

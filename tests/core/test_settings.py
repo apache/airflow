@@ -31,7 +31,7 @@ from airflow.__main__ import configure_internal_api
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
+from airflow.settings import TracebackSession, is_usage_data_collection_enabled
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
@@ -301,7 +301,6 @@ class TestEngineArgs:
         assert "encoding" not in engine_args
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @conf_vars(
     {
         ("core", "database_access_isolation"): "true",
@@ -309,7 +308,7 @@ class TestEngineArgs:
         ("database", "sql_alchemy_conn"): "none://",
     }
 )
-def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
+def test_get_traceback_session(clear_internal_api):
     configure_internal_api(Namespace(subcommand="worker"), conf)
     assert InternalApiConfig.get_use_internal_api() is True
 
@@ -326,7 +325,6 @@ def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
             session.execute()
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @conf_vars(
     {
         ("core", "database_access_isolation"): "true",

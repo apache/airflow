@@ -49,7 +49,6 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
-from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_get_outlet_events, context_merge
@@ -552,8 +551,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             self._write_args(input_path)
             self._write_string_args(string_args_path)
 
-            if self.use_airflow_context and (not is_pydantic_2_installed() or not _ENABLE_AIP_44):
-                error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+            if self.use_airflow_context and not is_pydantic_2_installed():
+                error_msg = "`get_current_context()` needs to be used with Pydantic 2."
                 raise AirflowException(error_msg)
 
             jinja_context = {
