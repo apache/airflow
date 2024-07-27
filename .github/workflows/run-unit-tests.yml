@@ -104,6 +104,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "true"
         type: string
+      database-isolation:
+        description: "Whether to enable database isolattion or not (true/false)"
+        required: false
+        default: "false"
+        type: string
       force-lowest-dependencies:
         description: "Whether to force lowest dependencies for the tests or not (true/false)"
         required: false
@@ -152,6 +157,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
+      DATABASE_ISOLATION: "${{ inputs.database-isolation }}"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"

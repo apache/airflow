@@ -206,6 +206,7 @@ def _run_test(
             helm_test_package=None,
             keep_env_variables=shell_params.keep_env_variables,
             no_db_cleanup=shell_params.no_db_cleanup,
+            database_isolation=shell_params.database_isolation,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
@@ -968,6 +969,7 @@ def helm_tests(
         helm_test_package=helm_test_package,
         keep_env_variables=False,
         no_db_cleanup=False,
+        database_isolation=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

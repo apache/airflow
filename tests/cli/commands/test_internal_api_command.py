@@ -83,6 +83,9 @@ class TestCLIGetNumReadyWorkersRunning:
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
+# Those tests are skipped in isolation mode because they interfere with the internal API
+# server already running in the background in the isolation mode.
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestCliInternalAPI(_ComonCLIGunicornTestClass):
