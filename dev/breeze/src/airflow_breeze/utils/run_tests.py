@@ -311,6 +311,7 @@ def generate_args_for_pytest(
     helm_test_package: str | None,
     keep_env_variables: bool,
     no_db_cleanup: bool,
+    database_isolation: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
@@ -327,12 +328,16 @@ def generate_args_for_pytest(
             helm_test_package=helm_test_package,
             python_version=python_version,
         )
+
+    max_fail = 50
+    if database_isolation:
+        max_fail = 1000
     args.extend(
         [
             "--verbosity=0",
             "--strict-markers",
             "--durations=100",
-            "--maxfail=50",
+            f"--maxfail={max_fail}",
             "--color=yes",
             f"--junitxml={result_log_file}",
             # timeouts in seconds for individual tests

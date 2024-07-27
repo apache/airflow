@@ -32,7 +32,6 @@ from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
 
@@ -61,7 +60,6 @@ def reset_init_api_config():
         settings.SQL_ALCHEMY_CONN = old_conn
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestInternalApiConfig:
     @conf_vars(
         {
@@ -97,7 +95,6 @@ class TestInternalApiConfig:
         assert InternalApiConfig.get_use_internal_api() is False
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestInternalApiCall:
     @staticmethod
     @internal_api_call

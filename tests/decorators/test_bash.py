@@ -33,6 +33,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
+# TODO(potiuk) see why this test hangs in DB isolation mode
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 @pytest.mark.db_test
 class TestBashDecorator:

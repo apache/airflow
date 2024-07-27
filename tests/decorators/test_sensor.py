@@ -26,7 +26,7 @@ from airflow.models import XCom
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 class TestSensorDecorator:
@@ -52,6 +52,7 @@ class TestSensorDecorator:
             sf >> df
 
         dr = dag_maker.create_dagrun()
+
         sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2
