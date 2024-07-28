@@ -97,6 +97,16 @@ class TestPgbouncer:
             "prometheus.io/port": "9127",
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
+    
+    def test_pgbouncer_service_static_cluster_ip(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True, "service": {"ip": "10.10.10.10"}},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+        )
+
+        assert "10.10.10.10" == jmespath.search("spec.clusterIP", docs[0])
 
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
