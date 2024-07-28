@@ -8,7 +8,7 @@ from utils.google_cloud.gcloud_utils import (
     open_routing_to_gke_node,
 )
 
-MODULE_NAME = "performance_scripts.utils.google_cloud.gcloud_utils"
+MODULE_NAME = "utils.google_cloud.gcloud_utils"
 
 
 PROJECT_ID = "test_project_id"

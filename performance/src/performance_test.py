@@ -111,7 +111,7 @@ class PerformanceTest:
 
         jinja_variables_dict = jinja_variables_dict or {}
 
-        instance_type = self.get_instance_type(instance_specification_file_path)
+        instance_type = self.get_environment_type(instance_specification_file_path)
 
         if instance_type == ComposerEnvironment.environment_type:
             self.environment = ComposerEnvironment(
@@ -146,7 +146,7 @@ class PerformanceTest:
     # pylint: enable=too-many-arguments
 
     @staticmethod
-    def get_instance_type(instance_specification_file_path: str) -> str:
+    def get_environment_type(instance_specification_file_path: str) -> str:
         """
         Reads the contents of the instance_specification_file_path
         and returns the environment type.

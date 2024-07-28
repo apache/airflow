@@ -1,6 +1,7 @@
 from unittest import TestCase, mock
 
 from google.cloud.monitoring_v3.types import TimeInterval, TypedValue
+from google.protobuf import timestamp_pb2
 
 # fmt: off
 from environments.kubernetes.gke.collecting_results.\
@@ -25,7 +26,7 @@ class TestMonitoringApi(TestCase):
         self.end_date = "1970-01-01 00:01:01.20"
 
         with mock.patch(
-            "performance_scripts.environments.kubernetes.gke.collecting_results.monitoring_api."
+            "environments.kubernetes.gke.collecting_results.monitoring_api."
             "monitoring_api.monitoring_v3.MetricServiceClient"
         ):
             self.api = MonitoringApi(project_id=PROJECT_ID)
@@ -99,7 +100,7 @@ class TestMonitoringApi(TestCase):
         }
 
         with mock.patch(
-            "performance_scripts.environments.kubernetes.gke.collecting_results.monitoring_api."
+            "environments.kubernetes.gke.collecting_results.monitoring_api."
             "monitoring_api.MonitoringApi.list_time_series"
         ) as mock_list_time_series:
             self.api.collect_time_series(self.start_date, self.end_date, resources_map)
@@ -129,7 +130,7 @@ class TestMonitoringApi(TestCase):
         }
 
         with mock.patch(
-            "performance_scripts.environments.kubernetes.gke.collecting_results.monitoring_api."
+            "environments.kubernetes.gke.collecting_results.monitoring_api."
             "monitoring_api.MonitoringApi.list_time_series"
         ) as mock_list_time_series:
             self.api.collect_time_series(self.start_date, self.end_date, resources_map)
@@ -148,20 +149,21 @@ class TestMonitoringApi(TestCase):
         }
 
         with mock.patch(
-            "performance_scripts.environments.kubernetes.gke.collecting_results.monitoring_api."
+            "environments.kubernetes.gke.collecting_results.monitoring_api."
             "monitoring_api.MonitoringApi.list_time_series"
         ) as mock_list_time_series:
             self.api.collect_time_series(self.start_date, self.end_date, resources_map)
             self.assertEqual(mock_list_time_series.call_count, 2)
 
     def test_get_time_interval(self):
-        interval = TimeInterval()
+        start_time = timestamp_pb2.Timestamp()
+        start_time.seconds = 0
+        start_time.nanos = 0
 
-        interval.start_time.seconds = 0
-        interval.end_time.seconds = 120
-
-        interval.start_time.nanos = 0
-        interval.end_time.nanos = 0
+        end_time = timestamp_pb2.Timestamp()
+        end_time.nanos = 0
+        end_time.seconds = 120
+        interval = TimeInterval(start_time=start_time, end_time=end_time)
 
         self.assertEqual(self.api.get_time_interval(self.start_date, self.end_date), interval)
 

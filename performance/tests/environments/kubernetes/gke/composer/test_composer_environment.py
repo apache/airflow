@@ -40,7 +40,7 @@ JINJA_VARIABLES_DICT = {
     "python_version": "3",
     "node_count": "4",
 }
-CONSTRUCTED_ENVIRONMENT_ID = "cmp-1-13-0-af1-10-12-py3-4nodes"
+CONSTRUCTED_ENVIRONMENT_ID = "cmp-2-8-3-af2-7-3-py3-4nodes"
 BUCKET_NAME = "test_bucket"
 DAGS_FOLDER = "dags"
 CONFIG_BODY_ENV_VARS = {
@@ -77,10 +77,8 @@ NUMBER_OF_ATTEMPTS = 3
 # pylint: disable=too-many-lines
 class TestComposerEnvironment(TestCase):
     def setUp(self):
-        with mock.patch(
-            "performance_scripts.environments.kubernetes.gke.gke_based_environment.ClusterManagerClient"
-        ), mock.patch(
-            "performance_scripts.environments.kubernetes.gke.gke_based_environment.build"
+        with mock.patch("environments.kubernetes.gke.gke_based_environment.ClusterManagerClient"), mock.patch(
+            "environments.kubernetes.gke.gke_based_environment.build"
         ), mock.patch(
             MODULE_NAME + ".ComposerEnvironment.load_specification"
         ) as mock_load_specification, mock.patch(
@@ -96,8 +94,8 @@ class TestComposerEnvironment(TestCase):
             )
             self.composer = ComposerEnvironment(INSTANCE_SPECIFICATION_FILE_PATH, DAG_FILE_PATH)
 
-    @mock.patch("performance_scripts.environments.kubernetes.gke.gke_based_environment.ClusterManagerClient")
-    @mock.patch("performance_scripts.environments.kubernetes.gke.gke_based_environment.build")
+    @mock.patch("environments.kubernetes.gke.gke_based_environment.ClusterManagerClient")
+    @mock.patch("environments.kubernetes.gke.gke_based_environment.build")
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.load_specification")
     @mock.patch(MODULE_NAME + ".ComposerApi")
     @mock.patch(MODULE_NAME + ".StorageClient")
@@ -147,7 +145,7 @@ class TestComposerEnvironment(TestCase):
     def test_construct_environment_id_too_long(self):
         jinja_variables_dict = deepcopy(JINJA_VARIABLES_DICT)
 
-        expected_result = "cmp-1-13-0-af1-10-12-py"
+        expected_result = "cmp-2-8-3-af2-7-3-py"
 
         jinja_variables_dict["python_version"] = (64 - len(expected_result) - 1) * "1"
 

@@ -11,7 +11,7 @@ from environments.kubernetes.gke.gke_based_environment import (
     GKEBasedEnvironment,
 )
 
-MODULE_NAME = "performance_scripts.environments.kubernetes.gke.gke_based_environment"
+MODULE_NAME = "environments.kubernetes.gke.gke_based_environment"
 ENVIRONMENT_SPECIFICATIONS_DIR = os.path.join(
     os.path.dirname(__file__), "environments", "environment_specifications"
 )
@@ -33,6 +33,7 @@ COLUMNS = ["A", "B"]
 
 
 class TestGKEBasedEnvironment(TestCase):
+    @mock.patch.multiple(GKEBasedEnvironment, __abstractmethods__=set())
     def setUp(self):
         with mock.patch(MODULE_NAME + ".ClusterManagerClient"), mock.patch(MODULE_NAME + ".build"):
             self.gke_env = GKEBasedEnvironment(

@@ -16,6 +16,7 @@ from google.cloud.monitoring_v3.types import (
     TimeSeries,
     TypedValue,
 )
+from google.protobuf import timestamp_pb2
 
 
 ALIGNMENT_PERIOD = {"seconds": 60}
@@ -200,15 +201,18 @@ class MonitoringApi:
         :rtype: TimeInterval
         """
 
-        interval = TimeInterval()
         start_date_seconds = convert_to_full_minutes_timestamp(start_date)
         end_date_seconds = convert_to_full_minutes_timestamp(end_date, round_up=True)
 
-        interval.start_time.seconds = int(start_date_seconds)
-        interval.end_time.seconds = int(end_date_seconds)
+        start_time = timestamp_pb2.Timestamp()
+        start_time.seconds = int(start_date_seconds)
+        start_time.nanos = int((start_date_seconds - start_time.seconds) * 10**9)
 
-        interval.start_time.nanos = int((start_date_seconds - interval.start_time.seconds) * 10**9)
-        interval.end_time.nanos = int((end_date_seconds - interval.end_time.seconds) * 10**9)
+        end_time = timestamp_pb2.Timestamp()
+        end_time.seconds = int(end_date_seconds)
+        end_time.nanos = int((end_date_seconds - end_time.seconds) * 10**9)
+
+        interval = TimeInterval(start_time=start_time, end_time=end_time)
         return interval
 
     def get_aggregation(self, metric_type: str) -> Aggregation:

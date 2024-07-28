@@ -7,7 +7,7 @@ from environments.kubernetes.gke.gke_remote_runner_provider import (
     GKERemoteRunnerProvider,
 )
 
-MODULE_NAME = "performance_scripts.environments.kubernetes.gke.gke_remote_runner_provider"
+MODULE_NAME = "environments.kubernetes.gke.gke_remote_runner_provider"
 
 PROJECT_ID = "test_project_id"
 ZONE = "test_zone"

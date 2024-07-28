@@ -10,7 +10,7 @@ from environments.base_environment import (
 
 MODULE_NAME = "performance_test"
 ENVIRONMENT_SPECIFICATIONS_DIR = os.path.join(
-    os.path.dirname(__file__), "instances", "environment_specifications"
+    os.path.dirname(__file__), "environments", "environment_specifications"
 )
 
 COMPOSER_ENVIRONMENT_TYPE = "COMPOSER"
@@ -23,14 +23,14 @@ OUTPUT_PATH = "output_file.csv"
 
 class TestPerformanceTest(TestCase):
     @mock.patch(
-        MODULE_NAME + ".PerformanceTest.get_instance_type",
+        MODULE_NAME + ".PerformanceTest.get_environment_type",
         return_value=COMPOSER_ENVIRONMENT_TYPE,
     )
     @mock.patch(MODULE_NAME + ".ComposerEnvironment")
     def test_init_composer_environment(
         self,
         mock_composer_environment,
-        mock_get_instance_type,
+        mock_get_environment_type,
     ):
 
         mock_composer_environment.environment_type = COMPOSER_ENVIRONMENT_TYPE
@@ -45,7 +45,7 @@ class TestPerformanceTest(TestCase):
 
         self.assertEqual(performance_test.environment, mock_composer_environment.return_value)
 
-        mock_get_instance_type.assert_called_once_with(INSTANCE_SPECIFICATION_FILE_PATH)
+        mock_get_environment_type.assert_called_once_with(INSTANCE_SPECIFICATION_FILE_PATH)
         mock_composer_environment.assert_called_once_with(
             INSTANCE_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_FILE_PATH,
@@ -59,14 +59,14 @@ class TestPerformanceTest(TestCase):
         )
 
     @mock.patch(
-        MODULE_NAME + ".PerformanceTest.get_instance_type",
+        MODULE_NAME + ".PerformanceTest.get_environment_type",
         return_value=COMPOSER_ENVIRONMENT_TYPE,
     )
     @mock.patch(MODULE_NAME + ".ComposerEnvironment")
     def test_init_composer_environment_no_results(
         self,
         mock_composer_environment,
-        mock_get_instance_type,
+        mock_get_environment_type,
     ):
 
         mock_composer_environment.environment_type = COMPOSER_ENVIRONMENT_TYPE
@@ -78,14 +78,14 @@ class TestPerformanceTest(TestCase):
                 elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
             )
 
-        mock_get_instance_type.assert_not_called()
+        mock_get_environment_type.assert_not_called()
         mock_composer_environment.assert_not_called()
 
     @mock.patch(
-        MODULE_NAME + ".PerformanceTest.get_instance_type",
+        MODULE_NAME + ".PerformanceTest.get_environment_type",
         return_value="NON_EXISTENT_TYPE",
     )
-    def test_init_wrong_environment_type(self, mock_get_instance_type):
+    def test_init_wrong_environment_type(self, mock_get_environment_type):
         with self.assertRaises(ValueError):
             _ = PerformanceTest(
                 instance_specification_file_path=INSTANCE_SPECIFICATION_FILE_PATH,
@@ -93,24 +93,24 @@ class TestPerformanceTest(TestCase):
                 elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
                 output_path=OUTPUT_PATH,
             )
-        mock_get_instance_type.assert_called_once_with(INSTANCE_SPECIFICATION_FILE_PATH)
+        mock_get_environment_type.assert_called_once_with(INSTANCE_SPECIFICATION_FILE_PATH)
 
-    def test_get_instance_type(self):
-        file_path = os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_instance_type.json")
+    def test_get_environment_type(self):
+        file_path = os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_environment_type.json")
 
-        self.assertEqual(PerformanceTest.get_instance_type(file_path), "SOME_TYPE")
+        self.assertEqual(PerformanceTest.get_environment_type(file_path), "SOME_TYPE")
 
-    def test_get_instance_type_not_a_dict(self):
+    def test_get_environment_type_not_a_dict(self):
         file_path = os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "not_a_dict.json")
 
         with self.assertRaises(TypeError):
-            PerformanceTest.get_instance_type(file_path)
+            PerformanceTest.get_environment_type(file_path)
 
-    def test_get_instance_type_no_key(self):
-        file_path = os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "no_instance_type_key.json")
+    def test_get_environment_type_no_key(self):
+        file_path = os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "no_environment_type_key.json")
 
         with self.assertRaises(KeyError):
-            PerformanceTest.get_instance_type(file_path)
+            PerformanceTest.get_environment_type(file_path)
 
     def test_get_results_object_name(self):
         result = PerformanceTest.get_results_object_name(["environment_user", "x.x.x", "aaa-bbb-ccc"])
@@ -125,7 +125,7 @@ class TestPerformanceTestWithComposerEnvironment(TestCase):
     def setUp(self):
 
         with mock.patch(
-            MODULE_NAME + ".PerformanceTest.get_instance_type",
+            MODULE_NAME + ".PerformanceTest.get_environment_type",
             return_value=COMPOSER_ENVIRONMENT_TYPE,
         ), mock.patch(MODULE_NAME + ".ComposerEnvironment") as mock_composer_environment:
 

@@ -30,7 +30,9 @@ JINJA_VARIABLES_DICT = {
 # pylint: disable=no-self-use
 class TestFileUtils(TestCase):
     def test_read_json_file(self):
-        file_contents = read_json_file(os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_instance_type.json"))
+        file_contents = read_json_file(
+            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_environment_type.json")
+        )
 
         self.assertEqual(EXPECTED_FILE_CONTENTS, file_contents)
 
@@ -58,7 +60,7 @@ class TestFileUtils(TestCase):
     def test_read_templated_json_file__non_templated_file(self):
 
         rendered_file_contents = read_templated_json_file(
-            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_instance_type.json"),
+            os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_environment_type.json"),
             jinja_variables_dict=deepcopy(JINJA_VARIABLES_DICT),
         )
 
@@ -141,7 +143,7 @@ class TestFileUtils(TestCase):
 
         self.assertEqual(expected_rendered_file_contents, rendered_file_contents)
 
-    @mock.patch("performance_scripts.utils.file_utils.check_output_path")
+    @mock.patch("utils.file_utils.check_output_path")
     @mock.patch("os.path.isdir", return_value=False)
     @mock.patch("os.path.join")
     def test_save_output_file(self, mock_join, mock_is_dir, mock_check_output_path):
@@ -155,7 +157,7 @@ class TestFileUtils(TestCase):
         mock_join.assert_not_called()
         results_df.to_csv.assert_called_once_with(OUTPUT_PATH, index=False)
 
-    @mock.patch("performance_scripts.utils.file_utils.check_output_path")
+    @mock.patch("utils.file_utils.check_output_path")
     @mock.patch("os.path.isdir", return_value=True)
     @mock.patch("os.path.join")
     def test_save_output_file_dir_path(self, mock_join, mock_is_dir, mock_check_output_path):
@@ -173,7 +175,7 @@ class TestFileUtils(TestCase):
         mock_join.assert_called_once_with(OUTPUT_PATH, DEFAULT_FILE_NAME)
         results_df.to_csv.assert_called_once_with(mock_join.return_value, index=False)
 
-    @mock.patch("performance_scripts.utils.file_utils.check_output_path")
+    @mock.patch("utils.file_utils.check_output_path")
     @mock.patch("os.path.isdir", return_value=True)
     @mock.patch("os.path.join")
     def test_save_output_file_dir_path_no_extension(self, mock_join, mock_is_dir, mock_check_output_path):
@@ -191,7 +193,7 @@ class TestFileUtils(TestCase):
         mock_join.assert_called_once_with(OUTPUT_PATH, DEFAULT_FILE_NAME)
         results_df.to_csv.assert_called_once_with(mock_join.return_value, index=False)
 
-    @mock.patch("performance_scripts.utils.file_utils.check_output_path")
+    @mock.patch("utils.file_utils.check_output_path")
     @mock.patch("os.path.isdir", return_value=True)
     @mock.patch("os.path.join")
     def test_save_output_file_dir_path_no_default_file_name(

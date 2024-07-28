@@ -127,8 +127,7 @@ class TestMetricsDataframe(TestCase):
         # we change the order so that CLUSTER type is first merged into both POD and CONTAINER types
         # causing cluster metric columns to duplicate when merging POD and CONTAINER
         with mock.patch(
-            "performance_scripts.environments.kubernetes.gke.collecting_results.metrics_dataframe."
-            "get_merging_order",
+            "environments.kubernetes.gke.collecting_results.metrics_dataframe." "get_merging_order",
             return_value=list(ResourceType),
         ):
             with self.assertRaises(ValueError):
