@@ -97,7 +97,7 @@ class TestPgbouncer:
             "prometheus.io/port": "9127",
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
-    
+
     def test_pgbouncer_service_static_cluster_ip(self):
         docs = render_chart(
             values={
