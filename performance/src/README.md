@@ -693,11 +693,8 @@ Its arguments are described below:
 ```
   usage: run_multiple_performance_tests.py [-h] -s STUDY_FILE_PATH
                                            [-m MAX_CONCURRENCY]
-                                           [--reports-bucket REPORTS_BUCKET]
-                                           [--reports-project-id REPORTS_PROJECT_ID]
-                                           [-u SCRIPT_USER] [-c CI_BUILD_ID]
+                                           [-u SCRIPT_USER]
                                            [-d LOGS_DIRECTORY]
-                                           [-p LOGS_PROJECT_ID] [-b LOGS_BUCKET]
 
   optional arguments:
     -h, --help            show this help message and exit
@@ -718,40 +715,16 @@ Its arguments are described below:
     -m MAX_CONCURRENCY, --max-concurrency MAX_CONCURRENCY
                           Maximal number of test attempts this script may run at
                           the same time. Must be a positive integer.
-    --reports-bucket REPORTS_BUCKET
-                          Name of the GCS bucket where the directory with
-                          reports will be uploaded This argument can also be
-                          provided in the study file.
-    --reports-project-id REPORTS_PROJECT_ID
-                          Google cloud project id. It is used to specify where
-                          the GCS bucket for reports should be created in case
-                          it does not exist (reports-bucket argument). If not
-                          provided, the script will attempt to collect the
-                          project id from the ADC. This argument can also be
-                          provided in the study file.
     -u SCRIPT_USER, --script-user SCRIPT_USER
                           Name of the user who executed this script. If
                           provided, it will override 'user' column in the
                           results tables (it will override 'user' entry of
                           'results_columns' arg for every study component).
-    -c CI_BUILD_ID, --ci-build-id CI_BUILD_ID
-                          [DEPRECATED] Id of the automatic CI build that
-                          triggered this script. If provided, it will override
-                          'ci_build_id' column in the results tables (it will
-                          override 'ci_build_id' entry of 'results_columns' arg
-                          for every study component).
     -d LOGS_DIRECTORY, --logs-directory LOGS_DIRECTORY
                           [DEPRECATED] Path to the directory in which the logs
                           of test attempts will be stored - one log for every
                           test attempt. This argument can also be provided in
                           the study file.
-    -p LOGS_PROJECT_ID, --logs-project-id LOGS_PROJECT_ID
-                          [DEPRECATED] Google cloud project id. It is used to
-                          specify where the GCS bucket for logs should be
-                          created in case it does not exist (logs-bucket
-                          argument). If not provided, the script will attempt to
-                          collect the project id from the ADC. This argument can
-                          also be provided in the study file.
     -b LOGS_BUCKET, --logs-bucket LOGS_BUCKET
                           [DEPRECATED] Name of the GCS bucket where the logs of
                           test attempts will be stored: one blob for every
@@ -809,19 +782,6 @@ Every study file is a dict that can contain following keys at a top level:
   unless one specifies its own list.
 - `default_attempts` - default number of attempts every study component should be run, unless one
   specifies its own number of attempts. If not provided, defaults to 1.
-- `reports_bucket` - the GCS bucket where the directories with contents of performance tests results
-  analysis will be stored. Is overridden by `--reports-bucket` argument of the script, but otherwise
-  has same purpose. The `reports_bucket` must be provided either in the study file or via argument.
-- `reports_project_id` - project id for the `reports_bucket`. Will be used only if the provided
-  bucket does not exist. If not provided, the script will use the project id from the ADC.
-  Is overridden by `--reports-project-id` argument of the script, but otherwise has same purpose.
-- `logs_directory` - `[DEPRECATED]` the local path to store the logs, separate file for every test
-  attempt. Is overridden by `--logs-directory` argument of the script, but otherwise has same purpose.
-- `logs_bucket` - `[DEPRECATED]` the GCS bucket to store the logs, separate blob for every test
-  attempt. The script will create the bucket if it does not exist. Is overridden by `--logs-bucket`
-  argument of the script, but otherwise has same purpose.
-- `logs_project_id` - `[DEPRECATED]` project id for the `logs_bucket`.
-  Is overridden by `--logs-project-id` argument of the script, but otherwise has same purpose.
 
 Let's take a look at the contents of an exemplary study file
 [composer_study_example.json](studies/composer_study_example.json) to determine, what arguments
@@ -844,13 +804,13 @@ will be used when starting test attempts.
             `default_args`.
         1. `flags`: because this component does not specify its own `flags`, `default_flags` list
         (equal to `["delete_if_exists", "delete_upon_finish"]`) is used.
-        1. `attempts`: because this component does not specify its own `attempts`, `default_attempts`
+        2. `attempts`: because this component does not specify its own `attempts`, `default_attempts`
         (equal to `4`) are used instead.
-        1. `randomize_environment_name`: because this component does not specify this field, a default
+        3. `randomize_environment_name`: because this component does not specify this field, a default
         value of `true` will be used. It means that a random string will be added to `environment_id`
         (`"big-env"`) when constructing environment name for every test attempt of this component.
 
-1.  second study component: 1. `component_name`: this component is called `"component_2"` 1. `baseline_component_name`: `"component_1"` is the baseline to which performance of this
+2.  second study component: 1. `component_name`: this component is called `"component_2"` 1. `baseline_component_name`: `"component_1"` is the baseline to which performance of this
     component will be compared 1. `args`: three arguments specified in dict explicitly: - `environment_specification_file_path` - relative path leading to
     [config_small.json](environments/kubernetes/gke/composer/composer_configurations/config_small.json). - `results_dataset` - a BQ dataset called `"another_results_dataset"`,
     which overrides the value from `default_args` - `jinja_variables` - a dictionary with two keys: `environment_id` and `project_id`.
@@ -866,17 +826,15 @@ will be used when starting test attempts.
                 ```
         1. `flags`: this component specifies its own `flags` list (equal to `["delete_if_exists"]`),
         which is used instead of `default_flags`.
-        1. `attempts`: this component specifies its own `attempts` (equal to `1`),
+        2. `attempts`: this component specifies its own `attempts` (equal to `1`),
         which are used instead of `default_attempts`.
-        1. `randomize_environment_name`: this component has explicitly specified not to add a random
+        3. `randomize_environment_name`: this component has explicitly specified not to add a random
         part to `environment_id` (`"small-env"`) when constructing environment name. Setting this flag
         will not cause the script to fail, as number of attempts for this study component was set to
         `1`, so environment names will not overlap.
 
     After all test attempts finish their execution, reports will be generated and stored in
-    `bucket_for_perf_test_reports` GCS bucket. A total of three reports will be generated: one
-    individual report for every study component and one comparison report.
-    Additionally, "statistics" table is populated with aggregated results from all test attempts.
+    a file.
 
 Additional notes:
 
@@ -884,15 +842,6 @@ Additional notes:
   attempt, but some issues can only be discovered upon starting the test attempt execution. It is
   recommended to test the specifications using `airflow-gepard` script first.
 - relative file path `environment_specification_file_path` is considered to be relative to the study file location.
-- the only supported way of storing the results is BQ dataset (`results_dataset`). Providing
-  `output_path` or `results_bucket` for any of the components will cause the study validation to fail.
-- results of all test attempts belonging to the same study component are saved in the same BQ table
-  (`results_object_name` argument). The table name is generated by the script and follows the format:
-  `{study_id}__{environment_type}__{component_name}`, where: - `study_id` - an id of the study execution. It is a timestamp in format `%Y%m%d_%H_%M_%S`,
-  generated at the start of the script. - `environment_type` - type of the environment used by the component. - `component_name` is the name of the study component that can be provided in study file. If
-  name for given component was not provided, then name in format `{environment_type}_{index}` will
-  be used, where `index` corresponds to the order of components with the same `environment_type`
-  in study file.
 - for now, all test attempts for private IP Composer environments are run in sequence. It is
   necessary to run them with `delete_upon_finish` flag to allow next attempt to reuse the IP ranges.
   It is also not recommended to test private IP Composer environments using this script if you have to
@@ -1243,90 +1192,3 @@ The resulting table will contain following columns:
 
 Additionally the results table can contain any extra columns provided with `--results-columns`
 argument. These additional column will be added in sorted order at the beginning of the table.
-
-### Automatic report contents
-
-Report generation is currently only execute when running performance test via `run_multiple_performance_tests.py`.
-Reports are generated once all test attempts of the study finish their execution. An individual
-report is generated for each study component using the template [report.md.tpl](../reports/report.md.tpl).
-Specifying a `baseline_component_name` for any of the study components also causes a comparison
-report to be generated, that uses the template [comparison_report.md.tpl](../reports/comparison_report.md.tpl).
-
-Each report contains the following:
-
-- detailed information about configuration of test attempts belonging to study component(s),
-  including the count of anomalous test attempts and test attempts with failed dag runs, which
-  are removed from results analysis
-- a description of metrics presented in the report
-- a table with average values of aggregated metrics calculated across all test attempts belonging
-  to the study component(s) (and their comparison in case of comparison reports)
-- time series metric charts, showing how time series metrics changed in time, separately line for
-  every test attempt belonging to the study component(s)
-- boxplot charts, showing the overall range of values of the time series metrics
-  across all test attempts belonging to the study component(s).
-
-The directory with reports is saved under `reports_bucket` GCS bucket provided when running
-the study. For example, below tou can see the structure of the reports directory for the exemplary
-study file [composer_study_example.json](studies/composer_study_example.json):
-
-```
-.
-+-- {study_id}
-    +-- individual_reports
-    |    +-- component_1
-    |    |    +-- component_1.md
-    |    |    +-- component_1.pdf
-    |    |    +-- boxplot_charts
-    |    |    |    +-- k8s_node__GAUGE__kubernetes_io_node_cpu_core_usage_time_per_second_box_plot.png
-    |    |    |    +-- k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_evictable_box_plot.png
-    |    |    |    +-- k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_non_evictable_box_plot.png
-    |    |    |    +-- k8s_node__GAUGE__kubernetes_io_node_network_received_bytes_count_per_second_box_plot.png
-    |    |    |    +-- k8s_node__GAUGE__kubernetes_io_node_network_sent_bytes_count_per_second_box_plot.png
-    |    |    +-- time_series_charts
-    |    |         +-- all__k8s_node__GAUGE__kubernetes_io_node_cpu_core_usage_time_per_second_time_series_chart.png
-    |    |         +-- all__k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_evictable_time_series_chart.png
-    |    |         +-- all__k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_non_evictable_time_series_chart.png
-    |    |         +-- all__k8s_node__GAUGE__kubernetes_io_node_network_received_bytes_count_per_second_time_series_chart.png
-    |    |         +-- all__k8s_node__GAUGE__kubernetes_io_node_network_sent_bytes_count_per_second_time_series_chart.png
-    |    +-- component_2
-    |        ...
-    +-- comparison_reports
-        +-- component_1__AND__component_2
-            +-- component_1__AND__component_2.md
-            +-- component_1__AND__component_2.pdf
-            +-- boxplot_charts
-            |    +-- k8s_node__GAUGE__kubernetes_io_node_cpu_core_usage_time_per_second_box_plot.png
-            |    +-- k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_evictable_box_plot.png
-            |    +-- k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_non_evictable_box_plot.png
-            |    +-- k8s_node__GAUGE__kubernetes_io_node_network_received_bytes_count_per_second_box_plot.png
-            |    +-- k8s_node__GAUGE__kubernetes_io_node_network_sent_bytes_count_per_second_box_plot.png
-            +-- time_series_charts
-                 +-- all__k8s_node__GAUGE__kubernetes_io_node_cpu_core_usage_time_per_second_time_series_chart.png
-                 +-- all__k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_evictable_time_series_chart.png
-                 +-- all__k8s_node__GAUGE__kubernetes_io_node_memory_used_bytes__memory_type_non_evictable_time_series_chart.png
-                 +-- all__k8s_node__GAUGE__kubernetes_io_node_network_received_bytes_count_per_second_time_series_chart.png
-                 +-- all__k8s_node__GAUGE__kubernetes_io_node_network_sent_bytes_count_per_second_time_series_chart.png
-```
-
-`comparison_reports` directory will appear only if at least one `baseline_component_name` was
-specified. `study_id` is the same as the one used in the `results_object_name` (described above).
-
-In order to see the full contents of the `.md` report, you must download both the `.md` file and
-the directories with `.png` images. The `.pdf` reports will be present only if you have installed
-`wkhtmltopdf` binary.
-
-## Running locally on dev Composer
-
-In order to execute performance tests on dev Composer running executor locally you can use run_dev.sh script.
-
-```
-# Prepare your virtual environment and install dependencies from root directory.
-pip install -e .
-
-# Make sure you have set authorized gcloud account for composer-performance-tests project via
-# gcloud config set account or GOOGLE_APPLICATION_CREDENTIALS environment variable.
-# export GOOGLE_APPLICATION_CREDENTIALS=...
-
-# Execute tests.
-./run_dev.sh
-```
