@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.core.versions import _is_at_least_2_10_0
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -107,8 +106,6 @@ class HttpSensor(BaseSensorOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        if _is_at_least_2_10_0():
-            super().check_2_10_0_deprecated_args(kwargs.keys())
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.method = method

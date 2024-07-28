@@ -545,6 +545,7 @@ forbidden_warnings = [
     "airflow.exceptions.RemovedInAirflow3Warning",
     "airflow.utils.context.AirflowContextDeprecationWarning",
     "airflow.exceptions.AirflowProviderDeprecationWarning",
+    # TODO uncomment before airflow3   "airflow.exceptions.RemovedInAirflow3SoftWarning"
 ]
 python_files = [
     "test_*.py",

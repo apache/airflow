@@ -39,7 +39,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
-    RemovedInAirflow3Warning,
+    RemovedInAirflow3SoftWarning,
     TaskDeferralError,
 )
 from airflow.executors.executor_loader import ExecutorLoader
@@ -208,6 +208,20 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
+        if soft_fail:
+            warnings.warn(
+                "`soft_fail` is deprecated and will be removed in a future version. "
+                "Please provide fail_policy=FailPolicy.skip_on_timeout instead.",
+                RemovedInAirflow3SoftWarning,
+                stacklevel=3,
+            )
+        elif silent_fail:
+            warnings.warn(
+                "`silent_fail` is deprecated and will be removed in a future version. "
+                "Please provide fail_policy=FailPolicy.IGNORE_ERRORS instead.",
+                RemovedInAirflow3SoftWarning,
+                stacklevel=3,
+            )
         if fail_policy != NOTSET:
             if sum([soft_fail, silent_fail]) > 0:
                 raise ValueError(
@@ -235,24 +249,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.silent_fail = silent_fail
         self.fail_policy = fail_policy
         self._validate_input_values()
-
-    @staticmethod
-    def check_2_10_0_deprecated_args(all_args):
-        for arg in all_args:
-            if arg == "soft_fail":
-                warnings.warn(
-                    "`soft_fail` is deprecated and will be removed in a future version. "
-                    "Please provide skip_policy=SkipPolicy.skip_on_soft_error instead.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=3,
-                )
-            elif arg == "silent_fail":
-                warnings.warn(
-                    "`silent_fail` is deprecated and will be removed in a future version. "
-                    "Please provide skip_policy=SkipPolicy.IGNORE_ERRORS instead.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=3,
-                )
 
     @staticmethod
     def _coerce_poke_interval(poke_interval: float | timedelta) -> timedelta:
