@@ -186,13 +186,14 @@ class FileTaskHandler(logging.Handler):
         "Operator inherits from empty operator and thus does not have logs"
     )
 
-    def __init__(self,
-                 base_log_folder: str,
-                 filename_template: str | None = None,
-                 max_bytes: int = 0,
-                 backup_count: int = 0,
-                 delay: bool = False
-                 ):
+    def __init__(
+        self,
+        base_log_folder: str,
+        filename_template: str | None = None,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ):
         super().__init__()
         self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
@@ -236,11 +237,13 @@ class FileTaskHandler(logging.Handler):
             to task logs from a context other than task or trigger run
         """
         local_loc = self._init_file(ti, identifier=identifier)
-        self.handler = NonCachingRotatingFileHandler(local_loc,
-                                                     encoding="utf-8",
-                                                     maxBytes=self.max_bytes,
-                                                     backupCount=self.backup_count,
-                                                     delay=self.delay)
+        self.handler = NonCachingRotatingFileHandler(
+            local_loc,
+            encoding="utf-8",
+            maxBytes=self.max_bytes,
+            backupCount=self.backup_count,
+            delay=self.delay,
+        )
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
