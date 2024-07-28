@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from apprise import NotifyFormat, NotifyType
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.apprise.notifications.apprise import (
     AppriseNotifier,
@@ -88,3 +89,16 @@ class TestAppriseNotifier:
             interpret_escapes=None,
             config=None,
         )
+
+    @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
+    def test_apprise_deprecation_warnning(self, mock_apprise_hook):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            AppriseNotifier(
+                title="DISK at 99% {{dag.dag_id}}",
+                body="System can crash soon {{dag.dag_id}}",
+            )
+        assert len(record) == 3
+
+        assert record[0].message.args[0] == "`tag` cannot be None. Assign it to be MATCH_ALL_TAG"
+        assert record[1].message.args[0] == "`notify_type` cannot be None. Assign it to be NotifyType.INFO"
+        assert record[2].message.args[0] == "`body_format` cannot be None. Assign it to be  NotifyFormat.TEXT"
