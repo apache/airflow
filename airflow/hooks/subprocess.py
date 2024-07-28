@@ -64,71 +64,68 @@ class SubprocessHook(BaseHook):
             or stdout
         """
         self.log.info("Tmp dir root location: %s", gettempdir())
-        with contextlib.ExitStack() as stack:
-            # TemporaryDirectory will call shutil.rmtree() internally when the context exits. On Windows,
-            # shutil.rmtree() is unreliable and there is a race condition where even after self.sub_process.wait(),
-            # the process will still be holding onto the directory causing an exception. The work-around is
-            # to call shutil.rmtree() in a retry loop. If we're not running under Windows, shutil.rmtree() is
-            # reliable and no retry loop is needed.
 
-            safe_cleanup = False
+        safe_cleanup = False
 
-            if cwd is None:
-                args = {
-                    "prefix": "airflowtmp"
-                }
+        try:
+            with contextlib.ExitStack() as stack:
+                if cwd is None:
+                    # TemporaryDirectory will call shutil.rmtree() internally when the context exits. On
+                    # Windows, shutil.rmtree() is unreliable and there is a race condition, where even after
+                    # self.sub_process.wait(), the process will still be holding onto the directory causing
+                    # an exception. The work-around is to call shutil.rmtree() in a retry loop. If we're not
+                    # running under Windows, shutil.rmtree() is reliable and no retry loop is needed.
 
-                if IS_WINDOWS:
-                    args.update({"delete": False})
+                    cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
                     safe_cleanup = IS_WINDOWS
 
-                cwd = stack.enter_context(TemporaryDirectory(**args))
+                def pre_exec():
+                    # Restore default signal disposition and invoke setsid
+                    for sig in ("SIGPIPE", "SIGXFZ", "SIGXFSZ"):
+                        if hasattr(signal, sig):
+                            signal.signal(getattr(signal, sig), signal.SIG_DFL)
+                    os.setsid()
 
-            def pre_exec():
-                # Restore default signal disposition and invoke setsid
-                for sig in ("SIGPIPE", "SIGXFZ", "SIGXFSZ"):
-                    if hasattr(signal, sig):
-                        signal.signal(getattr(signal, sig), signal.SIG_DFL)
-                os.setsid()
+                self.log.info("Running command: %s", command)
 
-            self.log.info("Running command: %s", command)
+                self.sub_process = Popen(
+                    command,
+                    stdout=PIPE,
+                    stderr=STDOUT,
+                    cwd=cwd,
+                    env=env if env or env == {} else os.environ,
+                    preexec_fn=pre_exec if not IS_WINDOWS else None,
+                )
 
-            self.sub_process = Popen(
-                command,
-                stdout=PIPE,
-                stderr=STDOUT,
-                cwd=cwd,
-                env=env if env or env == {} else os.environ,
-                preexec_fn=pre_exec if not IS_WINDOWS else None,
-            )
+                self.log.info("Output:")
+                line = ""
+                if self.sub_process is None:
+                    raise RuntimeError("The subprocess should be created here and is None!")
+                if self.sub_process.stdout is not None:
+                    for raw_line in iter(self.sub_process.stdout.readline, b""):
+                        line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
+                        self.log.info("%s", line)
 
-            self.log.info("Output:")
-            line = ""
-            if self.sub_process is None:
-                raise RuntimeError("The subprocess should be created here and is None!")
-            if self.sub_process.stdout is not None:
-                for raw_line in iter(self.sub_process.stdout.readline, b""):
-                    line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
-                    self.log.info("%s", line)
+                self.sub_process.wait()
+                self.log.info("Command exited with return code %s", self.sub_process.returncode)
 
-            self.sub_process.wait()
-            self.log.info("Command exited with return code %s", self.sub_process.returncode)
-
-            if safe_cleanup:
+                return_code: int = self.sub_process.returncode
+        except PermissionError as e:
+            # Win Error 32: The process cannot access the file because it is being used by another process
+            if safe_cleanup and e.winerror == 32:
                 for retry in range(3):
                     try:
                         shutil.rmtree(cwd)
-                        if retry > 0:
-                            self.log.info("Removed temporary directory %s on retry %s", cwd, retry)
+                        self.log.info("Removed temporary directory %s on retry #%s", cwd, retry + 1)
                         break
-                    except OSError:
+                    except PermissionError:
                         if retry == 2:
                             self.log.warning("Could not remove temporary directory %s", cwd)
                             raise
                         else:
                             time.sleep(1)
-
-            return_code: int = self.sub_process.returncode
+            else:
+                raise
 
         return SubprocessResult(exit_code=return_code, output=line)
 
