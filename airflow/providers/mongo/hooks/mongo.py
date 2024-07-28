@@ -155,7 +155,7 @@ class MongoHook(BaseHook):
         :return: URI string.
         """
         srv = self.extras.pop("srv", False)
-        scheme = "mongodb+srv" if srv else "mongodb"
+        scheme = "mongodb+srv" if srv or self.connection.conn_type == "mongodb+srv" else "mongodb"
         login = self.connection.login
         password = self.connection.password
         netloc = self.connection.host
