@@ -74,8 +74,15 @@ class SubprocessHook(BaseHook):
             safe_cleanup = False
 
             if cwd is None:
-                cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp", delete=True if not IS_WINDOWS else False))
-                safe_cleanup = IS_WINDOWS
+                args = {
+                    "prefix": "airflowtmp"
+                }
+
+                if IS_WINDOWS:
+                    args.update({"delete": False})
+                    safe_cleanup = IS_WINDOWS
+
+                cwd = stack.enter_context(TemporaryDirectory(**args))
 
             def pre_exec():
                 # Restore default signal disposition and invoke setsid
