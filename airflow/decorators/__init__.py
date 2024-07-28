@@ -23,7 +23,6 @@ from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.branch_virtualenv import branch_virtualenv_task
-from airflow.decorators.email import email_task
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -50,7 +49,6 @@ __all__ = [
     "short_circuit_task",
     "sensor_task",
     "bash_task",
-    "email_task",
     "setup",
     "teardown",
 ]
@@ -62,7 +60,6 @@ class TaskDecoratorCollection:
     python = staticmethod(python_task)
     virtualenv = staticmethod(virtualenv_task)
     external_python = staticmethod(external_python_task)
-    email = staticmethod(email_task)
     branch = staticmethod(branch_task)
     branch_virtualenv = staticmethod(branch_virtualenv_task)
     branch_external_python = staticmethod(branch_external_python_task)
