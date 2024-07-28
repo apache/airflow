@@ -98,7 +98,7 @@ def get_typed_value(typed_value: TypedValue) -> Union[bool, Distribution, float,
     """
 
     for value_type in VALUE_TYPES:
-        if typed_value.HasField(value_type):
+        if typed_value._pb.HasField(value_type):
             return getattr(typed_value, value_type)
 
     raise TypeError("Unknown type of value returned in Cloud Monitoring response.")
