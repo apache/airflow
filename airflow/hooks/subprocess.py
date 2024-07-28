@@ -19,6 +19,8 @@ from __future__ import annotations
 import contextlib
 import os
 import signal
+import shutil
+import time
 from collections import namedtuple
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
@@ -63,8 +65,17 @@ class SubprocessHook(BaseHook):
         """
         self.log.info("Tmp dir root location: %s", gettempdir())
         with contextlib.ExitStack() as stack:
+            # TemporaryDirectory will call shutil.rmtree() internally when the context exits. On Windows,
+            # shutil.rmtree() is unreliable and there is a race condition where even after self.sub_process.wait(),
+            # the process will still be holding onto the directory causing an exception. The work-around is
+            # to call shutil.rmtree() in a retry loop. If we're not running under Windows, shutil.rmtree() is
+            # reliable and no retry loop is needed.
+
+            safe_cleanup = False
+
             if cwd is None:
-                cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
+                cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp", delete=True if not IS_WINDOWS else False))
+                safe_cleanup = IS_WINDOWS
 
             def pre_exec():
                 # Restore default signal disposition and invoke setsid
@@ -94,8 +105,22 @@ class SubprocessHook(BaseHook):
                     self.log.info("%s", line)
 
             self.sub_process.wait()
-
             self.log.info("Command exited with return code %s", self.sub_process.returncode)
+
+            if safe_cleanup:
+                for retry in range(3):
+                    try:
+                        shutil.rmtree(cwd)
+                        if retry > 0:
+                            self.log.info("Removed temporary directory %s on retry %s", cwd, retry)
+                        break
+                    except OSError:
+                        if retry == 2:
+                            self.log.warning("Could not remove temporary directory %s", cwd)
+                            raise
+                        else:
+                            time.sleep(1)
+
             return_code: int = self.sub_process.returncode
 
         return SubprocessResult(exit_code=return_code, output=line)
