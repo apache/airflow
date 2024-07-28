@@ -1782,24 +1782,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
             try:
-                cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
-                for ti in stuck_tis:
-                    if repr(ti) in cleaned_up_task_instances:
-                        self.log.warning(
-                            "Marking task instance %s stuck in queued as failed. "
-                            "If the task instance has available retries, it will be retried.",
-                            ti,
+                for ti in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+                    self.log.warning(
+                        "Marking task instance %s stuck in queued as failed. "
+                        "If the task instance has available retries, it will be retried.",
+                        ti,
+                    )
+                    session.add(
+                        Log(
+                            event="stuck in queued",
+                            task_instance=ti.key,
+                            extra=(
+                                "Task will be marked as failed. If the task instance has "
+                                "available retries, it will be retried."
+                            ),
                         )
-                        session.add(
-                            Log(
-                                event="stuck in queued",
-                                task_instance=ti.key,
-                                extra=(
-                                    "Task will be marked as failed. If the task instance has "
-                                    "available retries, it will be retried."
-                                ),
-                            )
-                        )
+                    )
             except NotImplementedError:
                 self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
 

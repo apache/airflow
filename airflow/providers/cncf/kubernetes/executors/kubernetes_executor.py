@@ -33,7 +33,7 @@ from collections import Counter, defaultdict
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Sequence
 
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select, update
@@ -585,7 +585,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -594,14 +594,13 @@ class KubernetesExecutor(BaseExecutor):
         if it doesn't.
 
         :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
+        :return: Yields readable task instances for a warning message
         """
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
-        readable_tis = []
         for ti in tis:
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
@@ -622,9 +621,8 @@ class KubernetesExecutor(BaseExecutor):
             elif len(pod_list) > 1:
                 self.log.warning("Found multiple pods for ti %s: %s", ti, pod_list)
                 continue
-            readable_tis.append(repr(ti))
             self.kube_scheduler.delete_pod(pod_name=pod_list[0].metadata.name, namespace=namespace)
-        return readable_tis
+            yield ti
 
     def adopt_launched_task(
         self,

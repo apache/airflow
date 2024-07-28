@@ -32,7 +32,7 @@ import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Generator, Optional, Sequence, Tuple
 
 from celery import states as celery_states
 from packaging.version import Version
@@ -436,7 +436,7 @@ class CeleryExecutor(BaseExecutor):
 
         return not_adopted_tis
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -445,13 +445,11 @@ class CeleryExecutor(BaseExecutor):
         if it doesn't.
 
         :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
+        :return: Yields readable task instances for a warning message
         """
-        readable_tis = []
         from airflow.providers.celery.executors.celery_executor_utils import app
 
         for ti in tis:
-            readable_tis.append(repr(ti))
             task_instance_key = ti.key
             self.fail(task_instance_key, None)
             celery_async_result = self.tasks.pop(task_instance_key, None)
@@ -460,7 +458,7 @@ class CeleryExecutor(BaseExecutor):
                     app.control.revoke(celery_async_result.task_id)
                 except Exception as ex:
                     self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
-        return readable_tis
+            yield ti
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

@@ -1172,7 +1172,8 @@ class TestKubernetesExecutor:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
         ti.refresh_from_db()
         tis = [ti]
-        executor.cleanup_stuck_queued_tasks(tis)
+        for _ in executor.cleanup_stuck_queued_tasks(tis):
+            pass
         mock_delete_pod.assert_called_once()
         assert executor.running == set()
         executor.end()
