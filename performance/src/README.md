@@ -583,9 +583,7 @@ To run a single test attempt, use the command explained below:
 ```
   usage: airflow_gepard [-h] -s INSTANCE_SPECIFICATION_FILE_PATH
                         [-j JINJA_VARIABLES] [-e ELASTIC_DAG_CONFIG_FILE_PATH]
-                        [-c RESULTS_COLUMNS] [-p RESULTS_PROJECT_ID]
-                        [-b RESULTS_BUCKET] [-d RESULTS_DATASET]
-                        [-o OUTPUT_PATH] [-r RESULTS_OBJECT_NAME]
+                        [-c RESULTS_COLUMNS] [-o OUTPUT_PATH] [-r RESULTS_OBJECT_NAME]
                         [--reuse-if-exists] [--delete-if-exists]
                         [--delete-upon-finish] [--reset-environment]
 
@@ -622,35 +620,15 @@ To run a single test attempt, use the command explained below:
                           results table. New columns will be added at the
                           beginning of the table. Example: --results-columns
                           '{"user": "Me"}'
-    -p RESULTS_PROJECT_ID, --results-project-id RESULTS_PROJECT_ID
-                          Google cloud project id. It is used to specify the
-                          location of the BQ dataset (results-dataset argument)
-                          and where the GCS bucket should be created in case it
-                          does not exist (results-bucket argument). If not
-                          provided, the script will attempt to collect the
-                          project id from the ADC.
-    -b RESULTS_BUCKET, --results-bucket RESULTS_BUCKET
-                          Name of the GCS bucket where the CSV file with results
-                          should be stored. If the bucket does not exist, then
-                          one will be created using the default settings in the
-                          project specified by results-project-id (if it was
-                          set) or the project returned by the ADC.
-    -d RESULTS_DATASET, --results-dataset RESULTS_DATASET
-                          Name of the BigQuery dataset where the table with
-                          results should be uploaded. If the dataset does not
-                          exist, then one will be created using the default
-                          settings. If project for the dataset was not provided
-                          via results-project-id argument, then the project
-                          returned from the ADC is used.
     -o OUTPUT_PATH, --output-path OUTPUT_PATH
                           Local path to a directory or a file where results
                           dataframe should be saved in csv format. If path to a
                           directory is provided, then default filename will be
                           constructed based on environment configuration.
     -r RESULTS_OBJECT_NAME, --results-object-name RESULTS_OBJECT_NAME
-                          Name to use for results object (file, GCS blob, BQ
-                          table). If not provided, then object name will
-                          generated based on the contents of results table.
+                          Name to use for results file. If not provided,
+                          then file name will generated based on the contents
+                          of results table.
     --reuse-if-exists     Setting this flag will cause the script to reuse an
                           existing environment with the same name as the one
                           specified in your specification json file rather than
@@ -701,8 +679,6 @@ For now, the script allows only to test the Composer environment and Vanilla GKE
 
 Notes:
 
-- you must provide at least one way to store the results
-  (`--results-bucket`, `--results-dataset` or `--output-path`)
 - if your specification file contains jinja variables that do not have default values, you must
   specify them via `--jinja-variables`
 

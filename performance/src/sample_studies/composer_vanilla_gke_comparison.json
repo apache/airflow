@@ -21,7 +21,6 @@
         }
     ],
     "default_args": {
-        "results_dataset": "my_results_dataset",
         "jinja_variables": {
             "project_id": "my-project-id",
             "zone_id": "europe-west1-b",

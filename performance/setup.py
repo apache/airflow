@@ -12,9 +12,9 @@ requirements = app_requirements
 
 setup(
     author="Google",
-    author_email="cloud-composer-team@google.com",
+    author_email="bjankiewicz@google.com",
     description="Python project dedicated to running performance tests of Apache Airflow",
-    entry_points={"console_scripts": ["airflow_gepard=performance_scripts.run_performance_test:main"]},
+    entry_points={"console_scripts": ["airflow_performance_test=run_performance_test:main"]},
     install_requires=requirements,
     license="",
     long_description=readme,

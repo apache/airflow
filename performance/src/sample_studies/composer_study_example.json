@@ -14,7 +14,6 @@
             "baseline_component_name": "component_1",
             "args": {
                 "instance_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_small.json",
-                "results_dataset": "another_results_dataset",
                 "jinja_variables": {
                     "environment_id": "small-env",
                     "project_id": "another-project-id"
@@ -26,7 +25,6 @@
         }
     ],
     "default_args": {
-        "results_dataset": "my_results_dataset",
         "jinja_variables": {
             "project_id": "my-project-id",
             "location_id": "europe-west1",

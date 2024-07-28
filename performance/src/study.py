@@ -13,8 +13,6 @@ COMMON_VALUES = [
     "delete_upon_finish",
     "jinja_variables",
     "output_path",
-    "results_bucket",
-    "results_dataset",
     "elastic_dag_config_file_path",
     "results_columns",
 ]
@@ -26,8 +24,6 @@ class CommonSchema(Schema):
     delete_upon_finish = fields.Boolean()
     jinja_variables = fields.Dict()
     output_path = fields.Str()
-    results_bucket = fields.Str()
-    results_dataset = fields.Str()
     elastic_dag_config_file_path = fields.Str()
     results_columns = fields.Dict()
 
@@ -61,8 +57,6 @@ class DefaultValues:
         self,
         *,
         output_path: Optional[str] = None,
-        results_bucket: Optional[str] = None,
-        results_dataset: Optional[str] = None,
         jinja_variables: Optional[Dict] = None,
         delete_if_exists: Optional[bool] = None,
         delete_upon_finish: Optional[bool] = None,
@@ -71,8 +65,6 @@ class DefaultValues:
         results_columns: Optional[Dict] = None,
     ):
         self.output_path = output_path
-        self.results_bucket = results_bucket
-        self.results_dataset = results_dataset
         self.jinja_variables = jinja_variables
         self.delete_if_exists = delete_if_exists
         self.delete_upon_finish = delete_upon_finish
@@ -91,8 +83,8 @@ class DefaultValues:
                 f"Elastic dag configuration file " f"'{self.elastic_dag_config_file_path}' does not exist."
             )
 
-        if not any({self.output_path, self.results_bucket, self.results_dataset}):
-            raise KeyError(f"Please provide at least one argument to store results " f"for study component.")
+        if self.output_path:
+            raise KeyError(f"Please provide path to store results " f"for study component.")
 
 
 class TestSpec(DefaultValues):
@@ -147,14 +139,6 @@ class Study:
     @property
     def output_paths(self):
         return [c.output_path for c in self.study_components if c.output_path]
-
-    @property
-    def results_buckets(self):
-        return {c.results_bucket for c in self.study_components if c.results_bucket}
-
-    @property
-    def results_datasets(self):
-        return {c.results_dataset for c in self.study_components if c.results_dataset}
 
     def set_script_user(self, script_user: str) -> None:
         for spec in self.study_components:

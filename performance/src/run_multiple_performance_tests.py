@@ -31,7 +31,6 @@ from environments.kubernetes.gke.vanilla.vanilla_gke_environment import (
     VanillaGKEEnvironment,
 )
 from utils.file_utils import read_json_file
-from reports.generator import generate_reports_for_study
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)
 log = logging.getLogger(__name__)
@@ -73,24 +72,6 @@ def parse_args() -> argparse.Namespace:
         required=False,
         help="Maximal number of test attempts this script may run at the same time. "
         "Must be a positive integer.",
-    )
-    parser.add_argument(
-        "--reports-bucket",
-        type=str,
-        default=None,
-        required=False,
-        help="Name of the GCS bucket where the directory with reports will be uploaded "
-        "This argument can also be provided in the study file.",
-    )
-    parser.add_argument(
-        "--reports-project-id",
-        type=str,
-        default=None,
-        required=False,
-        help="Google cloud project id. It is used to specify where the GCS bucket for "
-        "reports should be created in case it does not exist (reports-bucket argument). "
-        "If not provided, the script will attempt to collect the project id from the ADC. "
-        "This argument can also be provided in the study file.",
     )
     parser.add_argument(
         "-u",
@@ -151,14 +132,6 @@ def main() -> None:
         raise ValueError("Value provided via --max-concurrency argument must be higher than 0.")
 
     study = read_json_file(args.study_file_path)
-    reports_bucket = args.reports_bucket or study.get("reports_bucket", None)
-    reports_project_id = args.reports_project_id or study.get("reports_project_id", None)
-
-    # validate reports_bucket
-    if not reports_bucket:
-        raise ValueError(f"Please provide a bucket to store the results under --reports-bucket argument.")
-    storage_client = StorageClient(project_id=reports_project_id)
-    storage_client.get_bucket(reports_bucket)
 
     study_id = datetime.utcnow().strftime("%Y%m%d_%H_%M_%S")
 
@@ -182,14 +155,6 @@ def main() -> None:
         test_attempts_to_run_in_parallel=test_attempts_to_run_in_parallel,
         test_attempts_to_run_in_sequence=test_attempts_to_run_in_sequence,
         max_concurrency=args.max_concurrency,
-    )
-
-    generate_reports_for_study(
-        study_components_by_environment_type,
-        storage_client,
-        reports_bucket,
-        study_id,
-        args.elastic_dag_config_file_path,
     )
 
 
@@ -371,23 +336,7 @@ def collect_test_attempts(
 
     study_components_by_environment_type = {}
 
-    results_datasets = set()
-
     for index, study_component in enumerate(study_components):
-
-        if "results_dataset" not in study_component["args"]:
-            raise KeyError(
-                f"Please provide 'results_dataset' as a way to store results "
-                f" for study component number {index}."
-            )
-
-        if "results_bucket" in study_component["args"] or "output_path" in study_component["args"]:
-            raise ValueError(
-                f"Buckets and local files are not supported for storing results when running "
-                f"multiple tests. Please remove 'results_bucket' and/or 'output_path' argument(s) "
-                f"from study component number {index} and provide 'results_dataset' as a way to "
-                f"store results."
-            )
 
         check_provided_arguments(study_component["args"], study_component["flags"], index)
 
@@ -407,13 +356,6 @@ def collect_test_attempts(
                 f"'{study_component['args']['instance_specification_file_path']}' "
                 f"does not exist."
             )
-
-        results_datasets.add(
-            (
-                study_component["args"]["results_dataset"],
-                study_component["args"].get("results_project_id"),
-            )
-        )
 
         environment_type = PerformanceTest.get_instance_type(
             study_component["args"]["instance_specification_file_path"]
