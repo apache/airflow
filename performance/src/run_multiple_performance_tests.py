@@ -101,25 +101,6 @@ def parse_args() -> argparse.Namespace:
         help="[DEPRECATED] Path to the directory in which the logs of test attempts will be stored "
         "- one log for every test attempt. This argument can also be provided in the study file.",
     )
-    parser.add_argument(
-        "-p",
-        "--logs-project-id",
-        type=str,
-        required=False,
-        help="[DEPRECATED] Google cloud project id. It is used to specify where the GCS bucket for "
-        "logs should be created in case it does not exist (logs-bucket argument). If not provided, "
-        "the script will attempt to collect the project id from the ADC. This argument can also "
-        "be provided in the study file.",
-    )
-    parser.add_argument(
-        "-b",
-        "--logs-bucket",
-        type=str,
-        required=False,
-        help="[DEPRECATED] Name of the GCS bucket where the logs of test attempts will be stored: "
-        "one blob for every executed test attempt. This argument can also be provided "
-        "in the study file.",
-    )
     # parser._actions
     return parser.parse_args()
 
@@ -350,15 +331,15 @@ def collect_test_attempts(
                     study_component["args"][file_argument],
                 )
 
-        if not os.path.isfile(study_component["args"]["instance_specification_file_path"]):
+        if not os.path.isfile(study_component["args"]["environment_specification_file_path"]):
             raise ValueError(
                 f"Environment specification file "
-                f"'{study_component['args']['instance_specification_file_path']}' "
+                f"'{study_component['args']['environment_specification_file_path']}' "
                 f"does not exist."
             )
 
-        environment_type = PerformanceTest.get_instance_type(
-            study_component["args"]["instance_specification_file_path"]
+        environment_type = PerformanceTest.get_environment_type(
+            study_component["args"]["environment_specification_file_path"]
         )
 
         if environment_type not in study_components_by_environment_type:
@@ -379,7 +360,7 @@ def collect_test_attempts(
             environment_class = VanillaGKEEnvironment
         else:
             files = [
-                study_component["args"]["instance_specification_file_path"]
+                study_component["args"]["environment_specification_file_path"]
                 for study_component in study_components_by_environment_type["environment_type"]
             ]
             raise ValueError(
@@ -411,7 +392,7 @@ def collect_test_attempts(
                 to_run_in_sequence,
             ) = environment_class.prepare_specifications_for_multiple_test_attempts(
                 study_component["attempts"],
-                study_component["args"]["instance_specification_file_path"],
+                study_component["args"]["environment_specification_file_path"],
                 elastic_dag_config_file_path,
                 json.loads(study_component["args"].get("jinja_variables", "{}")),
                 study_component["randomize_environment_name"],
@@ -419,7 +400,7 @@ def collect_test_attempts(
 
             # since we have filled specifications already,
             # we do not need below arguments anymore
-            study_component["args"].pop("instance_specification_file_path", None)
+            study_component["args"].pop("environment_specification_file_path", None)
             study_component["args"].pop("jinja_variables", None)
             # remove `elastic_dag_config_file_path` parameter from study to not interfere with
             # --elastic-dag-config-file-path parameter passed to script
@@ -735,7 +716,7 @@ def initialize_next_test_attempts(
         with open(specification_file, "w") as file:
             json.dump(next_test_attempt["specification"], file)
 
-        next_test_attempt["args"]["instance_specification_file_path"] = specification_file
+        next_test_attempt["args"]["environment_specification_file_path"] = specification_file
         # pylint: disable=broad-except
         try:
             test_attempt_namespace = prepare_namespace_for_test_attempt(next_test_attempt)

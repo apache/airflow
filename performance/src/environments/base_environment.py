@@ -167,7 +167,7 @@ class BaseEnvironment(ABC):
     def prepare_specifications_for_multiple_test_attempts(
         cls,
         number_of_copies: int,
-        instance_specification_file_path: str,
+        environment_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
         randomize_environment_name: bool = True,
@@ -179,12 +179,12 @@ class BaseEnvironment(ABC):
 
         :param number_of_copies: number of copies of the specification that should be prepared.
         :type number_of_copies: int
-        :param instance_specification_file_path: path to the file with specification
+        :param environment_specification_file_path: path to the file with specification
             of environment to duplicate.
-        :type instance_specification_file_path: str
+        :type environment_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from instance_specification_file_path.
+            from environment_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables

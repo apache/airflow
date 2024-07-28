@@ -14,7 +14,7 @@ ENVIRONMENT_SPECIFICATIONS_DIR = os.path.join(
 )
 
 COMPOSER_ENVIRONMENT_TYPE = "COMPOSER"
-INSTANCE_SPECIFICATION_FILE_PATH = "environment.json"
+ENVIRONMENT_SPECIFICATION_FILE_PATH = "environment.json"
 ELASTIC_DAG_FILE_PATH = "dag_file.py"
 ELASTIC_DAG_CONFIG_FILE_PATH = "elastic_dag_conf.json"
 JINJA_VARIABLES_DICT = {"jinja_variable": "variable_value"}
@@ -36,7 +36,7 @@ class TestPerformanceTest(TestCase):
         mock_composer_environment.environment_type = COMPOSER_ENVIRONMENT_TYPE
 
         performance_test = PerformanceTest(
-            instance_specification_file_path=INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path=ENVIRONMENT_SPECIFICATION_FILE_PATH,
             elastic_dag_path=ELASTIC_DAG_FILE_PATH,
             elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
             jinja_variables_dict=deepcopy(JINJA_VARIABLES_DICT),
@@ -45,9 +45,9 @@ class TestPerformanceTest(TestCase):
 
         self.assertEqual(performance_test.environment, mock_composer_environment.return_value)
 
-        mock_get_environment_type.assert_called_once_with(INSTANCE_SPECIFICATION_FILE_PATH)
+        mock_get_environment_type.assert_called_once_with(ENVIRONMENT_SPECIFICATION_FILE_PATH)
         mock_composer_environment.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            ENVIRONMENT_SPECIFICATION_FILE_PATH,
             ELASTIC_DAG_FILE_PATH,
             ELASTIC_DAG_CONFIG_FILE_PATH,
             JINJA_VARIABLES_DICT,
@@ -73,7 +73,7 @@ class TestPerformanceTest(TestCase):
 
         with self.assertRaises(ValueError):
             _ = PerformanceTest(
-                instance_specification_file_path=INSTANCE_SPECIFICATION_FILE_PATH,
+                environment_specification_file_path=ENVIRONMENT_SPECIFICATION_FILE_PATH,
                 elastic_dag_path=ELASTIC_DAG_FILE_PATH,
                 elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
             )
@@ -88,12 +88,12 @@ class TestPerformanceTest(TestCase):
     def test_init_wrong_environment_type(self, mock_get_environment_type):
         with self.assertRaises(ValueError):
             _ = PerformanceTest(
-                instance_specification_file_path=INSTANCE_SPECIFICATION_FILE_PATH,
+                environment_specification_file_path=ENVIRONMENT_SPECIFICATION_FILE_PATH,
                 elastic_dag_path=ELASTIC_DAG_FILE_PATH,
                 elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
                 output_path=OUTPUT_PATH,
             )
-        mock_get_environment_type.assert_called_once_with(INSTANCE_SPECIFICATION_FILE_PATH)
+        mock_get_environment_type.assert_called_once_with(ENVIRONMENT_SPECIFICATION_FILE_PATH)
 
     def test_get_environment_type(self):
         file_path = os.path.join(ENVIRONMENT_SPECIFICATIONS_DIR, "get_environment_type.json")
@@ -132,7 +132,7 @@ class TestPerformanceTestWithComposerEnvironment(TestCase):
             mock_composer_environment.environment_type = COMPOSER_ENVIRONMENT_TYPE
 
             self.performance_test = PerformanceTest(
-                instance_specification_file_path=INSTANCE_SPECIFICATION_FILE_PATH,
+                environment_specification_file_path=ENVIRONMENT_SPECIFICATION_FILE_PATH,
                 elastic_dag_path=ELASTIC_DAG_FILE_PATH,
                 elastic_dag_config_file_path=ELASTIC_DAG_CONFIG_FILE_PATH,
                 output_path=OUTPUT_PATH,

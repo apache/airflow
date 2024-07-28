@@ -27,7 +27,7 @@ CLUSTER_ID = "test_cluster_id"
 NAME = f"projects/{PROJECT_ID}/locations/{LOCATION_ID}/environments/{ENVIRONMENT_ID}"
 PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION_ID}"
 GKE_CLUSTER = f"projects/{PROJECT_ID}/zones/{ZONE}/clusters/{CLUSTER_ID}"
-INSTANCE_SPECIFICATION_FILE_PATH = "environment.json"
+environment_specification_file_path = "environment.json"
 DAG_FILE_PATH = "dag_file.py"
 ELASTIC_DAG_CONF_FILE_PATH = "elastic_dag_conf.json"
 DEFAULT_JINJA_VARIABLES = {"jinja_variable_1": "value_1", "jinja_variable_2": "value_2"}
@@ -92,7 +92,7 @@ class TestComposerEnvironment(TestCase):
                 LOCATION_ID,
                 ENVIRONMENT_ID,
             )
-            self.composer = ComposerEnvironment(INSTANCE_SPECIFICATION_FILE_PATH, DAG_FILE_PATH)
+            self.composer = ComposerEnvironment(environment_specification_file_path, DAG_FILE_PATH)
 
     @mock.patch("environments.kubernetes.gke.gke_based_environment.ClusterManagerClient")
     @mock.patch("environments.kubernetes.gke.gke_based_environment.build")
@@ -114,14 +114,14 @@ class TestComposerEnvironment(TestCase):
             ENVIRONMENT_ID,
         )
         composer = ComposerEnvironment(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             DAG_FILE_PATH,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
         )
 
         mock_load_specification.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -255,14 +255,14 @@ class TestComposerEnvironment(TestCase):
 
         parallel, sequential = ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
             NUMBER_OF_ATTEMPTS,
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
             randomize_environment_name=True,
         )
 
         mock_load_specification.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -319,13 +319,13 @@ class TestComposerEnvironment(TestCase):
 
         parallel, sequential = ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
             NUMBER_OF_ATTEMPTS,
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
         )
 
         mock_load_specification.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -370,14 +370,14 @@ class TestComposerEnvironment(TestCase):
 
         parallel, sequential = ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
             NUMBER_OF_ATTEMPTS,
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
             randomize_environment_name=False,
         )
 
         mock_load_specification.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -408,14 +408,14 @@ class TestComposerEnvironment(TestCase):
         with self.assertRaises(ValueError):
             ComposerEnvironment.prepare_specifications_for_multiple_test_attempts(
                 NUMBER_OF_ATTEMPTS,
-                INSTANCE_SPECIFICATION_FILE_PATH,
+                environment_specification_file_path,
                 ELASTIC_DAG_CONF_FILE_PATH,
                 deepcopy(JINJA_VARIABLES_DICT),
                 randomize_environment_name=False,
             )
 
         mock_load_specification.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             JINJA_VARIABLES_DICT,
         )
@@ -449,7 +449,7 @@ class TestComposerEnvironment(TestCase):
         mock_read_templated_json_file.return_value = deepcopy(SPECIFICATION)
 
         specification, project_id, location_id, environment_id = self.composer.load_specification(
-            INSTANCE_SPECIFICATION_FILE_PATH,
+            environment_specification_file_path,
             ELASTIC_DAG_CONF_FILE_PATH,
             deepcopy(JINJA_VARIABLES_DICT),
         )
@@ -460,7 +460,7 @@ class TestComposerEnvironment(TestCase):
         mock_construct_environment_id.assert_not_called()
 
         mock_read_templated_json_file.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH, jinja_variables_dict
+            environment_specification_file_path, jinja_variables_dict
         )
         mock_check_and_adjust_config_body.assert_called_once_with(CONFIG_BODY)
         self.assertEqual(specification, SPECIFICATION)
@@ -493,7 +493,7 @@ class TestComposerEnvironment(TestCase):
     ):
         mock_get_default_jinja_variables_values.return_value = deepcopy(DEFAULT_JINJA_VARIABLES)
         with self.assertRaises(TypeError):
-            self.composer.load_specification(INSTANCE_SPECIFICATION_FILE_PATH)
+            self.composer.load_specification(environment_specification_file_path)
         mock_get_default_jinja_variables_values.assert_called_once_with()
         # TODO: cannot change the arguments of call due to jinja_variables_to_use dict changing
         #  during load_specification method call
@@ -503,7 +503,7 @@ class TestComposerEnvironment(TestCase):
             **{"environment_id": CONSTRUCTED_ENVIRONMENT_ID},
         }
         mock_read_templated_json_file.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH, expected_jinja_variables
+            environment_specification_file_path, expected_jinja_variables
         )
 
     @mock.patch(MODULE_NAME + ".ComposerEnvironment.get_default_jinja_variables_values")
@@ -535,7 +535,7 @@ class TestComposerEnvironment(TestCase):
         mock_read_templated_json_file.return_value = {"config_body": deepcopy(CONFIG_BODY)}
 
         specification, project_id, location_id, environment_id = self.composer.load_specification(
-            INSTANCE_SPECIFICATION_FILE_PATH
+            environment_specification_file_path
         )
 
         expected_jinja_variables = {
@@ -546,7 +546,7 @@ class TestComposerEnvironment(TestCase):
         mock_get_default_jinja_variables_values.assert_called_once_with()
         mock_construct_environment_id.assert_called_once()
         mock_read_templated_json_file.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH, expected_jinja_variables
+            environment_specification_file_path, expected_jinja_variables
         )
         mock_check_and_adjust_config_body.assert_called_once_with(CONFIG_BODY)
         self.assertEqual(specification, {"config_body": CONFIG_BODY})
@@ -582,7 +582,7 @@ class TestComposerEnvironment(TestCase):
         mock_get_default_jinja_variables_values.return_value = deepcopy(DEFAULT_JINJA_VARIABLES)
 
         with self.assertRaises(KeyError):
-            self.composer.load_specification(INSTANCE_SPECIFICATION_FILE_PATH)
+            self.composer.load_specification(environment_specification_file_path)
         mock_get_default_jinja_variables_values.assert_called_once_with()
         mock_construct_environment_id.assert_called_once()
         expected_jinja_variables = {
@@ -590,7 +590,7 @@ class TestComposerEnvironment(TestCase):
             **{"environment_id": CONSTRUCTED_ENVIRONMENT_ID},
         }
         mock_read_templated_json_file.assert_called_once_with(
-            INSTANCE_SPECIFICATION_FILE_PATH, expected_jinja_variables
+            environment_specification_file_path, expected_jinja_variables
         )
 
     def test_check_and_adjust_config_body(self):

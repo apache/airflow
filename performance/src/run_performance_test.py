@@ -15,7 +15,7 @@ log.setLevel(logging.INFO)
 
 DUMPED_JSON_ARGUMENTS = ("jinja_variables", "results_columns")
 FILE_PATH_ARGUMENTS = (
-    "instance_specification_file_path",
+    "environment_specification_file_path",
     "output_path",
 )
 ELASTIC_DAG_PATH = os.path.join(os.path.dirname(__file__), "performance_dags/elastic_dag/elastic_dag.py")
@@ -156,7 +156,7 @@ def initialize_performance_test(args: argparse.Namespace) -> PerformanceTest:
         args.results_columns = json.loads(args.results_columns)
 
     perf_test = PerformanceTest(
-        instance_specification_file_path=args.instance_specification_file_path,
+        environment_specification_file_path=args.environment_specification_file_path,
         elastic_dag_path=ELASTIC_DAG_PATH,
         elastic_dag_config_file_path=args.elastic_dag_config_file_path,
         jinja_variables_dict=args.jinja_variables,

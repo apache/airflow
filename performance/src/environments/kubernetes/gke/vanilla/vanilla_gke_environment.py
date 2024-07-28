@@ -64,7 +64,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        instance_specification_file_path: str,
+        environment_specification_file_path: str,
         elastic_dag_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
@@ -77,9 +77,9 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         """
         Creates an instance of VanillaGKEEnvironment.
 
-        :param instance_specification_file_path: path to the json file with specification
+        :param environment_specification_file_path: path to the json file with specification
             of `Vanilla GKE environment.
-        :type instance_specification_file_path: str
+        :type environment_specification_file_path: str
         :param elastic_dag_path: a path to elastic DAG that should be uploaded to test environment.
         :type elastic_dag_path: str
         :param elastic_dag_config_file_path: path to file with configuration for elastic DAG.
@@ -126,7 +126,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         jinja_variables_dict = jinja_variables_dict or {}
 
         environment_specification = self.load_specification(
-            instance_specification_file_path,
+            environment_specification_file_path,
             elastic_dag_config_file_path,
             jinja_variables_dict,
         )
@@ -296,7 +296,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
     def prepare_specifications_for_multiple_test_attempts(
         cls,
         number_of_copies: int,
-        instance_specification_file_path: str,
+        environment_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
         randomize_environment_name: bool = True,
@@ -307,12 +307,12 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         :param number_of_copies: number of copies of the specification that should be prepared.
         :type number_of_copies: int
-        :param instance_specification_file_path: path to the file with specification
+        :param environment_specification_file_path: path to the file with specification
             of Vanilla GKE environment.
-        :type instance_specification_file_path: str
+        :type environment_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from instance_specification_file_path.
+            from environment_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -336,7 +336,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
 
         try:
             environment_specification = cls.load_specification(
-                instance_specification_file_path,
+                environment_specification_file_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
             )
@@ -345,7 +345,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
                 "Error occurred when reading environment specification file: %s\n"
                 "Provided elastic dag config file: %s\n"
                 "Provided jinja_variables_dict: %s",
-                instance_specification_file_path,
+                environment_specification_file_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
             )
@@ -375,7 +375,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
     @classmethod
     def load_specification(
         cls,
-        instance_specification_file_path: str,
+        environment_specification_file_path: str,
         elastic_dag_config_file_path: Optional[str] = None,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
     ) -> Dict:
@@ -383,12 +383,12 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
         Loads the files under specified paths, validates their contents and returns Vanilla GKE
         environment specification and other environment related values.
 
-        :param instance_specification_file_path: path to the file with specification
+        :param environment_specification_file_path: path to the file with specification
             of Vanilla GKE environment.
-        :type instance_specification_file_path: str
+        :type environment_specification_file_path: str
         :param elastic_dag_config_file_path: optional path to file with configuration
             for elastic DAG. Environment variables from this file will override the ones
-            from instance_specification_file_path.
+            from environment_specification_file_path.
         :type elastic_dag_config_file_path: str
         :param jinja_variables_dict: a dictionary with values for jinja variables to use
             when filling the templated specification file. Must contain all variables
@@ -414,7 +414,7 @@ class VanillaGKEEnvironment(GKEBasedEnvironment):
             jinja_variables_to_use["cluster_id"] = cls.construct_gke_cluster_id(jinja_variables_to_use)
 
         environment_specification = read_templated_json_file(
-            instance_specification_file_path, jinja_variables_to_use
+            environment_specification_file_path, jinja_variables_to_use
         )
 
         if not isinstance(environment_specification, Dict):

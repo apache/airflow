@@ -33,7 +33,7 @@ class CommonSchema(Schema):
 
 
 class TestSpecSchema(CommonSchema):
-    instance_specification_file_path = fields.Str(required=True)
+    environment_specification_file_path = fields.Str(required=True)
     randomize_environment_name = fields.Boolean()
 
     @post_load
@@ -91,19 +91,19 @@ class TestSpec(DefaultValues):
     def __init__(
         self,
         *,
-        instance_specification_file_path: str,
+        environment_specification_file_path: str,
         randomize_environment_name: Optional[bool] = None,
         ci_build_id: Optional[str] = None,
         script_user: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.instance_specification_file_path = instance_specification_file_path
+        self.environment_specification_file_path = environment_specification_file_path
         self.randomize_environment_name = (randomize_environment_name,)
         self.ci_build_id = ci_build_id
         self.script_user = script_user
 
-        self.environment_type = PerformanceTest.get_instance_type(self.instance_specification_file_path)
+        self.environment_type = PerformanceTest.get_environment_type(self.environment_specification_file_path)
 
     def __str__(self):
         return f"<TestSpec>: \n{pformat(TestSpecSchema().dump(self), indent=2, compact=True)}"
@@ -111,10 +111,10 @@ class TestSpec(DefaultValues):
     def validate(self):
         super().validate()
 
-        if not os.path.isfile(self.instance_specification_file_path):
+        if not os.path.isfile(self.environment_specification_file_path):
             raise ValueError(
                 f"Environment specification file "
-                f"'{self.instance_specification_file_path}' "
+                f"'{self.environment_specification_file_path}' "
                 f"does not exist."
             )
 

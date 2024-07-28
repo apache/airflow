@@ -581,7 +581,7 @@ To run a single test attempt, use the command explained below:
 <!-- AIRFLOW_GEPARD_AUTO_START -->
 
 ```
-  usage: airflow_gepard [-h] -s INSTANCE_SPECIFICATION_FILE_PATH
+  usage: airflow_gepard [-h] -s environment_specification_file_path
                         [-j JINJA_VARIABLES] [-e ELASTIC_DAG_CONFIG_FILE_PATH]
                         [-c RESULTS_COLUMNS] [-o OUTPUT_PATH] [-r RESULTS_OBJECT_NAME]
                         [--reuse-if-exists] [--delete-if-exists]
@@ -589,7 +589,7 @@ To run a single test attempt, use the command explained below:
 
   optional arguments:
     -h, --help            show this help message and exit
-    -s INSTANCE_SPECIFICATION_FILE_PATH, --environment-specification-file-path INSTANCE_SPECIFICATION_FILE_PATH
+    -s environment_specification_file_path, --environment-specification-file-path environment_specification_file_path
                           Path to the json file with specification of the
                           environment you wish to create and test. Your file can
                           contain jinja variables, in which case you must
@@ -827,7 +827,7 @@ Let's take a look at the contents of an exemplary study file
 [composer_study_example.json](studies/composer_study_example.json) to determine, what arguments
 will be used when starting test attempts.
 
-1.  first study component: 1. `component_name`: this component is called `"component_1"` 1. `args`: two arguments specified in dict explicitly: - `instance_specification_file_path` - relative path leading to
+1.  first study component: 1. `component_name`: this component is called `"component_1"` 1. `args`: two arguments specified in dict explicitly: - `environment_specification_file_path` - relative path leading to
     [config_big.json](environments/kubernetes/gke/composer/composer_configurations/config_big.json). - `jinja_variables` - provided as dictionary with only one key: `environment_id`. Since the
     `jinja_variables` is a 'dumped json' type argument and it is also defined in `default_args`, then
     the final value is a dict being combination of these two:
@@ -851,7 +851,7 @@ will be used when starting test attempts.
         (`"big-env"`) when constructing environment name for every test attempt of this component.
 
 1.  second study component: 1. `component_name`: this component is called `"component_2"` 1. `baseline_component_name`: `"component_1"` is the baseline to which performance of this
-    component will be compared 1. `args`: three arguments specified in dict explicitly: - `instance_specification_file_path` - relative path leading to
+    component will be compared 1. `args`: three arguments specified in dict explicitly: - `environment_specification_file_path` - relative path leading to
     [config_small.json](environments/kubernetes/gke/composer/composer_configurations/config_small.json). - `results_dataset` - a BQ dataset called `"another_results_dataset"`,
     which overrides the value from `default_args` - `jinja_variables` - a dictionary with two keys: `environment_id` and `project_id`.
     `project_id` provided here overrides the value from `jinja_variables` dict in `default_args`:
@@ -883,7 +883,7 @@ Additional notes:
 - script runs thorough analysis of arguments and specification files validation before running any
   attempt, but some issues can only be discovered upon starting the test attempt execution. It is
   recommended to test the specifications using `airflow-gepard` script first.
-- relative file path `instance_specification_file_path` is considered to be relative to the study file location.
+- relative file path `environment_specification_file_path` is considered to be relative to the study file location.
 - the only supported way of storing the results is BQ dataset (`results_dataset`). Providing
   `output_path` or `results_bucket` for any of the components will cause the study validation to fail.
 - results of all test attempts belonging to the same study component are saved in the same BQ table

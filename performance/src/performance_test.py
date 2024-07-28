@@ -52,7 +52,7 @@ class PerformanceTest:
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        instance_specification_file_path: str,
+        environment_specification_file_path: str,
         elastic_dag_path: str,
         elastic_dag_config_file_path: str,
         jinja_variables_dict: Optional[Dict[str, str]] = None,
@@ -67,9 +67,9 @@ class PerformanceTest:
         """
         Creates an instance of PerformanceTest class.
 
-        :param instance_specification_file_path: path to the file with specification of test
+        :param environment_specification_file_path: path to the file with specification of test
             environment.
-        :type instance_specification_file_path: str
+        :type environment_specification_file_path: str
         :param elastic_dag_path: a path to elastic DAG that should be uploaded to test environment.
         :type elastic_dag_path: str
         :param elastic_dag_config_file_path: path to file with configuration for elastic DAG.
@@ -111,11 +111,11 @@ class PerformanceTest:
 
         jinja_variables_dict = jinja_variables_dict or {}
 
-        instance_type = self.get_environment_type(instance_specification_file_path)
+        environment_type = self.get_environment_type(environment_specification_file_path)
 
-        if instance_type == ComposerEnvironment.environment_type:
+        if environment_type == ComposerEnvironment.environment_type:
             self.environment = ComposerEnvironment(
-                instance_specification_file_path,
+                environment_specification_file_path,
                 elastic_dag_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
@@ -125,9 +125,9 @@ class PerformanceTest:
                 delete_upon_finish,
                 reset_environment,
             )
-        elif instance_type == VanillaGKEEnvironment.environment_type:
+        elif environment_type == VanillaGKEEnvironment.environment_type:
             self.environment = VanillaGKEEnvironment(
-                instance_specification_file_path,
+                environment_specification_file_path,
                 elastic_dag_path,
                 elastic_dag_config_file_path,
                 jinja_variables_dict,
@@ -140,20 +140,20 @@ class PerformanceTest:
         else:
             raise ValueError(
                 f"Currently only Composer and Vanilla GKE environments are supported "
-                f"for performance tests (provided environment type: {instance_type})."
+                f"for performance tests (provided environment type: {environment_type})."
             )
 
     # pylint: enable=too-many-arguments
 
     @staticmethod
-    def get_environment_type(instance_specification_file_path: str) -> str:
+    def get_environment_type(environment_specification_file_path: str) -> str:
         """
-        Reads the contents of the instance_specification_file_path
+        Reads the contents of the environment_specification_file_path
         and returns the environment type.
 
-        :param instance_specification_file_path: path to the file with specification
+        :param environment_specification_file_path: path to the file with specification
             of test environment.
-        :type instance_specification_file_path: str
+        :type environment_specification_file_path: str
 
         :raises:
             TypeError: if the specification is not a dictionary.
@@ -162,7 +162,7 @@ class PerformanceTest:
 
         # we just want to get "environment_type" that's why we fill the templated file with nulls
         environment_specification = read_templated_json_file(
-            instance_specification_file_path, fill_with_nulls=True
+            environment_specification_file_path, fill_with_nulls=True
         )
 
         if not isinstance(environment_specification, Dict):

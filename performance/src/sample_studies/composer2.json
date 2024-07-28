@@ -10,8 +10,9 @@
         }
     ],
     "default_args": {
-        "instance_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_composer2_generic.json",
+        "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_composer2_generic.json",
         "jinja_variables": {
+            "project_id": "composer-performance-tests",
             "location_id": "us-central1",
             "zone_id": "us-central1-c",
             "api_endpoint": "https://qa-composer.sandbox.googleapis.com/"
