@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import contextlib
 import os
-import signal
 import shutil
+import signal
 import time
 from collections import namedtuple
 from subprocess import PIPE, STDOUT, Popen
@@ -112,10 +112,10 @@ class SubprocessHook(BaseHook):
                 return_code: int = self.sub_process.returncode
         except PermissionError as e:
             # Win Error 32: The process cannot access the file because it is being used by another process
-            if safe_cleanup and e.winerror == 32:
+            if safe_cleanup:
                 for retry in range(3):
                     try:
-                        shutil.rmtree(cwd)
+                        shutil.rmtree(cwd.name)
                         self.log.info("Removed temporary directory %s on retry #%s", cwd, retry + 1)
                         break
                     except PermissionError:
