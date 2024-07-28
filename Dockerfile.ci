@@ -1118,7 +1118,8 @@ function check_run_tests() {
         echo "${COLOR_BLUE}Starting internal API server:${COLOR_RESET}"
         # We need to start the internal API server before running tests
         airflow db migrate
-        airflow internal-api >"${AIRFLOW_HOME}/logs/internal-api.log" 2>&1 &
+        # We set a very large clock grade allowing to have tests running in other time/years
+        AIRFLOW__CORE__INTERNAL_API_CLOCK_GRACE=999999999 airflow internal-api >"${AIRFLOW_HOME}/logs/internal-api.log" 2>&1 &
         echo
         echo -n "${COLOR_YELLOW}Waiting for internal API server to listen on 9080. ${COLOR_RESET}"
         echo
