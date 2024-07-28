@@ -11,6 +11,7 @@
     ],
     "default_args": {
         "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_composer2_generic.json",
+        "output_path": "results/",
         "jinja_variables": {
             "project_id": "composer-performance-tests",
             "location_id": "us-central1",
