@@ -110,7 +110,7 @@ class SubprocessHook(BaseHook):
                 self.log.info("Command exited with return code %s", self.sub_process.returncode)
 
                 return_code: int = self.sub_process.returncode
-        except PermissionError as e:
+        except PermissionError:
             # Win Error 32: The process cannot access the file because it is being used by another process
             if safe_cleanup:
                 for retry in range(3):
