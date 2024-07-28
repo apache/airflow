@@ -26,6 +26,36 @@
 Changelog
 ---------
 
+8.27.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add RedriveExecution support to 'StepFunctionStartExecutionOperator' (#40976)``
+* ``openlineage: add support for hook lineage for S3Hook (#40819)``
+* ``Introduce Amazon Kinesis Analytics V2 (Managed Service for Apache Flink application)  (#40765)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
+* ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
+* ``Fix 'RedshiftCreateClusterOperator' to always specify 'PubliclyAccessible' (#40872)``
+
+Misc
+~~~~
+
+* ``Update 'example_redshift' and 'example_redshift_s3_transfers' to use 'RedshiftDataHook' instead of 'RedshiftSQLHook' (#40970)``
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
+* ``Move AWS Managed Service for Apache Flink sensor states to Hook (#40896)``
+* ``Replace usages of task context logger with the log table (#40867)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 8.26.0
 ......
 

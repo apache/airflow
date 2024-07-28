@@ -43,7 +43,7 @@ from tests.test_utils.mapping import expand_mapped_task
 
 DEV_NULL = "/dev/null"
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
