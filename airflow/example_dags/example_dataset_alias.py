@@ -45,7 +45,7 @@ from airflow.datasets import Dataset, DatasetAlias
 from airflow.decorators import task
 
 with DAG(
-    dag_id="dataset-producer",
+    dag_id="dataset_s3_bucket_producer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
@@ -59,7 +59,7 @@ with DAG(
     produce_dataset_events()
 
 with DAG(
-    dag_id="dataset-alias-producer",
+    dag_id="dataset_alias_example_alias_producer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
@@ -75,7 +75,7 @@ with DAG(
     produce_dataset_events_through_dataset_alias()
 
 with DAG(
-    dag_id="dataset-consumer",
+    dag_id="dataset_s3_bucket_consumer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[Dataset("s3://bucket/my-task")],
     catchup=False,
@@ -89,7 +89,7 @@ with DAG(
     consume_dataset_event()
 
 with DAG(
-    dag_id="dataset-alias-consumer",
+    dag_id="dataset_alias_example_alias_consumer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[DatasetAlias("example-alias")],
     catchup=False,
