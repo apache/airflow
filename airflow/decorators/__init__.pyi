@@ -21,11 +21,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Callable, Collection, Container, Iterable, Mapping, overload
+from typing import Any, Callable, Collection, Container, Iterable, Mapping, TypeVar, overload
 
 from kubernetes.client import models as k8s
 
-from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
+from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
@@ -39,6 +39,7 @@ from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.typing_compat import Literal
+from airflow.utils.context import Context
 
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
@@ -59,6 +60,8 @@ __all__ = [
     "setup",
     "teardown",
 ]
+
+_T = TypeVar("_T", bound=Task[..., Any] | _TaskDecorator[..., Any, Any])
 
 class TaskDecoratorCollection:
     @overload
@@ -755,6 +758,8 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def run_if(self, condition: Callable[[Context], bool]) -> Callable[[_T], _T]: ...
+    def skip_if(self, condition: Callable[[Context], bool]) -> Callable[[_T], _T]: ...
     def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection
