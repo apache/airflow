@@ -120,6 +120,7 @@ class DatasetAliasModel(Base):
         secondary=dataset_alias_dataset_event_assocation_table,
         back_populates="source_aliases",
     )
+    producing_tasks = relationship("TaskOutletDatasetAliasReference", back_populates="dataset_alias")
 
     @classmethod
     def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
@@ -300,6 +301,52 @@ class TaskOutletDatasetReference(Base):
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class TaskOutletDatasetAliasReference(Base):
+    """References from a task to a dataset alias that it updates / produces."""
+
+    dataset_alias_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dataset_alias = relationship("DatasetAliasModel", back_populates="producing_tasks")
+
+    __tablename__ = "task_outlet_dataset_alias_reference"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dataset_alias_id,),
+            ["dataset_alias.id"],
+            name="todar_dataset_alias_fkey",
+            ondelete="CASCADE",
+        ),
+        PrimaryKeyConstraint(dataset_alias_id, dag_id, task_id, name="todar_pkey"),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=["dag.dag_id"],
+            name="todar_dag_id_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_task_outlet_dataset_alias_reference_dag_id", dag_id),
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (
+                self.dataset_alias_id == other.dataset_alias_id
+                and self.dag_id == other.dag_id
+                and self.task_id == other.task_id
+            )
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.__mapper__.primary_key)
+
+    def __repr__(self):
+        args = [f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
