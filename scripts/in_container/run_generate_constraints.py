@@ -384,7 +384,6 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     run_command(
         cmd=[
             *config_params.get_install_command,
-            "-e",
             ".[all-core]",
             *packages_to_install,
             *config_params.eager_upgrade_additional_requirements_list,

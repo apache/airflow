@@ -49,6 +49,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - cohere
+        - common-compat
         - common-io
         - common-sql
         - databricks
@@ -112,6 +113,7 @@ body:
         - vertica
         - weaviate
         - yandex
+        - ydb
         - zendesk
     validations:
       required: true

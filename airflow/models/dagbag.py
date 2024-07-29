@@ -46,8 +46,10 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
+    AirflowException,
     RemovedInAirflow3Warning,
 )
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -496,7 +498,8 @@ class DagBag(LoggingMixin):
         self._bag_dag(dag=dag, root_dag=root_dag, recursive=True)
 
     def _bag_dag(self, *, dag, root_dag, recursive):
-        """Actual implementation of bagging a dag.
+        """
+        Actual implementation of bagging a dag.
 
         The only purpose of this is to avoid exposing ``recursive`` in ``bag_dag()``,
         intended to only be used by the ``_bag_dag()`` implementation.
@@ -511,6 +514,16 @@ class DagBag(LoggingMixin):
             settings.dag_policy(dag)
 
             for task in dag.tasks:
+                # The listeners are not supported when ending a task via a trigger on asynchronous operators.
+                if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
+                    raise AirflowException(
+                        "Listeners are not supported with end_from_trigger=True for deferrable operators. "
+                        "Task %s in DAG %s has end_from_trigger=True with listeners from plugins. "
+                        "Set end_from_trigger=False to use listeners.",
+                        task.task_id,
+                        dag.dag_id,
+                    )
+
                 settings.task_policy(task)
         except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
             raise

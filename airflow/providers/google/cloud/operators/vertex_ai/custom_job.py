@@ -180,9 +180,44 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
             stacklevel=2,
         )
 
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        training_pipeline = event["job"]
+        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(training_pipeline)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        try:
+            model = training_pipeline["model_to_upload"]
+            model_id = self.hook.extract_model_id(model)
+            self.xcom_push(context, key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            return model
+        except KeyError:
+            self.log.warning(
+                "It is impossible to get the Model. "
+                "The Training Pipeline did not produce a Managed Model because it was not "
+                "configured to upload a Model. Please ensure that the 'model_serving_container_image_uri' "
+                "and 'model_display_name' parameters are passed in when creating a Training Pipeline, "
+                "and check that your training script saves the model to os.environ['AIP_MODEL_DIR']."
+            )
+            return None
+
+    @cached_property
+    def hook(self) -> CustomJobHook:
+        return CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def on_kill(self) -> None:
+        """Act as a callback called when the operator is killed; cancel any running job."""
+        if self.hook:
+            self.hook.cancel_job()
+
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Container Training job.
+    """
+    Create Custom Container Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -564,23 +599,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Act as a callback called when the operator is killed; cancel any running job."""
-        if self.hook:
-            self.hook.cancel_job()
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        result = event["job"]
-        model_id = self.hook.extract_model_id_from_training_pipeline(result)
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(result)
-        self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        # push custom_job_id to xcom so it could be pulled by other tasks
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        return result
-
     def invoke_defer(self, context: Context) -> None:
         custom_container_training_job_obj: CustomContainerTrainingJob = self.hook.submit_custom_container_training_job(
             project_id=self.project_id,
@@ -650,16 +668,10 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             method_name="execute_complete",
         )
 
-    @cached_property
-    def hook(self) -> CustomJobHook:
-        return CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
 
 class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Python Package Training job.
+    """
+    Create Custom Python Package Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1040,23 +1052,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Cancel any running job. Callback called when the operator is killed."""
-        if self.hook:
-            self.hook.cancel_job()
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        result = event["job"]
-        model_id = self.hook.extract_model_id_from_training_pipeline(result)
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(result)
-        self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        # push custom_job_id to xcom so it could be pulled by other tasks
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        return result
-
     def invoke_defer(self, context: Context) -> None:
         custom_python_training_job_obj: CustomPythonPackageTrainingJob = self.hook.submit_custom_python_package_training_job(
             project_id=self.project_id,
@@ -1127,16 +1122,10 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             method_name="execute_complete",
         )
 
-    @cached_property
-    def hook(self) -> CustomJobHook:
-        return CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
 
 class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create a Custom Training Job pipeline.
+    """
+    Create a Custom Training Job pipeline.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1522,23 +1511,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Cancel any running job. Callback called when the operator is killed."""
-        if self.hook:
-            self.hook.cancel_job()
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        result = event["job"]
-        model_id = self.hook.extract_model_id_from_training_pipeline(result)
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(result)
-        self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        # push custom_job_id to xcom so it could be pulled by other tasks
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        return result
-
     def invoke_defer(self, context: Context) -> None:
         custom_training_job_obj: CustomTrainingJob = self.hook.submit_custom_training_job(
             project_id=self.project_id,
@@ -1607,13 +1579,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
                 impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
-        )
-
-    @cached_property
-    def hook(self) -> CustomJobHook:
-        return CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
         )
 
 
@@ -1692,9 +1657,9 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline)
+            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline_id)
             training_pipeline_operation = hook.delete_training_pipeline(
-                training_pipeline=self.training_pipeline,
+                training_pipeline=self.training_pipeline_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1704,11 +1669,11 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
             self.log.info("Training pipeline was deleted.")
         except NotFound:
-            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
+            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline_id)
         try:
-            self.log.info("Deleting custom job: %s", self.custom_job)
+            self.log.info("Deleting custom job: %s", self.custom_job_id)
             custom_job_operation = hook.delete_custom_job(
-                custom_job=self.custom_job,
+                custom_job=self.custom_job_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1718,7 +1683,7 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=custom_job_operation)
             self.log.info("Custom job was deleted.")
         except NotFound:
-            self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
+            self.log.info("The Custom Job ID %s does not exist.", self.custom_job_id)
 
 
 class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):

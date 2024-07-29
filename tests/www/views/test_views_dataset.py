@@ -51,7 +51,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetModel).count() == 2
 
-        with assert_queries_count(8):
+        with assert_queries_count(10):
             response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200

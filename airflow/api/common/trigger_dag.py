@@ -40,7 +40,8 @@ def _trigger_dag(
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
 ) -> list[DagRun | None]:
-    """Triggers DAG run.
+    """
+    Triggers DAG run.
 
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
@@ -109,7 +110,8 @@ def trigger_dag(
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
 ) -> DagRun | None:
-    """Triggers execution of DAG specified by dag_id.
+    """
+    Triggers execution of DAG specified by dag_id.
 
     :param dag_id: DAG ID
     :param run_id: ID of the dag_run

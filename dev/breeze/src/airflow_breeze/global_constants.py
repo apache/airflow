@@ -25,7 +25,6 @@ import platform
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
 
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -33,9 +32,11 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
 # we use self airflow, vm-based, amd hosted runner as a default
+# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
+RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
 # TODO: when we have it properly set-up with labels we should change it to
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -54,13 +55,16 @@ DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = [
     "cassandra",
     "celery",
+    "drill",
+    "kafka",
     "kerberos",
     "mongo",
-    "pinot",
-    "trino",
-    "kafka",
-    "qdrant",
     "mssql",
+    "pinot",
+    "qdrant",
+    "redis",
+    "trino",
+    "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
@@ -85,7 +89,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.26.15", "v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -112,8 +116,18 @@ MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 MOUNT_TESTS = "tests"
+MOUNT_PROVIDERS_AND_TESTS = "providers-and-tests"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE, MOUNT_TESTS]
+ALLOWED_MOUNT_OPTIONS = [
+    MOUNT_SELECTED,
+    MOUNT_ALL,
+    MOUNT_SKIP,
+    MOUNT_REMOVE,
+    MOUNT_TESTS,
+    MOUNT_PROVIDERS_AND_TESTS,
+]
+
+USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
 ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
@@ -147,6 +161,11 @@ REGULAR_DOC_PACKAGES = [
 @lru_cache(maxsize=None)
 def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+
+
+@lru_cache(maxsize=None)
+def all_selective_test_types_except_providers() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
 
 
 class SelectiveUnitTestTypes(Enum):
@@ -212,7 +231,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 
 
 def get_default_platform_machine() -> str:
-    machine = platform.uname().machine
+    machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
     machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
@@ -222,15 +241,17 @@ def get_default_platform_machine() -> str:
 DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
 DOCKER_BUILDKIT = 1
 
+DRILL_HOST_PORT = "28047"
+FLOWER_HOST_PORT = "25555"
+MSSQL_HOST_PORT = "21433"
+MYSQL_HOST_PORT = "23306"
+POSTGRES_HOST_PORT = "25433"
+RABBITMQ_HOST_PORT = "25672"
+REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
-POSTGRES_HOST_PORT = "25433"
-MYSQL_HOST_PORT = "23306"
-FLOWER_HOST_PORT = "25555"
-REDIS_HOST_PORT = "26379"
-CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
-MSSQL_HOST_PORT = "21433"
 
+CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
@@ -309,6 +330,7 @@ COMMITTERS = [
     "Fokko",
     "KevinYang21",
     "Lee-W",
+    "RNHTTR",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
@@ -352,10 +374,12 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
+    "shahar1",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -391,7 +415,6 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-AVAILABLE_INTEGRATIONS = ["cassandra", "kerberos", "mongo", "pinot", "celery", "statsd", "trino", "qdrant"]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
@@ -421,7 +444,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.15.0"
+HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -476,29 +499,23 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
-def _exclusion(providers: Iterable[str]) -> str:
-    return " ".join(
-        [f"apache_airflow_providers_{provider.replace('.', '_').replace('-','_')}*" for provider in providers]
-    )
-
-
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
+BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
-        "airflow-version": "2.7.1",
-        "remove-providers": _exclusion(["common.io", "fab"]),
-        "run-tests": "false",
+        "airflow-version": "2.7.3",
+        "remove-providers": "common.io fab",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",
-        "airflow-version": "2.8.0",
-        "remove-providers": _exclusion(["fab"]),
-        "run-tests": "false",
+        "airflow-version": "2.8.4",
+        "remove-providers": "fab",
+        "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.9.1",
-        "remove-providers": _exclusion([]),
+        "remove-providers": "",
         "run-tests": "true",
     },
 ]

@@ -19,10 +19,12 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 import yandex.cloud.lockbox.v1.payload_pb2 as payload_pb
 import yandex.cloud.lockbox.v1.secret_pb2 as secret_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2 as secret_service_pb
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.yandex.secrets.lockbox import LockboxSecretBackend
 from airflow.providers.yandex.utils.defaults import default_conn_name
 
@@ -63,11 +65,21 @@ class TestLockboxSecretBackend:
 
         mock_get_value.return_value = json.dumps(c)
 
-        conn = LockboxSecretBackend().get_connection(conn_id)
+        match = "Encountered non-JSON in `extra` field for connection 'airflow_to_yandexcloud'. Support for non-JSON `extra` will be removed in Airflow 3.0"
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match=match,
+        ):
+            conn = LockboxSecretBackend().get_connection(conn_id)
+
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match=match,
+        ):
+            assert conn.extra == extra
 
         assert conn.conn_id == conn_id
         assert conn.conn_type == conn_type
-        assert conn.extra == extra
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
     def test_yandex_lockbox_secret_backend_get_variable(self, mock_get_value):

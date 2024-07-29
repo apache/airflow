@@ -22,7 +22,7 @@ The regular Breeze development tasks are available as top-level commands. Those 
 used during the development, that's why they are available without any sub-command. More advanced
 commands are separated to sub-commands.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Entering Breeze shell
 ---------------------
@@ -434,7 +434,7 @@ Then, next time when you start Breeze, it will have the data pre-populated.
 These are all available flags of ``down`` command:
 
 .. image:: ./images/output-down.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output-down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_down.svg
   :width: 100%
   :alt: Breeze down
 

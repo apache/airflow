@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add map_index to Log.
+"""
+Add map_index to Log.
 
 Revision ID: 75d5ed6c2b43
 Revises: 909884dea523

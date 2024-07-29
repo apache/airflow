@@ -72,7 +72,12 @@ CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
 
-LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
+# VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
+# For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
+# Because `gcs/data/` is shared folder for Airflow's workers.
+LOCAL_TRAINING_SCRIPT_PATH = os.environ.get(
+    "VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH", "california_housing_training_script.py"
+)
 
 
 with DAG(
@@ -243,6 +248,14 @@ with DAG(
             delete_bucket,
         )
     )
+
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

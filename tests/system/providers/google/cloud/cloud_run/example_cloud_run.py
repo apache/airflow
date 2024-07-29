@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example Airflow DAG that uses Google Cloud Run Operators.
-"""
+
+"""Example Airflow DAG that uses Google Cloud Run Operators."""
 
 from __future__ import annotations
 
@@ -39,7 +38,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 from airflow.utils.trigger_rule import TriggerRule
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_cloud_run"
+DAG_ID = "cloud_run"
 
 region = "us-central1"
 job_name_prefix = "cloudrun-system-test-job"
@@ -49,6 +48,7 @@ job3_name = f"{job_name_prefix}3"
 
 create1_task_name = "create-job1"
 create2_task_name = "create-job2"
+create3_task_name = "create-job3"
 
 execute1_task_name = "execute-job1"
 execute2_task_name = "execute-job2"
@@ -84,6 +84,9 @@ def _assert_created_jobs_xcom(ti):
     job2_dicts = ti.xcom_pull(task_ids=[create2_task_name], key="return_value")
     assert job2_name in job2_dicts[0]["name"]
 
+    job3_dicts = ti.xcom_pull(task_ids=[create3_task_name], key="return_value")
+    assert job3_name in job3_dicts[0]["name"]
+
 
 def _assert_updated_job(ti):
     job_dicts = ti.xcom_pull(task_ids=[update_job1_task_name], key="return_value")
@@ -113,24 +116,89 @@ def _assert_jobs(ti):
 
 def _assert_one_job(ti):
     job_dicts = ti.xcom_pull(task_ids=[list_jobs_limit_task_name], key="return_value")
-
     assert len(job_dicts[0]) == 1
 
 
-# [START howto_operator_cloud_run_job_creation]
-def _create_job():
+# [START howto_cloud_run_job_instance_creation]
+def _create_job_instance() -> Job:
+    """
+    Create a Cloud Run job configuration with google.cloud.run_v2.Job object.
+
+    As a minimum the configuration must contain a container image name in its template.
+    The rest of the configuration parameters are optional and will be populated with default values if not set.
+    """
     job = Job()
     container = k8s_min.Container()
     container.image = "us-docker.pkg.dev/cloudrun/container/job:latest"
+    container.resources.limits = {"cpu": "2", "memory": "1Gi"}
     job.template.template.containers.append(container)
     return job
 
 
-# [END howto_operator_cloud_run_job_creation]
+# [END howto_cloud_run_job_instance_creation]
 
 
-def _create_job_with_label():
-    job = _create_job()
+# [START howto_cloud_run_job_dict_creation]
+def _create_job_dict() -> dict:
+    """
+    Create a Cloud Run job configuration with a Python dict.
+
+    As a minimum the configuration must contain a container image name in its template.
+    """
+    return {
+        "template": {
+            "template": {
+                "containers": [
+                    {
+                        "image": "us-docker.pkg.dev/cloudrun/container/job:latest",
+                        "resources": {
+                            "limits": {"cpu": "1", "memory": "512Mi"},
+                            "cpu_idle": False,
+                            "startup_cpu_boost": False,
+                        },
+                        "name": "",
+                        "command": [],
+                        "args": [],
+                        "env": [],
+                        "ports": [],
+                        "volume_mounts": [],
+                        "working_dir": "",
+                        "depends_on": [],
+                    }
+                ],
+                "volumes": [],
+                "execution_environment": 0,
+                "encryption_key": "",
+            },
+            "labels": {},
+            "annotations": {},
+            "parallelism": 0,
+            "task_count": 0,
+        },
+        "name": "",
+        "uid": "",
+        "generation": "0",
+        "labels": {},
+        "annotations": {},
+        "creator": "",
+        "last_modifier": "",
+        "client": "",
+        "client_version": "",
+        "launch_stage": 0,
+        "observed_generation": "0",
+        "conditions": [],
+        "execution_count": 0,
+        "reconciling": False,
+        "satisfies_pzs": False,
+        "etag": "",
+    }
+
+
+# [END howto_cloud_run_job_dict_creation]
+
+
+def _create_job_instance_with_label():
+    job = _create_job_instance()
     job.labels = {"somelabel": "label1"}
     return job
 
@@ -140,7 +208,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "cloud", "run"],
 ) as dag:
     # [START howto_operator_cloud_run_create_job]
     create1 = CloudRunCreateJobOperator(
@@ -148,7 +216,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=region,
         job_name=job1_name,
-        job=_create_job(),
+        job=_create_job_instance(),
         dag=dag,
     )
     # [END howto_operator_cloud_run_create_job]
@@ -158,7 +226,16 @@ with DAG(
         project_id=PROJECT_ID,
         region=region,
         job_name=job2_name,
-        job=Job.to_dict(_create_job()),
+        job=_create_job_dict(),
+        dag=dag,
+    )
+
+    create3 = CloudRunCreateJobOperator(
+        task_id=create3_task_name,
+        project_id=PROJECT_ID,
+        region=region,
+        job_name=job3_name,
+        job=Job.to_dict(_create_job_instance()),
         dag=dag,
     )
 
@@ -195,7 +272,7 @@ with DAG(
                 "name": "job",
                 "args": ["python", "main.py"],
                 "env": [{"name": "ENV_VAR", "value": "value"}],
-                "clearArgs": False,
+                "clear_args": False,
             }
         ],
         "task_count": 1,
@@ -237,7 +314,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=region,
         job_name=job1_name,
-        job=_create_job_with_label(),
+        job=_create_job_instance_with_label(),
         dag=dag,
     )
     # [END howto_operator_cloud_update_job]
@@ -266,8 +343,17 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_job3 = CloudRunDeleteJobOperator(
+        task_id="delete-job3",
+        project_id=PROJECT_ID,
+        region=region,
+        job_name=job3_name,
+        dag=dag,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     (
-        (create1, create2)
+        (create1, create2, create3)
         >> assert_created_jobs
         >> (execute1, execute2, execute3)
         >> assert_executed_jobs
@@ -277,7 +363,7 @@ with DAG(
         >> assert_jobs
         >> update_job1
         >> assert_job_updated
-        >> (delete_job1, delete_job2)
+        >> (delete_job1, delete_job2, delete_job3)
     )
 
     from tests.system.utils.watcher import watcher

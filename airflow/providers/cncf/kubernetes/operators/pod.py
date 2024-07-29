@@ -36,6 +36,7 @@ import kubernetes
 import tenacity
 from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
@@ -468,7 +469,9 @@ class KubernetesPodOperator(BaseOperator):
         """
         Generate labels for the pod to track the pod in case of Operator crash.
 
-        :param context: task context provided by airflow DAG
+        :param context: task context provided by airflow DAG.
+        :param include_try_number: if set to True will add the try number
+            from the task context to the pod labels.
         :return: dict
         """
         if not context:
@@ -533,24 +536,31 @@ class KubernetesPodOperator(BaseOperator):
 
         pod = None
         num_pods = len(pod_list)
-        if num_pods > 1:
-            raise AirflowException(f"More than one pod running with labels {label_selector}")
-        elif num_pods == 1:
+
+        if num_pods == 1:
             pod = pod_list[0]
-            self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
-            self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
+            self.log_matching_pod(pod=pod, context=context)
+        elif num_pods > 1:
+            if self.reattach_on_restart:
+                raise AirflowException(f"More than one pod running with labels {label_selector}")
+            self.log.warning("Found more than one pod running with labels %s, resolving ...", label_selector)
+            pod = self.process_duplicate_label_pods(pod_list)
+            self.log_matching_pod(pod=pod, context=context)
+
         return pod
+
+    def log_matching_pod(self, pod: k8s.V1Pod, context: Context) -> None:
+        self.log.info("Found matching pod %s with labels %s", pod.metadata.name, pod.metadata.labels)
+        self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
+        self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
             pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
             if pod:
                 return pod
-
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         self.pod_manager.create_pod(pod=pod_request_obj)
-
         return pod_request_obj
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
@@ -611,16 +621,7 @@ class KubernetesPodOperator(BaseOperator):
                     mode=ExecutionMode.SYNC,
                 )
 
-            if self.get_logs:
-                self.pod_manager.fetch_requested_container_logs(
-                    pod=self.pod,
-                    containers=self.container_logs,
-                    follow_logs=True,
-                )
-            if not self.get_logs or (
-                self.container_logs is not True and self.base_container_name not in self.container_logs
-            ):
-                self.await_container_completion(pod=self.pod, container_name=self.base_container_name)
+            self.await_pod_completion(pod=self.pod)
             if self.callbacks:
                 self.callbacks.on_pod_completion(
                     pod=self.find_pod(self.pod.metadata.namespace, context=context),
@@ -653,9 +654,18 @@ class KubernetesPodOperator(BaseOperator):
         retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
         reraise=True,
     )
-    def await_container_completion(self, pod: k8s.V1Pod, container_name: str):
+    def await_pod_completion(self, pod: k8s.V1Pod):
         try:
-            self.pod_manager.await_container_completion(pod=pod, container_name=container_name)
+            if self.get_logs:
+                self.pod_manager.fetch_requested_container_logs(
+                    pod=pod,
+                    containers=self.container_logs,
+                    follow_logs=True,
+                )
+            if not self.get_logs or (
+                self.container_logs is not True and self.base_container_name not in self.container_logs
+            ):
+                self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
         except kubernetes.client.exceptions.ApiException as exc:
             if exc.status and str(exc.status) == "401":
                 self.log.warning(
@@ -788,9 +798,18 @@ class KubernetesPodOperator(BaseOperator):
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
         if event["status"] != "timeout":
-            self.pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name
-            )
+            try:
+                self.pod = self.pod_manager.await_pod_completion(
+                    self.pod, istio_enabled, self.base_container_name
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    self.pod = None
+                    self.log.warning(
+                        "Pod not found while waiting for completion. The last status was %r", event["status"]
+                    )
+                else:
+                    raise e
         if self.pod is not None:
             self.post_complete_action(
                 pod=self.pod,
@@ -807,8 +826,7 @@ class KubernetesPodOperator(BaseOperator):
             logs = self.client.read_namespaced_pod_log(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                pod=pod,
-                container_name=self.base_container_name,
+                container=self.base_container_name,
                 follow=follow,
                 timestamps=False,
                 since_seconds=since_seconds,
@@ -818,11 +836,11 @@ class KubernetesPodOperator(BaseOperator):
                 line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
                 if line:
                     self.log.info("[%s] logs: %s", self.base_container_name, line)
-        except HTTPError as e:
+        except (HTTPError, ApiException) as e:
             self.log.warning(
                 "Reading of logs interrupted with error %r; will retry. "
                 "Set log level to DEBUG for traceback.",
-                e,
+                e if not isinstance(e, ApiException) else e.reason,
             )
 
     def post_complete_action(self, *, pod, remote_pod, **kwargs) -> None:
@@ -1128,6 +1146,36 @@ class KubernetesPodOperator(BaseOperator):
     @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
     def execute_complete(self, context: Context, event: dict, **kwargs):
         return self.trigger_reentry(context=context, event=event)
+
+    def process_duplicate_label_pods(self, pod_list: list[k8s.V1Pod]) -> k8s.V1Pod:
+        """
+        Patch or delete the existing pod with duplicate labels.
+
+        This is to handle an edge case that can happen only if reattach_on_restart
+        flag is False, and the previous run attempt has failed because the task
+        process has been killed externally by the cluster or another process.
+
+        If the task process is killed externally, it breaks the code execution and
+        immediately exists the task. As a result the pod created in the previous attempt
+        will not be properly deleted or patched by cleanup() method.
+
+        Return the newly created pod to be used for the next run attempt.
+        """
+        new_pod = pod_list.pop(self._get_most_recent_pod_index(pod_list))
+        old_pod = pod_list[0]
+        self.patch_already_checked(old_pod, reraise=False)
+        if self.on_finish_action == OnFinishAction.DELETE_POD:
+            self.process_pod_deletion(old_pod)
+        return new_pod
+
+    @staticmethod
+    def _get_most_recent_pod_index(pod_list: list[k8s.V1Pod]) -> int:
+        """Loop through a list of V1Pod objects and get the index of the most recent one."""
+        pod_start_times: list[datetime.datetime] = [
+            pod.to_dict().get("status").get("start_time") for pod in pod_list
+        ]
+        most_recent_start_time = max(pod_start_times)
+        return pod_start_times.index(most_recent_start_time)
 
 
 class _optionally_suppress(AbstractContextManager):

@@ -248,6 +248,20 @@ class GoogleBaseHook(BaseHook):
             "impersonation_chain": StringField(
                 lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
             ),
+            "idp_issuer_url": StringField(
+                lazy_gettext("IdP Token Issue URL (Client Credentials Grant Flow)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "client_id": StringField(
+                lazy_gettext("Client ID (Client Credentials Grant Flow)"), widget=BS3TextFieldWidget()
+            ),
+            "client_secret": StringField(
+                lazy_gettext("Client Secret (Client Credentials Grant Flow)"),
+                widget=BS3PasswordFieldWidget(),
+            ),
+            "idp_extra_parameters": StringField(
+                lazy_gettext("IdP Extra Request Parameters"), widget=BS3TextFieldWidget()
+            ),
             "is_anonymous": BooleanField(
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
@@ -305,6 +319,18 @@ class GoogleBaseHook(BaseHook):
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
         is_anonymous = self._get_field("is_anonymous")
 
+        idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
+        client_id: str | None = self._get_field("client_id", None)
+        client_secret: str | None = self._get_field("client_secret", None)
+        idp_extra_params: str | None = self._get_field("idp_extra_params", None)
+
+        idp_extra_params_dict: dict[str, str] | None = None
+        if idp_extra_params:
+            try:
+                idp_extra_params_dict = json.loads(idp_extra_params)
+            except json.decoder.JSONDecodeError:
+                raise AirflowException("Invalid JSON.")
+
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
@@ -316,6 +342,10 @@ class GoogleBaseHook(BaseHook):
             target_principal=target_principal,
             delegates=delegates,
             is_anonymous=is_anonymous,
+            idp_issuer_url=idp_issuer_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            idp_extra_params_dict=idp_extra_params_dict,
         )
 
         overridden_project_id = self._get_field("project")
@@ -676,7 +706,8 @@ class GoogleBaseHook(BaseHook):
 
 
 class _CredentialsToken(Token):
-    """A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
+    """
+    A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
 
     This class allows us to create token instances from credentials objects and thus supports a variety of use cases for Google
     credentials in Airflow (i.e. impersonation chain). By relying on a existing credentials object we leverage functionality provided by the GoogleBaseHook
@@ -731,7 +762,11 @@ class GoogleBaseAsyncHook(BaseHook):
 
     sync_hook_class: Any = None
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
+        # add default value to gcp_conn_id
+        if "gcp_conn_id" not in kwargs:
+            kwargs["gcp_conn_id"] = "google_cloud_default"
+
         self._hook_kwargs = kwargs
         self._sync_hook = None
 

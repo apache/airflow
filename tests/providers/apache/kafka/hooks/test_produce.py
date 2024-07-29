@@ -54,13 +54,7 @@ class TestProducerHook:
                 extra=json.dumps({}),
             )
         )
+        self.hook = KafkaProducerHook(kafka_config_id="kafka_d")
 
-    def test_init(self):
-        """test initialization of AdminClientHook"""
-
-        # Standard Init
-        KafkaProducerHook(kafka_config_id="kafka_d")
-
-        # Not Enough Args
-        with pytest.raises(ValueError):
-            KafkaProducerHook(kafka_config_id="kafka_bad")
+    def test_get_producer(self):
+        assert self.hook.get_producer() == self.hook.get_conn

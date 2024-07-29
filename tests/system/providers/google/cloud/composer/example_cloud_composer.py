@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerRunAirflowCLICommandOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
+from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerDAGRunSensor
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -158,6 +159,29 @@ with DAG(
     )
     # [END howto_operator_run_airflow_cli_command_deferrable_mode]
 
+    # [START howto_sensor_dag_run]
+    dag_run_sensor = CloudComposerDAGRunSensor(
+        task_id="dag_run_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        composer_dag_id="airflow_monitoring",
+        allowed_states=["success"],
+    )
+    # [END howto_sensor_dag_run]
+
+    # [START howto_sensor_dag_run_deferrable_mode]
+    defer_dag_run_sensor = CloudComposerDAGRunSensor(
+        task_id="defer_dag_run_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        composer_dag_id="airflow_monitoring",
+        allowed_states=["success"],
+        deferrable=True,
+    )
+    # [END howto_sensor_dag_run_deferrable_mode]
+
     # [START howto_operator_delete_composer_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
@@ -186,6 +210,7 @@ with DAG(
         get_env,
         [update_env, defer_update_env],
         [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
+        [dag_run_sensor, defer_dag_run_sensor],
         [delete_env, defer_delete_env],
     )
 

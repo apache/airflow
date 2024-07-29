@@ -174,6 +174,14 @@ __deprecated_classes = {
             "airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator"
         ),
     },
+    "datapipeline_operator": {
+        "CreateDataPipelineOperator": (
+            "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator"
+        ),
+        "RunDataPipelineOperator": (
+            "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator"
+        ),
+    },
     "dataproc_operator": {
         "DataprocCreateClusterOperator": (
             "airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator"

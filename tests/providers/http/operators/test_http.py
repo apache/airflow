@@ -19,14 +19,18 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import json
 import pickle
 from unittest import mock
+from unittest.mock import call, patch
 
 import pytest
+import tenacity
 from requests import Response
 from requests.models import RequestEncodingMixin
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.triggers.http import HttpTrigger
 
@@ -228,3 +232,70 @@ class TestHttpOperator:
                 **create_resume_response_parameters(), paginated_responses=[make_response_object()]
             )
             assert result == ['{"value": 5}', '{"value": 5}']
+
+    @patch.object(HttpHook, "run_with_advanced_retry")
+    def test_retry_args(self, mock_run_with_advanced_retry, requests_mock):
+        requests_mock.get("http://www.example.com", exc=Exception("Example Exception"))
+        retry_args = dict(
+            wait=tenacity.wait_none(),
+            stop=tenacity.stop_after_attempt(5),
+            retry=tenacity.retry_if_exception_type(Exception),
+        )
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            method="GET",
+            endpoint="/",
+            http_conn_id="HTTP_EXAMPLE",
+            retry_args=retry_args,
+        )
+        operator.execute({})
+        mock_run_with_advanced_retry.assert_called_with(retry_args, "/", {}, {}, {})
+        assert mock_run_with_advanced_retry.call_count == 1
+
+    @patch.object(HttpHook, "run_with_advanced_retry")
+    def test_pagination_retry_args(
+        self,
+        mock_run_with_advanced_retry,
+        requests_mock,
+    ):
+        is_second_call: bool = False
+
+        def pagination_function(response: Response) -> dict | None:
+            """Paginated function which returns None at the second call."""
+            nonlocal is_second_call
+            if not is_second_call:
+                is_second_call = True
+                return dict(
+                    endpoint=response.json()["endpoint"],
+                )
+            return None
+
+        retry_args = dict(
+            wait=tenacity.wait_none(),
+            stop=tenacity.stop_after_attempt(5),
+            retry=tenacity.retry_if_exception_type(Exception),
+        )
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            method="GET",
+            endpoint="/",
+            http_conn_id="HTTP_EXAMPLE",
+            pagination_function=pagination_function,
+            retry_args=retry_args,
+        )
+
+        response = Response()
+        response.status_code = 200
+        response._content = json.dumps({"value": 5, "endpoint": "/"}).encode("utf-8")
+        response.headers["Content-Type"] = "application/json"
+
+        mock_run_with_advanced_retry.return_value = response
+        operator.execute({})
+        mock_run_with_advanced_retry.assert_has_calls(
+            [
+                call(retry_args, "/", {}, {}, {}),
+                call(retry_args, endpoint="/", data={}, headers={}, extra_options={}),
+            ]
+        )
+
+        assert mock_run_with_advanced_retry.call_count == 2

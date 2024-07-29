@@ -232,8 +232,10 @@ jobs:
           Remove incompatible Airflow
           ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }} provider packages
         run: |
-          rm -vf ${{ matrix.remove-providers }}
-        working-directory: ./dist
+          for provider in ${{ matrix.remove-providers }}; do
+            echo "Removing incompatible provider: ${provider}"
+            rm -vf dist/apache_airflow_providers_${provider/./_}*
+          done
         if: matrix.remove-providers != ''
       - name: "Download airflow package: wheel"
         run: |

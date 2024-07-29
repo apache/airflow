@@ -26,7 +26,7 @@ from google.cloud.container_v1.types import Cluster, NodePool
 from kubernetes.client.models import V1Deployment, V1DeploymentStatus
 from kubernetes.utils.create_from_yaml import FailToCreateError
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -143,9 +143,21 @@ class TestGoogleCloudPlatformContainerOperator:
     @mock.patch(GKE_HOOK_PATH)
     def test_create_execute(self, mock_hook, body):
         print("type: ", type(body))
-        operator = GKECreateClusterOperator(
-            project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
-        )
+        if body == PROJECT_BODY_CREATE_DICT or body == PROJECT_BODY_CREATE_CLUSTER:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="The body field 'initial_node_count' is deprecated. Use 'node_pool.initial_node_count' instead.",
+            ):
+                operator = GKECreateClusterOperator(
+                    project_id=TEST_GCP_PROJECT_ID,
+                    location=PROJECT_LOCATION,
+                    body=body,
+                    task_id=PROJECT_TASK_ID,
+                )
+        else:
+            operator = GKECreateClusterOperator(
+                project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
+            )
 
         operator.execute(context=mock.MagicMock())
         mock_hook.return_value.create_cluster.assert_called_once_with(
@@ -224,7 +236,7 @@ class TestGoogleCloudPlatformContainerOperator:
         operator = GKECreateClusterOperator(
             project_id=TEST_GCP_PROJECT_ID,
             location=PROJECT_LOCATION,
-            body=PROJECT_BODY_CREATE_DICT,
+            body=PROJECT_BODY_CREATE_DICT_NODE_POOLS,
             task_id=PROJECT_TASK_ID,
             deferrable=True,
         )
@@ -294,6 +306,7 @@ class TestGKEPodOperator:
             name=TASK_NAME,
             namespace=NAMESPACE,
             image=IMAGE,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         self.gke_op.pod = mock.MagicMock(
             name=TASK_NAME,
@@ -322,6 +335,7 @@ class TestGKEPodOperator:
                 namespace=NAMESPACE,
                 image=IMAGE,
                 config_file="/path/to/alternative/kubeconfig",
+                on_finish_action=OnFinishAction.KEEP_POD,
             )
 
     @mock.patch.dict(os.environ, {})
@@ -375,6 +389,7 @@ class TestGKEPodOperator:
             namespace=NAMESPACE,
             image=IMAGE,
             use_internal_ip=use_internal_ip,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         cluster_url, ssl_ca_cert = gke_op.fetch_cluster_info()
 
@@ -391,6 +406,7 @@ class TestGKEPodOperator:
             name=TASK_NAME,
             namespace=NAMESPACE,
             image=IMAGE,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         gke_op._cluster_url = CLUSTER_URL
         gke_op._ssl_ca_cert = SSL_CA_CERT
@@ -412,6 +428,7 @@ class TestGKEPodOperator:
             namespace=NAMESPACE,
             image=IMAGE,
             gcp_conn_id="test_conn",
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         gke_op._cluster_url = CLUSTER_URL
         gke_op._ssl_ca_cert = SSL_CA_CERT
@@ -466,16 +483,47 @@ class TestGKEPodOperator:
         kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
 
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
-            op = GKEStartPodOperator(
-                project_id=TEST_GCP_PROJECT_ID,
-                location=PROJECT_LOCATION,
-                cluster_name=CLUSTER_NAME,
-                task_id=PROJECT_TASK_ID,
-                name=TASK_NAME,
-                namespace=NAMESPACE,
-                image=IMAGE,
-                **kwargs,
-            )
+            if "is_delete_operator_pod" in kwargs:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning,
+                    match="`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                ):
+                    op = GKEStartPodOperator(
+                        project_id=TEST_GCP_PROJECT_ID,
+                        location=PROJECT_LOCATION,
+                        cluster_name=CLUSTER_NAME,
+                        task_id=PROJECT_TASK_ID,
+                        name=TASK_NAME,
+                        namespace=NAMESPACE,
+                        image=IMAGE,
+                        **kwargs,
+                    )
+            elif "on_finish_action" not in kwargs:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning,
+                    match="You have not set parameter `on_finish_action` in class GKEStartPodOperator. Currently the default for this parameter is `keep_pod` but in a future release the default will be changed to `delete_pod`. To ensure pods are not deleted in the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                ):
+                    op = GKEStartPodOperator(
+                        project_id=TEST_GCP_PROJECT_ID,
+                        location=PROJECT_LOCATION,
+                        cluster_name=CLUSTER_NAME,
+                        task_id=PROJECT_TASK_ID,
+                        name=TASK_NAME,
+                        namespace=NAMESPACE,
+                        image=IMAGE,
+                        **kwargs,
+                    )
+            else:
+                op = GKEStartPodOperator(
+                    project_id=TEST_GCP_PROJECT_ID,
+                    location=PROJECT_LOCATION,
+                    cluster_name=CLUSTER_NAME,
+                    task_id=PROJECT_TASK_ID,
+                    name=TASK_NAME,
+                    namespace=NAMESPACE,
+                    image=IMAGE,
+                    **kwargs,
+                )
             for expected_attr in expected_attributes:
                 assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 
@@ -673,6 +721,7 @@ class TestGKEPodOperatorAsync:
             namespace=NAMESPACE,
             image=IMAGE,
             deferrable=True,
+            on_finish_action="delete_pod",
         )
         self.gke_op.pod = mock.MagicMock(
             name=TASK_NAME,
@@ -702,6 +751,59 @@ class TestGKEPodOperatorAsync:
             self.gke_op.execute(context=mock.MagicMock())
         fetch_cluster_info_mock.assert_called_once()
         assert isinstance(exc.value.trigger, GKEStartPodTrigger)
+
+    @pytest.mark.parametrize("status", ["error", "failed", "timeout"])
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod")
+    @mock.patch(KUB_OP_PATH.format("_clean"))
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator.hook")
+    @mock.patch(KUB_OP_PATH.format("_write_logs"))
+    def test_execute_complete_failure(self, mock_write_logs, mock_gke_hook, mock_clean, mock_get_pod, status):
+        self.gke_op._cluster_url = CLUSTER_URL
+        self.gke_op._ssl_ca_cert = SSL_CA_CERT
+        with pytest.raises(AirflowException):
+            self.gke_op.execute_complete(
+                context=mock.MagicMock(),
+                event={"name": "test", "status": status, "namespace": "default", "message": ""},
+                cluster_url=self.gke_op._cluster_url,
+                ssl_ca_cert=self.gke_op._ssl_ca_cert,
+            )
+        mock_write_logs.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator.hook")
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod")
+    @mock.patch(KUB_OP_PATH.format("_clean"))
+    @mock.patch(KUB_OP_PATH.format("_write_logs"))
+    def test_execute_complete_success(self, mock_write_logs, mock_clean, mock_get_pod, mock_gke_hook):
+        self.gke_op._cluster_url = CLUSTER_URL
+        self.gke_op._ssl_ca_cert = SSL_CA_CERT
+        self.gke_op.execute_complete(
+            context=mock.MagicMock(),
+            event={"name": "test", "status": "success", "namespace": "default"},
+            cluster_url=self.gke_op._cluster_url,
+            ssl_ca_cert=self.gke_op._ssl_ca_cert,
+        )
+        mock_write_logs.assert_called_once()
+
+    @mock.patch(KUB_OP_PATH.format("pod_manager"))
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator.invoke_defer_method"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_pod")
+    @mock.patch(KUB_OP_PATH.format("_clean"))
+    @mock.patch("airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator.hook")
+    def test_execute_complete_running(
+        self, mock_gke_hook, mock_clean, mock_get_pod, mock_invoke_defer_method, mock_pod_manager
+    ):
+        self.gke_op._cluster_url = CLUSTER_URL
+        self.gke_op._ssl_ca_cert = SSL_CA_CERT
+        self.gke_op.execute_complete(
+            context=mock.MagicMock(),
+            event={"name": "test", "status": "running", "namespace": "default"},
+            cluster_url=self.gke_op._cluster_url,
+            ssl_ca_cert=self.gke_op._ssl_ca_cert,
+        )
+        mock_pod_manager.fetch_container_logs.assert_called_once()
+        mock_invoke_defer_method.assert_called_once()
 
 
 class TestGKEStartJobOperator:

@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   broker:
     image: confluentinc/cp-kafka:7.3.0

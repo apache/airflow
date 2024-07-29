@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
+from airflow.io.path import ObjectStoragePath
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
@@ -45,7 +46,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
         return self.value
 
 
@@ -132,7 +133,8 @@ class Templater(LoggingMixin):
         jinja_env: jinja2.Environment | None = None,
         seen_oids: set[int] | None = None,
     ) -> Any:
-        """Render a templated string.
+        """
+        Render a templated string.
 
         If *content* is a collection holding multiple templated strings, strings
         in the collection will be templated recursively.
@@ -167,8 +169,10 @@ class Templater(LoggingMixin):
             else:
                 template = jinja_env.from_string(value)
             return self._render(template, context)
+        if isinstance(value, ObjectStoragePath):
+            return self._render_object_storage_path(value, context, jinja_env)
         if isinstance(value, ResolveMixin):
-            return value.resolve(context)
+            return value.resolve(context, include_xcom=True)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
@@ -185,6 +189,14 @@ class Templater(LoggingMixin):
         # More complex collections.
         self._render_nested_template_fields(value, context, jinja_env, oids)
         return value
+
+    def _render_object_storage_path(
+        self, value: ObjectStoragePath, context: Context, jinja_env: jinja2.Environment
+    ) -> ObjectStoragePath:
+        serialized_path = value.serialize()
+        path_version = value.__version__
+        serialized_path["path"] = self._render(jinja_env.from_string(serialized_path["path"]), context)
+        return ObjectStoragePath.deserialize(data=serialized_path, version=path_version)
 
     def _render_nested_template_fields(
         self,

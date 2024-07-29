@@ -18,7 +18,7 @@
 Prerequisites
 -------------
 
-Airflow™ is tested with:
+Airflow® is tested with:
 
 * Python: 3.8, 3.9, 3.10, 3.11, 3.12
 
@@ -28,7 +28,7 @@ Airflow™ is tested with:
   * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
 
-* Kubernetes: 1.26, 1.27, 1.28, 1.29
+* Kubernetes: 1.26, 1.27, 1.28, 1.29, 1.30
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depend
 wildly on the deployment options you have
@@ -49,7 +49,7 @@ wildly on the deployment options you have
 
 .. warning::
 
-  Airflow™ currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+  Airflow® currently can be run on POSIX-compliant Operating Systems. For development it is regularly
   tested on fairly modern Linux Distros that our contributors use and recent versions of MacOS.
   On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
   The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__

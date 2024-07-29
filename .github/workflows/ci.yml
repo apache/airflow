@@ -19,11 +19,12 @@
 name: Tests
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 0 * * *'
+    - cron: '28 1,7,13,19 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
+    branches: ['v[0-9]+-[0-9]+-test']
   pull_request:
     branches: ['main']
+  workflow_dispatch:
 permissions:
   # All other permissions are set to none
   contents: read
@@ -79,6 +80,8 @@ jobs:
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
       providers-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
+      separate-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
@@ -120,6 +123,7 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
+      testable-integrations: ${{ steps.selective-checks.outputs.testable-integrations }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
@@ -169,6 +173,7 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+      enable-aip-44: "false"
 
   build-ci-images:
     name: >
@@ -306,7 +311,7 @@ jobs:
       packages: read
     secrets: inherit
     if: >
-      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -456,6 +461,7 @@ jobs:
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -470,17 +476,42 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      testable-integrations: ${{ needs.build-info.outputs.testable-integrations }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      is-airflow-runner: ${{ needs.build-info.outputs.is-airflow-runner }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
+
+  tests-with-lowest-direct-resolution:
+    name: "Lowest direct dependency resolution tests"
+    needs: [build-info, wait-for-ci-images]
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    if: >
+      needs.build-info.outputs.run-tests == 'true'
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      test-name: "LowestDeps-Postgres"
+      force-lowest-dependencies: "true"
+      test-scope: "All"
+      backend: "postgres"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
+      excludes: "[]"
+      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      monitor-delay-time-in-seconds: 120
 
   build-prod-images:
     name: >
@@ -610,7 +641,6 @@ jobs:
       - tests-postgres
       - tests-non-db
       - tests-integration
-      - tests-special
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}

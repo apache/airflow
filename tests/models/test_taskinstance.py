@@ -38,6 +38,7 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.datasets import DatasetAlias
 from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
@@ -47,6 +48,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
+    RemovedInAirflow3Warning,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
@@ -55,7 +57,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool
@@ -68,6 +70,7 @@ from airflow.models.taskinstance import (
     TaskInstanceNote,
     _run_finished_callback,
 )
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -1580,13 +1583,7 @@ class TestTaskInstance:
         ti1.xcom_push(key="foo", value="bar")
 
         # Push another value with the same key (but by a different task)
-        XCom.set(
-            key="foo",
-            value="baz",
-            task_id=task_2.task_id,
-            dag_id=dag.dag_id,
-            execution_date=dagrun.execution_date,
-        )
+        XCom.set(key="foo", value="baz", task_id=task_2.task_id, dag_id=dag.dag_id, run_id=dagrun.run_id)
 
         # Pull with no arguments
         result = ti1.xcom_pull()
@@ -1706,7 +1703,7 @@ class TestTaskInstance:
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         ti.run()
         exec_date += datetime.timedelta(days=1)
-        dr = ti.task.dag.create_dagrun(run_id="test2", execution_date=exec_date, state=None)
+        dr = ti.task.dag.create_dagrun(run_id="test2", data_interval=(exec_date, exec_date), state=None)
         ti = TI(task=ti.task, run_id=dr.run_id)
         ti.run()
         # We have set a new execution date (and did not pass in
@@ -1939,11 +1936,13 @@ class TestTaskInstance:
             dag_id="test_get_num_running_task_instances", task_id="task1", session=session
         )
 
+        execution_date = DEFAULT_DATE + datetime.timedelta(days=1)
         dr = ti1.task.dag.create_dagrun(
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            execution_date=execution_date,
             state=None,
             run_id="2",
             session=session,
+            data_interval=(execution_date, execution_date),
         )
         assert ti1 in session
         ti2 = dr.task_instances[0]
@@ -2022,7 +2021,7 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&map_index=-1"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
         )
         assert ti.log_url == expected_url
@@ -2457,6 +2456,197 @@ class TestTaskInstance:
         assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
+    def test_outlet_dataset_alias(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        ds_uri = "test_outlet_dataset_alias_test_case_ds"
+        dsa_name_1 = "test_outlet_dataset_alias_test_case_dsa_1"
+
+        ds1 = DatasetModel(id=1, uri=ds_uri)
+        session.add(ds1)
+        session.commit()
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias(dsa_name_1))
+            def producer(*, outlet_events):
+                outlet_events[dsa_name_1].add(Dataset(ds_uri))
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_events = session.execute(
+            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+        ).fetchall()
+
+        assert len(producer_events) == 1
+
+        producer_event = producer_events[0][0]
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == ds_uri
+        assert len(producer_event.source_aliases) == 1
+        assert producer_event.extra == {}
+        assert producer_event.source_aliases[0].name == dsa_name_1
+
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 1
+        assert ds_obj.aliases[0].name == dsa_name_1
+
+        dsa_obj = session.scalar(select(DatasetAliasModel).where(DatasetAliasModel.name == dsa_name_1))
+        assert len(dsa_obj.datasets) == 1
+        assert dsa_obj.datasets[0].uri == ds_uri
+
+    def test_outlet_multiple_dataset_alias(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        ds_uri = "test_outlet_mdsa_ds"
+        dsa_name_1 = "test_outlet_mdsa_dsa_1"
+        dsa_name_2 = "test_outlet_mdsa_dsa_2"
+        dsa_name_3 = "test_outlet_mdsa_dsa_3"
+
+        ds1 = DatasetModel(id=1, uri=ds_uri)
+        session.add(ds1)
+        session.commit()
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=[DatasetAlias(dsa_name_1), DatasetAlias(dsa_name_2), DatasetAlias(dsa_name_3)])
+            def producer(*, outlet_events):
+                outlet_events[dsa_name_1].add(Dataset(ds_uri))
+                outlet_events[dsa_name_2].add(Dataset(ds_uri))
+                outlet_events[dsa_name_3].add(Dataset(ds_uri), extra={"k": "v"})
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_events = session.execute(
+            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+        ).fetchall()
+
+        assert len(producer_events) == 2
+        for row in producer_events:
+            producer_event = row[0]
+            assert producer_event.source_task_id == "producer"
+            assert producer_event.source_dag_id == "producer_dag"
+            assert producer_event.source_run_id == "test"
+            assert producer_event.source_map_index == -1
+            assert producer_event.dataset.uri == ds_uri
+
+            if not producer_event.extra:
+                assert producer_event.extra == {}
+                assert len(producer_event.source_aliases) == 2
+                assert {alias.name for alias in producer_event.source_aliases} == {dsa_name_1, dsa_name_2}
+            else:
+                assert producer_event.extra == {"k": "v"}
+                assert len(producer_event.source_aliases) == 1
+                assert producer_event.source_aliases[0].name == dsa_name_3
+
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 3
+        assert {alias.name for alias in ds_obj.aliases} == {dsa_name_1, dsa_name_2, dsa_name_3}
+
+        dsa_objs = session.scalars(select(DatasetAliasModel)).all()
+        assert len(dsa_objs) == 3
+        for dsa_obj in dsa_objs:
+            assert len(dsa_obj.datasets) == 1
+            assert dsa_obj.datasets[0].uri == ds_uri
+
+    def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
+        from airflow.datasets import DatasetAlias
+        from airflow.datasets.metadata import Metadata
+
+        ds_uri = "test_outlet_dataset_alias_through_metadata_ds"
+        dsa_name = "test_outlet_dataset_alias_through_metadata_dsa"
+
+        ds1 = DatasetModel(id=1, uri="test_outlet_dataset_alias_through_metadata_ds")
+        session.add(ds1)
+        session.commit()
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def producer(*, outlet_events):
+                yield Metadata(ds_uri, extra={"key": "value"}, alias=dsa_name)
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == ds_uri
+        assert producer_event.extra == {"key": "value"}
+        assert len(producer_event.source_aliases) == 1
+        assert producer_event.source_aliases[0].name == dsa_name
+
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 1
+        assert ds_obj.aliases[0].name == dsa_name
+
+        dsa_obj = session.scalar(select(DatasetAliasModel))
+        assert len(dsa_obj.datasets) == 1
+        assert dsa_obj.datasets[0].uri == ds_uri
+
+    def test_outlet_dataset_alias_dataset_not_exists(self, dag_maker, session):
+        from airflow.datasets import Dataset, DatasetAlias
+
+        dsa_name = "test_outlet_dataset_alias_dataset_not_exists_dsa"
+        ds_uri = "did_not_exists"
+
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def producer(*, outlet_events):
+                outlet_events[dsa_name].add(Dataset(ds_uri), extra={"key": "value"})
+
+            producer()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        for ti in dr.get_task_instances(session=session):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.run(session=session)
+
+        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
+
+        assert producer_event.source_task_id == "producer"
+        assert producer_event.source_dag_id == "producer_dag"
+        assert producer_event.source_run_id == "test"
+        assert producer_event.source_map_index == -1
+        assert producer_event.dataset.uri == ds_uri
+        assert producer_event.extra == {"key": "value"}
+        assert len(producer_event.source_aliases) == 1
+        assert producer_event.source_aliases[0].name == dsa_name
+
+        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
+        assert len(ds_obj.aliases) == 1
+        assert ds_obj.aliases[0].name == dsa_name
+
+        dsa_obj = session.scalar(select(DatasetAliasModel))
+        assert len(dsa_obj.datasets) == 1
+        assert dsa_obj.datasets[0].uri == ds_uri
+
     def test_inlet_dataset_extra(self, dag_maker, session):
         from airflow.datasets import Dataset
 
@@ -2510,6 +2700,93 @@ class TestTaskInstance:
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert read_task_evaluated
 
+    def test_inlet_dataset_alias_extra(self, dag_maker, session):
+        ds_uri = "test_inlet_dataset_extra_ds"
+        dsa_name = "test_inlet_dataset_extra_dsa"
+
+        ds_model = DatasetModel(id=1, uri=ds_uri)
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model.datasets.append(ds_model)
+        session.add_all([ds_model, dsa_model])
+        session.commit()
+
+        from airflow.datasets import Dataset, DatasetAlias
+
+        read_task_evaluated = False
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def write(*, ti, outlet_events):
+                outlet_events[dsa_name].add(Dataset(ds_uri), extra={"from": ti.task_id})
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                second_event = inlet_events[DatasetAlias(dsa_name)][1]
+                assert second_event.uri == ds_uri
+                assert second_event.extra == {"from": "write2"}
+
+                last_event = inlet_events[DatasetAlias(dsa_name)][-1]
+                assert last_event.uri == ds_uri
+                assert last_event.extra == {"from": "write3"}
+
+                with pytest.raises(KeyError):
+                    inlet_events["does_not_exist"]
+                with pytest.raises(KeyError):
+                    inlet_events[DatasetAlias("does_not_exist")]
+                with pytest.raises(IndexError):
+                    inlet_events[DatasetAlias(dsa_name)][5]
+
+                nonlocal read_task_evaluated
+                read_task_evaluated = True
+
+            [
+                write.override(task_id="write1")(),
+                write.override(task_id="write2")(),
+                write.override(task_id="write3")(),
+            ] >> read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+
+        # Run "write1", "write2", and "write3" (in this order).
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            ti.run(session=session)
+
+        # Run "read".
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert read_task_evaluated
+
+    def test_inlet_unresolved_dataset_alias(self, dag_maker, session):
+        dsa_name = "test_inlet_dataset_extra_dsa"
+
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        session.add(dsa_model)
+        session.commit()
+
+        from airflow.datasets import DatasetAlias
+
+        with dag_maker(schedule=None, session=session):
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                with pytest.raises(IndexError):
+                    inlet_events[DatasetAlias(dsa_name)][0]
+
+            read()
+
+        dr: DagRun = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+
     @pytest.mark.parametrize(
         "slicer, expected",
         [
@@ -2551,6 +2828,66 @@ class TestTaskInstance:
             def read(*, inlet_events):
                 nonlocal result
                 result = [e.extra for e in slicer(inlet_events[ds_uri])]
+
+            read()
+
+        # Run the read DAG.
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+
+        # Should be done.
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "slicer, expected",
+        [
+            (lambda x: x[-2:], [{"from": 8}, {"from": 9}]),
+            (lambda x: x[-5:-3], [{"from": 5}, {"from": 6}]),
+            (lambda x: x[:-8], [{"from": 0}, {"from": 1}]),
+            (lambda x: x[1:-7], [{"from": 1}, {"from": 2}]),
+            (lambda x: x[-8:4], [{"from": 2}, {"from": 3}]),
+            (lambda x: x[-5:5], []),
+        ],
+    )
+    def test_inlet_dataset_alias_extra_slice(self, dag_maker, session, slicer, expected):
+        ds_uri = "test_inlet_dataset_alias_extra_slice_ds"
+        dsa_name = "test_inlet_dataset_alias_extra_slice_dsa"
+
+        ds_model = DatasetModel(id=1, uri=ds_uri)
+        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model.datasets.append(ds_model)
+        session.add_all([ds_model, dsa_model])
+        session.commit()
+
+        from airflow.datasets import Dataset
+
+        with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
+
+            @task(outlets=DatasetAlias(dsa_name))
+            def write(*, params, outlet_events):
+                outlet_events[dsa_name].add(Dataset(ds_uri), {"from": params["i"]})
+
+            write()
+
+        # Run the write DAG 10 times.
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, conf={"i": 0})
+        for ti in dr.get_task_instances(session=session):
+            ti.run(session=session)
+        for i in range(1, 10):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, conf={"i": i})
+            for ti in dr.get_task_instances(session=session):
+                ti.run(session=session)
+
+        result = "the task does not run"
+
+        with dag_maker(dag_id="read", schedule=None, session=session):
+
+            @task(inlets=DatasetAlias(dsa_name))
+            def read(*, inlet_events):
+                nonlocal result
+                result = [e.extra for e in slicer(inlet_events[DatasetAlias(dsa_name)])]
 
             read()
 
@@ -2717,6 +3054,7 @@ class TestTaskInstance:
             execution_date=day_2,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
+            data_interval=(day_1, day_2),
         )
 
         ti_1 = dagrun_1.get_task_instance(task.task_id)
@@ -2742,6 +3080,7 @@ class TestTaskInstance:
         session.add_all([ds1, ds2])
         session.commit()
 
+        execution_date = timezone.utcnow()
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
             dag_id="test_triggering_dataset_events",
@@ -2754,9 +3093,10 @@ class TestTaskInstance:
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.DATASET_TRIGGERED,
-            execution_date=timezone.utcnow(),
+            execution_date=execution_date,
             state=None,
             session=session,
+            data_interval=(execution_date, execution_date),
         )
         ds1_event = DatasetEvent(dataset_id=1)
         ds2_event_1 = DatasetEvent(dataset_id=2)
@@ -2939,13 +3279,17 @@ class TestTaskInstance:
         assert recorded_message[0].startswith(message_beginning)
 
     def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
-        ti = create_task_instance(
-            start_date=DEFAULT_DATE,
-            timetable=AfterWorkdayTimetable(),
-            run_type=DagRunType.SCHEDULED,
-            execution_date=timezone.datetime(2021, 9, 6),
-            data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
-        )
+        with pytest.warns(
+            RemovedInAirflow3Warning,
+            match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
+        ):
+            ti = create_task_instance(
+                start_date=DEFAULT_DATE,
+                timetable=AfterWorkdayTimetable(),
+                run_type=DagRunType.SCHEDULED,
+                execution_date=timezone.datetime(2021, 9, 6),
+                data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
+            )
         context = ti.get_template_context()
         with pytest.deprecated_call():
             assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
@@ -3030,12 +3374,14 @@ class TestTaskInstance:
             on_retry_callback=mock_on_retry_1,
             session=session,
         )
+        execution_date = timezone.utcnow()
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.utcnow(),
+            execution_date=execution_date,
             state=None,
             session=session,
+            data_interval=(execution_date, execution_date),
         )
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
@@ -3173,12 +3519,14 @@ class TestTaskInstance:
             session=session,
             fail_stop=True,
         )
+        execution_date = timezone.utcnow()
         dr = dag.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.utcnow(),
+            execution_date=execution_date,
             state=None,
             session=session,
+            data_interval=(execution_date, execution_date),
         )
 
         ti1 = dr.get_task_instance(task1.task_id, session=session)
@@ -3559,6 +3907,7 @@ class TestTaskInstance:
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "EmptyOperator"
         # Verify that ti.operator field renders correctly "with" Serialization
+        deserialized_op.dag = ti.task.dag
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
@@ -3607,6 +3956,25 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
         assert callback_function.called
+
+    def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
+        with dag_maker():
+            task = BashOperator(
+                task_id="test_history_tab",
+                bash_command="ech",
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=2),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+        with pytest.raises(AirflowException):
+            ti.run()
+        ti.refresh_from_db()
+        assert ti.state == State.UP_FOR_RETRY
+        assert session.query(TaskInstance).count() == 1
+        assert session.query(TaskInstanceHistory).count() == 1
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

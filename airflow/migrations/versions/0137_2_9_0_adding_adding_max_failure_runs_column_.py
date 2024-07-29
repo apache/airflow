@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Adding max_consecutive_failed_dag_runs column to dag_model table.
+"""
+Adding max_consecutive_failed_dag_runs column to dag_model table.
 
 Revision ID: 8e1c784a4fc7
 Revises: ab34f260b71c

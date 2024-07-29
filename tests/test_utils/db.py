@@ -46,11 +46,10 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
-from tests.test_utils.compat import ParseImportError
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ParseImportError
 
 
 def clear_db_runs():
@@ -59,6 +58,12 @@ def clear_db_runs():
         session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
+        try:
+            from airflow.models import TaskInstanceHistory
+
+            session.query(TaskInstanceHistory).delete()
+        except ImportError:
+            pass
 
 
 def clear_db_datasets():
@@ -68,6 +73,10 @@ def clear_db_datasets():
         session.query(DatasetDagRunQueue).delete()
         session.query(DagScheduleDatasetReference).delete()
         session.query(TaskOutletDatasetReference).delete()
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.models.dataset import DatasetAliasModel
+
+            session.query(DatasetAliasModel).delete()
 
 
 def clear_db_dags():
@@ -177,6 +186,25 @@ def clear_db_dag_parsing_requests():
 
 
 def clear_dag_specific_permissions():
+    try:
+        from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
+    except ImportError:
+        # Handle Pre-airflow 2.9 case where FAB was part of the core airflow
+        from airflow.auth.managers.fab.models import (  # type: ignore[no-redef]
+            Permission,
+            Resource,
+            assoc_permission_role,
+        )
+    except RuntimeError as e:
+        # Handle case where FAB provider is not even usable
+        if "needs Apache Airflow 2.9.0" in str(e):
+            from airflow.auth.managers.fab.models import (  # type: ignore[no-redef]
+                Permission,
+                Resource,
+                assoc_permission_role,
+            )
+        else:
+            raise
     with create_session() as session:
         dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
         dag_resource_ids = [d.id for d in dag_resources]

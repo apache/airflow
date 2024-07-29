@@ -152,42 +152,48 @@ class EcsProtocol(Protocol):
     """
 
     def run_task(self, **kwargs) -> dict:
-        """Run a task.
+        """
+        Run a task.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
         """
         ...
 
     def get_waiter(self, x: str) -> Waiter:
-        """Get a waiter.
+        """
+        Get a waiter.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter
         """
         ...
 
     def describe_tasks(self, cluster: str, tasks) -> dict:
-        """Describe tasks.
+        """
+        Describe tasks.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks
         """
         ...
 
     def stop_task(self, cluster, task, reason: str) -> dict:
-        """Stop a task.
+        """
+        Stop a task.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task
         """
         ...
 
     def describe_task_definition(self, taskDefinition: str) -> dict:
-        """Describe a task definition.
+        """
+        Describe a task definition.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition
         """
         ...
 
     def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
-        """List tasks.
+        """
+        List tasks.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks
         """

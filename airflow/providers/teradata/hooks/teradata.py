@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import re
 import warnings
 from typing import TYPE_CHECKING, Any
 
@@ -32,9 +33,57 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
 
+PARAM_TYPES = {bool, float, int, str}
+
+
+def _map_param(value):
+    if value in PARAM_TYPES:
+        # In this branch, value is a Python type; calling it produces
+        # an instance of the type which is understood by the Teradata driver
+        # in the out parameter mapping mechanism.
+        value = value()
+    return value
+
+
+def _handle_user_query_band_text(query_band_text) -> str:
+    """Validate given query_band and append if required values missed in query_band."""
+    # Ensures 'appname=airflow' and 'org=teradata-internal-telem' are in query_band_text.
+    if query_band_text is not None:
+        # checking org doesn't exist in query_band, appending 'org=teradata-internal-telem'
+        #  If it exists, user might have set some value of their own, so doing nothing in that case
+        pattern = r"org\s*=\s*([^;]*)"
+        match = re.search(pattern, query_band_text)
+        if not match:
+            if not query_band_text.endswith(";"):
+                query_band_text += ";"
+            query_band_text += "org=teradata-internal-telem;"
+        # Making sure appname in query_band contains 'airflow'
+        pattern = r"appname\s*=\s*([^;]*)"
+        # Search for the pattern in the query_band_text
+        match = re.search(pattern, query_band_text)
+        if match:
+            appname_value = match.group(1).strip()
+            # if appname exists and airflow not exists in appname then appending 'airflow' to existing
+            # appname value
+            if "airflow" not in appname_value.lower():
+                new_appname_value = appname_value + "_airflow"
+                # Optionally, you can replace the original value in the query_band_text
+                updated_query_band_text = re.sub(pattern, f"appname={new_appname_value}", query_band_text)
+                query_band_text = updated_query_band_text
+        else:
+            # if appname doesn't exist in query_band, adding 'appname=airflow'
+            if len(query_band_text.strip()) > 0 and not query_band_text.endswith(";"):
+                query_band_text += ";"
+            query_band_text += "appname=airflow;"
+    else:
+        query_band_text = "org=teradata-internal-telem;appname=airflow;"
+
+    return query_band_text
+
 
 class TeradataHook(DbApiHook):
-    """General hook for interacting with Teradata SQL Database.
+    """
+    General hook for interacting with Teradata SQL Database.
 
     This module contains basic APIs to connect to and interact with Teradata SQL Database. It uses teradatasql
     client internally as a database driver for connecting to Teradata database. The config parameters like
@@ -85,15 +134,31 @@ class TeradataHook(DbApiHook):
         super().__init__(*args, schema=database, **kwargs)
 
     def get_conn(self) -> TeradataConnection:
-        """Create and return a Teradata Connection object using teradatasql client.
+        """
+        Create and return a Teradata Connection object using teradatasql client.
 
         Establishes connection to a Teradata SQL database using config corresponding to teradata_conn_id.
 
         :return: a Teradata connection object
         """
         teradata_conn_config: dict = self._get_conn_config_teradatasql()
+        query_band_text = None
+        if "query_band" in teradata_conn_config:
+            query_band_text = teradata_conn_config.pop("query_band")
         teradata_conn = teradatasql.connect(**teradata_conn_config)
+        # setting query band
+        self.set_query_band(query_band_text, teradata_conn)
         return teradata_conn
+
+    def set_query_band(self, query_band_text, teradata_conn):
+        """Set SESSION Query Band for each connection session."""
+        try:
+            query_band_text = _handle_user_query_band_text(query_band_text)
+            set_query_band_sql = f"SET QUERY_BAND='{query_band_text}' FOR SESSION"
+            with teradata_conn.cursor() as cur:
+                cur.execute(set_query_band_sql)
+        except Exception as ex:
+            self.log.error("Error occurred while setting session query band: %s ", str(ex))
 
     def bulk_insert_rows(
         self,
@@ -102,7 +167,8 @@ class TeradataHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """Use :func:`insert_rows` instead, this is deprecated.
+        """
+        Use :func:`insert_rows` instead, this is deprecated.
 
         Insert bulk of records into Teradata SQL Database.
 
@@ -130,7 +196,7 @@ class TeradataHook(DbApiHook):
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
         """Return set of config params required for connecting to Teradata DB using teradatasql client."""
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         conn_config = {
             "host": conn.host or "localhost",
             "dbs_port": conn.port or "1025",
@@ -157,12 +223,14 @@ class TeradataHook(DbApiHook):
             conn_config["sslcrc"] = conn.extra_dejson["sslcrc"]
         if conn.extra_dejson.get("sslprotocol", False):
             conn_config["sslprotocol"] = conn.extra_dejson["sslprotocol"]
+        if conn.extra_dejson.get("query_band", False):
+            conn_config["query_band"] = conn.extra_dejson["query_band"]
 
         return conn_config
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Return a connection object using sqlalchemy."""
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         link = f"teradatasql://{conn.login}:{conn.password}@{conn.host}"
         connection = sqlalchemy.create_engine(link)
         return connection
@@ -187,3 +255,58 @@ class TeradataHook(DbApiHook):
                 "password": "dbc",
             },
         }
+
+    def callproc(
+        self,
+        identifier: str,
+        autocommit: bool = False,
+        parameters: list | dict | None = None,
+    ) -> list | dict | tuple | None:
+        """
+        Call the stored procedure identified by the provided string.
+
+        Any OUT parameters must be provided with a value of either the
+        expected Python type (e.g., `int`) or an instance of that type.
+
+        :param identifier: stored procedure name
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :param parameters: The `IN`, `OUT` and `INOUT` parameters for Teradata
+            stored procedure
+
+        The return value is a list or mapping that includes parameters in
+        both directions; the actual return type depends on the type of the
+        provided `parameters` argument.
+
+        """
+        if parameters is None:
+            parameters = []
+
+        args = ",".join("?" for name in parameters)
+
+        sql = f"{{CALL {identifier}({(args)})}}"
+
+        def handler(cursor):
+            records = cursor.fetchall()
+
+            if records is None:
+                return
+            if isinstance(records, list):
+                return [row for row in records]
+
+            if isinstance(records, dict):
+                return {n: v for (n, v) in records.items()}
+            raise TypeError(f"Unexpected results: {records}")
+
+        result = self.run(
+            sql,
+            autocommit=autocommit,
+            parameters=(
+                [_map_param(value) for (name, value) in parameters.items()]
+                if isinstance(parameters, dict)
+                else [_map_param(value) for value in parameters]
+            ),
+            handler=handler,
+        )
+
+        return result

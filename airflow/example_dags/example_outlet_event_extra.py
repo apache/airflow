@@ -17,6 +17,8 @@
 
 """
 Example DAG to demonstrate annotating a dataset event with extra information.
+
+Also see examples in ``example_inlet_event_extra.py``.
 """
 
 from __future__ import annotations
@@ -67,8 +69,8 @@ with DAG(
     tags=["produces"],
 ):
 
-    def _dataset_with_extra_from_classic_operator_post_execute(context):
-        context["outlet_events"].extra = {"hi": "bye"}
+    def _dataset_with_extra_from_classic_operator_post_execute(context, result):
+        context["outlet_events"][ds].extra = {"hi": "bye"}
 
     BashOperator(
         task_id="dataset_with_extra_from_classic_operator",

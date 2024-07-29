@@ -23,8 +23,9 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.teradata.hooks.teradata import TeradataHook
+from airflow.providers.teradata.hooks.teradata import TeradataHook, _handle_user_query_band_text
 
 
 class TestTeradataHook:
@@ -234,7 +235,11 @@ class TestTeradataHook:
     def test_bulk_insert_rows_with_fields(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
-        self.test_db_hook.bulk_insert_rows("table", rows, target_fields)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
+        ):
+            self.test_db_hook.bulk_insert_rows("table", rows, target_fields)
         self.cur.executemany.assert_called_once_with(
             "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)",
             [("1", "2", "3"), ("4", "5", "6"), ("7", "8", "9")],
@@ -243,7 +248,11 @@ class TestTeradataHook:
     def test_bulk_insert_rows_with_commit_every(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
-        self.test_db_hook.bulk_insert_rows("table", rows, target_fields, commit_every=2)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
+        ):
+            self.test_db_hook.bulk_insert_rows("table", rows, target_fields, commit_every=2)
         calls = [
             mock.call(
                 "INSERT INTO table (col1, col2, col3) VALUES (?,?,?)", [("1", "2", "3"), ("4", "5", "6")]
@@ -254,7 +263,11 @@ class TestTeradataHook:
 
     def test_bulk_insert_rows_without_fields(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
-        self.test_db_hook.bulk_insert_rows("table", rows)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
+        ):
+            self.test_db_hook.bulk_insert_rows("table", rows)
         self.cur.executemany.assert_called_once_with(
             "INSERT INTO table  VALUES (?,?,?)",
             [("1", "2", "3"), ("4", "5", "6"), ("7", "8", "9")],
@@ -262,5 +275,75 @@ class TestTeradataHook:
 
     def test_bulk_insert_rows_no_rows(self):
         rows = []
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="bulk_insert_rows is deprecated. Please use the insert_rows method instead.",
+        ):
             self.test_db_hook.bulk_insert_rows("table", rows)
+
+    def test_call_proc_dict(self):
+        parameters = {"a": 1, "b": 2, "c": 3}
+
+        class bindvar(int):
+            def getvalue(self):
+                return self
+
+        self.cur.fetchall.return_value = {k: bindvar(v) for k, v in parameters.items()}
+        result = self.test_db_hook.callproc("proc", True, parameters)
+        assert result == parameters
+
+    def test_set_query_band(self):
+        query_band_text = "example_query_band_text"
+        _handle_user_query_band_text(query_band_text)
+        self.test_db_hook.set_query_band(query_band_text, self.conn)
+        self.conn.cursor.assert_called_once()
+
+    @mock.patch("teradatasql.connect")
+    def test_query_band_not_in_conn_config(self, mock_connect):
+        extravalues = {"query_band": "appname=airflow;org=test;"}
+        self.connection.extra = json.dumps(extravalues)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["host"] == "host"
+        assert kwargs["database"] == "schema"
+        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["user"] == "login"
+        assert kwargs["password"] == "password"
+        assert "query_band" not in kwargs
+
+
+def test_handle_user_query_band_text_invalid():
+    query_band_text = _handle_user_query_band_text("invalid_queryband")
+    assert query_band_text == "invalid_queryband;org=teradata-internal-telem;appname=airflow;"
+
+
+def test_handle_user_query_band_text_override_appname():
+    query_band_text = _handle_user_query_band_text("appname=test;")
+    assert query_band_text == "appname=test_airflow;org=teradata-internal-telem;"
+
+
+def test_handle_user_query_band_text_append_org():
+    query_band_text = _handle_user_query_band_text("appname=airflow;")
+    assert query_band_text == "appname=airflow;org=teradata-internal-telem;"
+
+
+def test_handle_user_query_band_text_user_org():
+    query_band_text = _handle_user_query_band_text("appname=airflow;org=test")
+    assert query_band_text == "appname=airflow;org=test"
+
+
+def test_handle_user_query_band_text_none():
+    query_band_text = _handle_user_query_band_text(None)
+    assert query_band_text == "org=teradata-internal-telem;appname=airflow;"
+
+
+def test_handle_user_query_band_text_no_appname():
+    query_band_text = _handle_user_query_band_text("org=test;")
+    assert query_band_text == "org=test;appname=airflow;"
+
+
+def test_handle_user_query_band_text_no_appname_with_teradata_org():
+    query_band_text = _handle_user_query_band_text("org=teradata-internal-telem;")
+    assert query_band_text == "org=teradata-internal-telem;appname=airflow;"

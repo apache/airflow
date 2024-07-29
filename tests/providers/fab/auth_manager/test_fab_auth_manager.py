@@ -24,11 +24,20 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask
 
-from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-from airflow.providers.fab.auth_manager.models import User
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+
+try:
+    from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
+except ImportError:
+    pass
+
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+    from airflow.providers.fab.auth_manager.models import User
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,

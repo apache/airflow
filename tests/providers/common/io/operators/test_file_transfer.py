@@ -19,9 +19,11 @@ from __future__ import annotations
 
 from unittest import mock
 
-from openlineage.client.run import Dataset
+from airflow.providers.common.compat.openlineage.facet import Dataset
+from tests.test_utils.compat import ignore_provider_compatibility_error
 
-from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
+with ignore_provider_compatibility_error("2.8.0", __file__):
+    from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
 
 
 def test_file_transfer_copy():
@@ -57,7 +59,6 @@ def test_get_openlineage_facets_on_start():
 
     expected_input = Dataset(namespace=f"s3://{src_bucket}", name=src_key)
     expected_output = Dataset(namespace=f"s3://{dst_bucket}", name=dst_key)
-
     op = FileTransferOperator(
         task_id="test",
         src=f"s3://{src_bucket}/{src_key}",

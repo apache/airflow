@@ -33,11 +33,12 @@ import psutil
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -322,6 +323,7 @@ class TestLocalTaskJob:
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.8
 
+    @conf_vars({("core", "task_success_overtime"): "1"})
     def test_mark_success_no_kill(self, caplog, get_test_dag, session):
         """
         Test that ensures that mark_success in the UI doesn't cause
@@ -553,6 +555,7 @@ class TestLocalTaskJob:
         assert m, "pid expected in output."
         assert os.getpid() != int(m.group(1))
 
+    @conf_vars({("core", "task_success_overtime"): "5"})
     def test_mark_success_on_success_callback(self, caplog, get_test_dag):
         """
         Test that ensures that where a task is marked success in the UI
@@ -582,6 +585,118 @@ class TestLocalTaskJob:
         assert (
             "State of this instance has been externally set to success. Terminating instance." in caplog.text
         )
+
+    def test_success_listeners_executed(self, caplog, get_test_dag):
+        """
+        Test that ensures that when listeners are executed, the task is not killed before they finish
+        or timeout
+        """
+        from tests.listeners import slow_listener
+
+        lm = get_listener_manager()
+        lm.clear()
+        lm.add_listener(slow_listener)
+
+        dag = get_test_dag("test_mark_state")
+        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        with create_session() as session:
+            dr = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+                data_interval=data_interval,
+            )
+        task = dag.get_task(task_id="sleep_execution")
+
+        ti = dr.get_task_instance(task.task_id)
+        ti.refresh_from_task(task)
+
+        job = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        with timeout(30):
+            run_job(job=job, execute_callable=job_runner._execute)
+        ti.refresh_from_db()
+        assert (
+            "State of this instance has been externally set to success. Terminating instance."
+            not in caplog.text
+        )
+        lm.clear()
+
+    @conf_vars({("core", "task_success_overtime"): "3"})
+    def test_success_slow_listeners_executed_kill(self, caplog, get_test_dag):
+        """
+        Test that ensures that when there are too slow listeners, the task is killed
+        """
+        from tests.listeners import very_slow_listener
+
+        lm = get_listener_manager()
+        lm.clear()
+        lm.add_listener(very_slow_listener)
+
+        dag = get_test_dag("test_mark_state")
+        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        with create_session() as session:
+            dr = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+                data_interval=data_interval,
+            )
+        task = dag.get_task(task_id="sleep_execution")
+
+        ti = dr.get_task_instance(task.task_id)
+        ti.refresh_from_task(task)
+
+        job = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        with timeout(15):
+            run_job(job=job, execute_callable=job_runner._execute)
+        ti.refresh_from_db()
+        assert (
+            "State of this instance has been externally set to success. Terminating instance." in caplog.text
+        )
+        lm.clear()
+
+    @conf_vars({("core", "task_success_overtime"): "3"})
+    def test_success_slow_task_not_killed_by_overtime_but_regular_timeout(self, caplog, get_test_dag):
+        """
+        Test that ensures that when there are listeners, but the task is taking a long time anyways,
+        it's not killed by the overtime mechanism.
+        """
+        from tests.listeners import slow_listener
+
+        lm = get_listener_manager()
+        lm.clear()
+        lm.add_listener(slow_listener)
+
+        dag = get_test_dag("test_mark_state")
+        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        with create_session() as session:
+            dr = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+                data_interval=data_interval,
+            )
+        task = dag.get_task(task_id="slow_execution")
+
+        ti = dr.get_task_instance(task.task_id)
+        ti.refresh_from_task(task)
+
+        job = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        with pytest.raises(AirflowTaskTimeout):
+            with timeout(5):
+                run_job(job=job, execute_callable=job_runner._execute)
+        ti.refresh_from_db()
+        assert (
+            "State of this instance has been externally set to success. Terminating instance."
+            not in caplog.text
+        )
+        lm.clear()
 
     @pytest.mark.parametrize("signal_type", [signal.SIGTERM, signal.SIGKILL])
     def test_process_os_signal_calls_on_failure_callback(

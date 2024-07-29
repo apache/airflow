@@ -229,6 +229,21 @@ class TestPythonOperator(BasePythonTest):
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
         assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
 
+    def test_python_callable_keyword_arguments_callable_not_templatized(self):
+        """Test PythonOperator op_kwargs are not templatized if it's a callable"""
+
+        def a_fn():
+            return 4
+
+        task = self.render_templates(
+            lambda: 0,
+            op_kwargs={
+                "a_callable": a_fn,
+            },
+        )
+        rendered_op_kwargs = task.op_kwargs
+        assert rendered_op_kwargs["a_callable"] == a_fn
+
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
             raise RuntimeError("Should not be triggered")
@@ -463,7 +478,10 @@ class TestBranchOperator(BasePythonTest):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+        with pytest.raises(
+            AirflowException,
+            match="'branch_task_ids' expected all task IDs are strings.",
+        ):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):
@@ -749,6 +767,7 @@ class TestShortCircuitOperator(BasePythonTest):
 virtualenv_string_args: list[str] = []
 
 
+@pytest.mark.execution_timeout(120)
 class BaseTestPythonVirtualenvOperator(BasePythonTest):
     def test_template_fields(self):
         assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
@@ -1440,14 +1459,14 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             else:
                 raise RuntimeError
 
-        with pytest.raises(AirflowException, match="but got 'bool'"):
+        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\((True|False), 'bool'\)}"):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
     def test_return_false(self):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match="but got 'bool'"):
+        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
             self.run_as_task(f)
 
     def test_context(self):
@@ -1468,7 +1487,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match="but got 'bool'"):
+        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
             self.run_as_task(f, do_not_use_caching=True)
 
     def test_with_dag_run(self):
@@ -1581,7 +1600,10 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return 5
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+        with pytest.raises(
+            AirflowException,
+            match="'branch_task_ids' expected all task IDs are strings.",
+        ):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):

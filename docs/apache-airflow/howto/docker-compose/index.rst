@@ -23,7 +23,7 @@ Running Airflow in Docker
 This quick-start guide will allow you to quickly get Airflow up and running with the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>` in Docker.
 
 .. caution::
-    This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
+    This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated and the docker compose file does not provide any security guarantees required for production system. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
 
     For that reason, we recommend using Kubernetes with the :doc:`Official Airflow Community Helm Chart<helm-chart:index>` when you are ready to run Airflow in production.
 
@@ -388,7 +388,7 @@ Steps:
 
 2) Configure PyCharm Interpreter
 
-   * Open PyCharm and navigate to **Settings** (or **Preferences** on macOS) > **Project: <Your Project Name>** > **Python Interpreter**.
+   * Open PyCharm and navigate to **Settings** > **Project: <Your Project Name>** > **Python Interpreter**.
    * Click the **"Add Interpreter"** button and choose **"On Docker Compose"**.
    * In the **Configuration file** field, select your ``docker-compose.yaml`` file.
    * In the **Service field**, choose the newly added ``airflow-python`` service.

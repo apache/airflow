@@ -29,6 +29,7 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
+from enum import Enum
 from typing import Any
 
 from requests import exceptions as requests_exceptions
@@ -61,6 +62,24 @@ LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
+
+
+class RunLifeCycleState(Enum):
+    """
+    Enum for the run life cycle state concept of Databricks runs.
+
+    See more information at: https://docs.databricks.com/api/azure/workspace/jobs/listruns#runs-state-life_cycle_state
+    """
+
+    BLOCKED = "BLOCKED"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+    PENDING = "PENDING"
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    SKIPPED = "SKIPPED"
+    TERMINATED = "TERMINATED"
+    TERMINATING = "TERMINATING"
+    WAITING_FOR_RETRY = "WAITING_FOR_RETRY"
 
 
 class RunState:
@@ -197,7 +216,8 @@ class DatabricksHook(BaseDatabricksHook):
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
     def create_job(self, json: dict) -> int:
-        """Call the ``api/2.1/jobs/create`` endpoint.
+        """
+        Call the ``api/2.1/jobs/create`` endpoint.
 
         :param json: The data used in the body of the request to the ``create`` endpoint.
         :return: the job_id as an int
@@ -206,7 +226,8 @@ class DatabricksHook(BaseDatabricksHook):
         return response["job_id"]
 
     def reset_job(self, job_id: str, json: dict) -> None:
-        """Call the ``api/2.1/jobs/reset`` endpoint.
+        """
+        Call the ``api/2.1/jobs/reset`` endpoint.
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
@@ -238,6 +259,7 @@ class DatabricksHook(BaseDatabricksHook):
         expand_tasks: bool = False,
         job_name: str | None = None,
         page_token: str | None = None,
+        include_user_names: bool = False,
     ) -> list[dict[str, Any]]:
         """
         List the jobs in the Databricks Job Service.
@@ -257,6 +279,7 @@ class DatabricksHook(BaseDatabricksHook):
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
+                "include_user_names": include_user_names,
             }
             payload["page_token"] = page_token
             if job_name:

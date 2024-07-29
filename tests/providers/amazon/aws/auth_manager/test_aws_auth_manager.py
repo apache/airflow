@@ -23,16 +23,27 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
-from airflow.auth.managers.models.resource_details import (
-    AccessView,
-    ConfigurationDetails,
-    ConnectionDetails,
-    DagAccessEntity,
-    DagDetails,
-    DatasetDetails,
-    PoolDetails,
-    VariableDetails,
-)
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
+
+try:
+    from airflow.auth.managers.models.resource_details import (
+        AccessView,
+        ConfigurationDetails,
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+        DatasetDetails,
+        PoolDetails,
+        VariableDetails,
+    )
+except ImportError:
+    if not AIRFLOW_V_2_8_PLUS:
+        pytest.skip(
+            "Skipping tests that require AwsSecurityManagerOverride for Airflow < 2.8.0",
+            allow_module_level=True,
+        )
+    else:
+        raise
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
@@ -54,6 +65,11 @@ from tests.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 mock = Mock()
 

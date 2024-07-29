@@ -196,7 +196,7 @@ class DruidDbApiHook(DbApiHook):
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,
@@ -215,7 +215,7 @@ class DruidDbApiHook(DbApiHook):
 
         e.g: druid://localhost:8082/druid/v2/sql/
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         host = conn.host
         if conn.port is not None:
             host += f":{conn.port}"

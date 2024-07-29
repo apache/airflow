@@ -22,7 +22,7 @@ Pull Requests
 This document describes how you can create Pull Requests and describes coding standards we use when
 implementing them.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pull Request guidelines
 -----------------------

@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.5.2
+.....
+
+Latest change: 2024-06-15
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`1451bacc2e <https://github.com/apache/airflow/commit/1451bacc2e696167224621243600e57780650d71>`_  2024-06-15   ``Working fix for typing in telegram provider (#40258)``
+`bc4ca9d879 <https://github.com/apache/airflow/commit/bc4ca9d87975065497e55fcd21a31d784f8fdf05>`_  2024-06-15   ``Fix typing in telegram provider (#40255)``
+=================================================================================================  ===========  ========================================================
+
 4.5.1
 .....
 
-Latest change: 2024-05-11
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
 `73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``

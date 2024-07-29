@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Sequence
 
@@ -347,7 +348,7 @@ class AwsEcsExecutor(BaseExecutor):
             queue = ecs_task.queue
             exec_config = ecs_task.executor_config
             attempt_number = ecs_task.attempt_number
-            _failure_reasons = []
+            failure_reasons = []
             if timezone.utcnow() < ecs_task.next_attempt_time:
                 self.pending_tasks.append(ecs_task)
                 continue
@@ -361,23 +362,21 @@ class AwsEcsExecutor(BaseExecutor):
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                     self.pending_tasks.append(ecs_task)
                     raise
-                _failure_reasons.append(str(e))
+                failure_reasons.append(str(e))
             except Exception as e:
                 # Failed to even get a response back from the Boto3 API or something else went
                 # wrong.  For any possible failure we want to add the exception reasons to the
                 # failure list so that it is logged to the user and most importantly the task is
                 # added back to the pending list to be retried later.
-                _failure_reasons.append(str(e))
+                failure_reasons.append(str(e))
             else:
                 # We got a response back, check if there were failures. If so, add them to the
                 # failures list so that it is logged to the user and most importantly the task
                 # is added back to the pending list to be retried later.
                 if run_task_response["failures"]:
-                    _failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
+                    failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
 
-            if _failure_reasons:
-                for reason in _failure_reasons:
-                    failure_reasons[reason] += 1
+            if failure_reasons:
                 # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
                 if int(attempt_number) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
                     ecs_task.attempt_number += 1
@@ -386,14 +385,29 @@ class AwsEcsExecutor(BaseExecutor):
                     )
                     self.pending_tasks.append(ecs_task)
                 else:
+                    reasons_str = ", ".join(failure_reasons)
                     self.log.error(
-                        "ECS task %s has failed a maximum of %s times. Marking as failed",
+                        "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
                         task_key,
                         attempt_number,
+                        reasons_str,
+                    )
+                    self.log_task_event(
+                        event="ecs task submit failure",
+                        ti_key=task_key,
+                        extra=(
+                            f"Task could not be queued after {attempt_number} attempts. "
+                            f"Marking as failed. Reasons: {reasons_str}"
+                        ),
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
+                self.log_task_event(
+                    event="ecs task submit failure",
+                    extra=f"ECS RunTask Response: {run_task_response}",
+                    ti_key=task_key,
+                )
                 raise EcsExecutorException(
                     "No failures and no ECS tasks provided in response. This should never happen."
                 )
@@ -407,11 +421,6 @@ class AwsEcsExecutor(BaseExecutor):
                     # executor feature).
                     # TODO: remove when min airflow version >= 2.9.2
                     pass
-        if failure_reasons:
-            self.log.error(
-                "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
-                dict(failure_reasons),
-            )
 
     def _run_task(
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
@@ -543,3 +552,12 @@ class AwsEcsExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
+
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
+        with suppress(AttributeError):
+            super().log_task_event(
+                event=event,
+                extra=extra,
+                ti_key=ti_key,
+            )

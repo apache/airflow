@@ -20,7 +20,7 @@ Airflow Docker Compose Tests
 
 This document describes how to run tests for Airflow Docker Compose deployment.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Running Docker Compose Tests with Breeze
 ----------------------------------------

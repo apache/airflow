@@ -130,6 +130,41 @@ See `Google Cloud Transfer Service - REST Resource: transferJobs - Status
 
 .. _howto/operator:CloudDataTransferServiceUpdateJobOperator:
 
+CloudDataTransferServiceRunJobOperator
+-----------------------------------------
+
+Runs a transfer job.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceRunJobOperator`.
+
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcp.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_gcp_transfer_run_job]
+      :end-before: [END howto_operator_gcp_transfer_run_job]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_transfer_job_run_template_fields]
+    :end-before: [END gcp_transfer_job_run_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Transfer Service - REST Resource: transferJobs - Run
+<https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/run>`_
+
+.. _howto/operator:CloudDataTransferServiceRunJobOperator:
+
 CloudDataTransferServiceUpdateJobOperator
 -----------------------------------------
 

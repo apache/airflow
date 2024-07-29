@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -28,7 +29,6 @@ from typing import TYPE_CHECKING
 import psutil
 from setproctitle import setproctitle
 
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.stats import Stats
@@ -72,9 +72,13 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
+            from airflow.api_internal.internal_api_call import InternalApiConfig
+            from airflow.configuration import conf
+
+            if conf.getboolean("core", "database_access_isolation", fallback=False):
+                InternalApiConfig.set_use_internal_api("Forked task runner")
             # Start a new process group
             set_new_process_group()
-            import signal
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -180,13 +184,14 @@ class StandardTaskRunner(BaseTaskRunner):
 
         if self._rc is None:
             # Something else reaped it before we had a chance, so let's just "guess" at an error code.
-            self._rc = -9
+            self._rc = -signal.SIGKILL
 
-        if self._rc == -9:
-            # If either we or psutil gives out a -9 return code, it likely means
-            # an OOM happened
+        if self._rc == -signal.SIGKILL:
             self.log.error(
-                "Job %s was killed before it finished (likely due to running out of memory)",
+                (
+                    "Job %s was killed before it finished (likely due to running out of memory)",
+                    "For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#LocalTaskJob-killed",
+                ),
                 self._task_instance.job_id,
             )
 

@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import time
+from abc import ABC, abstractmethod
 from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
@@ -29,13 +30,22 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
+from airflow.providers.databricks.operators.databricks_workflow import (
+    DatabricksWorkflowTaskGroup,
+    WorkflowRunMetadata,
+)
+from airflow.providers.databricks.plugins.databricks_workflow import (
+    WorkflowJobRepairSingleTaskLink,
+    WorkflowJobRunLink,
+)
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
+    from airflow.utils.task_group import TaskGroup
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
@@ -191,7 +201,8 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 
 class DatabricksCreateJobsOperator(BaseOperator):
-    """Creates (or resets) a Databricks job using the API endpoint.
+    """
+    Creates (or resets) a Databricks job using the API endpoint.
 
     .. seealso::
         https://docs.databricks.com/api/workspace/jobs/create
@@ -894,12 +905,266 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
         super().__init__(deferrable=True, *args, **kwargs)
 
 
-class DatabricksNotebookOperator(BaseOperator):
+class DatabricksTaskBaseOperator(BaseOperator, ABC):
+    """
+    Base class for operators that are run as Databricks job tasks or tasks within a Databricks workflow.
+
+    :param caller: The name of the caller operator to be used in the logs.
+    :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
+    :param deferrable: Whether to run the operator in the deferrable mode.
+    :param existing_cluster_id: ID for existing cluster on which to run this task.
+    :param job_cluster_key: The key for the job cluster.
+    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param notebook_packages: A list of the Python libraries to be installed on the cluster running the
+        notebook.
+    :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
+    :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
+    :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
+        a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
+    """
+
+    def __init__(
+        self,
+        caller: str = "DatabricksTaskBaseOperator",
+        databricks_conn_id: str = "databricks_default",
+        databricks_retry_args: dict[Any, Any] | None = None,
+        databricks_retry_delay: int = 1,
+        databricks_retry_limit: int = 3,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        existing_cluster_id: str = "",
+        job_cluster_key: str = "",
+        new_cluster: dict[str, Any] | None = None,
+        polling_period_seconds: int = 5,
+        wait_for_termination: bool = True,
+        workflow_run_metadata: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ):
+        self.caller = caller
+        self.databricks_conn_id = databricks_conn_id
+        self.databricks_retry_args = databricks_retry_args
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_limit = databricks_retry_limit
+        self.deferrable = deferrable
+        self.existing_cluster_id = existing_cluster_id
+        self.job_cluster_key = job_cluster_key
+        self.new_cluster = new_cluster or {}
+        self.polling_period_seconds = polling_period_seconds
+        self.wait_for_termination = wait_for_termination
+        self.workflow_run_metadata = workflow_run_metadata
+
+        self.databricks_run_id: int | None = None
+
+        super().__init__(**kwargs)
+
+        if self._databricks_workflow_task_group is not None:
+            self.operator_extra_links = (
+                WorkflowJobRunLink(),
+                WorkflowJobRepairSingleTaskLink(),
+            )
+        else:
+            # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
+            self.operator_extra_links = (DatabricksJobRunLink(),)
+
+    @cached_property
+    def _hook(self) -> DatabricksHook:
+        return self._get_hook(caller=self.caller)
+
+    def _get_hook(self, caller: str) -> DatabricksHook:
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=caller,
+        )
+
+    def _get_databricks_task_id(self, task_id: str) -> str:
+        """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
+        return f"{self.dag_id}__{task_id.replace('.', '__')}"
+
+    @property
+    def _databricks_workflow_task_group(self) -> DatabricksWorkflowTaskGroup | None:
+        """
+        Traverse up parent TaskGroups until the `is_databricks` flag associated with the root DatabricksWorkflowTaskGroup is found.
+
+        If found, returns the task group. Otherwise, return None.
+        """
+        parent_tg: TaskGroup | DatabricksWorkflowTaskGroup | None = self.task_group
+
+        while parent_tg:
+            if getattr(parent_tg, "is_databricks", False):
+                return parent_tg  # type: ignore[return-value]
+
+            if getattr(parent_tg, "task_group", None):
+                parent_tg = parent_tg.task_group
+            else:
+                return None
+
+        return None
+
+    @abstractmethod
+    def _get_task_base_json(self) -> dict[str, Any]:
+        """Get the base json for the task."""
+        raise NotImplementedError()
+
+    def _get_run_json(self) -> dict[str, Any]:
+        """Get run json to be used for task submissions."""
+        run_json = {
+            "run_name": self._get_databricks_task_id(self.task_id),
+            **self._get_task_base_json(),
+        }
+        if self.new_cluster and self.existing_cluster_id:
+            raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
+        if self.new_cluster:
+            run_json["new_cluster"] = self.new_cluster
+        elif self.existing_cluster_id:
+            run_json["existing_cluster_id"] = self.existing_cluster_id
+        else:
+            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
+        return run_json
+
+    def _launch_job(self, context: Context | None = None) -> int:
+        """Launch the job on Databricks."""
+        run_json = self._get_run_json()
+        self.databricks_run_id = self._hook.submit_run(run_json)
+        url = self._hook.get_run_page_url(self.databricks_run_id)
+        self.log.info("Check the job run in Databricks: %s", url)
+
+        if self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
+            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
+
+        return self.databricks_run_id
+
+    def _handle_terminal_run_state(self, run_state: RunState) -> None:
+        """Handle the terminal state of the run."""
+        if run_state.life_cycle_state != RunLifeCycleState.TERMINATED.value:
+            raise AirflowException(
+                f"Databricks job failed with state {run_state.life_cycle_state}. Message: {run_state.state_message}"
+            )
+        if not run_state.is_successful:
+            raise AirflowException(
+                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
+            )
+        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
+
+    def _get_current_databricks_task(self) -> dict[str, Any]:
+        """Retrieve the Databricks task corresponding to the current Airflow task."""
+        if self.databricks_run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+        tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
+
+        # Because the task_key remains the same across multiple runs, and the Databricks API does not return
+        # tasks sorted by their attempts/start time, we sort the tasks by start time. This ensures that we
+        # map the latest attempt (whose status is to be monitored) of the task run to the task_key while
+        # building the {task_key: task} map below.
+        sorted_task_runs = sorted(tasks, key=lambda x: x["start_time"])
+
+        return {task["task_key"]: task for task in sorted_task_runs}[
+            self._get_databricks_task_id(self.task_id)
+        ]
+
+    def _convert_to_databricks_workflow_task(
+        self, relevant_upstreams: list[BaseOperator], context: Context | None = None
+    ) -> dict[str, object]:
+        """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
+        base_task_json = self._get_task_base_json()
+        result = {
+            "task_key": self._get_databricks_task_id(self.task_id),
+            "depends_on": [
+                {"task_key": self._get_databricks_task_id(task_id)}
+                for task_id in self.upstream_task_ids
+                if task_id in relevant_upstreams
+            ],
+            **base_task_json,
+        }
+
+        if self.existing_cluster_id and self.job_cluster_key:
+            raise ValueError(
+                "Both existing_cluster_id and job_cluster_key are set. Only one can be set per task."
+            )
+        if self.existing_cluster_id:
+            result["existing_cluster_id"] = self.existing_cluster_id
+        elif self.job_cluster_key:
+            result["job_cluster_key"] = self.job_cluster_key
+
+        return result
+
+    def monitor_databricks_job(self) -> None:
+        """
+        Monitor the Databricks job.
+
+        Wait for the job to terminate. If deferrable, defer the task.
+        """
+        if self.databricks_run_id is None:
+            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
+        current_task_run_id = self._get_current_databricks_task()["run_id"]
+        run = self._hook.get_run(current_task_run_id)
+        run_page_url = run["run_page_url"]
+        self.log.info("Check the task run in Databricks: %s", run_page_url)
+        run_state = RunState(**run["state"])
+        self.log.info(
+            "Current state of the the databricks task %s is %s",
+            self._get_databricks_task_id(self.task_id),
+            run_state.life_cycle_state,
+        )
+        if self.deferrable and not run_state.is_terminal:
+            self.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=current_task_run_id,
+                    databricks_conn_id=self.databricks_conn_id,
+                    polling_period_seconds=self.polling_period_seconds,
+                    retry_limit=self.databricks_retry_limit,
+                    retry_delay=self.databricks_retry_delay,
+                    retry_args=self.databricks_retry_args,
+                    caller=self.caller,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
+        while not run_state.is_terminal:
+            time.sleep(self.polling_period_seconds)
+            run = self._hook.get_run(current_task_run_id)
+            run_state = RunState(**run["state"])
+            self.log.info(
+                "Current state of the databricks task %s is %s",
+                self._get_databricks_task_id(self.task_id),
+                run_state.life_cycle_state,
+            )
+        self._handle_terminal_run_state(run_state)
+
+    def execute(self, context: Context) -> None:
+        """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
+        if self._databricks_workflow_task_group:
+            # If we are in a DatabricksWorkflowTaskGroup, we should have an upstream task launched.
+            if not self.workflow_run_metadata:
+                launch_task_id = next(task for task in self.upstream_task_ids if task.endswith(".launch"))
+                self.workflow_run_metadata = context["ti"].xcom_pull(task_ids=launch_task_id)
+            workflow_run_metadata = WorkflowRunMetadata(  # type: ignore[arg-type]
+                **self.workflow_run_metadata
+            )
+            self.databricks_run_id = workflow_run_metadata.run_id
+            self.databricks_conn_id = workflow_run_metadata.conn_id
+        else:
+            self._launch_job(context=context)
+        if self.wait_for_termination:
+            self.monitor_databricks_job()
+
+    def execute_complete(self, context: dict | None, event: dict) -> None:
+        run_state = RunState.from_json(event["run_state"])
+        self._handle_terminal_run_state(run_state)
+
+
+class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     """
     Runs a notebook on Databricks using an Airflow operator.
 
-    The DatabricksNotebookOperator allows users to launch and monitor notebook
-    job runs on Databricks as Airflow tasks.
+    The DatabricksNotebookOperator allows users to launch and monitor notebook job runs on Databricks as
+    Airflow tasks. It can be used as a part of a DatabricksWorkflowTaskGroup to take advantage of job
+    clusters, which allows users to run their tasks on cheaper clusters that can be shared between tasks.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -911,70 +1176,67 @@ class DatabricksNotebookOperator(BaseOperator):
             defined in git_source. If the value is empty, the task will use GIT if git_source is defined
             and WORKSPACE otherwise. For more information please visit
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate
-    :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
-    :param notebook_packages: A list of the Python libraries to be installed on the cluster running the
-        notebook.
-    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
+    :param deferrable: Whether to run the operator in the deferrable mode.
     :param existing_cluster_id: ID for existing cluster on which to run this task.
     :param job_cluster_key: The key for the job cluster.
+    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param notebook_packages: A list of the Python libraries to be installed on the cluster running the
+        notebook.
+    :param notebook_params: A dict of key-value pairs to be passed as optional params to the notebook task.
     :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
-    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
-    :param databricks_retry_delay: Number of seconds to wait between retries.
-    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
-    :param databricks_conn_id: The name of the Airflow connection to use.
-    :param deferrable: Run operator in the deferrable mode.
+    :param workflow_run_metadata: Metadata for the workflow run. This is used when the operator is used within
+        a workflow. It is expected to be a dictionary containing the run_id and conn_id for the workflow.
     """
 
-    template_fields = ("notebook_params",)
+    template_fields = (
+        "notebook_params",
+        "workflow_run_metadata",
+    )
     CALLER = "DatabricksNotebookOperator"
 
     def __init__(
         self,
         notebook_path: str,
         source: str,
-        notebook_params: dict | None = None,
-        notebook_packages: list[dict[str, Any]] | None = None,
-        new_cluster: dict[str, Any] | None = None,
+        databricks_conn_id: str = "databricks_default",
+        databricks_retry_args: dict[Any, Any] | None = None,
+        databricks_retry_delay: int = 1,
+        databricks_retry_limit: int = 3,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         existing_cluster_id: str = "",
         job_cluster_key: str = "",
+        new_cluster: dict[str, Any] | None = None,
+        notebook_packages: list[dict[str, Any]] | None = None,
+        notebook_params: dict | None = None,
         polling_period_seconds: int = 5,
-        databricks_retry_limit: int = 3,
-        databricks_retry_delay: int = 1,
-        databricks_retry_args: dict[Any, Any] | None = None,
         wait_for_termination: bool = True,
-        databricks_conn_id: str = "databricks_default",
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        workflow_run_metadata: dict | None = None,
         **kwargs: Any,
     ):
         self.notebook_path = notebook_path
         self.source = source
-        self.notebook_params = notebook_params or {}
         self.notebook_packages = notebook_packages or []
-        self.new_cluster = new_cluster or {}
-        self.existing_cluster_id = existing_cluster_id
-        self.job_cluster_key = job_cluster_key
-        self.polling_period_seconds = polling_period_seconds
-        self.databricks_retry_limit = databricks_retry_limit
-        self.databricks_retry_delay = databricks_retry_delay
-        self.databricks_retry_args = databricks_retry_args
-        self.wait_for_termination = wait_for_termination
-        self.databricks_conn_id = databricks_conn_id
-        self.databricks_run_id: int | None = None
-        self.deferrable = deferrable
-        super().__init__(**kwargs)
+        self.notebook_params = notebook_params or {}
 
-    @cached_property
-    def _hook(self) -> DatabricksHook:
-        return self._get_hook(caller=self.CALLER)
-
-    def _get_hook(self, caller: str) -> DatabricksHook:
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-            retry_args=self.databricks_retry_args,
+        super().__init__(
             caller=self.CALLER,
+            databricks_conn_id=databricks_conn_id,
+            databricks_retry_args=databricks_retry_args,
+            databricks_retry_delay=databricks_retry_delay,
+            databricks_retry_limit=databricks_retry_limit,
+            deferrable=deferrable,
+            existing_cluster_id=existing_cluster_id,
+            job_cluster_key=job_cluster_key,
+            new_cluster=new_cluster,
+            polling_period_seconds=polling_period_seconds,
+            wait_for_termination=wait_for_termination,
+            workflow_run_metadata=workflow_run_metadata,
+            **kwargs,
         )
 
     def _get_task_timeout_seconds(self) -> int:
@@ -1012,85 +1274,101 @@ class DatabricksNotebookOperator(BaseOperator):
             "libraries": self.notebook_packages,
         }
 
-    def _get_databricks_task_id(self, task_id: str) -> str:
-        """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
-        return f"{self.dag_id}__{task_id.replace('.', '__')}"
-
-    def _get_run_json(self) -> dict[str, Any]:
-        """Get run json to be used for task submissions."""
-        run_json = {
-            "run_name": self._get_databricks_task_id(self.task_id),
-            **self._get_task_base_json(),
-        }
-        if self.new_cluster and self.existing_cluster_id:
-            raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
-        if self.new_cluster:
-            run_json["new_cluster"] = self.new_cluster
-        elif self.existing_cluster_id:
-            run_json["existing_cluster_id"] = self.existing_cluster_id
-        else:
-            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
-        return run_json
-
-    def launch_notebook_job(self) -> int:
-        run_json = self._get_run_json()
-        self.databricks_run_id = self._hook.submit_run(run_json)
-        url = self._hook.get_run_page_url(self.databricks_run_id)
-        self.log.info("Check the job run in Databricks: %s", url)
-        return self.databricks_run_id
-
-    def monitor_databricks_job(self) -> None:
-        if self.databricks_run_id is None:
-            raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        run = self._hook.get_run(self.databricks_run_id)
-        run_state = RunState(**run["state"])
-        self.log.info("Current state of the job: %s", run_state.life_cycle_state)
-        if self.deferrable and not run_state.is_terminal:
-            self.defer(
-                trigger=DatabricksExecutionTrigger(
-                    run_id=self.databricks_run_id,
-                    databricks_conn_id=self.databricks_conn_id,
-                    polling_period_seconds=self.polling_period_seconds,
-                    retry_limit=self.databricks_retry_limit,
-                    retry_delay=self.databricks_retry_delay,
-                    retry_args=self.databricks_retry_args,
-                    caller=self.CALLER,
-                ),
-                method_name=DEFER_METHOD_NAME,
+    def _extend_workflow_notebook_packages(
+        self, databricks_workflow_task_group: DatabricksWorkflowTaskGroup
+    ) -> None:
+        """Extend the task group packages into the notebook's packages, without adding any duplicates."""
+        for task_group_package in databricks_workflow_task_group.notebook_packages:
+            exists = any(
+                task_group_package == existing_package for existing_package in self.notebook_packages
             )
-        while not run_state.is_terminal:
-            time.sleep(self.polling_period_seconds)
-            run = self._hook.get_run(self.databricks_run_id)
-            run_state = RunState(**run["state"])
-            self.log.info(
-                "task %s %s", self._get_databricks_task_id(self.task_id), run_state.life_cycle_state
-            )
-            self.log.info("Current state of the job: %s", run_state.life_cycle_state)
-        if run_state.life_cycle_state != "TERMINATED":
+            if not exists:
+                self.notebook_packages.append(task_group_package)
+
+    def _convert_to_databricks_workflow_task(
+        self, relevant_upstreams: list[BaseOperator], context: Context | None = None
+    ) -> dict[str, object]:
+        """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
+        databricks_workflow_task_group = self._databricks_workflow_task_group
+        if not databricks_workflow_task_group:
             raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. "
-                f"Message: {run_state.state_message}"
+                "Calling `_convert_to_databricks_workflow_task` without a parent TaskGroup."
             )
-        if not run_state.is_successful:
-            raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
-            )
-        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
 
-    def execute(self, context: Context) -> None:
-        self.launch_notebook_job()
-        if self.wait_for_termination:
-            self.monitor_databricks_job()
+        if hasattr(databricks_workflow_task_group, "notebook_packages"):
+            self._extend_workflow_notebook_packages(databricks_workflow_task_group)
 
-    def execute_complete(self, context: dict | None, event: dict) -> None:
-        run_state = RunState.from_json(event["run_state"])
-        if run_state.life_cycle_state != "TERMINATED":
-            raise AirflowException(
-                f"Databricks job failed with state {run_state.life_cycle_state}. "
-                f"Message: {run_state.state_message}"
-            )
-        if not run_state.is_successful:
-            raise AirflowException(
-                f"Task failed. Final state {run_state.result_state}. Reason: {run_state.state_message}"
-            )
-        self.log.info("Task succeeded. Final state %s.", run_state.result_state)
+        if hasattr(databricks_workflow_task_group, "notebook_params"):
+            self.notebook_params = {
+                **self.notebook_params,
+                **databricks_workflow_task_group.notebook_params,
+            }
+
+        return super()._convert_to_databricks_workflow_task(relevant_upstreams, context=context)
+
+
+class DatabricksTaskOperator(DatabricksTaskBaseOperator):
+    """
+    Runs a task on Databricks using an Airflow operator.
+
+    The DatabricksTaskOperator allows users to launch and monitor task job runs on Databricks as Airflow
+    tasks. It can be used as a part of a DatabricksWorkflowTaskGroup to take advantage of job clusters, which
+    allows users to run their tasks on cheaper clusters that can be shared between tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksTaskOperator`
+
+    :param task_config: The configuration of the task to be run on Databricks.
+    :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+    :param databricks_retry_delay: Number of seconds to wait between retries.
+    :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
+    :param deferrable: Whether to run the operator in the deferrable mode.
+    :param existing_cluster_id: ID for existing cluster on which to run this task.
+    :param job_cluster_key: The key for the job cluster.
+    :param new_cluster: Specs for a new cluster on which this task will be run.
+    :param polling_period_seconds: Controls the rate which we poll for the result of this notebook job run.
+    :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    """
+
+    CALLER = "DatabricksTaskOperator"
+    template_fields = ("workflow_run_metadata",)
+
+    def __init__(
+        self,
+        task_config: dict,
+        databricks_conn_id: str = "databricks_default",
+        databricks_retry_args: dict[Any, Any] | None = None,
+        databricks_retry_delay: int = 1,
+        databricks_retry_limit: int = 3,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        existing_cluster_id: str = "",
+        job_cluster_key: str = "",
+        new_cluster: dict[str, Any] | None = None,
+        polling_period_seconds: int = 5,
+        wait_for_termination: bool = True,
+        workflow_run_metadata: dict | None = None,
+        **kwargs,
+    ):
+        self.task_config = task_config
+
+        super().__init__(
+            caller=self.CALLER,
+            databricks_conn_id=databricks_conn_id,
+            databricks_retry_args=databricks_retry_args,
+            databricks_retry_delay=databricks_retry_delay,
+            databricks_retry_limit=databricks_retry_limit,
+            deferrable=deferrable,
+            existing_cluster_id=existing_cluster_id,
+            job_cluster_key=job_cluster_key,
+            new_cluster=new_cluster,
+            polling_period_seconds=polling_period_seconds,
+            wait_for_termination=wait_for_termination,
+            workflow_run_metadata=workflow_run_metadata,
+            **kwargs,
+        )
+
+    def _get_task_base_json(self) -> dict[str, Any]:
+        """Get task base json to be used for task submissions."""
+        return self.task_config

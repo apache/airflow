@@ -85,6 +85,7 @@ class TestPodTemplateFile:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
                     }
                 },
             },
@@ -98,6 +99,7 @@ class TestPodTemplateFile:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
+            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
@@ -660,6 +662,27 @@ class TestPodTemplateFile:
             "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
         }
 
+    def test_safe_to_evict_annotation_other_services(self):
+        """Workers' safeToEvict value should not overwrite safeToEvict value of other services."""
+        docs = render_chart(
+            values={
+                "workers": {"safeToEvict": False},
+                "scheduler": {"safeToEvict": True},
+                "triggerer": {"safeToEvict": True},
+                "executor": "KubernetesExecutor",
+                "dagProcessor": {"enabled": True, "safeToEvict": True},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+            ],
+            chart_dir=self.temp_chart_dir,
+        )
+        for doc in docs:
+            annotations = jmespath.search("spec.template.metadata.annotations", doc)
+            assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
+
     def test_workers_pod_annotations(self):
         docs = render_chart(
             values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
@@ -702,6 +725,21 @@ class TestPodTemplateFile:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.initContainers[-1]", docs[0])
 
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "release-name-test-init-container",
+        } == jmespath.search("spec.initContainers[-1]", docs[0])
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -718,6 +756,21 @@ class TestPodTemplateFile:
         assert {
             "name": "test-container",
             "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.containers[-1]", docs[0])
+
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "release-name-test-container",
         } == jmespath.search("spec.containers[-1]", docs[0])
 
     def test_should_add_pod_labels(self):
@@ -737,7 +790,21 @@ class TestPodTemplateFile:
 
     def test_should_add_extraEnvs(self):
         docs = render_chart(
-            values={"workers": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
+            values={
+                "workers": {
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ]
+                }
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -745,6 +812,14 @@ class TestPodTemplateFile:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.containers[0].env", docs[0])
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(

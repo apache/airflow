@@ -45,10 +45,9 @@ import airflow
 from airflow.datasets import Dataset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
-from airflow.exceptions import AirflowException, SerializationError
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -61,11 +60,11 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
@@ -73,11 +72,12 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.triggers.testing import SuccessTrigger
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
+from tests.test_utils.compat import BaseOperatorLink
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
@@ -197,8 +197,8 @@ serialized_simple_dag_ground_truth = {
                     "_log_config_logger_name": "airflow.task.operators",
                     "_needs_expansion": False,
                     "weight_rule": "downstream",
-                    "next_method": None,
-                    "start_trigger": None,
+                    "start_trigger_args": None,
+                    "start_from_trigger": False,
                 },
             },
             {
@@ -227,8 +227,8 @@ serialized_simple_dag_ground_truth = {
                     "_log_config_logger_name": "airflow.task.operators",
                     "_needs_expansion": False,
                     "weight_rule": "downstream",
-                    "next_method": None,
-                    "start_trigger": None,
+                    "start_trigger_args": None,
+                    "start_from_trigger": False,
                 },
             },
         ],
@@ -245,7 +245,7 @@ serialized_simple_dag_ground_truth = {
         },
         "edge_info": {},
         "dag_dependencies": [],
-        "params": {},
+        "params": [],
     },
 }
 
@@ -591,16 +591,10 @@ class TestStringifiedDAGs:
             "params",
             "_processor_dags_folder",
         }
-        compare_serialization_list = {
-            "dataset_triggers",
-        }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             actual = getattr(serialized_dag, field)
             expected = getattr(dag, field)
-            if field in compare_serialization_list:
-                actual = BaseSerialization.serialize(actual)
-                expected = BaseSerialization.serialize(expected)
             assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
@@ -934,7 +928,14 @@ class TestStringifiedDAGs:
         """
         Test that params work both on Serialized DAGs & Tasks
         """
-        dag = DAG(dag_id="simple_dag", params=val)
+        if val and any([True for k, v in val.items() if isinstance(v, set)]):
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+            ):
+                dag = DAG(dag_id="simple_dag", params=val)
+        else:
+            dag = DAG(dag_id="simple_dag", params=val)
         BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag_json = SerializedDAG.to_json(dag)
@@ -943,7 +944,15 @@ class TestStringifiedDAGs:
 
         assert "params" in serialized_dag["dag"]
 
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        if val and any([True for k, v in val.items() if isinstance(v, set)]):
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+            ):
+                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        else:
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()
@@ -1011,15 +1020,24 @@ class TestStringifiedDAGs:
         Test that params work both on Serialized DAGs & Tasks
         """
         dag = DAG(dag_id="simple_dag")
-        BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+        if val and any([True for k, v in val.items() if isinstance(v, set)]):
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
+            ):
+                BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+                serialized_dag = SerializedDAG.to_dict(dag)
+                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        else:
+            BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+            serialized_dag = SerializedDAG.to_dict(dag)
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
-        serialized_dag = SerializedDAG.to_dict(dag)
         if val:
             assert "params" in serialized_dag["dag"]["tasks"][0]["__var"]
         else:
             assert "params" not in serialized_dag["dag"]["tasks"][0]["__var"]
 
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_simple_task.params.dump()
 
@@ -1694,7 +1712,12 @@ class TestStringifiedDAGs:
                 mode="reschedule",
             )
             CustomDepOperator(task_id="hello", bash_command="hi")
-            dag = SerializedDAG.to_dict(dag)
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match=r"Use of a custom dependency detector is deprecated\. "
+                r"Support will be removed in a future release\.",
+            ):
+                dag = SerializedDAG.to_dict(dag)
             assert sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values())) == sorted(
                 [
                     {
@@ -1712,6 +1735,95 @@ class TestStringifiedDAGs:
                 ],
                 key=lambda x: tuple(x.values()),
             )
+
+    @pytest.mark.db_test
+    def test_dag_deps_datasets_with_duplicate_dataset(self):
+        """
+        Check that dag_dependencies node is populated correctly for a DAG with duplicate datasets.
+        """
+        from airflow.sensors.external_task import ExternalTaskSensor
+
+        d1 = Dataset("d1")
+        d2 = Dataset("d2")
+        d3 = Dataset("d3")
+        d4 = Dataset("d4")
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
+            ExternalTaskSensor(
+                task_id="task1",
+                external_dag_id="external_dag_id",
+                mode="reschedule",
+            )
+            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
+
+            @dag.task(outlets=[d4])
+            def other_dataset_writer(x):
+                pass
+
+            other_dataset_writer.expand(x=[1, 2])
+
+        dag = SerializedDAG.to_dict(dag)
+        actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
+        expected = sorted(
+            [
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d4",
+                },
+                {
+                    "source": "external_dag_id",
+                    "target": "test",
+                    "dependency_type": "sensor",
+                    "dependency_id": "task1",
+                },
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d3",
+                },
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d2",
+                },
+                {
+                    "source": "dataset",
+                    "target": "test",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d1",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+            ],
+            key=lambda x: tuple(x.values()),
+        )
+        assert actual == expected
 
     @pytest.mark.db_test
     def test_dag_deps_datasets(self):
@@ -2058,6 +2170,25 @@ class TestStringifiedDAGs:
         assert isinstance(dag.params.get_param("none"), Param)
         assert dag.params["str"] == "str"
 
+    def test_params_serialization_from_dict_upgrade(self):
+        """In <=2.9.2 params were serialized as a JSON object instead of a list of key-value pairs.
+        This test asserts that the params are still deserialized properly."""
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "_dag_id": "simple_dag",
+                "fileloc": "/path/to/file.py",
+                "tasks": [],
+                "timezone": "UTC",
+                "params": {"my_param": {"__class": "airflow.models.param.Param", "default": "str"}},
+            },
+        }
+        dag = SerializedDAG.from_dict(serialized)
+
+        param = dag.params.get_param("my_param")
+        assert isinstance(param, Param)
+        assert param.value == "str"
+
     def test_params_serialize_default_2_2_0(self):
         """In 2.0.0, param ``default`` was assumed to be json-serializable objects and were not run though
         the standard serializer function.  In 2.2.2 we serialize param ``default``.  We keep this
@@ -2069,7 +2200,7 @@ class TestStringifiedDAGs:
                 "fileloc": "/path/to/file.py",
                 "tasks": [],
                 "timezone": "UTC",
-                "params": {"str": {"__class": "airflow.models.param.Param", "default": "str"}},
+                "params": [["str", {"__class": "airflow.models.param.Param", "default": "str"}]],
             },
         }
         SerializedDAG.validate_schema(serialized)
@@ -2086,14 +2217,17 @@ class TestStringifiedDAGs:
                 "fileloc": "/path/to/file.py",
                 "tasks": [],
                 "timezone": "UTC",
-                "params": {
-                    "my_param": {
-                        "default": "a string value",
-                        "description": "hello",
-                        "schema": {"__var": {"type": "string"}, "__type": "dict"},
-                        "__class": "airflow.models.param.Param",
-                    }
-                },
+                "params": [
+                    [
+                        "my_param",
+                        {
+                            "default": "a string value",
+                            "description": "hello",
+                            "schema": {"__var": {"type": "string"}, "__type": "dict"},
+                            "__class": "airflow.models.param.Param",
+                        },
+                    ]
+                ],
             },
         }
         SerializedDAG.validate_schema(serialized)
@@ -2143,25 +2277,40 @@ class TestStringifiedDAGs:
             SerializedDAG.to_dict(dag)
 
     @pytest.mark.db_test
-    def test_start_trigger_and_next_method_in_serialized_dag(self):
+    def test_start_trigger_args_in_serialized_dag(self):
         """
-        Test that when we provide start_trigger and next_method, the DAG can be correctly serialized.
+        Test that when we provide start_trigger_args, the DAG can be correctly serialized.
         """
-        trigger = SuccessTrigger()
 
         class TestOperator(BaseOperator):
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+                trigger_kwargs={"delta": timedelta(seconds=1)},
+                next_method="execute_complete",
+                next_kwargs=None,
+                timeout=None,
+            )
+            start_from_trigger = False
+
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.start_trigger = trigger
-                self.next_method = "execute_complete"
+                self.start_trigger_args.trigger_kwargs = {"delta": timedelta(seconds=2)}
+                self.start_from_trigger = True
 
             def execute_complete(self):
                 pass
 
         class Test2Operator(BaseOperator):
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                trigger_kwargs={},
+                next_method="execute_complete",
+                next_kwargs=None,
+                timeout=None,
+            )
+            start_from_trigger = True
+
             def __init__(self, *args, **kwargs):
-                self.start_trigger = trigger
-                self.next_method = "execute_complete"
                 super().__init__(*args, **kwargs)
 
             def execute_complete(self):
@@ -2174,31 +2323,28 @@ class TestStringifiedDAGs:
             Test2Operator(task_id="test_task_2")
 
         serialized_obj = SerializedDAG.to_dict(dag)
+        tasks = serialized_obj["dag"]["tasks"]
 
-        for task in serialized_obj["dag"]["tasks"]:
-            assert task["__var"]["start_trigger"] == trigger.serialize()
-            assert task["__var"]["next_method"] == "execute_complete"
+        assert tasks[0]["__var"]["start_trigger_args"] == {
+            "__type": "START_TRIGGER_ARGS",
+            "trigger_cls": "airflow.triggers.temporal.TimeDeltaTrigger",
+            # "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "next_method": "execute_complete",
+            "next_kwargs": None,
+            "timeout": None,
+        }
+        assert tasks[0]["__var"]["start_from_trigger"] is True
 
-    @pytest.mark.db_test
-    def test_start_trigger_in_serialized_dag_but_no_next_method(self):
-        """
-        Test that when we provide start_trigger without next_method, an AriflowException should be raised.
-        """
-
-        trigger = SuccessTrigger()
-
-        class TestOperator(BaseOperator):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.start_trigger = trigger
-
-        dag = DAG(dag_id="test_dag", start_date=datetime(2023, 11, 9))
-
-        with dag:
-            TestOperator(task_id="test_task")
-
-        with pytest.raises(AirflowException, match="start_trigger and next_method should both be set."):
-            SerializedDAG.to_dict(dag)
+        assert tasks[1]["__var"]["start_trigger_args"] == {
+            "__type": "START_TRIGGER_ARGS",
+            "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
+            "trigger_kwargs": {"__type": "dict", "__var": {}},
+            "next_method": "execute_complete",
+            "next_kwargs": None,
+            "timeout": None,
+        }
+        assert tasks[1]["__var"]["start_from_trigger"] is True
 
 
 def test_kubernetes_optional():
@@ -2250,8 +2396,8 @@ def test_operator_expand_serde():
         "_needs_expansion": True,
         "_task_module": "airflow.operators.bash",
         "_task_type": "BashOperator",
-        "start_trigger": None,
-        "next_method": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
         "downstream_task_ids": [],
         "expand_input": {
             "type": "dict-of-lists",
@@ -2284,8 +2430,8 @@ def test_operator_expand_serde():
     assert op.operator_class == {
         "_task_type": "BashOperator",
         "_needs_expansion": True,
-        "start_trigger": None,
-        "next_method": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
         "downstream_task_ids": [],
         "task_id": "a",
         "template_ext": [".sh", ".bash"],
@@ -2331,8 +2477,8 @@ def test_operator_expand_xcomarg_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
-        "next_method": None,
-        "start_trigger": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2389,8 +2535,8 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
-        "next_method": None,
-        "start_trigger": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2438,8 +2584,8 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
-        "next_method": None,
-        "start_trigger": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
     }
 
     op = BaseSerialization.deserialize(serialized)
@@ -2464,21 +2610,31 @@ def test_operator_expand_deserialized_unmap():
 
     ser_mapped = BaseSerialization.serialize(mapped)
     deser_mapped = BaseSerialization.deserialize(ser_mapped)
+    deser_mapped.dag = None
+
     ser_normal = BaseSerialization.serialize(normal)
     deser_normal = BaseSerialization.deserialize(ser_normal)
+    deser_normal.dag = None
     assert deser_mapped.unmap(None) == deser_normal
 
 
 @pytest.mark.db_test
 def test_sensor_expand_deserialized_unmap():
     """Unmap a deserialized mapped sensor should be similar to deserializing a non-mapped sensor"""
-    normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
-    mapped = BashSensor.partial(task_id="a", mode="reschedule").expand(bash_command=[1, 2])
-
-    serialize = SerializedBaseOperator.serialize
-
-    deserialize = SerializedBaseOperator.deserialize
-    assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
+    dag = DAG(dag_id="hello", start_date=None)
+    with dag:
+        normal = BashSensor(task_id="a", bash_command=[1, 2], mode="reschedule")
+        mapped = BashSensor.partial(task_id="b", mode="reschedule").expand(bash_command=[1, 2])
+    ser_mapped = SerializedBaseOperator.serialize(mapped)
+    deser_mapped = SerializedBaseOperator.deserialize(ser_mapped)
+    deser_mapped.dag = dag
+    deser_unmapped = deser_mapped.unmap(None)
+    ser_normal = SerializedBaseOperator.serialize(normal)
+    deser_normal = SerializedBaseOperator.deserialize(ser_normal)
+    deser_normal.dag = dag
+    comps = set(BashSensor._comps)
+    comps.remove("task_id")
+    assert all(getattr(deser_unmapped, c, None) == getattr(deser_normal, c, None) for c in comps)
 
 
 def test_task_resources_serde():
@@ -2557,8 +2713,8 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
-        "next_method": None,
-        "start_trigger": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
@@ -2579,6 +2735,10 @@ def test_taskflow_expand_serde():
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+    # this dag is not pickleable in this context, so we have to simply
+    # set it to None
+    deserialized.dag = None
 
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
@@ -2624,8 +2784,8 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.decorators.python",
         "_task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
-        "next_method": None,
-        "start_trigger": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
         "downstream_task_ids": [],
         "partial_kwargs": {
             "is_setup": False,
@@ -2675,6 +2835,10 @@ def test_taskflow_expand_kwargs_serde(strict):
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
     }
+
+    # this dag is not pickleable in this context, so we have to simply
+    # set it to None
+    deserialized.dag = None
 
     # Ensure the serialized operator can also be correctly pickled, to ensure
     # correct interaction between DAG pickling and serialization. This is done
@@ -2777,8 +2941,8 @@ def test_mapped_task_with_operator_extra_links_property():
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "next_method": None,
-        "start_trigger": None,
+        "start_trigger_args": None,
+        "start_from_trigger": False,
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]

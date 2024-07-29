@@ -24,6 +24,7 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import timezone
+from tests.test_utils.compat import connection_as_json
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MINIMAL_TEST_TICKET = {
@@ -49,15 +50,17 @@ class TestJiraSensor:
     def setup_test_cases(self, monkeypatch):
         monkeypatch.setenv(
             "AIRFLOW_CONN_JIRA_DEFAULT".upper(),
-            Connection(
-                conn_id="jira_default",
-                conn_type="jira",
-                host="https://localhost/jira/",
-                port=443,
-                login="user",
-                password="password",
-                extra='{"verify": false, "project": "AIRFLOW"}',
-            ).as_json(),
+            connection_as_json(
+                Connection(
+                    conn_id="jira_default",
+                    conn_type="jira",
+                    host="https://localhost/jira/",
+                    port=443,
+                    login="user",
+                    password="password",
+                    extra='{"verify": false, "project": "AIRFLOW"}',
+                )
+            ),
         )
 
     def test_issue_label_set(self, mocked_jira_client):

@@ -32,14 +32,15 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
 if TYPE_CHECKING:
-    from google.ads.googleads.v16.services.services.customer_service import CustomerServiceClient
-    from google.ads.googleads.v16.services.services.google_ads_service import GoogleAdsServiceClient
-    from google.ads.googleads.v16.services.types.google_ads_service import GoogleAdsRow
+    from google.ads.googleads.v17.services.services.customer_service import CustomerServiceClient
+    from google.ads.googleads.v17.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v17.services.types.google_ads_service import GoogleAdsRow
     from google.api_core.page_iterator import GRPCIterator
 
 
 class GoogleAdsHook(BaseHook):
-    """Interact with Google Ads API.
+    """
+    Interact with Google Ads API.
 
     This hook offers two flows of authentication.
 
@@ -100,7 +101,7 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
     """
 
-    default_api_version = "v16"
+    default_api_version = "v17"
 
     def __init__(
         self,
@@ -118,7 +119,8 @@ class GoogleAdsHook(BaseHook):
     def search(
         self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
     ) -> list[GoogleAdsRow]:
-        """Pull data from the Google Ads API.
+        """
+        Pull data from the Google Ads API.
 
         Native protobuf message instances are returned (those seen in versions
         prior to 10.0.0 of the google-ads library).
@@ -143,7 +145,8 @@ class GoogleAdsHook(BaseHook):
     def search_proto_plus(
         self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
     ) -> list[GoogleAdsRow]:
-        """Pull data from the Google Ads API.
+        """
+        Pull data from the Google Ads API.
 
         Instances of proto-plus-python message are returned, which behave more
         like conventional Python objects.
@@ -156,7 +159,8 @@ class GoogleAdsHook(BaseHook):
         return self._search(client_ids, query, page_size, **kwargs)
 
     def list_accessible_customers(self) -> list[str]:
-        """List resource names of customers.
+        """
+        List resource names of customers.
 
         The resulting list of customers is based on your OAuth credentials. The
         request returns a list of all accounts that you are able to act upon
@@ -218,7 +222,8 @@ class GoogleAdsHook(BaseHook):
                 raise
 
     def _get_config(self) -> None:
-        """Set up Google Ads config from Connection.
+        """
+        Set up Google Ads config from Connection.
 
         This pulls the connections from db, and uses it to set up
         ``google_ads_config``.
@@ -246,7 +251,8 @@ class GoogleAdsHook(BaseHook):
             raise AirflowException("Authentication method could not be determined")
 
     def _update_config_with_secret(self, secrets_temp: IO[str]) -> None:
-        """Set up Google Cloud config secret from Connection.
+        """
+        Set up Google Cloud config secret from Connection.
 
         This pulls the connection, saves the contents to a temp file, and point
         the config to the path containing the secret. Note that the secret must
@@ -264,7 +270,8 @@ class GoogleAdsHook(BaseHook):
     def _search(
         self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
     ) -> list[GoogleAdsRow]:
-        """Pull data from the Google Ads API.
+        """
+        Pull data from the Google Ads API.
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
@@ -286,7 +293,8 @@ class GoogleAdsHook(BaseHook):
         return self._extract_rows(iterators)
 
     def _extract_rows(self, iterators: list[GRPCIterator]) -> list[GoogleAdsRow]:
-        """Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows.
+        """
+        Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows.
 
         :param iterators: List of Google Page Iterator (GRPCIterator) objects
         :return: API response for all clients in the form of Google Ads Row object(s)

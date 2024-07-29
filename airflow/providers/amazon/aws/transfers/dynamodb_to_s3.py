@@ -105,7 +105,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         "file_size",
         "dynamodb_scan_kwargs",
         "s3_key_prefix",
-        "process_func",
         "export_time",
         "export_format",
         "check_interval",
