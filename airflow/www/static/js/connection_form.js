@@ -234,11 +234,18 @@ $(document).ready(() => {
   /**
    * Displays the Flask style alert on UI via JS
    *
-   * @param {boolean} status - true for success, false for error
+   * @param {boolean} status - true for success, false for error, null for warning
    * @param {string} message - The text message to show in alert box
    */
   function displayAlert(status, message) {
-    const alertClass = status ? "alert-success" : "alert-error";
+    let alertClass;
+    if (status === true) {
+      alertClass = "alert-success";
+    } else if (status === false) {
+      alertClass = "alert-error";
+    } else if (status === null) {
+      alertClass = "alert-warning";
+    }
     let alertBox = $(".container .row .alert");
     if (alertBox.length) {
       alertBox.removeClass("alert-success").removeClass("alert-error");
@@ -254,6 +261,11 @@ $(document).ready(() => {
       $(".container .row").prepend(alertBox).show();
     }
   }
+
+  displayAlert(
+    null,
+    "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one."
+  );
 
   function hideAlert() {
     const alertBox = $(".container .row .alert");
