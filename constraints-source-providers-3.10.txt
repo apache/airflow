@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-29T02:00:18.690910
+# This constraints file was automatically generated on 2024-07-29T13:39:46.218311
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -362,7 +362,7 @@ mysql-connector-python==9.0.0
 mysqlclient==2.2.4
 nbclient==0.10.0
 nbformat==5.10.4
-neo4j==5.22.0
+neo4j==5.23.0
 nest-asyncio==1.6.0
 networkx==3.3
 nh3==0.2.18
@@ -561,7 +561,7 @@ strictyaml==1.7.3
 sympy==1.13.1
 tableauserverclient==0.32
 tabulate==0.9.0
-tenacity==8.5.0
+tenacity==9.0.0
 teradatasql==20.0.0.14
 teradatasqlalchemy==20.0.0.1
 termcolor==2.4.0
