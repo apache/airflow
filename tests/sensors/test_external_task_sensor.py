@@ -44,7 +44,11 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.sensors.base import FailPolicy
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.10.0", __file__):
+    from airflow.sensors.base import FailPolicy
+
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
     ExternalTaskSensor,
@@ -336,6 +340,7 @@ class TestExternalTaskSensor:
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
         ) in caplog.messages
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_external_task_sensor_skip_on_timeout_failed_states_as_skipped(self):
         self.add_time_sensor()
         op = ExternalTaskSensor(
@@ -474,6 +479,7 @@ class TestExternalTaskSensor:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_external_dag_sensor_skip_on_timeout_as_skipped(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
         other_dag.create_dagrun(
@@ -861,6 +867,7 @@ exit 0
                 ignore_ti_state=True,
             )
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "kwargs, expected_message",
         (
@@ -920,6 +927,7 @@ exit 0
         with pytest.raises(expected_exception, match=expected_message):
             op.execute(context={})
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "response_get_current, response_exists, kwargs, expected_message",
         (

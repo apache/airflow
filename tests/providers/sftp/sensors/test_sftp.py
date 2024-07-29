@@ -27,7 +27,11 @@ from pendulum import datetime as pendulum_datetime, timezone
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
-from airflow.sensors.base import FailPolicy, PokeReturnValue
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.10.0", __file__):
+    from airflow.sensors.base import FailPolicy
+from airflow.sensors.base import PokeReturnValue
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="arg-type"
@@ -52,6 +56,7 @@ class TestSFTPSensor:
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert not output
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "fail_policy, expected_exception",
         ((FailPolicy.NONE, AirflowSensorTimeout), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSensorTimeout)),

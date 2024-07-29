@@ -28,7 +28,10 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
-from airflow.sensors.base import FailPolicy
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.10.0", __file__):
+    from airflow.sensors.base import FailPolicy
 
 TASK_ID = "batch_job_sensor"
 JOB_ID = "8222a1c2-b246-4e19-b1b8-0039bb4407c0"
@@ -101,6 +104,7 @@ class TestBatchSensor:
         with pytest.raises(AirflowException):
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_execute_failure_in_deferrable_mode_with_fail_policy(self):
         """Tests that an AirflowSkipException is raised in case of error event and fail_policy is set to True"""
         deferrable_batch_sensor = BatchSensor(
@@ -114,6 +118,7 @@ class TestBatchSensor:
         with pytest.raises(AirflowSkipException):
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "fail_policy, expected_exception",
         ((FailPolicy.NONE, AirflowException), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSkipException)),
@@ -210,6 +215,7 @@ class TestBatchComputeEnvironmentSensor:
         )
         assert "AWS Batch compute environment failed" in str(ctx.value)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "fail_policy, expected_exception",
         ((FailPolicy.NONE, AirflowException), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSkipException)),
@@ -312,6 +318,7 @@ class TestBatchJobQueueSensor:
         )
         assert "AWS Batch job queue failed" in str(ctx.value)
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "fail_policy, expected_exception",
         ((FailPolicy.NONE, AirflowException), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSkipException)),

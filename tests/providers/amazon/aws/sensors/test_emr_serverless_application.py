@@ -23,7 +23,10 @@ import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor
-from airflow.sensors.base import FailPolicy
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.10.0", __file__):
+    from airflow.sensors.base import FailPolicy
 
 
 class TestEmrServerlessApplicationSensor:
@@ -79,6 +82,7 @@ class TestPokeRaisesAirflowException(TestEmrServerlessApplicationSensor):
         self.assert_get_application_was_called_once_with_app_id()
 
 
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
 class TestPokeRaisesAirflowSkipException(TestEmrServerlessApplicationSensor):
     def setup_method(self, fail_policy=None):
         super().setup_method(FailPolicy.SKIP_ON_TIMEOUT)

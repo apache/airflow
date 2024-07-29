@@ -52,7 +52,11 @@ from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import LocalKubernetesExecutor
-from airflow.sensors.base import BaseSensorOperator, FailPolicy, PokeReturnValue, poke_mode_only
+from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.10.0", __file__):
+    from airflow.sensors.base import FailPolicy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -96,7 +100,7 @@ class DummyAsyncSensor(BaseSensorOperator):
         self.return_value = return_value
 
     def execute_complete(self, context, event=None):
-        raise AirflowException("Should be skipped")
+        raise AirflowException()
 
 
 class DummySensorWithXcomValue(BaseSensorOperator):
@@ -179,6 +183,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_skip_on_timeout(self, make_sensor):
         sensor, dr = make_sensor(False, fail_policy=FailPolicy.SKIP_ON_TIMEOUT)
 
@@ -191,6 +196,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "exception_cls",
         (ValueError,),
@@ -209,6 +215,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "exception_cls",
         (
@@ -230,6 +237,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "exception_cls",
         (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, AirflowPokeFailException, Exception),
@@ -247,6 +255,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_skip_on_timeout_with_retries(self, make_sensor):
         sensor, dr = make_sensor(
             return_value=False,
@@ -360,6 +369,7 @@ class TestBaseSensor:
         assert sensor_ti.state == State.FAILED
         assert dummy_ti.state == State.NONE
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_skip_on_timeout_with_reschedule(self, make_sensor, time_machine, session):
         sensor, dr = make_sensor(
             return_value=False,
@@ -884,6 +894,7 @@ class TestBaseSensor:
         assert sensor_ti.max_tries == 4
         assert sensor_ti.state == State.FAILED
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_reschedule_and_retry_timeout_and_silent_fail(self, make_sensor, time_machine, session):
         """
         Test mode="reschedule", silent_fail=True then retries and timeout configurations interact correctly.
@@ -1117,6 +1128,7 @@ class TestPokeModeOnly:
 
 
 class TestAsyncSensor:
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
         "fail_policy, expected_exception",
         [
