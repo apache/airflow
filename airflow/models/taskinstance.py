@@ -2996,7 +2996,7 @@ class TaskInstance(Base, LoggingMixin):
             if not dataset_obj:
                 dataset_obj = DatasetModel(uri=uri)
                 dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
-                self.log.warning('Created a new Dataset(uri="%s") as it did not exists.', uri)
+                self.log.warning("Created a new %r as it did not exist.", dataset_obj)
                 dataset_objs_cache[uri] = dataset_obj
 
             for alias in alias_names:
@@ -3007,9 +3007,8 @@ class TaskInstance(Base, LoggingMixin):
 
             extra = {k: v for k, v in extra_items}
             self.log.info(
-                'Create dataset event Dataset(uri="%s", extra="%s") through dataset aliases "%s"',
-                uri,
-                extra,
+                'Creating event for %r through aliases "%s"',
+                dataset_obj,
                 ", ".join(alias_names),
             )
             dataset_manager.register_dataset_change(
