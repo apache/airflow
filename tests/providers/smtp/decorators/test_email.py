@@ -17,15 +17,15 @@
 from __future__ import annotations
 
 import json
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
-
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
