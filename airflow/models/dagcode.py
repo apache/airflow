@@ -26,6 +26,7 @@ from sqlalchemy import BigInteger, Column, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.sql.expression import literal
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.base import Base
 from airflow.utils import timezone
@@ -129,6 +130,7 @@ class DagCode(Base):
                 session.merge(orm_dag_code)
 
     @classmethod
+    @internal_api_call
     @provide_session
     def remove_deleted_code(
         cls,

@@ -1139,14 +1139,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 
-                    # Heartbeat the scheduler periodically
-                    perform_heartbeat(
-                        job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
-                    )
+                # Heartbeat the scheduler periodically
+                perform_heartbeat(
+                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                )
 
-                    # Run any pending timed events
-                    next_event = timers.run(blocking=False)
-                    self.log.debug("Next timed event is in %f", next_event)
+                # Run any pending timed events
+                next_event = timers.run(blocking=False)
+                self.log.debug("Next timed event is in %f", next_event)
 
             self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
             if span.is_recording():

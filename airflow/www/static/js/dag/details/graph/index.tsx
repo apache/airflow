@@ -30,7 +30,13 @@ import ReactFlow, {
   Viewport,
 } from "reactflow";
 
-import { useDatasets, useGraphData, useGridData } from "src/api";
+import {
+  useDatasetEvents,
+  useDatasets,
+  useGraphData,
+  useGridData,
+  useUpstreamDatasetEvents,
+} from "src/api";
 import useSelection from "src/dag/useSelection";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
@@ -57,6 +63,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+  const { selected } = useSelection();
 
   const {
     data: { dagRuns, groups },
@@ -70,6 +77,27 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     dagIds: [dagId],
   });
 
+  const enabledDatasets = !!(
+    selected.runId && datasetsCollection?.datasets?.length
+  );
+
+  const {
+    data: { datasetEvents: upstreamDatasetEvents = [] },
+  } = useUpstreamDatasetEvents({
+    dagId,
+    dagRunId: selected.runId || "",
+    options: { enabled: enabledDatasets },
+  });
+
+  const {
+    data: { datasetEvents: downstreamDatasetEvents = [] },
+  } = useDatasetEvents({
+    sourceDagId: dagId,
+    sourceRunId: selected.runId || undefined,
+    options: { enabled: enabledDatasets },
+  });
+
+  const datasetEdges: WebserverEdge[] = [];
   const rawNodes =
     data?.nodes && datasetsCollection?.datasets?.length
       ? {
@@ -89,8 +117,6 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           ],
         }
       : data?.nodes;
-
-  const datasetEdges: WebserverEdge[] = [];
 
   datasetsCollection?.datasets?.forEach((dataset) => {
     const producingTask = dataset?.producingTasks?.find(
@@ -126,8 +152,6 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     arrange,
   });
 
-  const { selected } = useSelection();
-
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
@@ -151,6 +175,9 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         groups,
         hoveredTaskState,
         isZoomedOut,
+        datasetEvents: selected.runId
+          ? [...upstreamDatasetEvents, ...downstreamDatasetEvents]
+          : [],
       }),
     [
       graphData?.children,
@@ -161,6 +188,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       groups,
       hoveredTaskState,
       isZoomedOut,
+      upstreamDatasetEvents,
+      downstreamDatasetEvents,
     ]
   );
 

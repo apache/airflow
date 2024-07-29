@@ -17,14 +17,21 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from "axios";
-import { useQuery } from "react-query";
+import axios from "axios";
+import { useQuery, UseQueryOptions } from "react-query";
 
 import { getMetaValue } from "src/utils";
-import type { API } from "src/types";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import type {
+  DatasetEventCollection,
+  GetDatasetEventsVariables,
+} from "src/types/api-generated";
 
-export default function useDatasetEvents({
+interface Props extends GetDatasetEventsVariables {
+  options?: UseQueryOptions<DatasetEventCollection>;
+}
+
+const useDatasetEvents = ({
   datasetId,
   sourceDagId,
   sourceRunId,
@@ -33,8 +40,9 @@ export default function useDatasetEvents({
   limit,
   offset,
   orderBy,
-}: API.GetDatasetEventsVariables) {
-  const query = useQuery(
+  options,
+}: Props) => {
+  const query = useQuery<DatasetEventCollection>(
     [
       "datasets-events",
       datasetId,
@@ -61,16 +69,19 @@ export default function useDatasetEvents({
       if (sourceMapIndex)
         params.set("source_map_index", sourceMapIndex.toString());
 
-      return axios.get<AxiosResponse, API.DatasetEventCollection>(datasetsUrl, {
+      return axios.get(datasetsUrl, {
         params,
       });
     },
     {
       keepPreviousData: true,
+      ...options,
     }
   );
   return {
     ...query,
     data: query.data ?? { datasetEvents: [], totalEntries: 0 },
   };
-}
+};
+
+export default useDatasetEvents;

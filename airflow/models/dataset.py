@@ -40,6 +40,48 @@ from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
+alias_association_table = Table(
+    "dataset_alias_dataset",
+    Base.metadata,
+    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dataset_alias_dataset_alias_id", "alias_id"),
+    Index("idx_dataset_alias_dataset_alias_dataset_id", "dataset_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="ds_dsa_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("dataset_id",),
+        ["dataset.id"],
+        name="ds_dsa_dataset_id",
+        ondelete="CASCADE",
+    ),
+)
+
+dataset_alias_dataset_event_assocation_table = Table(
+    "dataset_alias_dataset_event",
+    Base.metadata,
+    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dataset_alias_dataset_event_alias_id", "alias_id"),
+    Index("idx_dataset_alias_dataset_event_event_id", "event_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="dss_de_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("event_id",),
+        ["dataset_event.id"],
+        name="dss_de_event_id",
+        ondelete="CASCADE",
+    ),
+)
+
 
 class DatasetAliasModel(Base):
     """
@@ -64,9 +106,23 @@ class DatasetAliasModel(Base):
 
     __tablename__ = "dataset_alias"
 
+    datasets = relationship(
+        "DatasetModel",
+        secondary=alias_association_table,
+        backref="aliases",
+    )
+    dataset_events = relationship(
+        "DatasetEvent",
+        secondary=dataset_alias_dataset_event_assocation_table,
+        back_populates="source_aliases",
+    )
+
     @classmethod
     def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
         return cls(name=obj.name)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name!r})"
 
 
 class DatasetModel(Base):
@@ -284,27 +340,6 @@ association_table = Table(
     Index("idx_dagrun_dataset_events_event_id", "event_id"),
 )
 
-dataset_alias_dataset_event_assocation_table = Table(
-    "dataset_alias_dataset_event",
-    Base.metadata,
-    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
-    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
-    Index("idx_dataset_alias_dataset_event_alias_id", "alias_id"),
-    Index("idx_dataset_alias_dataset_event_event_id", "event_id"),
-    ForeignKeyConstraint(
-        ("alias_id",),
-        ["dataset_alias.id"],
-        name="dss_de_alias_id",
-        ondelete="CASCADE",
-    ),
-    ForeignKeyConstraint(
-        ("event_id",),
-        ["dataset_event.id"],
-        name="dss_de_event_id",
-        ondelete="CASCADE",
-    ),
-)
-
 
 class DatasetEvent(Base):
     """
@@ -346,7 +381,7 @@ class DatasetEvent(Base):
     source_aliases = relationship(
         "DatasetAliasModel",
         secondary=dataset_alias_dataset_event_assocation_table,
-        backref="dataset_events",
+        back_populates="dataset_events",
     )
 
     source_task_instance = relationship(
@@ -393,6 +428,7 @@ class DatasetEvent(Base):
             "source_dag_id",
             "source_run_id",
             "source_map_index",
+            "source_aliases",
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"

@@ -1068,6 +1068,10 @@ class TestSSHHook:
 
         ssh_mock.reset_mock()
         with mock.patch("os.path.isfile", return_value=False):
+            # Reset ssh hook to initial state
+            hook = SSHHook(
+                ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE
+            )
             with hook.get_conn():
                 assert ssh_mock.return_value.set_missing_host_key_policy.called is True
                 assert isinstance(

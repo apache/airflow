@@ -32,10 +32,10 @@ def get_hook_lineage_collector():
             It is used when you want to disable lineage collection.
             """
 
-            def add_input_dataset(self, *_):
+            def add_input_dataset(self, *_, **__):
                 pass
 
-            def add_output_dataset(self, *_):
+            def add_output_dataset(self, *_, **__):
                 pass
 
         return NoOpCollector()

@@ -24,6 +24,7 @@ import type { ElkExtendedEdge } from "elkjs";
 import type { SelectionProps } from "src/dag/useSelection";
 import { getTask } from "src/utils";
 import type { Task, TaskInstance, NodeType } from "src/types";
+import type { DatasetEvent } from "src/types/api-generated";
 
 import type { CustomNodeProps } from "./Node";
 
@@ -37,6 +38,7 @@ interface FlattenNodesProps {
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
   isZoomedOut: boolean;
+  datasetEvents?: DatasetEvent[];
 }
 
 // Generate a flattened list of nodes for react-flow to render
@@ -50,6 +52,7 @@ export const flattenNodes = ({
   parent,
   hoveredTaskState,
   isZoomedOut,
+  datasetEvents,
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
   let edges: ElkExtendedEdge[] = [];
@@ -88,6 +91,10 @@ export const flattenNodes = ({
           }
           onToggleGroups(newGroupIds);
         },
+        datasetEvent:
+          node.value.class === "dataset"
+            ? datasetEvents?.find((de) => de.datasetUri === node.value.label)
+            : undefined,
         ...node.value,
       },
       type: "custom",

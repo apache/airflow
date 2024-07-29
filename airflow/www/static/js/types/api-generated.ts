@@ -547,6 +547,22 @@ export interface paths {
      */
     post: operations["get_task_instances_batch"];
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
+    /**
+     * Get details of a task instance try.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_task_instance_try_details"];
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+    /**
+     * Get details of a mapped task instance try.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_mapped_task_instance_try_details"];
+  };
   "/variables": {
     /** The collection does not contain data. To get data, you must get a single entity. */
     get: operations["get_variables"];
@@ -1268,6 +1284,10 @@ export interface components {
       task_id?: string | null;
       /** @description The DAG Run ID */
       run_id?: string | null;
+      /** @description The Map Index */
+      map_index?: number | null;
+      /** @description The Try Number */
+      try_number?: number | null;
       /** @description A key describing the type of event. */
       event?: string;
       /**
@@ -1284,6 +1304,7 @@ export interface components {
      * @description Collection of event logs.
      *
      * *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+     * *Changed in version 2.10.0*&#58; 'try_number' and 'map_index' fields are added.
      */
     EventLogCollection: {
       event_logs?: components["schemas"]["EventLog"][];
@@ -1298,7 +1319,7 @@ export interface components {
       timestamp?: string;
       /** @description The filename */
       filename?: string;
-      /** @description The full stackstrace.. */
+      /** @description The full stackstrace. */
       stack_trace?: string;
     };
     /**
@@ -1599,8 +1620,13 @@ export interface components {
     } & components["schemas"]["CollectionInfo"];
     /** @description Full representations of XCom entry. */
     XCom: components["schemas"]["XComCollectionItem"] & {
-      /** @description The value */
-      value?: string;
+      /** @description The value(s), */
+      value?: Partial<string> &
+        Partial<number> &
+        Partial<number> &
+        Partial<boolean> &
+        Partial<unknown[]> &
+        Partial<{ [key: string]: unknown }>;
     };
     /**
      * @description DAG details.
@@ -4264,6 +4290,68 @@ export interface operations {
       };
     };
   };
+  /**
+   * Get details of a task instance try.
+   *
+   * *New in version 2.10.0*
+   */
+  get_task_instance_try_details: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The task try number. */
+        task_try_number: components["parameters"]["TaskTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get details of a mapped task instance try.
+   *
+   * *New in version 2.10.0*
+   */
+  get_mapped_task_instance_try_details: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+        /** The task try number. */
+        task_try_number: components["parameters"]["TaskTryNumber"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstance"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /** The collection does not contain data. To get data, you must get a single entity. */
   get_variables: {
     parameters: {
@@ -4439,6 +4527,15 @@ export interface operations {
          * *New in version 2.4.0*
          */
         deserialize?: boolean;
+        /**
+         * Whether to convert the XCom value to be a string. XCom values can be of Any data type.
+         *
+         * If set to true (default) the Any value will be returned as string, e.g. a Python representation
+         * of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
+         *
+         * *New in version 2.10.0*
+         */
+        stringify?: boolean;
       };
     };
     responses: {
@@ -5639,6 +5736,12 @@ export type GetMappedTaskInstancesVariables = CamelCasedPropertiesDeep<
 >;
 export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<
   operations["get_task_instances_batch"]["requestBody"]["content"]["application/json"]
+>;
+export type GetTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
+  operations["get_task_instance_try_details"]["parameters"]["path"]
+>;
+export type GetMappedTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
+  operations["get_mapped_task_instance_try_details"]["parameters"]["path"]
 >;
 export type GetVariablesVariables = CamelCasedPropertiesDeep<
   operations["get_variables"]["parameters"]["query"]

@@ -289,13 +289,12 @@ class BigQueryToGCSOperator(BaseOperator):
         """Implement on_complete as we will include final BQ job id."""
         from pathlib import Path
 
-        from openlineage.client.facet import (
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
             ExternalQueryRunFacet,
+            Identifier,
             SymlinksDatasetFacet,
-            SymlinksDatasetFacetIdentifiers,
         )
-        from openlineage.client.run import Dataset
-
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.openlineage.utils import (
             get_facets_from_bq_table,
@@ -335,11 +334,7 @@ class BigQueryToGCSOperator(BaseOperator):
                 # but we create a symlink to the full object path with wildcard.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
-                        identifiers=[
-                            SymlinksDatasetFacetIdentifiers(
-                                namespace=f"gs://{bucket}", name=blob, type="file"
-                            )
-                        ]
+                        identifiers=[Identifier(namespace=f"gs://{bucket}", name=blob, type="file")]
                     ),
                 }
                 blob = Path(blob).parent.as_posix()

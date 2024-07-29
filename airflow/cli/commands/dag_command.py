@@ -265,7 +265,11 @@ def set_is_paused(is_paused: bool, args) -> None:
 @providers_configuration_loaded
 def dag_dependencies_show(args) -> None:
     """Display DAG dependencies, save to file or show as imgcat image."""
-    dot = render_dag_dependencies(SerializedDagModel.get_dag_dependencies())
+    deduplicated_dag_dependencies = {
+        dag_id: list(set(dag_dependencies))
+        for dag_id, dag_dependencies in SerializedDagModel.get_dag_dependencies().items()
+    }
+    dot = render_dag_dependencies(deduplicated_dag_dependencies)
     filename = args.save
     imgcat = args.imgcat
 

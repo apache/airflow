@@ -32,14 +32,18 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocStopClusterOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_dataproc_cluster_create_existing_stopped_cluster"
+DAG_ID = "dataproc_create_existing_stopped_cluster"
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEMS_TESTS_GCP_PROJECTS") or ""
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
-REGION = "europe-west1"
+
+CLUSTER_NAME_BASE = f"{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
+REGION = "europe-north1"
 
 # Cluster definition
 CLUSTER_CONFIG = {

@@ -30,11 +30,6 @@ from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import (
-    GCSCreateBucketOperator,
-    GCSDeleteBucketOperator,
-    GCSSynchronizeBucketsOperator,
-)
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLVideoTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
@@ -48,7 +43,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_auto_ml_operations"
+DAG_ID = "vertex_ai_auto_ml_operations"
 REGION = "us-central1"
 VIDEO_DISPLAY_NAME = f"auto-ml-video-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"auto-ml-video-model-{ENV_ID}"
@@ -64,7 +59,7 @@ VIDEO_DATASET = {
 VIDEO_DATA_CONFIG = [
     {
         "import_schema_uri": schema.dataset.ioformat.video.classification,
-        "gcs_source": {"uris": [f"gs://{VIDEO_GCS_BUCKET_NAME}/vertex-ai/video-dataset.csv"]},
+        "gcs_source": {"uris": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/video-dataset.csv"]},
     },
 ]
 
@@ -75,22 +70,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket",
-        bucket_name=VIDEO_GCS_BUCKET_NAME,
-        storage_class="REGIONAL",
-        location=REGION,
-    )
-
-    move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_dataset_to_bucket",
-        source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="vertex-ai/datasets",
-        destination_bucket=VIDEO_GCS_BUCKET_NAME,
-        destination_object="vertex-ai",
-        recursive=True,
-    )
-
     create_video_dataset = CreateDatasetOperator(
         task_id="video_dataset",
         dataset=VIDEO_DATASET,
@@ -152,18 +131,9 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket",
-        bucket_name=VIDEO_GCS_BUCKET_NAME,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     (
         # TEST SETUP
-        [
-            create_bucket >> move_dataset_file,
-            create_video_dataset,
-        ]
+        create_video_dataset
         >> import_video_dataset
         # TEST BODY
         >> create_auto_ml_video_training_job
@@ -171,9 +141,15 @@ with DAG(
         # TEST TEARDOWN
         >> delete_auto_ml_video_training_job
         >> delete_video_dataset
-        >> delete_bucket
     )
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 
