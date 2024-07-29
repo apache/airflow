@@ -1125,6 +1125,9 @@ def test_mro():
     class Branch(Mixin, sql.BranchSQLOperator):
         pass
 
+    # The following throws an exception if metaclass breaks MRO:
+    #   airflow.exceptions.AirflowException: Invalid arguments were passed to Branch (task_id: test). Invalid arguments were:
+    #   **kwargs: {'sql': 'sql', 'follow_task_ids_if_true': ['x'], 'follow_task_ids_if_false': ['y']}
     op = Branch(
         task_id="test",
         conn_id="abc",
