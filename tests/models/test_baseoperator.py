@@ -42,6 +42,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.sql.operators import sql
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -1115,3 +1116,20 @@ def test_get_task_instances(session):
     assert task.get_task_instances(
         session=session, start_date=second_execution_date, end_date=second_execution_date
     ) == [ti_2]
+
+
+def test_mro():
+    class Mixin(sql.BaseSQLOperator):
+        pass
+
+    class Branch(Mixin, sql.BranchSQLOperator):
+        pass
+
+    op = Branch(
+        task_id="test",
+        conn_id="abc",
+        sql="sql",
+        follow_task_ids_if_true=["x"],
+        follow_task_ids_if_false=["y"],
+    )
+    assert isinstance(op, Branch)
