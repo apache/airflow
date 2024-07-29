@@ -209,9 +209,9 @@ def test_powerbilink(create_task_instance_of_operator):
     ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
     url = ti.task.get_extra_links(ti, "Monitor PowerBI Dataset")
     EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
-        "https://app.powerbi.com",
-        f"/groups/{GROUP_ID}/datasets/{DATASET_ID}",
-        "/details?experience=power-bi",
+        "https://app.powerbi.com"  # type: ignore[attr-defined]
+        f"/groups/{GROUP_ID}/datasets/{DATASET_ID}"  # type: ignore[attr-defined]
+        "/details?experience=power-bi"
     )
 
     assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK
