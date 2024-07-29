@@ -35,7 +35,7 @@ GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
 POWERBI_DATASET_END_TIME = time.time() + 10
 MODULE = "airflow.providers.microsoft.azure"
-TIMEOUT = 3
+TIMEOUT = 60
 CHECK_INTERVAL = 3
 API_VERSION = "v1.0"
 
@@ -147,7 +147,7 @@ async def test_powerbi_trigger_run_completed(mock_get_refresh_details_by_refresh
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
-async def test_powerbi_trigger_run_exception(
+async def test_powerbi_trigger_run_exception_during_refresh_check_loop(
     mock_get_refresh_details_by_refresh_id, mock_cancel_dataset_refresh, powerbi_trigger
 ):
     """Assert that run catch exception if Power BI API throw exception"""
@@ -164,6 +164,51 @@ async def test_powerbi_trigger_run_exception(
     assert len(task) == 1
     assert response in task
     mock_cancel_dataset_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+async def test_powerbi_trigger_run_exception_during_refresh_cancellation(
+    mock_get_refresh_details_by_refresh_id, mock_cancel_dataset_refresh, powerbi_trigger
+):
+    """Assert that run catch exception if Power BI API throw exception"""
+    mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception")
+    mock_cancel_dataset_refresh.side_effect = Exception("Exception caused by cancel_dataset_refresh")
+
+    task = [i async for i in powerbi_trigger.run()]
+    response = TriggerEvent(
+        {
+            "status": "error",
+            "message": "An error occurred while canceling dataset: Exception caused by cancel_dataset_refresh",
+            "dataset_refresh_id": DATASET_REFRESH_ID,
+        }
+    )
+
+    assert len(task) == 1
+    assert response in task
+    mock_cancel_dataset_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+async def test_powerbi_trigger_run_exception_without_refresh_id(
+    mock_get_refresh_details_by_refresh_id, powerbi_trigger
+):
+    """Assert handling of exception when there is no dataset_refresh_id"""
+    powerbi_trigger.dataset_refresh_id = None
+    mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception for no dataset_refresh_id")
+
+    task = [i async for i in powerbi_trigger.run()]
+    response = TriggerEvent(
+        {
+            "status": "error",
+            "message": "An error occurred: Test exception for no dataset_refresh_id",
+            "dataset_refresh_id": None,
+        }
+    )
+    assert len(task) == 1
+    assert response in task
 
 
 @pytest.mark.asyncio

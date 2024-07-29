@@ -29,6 +29,7 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 )
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+from airflow.utils import timezone
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
@@ -43,6 +44,8 @@ CONFIG = {
     "timeout": 3,
 }
 NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
+DEFAULT_DATE = timezone.datetime(2021, 1, 1)
+
 
 # Sample responses from PowerBI API
 COMPLETED_REFRESH_DETAILS = {
@@ -172,3 +175,43 @@ def test_powerbi_operator_async_execute_complete_fail():
             context=context,
             event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
         )
+    assert context["ti"].xcom_push.call_count == 0
+
+
+def test_execute_complete_no_event(create_task_instance_of_operator):
+    """Test execute_complete when event is None or empty."""
+    operator = PowerBIDatasetRefreshOperator(
+        wait_for_termination=True,
+        **CONFIG,
+    )
+    context = {"ti": MagicMock()}
+    operator.execute_complete(
+        context=context,
+        event=None,
+    )
+    assert context["ti"].xcom_push.call_count == 0
+
+
+def test_powerbilink(create_task_instance_of_operator):
+    """Assert Power BI Extra link matches the expected URL."""
+    ti = create_task_instance_of_operator(
+        PowerBIDatasetRefreshOperator,
+        dag_id="test_powerbi_refresh_op_link",
+        execution_date=DEFAULT_DATE,
+        task_id=TASK_ID,
+        conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+        group_id=GROUP_ID,
+        dataset_id=DATASET_ID,
+        check_interval=1,
+        timeout=3,
+    )
+
+    ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
+    url = ti.task.get_extra_links(ti, "Monitor PowerBI Dataset")
+    EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
+        "https://app.powerbi.com",
+        f"/groups/{GROUP_ID}/datasets/{DATASET_ID}",
+        "/details?experience=power-bi",
+    )
+
+    assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK

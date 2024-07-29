@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
@@ -74,6 +75,60 @@ async def test_get_refresh_history(powerbi_hook):
 
 
 @pytest.mark.asyncio
+async def test_get_refresh_history_airflow_exception(powerbi_hook):
+    """Test handling of AirflowException in get_refresh_history."""
+
+    with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
+        mock_run.side_effect = AirflowException("Test exception")
+
+        with pytest.raises(PowerBIDatasetRefreshException, match="Failed to retrieve refresh history"):
+            await powerbi_hook.get_refresh_history(DATASET_ID, GROUP_ID)
+
+
+@pytest.mark.parametrize(
+    "input_data, expected_output",
+    [
+        (
+            {"requestId": "1234", "status": "Completed", "serviceExceptionJson": ""},
+            {
+                PowerBIDatasetRefreshFields.REQUEST_ID.value: "1234",
+                PowerBIDatasetRefreshFields.STATUS.value: "Completed",
+                PowerBIDatasetRefreshFields.ERROR.value: "",
+            },
+        ),
+        (
+            {"requestId": "5678", "status": "Unknown", "serviceExceptionJson": "Some error"},
+            {
+                PowerBIDatasetRefreshFields.REQUEST_ID.value: "5678",
+                PowerBIDatasetRefreshFields.STATUS.value: "In Progress",
+                PowerBIDatasetRefreshFields.ERROR.value: "Some error",
+            },
+        ),
+        (
+            {"requestId": None, "status": None, "serviceExceptionJson": None},
+            {
+                PowerBIDatasetRefreshFields.REQUEST_ID.value: "None",
+                PowerBIDatasetRefreshFields.STATUS.value: "None",
+                PowerBIDatasetRefreshFields.ERROR.value: "None",
+            },
+        ),
+        (
+            {},  # Empty input dictionary
+            {
+                PowerBIDatasetRefreshFields.REQUEST_ID.value: "None",
+                PowerBIDatasetRefreshFields.STATUS.value: "None",
+                PowerBIDatasetRefreshFields.ERROR.value: "None",
+            },
+        ),
+    ],
+)
+def test_raw_to_refresh_details(input_data, expected_output):
+    """Test raw_to_refresh_details method."""
+    result = PowerBIHook.raw_to_refresh_details(input_data)
+    assert result == expected_output
+
+
+@pytest.mark.asyncio
 async def test_get_refresh_details_by_refresh_id(powerbi_hook):
     # Mock the get_refresh_history method to return a list of refresh histories
     refresh_histories = FORMATTED_RESPONSE
@@ -101,7 +156,41 @@ async def test_get_refresh_details_by_refresh_id(powerbi_hook):
 
 
 @pytest.mark.asyncio
-async def test_trigger_dataset_refresh(powerbi_hook):
+async def test_get_refresh_details_by_refresh_id_empty_history(powerbi_hook):
+    """Test exception when refresh history is empty."""
+    # Mock the get_refresh_history method to return an empty list
+    powerbi_hook.get_refresh_history = mock.AsyncMock(return_value=[])
+
+    # Call the function with a request ID
+    refresh_id = "any_request_id"
+    with pytest.raises(
+        PowerBIDatasetRefreshException,
+        match=f"Unable to fetch the details of dataset refresh with Request Id: {refresh_id}",
+    ):
+        await powerbi_hook.get_refresh_details_by_refresh_id(
+            dataset_id=DATASET_ID, group_id=GROUP_ID, refresh_id=refresh_id
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_refresh_details_by_refresh_id_not_found(powerbi_hook):
+    """Test exception when the refresh ID is not found in the refresh history."""
+    # Mock the get_refresh_history method to return a list of refresh histories without the specified ID
+    powerbi_hook.get_refresh_history = mock.AsyncMock(return_value=FORMATTED_RESPONSE)
+
+    # Call the function with an invalid request ID
+    invalid_request_id = "invalid_request_id"
+    with pytest.raises(
+        PowerBIDatasetRefreshException,
+        match=f"Unable to fetch the details of dataset refresh with Request Id: {invalid_request_id}",
+    ):
+        await powerbi_hook.get_refresh_details_by_refresh_id(
+            dataset_id=DATASET_ID, group_id=GROUP_ID, refresh_id=invalid_request_id
+        )
+
+
+@pytest.mark.asyncio
+async def test_trigger_dataset_refresh_success(powerbi_hook):
     response_data = {"requestid": "5e2d9921-e91b-491f-b7e1-e7d8db49194c"}
 
     with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
@@ -109,6 +198,16 @@ async def test_trigger_dataset_refresh(powerbi_hook):
         result = await powerbi_hook.trigger_dataset_refresh(dataset_id=DATASET_ID, group_id=GROUP_ID)
 
     assert result == "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
+
+
+@pytest.mark.asyncio
+async def test_trigger_dataset_refresh_failure(powerbi_hook):
+    """Test failure to trigger dataset refresh due to AirflowException."""
+    with mock.patch.object(KiotaRequestAdapterHook, "run", new_callable=mock.AsyncMock) as mock_run:
+        mock_run.side_effect = AirflowException("Test exception")
+
+        with pytest.raises(PowerBIDatasetRefreshException, match="Failed to trigger dataset refresh."):
+            await powerbi_hook.trigger_dataset_refresh(dataset_id=DATASET_ID, group_id=GROUP_ID)
 
 
 @pytest.mark.asyncio
