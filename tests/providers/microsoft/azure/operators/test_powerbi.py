@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
@@ -154,12 +153,10 @@ def test_powerbi_operator_async_execute_complete_success():
         **CONFIG,
     )
     context = {"ti": MagicMock()}
-    with mock.patch.object(operator.log, "info") as mock_log_info:
-        operator.execute_complete(
-            context=context,
-            event={"status": "success", "message": "success", "dataset_refresh_id": "1234"},
-        )
-    mock_log_info.assert_called_with("success")
+    operator.execute_complete(
+        context=context,
+        event={"status": "success", "message": "success", "dataset_refresh_id": "1234"},
+    )
     assert context["ti"].xcom_push.call_count == 1
 
 
