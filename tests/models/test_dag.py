@@ -1372,19 +1372,19 @@ class TestDag:
         # we need to verify that *changes* are recorded properly.
         # so if any references are *removed*, they should also be deleted from the DB
         # so let's remove some references and see what happens
-        # dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
-        # EmptyOperator(task_id=task_id, dag=dag1, outlets=[da3])
-        # dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        # EmptyOperator(task_id=task_id, dag=dag2, outlets=[da1])
-        # DAG.bulk_write_to_db([dag1, dag2], session=session)
-        # session.commit()
-        # session.expunge_all()
-        # stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
-        # da1_orm = stored_dataset_aliases[da1.name]
-        # da3_orm = stored_dataset_aliases[da3.name]
-        # assert da1_orm.name == "da1"
-        # assert da3_orm.name == "da3"
-        # assert len(stored_dataset_aliases) == 2
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da3])
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da1])
+        DAG.bulk_write_to_db([dag1, dag2], session=session)
+        session.commit()
+        session.expunge_all()
+        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
+        da1_orm = stored_dataset_aliases[da1.name]
+        da3_orm = stored_dataset_aliases[da3.name]
+        assert da1_orm.name == "da1"
+        assert da3_orm.name == "da3"
+        assert len(stored_dataset_aliases) == 2
 
     def test_sync_to_db(self):
         dag = DAG(
