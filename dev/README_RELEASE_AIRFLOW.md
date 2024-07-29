@@ -315,11 +315,11 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Create issue in github for testing the release using this subject:
 
-  ```shell script
-  cat <<EOF
-  Status of testing of Apache Airflow {VERSION}
-  EOF
-  ```
+```shell script
+cat <<EOF
+Status of testing of Apache Airflow ${VERSION}
+EOF
+```
 
 - Generate the body of the issue using the below command:
 
@@ -1095,5 +1095,5 @@ According to the policy above, if we have to release clients:
 
 - Follow the specific release process for each API client:
 
-    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
-    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
