@@ -63,8 +63,8 @@ class BashOperator(BaseOperator):
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
         you might set template ``{{ dag_run.dag.folder }}``.
-    :param result_processor: Function to further process the result of the bash script
-        (default is lambda result: result).
+    :param output_processor: Function to further process the output of the bash script
+        (default is lambda output: output).
 
     Airflow will evaluate the exit code of the Bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success.
@@ -152,7 +152,7 @@ class BashOperator(BaseOperator):
         skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
-        result_processor: Callable[[str], Any] = lambda result: result,
+        output_processor: Callable[[str], Any] = lambda result: result,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -173,7 +173,7 @@ class BashOperator(BaseOperator):
         )
         self.cwd = cwd
         self.append_env = append_env
-        self.result_processor = result_processor
+        self.output_processor = output_processor
 
         # When using the @task.bash decorator, the Bash command is not known until the underlying Python
         # callable is executed and therefore set to NOTSET initially. This flag is useful during execution to
@@ -250,7 +250,7 @@ class BashOperator(BaseOperator):
                 f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
             )
 
-        return self.result_processor(result.output)
+        return self.output_processor(result.output)
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()
