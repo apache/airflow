@@ -555,6 +555,22 @@ export interface paths {
      */
     get: operations["get_task_instance_try_details"];
   };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries": {
+    /**
+     * Get details of all task instance tries.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_task_instance_tries"];
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries": {
+    /**
+     * Get details of all task instance tries.
+     *
+     * *New in version 2.10.0*
+     */
+    get: operations["get_mapped_task_instance_tries"];
+  };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
     /**
      * Get details of a mapped task instance try.
@@ -4321,6 +4337,90 @@ export interface operations {
     };
   };
   /**
+   * Get details of all task instance tries.
+   *
+   * *New in version 2.10.0*
+   */
+  get_task_instance_tries: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+      query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by.
+         * Prefix a field name with `-` to reverse the sort order.
+         *
+         * *New in version 2.1.0*
+         */
+        order_by?: components["parameters"]["OrderBy"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get details of all task instance tries.
+   *
+   * *New in version 2.10.0*
+   */
+  get_mapped_task_instance_tries: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+        /** The map index. */
+        map_index: components["parameters"]["MapIndex"];
+      };
+      query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by.
+         * Prefix a field name with `-` to reverse the sort order.
+         *
+         * *New in version 2.1.0*
+         */
+        order_by?: components["parameters"]["OrderBy"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskInstanceCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
    * Get details of a mapped task instance try.
    *
    * *New in version 2.10.0*
@@ -5739,6 +5839,14 @@ export type GetTaskInstancesBatchVariables = CamelCasedPropertiesDeep<
 >;
 export type GetTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
   operations["get_task_instance_try_details"]["parameters"]["path"]
+>;
+export type GetTaskInstanceTriesVariables = CamelCasedPropertiesDeep<
+  operations["get_task_instance_tries"]["parameters"]["path"] &
+    operations["get_task_instance_tries"]["parameters"]["query"]
+>;
+export type GetMappedTaskInstanceTriesVariables = CamelCasedPropertiesDeep<
+  operations["get_mapped_task_instance_tries"]["parameters"]["path"] &
+    operations["get_mapped_task_instance_tries"]["parameters"]["query"]
 >;
 export type GetMappedTaskInstanceTryDetailsVariables = CamelCasedPropertiesDeep<
   operations["get_mapped_task_instance_try_details"]["parameters"]["path"]

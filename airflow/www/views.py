@@ -90,7 +90,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -459,7 +459,9 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "label": item.label,
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
-                "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
+                "has_outlet_datasets": any(
+                    isinstance(i, (Dataset, DatasetAlias)) for i in (item.outlets or [])
+                ),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
                 **setup_teardown_type,
