@@ -906,8 +906,10 @@ function environment_initialization() {
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
         export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:9080
-        # some random secret key - used in tests
+        # some random secret keys. Setting them as environment variables will make them used in tests and in
+        # the internal API server
         export AIRFLOW__CORE__INTERNAL_API_SECRET_KEY="Z27xjUwQTz4txlWZyJzLqg=="
+        export AIRFLOW__CORE__FERNET_KEY="l7KBR9aaH2YumhL1InlNf24gTNna8aW2WiwF2s-n_PE="
         export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
     fi
 
@@ -1300,7 +1302,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.1.2
-ARG AIRFLOW_UV_VERSION=0.2.28
+ARG AIRFLOW_UV_VERSION=0.2.30
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1324,7 +1326,7 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.1.2
-ARG AIRFLOW_UV_VERSION=0.2.28
+ARG AIRFLOW_UV_VERSION=0.2.30
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\

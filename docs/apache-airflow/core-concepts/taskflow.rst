@@ -41,17 +41,17 @@ TaskFlow takes care of moving inputs and outputs between your Tasks using XComs 
     email_info = compose_email(get_ip())
 
     EmailOperator(
-        task_id='send_email',
+        task_id='send_email_notification',
         to='example@example.com',
         subject=email_info['subject'],
         html_content=email_info['body']
     )
 
-Here, there are three tasks - ``get_ip``, ``compose_email``, and ``send_email``.
+Here, there are three tasks - ``get_ip``, ``compose_email``, and ``send_email_notification``.
 
 The first two are declared using TaskFlow, and automatically pass the return value of ``get_ip`` into ``compose_email``, not only linking the XCom across, but automatically declaring that ``compose_email`` is *downstream* of ``get_ip``.
 
-``send_email`` is a more traditional Operator, but even it can use the return value of ``compose_email`` to set its parameters, and again, automatically work out that it must be *downstream* of ``compose_email``.
+``send_email_notification`` is a more traditional Operator, but even it can use the return value of ``compose_email`` to set its parameters, and again, automatically work out that it must be *downstream* of ``compose_email``.
 
 You can also use a plain value or variable to call a TaskFlow function - for example, this will work as you expect (but, of course, won't run the code inside the task until the DAG is executed - the ``name`` value is persisted as a task parameter until that time)::
 

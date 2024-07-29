@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -206,6 +208,28 @@ class TestEmrContainerTrigger:
             "job_id": "test_job_id",
             "waiter_delay": 30,
             "waiter_max_attempts": 600,
+            "aws_conn_id": "aws_default",
+        }
+
+    def test_serialization_default_max_attempts(self):
+        virtual_cluster_id = "test_virtual_cluster_id"
+        job_id = "test_job_id"
+        waiter_delay = 30
+        aws_conn_id = "aws_default"
+
+        trigger = EmrContainerTrigger(
+            virtual_cluster_id=virtual_cluster_id,
+            job_id=job_id,
+            waiter_delay=waiter_delay,
+            aws_conn_id=aws_conn_id,
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert kwargs == {
+            "virtual_cluster_id": "test_virtual_cluster_id",
+            "job_id": "test_job_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": sys.maxsize,
             "aws_conn_id": "aws_default",
         }
 

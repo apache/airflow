@@ -24,7 +24,7 @@ from flask_login import current_user
 from airflow.exceptions import RemovedInAirflow3Warning
 from tests.test_utils.db import clear_db_pools
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestBasicAuth:

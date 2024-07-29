@@ -256,6 +256,16 @@ class SkipDBTestsSession:
     def remove(*args, **kwargs):
         pass
 
+    def get_bind(
+        self,
+        mapper=None,
+        clause=None,
+        bind=None,
+        _sa_skip_events=None,
+        _sa_skip_for_implicit_returning=False,
+    ):
+        pass
+
 
 class TracebackSession:
     """
