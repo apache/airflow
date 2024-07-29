@@ -64,7 +64,7 @@ class BashOperator(BaseOperator):
         To use current DAG folder as the working directory,
         you might set template ``{{ dag_run.dag.folder }}``.
     :param result_processor: Function to further process the result of the bash script
-        (default is lambda: result: result).
+        (default is lambda result: result).
 
     Airflow will evaluate the exit code of the Bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success.
