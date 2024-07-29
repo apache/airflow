@@ -61,6 +61,7 @@ if not keep_env_variables:
             {
                 "core": {
                     "internal_api_url",
+                    "fernet_key",
                     "database_access_isolation",
                     "internal_api_secret_key",
                     "internal_api_clock_grace",
