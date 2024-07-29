@@ -187,7 +187,7 @@ exit code if you pass ``skip_on_exit_code``).
 Result processor
 ----------------
 
-The result_processor parameter allows you to specify a lambda function that processes the output of the bash script
+The ``result_processor`` parameter allows you to specify a lambda function that processes the output of the bash script
 before it is pushed as an XCom. This feature is particularly useful for manipulating the script's result directly within
 the BashOperator, without the need for additional operators or tasks.
 
