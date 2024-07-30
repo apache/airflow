@@ -21,6 +21,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, AsyncIterator
+from enum import Enum
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -244,3 +245,12 @@ class TaskSkippedEvent(BaseTaskEndEvent):
     """Yield this event in order to end the task with status 'skipped'."""
 
     task_instance_state = TaskInstanceState.SKIPPED
+
+
+class TriggerCancelReason(Enum):
+    """Reason for cancelling a trigger."""
+
+    REASSIGNED = "reassigned"
+    """When current running trigger already been assigned to run in another triggerer."""
+
+    OTHER = "other"
