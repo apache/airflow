@@ -44,7 +44,6 @@ class AirbyteJobSensor(BaseSensorOperator):
     :param deferrable: Run sensor in the deferrable mode.
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
-    :param api_type: Optional. The type of Airbyte API to use. Either "config" or "cloud". Defaults to "config".
     """
 
     template_fields: Sequence[str] = ("airbyte_job_id",)

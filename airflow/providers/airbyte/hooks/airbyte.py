@@ -38,7 +38,6 @@ class AirbyteHook(BaseHook):
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
-    :param api_type: Optional. The type of Airbyte API to use. Either "config" or "cloud". Defaults to "config".
     """
 
     conn_name_attr = "airbyte_conn_id"
