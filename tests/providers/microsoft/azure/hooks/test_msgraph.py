@@ -40,6 +40,9 @@ from tests.providers.microsoft.conftest import (
 
 
 class TestKiotaRequestAdapterHook:
+    def setup_method(self):
+        KiotaRequestAdapterHook.cached_request_adapters.clear()
+
     def test_get_conn(self):
         with patch(
             "airflow.hooks.base.BaseHook.get_connection",
@@ -51,6 +54,21 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual.base_url == "https://graph.microsoft.com/v1.0"
 
+    def test_get_conn_with_custom_base_url(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id, host="api.fabric.microsoft.com", api_version="v1",
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual.base_url == "https://api.fabric.microsoft.com/v1"
+
     def test_api_version(self):
         with patch(
             "airflow.hooks.base.BaseHook.get_connection",
@@ -58,7 +76,7 @@ class TestKiotaRequestAdapterHook:
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
-            assert hook.api_version == APIVersion.v1
+            assert hook.api_version == APIVersion.v1.value
 
     def test_get_api_version_when_empty_config_dict(self):
         with patch(
@@ -68,7 +86,7 @@ class TestKiotaRequestAdapterHook:
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = hook.get_api_version({})
 
-            assert actual == APIVersion.v1
+            assert actual == APIVersion.v1.value
 
     def test_get_api_version_when_api_version_in_config_dict(self):
         with patch(
@@ -78,19 +96,39 @@ class TestKiotaRequestAdapterHook:
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = hook.get_api_version({"api_version": "beta"})
 
-            assert actual == APIVersion.beta
+            assert actual == APIVersion.beta.value
+
+    def test_get_api_version_when_custom_api_version_in_config_dict(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", api_version="v1")
+            actual = hook.get_api_version({})
+
+            assert actual == "v1"
 
     def test_get_host_when_connection_has_scheme_and_host(self):
-        connection = mock_connection(schema="https", host="graph.microsoft.de")
-        actual = KiotaRequestAdapterHook.get_host(connection)
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            connection = mock_connection(schema="https", host="graph.microsoft.de")
+            actual = hook.get_host(connection)
 
-        assert actual == NationalClouds.Germany.value
+            assert actual == NationalClouds.Germany.value
 
     def test_get_host_when_connection_has_no_scheme_or_host(self):
-        connection = mock_connection()
-        actual = KiotaRequestAdapterHook.get_host(connection)
+        with patch(
+                "airflow.hooks.base.BaseHook.get_connection",
+                side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            connection = mock_connection()
+            actual = hook.get_host(connection)
 
-        assert actual == NationalClouds.Global.value
+            assert actual == NationalClouds.Global.value
 
     def test_encoded_query_parameters(self):
         actual = KiotaRequestAdapterHook.encoded_query_parameters(
