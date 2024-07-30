@@ -4340,20 +4340,6 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-        dynamic_fields = {k for k, _, _ in self._iter_extra_field_names_and_sensitivity()}
-
-        for field_name in dynamic_fields:
-            field = form._fields.get(field_name)
-            # Check if the field is a BS3TextFieldWidget
-            if isinstance(field.widget, BS3TextFieldWidget):
-                value = form.data.get(field_name, "")
-                if isinstance(value, str):
-                    value = value.strip()
-                    #print(value)
-                    if not value:
-                        flash(f"The field '{field_name}' cannot be empty.", "warning")
-
         conn_id = form.data["conn_id"]
         conn_type = form.data["conn_type"]
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
