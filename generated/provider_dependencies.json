@@ -7,9 +7,7 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [
-      "http"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },
