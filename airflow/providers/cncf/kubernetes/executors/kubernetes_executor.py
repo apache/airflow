@@ -694,8 +694,9 @@ class KubernetesExecutor(BaseExecutor):
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
-            ti_id = annotations_to_key(pod.metadata.annotations)
-            self.running.add(ti_id)
+            else:
+                ti_id = annotations_to_key(pod.metadata.annotations)
+                self.running.add(ti_id)
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:
