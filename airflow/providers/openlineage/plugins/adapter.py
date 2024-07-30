@@ -178,7 +178,7 @@ class OpenLineageAdapter(LoggingMixin):
         nominal_end_time: str | None,
         owners: list[str],
         task: OperatorLineage | None,
-        run_facets: dict[str, RunFacet] | None = None,  # Custom run facets
+        run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
         Emit openlineage event of type START.
@@ -243,7 +243,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-        run_facets: dict[str, RunFacet] | None = None,  # Custom run facets
+        run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
         Emit openlineage event of type COMPLETE.
@@ -255,7 +255,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param parent_run_id: identifier of job spawning this task
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
-        :param run_facets: custom run facets
+        :param run_facets: additional run facets
         """
         run_facets = run_facets or {}
         if task:
@@ -285,8 +285,8 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-        run_facets: dict[str, RunFacet] | None = None,  # Custom run facets
         error: str | BaseException | None = None,
+        run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
         Emit openlineage event of type FAIL.
@@ -300,6 +300,7 @@ class OpenLineageAdapter(LoggingMixin):
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
         :param error: error
+        :param run_facets: additional run facets
         """
         run_facets = run_facets or {}
         if task:
