@@ -21,6 +21,7 @@ import datetime
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.base import StartTriggerArgs
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
@@ -63,8 +64,25 @@ class TimeSensorAsync(BaseSensorOperator):
         :ref:`howto/operator:TimeSensorAsync`
     """
 
-    def __init__(self, *, end_from_trigger: bool = False, target_time: datetime.time, **kwargs) -> None:
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.triggers.temporal.DateTimeTrigger",
+        trigger_kwargs={"moment": "", "end_from_trigger": False},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
+
+    def __init__(
+        self,
+        *,
+        start_from_trigger: bool = False,
+        end_from_trigger: bool = False,
+        target_time: datetime.time,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
+        self.start_from_trigger = start_from_trigger
         self.end_from_trigger = end_from_trigger
         self.target_time = target_time
 
@@ -73,6 +91,10 @@ class TimeSensorAsync(BaseSensorOperator):
         )
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
+        if self.start_from_trigger:
+            self.start_trigger_args.trigger_kwargs = dict(
+                moment=self.target_datetime, end_from_trigger=self.end_from_trigger
+            )
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
