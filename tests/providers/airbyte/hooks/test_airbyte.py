@@ -94,7 +94,7 @@ class TestAirbyteHook:
         assert base_url == expected_base_url
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
-    def test_get_job_status(self, get_job_mock):
+    async def test_get_job_status(self, get_job_mock):
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
@@ -105,7 +105,7 @@ class TestAirbyteHook:
         )
         get_job_mock.return_value = mock_response
 
-        resp = self.hook.get_job_status(job_id=self.job_id)
+        resp = await self.hook.get_job_status(job_id=self.job_id)
         assert resp == JobStatusEnum.RUNNING
 
     @mock.patch("airbyte_api.jobs.Jobs.cancel_job")
