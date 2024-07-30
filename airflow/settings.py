@@ -267,6 +267,15 @@ class SkipDBTestsSession:
         pass
 
 
+def get_cleaned_traceback(stack_summary: traceback.StackSummary) -> str:
+    clened_traceback = [
+        frame
+        for frame in stack_summary[:-2]
+        if "/_pytest" not in frame.filename and "/pluggy" not in frame.filename
+    ]
+    return "".join(traceback.format_list(clened_traceback))
+
+
 class TracebackSession:
     """
     Session that throws error when you try to use it.
@@ -284,7 +293,7 @@ class TracebackSession:
             "TracebackSession object was used but internal API is enabled. "
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was created."
-            + "\n".join(traceback.format_list(self.traceback))
+            + get_cleaned_traceback(self.traceback)
         )
 
     def remove(*args, **kwargs):
@@ -324,9 +333,9 @@ class TracebackSessionForTests:
             f"     {frame_summary.line}\n\n"
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was called:\n"
-            + "".join(traceback.format_list(self.traceback))
+            + get_cleaned_traceback(self.traceback)
             + "\n\nThe stack list below will show where the TracebackSession object was created:\n"
-            + "".join(traceback.format_list(self.created_traceback))
+            + get_cleaned_traceback(self.created_traceback)
         )
 
     def remove(*args, **kwargs):
