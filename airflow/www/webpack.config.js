@@ -97,14 +97,6 @@ const config = {
   module: {
     rules: [
       {
-        test: /datatables\.net.*/,
-        use: [
-          {
-            loader: "imports-loader?define=>false",
-          },
-        ],
-      },
-      {
         test: /\.(js|jsx|tsx|ts)$/,
         exclude: /node_modules/,
         use: [
@@ -219,14 +211,6 @@ const config = {
         },
         {
           from: "node_modules/bootstrap-3-typeahead/*min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/datatables.net/**/**.min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/datatables.net-bs/**/**.min.*",
           flatten: true,
         },
         {
