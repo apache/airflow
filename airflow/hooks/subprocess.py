@@ -115,7 +115,7 @@ class SubprocessHook(BaseHook):
 
             return_code: int = self.sub_process.returncode
 
-        if safe_cleanup:
+        if safe_cleanup and cwd is not None:
             for retry in range(3):
                 try:
                     shutil.rmtree(cwd)
