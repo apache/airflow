@@ -48,7 +48,6 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         waiting on them asynchronously using the AirbyteJobSensor. Defaults to False.
     :param deferrable: Run operator in the deferrable mode.
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
-    :param api_type: Optional. The type of Airbyte API to use. Either "config" or "cloud". Defaults to "config".
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``asynchronous`` is False.
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
