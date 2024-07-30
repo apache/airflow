@@ -43,16 +43,14 @@ class TestAppriseHook:
     )
     def test_get_config_from_conn(self, config):
         extra = {"config": config}
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            with patch.object(
-                AppriseHook,
-                "get_connection",
-                return_value=Connection(conn_type="apprise", extra=extra),
-            ):
+        with patch.object(
+            AppriseHook,
+            "get_connection",
+            return_value=Connection(conn_type="apprise", extra=extra),
+        ):
+            with pytest.warns(AirflowProviderDeprecationWarning):
                 hook = AppriseHook()
-                assert hook.get_config_from_conn() == (
-                    json.loads(config) if isinstance(config, str) else config
-                )
+            assert hook.get_config_from_conn() == (json.loads(config) if isinstance(config, str) else config)
 
     def test_set_config_from_conn_with_dict(self):
         """
@@ -61,15 +59,16 @@ class TestAppriseHook:
         extra = {"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}}
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            with patch.object(
-                AppriseHook,
-                "get_connection",
-                return_value=Connection(conn_type="apprise", extra=extra),
-            ):
+        with patch.object(
+            AppriseHook,
+            "get_connection",
+            return_value=Connection(conn_type="apprise", extra=extra),
+        ):
+            with pytest.warns(AirflowProviderDeprecationWarning):
                 hook = AppriseHook()
-                hook.set_config_from_conn(apprise_obj)
-                apprise_obj.add.assert_called_once_with("http://some_path_that_dont_exist/", tag="alert")
+            hook.set_config_from_conn(apprise_obj)
+
+        apprise_obj.add.assert_called_once_with("http://some_path_that_dont_exist/", tag="alert")
 
     def test_set_config_from_conn_with_list(self):
         """
@@ -84,20 +83,21 @@ class TestAppriseHook:
 
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            with patch.object(
-                AppriseHook,
-                "get_connection",
-                return_value=Connection(conn_type="apprise", extra=extra),
-            ):
+        with patch.object(
+            AppriseHook,
+            "get_connection",
+            return_value=Connection(conn_type="apprise", extra=extra),
+        ):
+            with pytest.warns(AirflowProviderDeprecationWarning):
                 hook = AppriseHook()
-                hook.set_config_from_conn(apprise_obj)
-                apprise_obj.add.assert_has_calls(
-                    [
-                        call("http://some_path_that_dont_exist/", tag="p0"),
-                        call("http://some_other_path_that_dont_exist/", tag="p1"),
-                    ]
-                )
+            hook.set_config_from_conn(apprise_obj)
+
+        apprise_obj.add.assert_has_calls(
+            [
+                call("http://some_path_that_dont_exist/", tag="p0"),
+                call("http://some_other_path_that_dont_exist/", tag="p1"),
+            ]
+        )
 
     @mock.patch(
         "airflow.providers.apprise.hooks.apprise.AppriseHook.get_connection",
@@ -119,12 +119,13 @@ class TestAppriseHook:
             hook = AppriseHook()
             with pytest.warns(AirflowProviderDeprecationWarning):
                 hook.notify(body="test")
-                apprise_obj.notify.assert_called_once_with(
-                    body="test",
-                    title="",
-                    notify_type=NotifyType.INFO,
-                    body_format=NotifyFormat.TEXT,
-                    tag="all",
-                    attach=None,
-                    interpret_escapes=None,
-                )
+
+        apprise_obj.notify.assert_called_once_with(
+            body="test",
+            title="",
+            notify_type=NotifyType.INFO,
+            body_format=NotifyFormat.TEXT,
+            tag="all",
+            attach=None,
+            interpret_escapes=None,
+        )
