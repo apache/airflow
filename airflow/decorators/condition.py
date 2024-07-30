@@ -21,7 +21,7 @@ def run_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
 
     :param condition: A function that takes a context and returns a boolean.
     """
-    wrapped_condition = wrap_skip(condition, "")  # FIXME: error message
+    wrapped_condition = wrap_skip(condition, "run if", reverse=True)  # FIXME: error message
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
@@ -42,7 +42,7 @@ def skip_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
 
     :param condition: A function that takes a context and returns a boolean.
     """
-    wrapped_condition = wrap_skip(condition, "")  # FIXME: error message
+    wrapped_condition = wrap_skip(condition, "skip if", reverse=False)  # FIXME: error message
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
@@ -57,10 +57,13 @@ def skip_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
     return decorator
 
 
-def wrap_skip(func: Callable[[Context], bool], error_msg: str) -> TaskPreExecuteHook:
+def wrap_skip(func: Callable[[Context], bool], error_msg: str, *, reverse: bool) -> TaskPreExecuteHook:
     @wraps(func)
     def pre_execute(context: Context) -> None:
-        if not func(context):
+        condition = func(context)
+        if reverse:
+            condition = not condition
+        if condition:
             raise AirflowSkipException(error_msg)  # FIXME
 
     return pre_execute
