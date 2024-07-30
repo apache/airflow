@@ -29,7 +29,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator, SkipPolicy
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -81,25 +81,20 @@ class AirbyteJobSensor(BaseSensorOperator):
         self.airbyte_conn_id = airbyte_conn_id
         self.airbyte_job_id = airbyte_job_id
         self.api_version = api_version
+        self.skip_policy = SkipPolicy.SKIP_ON_SOFT_ERROR
 
     def poke(self, context: Context) -> bool:
-        hook = AirbyteHook(
-            airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
-        )
-        job = hook.get_job(job_id=self.airbyte_job_id)
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        job = hook.get_job_details(job_id=self.airbyte_job_id)
         status = job.status
 
         if status == JobStatusEnum.FAILED:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job failed: \n{job}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         elif status == JobStatusEnum.CANCELLED:
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job was cancelled: \n{job}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         elif status == JobStatusEnum.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
@@ -113,9 +108,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = AirbyteHook(
-                airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
-            )
+            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
             job = hook.get_job(job_id=(int(self.airbyte_job_id)))
             state = job.status
             end_time = time.time() + self.timeout
@@ -126,7 +119,6 @@ class AirbyteJobSensor(BaseSensorOperator):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(
-                        api_type=self.api_type,
                         conn_id=self.airbyte_conn_id,
                         job_id=self.airbyte_job_id,
                         end_time=end_time,

@@ -58,27 +58,29 @@ class AirbyteHook(BaseHook):
         super().__init__()
         self.api_version: str = api_version
         self.airbyte_conn_id = airbyte_conn_id
+        self.conn = self.get_connection(self.airbyte_conn_id)
+        self.server_url: str = self.get_server_url()
+        self.airbyte_api = self.create_airbyte_api_session()
 
-        self.create_airbyte_api_session()
+    def get_server_url(self) -> str:
+        schema = self.conn.schema if self.conn.schema else "https"
+        server_url = f"{schema}://{self.conn.host}"
+        if self.conn.port:
+            server_url += f":{self.conn.port}/"
 
-    def create_airbyte_api_session(self) -> None:
+        return urljoin(server_url, self.api_version)
+
+    def create_airbyte_api_session(self) -> AirbyteAPI:
         """Create Airbyte API session."""
-        conn = self.get_connection(self.airbyte_conn_id)
-        schema = conn.schema if conn.schema else "https"
-        server_url = f"{schema}://{conn.host}"
-        if conn.port:
-            server_url += f":{conn.port}/"
-
-        server_url = urljoin(server_url, self.api_version)
 
         credentials = SchemeClientCredentials(
-            client_id=conn.login,
-            client_secret=conn.password,
+            client_id=self.conn.login,
+            client_secret=self.conn.password,
             TOKEN_URL="v1/applications/token",
         )
 
-        self.airbyte_api = AirbyteAPI(
-            server_url=server_url,
+        return AirbyteAPI(
+            server_url=self.server_url,
             security=Security(client_credentials=credentials),
         )
 
@@ -107,14 +109,14 @@ class AirbyteHook(BaseHook):
         except Exception as e:
             raise AirflowException(e)
 
-    def get_job_status(self, job_id: int) -> str:
+    async def get_job_status(self, job_id: int) -> str:
         """
         Retrieve the status for a specific job of an Airbyte Sync.
 
         :param job_id: The ID of an Airbyte Sync Job.
         """
         self.log.info("Getting the status of job run %s.", job_id)
-        response = self.get_job_details(job_id=job_id)
+        response = await self.get_job_details(job_id=job_id)
         return response.status
 
     def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
