@@ -70,6 +70,7 @@ class TestCore:
         with pytest.raises(AttributeError, match=error_message):
             op.dry_run()
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_timeout(self, dag_maker):
         def sleep_and_catch_other_exceptions():
             try:
@@ -88,6 +89,7 @@ class TestCore:
         with pytest.raises(AirflowTaskTimeout):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_task_fail_duration(self, dag_maker):
         """If a task fails, the duration should be recorded in TaskFail"""
         with dag_maker(serialized=True) as dag:
@@ -126,6 +128,7 @@ class TestCore:
         assert 1 == len(op2_fails)
         assert sum(f.duration for f in op2_fails) >= 3
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_externally_triggered_dagrun(self, dag_maker):
         TI = TaskInstance
 
@@ -152,6 +155,7 @@ class TestCore:
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == execution_ds_nodash
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.
         # - If any key exists in either DAG's or Operator's params,
