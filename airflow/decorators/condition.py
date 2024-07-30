@@ -37,7 +37,7 @@ def run_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
 
     :param condition: A function that takes a context and returns a boolean.
     """
-    wrapped_condition = wrap_skip(condition, "run if", reverse=True)  # FIXME: error message
+    wrapped_condition = wrap_skip(condition, "Task was skipped due to condition.", reverse=True)
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
@@ -58,7 +58,7 @@ def skip_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
 
     :param condition: A function that takes a context and returns a boolean.
     """
-    wrapped_condition = wrap_skip(condition, "skip if", reverse=False)  # FIXME: error message
+    wrapped_condition = wrap_skip(condition, "Task was skipped due to condition.", reverse=False)
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
