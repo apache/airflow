@@ -133,6 +133,20 @@ class TaskInstanceCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class TaskInstanceHistoryCollection(NamedTuple):
+    """List of task instances history with metadata."""
+
+    task_instances: list[TaskInstanceHistory | None]
+    total_entries: int
+
+
+class TaskInstanceHistoryCollectionSchema(Schema):
+    """Task instance collection schema."""
+
+    task_instances = fields.List(fields.Nested(TaskInstanceHistorySchema))
+    total_entries = fields.Int()
+
+
 class TaskInstanceBatchFormSchema(Schema):
     """Schema for the request form passed to Task Instance Batch endpoint."""
 
@@ -279,3 +293,4 @@ task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
 set_task_instance_note_form_schema = SetTaskInstanceNoteFormSchema()
 task_instance_history_schema = TaskInstanceHistorySchema()
+task_instance_history_collection_schema = TaskInstanceHistoryCollectionSchema()
