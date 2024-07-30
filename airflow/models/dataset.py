@@ -121,6 +121,9 @@ class DatasetAliasModel(Base):
     def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
         return cls(name=obj.name)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name!r})"
+
 
 class DatasetModel(Base):
     """
@@ -425,6 +428,7 @@ class DatasetEvent(Base):
             "source_dag_id",
             "source_run_id",
             "source_map_index",
+            "source_aliases",
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"

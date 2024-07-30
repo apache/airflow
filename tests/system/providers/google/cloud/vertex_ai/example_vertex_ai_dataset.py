@@ -34,7 +34,6 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
-    GCSSynchronizeBucketsOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
@@ -49,7 +48,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_dataset_operations"
+DAG_ID = "vertex_ai_dataset_operations"
 REGION = "us-central1"
 
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
@@ -61,7 +60,9 @@ TIME_SERIES_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/vertex-ai/forecast-dataset.csv"]}
+                "gcs_source": {
+                    "uri": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/forecast-dataset.csv"]
+                }
             }
         },
         Value(),
@@ -78,7 +79,7 @@ TABULAR_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/vertex-ai/tabular-dataset.csv"]}
+                "gcs_source": {"uri": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/tabular-dataset.csv"]}
             }
         },
         Value(),
@@ -100,8 +101,8 @@ TEST_IMPORT_CONFIG = [
         "data_item_labels": {
             "test-labels-name": "test-labels-value",
         },
-        "import_schema_uri": "image_classification_single_label_io_format_1.0.0.yaml",
-        "gcs_source": {"uris": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/vertex-ai/image-dataset-flowers.csv"]},
+        "import_schema_uri": schema.dataset.ioformat.image.single_label_classification,
+        "gcs_source": {"uris": [f"gs://{RESOURCE_DATA_BUCKET}/vertex-ai/datasets/image-dataset-flowers.csv"]},
     },
 ]
 DATASET_TO_UPDATE = {"display_name": "test-name"}
@@ -120,15 +121,6 @@ with DAG(
         bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
-    )
-
-    move_datasets_files = GCSSynchronizeBucketsOperator(
-        task_id="move_datasets_to_bucket",
-        source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="vertex-ai/datasets",
-        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="vertex-ai",
-        recursive=True,
     )
 
     # [START how_to_cloud_vertex_ai_create_dataset_operator]
@@ -262,7 +254,6 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> move_datasets_files
         # TEST BODY
         >> [
             create_time_series_dataset_job >> delete_time_series_dataset_job,
@@ -276,6 +267,13 @@ with DAG(
         >> delete_bucket
     )
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

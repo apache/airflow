@@ -32,23 +32,20 @@ import {
   Link,
 } from "@chakra-ui/react";
 import { HiDatabase } from "react-icons/hi";
-import { FiLink } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
 import { getMetaValue } from "src/utils";
 import Time from "src/components/Time";
 import { useContainerRef } from "src/context/containerRef";
-import { SimpleStatus } from "src/dag/StatusBox";
-import { formatDuration, getDuration } from "src/datetime_utils";
 import RenderedJsonField from "src/components/RenderedJsonField";
 
 import SourceTaskInstance from "./SourceTaskInstance";
+import TriggeredDagRuns from "./TriggeredDagRuns";
 
 type CardProps = {
   datasetEvent: DatasetEvent;
 };
 
-const gridUrl = getMetaValue("grid_url");
 const datasetsUrl = getMetaValue("datasets_url");
 
 const DatasetEventCard = ({ datasetEvent }: CardProps) => {
@@ -116,51 +113,7 @@ const DatasetEventCard = ({ datasetEvent }: CardProps) => {
           {!!datasetEvent?.createdDagruns?.length && (
             <>
               Triggered Dag Runs:
-              <Flex alignItems="center">
-                {datasetEvent?.createdDagruns.map((run) => {
-                  const runId = (run as any).dagRunId; // For some reason the type is wrong here
-                  const url = `${gridUrl?.replace(
-                    "__DAG_ID__",
-                    run.dagId || ""
-                  )}?dag_run_id=${encodeURIComponent(runId)}`;
-
-                  return (
-                    <Tooltip
-                      key={runId}
-                      label={
-                        <Box>
-                          <Text>DAG Id: {run.dagId}</Text>
-                          <Text>Status: {run.state || "no status"}</Text>
-                          <Text>
-                            Duration:{" "}
-                            {formatDuration(
-                              getDuration(run.startDate, run.endDate)
-                            )}
-                          </Text>
-                          <Text>
-                            Start Date: <Time dateTime={run.startDate} />
-                          </Text>
-                          {run.endDate && (
-                            <Text>
-                              End Date: <Time dateTime={run.endDate} />
-                            </Text>
-                          )}
-                        </Box>
-                      }
-                      portalProps={{ containerRef }}
-                      hasArrow
-                      placement="top"
-                    >
-                      <Flex width="30px">
-                        <SimpleStatus state={run.state} mx={1} />
-                        <Link color="blue.600" href={url}>
-                          <FiLink size="12px" />
-                        </Link>
-                      </Flex>
-                    </Tooltip>
-                  );
-                })}
-              </Flex>
+              <TriggeredDagRuns createdDagRuns={datasetEvent?.createdDagruns} />
             </>
           )}
         </GridItem>

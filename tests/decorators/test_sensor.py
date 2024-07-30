@@ -23,7 +23,7 @@ import pytest
 from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import XCom
-from airflow.sensors.base import PokeReturnValue, SkipPolicy
+from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test
@@ -141,8 +141,8 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    def test_basic_sensor_skip_on_soft_error(self, dag_maker):
-        @task.sensor(timeout=0, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
+    def test_basic_sensor_soft_fail(self, dag_maker):
+        @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
             return PokeReturnValue(is_done=False, xcom_value="xcom_value")
 
@@ -165,8 +165,8 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    def test_basic_sensor_skip_on_soft_error_returns_bool(self, dag_maker):
-        @task.sensor(timeout=0, skip_policy=SkipPolicy.SKIP_ON_SOFT_ERROR)
+    def test_basic_sensor_soft_fail_returns_bool(self, dag_maker):
+        @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
             return False
 

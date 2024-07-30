@@ -71,7 +71,7 @@ def equals(a, b) -> bool:
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestRpcApiEndpoint:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture
     def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
         self.app = minimal_app_for_internal_api
         self.client = self.app.test_client()  # type:ignore
@@ -92,6 +92,12 @@ class TestRpcApiEndpoint:
             expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
             audience="api",
         )
+
+    def test_initialize_method_map(self):
+        from airflow.api_internal.endpoints.rpc_api_endpoint import initialize_method_map
+
+        method_map = initialize_method_map()
+        assert len(method_map) > 70
 
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
@@ -119,7 +125,9 @@ class TestRpcApiEndpoint:
             ),
         ],
     )
-    def test_method(self, input_params, method_result, result_cmp_func, method_params, signer: JWTSigner):
+    def test_method(
+        self, input_params, method_result, result_cmp_func, method_params, setup_attrs, signer: JWTSigner
+    ):
         mock_test_method.return_value = method_result
         headers = {
             "Content-Type": "application/json",
@@ -146,7 +154,7 @@ class TestRpcApiEndpoint:
 
         mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
-    def test_method_with_exception(self, signer: JWTSigner):
+    def test_method_with_exception(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -160,7 +168,7 @@ class TestRpcApiEndpoint:
         assert response.data, b"Error executing method: test_method."
         mock_test_method.assert_called_once()
 
-    def test_unknown_method(self, signer: JWTSigner):
+    def test_unknown_method(self, setup_attrs, signer: JWTSigner):
         UNKNOWN_METHOD = "i-bet-it-does-not-exist"
         headers = {
             "Content-Type": "application/json",
@@ -174,7 +182,7 @@ class TestRpcApiEndpoint:
         assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
         mock_test_method.assert_not_called()
 
-    def test_invalid_jsonrpc(self, signer: JWTSigner):
+    def test_invalid_jsonrpc(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -187,7 +195,7 @@ class TestRpcApiEndpoint:
         assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
         mock_test_method.assert_not_called()
 
-    def test_missing_token(self):
+    def test_missing_token(self, setup_attrs):
         mock_test_method.return_value = None
 
         input_data = {
@@ -202,7 +210,7 @@ class TestRpcApiEndpoint:
                 data=json.dumps(input_data),
             )
 
-    def test_invalid_token(self, signer: JWTSigner):
+    def test_invalid_token(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -215,7 +223,7 @@ class TestRpcApiEndpoint:
         ):
             self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
 
-    def test_missing_accept(self, signer: JWTSigner):
+    def test_missing_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
@@ -225,7 +233,7 @@ class TestRpcApiEndpoint:
         with pytest.raises(PermissionDenied, match="Expected Accept: application/json"):
             self.client.post("/internal_api/v1/rpcapi", headers=headers, data=json.dumps(data))
 
-    def test_wrong_accept(self, signer: JWTSigner):
+    def test_wrong_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/html",

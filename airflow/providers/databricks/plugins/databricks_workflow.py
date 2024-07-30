@@ -26,7 +26,6 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
 from packaging.version import Version
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DAG, clear_task_instances
@@ -413,8 +412,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
     @expose("/repair_databricks_job/<string:dag_id>/<string:run_id>", methods=("GET",))
     @get_auth_decorator()
     def repair(self, dag_id: str, run_id: str):
-        view = conf.get("webserver", "dag_default_view")
-        return_url = self._get_return_url(dag_id, view)
+        return_url = self._get_return_url(dag_id, run_id)
 
         tasks_to_repair = request.values.get("tasks_to_repair")
         self.log.info("Tasks to repair: %s", tasks_to_repair)
@@ -450,8 +448,8 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
         return redirect(return_url)
 
     @staticmethod
-    def _get_return_url(dag_id: str, view) -> str:
-        return f"/dags/{dag_id}/{view}"
+    def _get_return_url(dag_id: str, run_id: str) -> str:
+        return url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id)
 
 
 repair_databricks_view = RepairDatabricksTasks()
