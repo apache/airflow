@@ -63,11 +63,11 @@ except Exception:
 log.info("Configured default timezone %s", TIMEZONE)
 
 if conf.has_option("database", "sql_alchemy_session_maker"):
-    log.warning(
-        'Found config "sql_alchemy_session_maker", make sure you know what you are doing.\n'
-        "Improper configuration of sql_alchemy_session_maker can lead to serious issues, "
-        "including data corruption, unrecoverable application crashes. "
-        "Please review the SQLAlchemy documentation for detailed guidance on "
+    log.info(
+        '[Warning] Found config "sql_alchemy_session_maker", make sure you know what you are doing.\n'
+        "[Warning] Improper configuration of sql_alchemy_session_maker can lead to serious issues, "
+        "including data corruption, unrecoverable application crashes.\n"
+        "[Warning] Please review the SQLAlchemy documentation for detailed guidance on "
         "proper configuration and best practices."
     )
 
@@ -409,15 +409,18 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     setup_event_handlers(engine)
 
-    def _default_session_maker(_engine):
-        return sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=_engine,
-            expire_on_commit=False,
-        )
+    if conf.has_option("database", "sql_alchemy_session_maker"):
+        _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
+    else:
 
-    _session_maker = conf.getimport("database", "sql_alchemy_session_maker") or _default_session_maker
+        def _session_maker(_engine):
+            return sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=_engine,
+                expire_on_commit=False,
+            )
+
     Session = scoped_session(_session_maker(engine))
 
 
