@@ -75,16 +75,12 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.connection_id = connection_id
         self.timeout = timeout
         self.api_version = api_version
-        self.api_type = api_type
         self.wait_seconds = wait_seconds
         self.asynchronous = asynchronous
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> None:
         """Create Airbyte Job and wait to finish."""
-        if self.api_type:
-            self.log.warning("`api_type` is deprecated please remove this parameter from your DAG.")
-
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
         self.job_id = job_object.job_id
@@ -100,7 +96,6 @@ class AirbyteTriggerSyncOperator(BaseOperator):
                         timeout=self.execution_timeout,
                         trigger=AirbyteSyncTrigger(
                             conn_id=self.airbyte_conn_id,
-                            api_type=self.api_type,
                             job_id=self.job_id,
                             end_time=end_time,
                             poll_interval=60,

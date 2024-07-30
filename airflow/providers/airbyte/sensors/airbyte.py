@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import time
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airbyte_api.models import JobStatusEnum
 
@@ -109,7 +109,7 @@ class AirbyteJobSensor(BaseSensorOperator):
             super().execute(context)
         else:
             hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
-            job = hook.get_job(job_id=(int(self.airbyte_job_id)))
+            job = hook.get_job_details(job_id=(int(self.airbyte_job_id)))
             state = job.status
             end_time = time.time() + self.timeout
 

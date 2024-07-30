@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import Any, TypeVar
 from urllib.parse import urljoin
 
 from airbyte_api import AirbyteAPI
@@ -27,10 +27,6 @@ from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, Sch
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-
-if TYPE_CHECKING:
-    from airflow.models import Connection
-
 
 T = TypeVar("T", bound=Any)
 
@@ -72,7 +68,6 @@ class AirbyteHook(BaseHook):
 
     def create_airbyte_api_session(self) -> AirbyteAPI:
         """Create Airbyte API session."""
-
         credentials = SchemeClientCredentials(
             client_id=self.conn.login,
             client_secret=self.conn.password,
