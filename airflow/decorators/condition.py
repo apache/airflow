@@ -64,7 +64,7 @@ def wrap_skip(func: Callable[[Context], bool], error_msg: str, *, reverse: bool)
         if reverse:
             condition = not condition
         if condition:
-            raise AirflowSkipException(error_msg)  # FIXME
+            raise AirflowSkipException(error_msg)
 
     return pre_execute
 
