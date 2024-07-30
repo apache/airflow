@@ -26,7 +26,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.models import Log
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture
