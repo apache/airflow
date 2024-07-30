@@ -684,7 +684,7 @@ database:
         documentation for detailed guidance on proper configuration and best practices.
       version_added: 2.9.4
       type: string
-      example: 'airflow_local_settings.sessionmaker'
+      example: 'airflow_local_settings._sessionmaker'
       default: ~
     load_default_connections:
       description: |
