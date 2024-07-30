@@ -27,6 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.base import StartTriggerArgs
 from airflow.triggers.file import FileTrigger
 
 if TYPE_CHECKING:
@@ -48,6 +49,7 @@ class FileSensor(BaseSensorOperator):
         ``**`` in glob filepath parameter. Defaults to ``False``.
     :param deferrable: If waiting for completion, whether to defer the task until done,
         default is ``False``.
+    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -58,6 +60,14 @@ class FileSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ("filepath",)
     ui_color = "#91818a"
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.triggers.file.FileTrigger",
+        trigger_kwargs={},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
 
     def __init__(
         self,
@@ -66,6 +76,7 @@ class FileSensor(BaseSensorOperator):
         fs_conn_id="fs_default",
         recursive=False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        start_from_trigger: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -73,6 +84,16 @@ class FileSensor(BaseSensorOperator):
         self.fs_conn_id = fs_conn_id
         self.recursive = recursive
         self.deferrable = deferrable
+
+        self.start_from_trigger = start_from_trigger
+
+        if self.deferrable and self.start_from_trigger:
+            self.start_trigger_args.timeout = datetime.timedelta(seconds=self.timeout)
+            self.start_trigger_args.trigger_kwargs = dict(
+                filepath=self.path,
+                recursive=self.recursive,
+                poke_interval=self.poke_interval,
+            )
 
     @cached_property
     def path(self) -> str:
