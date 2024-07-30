@@ -315,11 +315,11 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Create issue in github for testing the release using this subject:
 
-```shell script
-cat <<EOF
-Status of testing of Apache Airflow ${VERSION}
-EOF
-```
+  ```shell script
+  cat <<EOF
+  Status of testing of Apache Airflow ${VERSION}
+  EOF
+  ```
 
 - Generate the body of the issue using the below command:
 
