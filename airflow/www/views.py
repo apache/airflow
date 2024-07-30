@@ -73,9 +73,10 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import and_, case, desc, func, inspect, or_, select, union_all
+from sqlalchemy import String, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql.expression import cast
 from wtforms import BooleanField, validators
 
 import airflow
@@ -841,51 +842,86 @@ class Airflow(AirflowBaseView):
             # read orm_dags from the db
             dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
             dags_query = dags_query.where(DagModel.dag_id.in_(filter_dag_ids))
-
             if arg_search_query:
                 prefix_search_match = re2.match(r"(?i)(dag|owner|task):\s*", arg_search_query)
-
                 if prefix_search_match:
                     query_prefix = prefix_search_match[0].lower()
                     query_value = arg_search_query[len(query_prefix) :]
                     if query_value:
+                        escaped_query_value = "%" + query_value.replace("_", r"\_") + "%"
                         if query_prefix.startswith("task:"):
-                            filtered_dag_models = session.scalars(dags_query).all()
-                            dag_bag = get_airflow_app().dag_bag
-                            filtered_dags = [
-                                dag_bag.get_dag(DM.dag_id, session=session) for DM in filtered_dag_models
-                            ]
-                            filtered_by_tasks_dag_ids = [
-                                dag.dag_id
-                                for dag in filtered_dags
-                                if [
-                                    task
-                                    for task in dag.tasks
-                                    if re2.search(r"(?i)" + query_value, task.task_id)
+                            if session.bind.dialect.name == "mysql":
+                                dag_id_to_task_subq = (
+                                    select(SerializedDagModel.dag_id)
+                                    .where(
+                                        func.regexp_like(
+                                            func.json_keys(
+                                                func.json_extract(
+                                                    SerializedDagModel._data, "$.dag._task_group.children"
+                                                )
+                                            ),
+                                            f".*{query_value}.*",
+                                            "i",
+                                        )
+                                    )
+                                    .subquery()
+                                )
+                                dags_query = dags_query.join(
+                                    dag_id_to_task_subq, DagModel.dag_id == dag_id_to_task_subq.c.dag_id
+                                )
+                            elif session.bind.dialect.name == "postgresql":
+                                dag_id_to_task_subq = select(
+                                    SerializedDagModel.dag_id,
+                                    cast(
+                                        func.json_extract_path(
+                                            func.json_array_elements(
+                                                func.json_extract_path(
+                                                    SerializedDagModel._data, "dag", "tasks"
+                                                )
+                                            ),
+                                            "__var",
+                                            "task_id",
+                                        ),
+                                        String,
+                                    ).label("task_id"),
+                                ).subquery()
+                                dags_query = dags_query.join(
+                                    dag_id_to_task_subq, DagModel.dag_id == dag_id_to_task_subq.c.dag_id
+                                ).where(dag_id_to_task_subq.c.task_id.ilike(escaped_query_value, escape="\\"))
+                            else:
+                                filtered_dag_models = session.scalars(dags_query).all()
+                                dag_bag = get_airflow_app().dag_bag
+                                filtered_dags = [
+                                    dag_bag.get_dag(DM.dag_id, session=session) for DM in filtered_dag_models
                                 ]
-                            ]
-                            dags_query = dags_query.where(DagModel.dag_id.in_(filtered_by_tasks_dag_ids))
+                                filtered_by_tasks_dag_ids = [
+                                    dag.dag_id
+                                    for dag in filtered_dags
+                                    if [
+                                        task
+                                        for task in dag.tasks
+                                        if re2.search(r"(?i)" + query_value, task.task_id)
+                                    ]
+                                ]
+                                dags_query = dags_query.where(DagModel.dag_id.in_(filtered_by_tasks_dag_ids))
                         else:
-                            escaped_query_value = query_value.replace("_", r"\_")
                             if query_prefix.startswith("dag:"):
                                 dags_query = dags_query.where(
-                                    DagModel.dag_id.ilike("%" + escaped_query_value + "%", escape="\\")
+                                    DagModel.dag_id.ilike(escaped_query_value, escape="\\")
                                     | DagModel._dag_display_property_value.ilike(
-                                        "%" + escaped_query_value + "%", escape="\\"
+                                        escaped_query_value, escape="\\"
                                     )
                                 )
                             elif query_prefix.startswith("dag:"):
                                 dags_query = dags_query.where(
-                                    DagModel.owners.ilike("%" + escaped_query_value + "%", escape="\\")
+                                    DagModel.owners.ilike(escaped_query_value, escape="\\")
                                 )
                 else:
-                    escaped_arg_search_query = arg_search_query.replace("_", r"\_")
+                    escaped_arg_search_query = "%" + arg_search_query.replace("_", r"\_") + "%"
                     dags_query = dags_query.where(
-                        DagModel.dag_id.ilike("%" + escaped_arg_search_query + "%", escape="\\")
-                        | DagModel._dag_display_property_value.ilike(
-                            "%" + escaped_arg_search_query + "%", escape="\\"
-                        )
-                        | DagModel.owners.ilike("%" + escaped_arg_search_query + "%", escape="\\")
+                        DagModel.dag_id.ilike(escaped_arg_search_query, escape="\\")
+                        | DagModel._dag_display_property_value.ilike(escaped_arg_search_query, escape="\\")
+                        | DagModel.owners.ilike(escaped_arg_search_query, escape="\\")
                     )
 
             if arg_tags_filter:
@@ -5698,6 +5734,7 @@ class AutocompleteView(AirflowBaseView):
 
         if not query:
             return flask.json.jsonify([])
+        escaped_query = f"%{query}%".replace("_", r"\_")
 
         status = flask_session.get(FILTER_STATUS_COOKIE)
         filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
@@ -5714,28 +5751,99 @@ class AutocompleteView(AirflowBaseView):
 
         if query_prefix.startswith("task:"):
             # Provide suggestions of task_ids
-            dags_query = _filter_dags_query(dags_query=select(DagModel.dag_id))
-            filtered_dag_ids = session.scalars(dags_query).all()
-            dag_bag = get_airflow_app().dag_bag
-            filtered_dags = [dag_bag.get_dag(dag_id, session=session) for dag_id in filtered_dag_ids]
-            filtered_tuples = [
-                (task.task_id, dag.dag_id, dag.dag_display_name)
-                for dag in filtered_dags
-                for task in dag.tasks
-                if re2.search(r"(?i)" + query, task.task_id)
-            ]
-            payload = [
-                {"type": "task", "name": task_id, "dag_id": dag_id, "dagDisplayName": dag_display_name}
-                for task_id, dag_id, dag_display_name in sorted(filtered_tuples)[:10]
-            ]
+            if session.bind.dialect.name == "mysql":
+                dag_id_to_task_subq = (
+                    select(
+                        SerializedDagModel.dag_id,
+                        func.json_keys(
+                            func.json_extract(SerializedDagModel._data, "$.dag._task_group.children")
+                        ).label("task_ids"),
+                    )
+                    .where(
+                        func.regexp_like(
+                            func.json_keys(
+                                func.json_extract(SerializedDagModel._data, "$.dag._task_group.children")
+                            ),
+                            query.replace("_", r"\_"),
+                            "i",
+                        )
+                    )
+                    .subquery()
+                )
+                dags_query = select(
+                    sqla.literal("task").label("type"),
+                    dag_id_to_task_subq.c.task_ids.label("name"),
+                    DagModel.dag_id.label("dag_id"),
+                    DagModel._dag_display_property_value.label("dagDisplayName"),
+                )
+                dags_query = _filter_dags_query(dags_query=dags_query)
+                dags_query = dags_query.join(
+                    dag_id_to_task_subq, DagModel.dag_id == dag_id_to_task_subq.c.dag_id
+                )
+                payload_with_task_ids = [
+                    row._asdict() for row in session.execute(dags_query.order_by("name").limit(10))
+                ]
+                payload = []
+                for row_dict in payload_with_task_ids:
+                    # task_ids are concatenated string lists
+                    for task_id in row_dict["name"][2:-2].split('", "'):
+                        if not re2.search(r"(?i)" + query, task_id):
+                            continue
+                        payload_row_dict = row_dict.copy()
+                        payload_row_dict["name"] = task_id
+                        payload.append(payload_row_dict)
+                payload = payload[:10]
+            elif session.bind.dialect.name == "postgresql":
+                dag_id_to_task_subq = select(
+                    SerializedDagModel.dag_id,
+                    cast(
+                        func.json_extract_path(
+                            func.json_array_elements(
+                                func.json_extract_path(SerializedDagModel._data, "dag", "tasks")
+                            ),
+                            "__var",
+                            "task_id",
+                        ),
+                        String,
+                    ).label("task_id"),
+                ).subquery()
+                dags_query = select(
+                    sqla.literal("task").label("type"),
+                    dag_id_to_task_subq.c.task_id.label("name"),
+                    DagModel.dag_id.label("dag_id"),
+                    DagModel._dag_display_property_value.label("dagDisplayName"),
+                )
+                dags_query = _filter_dags_query(dags_query=dags_query)
+                dags_query = dags_query.join(
+                    dag_id_to_task_subq, DagModel.dag_id == dag_id_to_task_subq.c.dag_id
+                ).where(dag_id_to_task_subq.c.task_id.ilike(escaped_query, escape="\\"))
+                payload = [row._asdict() for row in session.execute(dags_query.order_by("name").limit(10))]
+                # Remove leading and lagging " introduced by cast to string
+                for row in payload:
+                    row.update({"name": row["name"][1:-1]})
+            else:
+                dags_query = _filter_dags_query(dags_query=select(DagModel.dag_id))
+                filtered_dag_ids = session.scalars(dags_query).all()
+                dag_bag = get_airflow_app().dag_bag
+                filtered_dags = [dag_bag.get_dag(dag_id, session=session) for dag_id in filtered_dag_ids]
+                filtered_tuples = [
+                    (task.task_id, dag.dag_id, dag._dag_display_property_value)
+                    for dag in filtered_dags
+                    for task in dag.tasks
+                    if re2.search(r"(?i)" + query, task.task_id)
+                ]
+                payload = [
+                    {"type": "task", "name": task_id, "dag_id": dag_id, "dagDisplayName": dag_display_name}
+                    for task_id, dag_id, dag_display_name in sorted(filtered_tuples)[:10]
+                ]
         else:
             # Provide suggestions of dag_ids and owners
-            dag_ids_query = select(
+            dags_query = select(
                 sqla.literal("dag").label("type"),
                 DagModel.dag_id.label("name"),
                 DagModel._dag_display_property_value.label("dagDisplayName"),
             )
-            dag_ids_query = _filter_dags_query(dags_query=dag_ids_query)
+            dags_query = _filter_dags_query(dags_query=dags_query)
 
             owners_query = select(
                 sqla.literal("owner").label("type"),
@@ -5745,21 +5853,21 @@ class AutocompleteView(AirflowBaseView):
             owners_query = _filter_dags_query(dags_query=owners_query)
 
             if query_prefix.startswith("dag:"):
-                dags_query = dag_ids_query.where(
+                dags_query = dags_query.where(
                     or_(
-                        DagModel.dag_id.ilike(f"%{query}%"),
-                        DagModel._dag_display_property_value.ilike(f"%{query}%"),
+                        DagModel.dag_id.ilike(escaped_query, escape="\\"),
+                        DagModel._dag_display_property_value.ilike(escaped_query, escape="\\"),
                     ),
                 )
             elif query_prefix.startswith("owner:"):
-                dags_query = owners_query.where(DagModel.owners.ilike(f"%{query}%"))
+                dags_query = owners_query.where(DagModel.owners.ilike(escaped_query, escape="\\"))
             else:
-                dags_query = dag_ids_query.where(
+                dags_query = dags_query.where(
                     or_(
-                        DagModel.dag_id.ilike(f"%{query}%"),
-                        DagModel._dag_display_property_value.ilike(f"%{query}%"),
+                        DagModel.dag_id.ilike(escaped_query, escape="\\"),
+                        DagModel._dag_display_property_value.ilike(escaped_query, escape="\\"),
                     )
-                ).union(owners_query.where(DagModel.owners.ilike(f"%{query}%")))
+                ).union(owners_query.where(DagModel.owners.ilike(escaped_query, escape="\\")))
 
             payload = [row._asdict() for row in session.execute(dags_query.order_by("name").limit(10))]
         return flask.json.jsonify(payload)
