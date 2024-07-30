@@ -149,12 +149,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         if services is None:
             services = []
 
-        if host_group_ids is None:
-            host_group_ids = []
-
-        if security_group_ids is None:
-            security_group_ids = []
-
         self.folder_id = folder_id
         self.yandex_conn_id = connection_id
         self.cluster_name = cluster_name
@@ -242,7 +236,7 @@ class DataprocCreateClusterOperator(BaseOperator):
                 for init_action in self.initialization_actions
             ]
             if self.initialization_actions
-            else [],
+            else None,
         )
         cluster_id = operation_result.response.id
 
