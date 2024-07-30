@@ -4340,6 +4340,8 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         """Process form data."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+
         conn_id = form.data["conn_id"]
         conn_type = form.data["conn_type"]
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
@@ -4375,6 +4377,18 @@ class ConnectionModelView(AirflowModelView):
                     # value isn't an empty string.
                     if value != "":
                         extra[field_name] = value
+                    field = form._fields.get(key)
+                    # Check if the field is a BS3TextFieldWidget
+                    if isinstance(field.widget, BS3TextFieldWidget):
+                        value = form.data.get(key, "")
+                        if isinstance(value, str):
+                            value = value.strip()
+                            if value:
+                                field_label = str(field.label.text)
+                                flash(
+                                    f"The field '{field_label}' can be modified but cannot be deleted.",
+                                    "warning",
+                                )
         if extra.keys():
             sensitive_unchanged_keys = set()
             for key, value in extra.items():
