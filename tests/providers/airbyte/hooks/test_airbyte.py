@@ -93,6 +93,7 @@ class TestAirbyteHook:
         base_url = hook.get_server_url()
         assert base_url == expected_base_url
 
+    @pytest.mark.asyncio
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
     async def test_get_job_status(self, get_job_mock):
         mock_response = mock.Mock()
