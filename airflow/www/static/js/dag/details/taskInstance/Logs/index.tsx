@@ -166,6 +166,7 @@ const Logs = ({
                   taskId={taskId}
                   executionDate={executionDate}
                   tryNumber={tryNumber}
+                  mapIndex={mapIndex}
                 />
               )
             )}

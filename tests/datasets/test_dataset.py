@@ -517,6 +517,7 @@ def test_normalize_uri_valid_uri():
     assert dataset.normalized_uri == "valid_aip60_uri"
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_datasets")
 class Test_DatasetAliasCondition:
