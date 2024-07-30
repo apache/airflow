@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, NoReturn, Sequence
+from typing import TYPE_CHECKING, Any, NoReturn, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -85,18 +85,21 @@ class DateTimeSensorAsync(DateTimeSensor):
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)
+    :param end_from_trigger: End the task directly from the triggerer without going into the worker.
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *, end_from_trigger: bool = False, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.end_from_trigger = end_from_trigger
 
     def execute(self, context: Context) -> NoReturn:
-        trigger = DateTimeTrigger(moment=timezone.parse(self.target_time))
         self.defer(
-            trigger=trigger,
             method_name="execute_complete",
+            trigger=DateTimeTrigger(
+                moment=timezone.parse(self.target_time), end_from_trigger=self.end_from_trigger
+            ),
         )
 
-    def execute_complete(self, context, event=None) -> None:
-        """Execute when the trigger fires - returns immediately."""
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        """Handle the event when the trigger fires and return immediately."""
         return None

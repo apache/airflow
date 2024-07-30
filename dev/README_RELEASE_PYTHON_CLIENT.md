@@ -312,11 +312,11 @@ Airflow Python client supports reproducible builds, which means that the package
 sources should produce binary identical packages in reproducible way. You should check if the packages can be
 binary-reproduced when built from the sources.
 
-Checkout airflow sources and build packages in dist folder (replace X.Y.Z with the version
+Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 with the version + rc candidate)
 you are checking):
 
 ```shell script
-VERSION=X.Y.Z
+VERSION=X.Y.Zrc1
 git checkout python-client-${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
@@ -344,7 +344,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
 # Then compare the packages
-cd asf-dist/dev/airflow/clients/python/X.Y.Zrc1
+cd asf-dist/dev/airflow/clients/python/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"

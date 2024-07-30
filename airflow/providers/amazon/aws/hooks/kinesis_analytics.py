@@ -32,6 +32,34 @@ class KinesisAnalyticsV2Hook(AwsBaseHook):
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
+    APPLICATION_START_INTERMEDIATE_STATES: tuple[str, ...] = ("STARTING", "UPDATING", "AUTOSCALING")
+    APPLICATION_START_FAILURE_STATES: tuple[str, ...] = (
+        "DELETING",
+        "STOPPING",
+        "READY",
+        "FORCE_STOPPING",
+        "ROLLING_BACK",
+        "MAINTENANCE",
+        "ROLLED_BACK",
+    )
+    APPLICATION_START_SUCCESS_STATES: tuple[str, ...] = ("RUNNING",)
+
+    APPLICATION_STOP_INTERMEDIATE_STATES: tuple[str, ...] = (
+        "STARTING",
+        "UPDATING",
+        "AUTOSCALING",
+        "RUNNING",
+        "STOPPING",
+        "FORCE_STOPPING",
+    )
+    APPLICATION_STOP_FAILURE_STATES: tuple[str, ...] = (
+        "DELETING",
+        "ROLLING_BACK",
+        "MAINTENANCE",
+        "ROLLED_BACK",
+    )
+    APPLICATION_STOP_SUCCESS_STATES: tuple[str, ...] = ("READY",)
+
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "kinesisanalyticsv2"
         super().__init__(*args, **kwargs)

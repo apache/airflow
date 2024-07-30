@@ -41,6 +41,7 @@ from urllib.parse import urlparse
 import sqlparse
 from more_itertools import chunked
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Inspector
 
 from airflow.exceptions import (
     AirflowException,
@@ -263,7 +264,20 @@ class DbApiHook(BaseHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        return create_engine(self.get_uri(), **engine_kwargs)
+        engine_kwargs["creator"] = self.get_conn
+
+        try:
+            url = self.sqlalchemy_url
+        except NotImplementedError:
+            url = self.get_uri()
+
+        self.log.debug("url: %s", url)
+        self.log.debug("engine_kwargs: %s", engine_kwargs)
+        return create_engine(url=url, **engine_kwargs)
+
+    @property
+    def inspector(self) -> Inspector:
+        return Inspector.from_engine(self.get_sqlalchemy_engine())
 
     def get_pandas_df(
         self,
@@ -592,6 +606,7 @@ class DbApiHook(BaseHook):
         replace=False,
         *,
         executemany=False,
+        autocommit=False,
         **kwargs,
     ):
         """
@@ -606,12 +621,14 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
-        :param executemany: (Deprecated) If True, all rows are inserted at once in
+        :param executemany: If True, all rows are inserted at once in
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
         """
         nb_rows = 0
-        with self._create_autocommit_connection() as conn:
+        with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
                 if self.supports_executemany or executemany:

@@ -26,9 +26,22 @@ import { formatDuration, getDuration } from "src/datetime_utils";
 import type { TaskInstance, Task } from "src/types";
 import Time from "src/components/Time";
 
+type Instance = Pick<
+  TaskInstance,
+  | "taskId"
+  | "startDate"
+  | "endDate"
+  | "state"
+  | "runId"
+  | "mappedStates"
+  | "note"
+  | "tryNumber"
+>;
+
 interface Props {
-  group: Task;
-  instance: TaskInstance;
+  group?: Task;
+  instance: Instance;
+  dagId?: string;
 }
 
 const InstanceTooltip = ({
@@ -43,38 +56,43 @@ const InstanceTooltip = ({
     note,
     tryNumber,
   },
+  dagId,
 }: Props) => {
-  if (!group) return null;
-  const isGroup = !!group.children;
-  const { isMapped } = group;
+  const isGroup = !!group?.children;
+  const isMapped = !!group?.isMapped;
   const summary: React.ReactNode[] = [];
 
-  const { totalTasks, childTaskMap } = getGroupAndMapSummary({
-    group,
-    runId,
-    mappedStates,
-  });
+  let totalTasks = 1;
+  if (group) {
+    const { totalTasks: total, childTaskMap } = getGroupAndMapSummary({
+      group,
+      runId,
+      mappedStates,
+    });
+    totalTasks = total;
 
-  childTaskMap.forEach((key, val) => {
-    const childState = snakeCase(val);
-    if (key > 0) {
-      summary.push(
-        <Text key={childState} ml="10px">
-          {childState}
-          {": "}
-          {key}
-        </Text>
-      );
-    }
-  });
+    childTaskMap.forEach((key, val) => {
+      const childState = snakeCase(val);
+      if (key > 0) {
+        summary.push(
+          <Text key={childState} ml="10px">
+            {childState}
+            {": "}
+            {key}
+          </Text>
+        );
+      }
+    });
+  }
 
   return (
     <Box py="2px">
+      {!!dagId && <Text>DAG Id: {dagId}</Text>}
       <Text>Task Id: {taskId}</Text>
-      {!!group.setupTeardownType && (
+      {!!group?.setupTeardownType && (
         <Text>Type: {group.setupTeardownType}</Text>
       )}
-      {group.tooltip && <Text>{group.tooltip}</Text>}
+      {group?.tooltip && <Text>{group.tooltip}</Text>}
       {isMapped && totalTasks > 0 && (
         <Text>
           {totalTasks} mapped task
@@ -103,7 +121,7 @@ const InstanceTooltip = ({
         </>
       )}
       {tryNumber && tryNumber > 1 && <Text>Try Number: {tryNumber}</Text>}
-      {group.triggerRule && <Text>Trigger Rule: {group.triggerRule}</Text>}
+      {group?.triggerRule && <Text>Trigger Rule: {group.triggerRule}</Text>}
       {note && <Text>Contains a note</Text>}
     </Box>
   );

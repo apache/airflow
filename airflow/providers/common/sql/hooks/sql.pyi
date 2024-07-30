@@ -43,7 +43,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage as Operator
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import URL as URL
+from sqlalchemy.engine import Inspector, URL as URL
 from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")
@@ -79,6 +79,8 @@ class DbApiHook(BaseHook):
     @property
     def sqlalchemy_url(self) -> URL: ...
     def get_sqlalchemy_engine(self, engine_kwargs: Incomplete | None = None): ...
+    @property
+    def inspector(self) -> Inspector: ...
     def get_pandas_df(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, **kwargs
     ) -> DataFrame: ...
@@ -129,6 +131,7 @@ class DbApiHook(BaseHook):
         replace: bool = False,
         *,
         executemany: bool = False,
+        autocommit: bool = False,
         **kwargs,
     ): ...
     def bulk_dump(self, table, tmp_file) -> None: ...

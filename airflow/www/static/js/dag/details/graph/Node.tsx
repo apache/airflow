@@ -22,6 +22,7 @@ import { Box } from "@chakra-ui/react";
 import { Handle, NodeProps, Position } from "reactflow";
 
 import type { DepNode, DagRun, Task, TaskInstance } from "src/types";
+import type { DatasetEvent } from "src/types/api-generated";
 
 import DagNode from "./DagNode";
 import DatasetNode from "./DatasetNode";
@@ -44,6 +45,7 @@ export interface CustomNodeProps {
   style?: string;
   isZoomedOut: boolean;
   class: DepNode["value"]["class"];
+  datasetEvent?: DatasetEvent;
 }
 
 const Node = (props: NodeProps<CustomNodeProps>) => {

@@ -40,6 +40,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.traces.tracer import Trace, span
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -91,10 +92,12 @@ class LocalWorkerBase(Process, LoggingMixin):
 
         self.log.info("%s running %s", self.__class__.__name__, command)
         setproctitle(f"airflow worker -- LocalExecutor: {command}")
-        if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-            state = self._execute_work_in_subprocess(command)
-        else:
-            state = self._execute_work_in_fork(command)
+        dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command)
+        with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
+            if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+                state = self._execute_work_in_subprocess(command)
+            else:
+                state = self._execute_work_in_fork(command)
 
         self.result_queue.put((key, state))
         # Remove the command since the worker is done executing the task

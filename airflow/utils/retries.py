@@ -76,8 +76,12 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
-            logger = args[0].log if args and hasattr(args[0], "log") else logging.getLogger(func.__module__)
-
+            if args and hasattr(args[0], "logger"):
+                logger = args[0].logger()
+            elif args and hasattr(args[0], "log"):
+                logger = args[0].log
+            else:
+                logger = logging.getLogger(func.__module__)
             # Get session from args or kwargs
             if "session" in kwargs:
                 session = kwargs["session"]

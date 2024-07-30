@@ -55,6 +55,7 @@ from airflow_breeze.global_constants import (
     TESTABLE_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
+    GithubEvents,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -498,7 +499,7 @@ class ShellParams:
         _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
-        _set_var(_env, "CI_EVENT_TYPE", None, "pull_request")
+        _set_var(_env, "CI_EVENT_TYPE", None, GithubEvents.PULL_REQUEST.value)
         _set_var(_env, "CI_JOB_ID", None, "0")
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)

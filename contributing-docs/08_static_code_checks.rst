@@ -150,6 +150,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-code-deprecations                                   | Check deprecations categories in decorators                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-compat-cache-on-methods                             | Check that compat cache do not use on class methods          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |

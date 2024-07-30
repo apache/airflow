@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1720288090
+source-date-epoch: 1722145222
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.27.0
   - 8.26.0
   - 8.25.0
   - 8.24.0
@@ -89,8 +90,10 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
+  - apache-airflow-providers-common-compat>=1.1.0
   - apache-airflow-providers-common-sql>=1.3.1
   - apache-airflow-providers-http
+  - apache-airflow-providers-common-compat>=1.1.0
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
   # in the `devel-dependencies` section to be the same minimum version.
@@ -560,7 +563,9 @@ sensors:
 
 dataset-uris:
   - schemes: [s3]
-    handler: null
+    handler: airflow.providers.amazon.aws.datasets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.datasets.s3.convert_dataset_to_openlineage
+    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3

@@ -30,8 +30,7 @@ import useSelection from "src/dag/useSelection";
 import Time from "src/components/Time";
 import { useGridData } from "src/api";
 import RunTypeIcon from "src/components/RunTypeIcon";
-
-import BreadcrumbText from "./BreadcrumbText";
+import BreadcrumbText from "src/components/BreadcrumbText";
 
 const dagDisplayName = getMetaValue("dag_display_name");
 

@@ -27,7 +27,7 @@ import type { SelectionProps } from "src/dag/useSelection";
 import { getStatusBackgroundColor, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 
-import InstanceTooltip from "./InstanceTooltip";
+import InstanceTooltip from "src/components/InstanceTooltip";
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;

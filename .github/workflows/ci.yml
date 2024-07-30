@@ -19,11 +19,12 @@
 name: Tests
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 0 * * *'
+    - cron: '28 1,7,13,19 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
+    branches: ['v[0-9]+-[0-9]+-test']
   pull_request:
     branches: ['main']
+  workflow_dispatch:
 permissions:
   # All other permissions are set to none
   contents: read
@@ -172,6 +173,7 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+      enable-aip-44: "false"
 
   build-ci-images:
     name: >

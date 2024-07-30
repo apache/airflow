@@ -291,6 +291,59 @@ class TracebackSession:
         pass
 
 
+AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
+AIRFLOW_TESTS_PATH = os.path.join(AIRFLOW_PATH, "tests")
+
+
+class TracebackSessionForTests:
+    """
+    Session that throws error when you try to create a session outside of the test code.
+
+    When we run our tests in "db isolation" mode we expect that "airflow" code will never create
+    a session on its own and internal_api server is used for all calls but the test code might use
+    the session to setup and teardown in the DB so that the internal API server accesses it.
+
+    :meta private:
+    """
+
+    db_session_class = None
+
+    def __init__(self):
+        self.traceback = traceback.extract_stack()
+        self.current_db_session = TracebackSessionForTests.db_session_class()
+
+    def __getattr__(self, item):
+        if self.is_called_from_test_code():
+            return getattr(self.current_db_session, item)
+        raise RuntimeError(
+            "TracebackSessionForTests object was used but internal API is enabled. "
+            "Only test code is allowed to use this object. "
+            "You'll need to ensure you are making only RPC calls with this object. "
+            "The stack list below will show where the TracebackSession object was created."
+            + "\n".join(traceback.format_list(self.traceback))
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+    def is_called_from_test_code(self) -> bool:
+        """
+        Check if the object was created from test code.
+
+        This is done by checking if the first "airflow" filename in the traceback
+        is "airflow/tests" or "regular airflow".
+
+        :meta: private
+        :return: True if the object was created from test code, False otherwise.
+        """
+        for tb in self.traceback:
+            if tb.filename.startswith(AIRFLOW_PATH):
+                # if this is the also "test" code, we are good, otherwise we are in Airflow code
+                return tb.filename.startswith(AIRFLOW_TESTS_PATH)
+        # if it is from elsewhere.... Why???? We should return False in order to crash to find out
+        return False
+
+
 def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     """Determine whether the database connection URI specifies a relative path."""
     # Check for non-empty connection string:
@@ -324,16 +377,15 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    from airflow.api_internal.internal_api_call import InternalApiConfig
-
-    if InternalApiConfig.get_use_internal_api():
-        Session = TracebackSession
-        engine = None
-        return
-    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
+        return
+    if conf.get("database", "sql_alchemy_conn") == "none://":
+        from airflow.api_internal.internal_api_call import InternalApiConfig
+
+        InternalApiConfig.set_use_internal_api("ORM reconfigured in forked process.")
         return
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
@@ -357,6 +409,25 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             expire_on_commit=False,
         )
     )
+
+
+def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
+    log.info("Forcing TracebackSession for untrusted components.")
+    global Session
+    global engine
+    if allow_tests_to_use_db:
+        old_session_class = Session
+        Session = TracebackSessionForTests
+        TracebackSessionForTests.db_session_class = old_session_class
+    else:
+        try:
+            dispose_orm()
+        except NameError:
+            # This exception might be thrown in case the ORM has not been initialized yet.
+            pass
+        else:
+            Session = TracebackSession
+        engine = None
 
 
 DEFAULT_ENGINE_ARGS = {
