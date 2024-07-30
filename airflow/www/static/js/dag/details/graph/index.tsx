@@ -159,7 +159,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   } = useUpstreamDatasetEvents({
     dagId,
     dagRunId: selected.runId || "",
-    options: { enabled: !!datasetsNodes.length },
+    options: { enabled: !!datasetsNodes.length && !!selected.runId },
   });
 
   const {
