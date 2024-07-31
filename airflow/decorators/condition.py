@@ -37,13 +37,17 @@ __all__ = ["run_if", "skip_if"]
 _T = TypeVar("_T", bound="Task[..., Any] | _TaskDecorator[..., Any, Any]")
 
 
-def run_if(condition: AnyConditionFunc) -> Callable[[_T], _T]:
+def run_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
     """
     Decorate a task to run only if a condition is met.
 
     :param condition: A function that takes a context and returns a boolean.
+    :param skip_message: The message to log if the task is skipped.
+        If None, a default message is used.
     """
-    wrapped_condition = wrap_skip(condition, "Task was skipped due to condition.", reverse=True)
+    wrapped_condition = wrap_skip(
+        condition, skip_message or "Task was skipped due to condition.", reverse=True
+    )
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):
@@ -58,13 +62,17 @@ def run_if(condition: AnyConditionFunc) -> Callable[[_T], _T]:
     return decorator
 
 
-def skip_if(condition: AnyConditionFunc) -> Callable[[_T], _T]:
+def skip_if(condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
     """
     Decorate a task to skip if a condition is met.
 
     :param condition: A function that takes a context and returns a boolean.
+    :param skip_message: The message to log if the task is skipped.
+        If None, a default message is used.
     """
-    wrapped_condition = wrap_skip(condition, "Task was skipped due to condition.", reverse=False)
+    wrapped_condition = wrap_skip(
+        condition, skip_message or "Task was skipped due to condition.", reverse=False
+    )
 
     def decorator(task: _T) -> _T:
         if not isinstance(task, _TaskDecorator):

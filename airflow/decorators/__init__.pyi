@@ -758,8 +758,22 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
-    def run_if(self, condition: AnyConditionFunc) -> Callable[[_T], _T]: ...
-    def skip_if(self, condition: AnyConditionFunc) -> Callable[[_T], _T]: ...
+    def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+        """
+        Decorate a task to run only if a condition is met.
+
+        :param condition: A function that takes a context and returns a boolean.
+        :param skip_message: The message to log if the task is skipped.
+            If None, a default message is used.
+        """
+    def skip_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+        """
+        Decorate a task to skip if a condition is met.
+
+        :param condition: A function that takes a context and returns a boolean.
+        :param skip_message: The message to log if the task is skipped.
+            If None, a default message is used.
+        """
     def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection
