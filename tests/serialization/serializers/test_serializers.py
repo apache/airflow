@@ -384,3 +384,71 @@ class TestSerializers:
     def test_pendulum_3_to_2(self, ser_value, expected):
         """Test deserialize objects in pendulum 2 which serialised in pendulum 3."""
         assert deserialize(ser_value) == expected
+
+    def test_polars_frame(self):
+        import polars as pl
+
+        frame = pl.DataFrame(
+            {
+                "integer": [1, 2, 3],
+                "float": [1.1, 2.2, 3.3],
+                "string": ["a", "b", "c"],
+                "binary": [b"a", b"b", b"c"],
+                "boolean": [True, False, True],
+                "date": [pl.date(2021, 1, 1), pl.date(2021, 1, 2), pl.date(2021, 1, 3)],
+                "time": [pl.time(12, 0, 0), pl.time(12, 0, 1), pl.time(12, 0, 2)],
+                "timestamp": [
+                    pl.datetime(2021, 1, 1, 12, 0, 0),
+                    pl.datetime(2021, 1, 1, 12, 0, 1),
+                    pl.datetime(2021, 1, 1, 12, 0, 2),
+                ],
+            },
+            schema_overrides={
+                "integer": pl.Int64(),
+                "float": pl.Float64(),
+                "string": pl.String(),
+                "binary": pl.Binary(),
+                "boolean": pl.Boolean(),
+                "date": pl.Date(),
+                "time": pl.Time(),
+                "timestamp": pl.Datetime(),
+            },
+        )
+        dump = serialize(frame)
+        load = deserialize(dump)
+        assert frame.equals(load)
+
+    def test_polars_series(self):
+        import polars as pl
+
+        frame = pl.DataFrame(
+            {
+                "integer": [1, 2, 3],
+                "float": [1.1, 2.2, 3.3],
+                "string": ["a", "b", "c"],
+                "binary": [b"a", b"b", b"c"],
+                "boolean": [True, False, True],
+                "date": [pl.date(2021, 1, 1), pl.date(2021, 1, 2), pl.date(2021, 1, 3)],
+                "time": [pl.time(12, 0, 0), pl.time(12, 0, 1), pl.time(12, 0, 2)],
+                "timestamp": [
+                    pl.datetime(2021, 1, 1, 12, 0, 0),
+                    pl.datetime(2021, 1, 1, 12, 0, 1),
+                    pl.datetime(2021, 1, 1, 12, 0, 2),
+                ],
+            },
+            schema_overrides={
+                "integer": pl.Int64(),
+                "float": pl.Float64(),
+                "string": pl.String(),
+                "binary": pl.Binary(),
+                "boolean": pl.Boolean(),
+                "date": pl.Date(),
+                "time": pl.Time(),
+                "timestamp": pl.Datetime(),
+            },
+        )
+        for field in frame.iter_columns():
+            dump = serialize(field)
+            load = deserialize(dump)
+
+            assert field.equals(load)
