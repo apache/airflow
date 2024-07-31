@@ -24,13 +24,14 @@ This DAG relies on the following OS environment variables
 
 In order to run this test, make sure you followed steps:
 1. Login to https://analytics.google.com
-2. In the settings section create an account and save its ID in the variable GA_ACCOUNT_ID.
+2. In the settings section create an account and save its ID in the Google Cloud Secret Manager with id
+saved in the constant GOOGLE_ANALYTICS_ACCOUNT_SECRET_ID.
 3. In the settings section go to the Property access management page and add your service account email with
 Editor permissions. This service account should be created on behalf of the account from the step 1.
 4. Make sure Google Analytics Admin API is enabled in your GCP project.
 5. Create Google Ads account and link it to your Google Analytics account in the GA admin panel.
-6. Associate the Google Ads account with a property, and save this property's id in the variable
-GA_GOOGLE_ADS_PROPERTY_ID.
+6. Associate the Google Ads account with a property, and save this property's id in the Google Cloud Secret
+Manager with id saved in the constant GOOGLE_ADS_PROPERTY_ID.
 """
 
 from __future__ import annotations
@@ -41,11 +42,13 @@ import os
 from datetime import datetime
 
 from google.analytics import admin_v1beta as google_analytics
+from google.cloud.exceptions import NotFound
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.marketing_platform.operators.analytics_admin import (
     GoogleAnalyticsAdminCreateDataStreamOperator,
     GoogleAnalyticsAdminCreatePropertyOperator,
@@ -59,16 +62,24 @@ from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_google_analytics_admin"
+DAG_ID = "google_analytics_admin"
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
-ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
+GOOGLE_ANALYTICS_ACCOUNT_SECRET_ID = "google_analytics_account_id"
+GOOGLE_ADS_PROPERTY_SECRET_ID = "google_ads_property_id"
 PROPERTY_ID = "{{ task_instance.xcom_pull('create_property')['name'].split('/')[-1] }}"
 DATA_STREAM_ID = "{{ task_instance.xcom_pull('create_data_stream')['name'].split('/')[-1] }}"
-GA_GOOGLE_ADS_PROPERTY_ID = os.environ.get("GA_GOOGLE_ADS_PROPERTY_ID", "123456789")
 GA_ADS_LINK_ID = "{{ task_instance.xcom_pull('list_google_ads_links')[0]['name'].split('/')[-1] }}"
 
 log = logging.getLogger(__name__)
+
+
+def get_secret(secret_id: str) -> str:
+    hook = GoogleCloudSecretManagerHook()
+    if hook.secret_exists(secret_id=secret_id):
+        return hook.access_secret(secret_id=secret_id).payload.data.decode()
+    raise NotFound("The secret '%s' not found", secret_id)
+
 
 with DAG(
     DAG_ID,
@@ -102,6 +113,18 @@ with DAG(
 
     setup_connection_task = setup_connection()
 
+    @task
+    def get_google_analytics_account_id():
+        return get_secret(secret_id=GOOGLE_ANALYTICS_ACCOUNT_SECRET_ID)
+
+    get_google_analytics_account_id_task = get_google_analytics_account_id()
+
+    @task
+    def get_google_ads_property_id():
+        return get_secret(secret_id=GOOGLE_ADS_PROPERTY_SECRET_ID)
+
+    get_google_ads_property_id_task = get_google_ads_property_id()
+
     # [START howto_marketing_platform_list_accounts_operator]
     list_accounts = GoogleAnalyticsAdminListAccountsOperator(
         task_id="list_account",
@@ -114,7 +137,7 @@ with DAG(
     create_property = GoogleAnalyticsAdminCreatePropertyOperator(
         task_id="create_property",
         analytics_property={
-            "parent": f"accounts/{ACCOUNT_ID}",
+            "parent": f"accounts/{get_google_analytics_account_id_task}",
             "display_name": "Test display name",
             "time_zone": "America/Los_Angeles",
         },
@@ -158,7 +181,7 @@ with DAG(
     # [START howto_marketing_platform_list_google_ads_links]
     list_google_ads_links = GoogleAnalyticsAdminListGoogleAdsLinksOperator(
         task_id="list_google_ads_links",
-        property_id=GA_GOOGLE_ADS_PROPERTY_ID,
+        property_id=get_google_ads_property_id_task,
         gcp_conn_id=CONNECTION_ID,
     )
     # [END howto_marketing_platform_list_google_ads_links]
@@ -166,7 +189,7 @@ with DAG(
     # [START howto_marketing_platform_get_google_ad_link]
     get_ad_link = GoogleAnalyticsAdminGetGoogleAdsLinkOperator(
         task_id="get_ad_link",
-        property_id=GA_GOOGLE_ADS_PROPERTY_ID,
+        property_id=get_google_ads_property_id_task,
         google_ads_link_id=GA_ADS_LINK_ID,
         gcp_conn_id=CONNECTION_ID,
     )
@@ -180,7 +203,7 @@ with DAG(
 
     (
         # TEST SETUP
-        setup_connection_task
+        [setup_connection_task, get_google_analytics_account_id_task, get_google_ads_property_id_task]
         # TEST BODY
         >> list_accounts
         >> create_property

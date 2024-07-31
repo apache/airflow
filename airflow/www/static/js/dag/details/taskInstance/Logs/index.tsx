@@ -19,7 +19,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Text, Box, Flex, Checkbox, Icon, Spinner } from "@chakra-ui/react";
-import { MdWarning } from "react-icons/md";
+import { MdInfo, MdWarning } from "react-icons/md";
 
 import { getMetaValue } from "src/utils";
 import useTaskLog from "src/api/useTaskLog";
@@ -166,6 +166,7 @@ const Logs = ({
                   taskId={taskId}
                   executionDate={executionDate}
                   tryNumber={tryNumber}
+                  mapIndex={mapIndex}
                 />
               )
             )}
@@ -248,9 +249,25 @@ const Logs = ({
           borderColor="gray.400"
           alignItems="center"
           p={2}
+          mb={2}
         >
           <Icon as={MdWarning} color="yellow.500" mr={2} />
           <Text fontSize="sm">{warning}</Text>
+        </Flex>
+      )}
+      {(!data || !parsedLogs) && !isLoading && (
+        <Flex
+          bg="blue.100"
+          borderRadius={2}
+          borderColor="gray.400"
+          alignItems="center"
+          p={2}
+          mb={2}
+        >
+          <Icon as={MdInfo} color="blue.600" mr={2} />
+          <Text fontSize="sm">
+            No task logs found. Try the Event Log tab for more context.
+          </Text>
         </Flex>
       )}
       {isLoading ? (

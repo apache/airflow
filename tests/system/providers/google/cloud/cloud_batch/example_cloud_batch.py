@@ -35,31 +35,27 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchSubmitJobOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_cloud_batch"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "cloud_batch"
+REGION = "us-central1"
 
-region = "us-central1"
-job_name_prefix = "batch-system-test-job"
-job1_name = f"{job_name_prefix}1"
-job2_name = f"{job_name_prefix}2"
-
-submit1_task_name = "submit-job1"
-submit2_task_name = "submit-job2"
-
-delete1_task_name = "delete-job1"
-delete2_task_name = "delete-job2"
+job_name_prefix = "batch"
+job1_name = f"{job_name_prefix}-{DAG_ID}-{ENV_ID}-1".replace("_", "-")
+job2_name = f"{job_name_prefix}-{DAG_ID}-{ENV_ID}-2".replace("_", "-")
 
 list_jobs_task_name = "list-jobs"
 list_tasks_task_name = "list-tasks"
 
-clean1_task_name = "clean-job1"
-clean2_task_name = "clean-job2"
-
 
 def _assert_jobs(ti):
     job_names = ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value")
-    job_names_str = job_names[0][0]["name"].split("/")[-1] + " " + job_names[0][1]["name"].split("/")[-1]
+    job_names_str = ""
+    if job_names and len(job_names) > 0:
+        for job in job_names[0]:
+            job_names_str += job["name"].split("/")[-1] + " "
     assert job1_name in job_names_str
     assert job2_name in job_names_str
 
@@ -125,9 +121,9 @@ with DAG(
 ) as dag:
     # [START howto_operator_batch_submit_job]
     submit1 = CloudBatchSubmitJobOperator(
-        task_id=submit1_task_name,
+        task_id="submit-job1",
         project_id=PROJECT_ID,
-        region=region,
+        region=REGION,
         job_name=job1_name,
         job=_create_job(),
         dag=dag,
@@ -137,9 +133,9 @@ with DAG(
 
     # [START howto_operator_batch_submit_job_deferrable_mode]
     submit2 = CloudBatchSubmitJobOperator(
-        task_id=submit2_task_name,
+        task_id="submit-job2",
         project_id=PROJECT_ID,
-        region=region,
+        region=REGION,
         job_name=job2_name,
         job=batch_v1.Job.to_dict(_create_job()),
         dag=dag,
@@ -149,7 +145,7 @@ with DAG(
 
     # [START howto_operator_batch_list_tasks]
     list_tasks = CloudBatchListTasksOperator(
-        task_id=list_tasks_task_name, project_id=PROJECT_ID, region=region, job_name=job1_name, dag=dag
+        task_id=list_tasks_task_name, project_id=PROJECT_ID, region=REGION, job_name=job1_name, dag=dag
     )
     # [END howto_operator_batch_list_tasks]
 
@@ -159,9 +155,9 @@ with DAG(
     list_jobs = CloudBatchListJobsOperator(
         task_id=list_jobs_task_name,
         project_id=PROJECT_ID,
-        region=region,
-        limit=2,
-        filter=f"name:projects/{PROJECT_ID}/locations/{region}/jobs/{job_name_prefix}*",
+        region=REGION,
+        limit=10,
+        filter=f"name:projects/{PROJECT_ID}/locations/{REGION}/jobs/{job_name_prefix}*",
         dag=dag,
     )
     # [END howto_operator_batch_list_jobs]
@@ -172,7 +168,7 @@ with DAG(
     delete_job1 = CloudBatchDeleteJobOperator(
         task_id="delete-job1",
         project_id=PROJECT_ID,
-        region=region,
+        region=REGION,
         job_name=job1_name,
         dag=dag,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -182,7 +178,7 @@ with DAG(
     delete_job2 = CloudBatchDeleteJobOperator(
         task_id="delete-job2",
         project_id=PROJECT_ID,
-        region=region,
+        region=REGION,
         job_name=job2_name,
         dag=dag,
         trigger_rule=TriggerRule.ALL_DONE,

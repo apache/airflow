@@ -24,7 +24,6 @@ import pytest
 
 from airflow.dag_processing.processor import DagFileProcessor
 from airflow.security import permissions
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
@@ -192,20 +191,18 @@ TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "
 TEST_TAGS = ["example", "test", "team", "group"]
 
 
-def _process_file(file_path, session):
+def _process_file(file_path):
     dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
-    dag_file_processor.process_file(file_path, [], False, session)
+    dag_file_processor.process_file(file_path, [], False)
 
 
 @pytest.fixture
 def working_dags(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
-
-    with create_session() as session:
-        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-            path = tmp_path / f"{dag_id}.py"
-            path.write_text(dag_contents_template.format(dag_id, tag))
-            _process_file(path, session)
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        path = tmp_path / f"{dag_id}.py"
+        path.write_text(dag_contents_template.format(dag_id, tag))
+        _process_file(path)
 
 
 @pytest.fixture
@@ -215,14 +212,13 @@ def working_dags_with_read_perm(tmp_path):
         "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_read'}}}}) "
     )
-    with create_session() as session:
-        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-            path = tmp_path / f"{dag_id}.py"
-            if dag_id == "filter_test_1":
-                path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
-            else:
-                path.write_text(dag_contents_template.format(dag_id, tag))
-            _process_file(path, session)
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        path = tmp_path / f"{dag_id}.py"
+        if dag_id == "filter_test_1":
+            path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
+        else:
+            path.write_text(dag_contents_template.format(dag_id, tag))
+        _process_file(path)
 
 
 @pytest.fixture
@@ -232,50 +228,44 @@ def working_dags_with_edit_perm(tmp_path):
         "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_edit'}}}}) "
     )
-    with create_session() as session:
-        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-            path = tmp_path / f"{dag_id}.py"
-            if dag_id == "filter_test_1":
-                path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
-            else:
-                path.write_text(dag_contents_template.format(dag_id, tag))
-            _process_file(path, session)
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        path = tmp_path / f"{dag_id}.py"
+        if dag_id == "filter_test_1":
+            path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
+        else:
+            path.write_text(dag_contents_template.format(dag_id, tag))
+        _process_file(path)
 
 
 @pytest.fixture
 def broken_dags(tmp_path, working_dags):
-    with create_session() as session:
-        for dag_id in TEST_FILTER_DAG_IDS:
-            path = tmp_path / f"{dag_id}.py"
-            path.write_text("airflow DAG")
-            _process_file(path, session)
+    for dag_id in TEST_FILTER_DAG_IDS:
+        path = tmp_path / f"{dag_id}.py"
+        path.write_text("airflow DAG")
+        _process_file(path)
 
 
 @pytest.fixture
 def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
-    with create_session() as session:
-        for dag_id in TEST_FILTER_DAG_IDS:
-            path = tmp_path / f"{dag_id}.py"
-            path.write_text("airflow DAG")
-            _process_file(path, session)
+    for dag_id in TEST_FILTER_DAG_IDS:
+        path = tmp_path / f"{dag_id}.py"
+        path.write_text("airflow DAG")
+        _process_file(path)
 
 
 @pytest.fixture
 def broken_dags_after_working(tmp_path):
     # First create and process a DAG file that works
     path = tmp_path / "all_in_one.py"
-    with create_session() as session:
-        contents = "from airflow import DAG\n"
-        for i, dag_id in enumerate(TEST_FILTER_DAG_IDS):
-            contents += f"dag{i} = DAG('{dag_id}')\n"
-        path.write_text(contents)
-        _process_file(path, session)
+    contents = "from airflow import DAG\n"
+    for i, dag_id in enumerate(TEST_FILTER_DAG_IDS):
+        contents += f"dag{i} = DAG('{dag_id}')\n"
+    path.write_text(contents)
+    _process_file(path)
 
-    # Then break it!
-    with create_session() as session:
-        contents += "foobar()"
-        path.write_text(contents)
-        _process_file(path, session)
+    contents += "foobar()"
+    path.write_text(contents)
+    _process_file(path)
 
 
 def test_home_filter_tags(working_dags, admin_client):

@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_generative_model_dag"
+DAG_ID = "vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 CONTENTS = [PROMPT]

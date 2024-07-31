@@ -259,7 +259,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_db_instance_state(db_instance_id)
 
         target_state = target_state.lower()
-        if target_state in ("available", "deleted"):
+        if target_state in ("available", "deleted", "stopped"):
             waiter = self.conn.get_waiter(f"db_instance_{target_state}")  # type: ignore
             wait(
                 waiter=waiter,
@@ -272,7 +272,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             )
         else:
             self._wait_for_state(poke, target_state, check_interval, max_attempts)
-            self.log.info("DB cluster snapshot '%s' reached the '%s' state", db_instance_id, target_state)
+            self.log.info("DB cluster '%s' reached the '%s' state", db_instance_id, target_state)
 
     def get_db_cluster_state(self, db_cluster_id: str) -> str:
         """
@@ -310,7 +310,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_db_cluster_state(db_cluster_id)
 
         target_state = target_state.lower()
-        if target_state in ("available", "deleted"):
+        if target_state in ("available", "deleted", "stopped"):
             waiter = self.conn.get_waiter(f"db_cluster_{target_state}")  # type: ignore
             waiter.wait(
                 DBClusterIdentifier=db_cluster_id,

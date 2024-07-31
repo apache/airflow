@@ -30,15 +30,27 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocDeleteClusterOperator,
     DataprocSubmitJobOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_pyspark"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-JOB_FILE_URI = "gs://airflow-system-tests-resources/dataproc/pyspark/dataproc-pyspark-job-pi.py"
-CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
+
+CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
+
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+JOB_FILE = "dataproc-pyspark-job-pi.py"
+GCS_JOB_FILE = f"gs://{BUCKET_NAME}/dataproc/{JOB_FILE}"
 REGION = "europe-west1"
 
 # Cluster definition
@@ -60,7 +72,7 @@ CLUSTER_CONFIG = {
 PYSPARK_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
-    "pyspark_job": {"main_python_file_uri": JOB_FILE_URI},
+    "pyspark_job": {"main_python_file_uri": GCS_JOB_FILE},
 }
 # [END how_to_cloud_dataproc_pyspark_config]
 
@@ -72,6 +84,19 @@ with DAG(
     catchup=False,
     tags=["example", "dataproc", "pyspark"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+    )
+
+    move_job_file = GCSSynchronizeBucketsOperator(
+        task_id="move_job_file",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="dataproc/pyspark",
+        destination_bucket=BUCKET_NAME,
+        destination_object="dataproc",
+        recursive=True,
+    )
+
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
         project_id=PROJECT_ID,
@@ -94,13 +119,20 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
     (
         # TEST SETUP
-        create_cluster
+        create_bucket
+        >> move_job_file
+        >> create_cluster
         # TEST BODY
         >> pyspark_task
         # TEST TEARDOWN
         >> delete_cluster
+        >> delete_bucket
     )
 
     from tests.system.utils.watcher import watcher
