@@ -105,6 +105,10 @@ class DatasetAliasModel(Base):
     )
 
     __tablename__ = "dataset_alias"
+    __table_args__ = (
+        Index("idx_name_unique", name, unique=True),
+        {"sqlite_autoincrement": True},  # ensures PK values not reused
+    )
 
     datasets = relationship(
         "DatasetModel",
@@ -123,6 +127,15 @@ class DatasetAliasModel(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, (self.__class__, DatasetAlias)):
+            return self.name == other.name
+        else:
+            return NotImplemented
 
 
 class DatasetModel(Base):

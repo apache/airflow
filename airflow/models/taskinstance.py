@@ -845,8 +845,9 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if session and task_instance in session:
-        session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
+    if not InternalApiConfig.get_use_internal_api():
+        if session and task_instance in session:
+            session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
     ti = TaskInstance.get_task_instance(
         dag_id=task_instance.dag_id,

@@ -114,7 +114,7 @@ class TestAwsBaseOperator:
         ],
     )
     def test_execute(self, op_kwargs, dag_maker):
-        with dag_maker("test_aws_base_operator"):
+        with dag_maker("test_aws_base_operator", serialized=True):
             FakeS3Operator(task_id="fake-task-id", **op_kwargs)
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
@@ -189,7 +189,7 @@ class TestAwsBaseOperator:
     )
     @pytest.mark.db_test
     def test_region_in_partial_operator(self, region, region_name, expected_region_name, dag_maker):
-        with dag_maker("test_region_in_partial_operator"):
+        with dag_maker("test_region_in_partial_operator", serialized=True):
             FakeS3Operator.partial(
                 task_id="fake-task-id",
                 region=region,
@@ -205,7 +205,7 @@ class TestAwsBaseOperator:
 
     @pytest.mark.db_test
     def test_ambiguous_region_in_partial_operator(self, dag_maker):
-        with dag_maker("test_ambiguous_region_in_partial_operator"):
+        with dag_maker("test_ambiguous_region_in_partial_operator", serialized=True):
             FakeS3Operator.partial(
                 task_id="fake-task-id",
                 region="eu-west-1",
