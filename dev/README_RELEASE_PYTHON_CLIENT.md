@@ -531,6 +531,9 @@ Cheers,
 ## Publish release to SVN
 
 ```shell script
+# Go to Airflow sources first
+cd <YOUR_AIRFLOW_REPO_ROOT>
+export AIRFLOW_REPO_ROOT="$(pwd)"
 # Go to Airflow python client sources first
 cd <YOUR_AIRFLOW_CLIENT_REPO_ROOT>
 export CLIENT_REPO_ROOT="$(pwd)"
@@ -561,10 +564,10 @@ done
 # Remove old release
 cd ..
 svn rm ${PREVIOUS_VERSION}
-svn commit -m "Release Apache Airflow Python Client ${VERSION} from ${RC}"
+svn commit -m "Release Apache Airflow Python Client ${VERSION} from ${VERSION}${VERSION_SUFFIX}"
 ```
 
-Verify that the packages appear in [airflow](https://downloads.apache.org/airflow/clients/python/)
+Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/release/airflow/clients/python)
 
 ## Prepare PyPI "release" packages
 
