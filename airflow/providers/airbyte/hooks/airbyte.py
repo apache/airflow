@@ -103,14 +103,14 @@ class AirbyteHook(BaseHook):
         except Exception as e:
             raise AirflowException(e)
 
-    async def get_job_status(self, job_id: int) -> str:
+    def get_job_status(self, job_id: int) -> str:
         """
         Retrieve the status for a specific job of an Airbyte Sync.
 
         :param job_id: The ID of an Airbyte Sync Job.
         """
         self.log.info("Getting the status of job run %s.", job_id)
-        response = await self.get_job_details(job_id=job_id)
+        response = self.get_job_details(job_id=job_id)
         return response.status
 
     def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
