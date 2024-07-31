@@ -129,7 +129,7 @@
     "moment-timezone": "^0.5.43",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "react-icons": "^5.1.0",
+    "react-icons": "^5.2.1",
     "react-json-view": "^1.21.3",
     "react-markdown": "^8.0.4",
     "react-query": "^3.39.1",
