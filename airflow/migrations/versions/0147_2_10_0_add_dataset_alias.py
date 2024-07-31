@@ -52,6 +52,7 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("dataset_alias_pkey")),
     )
+    op.create_index("idx_name_unique", "dataset_alias", ["name"], unique=True)
 
 
 def downgrade():

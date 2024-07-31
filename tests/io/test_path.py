@@ -280,10 +280,12 @@ class TestFs:
 
         _to.unlink()
 
-        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0][0] == Dataset(uri=_from_path)
-        assert hook_lineage_collector.collected_datasets.outputs[0][0] == Dataset(uri=_to_path)
+        collected_datasets = hook_lineage_collector.collected_datasets
+
+        assert len(collected_datasets.inputs) == 1
+        assert len(collected_datasets.outputs) == 1
+        assert collected_datasets.inputs[0].dataset == Dataset(uri=_from_path)
+        assert collected_datasets.outputs[0].dataset == Dataset(uri=_to_path)
 
     def test_move_remote(self, hook_lineage_collector):
         attach("fakefs", fs=FakeRemoteFileSystem())
@@ -301,10 +303,12 @@ class TestFs:
 
         _to.unlink()
 
-        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0][0] == Dataset(uri=str(_from))
-        assert hook_lineage_collector.collected_datasets.outputs[0][0] == Dataset(uri=str(_to))
+        collected_datasets = hook_lineage_collector.collected_datasets
+
+        assert len(collected_datasets.inputs) == 1
+        assert len(collected_datasets.outputs) == 1
+        assert collected_datasets.inputs[0].dataset == Dataset(uri=str(_from))
+        assert collected_datasets.outputs[0].dataset == Dataset(uri=str(_to))
 
     def test_copy_remote_remote(self, hook_lineage_collector):
         attach("ffs", fs=FakeRemoteFileSystem(skip_instance_cache=True))
@@ -335,7 +339,7 @@ class TestFs:
         _to.rmdir(recursive=True)
 
         assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0][0] == Dataset(uri=str(_from_file))
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(uri=str(_from_file))
 
         # Empty file - shutil.copyfileobj does nothing
         assert len(hook_lineage_collector.collected_datasets.outputs) == 0

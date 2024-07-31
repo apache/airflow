@@ -120,16 +120,20 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
+    RUN_TESTS=${RUN_TESTS:="false"}
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
         export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:9080
-        # some random secret key - used in tests
+        # some random secret keys. Setting them as environment variables will make them used in tests and in
+        # the internal API server
         export AIRFLOW__CORE__INTERNAL_API_SECRET_KEY="Z27xjUwQTz4txlWZyJzLqg=="
-        export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
+        export AIRFLOW__CORE__FERNET_KEY="l7KBR9aaH2YumhL1InlNf24gTNna8aW2WiwF2s-n_PE="
+        if [[ ${START_AIRFLOW=} != "true" ]]; then
+            export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
+        fi
     fi
 
-    RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
     # Added to have run-tests on path
@@ -342,7 +346,8 @@ function check_run_tests() {
         echo "${COLOR_BLUE}Starting internal API server:${COLOR_RESET}"
         # We need to start the internal API server before running tests
         airflow db migrate
-        airflow internal-api >"${AIRFLOW_HOME}/logs/internal-api.log" 2>&1 &
+        # We set a very large clock grace allowing to have tests running in other time/years
+        AIRFLOW__CORE__INTERNAL_API_CLOCK_GRACE=999999999 airflow internal-api >"${AIRFLOW_HOME}/logs/internal-api.log" 2>&1 &
         echo
         echo -n "${COLOR_YELLOW}Waiting for internal API server to listen on 9080. ${COLOR_RESET}"
         echo

@@ -129,9 +129,9 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun.fetch_task_instances,
         DagRun.get_previous_dagrun,
         DagRun.get_previous_scheduled_dagrun,
+        DagRun.get_task_instances,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
-        DagRun._get_task_instances,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
         SerializedDagModel.remove_deleted_dags,
@@ -171,9 +171,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     if accept != "application/json":
         raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
+    clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
-        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        expiration_time_in_seconds=clock_grace,
+        leeway_in_seconds=clock_grace,
         audience="api",
     )
     try:
