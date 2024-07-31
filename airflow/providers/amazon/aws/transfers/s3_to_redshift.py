@@ -77,6 +77,7 @@ class S3ToRedshiftOperator(BaseOperator):
         "copy_options",
         "redshift_conn_id",
         "method",
+        "redshift_data_api_kwargs",
         "aws_conn_id",
     )
     template_ext: Sequence[str] = ()

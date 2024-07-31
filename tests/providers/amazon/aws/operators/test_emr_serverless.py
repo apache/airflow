@@ -836,6 +836,27 @@ class TestEmrServerlessStartJobOperator:
         with pytest.raises(TaskDeferred):
             operator.execute(self.mock_context)
 
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_start_job_deferrable_without_wait_for_completion(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        result = operator.execute(self.mock_context)
+
+        assert result == job_run_id
+
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_start_job_deferrable_app_not_started(self, mock_conn, mock_get_waiter):

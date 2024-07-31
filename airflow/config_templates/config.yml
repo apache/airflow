@@ -89,7 +89,7 @@ core:
         This defines the maximum number of task instances that can run concurrently per scheduler in
         Airflow, regardless of the worker count. Generally this value, multiplied by the number of
         schedulers in your cluster, is the maximum number of task instances with the running
-        state in the metadata database.
+        state in the metadata database. Setting this value to zero allows unlimited parallelism.
       version_added: ~
       type: string
       example: ~

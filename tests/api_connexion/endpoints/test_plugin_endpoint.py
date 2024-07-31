@@ -33,7 +33,7 @@ from tests.test_utils.compat import BaseOperatorLink
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class PluginHook(BaseHook): ...

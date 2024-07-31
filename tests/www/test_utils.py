@@ -28,8 +28,10 @@ import pendulum
 import pytest
 from bs4 import BeautifulSoup
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
+from flask_wtf import FlaskForm
 from markupsafe import Markup
 from sqlalchemy.orm import Query
+from wtforms.fields import StringField, TextAreaField
 
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
@@ -41,6 +43,7 @@ from airflow.www.utils import (
     json_f,
     wrapped_markdown,
 )
+from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
 from tests.test_utils.config import conf_vars
 
 
@@ -207,6 +210,7 @@ class TestUtils:
 
         assert epoch_time == expected_epoch_time
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_make_cache_key(self):
         from airflow.www.app import cached_app
@@ -219,6 +223,7 @@ class TestUtils:
             result_cache_key = utils.make_cache_key()
             assert result_cache_key == expected_cache_key
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
@@ -248,6 +253,7 @@ class TestUtils:
         assert "<a&1>" not in html_map_index_none
         assert "<b2>" not in html_map_index_none
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_link(self):
         from airflow.www.app import cached_app
@@ -258,6 +264,7 @@ class TestUtils:
         assert "%3Ca%261%3E" in html
         assert "<a&1>" not in html
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_link_when_dag_is_none(self):
         """Test that when there is no dag_id, dag_link does not contain hyperlink"""
@@ -269,6 +276,7 @@ class TestUtils:
         assert "None" in html
         assert "<a href=" not in html
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
@@ -661,6 +669,7 @@ def test_get_col_default_not_existing(session):
     assert default_value is None
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, session):
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
@@ -703,3 +712,52 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     assert len(dag_runs) == 6
     assert len(set(x.dag_id for x in dag_runs)) == 3
     assert len(set(x.run_id for x in dag_runs)) == 3
+
+
+@pytest.fixture
+def app():
+    from flask import Flask
+
+    app = Flask(__name__)
+    app.config["WTF_CSRF_ENABLED"] = False
+    app.config["SECRET_KEY"] = "secret"
+    with app.app_context():
+        yield app
+
+
+class TestWidgets:
+    def test_airflow_datetime_picker_ro_widget(self, app):
+        class TestForm(FlaskForm):
+            datetime_field = StringField(widget=AirflowDateTimePickerROWidget())
+
+        form = TestForm()
+        field = form.datetime_field
+
+        html_output = field()
+
+        assert 'readonly="true"' in html_output
+        assert "input-group datetime datetimepicker" in html_output
+
+    def test_bs3_text_field_ro_widget(self, app):
+        class TestForm(FlaskForm):
+            text_field = StringField(widget=BS3TextFieldROWidget())
+
+        form = TestForm()
+        field = form.text_field
+
+        html_output = field()
+
+        assert 'readonly="true"' in html_output
+        assert "form-control" in html_output
+
+    def test_bs3_text_area_ro_widget(self, app):
+        class TestForm(FlaskForm):
+            textarea_field = TextAreaField(widget=BS3TextAreaROWidget())
+
+        form = TestForm()
+        field = form.textarea_field
+
+        html_output = field()
+
+        assert 'readonly="true"' in html_output
+        assert "form-control" in html_output

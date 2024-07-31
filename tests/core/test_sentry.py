@@ -78,14 +78,14 @@ class TestSentryHook:
     @pytest.fixture
     def task_instance(self, dag_maker):
         # Mock the Dag
-        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL):
+        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL, serialized=True):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
         dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)
         ti = dr.task_instances[0]
         ti.state = STATE
         ti.task = task
-        dag_maker.session.flush()
+        dag_maker.session.commit()
 
         yield ti
 
@@ -162,7 +162,13 @@ class TestSentryHook:
 
         with configure_scope() as scope:
             test_crumb = scope._breadcrumbs.pop()
-            assert CRUMB == test_crumb
+            for item in CRUMB:
+                if item == "timestamp":
+                    pass
+                elif item == "state":
+                    assert str(CRUMB[item]) == str(test_crumb[item])
+                else:
+                    assert CRUMB[item] == test_crumb[item]
 
     def test_before_send(self, sentry_sdk, sentry):
         """

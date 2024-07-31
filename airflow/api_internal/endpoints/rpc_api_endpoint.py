@@ -129,6 +129,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun.fetch_task_instances,
         DagRun.get_previous_dagrun,
         DagRun.get_previous_scheduled_dagrun,
+        DagRun.get_task_instances,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
@@ -163,10 +164,18 @@ def log_and_build_error_response(message, status):
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     """Handle Internal API /internal_api/v1/rpcapi endpoint."""
+    content_type = request.headers.get("Content-Type")
+    if content_type != "application/json":
+        raise PermissionDenied("Expected Content-Type: application/json")
+    accept = request.headers.get("Accept")
+    if accept != "application/json":
+        raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
+    clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
-        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        expiration_time_in_seconds=clock_grace,
+        leeway_in_seconds=clock_grace,
         audience="api",
     )
     try:
@@ -177,11 +186,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     except BadSignature:
         raise PermissionDenied("Bad Signature. Please use only the tokens provided by the API.")
     except InvalidAudienceError:
-        raise PermissionDenied("Invalid audience for the request", exc_info=True)
+        raise PermissionDenied("Invalid audience for the request")
     except InvalidSignatureError:
-        raise PermissionDenied("The signature of the request was wrong", exc_info=True)
+        raise PermissionDenied("The signature of the request was wrong")
     except ImmatureSignatureError:
-        raise PermissionDenied("The signature of the request was sent from the future", exc_info=True)
+        raise PermissionDenied("The signature of the request was sent from the future")
     except ExpiredSignatureError:
         raise PermissionDenied(
             "The signature of the request has expired. Make sure that all components "
@@ -214,13 +223,14 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     except Exception:
         return log_and_build_error_response(message="Error deserializing parameters.", status=400)
 
-    log.debug("Calling method %s\nparams: %s", method_name, params)
+    log.info("Calling method %s\nparams: %s", method_name, params)
     try:
         # Session must be created there as it may be needed by serializer for lazy-loaded fields.
         with create_session() as session:
             output = handler(**params, session=session)
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
+            log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)

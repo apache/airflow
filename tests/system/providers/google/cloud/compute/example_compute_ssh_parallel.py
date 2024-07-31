@@ -26,7 +26,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.google.cloud.operators.compute import (
@@ -38,7 +37,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [START howto_operator_gce_args_common]
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "cloud_compute_ssh_parallel"
@@ -72,7 +71,7 @@ GCE_INSTANCE_BODY = {
 
 with DAG(
     DAG_ID,
-    schedule="@once",
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "compute-ssh-parallel"],
@@ -124,14 +123,17 @@ with DAG(
         task_id="gcp_compute_delete_instance_task",
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_no_project_id]
-    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    chain(
-        gce_instance_insert,
-        [metadata_without_iap_tunnel, metadata_with_iap_tunnel],
-        gce_instance_delete,
+    (
+        # TEST SETUP
+        gce_instance_insert
+        # TEST BODY
+        >> [metadata_without_iap_tunnel, metadata_with_iap_tunnel]
+        # TEST TEARDOWN
+        >> gce_instance_delete
     )
 
     # ### Everything below this line is not part of example ###

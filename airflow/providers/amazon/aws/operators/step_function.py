@@ -48,6 +48,8 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
 
     :param state_machine_arn: ARN of the Step Function State Machine
     :param name: The name of the execution.
+    :param is_redrive_execution: Restarts unsuccessful executions of Standard workflows that did not
+            complete successfully in the last 14 days.
     :param state_machine_input: JSON data input to pass to the State Machine
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -73,7 +75,9 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
     """
 
     aws_hook_class = StepFunctionHook
-    template_fields: Sequence[str] = aws_template_fields("state_machine_arn", "name", "input")
+    template_fields: Sequence[str] = aws_template_fields(
+        "state_machine_arn", "name", "input", "is_redrive_execution"
+    )
     ui_color = "#f9c915"
     operator_extra_links = (StateMachineDetailsLink(), StateMachineExecutionsDetailsLink())
 
@@ -82,6 +86,7 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         *,
         state_machine_arn: str,
         name: str | None = None,
+        is_redrive_execution: bool = False,
         state_machine_input: dict | str | None = None,
         waiter_max_attempts: int = 30,
         waiter_delay: int = 60,
@@ -91,6 +96,7 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         super().__init__(**kwargs)
         self.state_machine_arn = state_machine_arn
         self.name = name
+        self.is_redrive_execution = is_redrive_execution
         self.input = state_machine_input
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -105,7 +111,11 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
             state_machine_arn=self.state_machine_arn,
         )
 
-        if not (execution_arn := self.hook.start_execution(self.state_machine_arn, self.name, self.input)):
+        if not (
+            execution_arn := self.hook.start_execution(
+                self.state_machine_arn, self.name, self.input, self.is_redrive_execution
+            )
+        ):
             raise AirflowException(f"Failed to start State Machine execution for: {self.state_machine_arn}")
 
         StateMachineExecutionsDetailsLink.persist(

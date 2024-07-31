@@ -235,7 +235,10 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
-                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                },
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
@@ -330,8 +333,11 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
-                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                 error=error,
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                },
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
