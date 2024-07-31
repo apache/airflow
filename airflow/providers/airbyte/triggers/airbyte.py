@@ -80,7 +80,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                     )
                     return
                 await asyncio.sleep(self.poll_interval)
-            job_run_status = await hook.get_job_status(self.job_id)
+            job_run_status = hook.get_job_status(self.job_id)
             if job_run_status == JobStatusEnum.SUCCEEDED:
                 yield TriggerEvent(
                     {
@@ -114,7 +114,7 @@ class AirbyteSyncTrigger(BaseTrigger):
 
         If job is in running state returns True if it is still running else return False
         """
-        job_run_status = await hook.get_job_status(self.job_id)
+        job_run_status = hook.get_job_status(self.job_id)
         if job_run_status in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
             return True
         return False

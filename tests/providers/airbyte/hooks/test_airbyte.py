@@ -93,10 +93,9 @@ class TestAirbyteHook:
         base_url = hook.get_server_url()
         assert base_url == expected_base_url
 
-    @pytest.mark.asyncio
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
-    async def test_get_job_status(self, get_job_mock):
-        mock_response = mock.Mock()
+    def test_get_job_status(self, get_job_mock):
+        mock_response = mock.AsyncMock()
         mock_response.job_response = JobResponse(
             connection_id="connection-mock",
             job_id="1",
@@ -105,8 +104,7 @@ class TestAirbyteHook:
             status=JobStatusEnum.RUNNING,
         )
         get_job_mock.return_value = mock_response
-
-        resp = await self.hook.get_job_status(job_id=self.job_id)
+        resp = self.hook.get_job_status(job_id=self.job_id)
         assert resp == JobStatusEnum.RUNNING
 
     @mock.patch("airbyte_api.jobs.Jobs.cancel_job")
