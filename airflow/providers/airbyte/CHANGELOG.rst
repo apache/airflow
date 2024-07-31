@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  This version introduce a new way to handle the connection to Airbyte using ``client_id`` and ``client_secret`` instead of ``login`` and ``password``.
+  You can get them accessing the Airbyte UI and creating a new Application in the Settings page.
+  You must remove the ``api_type`` parameter from your DAG it isn't required anymore.
+  The default scheme is now ``https`` instead of ``http``.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Breaking change, update provider to use Airbyte API Python SDK (#41122)``
+
 3.9.0
 .....
 
@@ -40,7 +56,6 @@ Misc
 
 
 .. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
 
 3.8.1
 .....
