@@ -129,7 +129,7 @@ function environment_initialization() {
         # the internal API server
         export AIRFLOW__CORE__INTERNAL_API_SECRET_KEY="Z27xjUwQTz4txlWZyJzLqg=="
         export AIRFLOW__CORE__FERNET_KEY="l7KBR9aaH2YumhL1InlNf24gTNna8aW2WiwF2s-n_PE="
-        if [[ ${RUN_TESTS} == "true" ]]; then
+        if [[ ${START_AIRFLOW=} != "true" ]]; then
             export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
         fi
     fi
