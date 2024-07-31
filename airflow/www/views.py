@@ -1740,11 +1740,11 @@ class Airflow(AirflowBaseView):
                 "triggerer_job",
             ]
 
-            def get_value_field(obj, name):
+            def get_field_value(obj, name):
                 if name == "try_number":
                     return getattr(obj, "_try_number")
                 elif name == 'execution_date':
-                    return timezone.coerce_datetime(ti.execution_date)
+                    return timezone.coerce_datetime(obj.execution_date)
                 else:
                     return getattr(obj, name)
 
@@ -1753,7 +1753,7 @@ class Airflow(AirflowBaseView):
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
                     # fetching values of task_instance to be shown under fixed names in UI
-                    (name, get_value_field(ti, name))
+                    (name, get_field_value(ti, name))
                     for name in dir(ti)
                     if not name.startswith("_") and name not in ti_attrs_to_skip
                 )
