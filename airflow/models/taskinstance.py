@@ -3043,7 +3043,7 @@ class TaskInstance(Base, LoggingMixin):
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Don't clear Xcom until the task is certain to execute, and check if we are resuming from deferral.
-        if not self.next_method:
+        if self.next_method:
             self.clear_xcom_data()
 
         with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"), Stats.timer(
