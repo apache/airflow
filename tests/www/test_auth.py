@@ -29,6 +29,8 @@ from airflow.www.auth import has_access
 
 mock_call = Mock()
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 class TestHasAccessDecorator:
     def test_has_access_decorator_raises_deprecation_warning(self):

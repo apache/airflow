@@ -1748,7 +1748,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 @pytest.mark.parametrize(
     (
         "github_event, github_actor, github_repository, pr_labels, "
-        "github_context_dict, runs_on_as_json_default, is_self_hosted_runner, "
+        "github_context_dict, runs_on_as_json_default, runs_on_as_docs_build, is_self_hosted_runner, "
         "is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner, exception"
     ),
     [
@@ -1760,6 +1760,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             dict(),
             # TODO: revert it when we fix self-hosted runners
             '["ubuntu-22.04"]',
+            '["self-hosted", "asf-runner"]',
             # '["self-hosted", "Linux", "X64"]',
             # TODO: revert it when we fix self-hosted runners
             "false",
@@ -1782,6 +1783,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1797,6 +1799,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1814,6 +1817,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1829,6 +1833,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1846,6 +1851,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1861,6 +1867,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1878,6 +1885,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1893,6 +1901,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1910,6 +1919,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             [],
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1925,6 +1935,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1942,6 +1953,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1958,6 +1970,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             ("use self-hosted runners",),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1973,6 +1986,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             ("use public runners",),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1991,7 +2005,8 @@ def test_runs_on(
     github_repository: str,
     pr_labels: tuple[str, ...],
     github_context_dict: dict[str, Any],
-    runs_on_as_json_default,
+    runs_on_as_json_default: str,
+    runs_on_as_docs_build: str,
     is_self_hosted_runner: str,
     is_airflow_runner: str,
     is_amd_runner: str,
@@ -2020,6 +2035,7 @@ def test_runs_on(
     else:
         stderr = get_output()
         assert_outputs_are_printed({"runs-on-as-json-default": runs_on_as_json_default}, str(stderr))
+        assert_outputs_are_printed({"runs-on-as-json-docs-build": runs_on_as_docs_build}, str(stderr))
         assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
         assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
         assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))

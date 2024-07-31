@@ -37,7 +37,7 @@ from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.mock_operators import CustomOperator
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
