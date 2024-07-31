@@ -40,6 +40,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if not isinstance(o, (pl.DataFrame, pl.Series)):
         return "", "", 0, False
 
+    name = qualname(o)
     if isinstance(o, pl.Series):
         o = o.to_frame(o.name)
 
@@ -47,7 +48,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         o.write_parquet(io, compression="snappy")
         result = io.getvalue().hex()
 
-    return result, qualname(o), __version__, True
+    return result, name, __version__, True
 
 
 def deserialize(classname: str, version: int, data: object) -> pl.DataFrame | pl.Series:

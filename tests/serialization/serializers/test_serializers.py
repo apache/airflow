@@ -386,6 +386,8 @@ class TestSerializers:
         assert deserialize(ser_value) == expected
 
     def test_polars_frame(self):
+        from datetime import date, datetime, time
+
         import polars as pl
 
         frame = pl.DataFrame(
@@ -395,12 +397,12 @@ class TestSerializers:
                 "string": ["a", "b", "c"],
                 "binary": [b"a", b"b", b"c"],
                 "boolean": [True, False, True],
-                "date": [pl.date(2021, 1, 1), pl.date(2021, 1, 2), pl.date(2021, 1, 3)],
-                "time": [pl.time(12, 0, 0), pl.time(12, 0, 1), pl.time(12, 0, 2)],
+                "date": [date(2021, 1, 1), date(2021, 1, 2), date(2021, 1, 3)],
+                "time": [time(12, 0, 0), time(12, 0, 1), time(12, 0, 2)],
                 "timestamp": [
-                    pl.datetime(2021, 1, 1, 12, 0, 0),
-                    pl.datetime(2021, 1, 1, 12, 0, 1),
-                    pl.datetime(2021, 1, 1, 12, 0, 2),
+                    datetime(2021, 1, 1, 12, 0, 0),
+                    datetime(2021, 1, 1, 12, 0, 1),
+                    datetime(2021, 1, 1, 12, 0, 2),
                 ],
             },
             schema_overrides={
@@ -416,9 +418,12 @@ class TestSerializers:
         )
         dump = serialize(frame)
         load = deserialize(dump)
+        assert isinstance(load, pl.DataFrame)
         assert frame.equals(load)
 
     def test_polars_series(self):
+        from datetime import date, datetime, time
+
         import polars as pl
 
         frame = pl.DataFrame(
@@ -428,12 +433,12 @@ class TestSerializers:
                 "string": ["a", "b", "c"],
                 "binary": [b"a", b"b", b"c"],
                 "boolean": [True, False, True],
-                "date": [pl.date(2021, 1, 1), pl.date(2021, 1, 2), pl.date(2021, 1, 3)],
-                "time": [pl.time(12, 0, 0), pl.time(12, 0, 1), pl.time(12, 0, 2)],
+                "date": [date(2021, 1, 1), date(2021, 1, 2), date(2021, 1, 3)],
+                "time": [time(12, 0, 0), time(12, 0, 1), time(12, 0, 2)],
                 "timestamp": [
-                    pl.datetime(2021, 1, 1, 12, 0, 0),
-                    pl.datetime(2021, 1, 1, 12, 0, 1),
-                    pl.datetime(2021, 1, 1, 12, 0, 2),
+                    datetime(2021, 1, 1, 12, 0, 0),
+                    datetime(2021, 1, 1, 12, 0, 1),
+                    datetime(2021, 1, 1, 12, 0, 2),
                 ],
             },
             schema_overrides={
@@ -451,4 +456,5 @@ class TestSerializers:
             dump = serialize(field)
             load = deserialize(dump)
 
+            assert isinstance(load, pl.Series)
             assert field.equals(load)
