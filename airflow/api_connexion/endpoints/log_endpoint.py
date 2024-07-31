@@ -85,7 +85,7 @@ def get_log(
     full_content: bool = False,
     map_index: int = -1,
     offset: int = 0,
-    limit: int = 100,
+    limit: int = 1000,
     token: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
