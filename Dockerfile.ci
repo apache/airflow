@@ -902,6 +902,7 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
+    RUN_TESTS=${RUN_TESTS:="false"}
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
@@ -910,10 +911,11 @@ function environment_initialization() {
         # the internal API server
         export AIRFLOW__CORE__INTERNAL_API_SECRET_KEY="Z27xjUwQTz4txlWZyJzLqg=="
         export AIRFLOW__CORE__FERNET_KEY="l7KBR9aaH2YumhL1InlNf24gTNna8aW2WiwF2s-n_PE="
-        export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
+        if [[ ${RUN_TESTS} == "true" ]]; then
+            export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
+        fi
     fi
 
-    RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
     # Added to have run-tests on path
