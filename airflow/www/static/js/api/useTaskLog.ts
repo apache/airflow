@@ -30,7 +30,6 @@ const taskLogApi = getMetaValue("task_log_api");
 interface Props extends API.GetLogVariables {
   state?: TaskInstance["state"];
 }
-
 const useTaskLog = ({
   dagId,
   dagRunId,
@@ -39,7 +38,7 @@ const useTaskLog = ({
   mapIndex,
   fullContent = false,
   state,
-  limit = 5,
+  limit = 9000,
 }: Props) => {
   let url: string = "";
   const [isPreviousStatePending, setPrevState] = useState(true);
