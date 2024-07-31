@@ -201,8 +201,7 @@ class SFTPOperator(BaseOperator):
             input: file://<local_host>/path
             output: file://<remote_host>:<remote_port>/path.
         """
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         scheme = "file"

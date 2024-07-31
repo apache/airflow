@@ -22,7 +22,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-from openlineage.client.facet import SourceCodeJobFacet
+from openlineage.client.facet_v2 import source_code_job
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -67,7 +67,7 @@ def test_extract_operator_bash_command_enabled(mocked_source_enabled):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = BashExtractor(operator).extract()
-    assert result.job_facets["sourceCode"] == SourceCodeJobFacet("bash", "exit 0;")
+    assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet("bash", "exit 0;")
     assert "unknownSourceAttribute" in result.run_facets
     unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
     assert len(unknown_items) == 1

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import warnings
 from typing import TYPE_CHECKING
 
@@ -174,6 +175,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
     :param job_id:  job_id to check the state
     :param aws_conn_id: Reference to AWS connection id
     :param waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made. Defaults to an infinite wait.
     """
 
     def __init__(
@@ -183,7 +185,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = "aws_default",
         poll_interval: int | None = None,  # deprecated
         waiter_delay: int = 30,
-        waiter_max_attempts: int = 600,
+        waiter_max_attempts: int = sys.maxsize,
     ):
         if poll_interval is not None:
             warnings.warn(

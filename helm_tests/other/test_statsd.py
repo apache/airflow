@@ -243,8 +243,9 @@ class TestStatsd:
         mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
         mappings_yml_obj = yaml.safe_load(mappings_yml)
 
-        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
-        assert "airflow_pool_starving_tasks" == mappings_yml_obj["mappings"][-1]["name"]
+        names = [mapping["name"] for mapping in mappings_yml_obj["mappings"]]
+        assert "airflow_dagrun_dependency_check" in names
+        assert "airflow_pool_starving_tasks" in names
 
     def test_statsd_configmap_when_exist_extra_mappings(self):
         extra_mapping = {

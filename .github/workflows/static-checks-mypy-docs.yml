@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
+      runs-on-as-json-docs-build:
+        description: "The array of labels (in json form) determining the labels used for docs build."
+        required: true
+        type: string
       image-tag:
         description: "Tag to set for the image"
         required: true
@@ -175,9 +179,11 @@ jobs:
           INCLUDE_MYPY_VOLUME: "false"
 
   build-docs:
-    timeout-minutes: 60
+    timeout-minutes: 150
     name: "Build documentation"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    # For canary runs we need to push documentation to AWS S3 and preparing it takes a lot of space
+    # So we should use self-hosted ASF runners for this
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
     strategy:
       fail-fast: false
       matrix:
