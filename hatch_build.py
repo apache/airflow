@@ -194,6 +194,9 @@ DOC_EXTRAS: dict[str, list[str]] = {
 
 DEVEL_EXTRAS: dict[str, list[str]] = {
     # START OF devel extras
+    "devel-polars": [
+        "polars>=1.0.0",
+    ],
     "devel-debuggers": [
         "ipdb>=0.13.13",
     ],
@@ -286,6 +289,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "apache-airflow[devel-sentry]",
         "apache-airflow[devel-static-checks]",
         "apache-airflow[devel-tests]",
+        "apache-airflow[devel-polars]",
     ],
     "devel-all-dbs": [
         "apache-airflow[apache-cassandra]",
