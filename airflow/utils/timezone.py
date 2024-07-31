@@ -217,20 +217,21 @@ def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime: ..
 
 
 def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateTime | None:
-    """Convert ``v`` into a timezone-aware ``pendulum.DateTime``.
+    """Convert ``v`` into a timezone-aware ``pendulum.DateTime`` and then adjust it to specified tz.
 
     * If ``v`` is *None*, *None* is returned.
     * If ``v`` is a naive datetime, it is converted to an aware Pendulum DateTime.
     * If ``v`` is an aware datetime, it is converted to a Pendulum DateTime.
-      Note that ``tz`` is **not** taken into account in this case; the datetime
-      will maintain its original tzinfo!
     """
     if v is None:
         return None
+    if tz is None:
+        from airflow.settings import TIMEZONE
+        tz = TIMEZONE
     if isinstance(v, DateTime):
-        return v if v.tzinfo else make_aware(v, tz)
+        return v.astimezone(tz) if v.tzinfo else make_aware(v, tz).astimezone(tz)
     # Only dt.datetime is left here.
-    return pendulum.instance(v if v.tzinfo else make_aware(v, tz))
+    return pendulum.instance(v if v.tzinfo else make_aware(v, tz)).astimezone(tz)
 
 
 def td_format(td_object: None | dt.timedelta | float | int) -> str | None:

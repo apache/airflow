@@ -181,7 +181,7 @@ def encode_dag_run(
         "start_date": datetime_to_string(dag_run.start_date),
         "end_date": datetime_to_string(dag_run.end_date),
         "state": dag_run.state,
-        "execution_date": datetime_to_string(dag_run.execution_date),
+        "execution_date": datetime_to_string(timezone.coerce_datetime(dag_run.execution_date)),
         "data_interval_start": datetime_to_string(dag_run.data_interval_start),
         "data_interval_end": datetime_to_string(dag_run.data_interval_end),
         "run_type": dag_run.run_type,

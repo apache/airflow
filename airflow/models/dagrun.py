@@ -242,8 +242,9 @@ class DagRun(Base, LoggingMixin):
 
     def __repr__(self):
         return (
-            f"<DagRun {self.dag_id} @ {self.execution_date}: {self.run_id}, state:{self.state}, "
-            f"queued_at: {self.queued_at}. externally triggered: {self.external_trigger}>"
+            f"<DagRun {self.dag_id} @ {timezone.coerce_datetime(self.execution_date)}: {self.run_id}, "
+            f"state:{self.state}, queued_at: {timezone.coerce_datetime(self.queued_at)}. "
+            f"externally triggered: {self.external_trigger}>"
         )
 
     @validates("run_id")

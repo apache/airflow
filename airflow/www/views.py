@@ -1739,12 +1739,21 @@ class Airflow(AirflowBaseView):
                 "trigger",
                 "triggerer_job",
             ]
+
+            def get_value_field(obj, name):
+                if name == "try_number":
+                    return getattr(obj, "_try_number")
+                elif name == 'execution_date':
+                    return timezone.coerce_datetime(ti.execution_date)
+                else:
+                    return getattr(obj, name)
+
             # Some fields on TI are deprecated, but we don't want those warnings here.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
-                    # fetching the value of _try_number to be shown under name try_number in UI
-                    (name, getattr(ti, "_try_number" if name == "try_number" else name))
+                    # fetching values of task_instance to be shown under fixed names in UI
+                    (name, get_value_field(ti, name))
                     for name in dir(ti)
                     if not name.startswith("_") and name not in ti_attrs_to_skip
                 )

@@ -82,6 +82,10 @@ class TaskInstanceSchema(SQLAlchemySchema):
             return get_value(slamiss_instance, attr, default)
         elif attr == "rendered_fields":
             return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
+        elif attr == "execution_date":
+            from airflow.utils import timezone
+            return timezone.coerce_datetime(get_value(obj[0], "execution_date", None))
+
         return get_value(obj[0], attr, default)
 
 
