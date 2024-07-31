@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -133,3 +133,57 @@ def test_run_if_with_other_pre_execute(dag_maker, session):
     ti.run(session=session)
 
     assert ti.state == TaskInstanceState.SUCCESS
+
+
+def test_skip_if_custom_msg(dag_maker, session):
+    catched_args = []
+
+    def catch_info(*args: Any, **kwargs: Any) -> None:
+        catched_args.extend(args)
+
+    def condition(context: Context) -> tuple[bool, str]:
+        return context["task_instance"].task_id == "do_skip", "custom_msg"
+
+    with dag_maker(session=session):
+
+        @task.skip_if(condition)
+        @task.python()
+        def f(): ...
+
+        f.override(task_id="do_skip")()
+
+    dag_run: DagRun = dag_maker.create_dagrun()
+    do_skip_ti: TaskInstance = dag_run.get_task_instance(task_id="do_skip", session=session)
+    do_skip_ti.log.info = catch_info
+    do_skip_ti.run(session=session)
+
+    assert do_skip_ti.state == TaskInstanceState.SKIPPED
+    assert catched_args
+    assert catched_args[0] == "custom_msg"
+
+
+def test_run_if_custom_msg(dag_maker, session):
+    catched_args = []
+
+    def catch_info(*args: Any, **kwargs: Any) -> None:
+        catched_args.extend(args)
+
+    def condition(context: Context) -> tuple[bool, str]:
+        return context["task_instance"].task_id == "do_run", "custom_msg"
+
+    with dag_maker(session=session):
+
+        @task.skip_if(condition)
+        @task.python()
+        def f(): ...
+
+        f.override(task_id="do_not_run")()
+
+    dag_run: DagRun = dag_maker.create_dagrun()
+    do_not_run_ti: TaskInstance = dag_run.get_task_instance(task_id="do_not_run", session=session)
+    do_not_run_ti.log.info = catch_info
+    do_not_run_ti.run(session=session)
+
+    assert do_not_run_ti.state == TaskInstanceState.SKIPPED
+    assert catched_args
+    assert catched_args[0] == "custom_msg"

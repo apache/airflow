@@ -23,15 +23,21 @@ from airflow.decorators.base import Task, _TaskDecorator
 from airflow.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeAlias
+
     from airflow.models.baseoperator import TaskPreExecuteHook
     from airflow.utils.context import Context
+
+    BoolConditionFunc: TypeAlias = Callable[[Context], bool]
+    MsgConditionFunc: TypeAlias = "Callable[[Context], tuple[bool, str | None]]"
+    AnyConditionFunc: TypeAlias = "BoolConditionFunc | MsgConditionFunc"
 
 __all__ = ["run_if", "skip_if"]
 
 _T = TypeVar("_T", bound="Task[..., Any] | _TaskDecorator[..., Any, Any]")
 
 
-def run_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
+def run_if(condition: AnyConditionFunc) -> Callable[[_T], _T]:
     """
     Decorate a task to run only if a condition is met.
 
@@ -52,7 +58,7 @@ def run_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
     return decorator
 
 
-def skip_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
+def skip_if(condition: AnyConditionFunc) -> Callable[[_T], _T]:
     """
     Decorate a task to skip if a condition is met.
 
@@ -73,14 +79,21 @@ def skip_if(condition: Callable[[Context], bool]) -> Callable[[_T], _T]:
     return decorator
 
 
-def wrap_skip(func: Callable[[Context], bool], error_msg: str, *, reverse: bool) -> TaskPreExecuteHook:
+def wrap_skip(func: AnyConditionFunc, error_msg: str, *, reverse: bool) -> TaskPreExecuteHook:
     @wraps(func)
     def pre_execute(context: Context) -> None:
         condition = func(context)
+        skip_msg = error_msg
+
+        if isinstance(condition, tuple):
+            condition, maybe_error_msg = condition
+            if maybe_error_msg:
+                skip_msg = maybe_error_msg
+
         if reverse:
             condition = not condition
         if condition:
-            raise AirflowSkipException(error_msg)
+            raise AirflowSkipException(skip_msg)
 
     return pre_execute
 

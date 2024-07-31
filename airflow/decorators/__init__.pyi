@@ -30,6 +30,7 @@ from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.branch_virtualenv import branch_virtualenv_task
+from airflow.decorators.condition import AnyConditionFunc
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -39,7 +40,6 @@ from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.typing_compat import Literal
-from airflow.utils.context import Context
 
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
@@ -758,8 +758,8 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
-    def run_if(self, condition: Callable[[Context], bool]) -> Callable[[_T], _T]: ...
-    def skip_if(self, condition: Callable[[Context], bool]) -> Callable[[_T], _T]: ...
+    def run_if(self, condition: AnyConditionFunc) -> Callable[[_T], _T]: ...
+    def skip_if(self, condition: AnyConditionFunc) -> Callable[[_T], _T]: ...
     def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection
