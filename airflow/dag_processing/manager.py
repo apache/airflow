@@ -622,6 +622,7 @@ class DagFileProcessorManager(LoggingMixin):
                         max_callbacks_per_loop, self.standalone_dag_processor, self.get_dag_directory()
                     ):
                         self._add_callback_to_queue(callback)
+
                 if conf.getboolean("core", "purge_stale_dags", fallback=True):
                     self._purge_stale_dags()
                 DagWarning.purge_inactive_dag_warnings()
