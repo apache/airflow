@@ -83,7 +83,7 @@ class OdbcHook(DbApiHook):
     def connection(self):
         """The Connection object with ID ``odbc_conn_id``."""
         if not self._connection:
-            self._connection = self.get_connection(getattr(self, self.conn_name_attr))
+            self._connection = self.get_connection(self.get_conn_id())
         return self._connection
 
     @property
@@ -139,7 +139,8 @@ class OdbcHook(DbApiHook):
 
     @property
     def odbc_connection_string(self):
-        """ODBC connection string.
+        """
+        ODBC connection string.
 
         We build connection string instead of using ``pyodbc.connect`` params
         because, for example, there is no param representing
@@ -176,7 +177,8 @@ class OdbcHook(DbApiHook):
 
     @property
     def connect_kwargs(self) -> dict:
-        """Effective kwargs to be passed to ``pyodbc.connect``.
+        """
+        Effective kwargs to be passed to ``pyodbc.connect``.
 
         The kwargs are merged from connection extra, ``connect_kwargs``, and
         the hook's init arguments. Values received to the hook precede those

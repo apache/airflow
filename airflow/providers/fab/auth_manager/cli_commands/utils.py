@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Generator
 from flask import Flask
 
 import airflow
+from airflow.configuration import conf
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_views import init_plugins
 
@@ -44,5 +45,8 @@ def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
 def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
     static_folder = os.path.join(os.path.dirname(airflow.__file__), "www", "static")
     flask_app = Flask(__name__, static_folder=static_folder)
+    webserver_config = conf.get_mandatory_value("webserver", "config_file")
     with flask_app.app_context():
+        # Enable customizations in webserver_config.py to be applied via Flask.current_app.
+        flask_app.config.from_pyfile(webserver_config, silent=True)
         yield _return_appbuilder(flask_app)

@@ -19,9 +19,9 @@
 
 from __future__ import annotations
 
-import contextlib
 import time
-from collections import defaultdict, deque
+from collections import deque
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence
 
@@ -264,7 +264,6 @@ class AwsBatchExecutor(BaseExecutor):
         in the next iteration of the sync() method, unless it has exceeded the maximum number of
         attempts. If a job exceeds the maximum number of attempts, it is removed from the queue.
         """
-        failure_reasons = defaultdict(int)
         for _ in range(len(self.pending_jobs)):
             batch_job = self.pending_jobs.popleft()
             key = batch_job.key
@@ -272,7 +271,7 @@ class AwsBatchExecutor(BaseExecutor):
             queue = batch_job.queue
             exec_config = batch_job.executor_config
             attempt_number = batch_job.attempt_number
-            _failure_reason = []
+            failure_reason: str | None = None
             if timezone.utcnow() < batch_job.next_attempt_time:
                 self.pending_jobs.append(batch_job)
                 continue
@@ -286,18 +285,25 @@ class AwsBatchExecutor(BaseExecutor):
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                     self.pending_jobs.append(batch_job)
                     raise
-                _failure_reason.append(str(e))
+                failure_reason = str(e)
             except Exception as e:
-                _failure_reason.append(str(e))
+                failure_reason = str(e)
 
-            if _failure_reason:
-                for reason in _failure_reason:
-                    failure_reasons[reason] += 1
-
+            if failure_reason:
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
                     self.log.error(
-                        "This job has been unsuccessfully attempted too many times (%s). Dropping the task.",
+                        (
+                            "This job has been unsuccessfully attempted too many times (%s). "
+                            "Dropping the task. Reason: %s"
+                        ),
                         attempt_number,
+                        failure_reason,
+                    )
+                    self.log_task_event(
+                        event="batch job submit failure",
+                        extra=f"This job has been unsuccessfully attempted too many times ({attempt_number}). "
+                        f"Dropping the task. Reason: {failure_reason}",
+                        ti_key=key,
                     )
                     self.fail(key=key)
                 else:
@@ -317,16 +323,11 @@ class AwsBatchExecutor(BaseExecutor):
                     exec_config=exec_config,
                     attempt_number=attempt_number,
                 )
-                with contextlib.suppress(AttributeError):
+                with suppress(AttributeError):
                     # TODO: Remove this when min_airflow_version is 2.10.0 or higher in Amazon provider.
                     # running_state is added in Airflow 2.10 and only needed to support task adoption
                     # (an optional executor feature).
                     self.running_state(key, job_id)
-        if failure_reasons:
-            self.log.error(
-                "Pending Batch jobs failed to launch for the following reasons: %s. Retrying later.",
-                dict(failure_reasons),
-            )
 
     def _describe_jobs(self, job_ids) -> list[BatchJob]:
         all_jobs = []
@@ -462,3 +463,12 @@ class AwsBatchExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
+
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
+        with suppress(AttributeError):
+            super().log_task_event(
+                event=event,
+                extra=extra,
+                ti_key=ti_key,
+            )

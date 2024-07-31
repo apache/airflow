@@ -32,9 +32,12 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
 # we use self airflow, vm-based, amd hosted runner as a default
+# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
+RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
+RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
 # TODO: when we have it properly set-up with labels we should change it to
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -62,6 +65,7 @@ TESTABLE_INTEGRATIONS = [
     "qdrant",
     "redis",
     "trino",
+    "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
@@ -86,7 +90,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.26.15", "v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -160,6 +164,11 @@ def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
 
 
+@lru_cache(maxsize=None)
+def all_selective_test_types_except_providers() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+
+
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
@@ -223,7 +232,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3
 
 
 def get_default_platform_machine() -> str:
-    machine = platform.uname().machine
+    machine = platform.uname().machine.lower()
     # Some additional conversion for various platforms...
     machine = {"x86_64": "amd64"}.get(machine, machine)
     return machine
@@ -322,6 +331,7 @@ COMMITTERS = [
     "Fokko",
     "KevinYang21",
     "Lee-W",
+    "RNHTTR",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
@@ -365,10 +375,12 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
+    "shahar1",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -433,7 +445,7 @@ DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.15.0"
+HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None

@@ -20,22 +20,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from attr import define, field
-from openlineage.client.facet import (
-    BaseFacet,
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    DocumentationDatasetFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-)
-
-from airflow.providers.google import __version__ as provider_version
 
 if TYPE_CHECKING:
     from google.cloud.bigquery.table import Table
-    from openlineage.client.run import Dataset
 
+    from airflow.providers.common.compat.openlineage.facet import Dataset
+
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    DocumentationDatasetFacet,
+    Fields,
+    InputField,
+    RunFacet,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+)
+from airflow.providers.google import __version__ as provider_version
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
@@ -46,7 +46,9 @@ def get_facets_from_bq_table(table: Table) -> dict[Any, Any]:
     facets = {
         "schema": SchemaDatasetFacet(
             fields=[
-                SchemaField(name=field.name, type=field.field_type, description=field.description)
+                SchemaDatasetFacetFields(
+                    name=field.name, type=field.field_type, description=field.description
+                )
                 for field in table.schema
             ]
         ),
@@ -71,11 +73,9 @@ def get_identity_column_lineage_facet(
 
     column_lineage_facet = ColumnLineageDatasetFacet(
         fields={
-            field: ColumnLineageDatasetFacetFieldsAdditional(
+            field: Fields(
                 inputFields=[
-                    ColumnLineageDatasetFacetFieldsAdditionalInputFields(
-                        namespace=dataset.namespace, name=dataset.name, field=field
-                    )
+                    InputField(namespace=dataset.namespace, name=dataset.name, field=field)
                     for dataset in input_datasets
                 ],
                 transformationType="IDENTITY",
@@ -88,8 +88,9 @@ def get_identity_column_lineage_facet(
 
 
 @define
-class BigQueryJobRunFacet(BaseFacet):
-    """Facet that represents relevant statistics of bigquery run.
+class BigQueryJobRunFacet(RunFacet):
+    """
+    Facet that represents relevant statistics of bigquery run.
 
     This facet is used to provide statistics about bigquery run.
 
@@ -113,7 +114,7 @@ class BigQueryJobRunFacet(BaseFacet):
 
 # TODO: remove BigQueryErrorRunFacet in next release
 @define
-class BigQueryErrorRunFacet(BaseFacet):
+class BigQueryErrorRunFacet(RunFacet):
     """
     Represents errors that can happen during execution of BigqueryExtractor.
 
@@ -134,7 +135,8 @@ class BigQueryErrorRunFacet(BaseFacet):
 
 
 def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:
-    """Get object from nested structure of objects, where it's not guaranteed that all keys in the nested structure exist.
+    """
+    Get object from nested structure of objects, where it's not guaranteed that all keys in the nested structure exist.
 
     Intended to replace chain of `dict.get()` statements.
 
@@ -158,9 +160,13 @@ def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:
         if not result:
             return None
     """
+    # chain.pop modifies passed list, this can be unexpected
+    chain = chain.copy()
     chain.reverse()
     try:
         while chain:
+            while isinstance(source, list) and len(source) == 1:
+                source = source[0]
             next_key = chain.pop()
             if isinstance(source, dict):
                 source = source.get(next_key)

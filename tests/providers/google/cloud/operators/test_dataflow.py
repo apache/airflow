@@ -18,12 +18,16 @@
 from __future__ import annotations
 
 import copy
+import warnings
 from copy import deepcopy
 from unittest import mock
 
+import httplib2
 import pytest
+from googleapiclient.errors import HttpError
 
 import airflow
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowJobStatus,
@@ -31,7 +35,10 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
+    DataflowCreatePipelineOperator,
     DataflowCreatePythonJobOperator,
+    DataflowDeletePipelineOperator,
+    DataflowRunPipelineOperator,
     DataflowStartFlexTemplateOperator,
     DataflowStartSqlJobOperator,
     DataflowStopJobOperator,
@@ -104,19 +111,42 @@ IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 DATAFLOW_PATH = "airflow.providers.google.cloud.operators.dataflow"
 
+TEST_PIPELINE_NAME = "test_data_pipeline_name"
+TEST_PIPELINE_BODY = {
+    "name": f"projects/test-datapipeline-operators/locations/test-location/pipelines/{TEST_PIPELINE_NAME}",
+    "type": "PIPELINE_TYPE_BATCH",
+    "workload": {
+        "dataflowFlexTemplateRequest": {
+            "launchParameter": {
+                "containerSpecGcsPath": "gs://dataflow-templates-us-central1/latest/Word_Count_metadata",
+                "jobName": "test-job",
+                "environment": {"tempLocation": "test-temp-location"},
+                "parameters": {
+                    "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
+                    "output": "gs://test/output/my_output",
+                },
+            },
+            "projectId": f"{TEST_PROJECT}",
+            "location": f"{TEST_LOCATION}",
+        }
+    },
+}
+
 
 class TestDataflowCreatePythonJobOperator:
     def setup_method(self):
-        self.dataflow = DataflowCreatePythonJobOperator(
-            task_id=TASK_ID,
-            py_file=PY_FILE,
-            job_name=JOB_NAME,
-            py_options=PY_OPTIONS,
-            dataflow_default_options=DEFAULT_OPTIONS_PYTHON,
-            options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP,
-            location=TEST_LOCATION,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.dataflow = DataflowCreatePythonJobOperator(
+                task_id=TASK_ID,
+                py_file=PY_FILE,
+                job_name=JOB_NAME,
+                py_options=PY_OPTIONS,
+                dataflow_default_options=DEFAULT_OPTIONS_PYTHON,
+                options=ADDITIONAL_OPTIONS,
+                poll_sleep=POLL_SLEEP,
+                location=TEST_LOCATION,
+            )
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
@@ -187,16 +217,18 @@ class TestDataflowCreatePythonJobOperator:
 
 class TestDataflowCreateJavaJobOperator:
     def setup_method(self):
-        self.dataflow = DataflowCreateJavaJobOperator(
-            task_id=TASK_ID,
-            jar=JAR_FILE,
-            job_name=JOB_NAME,
-            job_class=JOB_CLASS,
-            dataflow_default_options=DEFAULT_OPTIONS_JAVA,
-            options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP,
-            location=TEST_LOCATION,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.dataflow = DataflowCreateJavaJobOperator(
+                task_id=TASK_ID,
+                jar=JAR_FILE,
+                job_name=JOB_NAME,
+                job_class=JOB_CLASS,
+                dataflow_default_options=DEFAULT_OPTIONS_JAVA,
+                options=ADDITIONAL_OPTIONS,
+                poll_sleep=POLL_SLEEP,
+                location=TEST_LOCATION,
+            )
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
@@ -394,16 +426,18 @@ class TestDataflowCreateJavaJobOperator:
 
 class TestDataflowCreateJavaJobOperatorWithLocal:
     def setup_method(self):
-        self.dataflow = DataflowCreateJavaJobOperator(
-            task_id=TASK_ID,
-            jar=LOCAL_JAR_FILE,
-            job_name=JOB_NAME,
-            job_class=JOB_CLASS,
-            dataflow_default_options=DEFAULT_OPTIONS_JAVA,
-            options=ADDITIONAL_OPTIONS,
-            poll_sleep=POLL_SLEEP,
-            location=TEST_LOCATION,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.dataflow = DataflowCreateJavaJobOperator(
+                task_id=TASK_ID,
+                jar=LOCAL_JAR_FILE,
+                job_name=JOB_NAME,
+                job_class=JOB_CLASS,
+                dataflow_default_options=DEFAULT_OPTIONS_JAVA,
+                options=ADDITIONAL_OPTIONS,
+                poll_sleep=POLL_SLEEP,
+                location=TEST_LOCATION,
+            )
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
@@ -758,3 +792,310 @@ class TestDataflowStopJobOperator:
             location=TEST_LOCATION,
             job_id=None,
         )
+
+
+class TestDataflowCreatePipelineOperator:
+    @pytest.fixture
+    def create_operator(self):
+        """
+        Creates a mock create datapipeline operator to be used in testing.
+        """
+        return DataflowCreatePipelineOperator(
+            task_id="test_create_datapipeline",
+            body=TEST_PIPELINE_BODY,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_execute(self, mock_hook, create_operator):
+        """
+        Test that operator creates and calls the Dataflow Data Pipeline hook with the correct parameters
+        """
+        create_operator.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="test_gcp_conn_id",
+            impersonation_chain=None,
+        )
+
+        mock_hook.return_value.create_data_pipeline.assert_called_once_with(
+            project_id=TEST_PROJECT, body=TEST_PIPELINE_BODY, location=TEST_LOCATION
+        )
+
+    @pytest.mark.db_test
+    def test_body_invalid(self):
+        """
+        Test that if the operator is not passed a Request Body, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": {},
+            "project_id": TEST_PROJECT,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_projectid_invalid(self):
+        """
+        Test that if the operator is not passed a Project ID, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": TEST_PIPELINE_BODY,
+            "project_id": None,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_location_invalid(self):
+        """
+        Test that if the operator is not passed a location, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": TEST_PIPELINE_BODY,
+            "project_id": TEST_PROJECT,
+            "location": None,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    @pytest.mark.db_test
+    def test_response_invalid(self):
+        """
+        Test that if the Response Body contains an error message, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": {"name": TEST_PIPELINE_NAME, "error": "Testing that AirflowException is raised"},
+            "project_id": TEST_PROJECT,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowCreatePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_response_409(self, mock_hook, create_operator):
+        """
+        Test that if the Pipeline already exists, the operator does not fail and retrieves existed Pipeline
+        """
+        mock_hook.return_value.create_data_pipeline.side_effect = HttpError(
+            resp=httplib2.Response({"status": "409"}), content=b"content"
+        )
+        create_operator.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="test_gcp_conn_id",
+            impersonation_chain=None,
+        )
+
+        mock_hook.return_value.get_data_pipeline.assert_called_once_with(
+            project_id=TEST_PROJECT, pipeline_name=TEST_PIPELINE_NAME, location=TEST_LOCATION
+        )
+
+
+@pytest.mark.db_test
+class TestDataflowRunPipelineOperator:
+    @pytest.fixture
+    def run_operator(self):
+        """
+        Create a DataflowRunPipelineOperator instance with test data
+        """
+        return DataflowRunPipelineOperator(
+            task_id=TASK_ID,
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_execute(self, data_pipeline_hook_mock, run_operator):
+        """
+        Test Run Operator execute with correct parameters
+        """
+        run_operator.execute(mock.MagicMock())
+        data_pipeline_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
+
+        data_pipeline_hook_mock.return_value.run_data_pipeline.assert_called_once_with(
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+    def test_invalid_data_pipeline_name(self):
+        """
+        Test that AirflowException is raised if Run Operator is not given a data pipeline name.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": None,
+            "project_id": TEST_PROJECT,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_project_id(self):
+        """
+        Test that AirflowException is raised if Run Operator is not given a project ID.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": TEST_PIPELINE_NAME,
+            "project_id": None,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_location(self):
+        """
+        Test that AirflowException is raised if Run Operator is not given a location.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": TEST_PIPELINE_NAME,
+            "project_id": TEST_PROJECT,
+            "location": None,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_response(self):
+        """
+        Test that AirflowException is raised if Run Operator fails execution and returns error.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "data_pipeline_name": TEST_PIPELINE_NAME,
+            "project_id": TEST_PROJECT,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowRunPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
+                "error": {"message": "example error"}
+            }
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_response_404(self, mock_hook, run_operator):
+        """
+        Test that if the Pipeline does not exist, the operator raise AirflowException
+        """
+        mock_hook.return_value.run_data_pipeline.side_effect = HttpError(
+            resp=httplib2.Response({"status": "404"}), content=b"content"
+        )
+        with pytest.raises(AirflowException):
+            run_operator.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="test_gcp_conn_id",
+            impersonation_chain=None,
+        )
+
+
+@pytest.mark.db_test
+class TestDataflowDeletePipelineOperator:
+    @pytest.fixture
+    def run_operator(self):
+        """
+        Create a DataflowDeletePipelineOperator instance with test data
+        """
+        return DataflowDeletePipelineOperator(
+            task_id=TASK_ID,
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    # @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.delete_data_pipeline")
+    def test_execute(self, data_pipeline_hook_mock, run_operator):
+        """
+        Test Delete Operator execute with correct parameters
+        """
+        data_pipeline_hook_mock.return_value.delete_data_pipeline.return_value = None
+        run_operator.execute(mock.MagicMock())
+        data_pipeline_hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
+
+        data_pipeline_hook_mock.return_value.delete_data_pipeline.assert_called_once_with(
+            pipeline_name=TEST_PIPELINE_NAME,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+    def test_invalid_data_pipeline_name(self):
+        """
+        Test that AirflowException is raised if Delete Operator is not given a data pipeline name.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": None,
+            "project_id": TEST_PROJECT,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_project_id(self):
+        """
+        Test that AirflowException is raised if Delete Operator is not given a project ID.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": TEST_PIPELINE_NAME,
+            "project_id": None,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_location(self):
+        """
+        Test that AirflowException is raised if Delete Operator is not given a location.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": TEST_PIPELINE_NAME,
+            "project_id": TEST_PROJECT,
+            "location": None,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_response(self):
+        """
+        Test that AirflowException is raised if Delete Operator fails execution and returns error.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "pipeline_name": TEST_PIPELINE_NAME,
+            "project_id": TEST_PROJECT,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            DataflowDeletePipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
+                "error": {"message": "example error"}
+            }

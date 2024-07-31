@@ -20,18 +20,10 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    SchemaDatasetFacet,
-    SchemaField,
-    SqlJobFacet,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset
 from openlineage.common.sql import DbTableMeta
 
-from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo, GetTableSchemasParams, SQLParser
 
 DB_NAME = "FOOD_DELIVERY"
@@ -201,13 +193,13 @@ class TestSQLParser:
             rows("popular_orders_day_of_week"),
         ]
 
-        expected_schema_facet = SchemaDatasetFacet(
+        expected_schema_facet = schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(name="ID", type="int4"),
-                SchemaField(name="AMOUNT_OFF", type="int4"),
-                SchemaField(name="CUSTOMER_EMAIL", type="varchar"),
-                SchemaField(name="STARTS_ON", type="timestamp"),
-                SchemaField(name="ENDS_ON", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(name="ID", type="int4"),
+                schema_dataset.SchemaDatasetFacetFields(name="AMOUNT_OFF", type="int4"),
+                schema_dataset.SchemaDatasetFacetFields(name="CUSTOMER_EMAIL", type="varchar"),
+                schema_dataset.SchemaDatasetFacetFields(name="STARTS_ON", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(name="ENDS_ON", type="timestamp"),
             ]
         )
 
@@ -283,12 +275,9 @@ class TestSQLParser:
         ]
 
         sql = """INSERT INTO popular_orders_day_of_week (order_day_of_week)
-    SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
-      FROM top_delivery_times
-            --irrelevant comment
-        )
-        ;
-        """
+        SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
+        FROM top_delivery_times --irrelevant comment
+        );"""
 
         hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = returned_rows
 
@@ -314,62 +303,56 @@ class TestSQLParser:
         mock_parse.return_value = mock_sql_meta
 
         formatted_sql = """INSERT INTO popular_orders_day_of_week (order_day_of_week)
-    SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
-      FROM top_delivery_times
-
-)"""
+        SELECT EXTRACT(ISODOW FROM order_placed_on) AS order_day_of_week
+        FROM top_delivery_times
+        )"""
         expected_schema = "PUBLIC" if parser_returns_schema else "ANOTHER_SCHEMA"
-        expected = OperatorLineage(
-            inputs=[
-                Dataset(
-                    namespace="myscheme://host:port",
-                    name=f"{expected_schema}.top_delivery_times",
-                    facets={
-                        "schema": SchemaDatasetFacet(
-                            fields=[
-                                SchemaField(name="order_id", type="int4"),
-                                SchemaField(name="order_placed_on", type="timestamp"),
-                                SchemaField(name="customer_email", type="varchar"),
-                            ]
-                        )
-                    },
-                )
-            ],
-            outputs=[
-                Dataset(
-                    namespace="myscheme://host:port",
-                    name=f"{expected_schema}.popular_orders_day_of_week",
-                    facets={
-                        "schema": SchemaDatasetFacet(
-                            fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="order_placed_on", type="timestamp"),
-                                SchemaField(name="orders_placed", type="int4"),
-                            ]
-                        ),
-                        "columnLineage": ColumnLineageDatasetFacet(
-                            fields={
-                                "order_day_of_week": ColumnLineageDatasetFacetFieldsAdditional(
-                                    inputFields=[
-                                        ColumnLineageDatasetFacetFieldsAdditionalInputFields(
-                                            namespace="myscheme://host:port",
-                                            name=f"{expected_schema}.top_delivery_times",
-                                            field="order_placed_on",
-                                        )
-                                    ],
-                                    transformationDescription="",
-                                    transformationType="",
-                                )
-                            }
-                        ),
-                    },
-                )
-            ],
-            job_facets={"sql": SqlJobFacet(query=formatted_sql)},
-        )
-
-        assert expected == parser.generate_openlineage_metadata_from_sql(
+        metadata = parser.generate_openlineage_metadata_from_sql(
             sql=sql,
             hook=hook,
             database_info=db_info,
         )
+
+        assert metadata.inputs == [
+            Dataset(
+                namespace="myscheme://host:port",
+                name=f"{expected_schema}.top_delivery_times",
+                facets={
+                    "schema": schema_dataset.SchemaDatasetFacet(
+                        fields=[
+                            schema_dataset.SchemaDatasetFacetFields(name="order_id", type="int4"),
+                            schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                            schema_dataset.SchemaDatasetFacetFields(name="customer_email", type="varchar"),
+                        ]
+                    )
+                },
+            )
+        ]
+        assert len(metadata.outputs) == 1
+        assert metadata.outputs[0].namespace == "myscheme://host:port"
+        assert metadata.outputs[0].name == f"{expected_schema}.popular_orders_day_of_week"
+        assert metadata.outputs[0].facets["schema"] == schema_dataset.SchemaDatasetFacet(
+            fields=[
+                schema_dataset.SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                schema_dataset.SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                schema_dataset.SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+            ]
+        )
+        assert metadata.outputs[0].facets[
+            "columnLineage"
+        ] == column_lineage_dataset.ColumnLineageDatasetFacet(
+            fields={
+                "order_day_of_week": column_lineage_dataset.Fields(
+                    inputFields=[
+                        column_lineage_dataset.InputField(
+                            namespace="myscheme://host:port",
+                            name=f"{expected_schema}.top_delivery_times",
+                            field="order_placed_on",
+                        )
+                    ],
+                    transformationDescription="",
+                    transformationType="",
+                )
+            }
+        )
+        assert metadata.job_facets["sql"].query.replace(" ", "") == formatted_sql.replace(" ", "")

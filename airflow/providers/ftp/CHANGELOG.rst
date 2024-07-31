@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow FTPHook to change port number (#39465)``
+
 3.9.1
 .....
 

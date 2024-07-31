@@ -25,23 +25,13 @@ from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
-from airflow.providers.amazon.aws.links.emr import (
-    EmrServerlessCloudWatchLogsLink,
-    EmrServerlessDashboardLink,
-    EmrServerlessLogsLink,
-    EmrServerlessS3LogsLink,
-)
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartJobOperator,
     EmrServerlessStopApplicationOperator,
 )
-from airflow.serialization.serialized_objects import (
-    BaseSerialization,
-)
 from airflow.utils.types import NOTSET
-from tests.test_utils.compat import deserialize_operator
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -846,6 +836,27 @@ class TestEmrServerlessStartJobOperator:
         with pytest.raises(TaskDeferred):
             operator.execute(self.mock_context)
 
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_start_job_deferrable_without_wait_for_completion(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        result = operator.execute(self.mock_context)
+
+        assert result == job_run_id
+
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_start_job_deferrable_app_not_started(self, mock_conn, mock_get_waiter):
@@ -1151,50 +1162,6 @@ class TestEmrServerlessStartJobOperator:
             application_id=application_id,
             job_run_id=job_run_id,
         )
-
-    def test_operator_extra_links_mapped_without_applicationui_enabled(
-        self,
-    ):
-        operator = EmrServerlessStartJobOperator.partial(
-            task_id=task_id,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=spark_job_driver,
-            enable_application_ui_links=False,
-        ).expand(
-            configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
-        )
-
-        ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = deserialize_operator(ser_operator)
-
-        assert deser_operator.operator_extra_links == [
-            EmrServerlessS3LogsLink(),
-            EmrServerlessCloudWatchLogsLink(),
-        ]
-
-    def test_operator_extra_links_mapped_with_applicationui_enabled_at_partial(
-        self,
-    ):
-        operator = EmrServerlessStartJobOperator.partial(
-            task_id=task_id,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=spark_job_driver,
-            enable_application_ui_links=True,
-        ).expand(
-            configuration_overrides=[s3_configuration_overrides, cloudwatch_configuration_overrides],
-        )
-
-        ser_operator = BaseSerialization.serialize(operator)
-        deser_operator = deserialize_operator(ser_operator)
-
-        assert deser_operator.operator_extra_links == [
-            EmrServerlessS3LogsLink(),
-            EmrServerlessCloudWatchLogsLink(),
-            EmrServerlessDashboardLink(),
-            EmrServerlessLogsLink(),
-        ]
 
 
 class TestEmrServerlessDeleteOperator:

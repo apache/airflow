@@ -36,9 +36,10 @@ To add Params to a :class:`~airflow.models.dag.DAG`, initialize it with the ``pa
 Use a dictionary that maps Param names to either a :class:`~airflow.models.param.Param` or an object indicating the parameter's default value.
 
 .. code-block::
-   :emphasize-lines: 6-9
+   :emphasize-lines: 7-10
 
     from airflow import DAG
+    from airflow.decorators import task
     from airflow.models.param import Param
 
     with DAG(
@@ -47,7 +48,34 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
             "x": Param(5, type="integer", minimum=3),
             "my_int_param": 6
         },
-    ):
+    ) as dag:
+
+        @task.python
+        def example_task(params: dict):
+            # This will print the default value, 6:
+            dag.log.info(dag.params['my_int_param'])
+
+            # This will print the manually-provided value, 42:
+            dag.log.info(params['my_int_param'])
+
+            # This will print the default value, 5, since it wasn't provided manually:
+            dag.log.info(params['x'])
+
+        example_task()
+
+    if __name__ == "__main__":
+        dag.test(
+            run_conf={"my_int_param": 42}
+        )
+
+.. note::
+
+   DAG-level parameters are the default values passed on to tasks. These should not be confused with values manually
+   provided through the UI form or CLI, which exist solely within the context of a :class:`~airflow.models.dagrun.DagRun`
+   and a :class:`~airflow.models.taskinstance.TaskInstance`. This distinction is crucial for TaskFlow DAGs, which may
+   include logic within the ``with DAG(...) as dag:`` block. In such cases, users might try to access the manually-provided
+   parameter values using the ``dag`` object, but this will only ever contain the default values. To ensure that the
+   manually-provided values are accessed, use a template variable such as ``params`` or ``ti`` within your task.
 
 Task-level Params
 -----------------
@@ -192,7 +220,7 @@ The following features are supported in the Trigger UI Form:
     If no ``title`` is defined the parameter name/key is used instead.
   - The :class:`~airflow.models.param.Param` attribute ``description`` is rendered below an entry field as help text in gray color.
     If you want to provide special formatting or links you need to use the Param attribute
-    ``description_md``. See tutorial DAG ``example_params_ui_tutorial`` for an example.
+    ``description_md``. See tutorial DAG :ref:`Params UI example DAG <params-ui-tutorial>` for an example.
   - The :class:`~airflow.models.param.Param` attribute ``type`` influences how a field is rendered. The following types are supported:
 
       .. list-table::
@@ -322,12 +350,37 @@ The following features are supported in the Trigger UI Form:
 - To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger``
   and add query parameter to the URL in the form ``name=value``, for example ``/dags/example_params_ui_tutorial/trigger?required_field=some%20text``.
   To pre-define the run id of the DAG run, use the URL parameter ``run_id``.
+- Fields can be required or optional. Typed fields are required by default to ensure they pass JSON schema validation. To make typed fields optional, you must allow the "null" type.
+- Fields without a "section" will be rendered in the default area. Additional sections will be collapsed by default.
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
     ``schedule=None`` the parameter value validation is made at time of trigger.
 
-For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
+For examples, please take a look at the two example DAGs provided: :ref:`Params trigger example DAG <params-trigger-ui>` and :ref:`Params UI example DAG <params-ui-tutorial>`.
+
+.. _params-trigger-ui:
+.. exampleinclude:: /../../airflow/example_dags/example_params_trigger_ui.py
+    :language: python
+    :start-after: [START params_trigger]
+    :end-before: [END params_trigger]
+
+
+.. _params-ui-tutorial:
+.. exampleinclude:: /../../airflow/example_dags/example_params_ui_tutorial.py
+    :language: python
+    :start-after: [START section_1]
+    :end-before: [END section_1]
+
+.. exampleinclude:: /../../airflow/example_dags/example_params_ui_tutorial.py
+    :language: python
+    :start-after: [START section_2]
+    :end-before: [END section_2]
+
+.. exampleinclude:: /../../airflow/example_dags/example_params_ui_tutorial.py
+    :language: python
+    :start-after: [START section_3]
+    :end-before: [END section_3]
 
 .. image:: ../img/trigger-dag-tutorial-form.png
 

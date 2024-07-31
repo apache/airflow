@@ -18,7 +18,6 @@
  */
 
 import React, { useRef } from "react";
-import type { Dag, DagRun, TaskInstance } from "src/types";
 import {
   Table,
   Text,
@@ -27,12 +26,14 @@ import {
   Tr,
   Td,
   Spinner,
-  Alert,
-  AlertIcon,
   Box,
 } from "@chakra-ui/react";
+
+import type { Dag, DagRun, TaskInstance } from "src/types";
 import { useTaskXcomCollection } from "src/api";
 import { useOffsetTop } from "src/utils";
+import ErrorAlert from "src/components/ErrorAlert";
+
 import XcomEntry from "./XcomEntry";
 
 interface Props {
@@ -73,12 +74,7 @@ const XcomCollection = ({
       overflowY="auto"
     >
       {isLoading && <Spinner size="xl" thickness="4px" speed="0.65s" />}
-      {!!error && (
-        <Alert status="error" marginBottom="10px">
-          <AlertIcon />
-          An error occurred while fetching task XCom.
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       {xcomCollection &&
         (xcomCollection.totalEntries === 0 ? (
           <Text>No XCom</Text>

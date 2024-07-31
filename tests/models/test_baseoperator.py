@@ -32,6 +32,7 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
+    BASEOPERATOR_ARGS_EXPECTED_TYPES,
     BaseOperator,
     BaseOperatorMeta,
     chain,
@@ -810,6 +811,22 @@ class TestBaseOperator:
         # the other case (that when we have set_context it goes to the file is harder to achieve without
         # leaking a lot of state)
         assert caplog.messages == ["test"]
+
+    def test_invalid_type_for_default_arg(self):
+        error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
+        with pytest.raises(TypeError, match=error_msg):
+            BaseOperator(task_id="test", default_args={"max_active_tis_per_dag": "not_an_int"})
+
+    def test_invalid_type_for_operator_arg(self):
+        error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
+        with pytest.raises(TypeError, match=error_msg):
+            BaseOperator(task_id="test", max_active_tis_per_dag="not_an_int")
+
+    @mock.patch("airflow.models.baseoperator.validate_instance_args")
+    def test_baseoperator_init_validates_arg_types(self, mock_validate_instance_args):
+        operator = BaseOperator(task_id="test")
+
+        mock_validate_instance_args.assert_called_once_with(operator, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
 
 def test_init_subclass_args():

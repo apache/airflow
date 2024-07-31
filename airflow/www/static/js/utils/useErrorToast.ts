@@ -19,27 +19,8 @@
 
 import { useToast } from "@chakra-ui/react";
 import type { ReactNode } from "react";
-import axios from "axios";
 
-type ErrorType = Error | string | null;
-
-export const getErrorDescription = (
-  error?: ErrorType,
-  fallbackMessage?: string
-) => {
-  if (typeof error === "string") return error;
-  if (error instanceof Error) {
-    let { message } = error;
-    if (axios.isAxiosError(error)) {
-      message =
-        error.response?.data?.detail || error.response?.data || error.message;
-    }
-    return message;
-  }
-  return fallbackMessage || "Something went wrong.";
-};
-
-const getErrorTitle = (error: Error) => error.message || "Error";
+import handleError from "./handleError";
 
 const useErrorToast = () => {
   const toast = useToast();
@@ -48,8 +29,8 @@ const useErrorToast = () => {
     toast({
       ...rest,
       status: "error",
-      title: title || getErrorTitle(error),
-      description: getErrorDescription(error).slice(0, 500),
+      title: title || "Error",
+      description: handleError(error).slice(0, 500),
     });
   };
 };

@@ -55,6 +55,7 @@ from airflow_breeze.global_constants import (
     TESTABLE_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
+    GithubEvents,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -163,10 +164,12 @@ class ShellParams:
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
+    keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
+    no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
@@ -458,11 +461,13 @@ class ShellParams:
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
 
-    @cached_property
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
-        passed to it.
+        passed to it. We cannot cache this property because it can be run few times after modifying shell
+        params - for example when we first run "pull" on images before tests anda then run tests - each
+        separately with different test types.
 
         This is the only place where you need to add environment variables if you want to pass them to
         docker or docker-compose.
@@ -494,7 +499,7 @@ class ShellParams:
         _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
-        _set_var(_env, "CI_EVENT_TYPE", None, "pull_request")
+        _set_var(_env, "CI_EVENT_TYPE", None, GithubEvents.PULL_REQUEST.value)
         _set_var(_env, "CI_JOB_ID", None, "0")
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)

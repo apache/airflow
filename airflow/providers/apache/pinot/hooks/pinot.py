@@ -288,7 +288,7 @@ class PinotDbApiHook(DbApiHook):
 
         e.g: http://localhost:9000/query/sql
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         host = conn.host
         if conn.port is not None:
             host += f":{conn.port}"

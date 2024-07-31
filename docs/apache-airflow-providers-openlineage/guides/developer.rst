@@ -74,8 +74,14 @@ OpenLineage defines a few methods for implementation in Operators. Those are ref
   def get_openlineage_facets_on_failure(ti: TaskInstance) -> OperatorLineage:
       ...
 
-OpenLineage methods get called respectively when task instance changes state to RUNNING, SUCCESS and FAILED.
-If there's no ``on_complete`` or ``on_failure`` method, the ``on_start`` gets called instead.
+OpenLineage methods get called respectively when task instance changes state to:
+
+- RUNNING -> ``get_openlineage_facets_on_start()``
+- SUCCESS -> ``get_openlineage_facets_on_complete()``
+- FAILED -> ``get_openlineage_facets_on_failure()``
+
+At least one of the following methods must be implemented: ``get_openlineage_facets_on_start()`` or ``get_openlineage_facets_on_complete()``.
+For more details on what methods are called when others are missing, see :ref:`ol-methods-best-practices:openlineage`.
 
 Instead of returning complete OpenLineage event, the provider defines ``OperatorLineage`` structure to be returned by Operators:
 
@@ -85,10 +91,12 @@ Instead of returning complete OpenLineage event, the provider defines ``Operator
   class OperatorLineage:
       inputs: list[Dataset] = Factory(list)
       outputs: list[Dataset] = Factory(list)
-      run_facets: dict[str, BaseFacet] = Factory(dict)
+      run_facets: dict[str, RunFacet] = Factory(dict)
       job_facets: dict[str, BaseFacet] = Factory(dict)
 
 OpenLineage integration itself takes care to enrich it with things like general Airflow facets, proper event time and type, creating proper OpenLineage RunEvent.
+
+.. _ol-methods-best-practices:openlineage:
 
 How to properly implement OpenLineage methods?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -114,7 +122,10 @@ called, and there's no relevant runtime data, there might be no point to impleme
 - the ``get_openlineage_facets_on_start`` method can provide all the data. And in reverse, if everything is unknown
 before execute, there might be no point in writing ``_on_start`` method.
 Similarly, if there's no relevant failure data - or the failure conditions are unknown,
-implementing ``get_openlineage_facets_on_failure`` is probably not worth it.
+implementing ``get_openlineage_facets_on_failure`` is probably not worth it. In general:
+if there's no ``on_failure`` method, the ``on_complete`` method gets called instead.
+If there's no ``on_failure`` and ``on_complete`` method, the ``on_start`` gets called instead (both at the task start and task completion).
+If there's no ``on_start`` method the lineage information will not be included in START event, and the ``on_complete`` method will be called upon task completion.
 
 How to test OpenLineage methods?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -152,7 +163,7 @@ As there is some processing made in ``execute`` method, and there is no relevant
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """
-        from openlineage.client.run import Dataset
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         return OperatorLineage(
@@ -184,7 +195,7 @@ Interface
 Custom Extractors have to derive from :class:`BaseExtractor <airflow.providers.openlineage.extractors.base.BaseExtractor>`
 and implement at least two methods: ``_execute_extraction`` and ``get_operator_classnames``.
 
-BaseOperator defines two methods: ``extract`` and ``extract_on_complete``, that are called and used to provide actual lineage data.
+BaseExtractor defines two methods: ``extract`` and ``extract_on_complete``, that are called and used to provide actual lineage data.
 The difference is that ``extract`` is called before Operator's ``execute`` method, while ``extract_on_complete`` is called after.
 By default, ``extract`` calls ``_execute_extraction`` method implemented in custom Extractor, and ``extract_on_complete``
 calls the ``extract`` method. If you want to provide some additional information available after the task execution, you can
@@ -214,11 +225,11 @@ Both methods return ``OperatorLineage`` structure:
 
         inputs: list[Dataset] = Factory(list)
         outputs: list[Dataset] = Factory(list)
-        run_facets: dict[str, BaseFacet] = Factory(dict)
+        run_facets: dict[str, RunFacet] = Factory(dict)
         job_facets: dict[str, BaseFacet] = Factory(dict)
 
 
-Inputs and outputs are lists of plain OpenLineage datasets (`openlineage.client.run.Dataset`).
+Inputs and outputs are lists of plain OpenLineage datasets (`openlineage.client.event_v2.Dataset`).
 
 ``run_facets`` and ``job_facets`` are dictionaries of optional RunFacets and JobFacets that would be attached to the job - for example,
 you might want to attach ``SqlJobFacet`` if your Operator is executing SQL.
@@ -303,11 +314,13 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
 
 .. code-block:: python
 
-    from openlineage.client.facet import BaseFacet, ExternalQueryRunFacet, SqlJobFacet
-    from openlineage.client.run import Dataset
-
     from airflow.models.baseoperator import BaseOperator
-    from airflow.providers.openlineage.extractors.base import BaseExtractor
+    from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset,
+        ExternalQueryRunFacet,
+        SQLJobFacet,
+    )
 
 
     class ExampleOperator(BaseOperator):
@@ -315,7 +328,6 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
             self.bq_table_reference = bq_table_reference
             self.s3_path = s3_path
             self.s3_file_name = s3_file_name
-            self.query = query
             self._job_id = None
 
         def execute(self, context) -> Any:
@@ -330,20 +342,20 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
         def _execute_extraction(self) -> OperatorLineage:
             """Define what we know before Operator's extract is called."""
             return OperatorLineage(
-                inputs=[Dataset(namespace="bigquery", name=self.bq_table_reference)],
-                outputs=[Dataset(namespace=self.s3_path, name=self.s3_file_name)],
+                inputs=[Dataset(namespace="bigquery", name=self.operator.bq_table_reference)],
+                outputs=[Dataset(namespace=self.operator.s3_path, name=self.operator.s3_file_name)],
                 job_facets={
-                    "sql": SqlJobFacet(
+                    "sql": SQLJobFacet(
                         query="EXPORT INTO ... OPTIONS(FORMAT=csv, SEP=';' ...) AS SELECT * FROM ... "
                     )
                 },
             )
 
-        def extract_on_complete(self) -> OperatorLineage:
+        def extract_on_complete(self, task_instance) -> OperatorLineage:
             """Add what we received after Operator's extract call."""
             lineage_metadata = self.extract()
             lineage_metadata.run_facets = {
-                "parent": ExternalQueryRunFacet(externalQueryId=self._job_id, source="bigquery")
+                "parent": ExternalQueryRunFacet(externalQueryId=task_instance.task._job_id, source="bigquery")
             }
             return lineage_metadata
 
@@ -446,14 +458,101 @@ Conversion from Airflow Table entity to OpenLineage Dataset is made in the follo
 
 .. _custom_facets:openlineage:
 
-Custom facets
+Custom Facets
 =============
 To learn more about facets in OpenLineage, please refer to `facet documentation <https://openlineage.io/docs/spec/facets/>`_.
-Also check out `available Facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/openlineage/client/facet.py>`_
+Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/openlineage/client/facet.py>`_
+and a blog post about `extending with facets <https://openlineage.io/blog/extending-with-facets/>`_.
 
 The OpenLineage spec might not contain all the facets you need to write your extractor,
 in which case you will have to make your own `custom facets <https://openlineage.io/docs/spec/facets/custom-facets>`_.
-More on creating custom facets can be found `here <https://openlineage.io/blog/extending-with-facets/>`_.
+
+You can also inject your own custom facets in the lineage event's run facet using the ``custom_run_facets`` Airflow configuration.
+
+Steps to be taken,
+
+1. Write a function that returns the custom facets. You can write as many custom facet functions as needed.
+2. Register the functions using the ``custom_run_facets`` Airflow configuration.
+
+Airflow OpenLineage listener will automatically execute these functions during the lineage event generation and append their return values to the run facet in the lineage event.
+
+Writing a custom facet function
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Input arguments:** The function should accept two input arguments: ``TaskInstance`` and ``TaskInstanceState``.
+- **Function body:** Perform the logic needed to generate the custom facets. The custom facets must inherit from the ``RunFacet`` for the ``_producer`` and ``_schemaURL`` to be automatically added for the facet.
+- **Return value:** The custom facets to be added to the lineage event. Return type should be ``dict[str, RunFacet]`` or ``None``. You may choose to return ``None``, if you do not want to add custom facets for certain criteria.
+
+**Example custom facet function**
+
+.. code-block:: python
+
+    import attrs
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+    from airflow.providers.common.compat.openlineage.facet import RunFacet
+
+
+    @attrs.define
+    class MyCustomRunFacet(RunFacet):
+        """Define a custom facet."""
+
+        name: str
+        jobState: str
+        uniqueName: str
+        displayName: str
+        dagId: str
+        taskId: str
+        cluster: str
+        custom_metadata: dict
+
+
+    def get_my_custom_facet(
+        task_instance: TaskInstance, ti_state: TaskInstanceState
+    ) -> dict[str, RunFacet] | None:
+        operator_name = task_instance.task.operator_name
+        custom_metadata = {}
+        if operator_name == "BashOperator":
+            return None
+        if ti_state == TaskInstanceState.FAILED:
+            custom_metadata["custom_key_failed"] = "custom_value"
+        job_unique_name = f"TEST.{task_instance.dag_id}.{task_instance.task_id}"
+        return {
+            "additional_run_facet": MyCustomRunFacet(
+                name="test-lineage-namespace",
+                jobState=task_instance.state,
+                uniqueName=job_unique_name,
+                displayName=f"{task_instance.dag_id}.{task_instance.task_id}",
+                dagId=task_instance.dag_id,
+                taskId=task_instance.task_id,
+                cluster="TEST",
+                custom_metadata=custom_metadata,
+            )
+        }
+
+Register the custom facet functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the ``custom_run_facets`` Airflow configuration to register the custom run facet functions by passing
+a string of semicolon separated full import path to the functions.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    custom_run_facets = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
+
+``AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
+
+.. note::
+
+    - The custom facet functions are executed both at the START and COMPLETE/FAIL of the TaskInstance and added to the corresponding OpenLineage event.
+    - When creating conditions on TaskInstance state, you should use second argument provided (``TaskInstanceState``) that will contain the state the task should be in. This may vary from ti.current_state() as the OpenLineage listener may get called before the TaskInstance's state is updated in Airflow database.
+    - When path to a single function is registered more than once, it will still be executed only once.
+    - When duplicate custom facet keys are returned by multiple functions registered, the result of random function result will be added to the lineage event. Please avoid using duplicate facet keys as it can produce unexpected behaviour.
 
 .. _job_hierarchy:openlineage:
 

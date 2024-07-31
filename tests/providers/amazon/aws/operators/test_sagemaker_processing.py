@@ -20,7 +20,6 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -30,6 +29,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerProcessingOperator,
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 CREATE_PROCESSING_PARAMS: dict = {

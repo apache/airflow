@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""add dag_owner_attributes table.
+"""
+add dag_owner_attributes table.
 
 Revision ID: 1486deb605b4
 Revises: f4ff391becb5

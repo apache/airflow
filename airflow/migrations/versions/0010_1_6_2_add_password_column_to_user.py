@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add ``password`` column to ``user`` table.
+"""
+Add ``password`` column to ``user`` table.
 
 Revision ID: 561833c1c74b
 Revises: 40e67319e3a9

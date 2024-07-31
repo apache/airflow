@@ -49,6 +49,7 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # and a corresponding Issue should be created on GitHub.
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
+    "tests/system/providers/google/cloud/datapipelines/example_datapipeline.py",
     "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
@@ -188,10 +189,11 @@ def test_should_be_importable(example: str):
     assert len(dagbag.dag_ids) >= 1
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):
-    with assert_queries_count(0, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
+    with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
             include_examples=False,

@@ -16,7 +16,7 @@
     under the License.
 
 
-Installation of Airflow™
+Installation of Airflow®
 ------------------------
 
 .. contents:: :local:
@@ -34,7 +34,7 @@ Installation of Airflow™
     Setting up the database <setting-up-the-database>
     Upgrading <upgrading>
 
-This page describes installations options that you might use when considering how to install Airflow™.
+This page describes installations options that you might use when considering how to install Airflow®.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
 installation of Airflow might be quite complex, depending on the options you choose.
 
@@ -63,7 +63,7 @@ More details: :doc:`installing-from-sources`
 
 * This option is best if you expect to build all your software from sources.
 * Apache Airflow is one of the projects that belong to the `Apache Software Foundation <https://www.apache.org/>`__.
-  It is a requirement for all ASF projects that they can be installed using official sources released via `Official Apache Downloads <http://ws.apache.org/mirrors.cgi/>`__.
+  It is a requirement for all ASF projects that they can be installed using official sources released via `Official Apache Downloads <https://dlcdn.apache.org/>`__.
 * This is the best choice if you have a strong need to `verify the integrity and provenance of the software <https://www.apache.org/dyn/closer.cgi#verify>`__
 
 **Intended users**

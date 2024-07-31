@@ -80,7 +80,8 @@ T = TypeVar("T", bound=Callable)
 def process_line_and_extract_dataflow_job_id_callback(
     on_new_job_id_callback: Callable[[str], None] | None,
 ) -> Callable[[str], None]:
-    """Build callback that triggers the specified function.
+    """
+    Build callback that triggers the specified function.
 
     The returned callback is intended to be used as ``process_line_callback`` in
     :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`.
@@ -418,32 +419,34 @@ class _DataflowJobsController(LoggingMixin):
         current_state = job["currentState"]
         is_streaming = job.get("type") == DataflowJobType.JOB_TYPE_STREAMING
 
-        if self._expected_terminal_state is None:
-            if is_streaming:
-                self._expected_terminal_state = DataflowJobStatus.JOB_STATE_RUNNING
-            else:
-                self._expected_terminal_state = DataflowJobStatus.JOB_STATE_DONE
-        else:
-            terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
-            if self._expected_terminal_state not in terminal_states:
-                raise AirflowException(
-                    f"Google Cloud Dataflow job's expected terminal state "
-                    f"'{self._expected_terminal_state}' is invalid."
-                    f" The value should be any of the following: {terminal_states}"
-                )
-            elif is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DONE:
-                raise AirflowException(
-                    "Google Cloud Dataflow job's expected terminal state cannot be "
-                    "JOB_STATE_DONE while it is a streaming job"
-                )
-            elif not is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DRAINED:
-                raise AirflowException(
-                    "Google Cloud Dataflow job's expected terminal state cannot be "
-                    "JOB_STATE_DRAINED while it is a batch job"
-                )
+        current_expected_state = self._expected_terminal_state
 
-        if current_state == self._expected_terminal_state:
-            if self._expected_terminal_state == DataflowJobStatus.JOB_STATE_RUNNING:
+        if current_expected_state is None:
+            if is_streaming:
+                current_expected_state = DataflowJobStatus.JOB_STATE_RUNNING
+            else:
+                current_expected_state = DataflowJobStatus.JOB_STATE_DONE
+
+        terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
+        if current_expected_state not in terminal_states:
+            raise AirflowException(
+                f"Google Cloud Dataflow job's expected terminal state "
+                f"'{current_expected_state}' is invalid."
+                f" The value should be any of the following: {terminal_states}"
+            )
+        elif is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DONE:
+            raise AirflowException(
+                "Google Cloud Dataflow job's expected terminal state cannot be "
+                "JOB_STATE_DONE while it is a streaming job"
+            )
+        elif not is_streaming and current_expected_state == DataflowJobStatus.JOB_STATE_DRAINED:
+            raise AirflowException(
+                "Google Cloud Dataflow job's expected terminal state cannot be "
+                "JOB_STATE_DRAINED while it is a batch job"
+            )
+
+        if current_state == current_expected_state:
+            if current_expected_state == DataflowJobStatus.JOB_STATE_RUNNING:
                 return not self._wait_until_finished
             return True
 
@@ -453,7 +456,7 @@ class _DataflowJobsController(LoggingMixin):
         self.log.debug("Current job: %s", job)
         raise AirflowException(
             f"Google Cloud Dataflow job {job['name']} is in an unexpected terminal state: {current_state}, "
-            f"expected terminal state: {self._expected_terminal_state}"
+            f"expected terminal state: {current_expected_state}"
         )
 
     def wait_for_done(self) -> None:
@@ -581,6 +584,11 @@ class DataflowHook(GoogleBaseHook):
         """Return a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
         return build("dataflow", "v1b3", http=http_authorized, cache_discovery=False)
+
+    def get_pipelines_conn(self) -> build:
+        """Return a Google Cloud Data Pipelines service object."""
+        http_authorized = self._authorize()
+        return build("datapipelines", "v1", http=http_authorized, cache_discovery=False)
 
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
@@ -1351,6 +1359,132 @@ class DataflowHook(GoogleBaseHook):
 
         return job_controller._check_dataflow_job_state(job)
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_data_pipeline(
+        self,
+        body: dict,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ):
+        """
+        Create a new Dataflow Data Pipelines instance.
+
+        :param body: The request body (contains instance of Pipeline). See:
+            https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+
+        Returns the created Data Pipelines instance in JSON representation.
+        """
+        parent = self.build_parent_name(project_id, location)
+        service = self.get_pipelines_conn()
+        request = (
+            service.projects()
+            .locations()
+            .pipelines()
+            .create(
+                parent=parent,
+                body=body,
+            )
+        )
+        response = request.execute(num_retries=self.num_retries)
+        return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_data_pipeline(
+        self,
+        pipeline_name: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict:
+        """
+        Retrieve a new Dataflow Data Pipelines instance.
+
+        :param pipeline_name: The display name of the pipeline. In example
+            projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+
+        Returns the created Data Pipelines instance in JSON representation.
+        """
+        parent = self.build_parent_name(project_id, location)
+        service = self.get_pipelines_conn()
+        request = (
+            service.projects()
+            .locations()
+            .pipelines()
+            .get(
+                name=f"{parent}/pipelines/{pipeline_name}",
+            )
+        )
+        response = request.execute(num_retries=self.num_retries)
+        return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_data_pipeline(
+        self,
+        pipeline_name: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict:
+        """
+        Run a Dataflow Data Pipeline Instance.
+
+        :param pipeline_name: The display name of the pipeline. In example
+            projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+
+        Returns the created Job in JSON representation.
+        """
+        parent = self.build_parent_name(project_id, location)
+        service = self.get_pipelines_conn()
+        request = (
+            service.projects()
+            .locations()
+            .pipelines()
+            .run(
+                name=f"{parent}/pipelines/{pipeline_name}",
+                body={},
+            )
+        )
+        response = request.execute(num_retries=self.num_retries)
+        return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_data_pipeline(
+        self,
+        pipeline_name: str,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict | None:
+        """
+        Delete a Dataflow Data Pipelines Instance.
+
+        :param pipeline_name: The display name of the pipeline. In example
+            projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+
+        Returns the created Job in JSON representation.
+        """
+        parent = self.build_parent_name(project_id, location)
+        service = self.get_pipelines_conn()
+        request = (
+            service.projects()
+            .locations()
+            .pipelines()
+            .delete(
+                name=f"{parent}/pipelines/{pipeline_name}",
+            )
+        )
+        response = request.execute(num_retries=self.num_retries)
+        return response
+
+    @staticmethod
+    def build_parent_name(project_id: str, location: str):
+        return f"projects/{project_id}/locations/{location}"
+
 
 class AsyncDataflowHook(GoogleBaseAsyncHook):
     """Async hook class for dataflow service."""
@@ -1452,7 +1586,8 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         page_size: int | None = None,
         page_token: str | None = None,
     ) -> ListJobsAsyncPager:
-        """List jobs.
+        """
+        List jobs.
 
         For detail see:
         https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.ListJobsRequest

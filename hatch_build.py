@@ -40,6 +40,7 @@ GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provi
 PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 PRE_INSTALLED_PROVIDERS = [
+    "common.compat",
     "common.io",
     "common.sql",
     "fab>=1.0.2",
@@ -200,6 +201,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
+        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
+        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
@@ -443,7 +446,7 @@ DEPENDENCIES = [
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
-    "httpx>=0.18.0",
+    "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299
@@ -461,7 +464,7 @@ DEPENDENCIES = [
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.15.0",
     "opentelemetry-exporter-otlp>=1.15.0",
-    "packaging>=22.0",
+    "packaging>=23.0",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
@@ -492,7 +495,7 @@ DEPENDENCIES = [
     # We should remove this dependency when Providers are limited to Airflow 2.7+
     # as we replaced the usage of unicodecsv with csv in Airflow 2.7
     # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
+    # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
     # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
     "universal-pathlib>=0.2.2",

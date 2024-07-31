@@ -80,6 +80,8 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | trino        | Integration required for Trino hooks.              |
 +--------------+----------------------------------------------------+
+| ydb          | Integration required for YDB tests.                |
++--------------+----------------------------------------------------+
 
 .. END AUTO-GENERATED INTEGRATION LIST'
 

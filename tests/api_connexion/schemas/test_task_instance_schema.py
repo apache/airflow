@@ -33,6 +33,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestTaskInstanceSchema:
     @pytest.fixture(autouse=True)
@@ -74,6 +75,7 @@ class TestTaskInstanceSchema:
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -122,6 +124,7 @@ class TestTaskInstanceSchema:
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,

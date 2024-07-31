@@ -71,7 +71,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
@@ -83,6 +83,7 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
+    TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -91,8 +92,8 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
+from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskfail import TaskFail
@@ -107,6 +108,7 @@ from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.traces.tracer import Trace
 from airflow.utils import timezone
 from airflow.utils.context import (
     ConnectionAccessor,
@@ -136,6 +138,7 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
+from airflow.utils.types import AttributeRemoved
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
@@ -571,7 +574,8 @@ def _xcom_pull(
     map_indexes: int | Iterable[int] | None = None,
     default: Any = None,
 ) -> Any:
-    """Pull XComs that optionally meet certain criteria.
+    """
+    Pull XComs that optionally meet certain criteria.
 
     :param key: A key for the XCom. If provided, only XComs with matching
         keys will be returned. The default key is ``'return_value'``, also
@@ -661,7 +665,8 @@ def _xcom_pull(
 
 
 def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
-    """Whether a value can be used for task mapping.
+    """
+    Whether a value can be used for task mapping.
 
     We only allow collections with guaranteed ordering, but exclude character
     sequences since that's usually not what users would expect to be mappable.
@@ -693,6 +698,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
     :meta private:
     """
+    from airflow.models.mappedoperator import MappedOperator
+
     task_to_execute = task_instance.task
 
     if TYPE_CHECKING:
@@ -781,8 +788,14 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 for key, value in xcom_value.items():
                     task_instance.xcom_push(key=key, value=value, session=session_or_null)
             task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session_or_null)
+        if TYPE_CHECKING:
+            assert task_orig.dag
         _record_task_map_for_downstreams(
-            task_instance=task_instance, task=task_orig, value=xcom_value, session=session_or_null
+            task_instance=task_instance,
+            task=task_orig,
+            dag=task_orig.dag,
+            value=xcom_value,
+            session=session_or_null,
         )
     return result
 
@@ -832,8 +845,9 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if session and task_instance in session:
-        session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
+    if not InternalApiConfig.get_use_internal_api():
+        if session and task_instance in session:
+            session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
 
     ti = TaskInstance.get_task_instance(
         dag_id=task_instance.dag_id,
@@ -894,13 +908,15 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
+    dag: DAG,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
     """
     Return TI Context.
 
-    :param task_instance: the task instance
+    :param task_instance: the task instance for the task
+    :param dag for the task
     :param session: SQLAlchemy ORM Session
     :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
 
@@ -920,27 +936,10 @@ def _get_template_context(
         assert task_instance.task
         assert task
         assert task.dag
-    try:
-        dag: DAG = task.dag
-    except AirflowException:
-        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
-        if isinstance(task_instance, TaskInstancePydantic):
-            ti = session.scalar(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == task_instance.task_id,
-                    TaskInstance.dag_id == task_instance.dag_id,
-                    TaskInstance.run_id == task_instance.run_id,
-                    TaskInstance.map_index == task_instance.map_index,
-                )
-            )
-            dag = ti.dag_model.serialized_dag.dag
-            if hasattr(task_instance.task, "_dag"):  # BaseOperator
-                task_instance.task._dag = dag
-            else:  # MappedOperator
-                task_instance.task.dag = dag
-        else:
-            raise
+    if task.dag.__class__ is AttributeRemoved:
+        task.dag = dag  # required after deserialization
+
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
@@ -1216,6 +1215,27 @@ def _handle_failure(
     if not test_mode:
         TaskInstance.save_to_db(failure_context["ti"], session)
 
+    with Trace.start_span_from_taskinstance(ti=task_instance) as span:
+        # ---- error info ----
+        span.set_attribute("error", "true")
+        span.set_attribute("error_msg", str(error))
+        span.set_attribute("context", context)
+        span.set_attribute("force_fail", force_fail)
+        # ---- common info ----
+        span.set_attribute("category", "DAG runs")
+        span.set_attribute("task_id", task_instance.task_id)
+        span.set_attribute("dag_id", task_instance.dag_id)
+        span.set_attribute("state", task_instance.state)
+        span.set_attribute("start_date", str(task_instance.start_date))
+        span.set_attribute("end_date", str(task_instance.end_date))
+        span.set_attribute("duration", task_instance.duration)
+        span.set_attribute("executor_config", str(task_instance.executor_config))
+        span.set_attribute("execution_date", str(task_instance.execution_date))
+        span.set_attribute("hostname", task_instance.hostname)
+        if isinstance(task_instance, TaskInstance):
+            span.set_attribute("log_url", task_instance.log_url)
+        span.set_attribute("operator", str(task_instance.operator))
+
 
 def _refresh_from_task(
     *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
@@ -1249,25 +1269,38 @@ def _refresh_from_task(
     task_instance_mutation_hook(task_instance)
 
 
+@internal_api_call
+@provide_session
 def _record_task_map_for_downstreams(
-    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, value: Any, session: Session
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    task: Operator,
+    dag: DAG,
+    value: Any,
+    session: Session,
 ) -> None:
     """
     Record the task map for downstream tasks.
 
     :param task_instance: the task instance
     :param task: The task object
+    :param dag: the dag associated with the task
     :param value: The value
     :param session: SQLAlchemy ORM Session
 
     :meta private:
     """
+    from airflow.models.mappedoperator import MappedOperator
+
+    if task.dag.__class__ is AttributeRemoved:
+        task.dag = dag  # required after deserialization
+
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
     # TODO: We don't push TaskMap for mapped task instances because it's not
-    # currently possible for a downstream to depend on one individual mapped
-    # task instance. This will change when we implement task mapping inside
-    # a mapped task group, and we'll need to further analyze the case.
+    #  currently possible for a downstream to depend on one individual mapped
+    #  task instance. This will change when we implement task mapping inside
+    #  a mapped task group, and we'll need to further analyze the case.
     if isinstance(task, MappedOperator):
         return
     if value is None:
@@ -1585,19 +1618,27 @@ def _defer_task(
 
     if exception is not None:
         trigger_row = Trigger.from_object(exception.trigger)
-        trigger_kwargs = exception.kwargs
         next_method = exception.method_name
+        next_kwargs = exception.kwargs
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
+        context = ti.get_template_context()
+        start_trigger_args = ti.task.expand_start_trigger_args(context=context, session=session)
+        if start_trigger_args is None:
+            raise TaskDeferralError(
+                "A none 'None' start_trigger_args has been change to 'None' during expandion"
+            )
+
+        trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+        next_kwargs = start_trigger_args.next_kwargs
+        next_method = start_trigger_args.next_method
+        timeout = start_trigger_args.timeout
         trigger_row = Trigger(
             classpath=ti.task.start_trigger_args.trigger_cls,
-            kwargs=ti.task.start_trigger_args.trigger_kwargs or {},
+            kwargs=trigger_kwargs,
         )
-        trigger_kwargs = ti.task.start_trigger_args.trigger_kwargs
-        next_method = ti.task.start_trigger_args.next_method
-        timeout = ti.task.start_trigger_args.timeout
     else:
-        raise AirflowException("exception and ti.task.start_trigger_args cannot both be None")
+        raise TaskDeferralError("exception and ti.task.start_trigger_args cannot both be None")
 
     # First, make the trigger entry
     session.add(trigger_row)
@@ -1614,7 +1655,7 @@ def _defer_task(
     ti.state = TaskInstanceState.DEFERRED
     ti.trigger_id = trigger_row.id
     ti.next_method = next_method
-    ti.next_kwargs = trigger_kwargs or {}
+    ti.next_kwargs = next_kwargs or {}
 
     # Calculate timeout too if it was passed
     if timeout is not None:
@@ -1920,7 +1961,8 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
-        """Insert mapping.
+        """
+        Insert mapping.
 
         :meta private:
         """
@@ -2158,7 +2200,9 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
+        base_date = quote(self.execution_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
+        map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
         return (
             f"{base_url}"
             f"/dags"
@@ -2166,7 +2210,8 @@ class TaskInstance(Base, LoggingMixin):
             f"/grid"
             f"?dag_run_id={run_id}"
             f"&task_id={self.task_id}"
-            f"&map_index={self.map_index}"
+            f"{map_index}"
+            f"&base_date={base_date}"
             "&tab=logs"
         )
 
@@ -2270,7 +2315,8 @@ class TaskInstance(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
-        """Clear all XCom data from the database for the task instance.
+        """
+        Clear all XCom data from the database for the task instance.
 
         If the task is unmapped, all XComs matching this task ID in the same DAG
         run are removed. If the task is mapped, only the one with matching map
@@ -2623,6 +2669,22 @@ class TaskInstance(Base, LoggingMixin):
         return dr
 
     @classmethod
+    @provide_session
+    def ensure_dag(
+        cls, task_instance: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
+    ) -> DAG:
+        """Ensure that task has a dag object associated, might have been removed by serialization."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+        if task_instance.task.dag is None or task_instance.task.dag.__class__ is AttributeRemoved:
+            task_instance.task.dag = DagBag(read_dags_from_db=True).get_dag(
+                dag_id=task_instance.dag_id, session=session
+            )
+        if TYPE_CHECKING:
+            assert task_instance.task.dag
+        return task_instance.task.dag
+
+    @classmethod
     @internal_api_call
     @provide_session
     def _check_and_change_state_before_execution(
@@ -2671,7 +2733,7 @@ class TaskInstance(Base, LoggingMixin):
         else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
-            dag = ti.dag_model.serialized_dag.dag
+            dag = DagBag(read_dags_from_db=True).get_dag(task_instance.dag_id, session=session)
             task_instance.task = dag.task_dict[ti.task_id]
             ti.task = task_instance.task
         task = task_instance.task
@@ -2835,7 +2897,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+            timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2848,7 +2910,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = (timezone.utcnow() - self.start_date).total_seconds()
+            timing = timezone.utcnow() - self.start_date
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
@@ -2901,6 +2963,10 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task
 
+        # One task only triggers one dataset event for each dataset with the same extra.
+        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
+        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
+        dataset_tuple_to_alias_names_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
@@ -2911,6 +2977,48 @@ class TaskInstance(Base, LoggingMixin):
                     extra=events[obj].extra,
                     session=session,
                 )
+            elif isinstance(obj, DatasetAlias):
+                if dataset_alias_event := events[obj].dataset_alias_event:
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
+                    extra = events[obj].extra
+                    frozen_extra = frozenset(extra.items())
+                    dataset_alias_name = dataset_alias_event["source_alias_name"]
+
+                    dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+
+        dataset_objs_cache: dict[str, DatasetModel] = {}
+        for (uri, extra_items), alias_names in dataset_tuple_to_alias_names_mapping.items():
+            if uri not in dataset_objs_cache:
+                dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
+                dataset_objs_cache[uri] = dataset_obj
+            else:
+                dataset_obj = dataset_objs_cache[uri]
+
+            if not dataset_obj:
+                dataset_obj = DatasetModel(uri=uri)
+                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
+                self.log.warning("Created a new %r as it did not exist.", dataset_obj)
+                dataset_objs_cache[uri] = dataset_obj
+
+            for alias in alias_names:
+                alias_obj = session.scalar(
+                    select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
+                )
+                dataset_obj.aliases.append(alias_obj)
+
+            extra = {k: v for k, v in extra_items}
+            self.log.info(
+                'Creating event for %r through aliases "%s"',
+                dataset_obj,
+                ", ".join(alias_names),
+            )
+            dataset_manager.register_dataset_change(
+                task_instance=self,
+                dataset=dataset_obj,
+                extra=extra,
+                session=session,
+                source_alias_names=alias_names,
+            )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
@@ -3023,7 +3131,8 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+        """
+        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
@@ -3287,8 +3396,12 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
         """
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
         return _get_template_context(
             task_instance=self,
+            dag=self.task.dag,
             session=session,
             ignore_param_exceptions=ignore_param_exceptions,
         )
@@ -3337,24 +3450,36 @@ class TaskInstance(Base, LoggingMixin):
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
     ) -> Operator:
-        """Render templates in the operator fields.
+        """
+        Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
         the unmapped, fully rendered BaseOperator. The original ``self.task``
         before replacement is returned.
         """
+        from airflow.models.mappedoperator import MappedOperator
+
         if not context:
             context = self.get_template_context()
         original_task = self.task
 
+        ti = context["ti"]
+
         if TYPE_CHECKING:
             assert original_task
+            assert self.task
+            assert ti.task
+
+        if ti.task.dag.__class__ is AttributeRemoved:
+            ti.task.dag = self.task.dag
 
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
+        if isinstance(self.task, MappedOperator):
+            self.task = context["ti"].task
 
         return original_task
 
@@ -3479,7 +3604,8 @@ class TaskInstance(Base, LoggingMixin):
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
     ) -> Any:
-        """Pull XComs that optionally meet certain criteria.
+        """
+        Pull XComs that optionally meet certain criteria.
 
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is ``'return_value'``, also
@@ -3653,7 +3779,6 @@ class TaskInstance(Base, LoggingMixin):
         return or_(*filters)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _schedule_downstream_tasks(
         cls,
@@ -3750,7 +3875,8 @@ class TaskInstance(Base, LoggingMixin):
         *,
         session: Session,
     ) -> int | range | None:
-        """Infer the map indexes of an upstream "relevant" to this ti.
+        """
+        Infer the map indexes of an upstream "relevant" to this ti.
 
         The bulk of the logic mainly exists to solve the problem described by
         the following example, where 'val' must resolve to different values,
@@ -3868,6 +3994,8 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
+    from airflow.models.mappedoperator import MappedOperator
+
     if isinstance(operator, MappedOperator):
         return True
     task_group = operator.task_group

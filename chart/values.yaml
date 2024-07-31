@@ -57,7 +57,7 @@ securityContexts:
   pod: {}
   containers: {}
 
-# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
+# Global container lifecycle hooks for airflow containers
 containerLifecycleHooks: {}
 
 # Airflow home directory
@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.9.2"
+defaultAirflowTag: "2.9.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.9.2"
+airflowVersion: "2.9.3"
 
 # Images
 images:
@@ -119,7 +119,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.01.19-0.16.0
+    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -245,7 +245,8 @@ airflowLocalSettings: |-
     UIAlert(
       'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
       ' See the <a href='
-      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
+      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key" '
+      'target="_blank" rel="noopener noreferrer">'
       'Helm Chart Production Guide</a> for more details.',
       category="warning",
       roles=["Admin"],
@@ -341,6 +342,11 @@ extraSecrets: {}
 #   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
+#   'proxy-config':
+#     stringData: |
+#        HTTP_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        HTTPS_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        NO_PROXY: "localhost,127.0.0.1,.svc.cluster.local,kubernetes.default.svc"
 
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
@@ -619,6 +625,11 @@ workers:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -676,7 +687,7 @@ workers:
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
-  safeToEvict: true
+  safeToEvict: false
 
   # Launch additional containers into worker (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
@@ -811,13 +822,14 @@ scheduler:
     periodSeconds: 60
     command: ~
 
-  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
-  # livenessProbe kicks in after the startup
+  # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
     command: ~
+
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -1031,6 +1043,9 @@ createUserJob:
   # Launch additional containers into user creation job
   extraContainers: []
 
+  # Add additional init containers into user creation job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into user creation job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1130,6 +1145,9 @@ migrateDatabaseJob:
 
   # Launch additional containers into database migration job
   extraContainers: []
+
+  # Add additional init containers into migrate database job (templated).
+  extraInitContainers: []
 
   # Mount additional volumes into database migration job. It can be templated like in the following example:
   #   extraVolumes:
@@ -1252,6 +1270,8 @@ _rpcServer:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the RPC server container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1286,6 +1306,8 @@ webserver:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the webserver container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1532,6 +1554,8 @@ triggerer:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -1669,6 +1693,10 @@ triggerer:
     query: >-
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
       FROM trigger
+
+    # Whether to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: false
 
 # Airflow Dag Processor Config
 dagProcessor:
@@ -2230,6 +2258,9 @@ redis:
   enabled: true
   terminationGracePeriodSeconds: 600
 
+  # Annotations for Redis Statefulset
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2609,6 +2640,12 @@ dags:
     # and specify the name of the secret below
     # sshKeySecret: airflow-ssh-secret
     #
+    # Or set sshKeySecret with your key
+    # sshKey: |-
+    #   -----BEGIN {OPENSSH PRIVATE KEY}-----
+    #   ...
+    #   -----END {OPENSSH PRIVATE KEY}-----
+    #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
     #
@@ -2623,6 +2660,11 @@ dags:
     # For backwards compatibility, wait will be used if it is specified.
     period: 5s
     wait: ~
+    # add variables from secret into gitSync containers, such proxy-config
+    envFrom: ~
+    # envFrom: |
+    #   - secretRef:
+    #       name: 'proxy-config'
 
     containerName: git-sync
     uid: 65533

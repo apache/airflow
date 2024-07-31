@@ -139,7 +139,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
-        kwargs: dict[str, Any] = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+        kwargs: dict[str, Any] = {
+            "label_selector": f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True",
+        }
         if resource_version:
             kwargs["resource_version"] = resource_version
         if kube_config.kube_client_request_args:
@@ -271,14 +273,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
             # send it along to the scheduler once.
-            # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
-            # a deletion timestamp, we've already seen the initial Succeeded event and sent it
-            # along to the scheduler.
-            if (
-                event["type"] == "DELETED"
-                or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
-                or pod.metadata.deletion_timestamp
-            ):
+            # If our event type is DELETED, or the pod has a deletion timestamp, we've already
+            # seen the initial Succeeded event and sent it along to the scheduler.
+            if event["type"] == "DELETED" or pod.metadata.deletion_timestamp:
                 self.log.info(
                     "Skipping event for Succeeded pod %s - event for this pod already sent to executor",
                     pod_name,

@@ -28,7 +28,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
@@ -41,7 +40,7 @@ from airflow.providers.google.cloud.operators.compute import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 LOCATION = "europe-west1-b"
@@ -115,7 +114,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "compute-igm"],
 ) as dag:
     # [START howto_operator_gce_igm_insert_template]
     gce_instance_template_insert = ComputeEngineInsertInstanceTemplateOperator(
@@ -196,39 +195,42 @@ with DAG(
     gce_instance_template_old_delete = ComputeEngineDeleteInstanceTemplateOperator(
         task_id="gcp_compute_delete_old_template_task",
         resource_id=TEMPLATE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_old_template_no_project_id]
-    gce_instance_template_old_delete.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gce_delete_new_template_no_project_id]
     gce_instance_template_new_delete = ComputeEngineDeleteInstanceTemplateOperator(
         task_id="gcp_compute_delete_new_template_task",
         resource_id=NEW_TEMPLATE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_new_template_no_project_id]
-    gce_instance_template_new_delete.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gce_delete_igm_no_project_id]
     gce_igm_delete = ComputeEngineDeleteInstanceGroupManagerOperator(
         task_id="gcp_compute_delete_group_task",
         resource_id=INSTANCE_GROUP_MANAGER_NAME,
         zone=LOCATION,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_igm_no_project_id]
-    gce_igm_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    chain(
-        gce_instance_template_insert,
-        gce_instance_template_insert2,
-        gce_instance_template_copy,
-        gce_instance_template_copy2,
-        gce_igm_insert,
-        gce_igm_insert2,
-        gce_instance_group_manager_update_template,
-        gce_instance_group_manager_update_template2,
-        gce_igm_delete,
-        gce_instance_template_old_delete,
-        gce_instance_template_new_delete,
+    (
+        # TEST SETUP
+        gce_instance_template_insert
+        >> gce_instance_template_insert2
+        >> gce_instance_template_copy
+        >> gce_instance_template_copy2
+        # TEST BODY
+        >> gce_igm_insert
+        >> gce_igm_insert2
+        >> gce_instance_group_manager_update_template
+        >> gce_instance_group_manager_update_template2
+        # TEST TEARDOWN
+        >> gce_igm_delete
+        >> gce_instance_template_old_delete
+        >> gce_instance_template_new_delete
     )
 
     # ### Everything below this line is not part of example ###

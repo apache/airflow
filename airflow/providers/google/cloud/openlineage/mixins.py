@@ -20,17 +20,21 @@ from __future__ import annotations
 import copy
 import json
 import traceback
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from openlineage.client.facet import (
-        BaseFacet,
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset,
+        InputDataset,
+        OutputDataset,
         OutputStatisticsOutputDatasetFacet,
+        RunFacet,
         SchemaDatasetFacet,
     )
-    from openlineage.client.run import Dataset
-
     from airflow.providers.google.cloud.openlineage.utils import BigQueryJobRunFacet
+
+
+BIGQUERY_NAMESPACE = "bigquery"
 
 
 class _BigQueryOpenLineageMixin:
@@ -61,19 +65,28 @@ class _BigQueryOpenLineageMixin:
             - SchemaDatasetFacet
             - OutputStatisticsOutputDatasetFacet
         """
-        from openlineage.client.facet import ExternalQueryRunFacet, SqlJobFacet
-
+        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet, SQLJobFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if not self.job_id:
+            if hasattr(self, "log"):
+                self.log.warning("No BigQuery job_id was found by OpenLineage.")
             return OperatorLineage()
 
-        run_facets: dict[str, BaseFacet] = {
+        if not self.hook:
+            from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            )
+
+        run_facets: dict[str, RunFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery")
         }
 
-        job_facets = {"sql": SqlJobFacet(query=SQLParser.normalize_sql(self.sql))}
+        job_facets = {"sql": SQLJobFacet(query=SQLParser.normalize_sql(self.sql))}
 
         self.client = self.hook.get_client(project_id=self.hook.project_id)
         job_ids = self.job_id
@@ -94,8 +107,7 @@ class _BigQueryOpenLineageMixin:
         )
 
     def get_facets(self, job_id: str):
-        from openlineage.client.facet import ErrorMessageRunFacet
-
+        from airflow.providers.common.compat.openlineage.facet import ErrorMessageRunFacet
         from airflow.providers.google.cloud.openlineage.utils import (
             BigQueryErrorRunFacet,
             get_from_nullable_chain,
@@ -103,7 +115,7 @@ class _BigQueryOpenLineageMixin:
 
         inputs = []
         outputs = []
-        run_facets: dict[str, BaseFacet] = {}
+        run_facets: dict[str, RunFacet] = {}
         if hasattr(self, "log"):
             self.log.debug("Extracting data from bigquery job: `%s`", job_id)
         try:
@@ -148,7 +160,7 @@ class _BigQueryOpenLineageMixin:
         deduplicated_outputs = self._deduplicate_outputs(outputs)
         return inputs, deduplicated_outputs, run_facets
 
-    def _deduplicate_outputs(self, outputs: list[Dataset | None]) -> list[Dataset]:
+    def _deduplicate_outputs(self, outputs: list[OutputDataset | None]) -> list[OutputDataset]:
         # Sources are the same so we can compare only names
         final_outputs = {}
         for single_output in outputs:
@@ -161,22 +173,26 @@ class _BigQueryOpenLineageMixin:
 
             # No OutputStatisticsOutputDatasetFacet is added to duplicated outputs as we can not determine
             # if the rowCount or size can be summed together.
-            single_output.facets.pop("outputStatistics", None)
+            if single_output.outputFacets:
+                single_output.outputFacets.pop("outputStatistics", None)
             final_outputs[key] = single_output
 
         return list(final_outputs.values())
 
-    def _get_inputs_outputs_from_job(self, properties: dict) -> tuple[list[Dataset], Dataset | None]:
+    def _get_inputs_outputs_from_job(
+        self, properties: dict
+    ) -> tuple[list[InputDataset], OutputDataset | None]:
         from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 
         input_tables = get_from_nullable_chain(properties, ["statistics", "query", "referencedTables"]) or []
         output_table = get_from_nullable_chain(properties, ["configuration", "query", "destinationTable"])
-        inputs = [self._get_dataset(input_table) for input_table in input_tables]
+        inputs = [(self._get_input_dataset(input_table)) for input_table in input_tables]
         if output_table:
-            output = self._get_dataset(output_table)
+            output = self._get_output_dataset(output_table)
             dataset_stat_facet = self._get_statistics_dataset_facet(properties)
+            output.outputFacets = output.outputFacets or {}
             if dataset_stat_facet:
-                output.facets.update({"outputStatistics": dataset_stat_facet})
+                output.outputFacets["outputStatistics"] = dataset_stat_facet
 
         return inputs, output
 
@@ -200,9 +216,10 @@ class _BigQueryOpenLineageMixin:
         )
 
     @staticmethod
-    def _get_statistics_dataset_facet(properties) -> OutputStatisticsOutputDatasetFacet | None:
-        from openlineage.client.facet import OutputStatisticsOutputDatasetFacet
-
+    def _get_statistics_dataset_facet(
+        properties,
+    ) -> OutputStatisticsOutputDatasetFacet | None:
+        from airflow.providers.common.compat.openlineage.facet import OutputStatisticsOutputDatasetFacet
         from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 
         query_plan = get_from_nullable_chain(properties, chain=["statistics", "query", "queryPlan"])
@@ -216,10 +233,18 @@ class _BigQueryOpenLineageMixin:
             return OutputStatisticsOutputDatasetFacet(rowCount=int(out_rows), size=int(out_bytes))
         return None
 
-    def _get_dataset(self, table: dict) -> Dataset:
-        from openlineage.client.run import Dataset
+    def _get_input_dataset(self, table: dict) -> InputDataset:
+        from airflow.providers.common.compat.openlineage.facet import InputDataset
 
-        BIGQUERY_NAMESPACE = "bigquery"
+        return cast(InputDataset, self._get_dataset(table, "input"))
+
+    def _get_output_dataset(self, table: dict) -> OutputDataset:
+        from airflow.providers.common.compat.openlineage.facet import OutputDataset
+
+        return cast(OutputDataset, self._get_dataset(table, "output"))
+
+    def _get_dataset(self, table: dict, dataset_type: str) -> Dataset:
+        from airflow.providers.common.compat.openlineage.facet import InputDataset, OutputDataset
 
         project = table.get("projectId")
         dataset = table.get("datasetId")
@@ -227,15 +252,30 @@ class _BigQueryOpenLineageMixin:
         dataset_name = f"{project}.{dataset}.{table_name}"
 
         dataset_schema = self._get_table_schema_safely(dataset_name)
-        return Dataset(
-            namespace=BIGQUERY_NAMESPACE,
-            name=dataset_name,
-            facets={
-                "schema": dataset_schema,
-            }
-            if dataset_schema
-            else {},
-        )
+        if dataset_type == "input":
+            # Logic specific to creating InputDataset (if needed)
+            return InputDataset(
+                namespace=BIGQUERY_NAMESPACE,
+                name=dataset_name,
+                facets={
+                    "schema": dataset_schema,
+                }
+                if dataset_schema
+                else {},
+            )
+        elif dataset_type == "output":
+            # Logic specific to creating OutputDataset (if needed)
+            return OutputDataset(
+                namespace=BIGQUERY_NAMESPACE,
+                name=dataset_name,
+                facets={
+                    "schema": dataset_schema,
+                }
+                if dataset_schema
+                else {},
+            )
+        else:
+            raise ValueError("Invalid dataset_type. Must be 'input' or 'output'")
 
     def _get_table_schema_safely(self, table_name: str) -> SchemaDatasetFacet | None:
         try:
@@ -246,8 +286,10 @@ class _BigQueryOpenLineageMixin:
         return None
 
     def _get_table_schema(self, table: str) -> SchemaDatasetFacet | None:
-        from openlineage.client.facet import SchemaDatasetFacet, SchemaField
-
+        from airflow.providers.common.compat.openlineage.facet import (
+            SchemaDatasetFacet,
+            SchemaDatasetFacetFields,
+        )
         from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 
         bq_table = self.client.get_table(table)
@@ -261,7 +303,7 @@ class _BigQueryOpenLineageMixin:
 
         return SchemaDatasetFacet(
             fields=[
-                SchemaField(
+                SchemaDatasetFacetFields(
                     name=field.get("name"),
                     type=field.get("type"),
                     description=field.get("description"),

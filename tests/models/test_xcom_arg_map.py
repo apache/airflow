@@ -20,6 +20,9 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import AirflowSkipException
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap, TaskMapVariant
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -188,6 +191,56 @@ def test_xcom_map_error_fails_task(dag_maker, session):
     ]
 
 
+def test_task_map_from_task_instance_xcom():
+    task = EmptyOperator(task_id="test_task")
+    ti = TaskInstance(task=task, run_id="test_run", map_index=0)
+    ti.dag_id = "test_dag"
+    value = {"key1": "value1", "key2": "value2"}
+
+    # Test case where run_id is not None
+    task_map = TaskMap.from_task_instance_xcom(ti, value)
+    assert task_map.dag_id == ti.dag_id
+    assert task_map.task_id == ti.task_id
+    assert task_map.run_id == ti.run_id
+    assert task_map.map_index == ti.map_index
+    assert task_map.length == len(value)
+    assert task_map.keys == list(value)
+
+    # Test case where run_id is None
+    ti.run_id = None
+    with pytest.raises(ValueError, match="cannot record task map for unrun task instance"):
+        TaskMap.from_task_instance_xcom(ti, value)
+
+
+def test_task_map_with_invalid_task_instance():
+    task = EmptyOperator(task_id="test_task")
+    ti = TaskInstance(task=task, run_id=None, map_index=0)
+    ti.dag_id = "test_dag"
+
+    # Define some arbitrary XCom-like value data
+    value = {"example_key": "example_value"}
+
+    with pytest.raises(ValueError, match="cannot record task map for unrun task instance"):
+        TaskMap.from_task_instance_xcom(ti, value)
+
+
+def test_task_map_variant():
+    # Test case where keys is None
+    task_map = TaskMap(
+        dag_id="test_dag",
+        task_id="test_task",
+        run_id="test_run",
+        map_index=0,
+        length=3,
+        keys=None,
+    )
+    assert task_map.variant == TaskMapVariant.LIST
+
+    # Test case where keys is not None
+    task_map.keys = ["key1", "key2"]
+    assert task_map.variant == TaskMapVariant.DICT
+
+
 def test_xcom_map_raise_to_skip(dag_maker, session):
     result = None
 
@@ -309,3 +362,72 @@ def test_xcom_map_zip_nest(dag_maker, session):
         ti.run(session=session)
 
     assert results == {"aa", "bbbb", "cccccc", "dddddddd"}
+
+
+def test_xcom_concat(dag_maker, session):
+    from airflow.models.xcom_arg import _ConcatResult
+
+    agg_results = set()
+    all_results = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2]
+
+        @dag.task
+        def pull_one(value):
+            agg_results.add(value)
+
+        @dag.task
+        def pull_all(value):
+            assert isinstance(value, _ConcatResult)
+            assert value[0] == "a"
+            assert value[1] == "b"
+            assert value[2] == "c"
+            assert value[3] == 1
+            assert value[4] == 2
+            with pytest.raises(IndexError):
+                value[5]
+            assert value[-5] == "a"
+            assert value[-4] == "b"
+            assert value[-3] == "c"
+            assert value[-2] == 1
+            assert value[-1] == 2
+            with pytest.raises(IndexError):
+                value[-6]
+            nonlocal all_results
+            all_results = list(value)
+
+        pushed_values = push_letters().concat(push_numbers())
+
+        pull_one.expand(value=pushed_values)
+        pull_all(pushed_values)
+
+    dr = dag_maker.create_dagrun(session=session)
+
+    # Run "push_letters" and "push_numbers".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2
+    assert all(ti.task_id.startswith("push_") for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+    session.commit()
+
+    # Run "pull_one" and "pull_all".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 6
+    assert all(ti.task_id.startswith("pull_") for ti in decision.schedulable_tis)
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    assert agg_results == {"a", "b", "c", 1, 2}
+    assert all_results == ["a", "b", "c", 1, 2]
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert not decision.schedulable_tis

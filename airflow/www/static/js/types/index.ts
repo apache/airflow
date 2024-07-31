@@ -40,6 +40,7 @@ type TaskState =
   | "upstream_failed"
   | "skipped"
   | "deferred"
+  | "none"
   | null;
 
 interface Dag {
@@ -64,7 +65,6 @@ interface DagRun {
   lastSchedulingDecision: string | null;
   externalTrigger: boolean;
   conf: string | null;
-  confIsJson: boolean;
   note: string | null;
 }
 
@@ -133,7 +133,14 @@ interface DepNode {
   id: string;
   value: {
     id?: string;
-    class: "dag" | "dataset" | "trigger" | "sensor";
+    class:
+      | "dag"
+      | "dataset"
+      | "trigger"
+      | "sensor"
+      | "or-gate"
+      | "and-gate"
+      | "dataset-alias";
     label: string;
     rx?: number;
     ry?: number;

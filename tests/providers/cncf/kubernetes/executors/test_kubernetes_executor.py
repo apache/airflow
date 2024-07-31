@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
-    POD_EXECUTOR_DONE_KEY,
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
     AirflowKubernetesScheduler,
@@ -1128,6 +1127,41 @@ class TestKubernetesExecutor:
         )
         assert executor.running == expected_running_ti_keys
 
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_adopt_completed_pods_api_exception(self, mock_kube_client, mock_kube_dynamic_client):
+        """We should gracefully handle exceptions when adopting completed pods from other schedulers"""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock_kube_client
+        executor.kube_config.kube_namespace = "somens"
+        pod_names = ["one", "two"]
+
+        def get_annotations(pod_name):
+            return {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": pod_name,
+                "try_number": "1",
+            }
+
+        mock_kube_dynamic_client.return_value.get.return_value.items = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name=pod_name,
+                    labels={"airflow-worker": pod_name},
+                    annotations=get_annotations(pod_name),
+                    namespace="somens",
+                )
+            )
+            for pod_name in pod_names
+        ]
+
+        mock_kube_client.patch_namespaced_pod.side_effect = ApiException(status=400)
+        executor._adopt_completed_pods(mock_kube_client)
+        assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
+        assert executor.running == set()
+
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
         """
@@ -1539,8 +1573,12 @@ class TestKubernetesJobWatcher:
     def _run(self):
         with mock.patch(
             "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.watch"
-        ) as mock_watch:
+        ) as mock_watch, mock.patch.object(
+            KubernetesJobWatcher,
+            "_pod_events",
+        ) as mock_pod_events:
             mock_watch.Watch.return_value.stream.return_value = self.events
+            mock_pod_events.return_value = self.events
             latest_resource_version = self.watcher._run(
                 self.kube_client,
                 self.watcher.resource_version,
@@ -1548,6 +1586,15 @@ class TestKubernetesJobWatcher:
                 self.watcher.kube_config,
             )
             assert self.pod.metadata.resource_version == latest_resource_version
+            mock_pod_events.assert_called_once_with(
+                kube_client=self.kube_client,
+                query_kwargs={
+                    "label_selector": "airflow-worker=123,airflow_executor_done!=True",
+                    "resource_version": "0",
+                    "_request_timeout": 30,
+                    "timeout_seconds": 3600,
+                },
+            )
 
     def assert_watcher_queue_called_once_with_state(self, state):
         self.watcher.watcher_queue.put.assert_called_once_with(
@@ -1762,14 +1809,6 @@ class TestKubernetesJobWatcher:
         self._run()
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
-
-    def test_process_status_succeeded_dedup_label(self):
-        self.pod.status.phase = "Succeeded"
-        self.pod.metadata.labels[POD_EXECUTOR_DONE_KEY] = "True"
-        self.events.append({"type": "MODIFIED", "object": self.pod})
-
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_succeeded_dedup_timestamp(self):
         self.pod.status.phase = "Succeeded"

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Make XCom primary key columns non-nullable.
+"""
+Make XCom primary key columns non-nullable.
 
 Revision ID: e9304a3141f0
 Revises: 83f031fd9f1c

@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import gzip as gz
+import inspect
 import logging
 import os
 import re
@@ -36,9 +37,11 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
+
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
@@ -61,42 +64,24 @@ from airflow.utils.helpers import chunks
 logger = logging.getLogger(__name__)
 
 
+# Explicit value that would remove ACLs from a copy
+# No conflicts with Canned ACLs:
+#   https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl
+NO_ACL = "no-acl"
+
+
 def provide_bucket_name(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
+
     function_signature = signature(func)
+    if "bucket_name" not in function_signature.parameters:
+        raise RuntimeError(
+            "Decorator provide_bucket_name should only wrap a function with param 'bucket_name'."
+        )
 
-    @wraps(func)
-    def wrapper(*args, **kwargs) -> Callable:
-        bound_args = function_signature.bind(*args, **kwargs)
-
-        if "bucket_name" not in bound_args.arguments:
-            self = args[0]
-
-            if "bucket_name" in self.service_config:
-                bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
-            elif self.conn_config and self.conn_config.schema:
-                warnings.warn(
-                    "s3 conn_type, and the associated schema field, is deprecated. "
-                    "Please use aws conn_type instead, and specify `bucket_name` "
-                    "in `service_config.s3` within `extras`.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                bound_args.arguments["bucket_name"] = self.conn_config.schema
-
-        return func(*bound_args.args, **bound_args.kwargs)
-
-    return wrapper
-
-
-def provide_bucket_name_async(func: Callable) -> Callable:
-    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
-    function_signature = signature(func)
-
-    @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def maybe_add_bucket_name(*args, **kwargs):
         bound_args = function_signature.bind(*args, **kwargs)
 
         if "bucket_name" not in bound_args.arguments:
@@ -105,8 +90,46 @@ def provide_bucket_name_async(func: Callable) -> Callable:
                 connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
                 if connection.schema:
                     bound_args.arguments["bucket_name"] = connection.schema
+        return bound_args
 
-        return await func(*bound_args.args, **bound_args.kwargs)
+    if inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            bound_args = await maybe_add_bucket_name(*args, **kwargs)
+            print(f"invoking async function {func=}")
+            return await func(*bound_args.args, **bound_args.kwargs)
+
+    elif inspect.isasyncgenfunction(func):
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            bound_args = await maybe_add_bucket_name(*args, **kwargs)
+            async for thing in func(*bound_args.args, **bound_args.kwargs):
+                yield thing
+
+    else:
+
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Callable:
+            bound_args = function_signature.bind(*args, **kwargs)
+
+            if "bucket_name" not in bound_args.arguments:
+                self = args[0]
+
+                if "bucket_name" in self.service_config:
+                    bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
+                elif self.conn_config and self.conn_config.schema:
+                    warnings.warn(
+                        "s3 conn_type, and the associated schema field, is deprecated. "
+                        "Please use aws conn_type instead, and specify `bucket_name` "
+                        "in `service_config.s3` within `extras`.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    bound_args.arguments["bucket_name"] = self.conn_config.schema
+
+            return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
 
@@ -400,8 +423,8 @@ class S3Hook(AwsBaseHook):
 
         return prefixes
 
-    @provide_bucket_name_async
     @unify_bucket_name_and_key
+    @provide_bucket_name
     async def get_head_object_async(
         self, client: AioBaseClient, key: str, bucket_name: str | None = None
     ) -> dict[str, Any] | None:
@@ -462,10 +485,10 @@ class S3Hook(AwsBaseHook):
 
         return prefixes
 
-    @provide_bucket_name_async
+    @provide_bucket_name
     async def get_file_metadata_async(
         self, client: AioBaseClient, bucket_name: str, key: str | None = None
-    ) -> list[Any]:
+    ) -> AsyncIterator[Any]:
         """
         Get a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
 
@@ -477,11 +500,10 @@ class S3Hook(AwsBaseHook):
         delimiter = ""
         paginator = client.get_paginator("list_objects_v2")
         response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
-        files = []
         async for page in response:
             if "Contents" in page:
-                files += page["Contents"]
-        return files
+                for row in page["Contents"]:
+                    yield row
 
     async def _check_key_async(
         self,
@@ -506,21 +528,16 @@ class S3Hook(AwsBaseHook):
         """
         bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
         if wildcard_match:
-            keys = await self.get_file_metadata_async(client, bucket_name, key)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if not key_matches:
-                return False
-        elif use_regex:
-            keys = await self.get_file_metadata_async(client, bucket_name)
-            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
-            if not key_matches:
-                return False
-        else:
-            obj = await self.get_head_object_async(client, key, bucket_name)
-            if obj is None:
-                return False
-
-        return True
+            async for k in self.get_file_metadata_async(client, bucket_name, key):
+                if fnmatch.fnmatch(k["Key"], key):
+                    return True
+            return False
+        if use_regex:
+            async for k in self.get_file_metadata_async(client, bucket_name):
+                if re.match(pattern=key, string=k["Key"]):
+                    return True
+            return False
+        return bool(await self.get_head_object_async(client, key, bucket_name))
 
     async def check_key_async(
         self,
@@ -1096,6 +1113,12 @@ class S3Hook(AwsBaseHook):
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
+        get_hook_lineage_collector().add_input_dataset(
+            context=self, scheme="file", dataset_kwargs={"path": filename}
+        )
+        get_hook_lineage_collector().add_output_dataset(
+            context=self, scheme="s3", dataset_kwargs={"bucket": bucket_name, "key": key}
+        )
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1236,6 +1259,10 @@ class S3Hook(AwsBaseHook):
             ExtraArgs=extra_args,
             Config=self.transfer_config,
         )
+        # No input because file_obj can be anything - handle in calling function if possible
+        get_hook_lineage_collector().add_output_dataset(
+            context=self, scheme="s3", dataset_kwargs={"bucket": bucket_name, "key": key}
+        )
 
     def copy_object(
         self,
@@ -1276,6 +1303,8 @@ class S3Hook(AwsBaseHook):
             object to be copied which is private by default.
         """
         acl_policy = acl_policy or "private"
+        if acl_policy != NO_ACL:
+            kwargs["ACL"] = acl_policy
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
@@ -1287,7 +1316,13 @@ class S3Hook(AwsBaseHook):
 
         copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key, "VersionId": source_version_id}
         response = self.get_conn().copy_object(
-            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, ACL=acl_policy, **kwargs
+            Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
+        )
+        get_hook_lineage_collector().add_input_dataset(
+            context=self, scheme="s3", dataset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key}
+        )
+        get_hook_lineage_collector().add_output_dataset(
+            context=self, scheme="s3", dataset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key}
         )
         return response
 
@@ -1408,6 +1443,11 @@ class S3Hook(AwsBaseHook):
 
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
+            get_hook_lineage_collector().add_output_dataset(
+                context=self,
+                scheme="file",
+                dataset_kwargs={"path": file_path if file_path.is_absolute() else file_path.absolute()},
+            )
             file = open(file_path, "wb")
         else:
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
@@ -1418,7 +1458,9 @@ class S3Hook(AwsBaseHook):
                 ExtraArgs=self.extra_args,
                 Config=self.transfer_config,
             )
-
+        get_hook_lineage_collector().add_input_dataset(
+            context=self, scheme="s3", dataset_kwargs={"bucket": bucket_name, "key": key}
+        )
         return file.name
 
     def generate_presigned_url(

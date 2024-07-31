@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Add time zone awareness.
+"""
+Add time zone awareness.
 
 Revision ID: 0e2a74e0fc9f
 Revises: d2ae31099d61

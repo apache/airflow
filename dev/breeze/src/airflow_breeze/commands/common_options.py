@@ -105,8 +105,9 @@ option_backend = click.option(
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
-    help="Database backend to use. If 'none' is selected, breeze starts with invalid DB configuration "
-    "and no database and any attempts to connect to Airflow DB will fail.",
+    help="Database backend to use. If 'none' is chosen, "
+    "Breeze will start with an invalid database configuration, meaning there will be no database "
+    "available, and any attempts to connect to the Airflow database will fail.",
     envvar="BACKEND",
 )
 option_builder = click.option(
@@ -235,6 +236,12 @@ option_image_tag_for_running = click.option(
     default="latest",
     envvar="IMAGE_TAG",
 )
+option_keep_env_variables = click.option(
+    "--keep-env-variables",
+    help="Do not clear environment variables that might have side effect while running tests",
+    envvar="KEEP_ENV_VARIABLES",
+    is_flag=True,
+)
 option_max_time = click.option(
     "--max-time",
     help="Maximum time that the command should take - if it takes longer, the command will fail.",
@@ -258,6 +265,11 @@ option_mysql_version = click.option(
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     envvar="MYSQL_VERSION",
     show_default=True,
+)
+option_no_db_cleanup = click.option(
+    "--no-db-cleanup",
+    help="Do not clear the database before each test module",
+    is_flag=True,
 )
 option_installation_package_format = click.option(
     "--package-format",

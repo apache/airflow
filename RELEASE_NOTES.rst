@@ -21,6 +21,78 @@
 
 .. towncrier release notes start
 
+Airflow 2.9.3 (2024-07-15)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Time unit for ``scheduled_duration`` and ``queued_duration`` changed (#37936)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``scheduled_duration`` and ``queued_duration`` metrics are now emitted in milliseconds instead of seconds.
+
+By convention all statsd metrics should be emitted in milliseconds, this is later expected in e.g. ``prometheus`` statsd-exporter.
+
+
+Support for OpenTelemetry Metrics is no longer "Experimental" (#40286)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Experimental support for OpenTelemetry was added in 2.7.0 since then fixes and improvements were added and now we announce the feature as stable.
+
+
+
+Bug Fixes
+"""""""""
+- Fix calendar view scroll (#40458)
+- Validating provider description for urls in provider list view (#40475)
+- Fix compatibility with old MySQL 8.0 (#40314)
+- Fix dag (un)pausing won't work on environment where dag files are missing (#40345)
+- Extra being passed to SQLalchemy (#40391)
+- Handle unsupported operand int + str when value of tag is int (job_id) (#40407)
+- Fix TriggeredDagRunOperator triggered link (#40336)
+- Add ``[webserver]update_fab_perms`` to deprecated configs (#40317)
+- Swap dag run link from legacy graph to grid with graph tab (#40241)
+- Change ``httpx`` to ``requests`` in ``file_task_handler`` (#39799)
+- Fix import future annotations in venv jinja template (#40208)
+- Ensures DAG params order regardless of backend (#40156)
+- Use a join for TI notes in TI batch API endpoint (#40028)
+- Improve trigger UI for string array format validation (#39993)
+- Disable jinja2 rendering for doc_md (#40522)
+- Skip checking sub dags list if taskinstance state is skipped (#40578)
+- Recognize quotes when parsing urls in logs (#40508)
+
+Doc Only Changes
+""""""""""""""""
+- Add notes about passing secrets via environment variables (#40519)
+- Revamp some confusing log messages (#40334)
+- Add more precise description of masking sensitive field names (#40512)
+- Add slightly more detailed guidance about upgrading to the docs (#40227)
+- Metrics allow_list complete example (#40120)
+- Add warning to deprecated api docs that access control isn't applied (#40129)
+- Simpler command to check local scheduler is alive (#40074)
+- Add a note and an example clarifying the usage of DAG-level params (#40541)
+- Fix highlight of example code in dags.rst (#40114)
+- Add warning about the PostgresOperator being deprecated (#40662)
+- Updating airflow download links to CDN based links (#40618)
+- Fix import statement for DatasetOrTimetable example (#40601)
+- Further clarify triage process (#40536)
+- Fix param order in PythonOperator docstring (#40122)
+- Update serializers.rst to mention that bytes are not supported (#40597)
+
+Miscellaneous
+"""""""""""""
+- Upgrade build installers and dependencies (#40177)
+- Bump braces from 3.0.2 to 3.0.3 in /airflow/www (#40180)
+- Upgrade to another version of trove-classifier (new CUDA classifiers) (#40564)
+- Rename "try_number" increments that are unrelated to the airflow concept (#39317)
+- Update trove classifiers to the latest version as build dependency (#40542)
+- Upgrade to latest version of hatchling as build dependency (#40387)
+- Fix bug in ``SchedulerJobRunner._process_executor_events`` (#40563)
+- Remove logging for "blocked" events (#40446)
+
+
+
 Airflow 2.9.2 (2024-06-10)
 --------------------------
 
@@ -183,7 +255,8 @@ Support for Microsoft SQL-Server for Airflow Meta Database has been removed (#36
 
 After `discussion <https://lists.apache.org/thread/r06j306hldg03g2my1pd4nyjxg78b3h4>`__
 and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
-the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
+the Airflow's PMC members and Committers have reached a resolution to no longer maintain MsSQL as a
+supported Database Backend.
 
 As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
 

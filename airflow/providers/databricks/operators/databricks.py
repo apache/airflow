@@ -35,6 +35,10 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
 )
+from airflow.providers.databricks.plugins.databricks_workflow import (
+    WorkflowJobRepairSingleTaskLink,
+    WorkflowJobRunLink,
+)
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
@@ -197,7 +201,8 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 
 class DatabricksCreateJobsOperator(BaseOperator):
-    """Creates (or resets) a Databricks job using the API endpoint.
+    """
+    Creates (or resets) a Databricks job using the API endpoint.
 
     .. seealso::
         https://docs.databricks.com/api/workspace/jobs/create
@@ -955,6 +960,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
 
         super().__init__(**kwargs)
 
+        if self._databricks_workflow_task_group is not None:
+            self.operator_extra_links = (
+                WorkflowJobRunLink(),
+                WorkflowJobRepairSingleTaskLink(),
+            )
+        else:
+            # Databricks does not support repair for non-workflow tasks, hence do not show the repair link.
+            self.operator_extra_links = (DatabricksJobRunLink(),)
+
     @cached_property
     def _hook(self) -> DatabricksHook:
         return self._get_hook(caller=self.caller)
@@ -1013,12 +1027,17 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             raise ValueError("Must specify either existing_cluster_id or new_cluster.")
         return run_json
 
-    def _launch_job(self) -> int:
+    def _launch_job(self, context: Context | None = None) -> int:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
         self.databricks_run_id = self._hook.submit_run(run_json)
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
+
+        if self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
+            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
+
         return self.databricks_run_id
 
     def _handle_terminal_run_state(self, run_state: RunState) -> None:
@@ -1037,7 +1056,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Retrieve the Databricks task corresponding to the current Airflow task."""
         if self.databricks_run_id is None:
             raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        return {task["task_key"]: task for task in self._hook.get_run(self.databricks_run_id)["tasks"]}[
+        tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
+
+        # Because the task_key remains the same across multiple runs, and the Databricks API does not return
+        # tasks sorted by their attempts/start time, we sort the tasks by start time. This ensures that we
+        # map the latest attempt (whose status is to be monitored) of the task run to the task_key while
+        # building the {task_key: task} map below.
+        sorted_task_runs = sorted(tasks, key=lambda x: x["start_time"])
+
+        return {task["task_key"]: task for task in sorted_task_runs}[
             self._get_databricks_task_id(self.task_id)
         ]
 
@@ -1122,7 +1149,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             self.databricks_run_id = workflow_run_metadata.run_id
             self.databricks_conn_id = workflow_run_metadata.conn_id
         else:
-            self._launch_job()
+            self._launch_job(context=context)
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
