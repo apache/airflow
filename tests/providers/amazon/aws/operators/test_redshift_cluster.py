@@ -369,7 +369,7 @@ class TestResumeClusterOperator:
         mock_get_waiter.assert_called_with("cluster_resumed")
         assert mock_get_waiter.call_count == 2
         mock_get_waiter().wait.assert_called_once_with(
-            ClusterIdentifier="test_cluster", WaiterConfig={"Delay": 15, "MaxAttempts": 20}
+            ClusterIdentifier="test_cluster", WaiterConfig={"Delay": 30, "MaxAttempts": 30}
         )
 
     def test_resume_cluster_failure(self):
