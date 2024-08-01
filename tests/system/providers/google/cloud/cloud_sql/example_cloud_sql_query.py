@@ -47,7 +47,7 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-DAG_ID = "cloudsql-query"
+DAG_ID = "cloudsql_query"
 REGION = "us-central1"
 HOME_DIR = Path.home()
 
@@ -225,8 +225,6 @@ SQL = [
     "DROP TABLE TABLE_TEST",
     "DROP TABLE TABLE_TEST2",
 ]
-
-DELETE_CONNECTION_COMMAND = "airflow connections delete {}"
 
 # [START howto_operator_cloudsql_query_connections_env]
 
