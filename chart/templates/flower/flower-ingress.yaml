@@ -72,7 +72,7 @@ spec:
         paths:
           - backend:
               service:
-                name: {{ $.Release.Name }}-flower
+                name: {{ $fullname }}-flower
                 port:
                   name: flower-ui
             {{- if $.Values.ingress.flower.path }}
