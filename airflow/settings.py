@@ -331,7 +331,7 @@ class TracebackSessionForTests:
         raise RuntimeError(
             "TracebackSessionForTests object was used but internal API is enabled. "
             "Only test code is allowed to use this object.\n"
-            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}{frame_summary.colno}\n"
+            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}\n"
             f"     {frame_summary.line}\n\n"
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was called:\n"
@@ -382,8 +382,6 @@ class TracebackSessionForTests:
                 if tb.filename.startswith(AIRFLOW_TESTS_PATH):
                     # this is a session created directly in the test code
                     return True, None
-                else:
-                    return False, tb
         # if it is from elsewhere.... Why???? We should return False in order to crash to find out
         # The traceback line will be always 3rd (two bottom ones are Airflow)
         return False, self.traceback[-2]
