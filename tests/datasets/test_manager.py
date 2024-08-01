@@ -35,6 +35,9 @@ from tests.listeners import dataset_listener
 pytestmark = pytest.mark.db_test
 
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
+
 @pytest.fixture
 def mock_task_instance():
     return TaskInstancePydantic(

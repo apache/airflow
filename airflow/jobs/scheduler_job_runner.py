@@ -717,11 +717,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # across all executors.
         num_occupied_slots = sum([executor.slots_occupied for executor in self.job.executors])
         parallelism = conf.getint("core", "parallelism")
+        # Parallelism configured to 0 means infinite currently running tasks
+        if parallelism == 0:
+            parallelism = sys.maxsize
         if self.job.max_tis_per_query == 0:
             max_tis = parallelism - num_occupied_slots
         else:
             max_tis = min(self.job.max_tis_per_query, parallelism - num_occupied_slots)
         if max_tis <= 0:
+            self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
             return 0
 
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)

@@ -242,7 +242,6 @@ def _run_raw_task(
     ti.test_mode = test_mode
     ti.refresh_from_task(ti.task, pool_override=pool)
     ti.refresh_from_db(session=session)
-
     ti.job_id = job_id
     ti.hostname = get_hostname()
     ti.pid = os.getpid()
@@ -800,7 +799,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     return result
 
 
-def _set_ti_attrs(target, source):
+def _set_ti_attrs(target, source, include_dag_run=False):
     # Fields ordered per model definition
     target.start_date = source.start_date
     target.end_date = source.end_date
@@ -826,6 +825,27 @@ def _set_ti_attrs(target, source):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+
+    if include_dag_run:
+        target.execution_date = source.execution_date
+        target.dag_run.id = source.dag_run.id
+        target.dag_run.dag_id = source.dag_run.dag_id
+        target.dag_run.queued_at = source.dag_run.queued_at
+        target.dag_run.execution_date = source.dag_run.execution_date
+        target.dag_run.start_date = source.dag_run.start_date
+        target.dag_run.end_date = source.dag_run.end_date
+        target.dag_run.state = source.dag_run.state
+        target.dag_run.run_id = source.dag_run.run_id
+        target.dag_run.creating_job_id = source.dag_run.creating_job_id
+        target.dag_run.external_trigger = source.dag_run.external_trigger
+        target.dag_run.run_type = source.dag_run.run_type
+        target.dag_run.conf = source.dag_run.conf
+        target.dag_run.data_interval_start = source.dag_run.data_interval_start
+        target.dag_run.data_interval_end = source.dag_run.data_interval_end
+        target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
+        target.dag_run.dag_hash = source.dag_run.dag_hash
+        target.dag_run.updated_at = source.dag_run.updated_at
+        target.dag_run.log_template_id = source.dag_run.log_template_id
 
 
 def _refresh_from_db(
@@ -859,7 +879,14 @@ def _refresh_from_db(
     )
 
     if ti:
-        _set_ti_attrs(task_instance, ti)
+        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
+        include_dag_run = isinstance(ti, TaskInstancePydantic)
+        # in case of internal API, what we get is TaskInstancePydantic value, and we are supposed
+        # to also update dag_run information as it might not be available. We cannot always do it in
+        # case ti is TaskInstance, because it might be detached/ not loaded yet and dag_run might
+        # not be available.
+        _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
     else:
         task_instance.state = None
 
