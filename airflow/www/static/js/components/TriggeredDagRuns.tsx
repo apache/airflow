@@ -43,10 +43,11 @@ const TriggeredDagRuns = ({ createdDagRuns, showLink = true }: CardProps) => {
     <Flex alignItems="center">
       {createdDagRuns.map((run) => {
         const runId = (run as any).dagRunId; // For some reason the type is wrong here
-        const url = `${gridUrl?.replace(
-          "__DAG_ID__",
-          run.dagId || ""
-        )}?dag_run_id=${encodeURIComponent(runId)}`;
+        const splitGridUrl = gridUrl.split("/");
+        splitGridUrl[2] = run.dagId || "";
+        const url = `${splitGridUrl.join("/")}?dag_run_id=${encodeURIComponent(
+          runId
+        )}`;
 
         return (
           <Tooltip
