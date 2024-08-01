@@ -171,9 +171,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     if accept != "application/json":
         raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
+    clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
-        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        expiration_time_in_seconds=clock_grace,
+        leeway_in_seconds=clock_grace,
         audience="api",
     )
     try:

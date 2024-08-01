@@ -32,8 +32,8 @@ def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector)
     file.write("aaa")
     file.close()
 
-    assert len(hook_lineage_collector.outputs) == 1
-    assert hook_lineage_collector.outputs[0][0] == Dataset(uri=uri)
+    assert len(hook_lineage_collector._outputs) == 1
+    assert next(iter(hook_lineage_collector._outputs.values()))[0] == Dataset(uri=uri)
 
     file = path.open("r")
     file.read()
@@ -41,8 +41,8 @@ def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector)
 
     path.unlink(missing_ok=True)
 
-    assert len(hook_lineage_collector.inputs) == 1
-    assert hook_lineage_collector.inputs[0][0] == Dataset(uri=uri)
+    assert len(hook_lineage_collector._inputs) == 1
+    assert next(iter(hook_lineage_collector._inputs.values()))[0] == Dataset(uri=uri)
 
 
 @patch("airflow.providers_manager.ProvidersManager")
@@ -53,12 +53,12 @@ def test_wrapper_works_with_contextmanager(providers_manager, hook_lineage_colle
     with path.open("w") as file:
         file.write("asdf")
 
-    assert len(hook_lineage_collector.outputs) == 1
-    assert hook_lineage_collector.outputs[0][0] == Dataset(uri=uri)
+    assert len(hook_lineage_collector._outputs) == 1
+    assert next(iter(hook_lineage_collector._outputs.values()))[0] == Dataset(uri=uri)
 
     with path.open("r") as file:
         file.read()
     path.unlink(missing_ok=True)
 
-    assert len(hook_lineage_collector.inputs) == 1
-    assert hook_lineage_collector.inputs[0][0] == Dataset(uri=uri)
+    assert len(hook_lineage_collector._inputs) == 1
+    assert next(iter(hook_lineage_collector._inputs.values()))[0] == Dataset(uri=uri)

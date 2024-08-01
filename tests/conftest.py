@@ -61,6 +61,7 @@ if not keep_env_variables:
             {
                 "core": {
                     "internal_api_url",
+                    "fernet_key",
                     "database_access_isolation",
                     "internal_api_secret_key",
                     "internal_api_clock_grace",
@@ -905,6 +906,8 @@ def dag_maker(request):
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 ti.refresh_from_task(dag.get_task(ti.task_id))
+            if self.want_serialized:
+                self.session.commit()
             return self.dag_run
 
         def create_dagrun_after(self, dagrun, **kwargs):
