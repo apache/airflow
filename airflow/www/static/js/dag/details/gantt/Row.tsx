@@ -52,8 +52,10 @@ const Row = ({
   const { data: tiHistory } = useTIHistory({
     dagId,
     taskId: task.id || "",
-    runId: runId || "",
-    enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task tries if try number > 1
+    dagRunId: runId || "",
+    options: {
+      enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task tries if try number > 1
+    },
   });
 
   const isSelected = taskId === instance?.taskId;
@@ -83,7 +85,7 @@ const Row = ({
             ganttEndDate={ganttEndDate}
           />
         )}
-        {(tiHistory || []).map((ti) => (
+        {(tiHistory?.taskInstances || []).map((ti) => (
           <InstanceBar
             key={`${taskId}-${ti.tryNumber}`}
             instance={ti}
