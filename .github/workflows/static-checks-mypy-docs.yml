@@ -242,6 +242,17 @@ jobs:
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
         if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
+      - name: Install AWS CLI v2
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+        if: >
+          inputs.canary-run == 'true' &&
+          inputs.branch == 'main' &&
+          matrix.flag == '--docs-only'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         if: >
