@@ -1450,6 +1450,7 @@ class TestDagProcessorJobRunner:
                 last_finish_time=timezone.utcnow() + timedelta(hours=1),
                 last_duration=timedelta(seconds=1),
                 run_count=1,
+                last_num_of_db_queries=1,
             )
             manager.processor._file_paths = [test_dag_path]
             manager.processor._file_stats[test_dag_path] = stat
@@ -1520,6 +1521,7 @@ class TestDagProcessorJobRunner:
                 last_finish_time=timezone.utcnow() + timedelta(hours=1),
                 last_duration=timedelta(seconds=1),
                 run_count=1,
+                last_num_of_db_queries=1
             )
             manager.processor._file_paths = [test_dag_path]
             manager.processor._file_stats[test_dag_path] = stat
