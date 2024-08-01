@@ -128,7 +128,7 @@ apache-airflow-providers-discord==3.7.1
 apache-airflow-providers-docker==3.12.2
 apache-airflow-providers-elasticsearch==5.4.1
 apache-airflow-providers-exasol==4.5.2
-apache-airflow-providers-fab==1.2.1
+apache-airflow-providers-fab==1.2.2
 apache-airflow-providers-facebook==3.5.2
 apache-airflow-providers-ftp==3.10.0
 apache-airflow-providers-github==2.6.2
