@@ -77,7 +77,7 @@ class ConnectionWithExtra(Connection):
     """
     Patched Connection class added for backward compatibility.
 
-    Implements the get_extra_dejson method which was added in the Connection class in Airflow 2.10.0.
+    Implements the `get_extra_dejson` method which was added in the Connection class in Airflow 2.10.0.
     This patched class must be removed once the http provider depends on Airflow 2.10.0 or higher.
     """
 
@@ -191,7 +191,7 @@ class HttpHookMixin:
         Return a cached connection property.
 
         This method calls the original get_connection method from the BaseHook and returns a patched version
-        of the Connection class which also has the get_extra_dejson method that has been added in Apache
+        of the Connection class which also has the `get_extra_dejson` method that has been added in Apache
         Airflow since 2.10.0. Once the provider depends on Airflow version 2.10.0 or higher, this method and
         the ConnectionWithExtra class can be removed.
         """
