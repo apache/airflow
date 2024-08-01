@@ -345,7 +345,9 @@ In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``
             # We have no more work to do here. Mark as complete.
             return
 
-To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". **Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work. Also, this works different from mapping an operator without ``start_from_trigger`` support. The whole ``__init__`` method will be skipped when mapping an operator whose ``start_from_trigger`` is set to True. Only argument ``trigger_kwargs`` is used and passed into ``trigger_cls``.
+
+The initialization stage of mapped tasks occurs after the scheduler submits them to the executor. Thus, this feature offers limited dynamic task mapping support and its usage differs from standard practices. To enable dynamic task mapping support, you need to define ``start_from_trigger`` and ``trigger_kwargs`` in the ``__init__`` method. **Note that you don't need to define both of them to use this feature, but you need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not have any effect. The entire ``__init__`` method will be skipped when mapping a task whose ``start_from_trigger`` is set to True. The scheduler will use the provided ``start_from_trigger`` and ``trigger_kwargs`` from ``partial`` and ``expand`` (fallbacks to the ones from class attributes if not provided) to determine whether and how to submit tasks to the executor or the triggerer. Note that XCom values won't be resolved at this stage. After the trigger has finished executing, the task may be sent back to the worker to execute the ``next_method``, or the task instance may end directly. If the task is sent back to the worker, the arguments in the ``__init__`` method will still take effect before the ``next_method``is executed, but they will not affect the execution of the trigger.
+
 
 .. code-block:: python
 
@@ -384,7 +386,8 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
             # We have no more work to do here. Mark as complete.
             return
 
-These parameters can be mapped using the ``expand`` and ``partial`` methods. Note that XCom values won't be resolved at this stage.
+
+This will be expanded into 2 tasks, with their "hours" arguments set to 1 and 2 respectively.
 
 .. code-block:: python
 
