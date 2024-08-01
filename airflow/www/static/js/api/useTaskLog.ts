@@ -82,7 +82,7 @@ const useTaskLog = ({
         params: {
           map_index: mapIndex,
           full_content: fullContent,
-          limit,
+          limit: 9000,
         },
       });
     },
