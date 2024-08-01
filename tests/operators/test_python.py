@@ -69,7 +69,7 @@ from tests.test_utils.db import clear_db_runs
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 TI = TaskInstance
@@ -1734,6 +1734,7 @@ class TestCurrentContextRuntime:
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
 
+@pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
     @pytest.mark.parametrize(
         "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
