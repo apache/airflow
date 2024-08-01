@@ -88,7 +88,7 @@ const Logs = ({
   const [fileSourceFilters, setFileSourceFilters] = useState<
     Array<FileSourceOption>
   >([]);
-  const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
+  const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>(["Post task execution logs"]);
   const { timezone } = useTimezone();
 
   const { data: taskInstance } = useTaskInstance({
