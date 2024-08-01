@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import json
+import warnings
 from typing import TYPE_CHECKING, Any, Iterable
 
 import apprise
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -94,6 +96,14 @@ class AppriseHook(BaseHook):
             sequences such as \n and \r to their respective ascii new-line and carriage return characters
         :param config: Specify one or more configuration
         """
+        if tag is None:
+            warnings.warn(
+                "`tag` cannot be None. Assign it to be MATCH_ALL_TAG",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            tag = "all"
+
         title = title or ""
 
         apprise_obj = apprise.Apprise()
