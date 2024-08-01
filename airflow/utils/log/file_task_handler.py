@@ -385,6 +385,7 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
         )
+        is_up_for_retry = ti.state == TaskInstanceState.UP_FOR_RETRY
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -399,7 +400,7 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if is_in_running_or_deferred or not executor_messages:
+        if is_in_running_or_deferred or is_up_for_retry or not (executor_messages or remote_logs):
             # While task instance is still running or deferred, look for served logs.
             # And even if it's in any state, if there are no logs found yet, check served logs.
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
