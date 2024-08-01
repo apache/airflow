@@ -208,9 +208,12 @@ class DictOfListsExpandInput(NamedTuple):
     def resolve(
         self, context: Context, session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
+        from airflow.models.xcom_arg import XComArg
+
         data = {
             k: self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
             for k, v in self.value.items()
+            if include_xcom or not isinstance(v, XComArg)
         }
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
         resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
