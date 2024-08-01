@@ -180,6 +180,7 @@ class TestAwsBaseOperator:
         with pytest.raises(AttributeError, match=error_match):
             SoWrongOperator(task_id="fake-task-id")
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.parametrize(
         "region, region_name, expected_region_name",
         [
@@ -203,6 +204,7 @@ class TestAwsBaseOperator:
                 ti.run()
             assert ti.task.region_name == expected_region_name
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_ambiguous_region_in_partial_operator(self, dag_maker):
         with dag_maker("test_ambiguous_region_in_partial_operator", serialized=True):
