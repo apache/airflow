@@ -22,6 +22,7 @@ import { Box, Text, Flex, useTheme } from "@chakra-ui/react";
 import { Handle, NodeProps, Position } from "reactflow";
 import { MdPlayArrow, MdSensors } from "react-icons/md";
 import { HiDatabase } from "react-icons/hi";
+import { PiRectangleDashed } from "react-icons/pi";
 
 import DagNode from "./DagNode";
 
@@ -72,6 +73,7 @@ const BaseNode = ({
           {type === "dataset" && <HiDatabase size="16px" />}
           {type === "sensor" && <MdSensors size="16px" />}
           {type === "trigger" && <MdPlayArrow size="16px" />}
+          {type === "dataset-alias" && <PiRectangleDashed size="16px" />}
           <Text ml={2}>{label}</Text>
         </Flex>
       )}

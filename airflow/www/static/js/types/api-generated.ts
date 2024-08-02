@@ -742,6 +742,9 @@ export interface paths {
       };
     };
   };
+  "/dagStats": {
+    get: operations["get_dag_stats"];
+  };
   "/dagSources/{file_token}": {
     /** Get a source code using file token. */
     get: operations["get_dag_source"];
@@ -1269,6 +1272,23 @@ export interface components {
     DAGRunCollection: {
       dag_runs?: components["schemas"]["DAGRun"][];
     } & components["schemas"]["CollectionInfo"];
+    /** @description Collection of Dag statistics. */
+    DagStatsCollectionSchema: {
+      dags?: components["schemas"]["DagStatsCollectionItem"][];
+    } & components["schemas"]["CollectionInfo"];
+    /** @description DagStats entry collection item. */
+    DagStatsCollectionItem: {
+      /** @description The DAG ID. */
+      dag_id?: string;
+      stats?: components["schemas"]["DagStatsStateCollectionItem"][] | null;
+    };
+    /** @description DagStatsState entry collection item. */
+    DagStatsStateCollectionItem: {
+      /** @description The DAG state. */
+      state?: string;
+      /** @description The DAG state count. */
+      count?: number;
+    };
     DagWarning: {
       /** @description The dag_id. */
       dag_id?: string;
@@ -4860,6 +4880,24 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  get_dag_stats: {
+    parameters: {
+      query: {
+        /** One or more DAG IDs separated by commas to filter relevant Dags. */
+        dag_ids: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DagStatsCollectionSchema"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+    };
+  };
   /** Get a source code using file token. */
   get_dag_source: {
     parameters: {
@@ -5473,6 +5511,15 @@ export type UpdateDagRunState = CamelCasedPropertiesDeep<
 export type DAGRunCollection = CamelCasedPropertiesDeep<
   components["schemas"]["DAGRunCollection"]
 >;
+export type DagStatsCollectionSchema = CamelCasedPropertiesDeep<
+  components["schemas"]["DagStatsCollectionSchema"]
+>;
+export type DagStatsCollectionItem = CamelCasedPropertiesDeep<
+  components["schemas"]["DagStatsCollectionItem"]
+>;
+export type DagStatsStateCollectionItem = CamelCasedPropertiesDeep<
+  components["schemas"]["DagStatsStateCollectionItem"]
+>;
 export type DagWarning = CamelCasedPropertiesDeep<
   components["schemas"]["DagWarning"]
 >;
@@ -5937,6 +5984,9 @@ export type GetTasksVariables = CamelCasedPropertiesDeep<
 >;
 export type GetTaskVariables = CamelCasedPropertiesDeep<
   operations["get_task"]["parameters"]["path"]
+>;
+export type GetDagStatsVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_stats"]["parameters"]["query"]
 >;
 export type GetDagSourceVariables = CamelCasedPropertiesDeep<
   operations["get_dag_source"]["parameters"]["path"]

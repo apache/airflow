@@ -36,7 +36,6 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
-    SageMakerTrainingPrintLogTrigger,
     SageMakerTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
@@ -1195,25 +1194,15 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             if self.max_ingestion_time:
                 timeout = datetime.timedelta(seconds=self.max_ingestion_time)
 
-            trigger: SageMakerTrainingPrintLogTrigger | SageMakerTrigger
-            if self.print_log:
-                trigger = SageMakerTrainingPrintLogTrigger(
-                    job_name=self.config["TrainingJobName"],
-                    poke_interval=self.check_interval,
-                    aws_conn_id=self.aws_conn_id,
-                )
-            else:
-                trigger = SageMakerTrigger(
+            self.defer(
+                timeout=timeout,
+                trigger=SageMakerTrigger(
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",
                     poke_interval=self.check_interval,
                     max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                )
-
-            self.defer(
-                timeout=timeout,
-                trigger=trigger,
+                ),
                 method_name="execute_complete",
             )
 

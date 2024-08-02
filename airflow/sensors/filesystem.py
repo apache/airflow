@@ -21,7 +21,7 @@ import datetime
 import os
 from functools import cached_property
 from glob import glob
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -50,6 +50,8 @@ class FileSensor(BaseSensorOperator):
     :param deferrable: If waiting for completion, whether to defer the task until done,
         default is ``False``.
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+    :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
+        during dynamic task mapping. This argument is not used in standard usage.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -77,6 +79,7 @@ class FileSensor(BaseSensorOperator):
         recursive=False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         start_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
