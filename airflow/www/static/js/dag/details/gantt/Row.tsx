@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
 import useSelection from "src/dag/useSelection";
 import { boxSize } from "src/dag/StatusBox";
@@ -32,6 +32,11 @@ interface Props {
   task: Task;
   ganttStartDate?: string | null;
   ganttEndDate?: string | null;
+  setGanttDuration?: (
+    queued: string | null | undefined,
+    start: string | null | undefined,
+    end: string | null | undefined
+  ) => void;
 }
 
 const dagId = getMetaValue("dag_id");
@@ -42,6 +47,7 @@ const Row = ({
   task,
   ganttStartDate,
   ganttEndDate,
+  setGanttDuration,
 }: Props) => {
   const {
     selected: { runId, taskId },
@@ -60,6 +66,15 @@ const Row = ({
 
   const isSelected = taskId === instance?.taskId;
   const isOpen = openGroupIds.includes(task.id || "");
+
+  // Adjust gantt start/end if the ti history dates are out of bounds
+  useEffect(() => {
+    tiHistory?.forEach(
+      (tih) =>
+        setGanttDuration &&
+        setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate)
+    );
+  }, [tiHistory, setGanttDuration]);
 
   return (
     <div>
