@@ -1191,26 +1191,47 @@ class TestKubernetesExecutor:
         assert tis_to_flush_by_key == {"foobar": {}}
 
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
-    )
-    def test_cleanup_stuck_queued_tasks(self, mock_delete_pod, mock_kube_client, dag_maker, session):
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    def test_cleanup_stuck_queued_tasks(self, mock_kube_dynamic_client, dag_maker, session):
         """Delete any pods associated with a task stuck in queued."""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_pod_resource = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.resources.get.return_value = mock_pod_resource
+        mock_kube_dynamic_client.return_value.get.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "airflow-worker": 123,
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
         executor = KubernetesExecutor()
-        executor.start()
+        executor.kube_client = mock_kube_client
         executor.scheduler_job_id = "123"
+        executor.kube_scheduler = mock.MagicMock()
         with dag_maker(dag_id="test_cleanup_stuck_queued_tasks"):
             op = BashOperator(task_id="bash", bash_command=["echo 0", "echo 1"])
         dag_run = dag_maker.create_dagrun()
         ti = dag_run.get_task_instance(op.task_id, session)
         ti.retries = 1
         ti.state = State.QUEUED
+        ti.queued_by_job_id = "123"
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
+        session.flush()
         ti.refresh_from_db()
         tis = [ti]
         executor.cleanup_stuck_queued_tasks(tis)
-        mock_delete_pod.assert_called_once()
+        executor.kube_scheduler.delete_pod.assert_called_once()
         assert executor.running == set()
         executor.end()
 
