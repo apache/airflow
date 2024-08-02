@@ -88,7 +88,8 @@ Step 3: Run Pre-commit Hooks
 -----------------------------
 1. Ensure all code meets the project's quality standards by running pre-commit hooks.
 2. Pre-commit hooks include static code checks, formatting, and other validations.
-3. Run the following command to execute all pre-commit hooks:
+3. One specific pre-commit hook to note is the ``update-common-sql-api-stubs`` hook. This hook automatically updates the common SQL API stubs whenever it recognizes changes in the API. This ensures that any modifications to the API are accurately reflected in the stubs, maintaining consistency between the implementation and documentation.
+4. Run the following command to execute all pre-commit hooks:
 
 .. code-block:: bash
 
