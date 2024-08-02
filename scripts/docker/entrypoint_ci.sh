@@ -255,7 +255,7 @@ function check_boto_upgrade() {
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
     set +x
     pip check
 }
