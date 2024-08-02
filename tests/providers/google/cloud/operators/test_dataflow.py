@@ -712,19 +712,15 @@ class TestDataflowStartFlexTemplateOperator:
 class TestDataflowStartSqlJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_execute(self, mock_hook):
-        warning_msg = (
-            "DataflowStartSqlJobOperator is deprecated and will be removed after 31.01.2025. "
-            "Please use DataflowStartYamlJobOperator instead."
-        )
-        start_sql = DataflowStartSqlJobOperator(
-            task_id="start_sql_query",
-            job_name=TEST_SQL_JOB_NAME,
-            query=TEST_SQL_QUERY,
-            options=deepcopy(TEST_SQL_OPTIONS),
-            location=TEST_LOCATION,
-            do_xcom_push=True,
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_msg):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            start_sql = DataflowStartSqlJobOperator(
+                task_id="start_sql_query",
+                job_name=TEST_SQL_JOB_NAME,
+                query=TEST_SQL_QUERY,
+                options=deepcopy(TEST_SQL_OPTIONS),
+                location=TEST_LOCATION,
+                do_xcom_push=True,
+            )
             start_sql.execute(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
@@ -794,7 +790,6 @@ class TestDataflowStartYamlJobOperator:
             jinja_variables=None,
             project_id=TEST_PROJECT,
             location=TEST_LOCATION,
-            on_new_job_callback=mock.ANY,
         )
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.defer")
@@ -808,15 +803,6 @@ class TestDataflowStartYamlJobOperator:
             cancel_timeout=deferrable_operator.cancel_timeout,
             expected_terminal_state=DataflowJobStatus.JOB_STATE_RUNNING,
             gcp_conn_id=GCP_CONN_ID,
-        )
-        mock_hook.return_value.launch_beam_yaml_job_deferrable.assert_called_once_with(
-            job_name=deferrable_operator.job_name,
-            yaml_pipeline_file=deferrable_operator.yaml_pipeline_file,
-            append_job_name=False,
-            options=None,
-            jinja_variables=None,
-            project_id=TEST_PROJECT,
-            location=TEST_LOCATION,
         )
         mock_defer_method.assert_called_once()
 

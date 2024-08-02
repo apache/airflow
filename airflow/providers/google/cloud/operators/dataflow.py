@@ -22,7 +22,6 @@ from __future__ import annotations
 import copy
 import re
 import uuid
-import warnings
 from contextlib import ExitStack
 from enum import Enum
 from functools import cached_property
@@ -950,6 +949,11 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             )
 
 
+@deprecated(
+    planned_removal_date="January 31, 2025",
+    use_instead="DataflowStartYamlJobOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
     """
     Starts Dataflow SQL query.
@@ -1025,12 +1029,6 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         self.hook: DataflowHook | None = None
 
     def execute(self, context: Context):
-        warnings.warn(
-            "DataflowStartSqlJobOperator is deprecated and will be removed after 31.01.2025. Please use DataflowStartYamlJobOperator instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             drain_pipeline=self.drain_pipeline,
@@ -1159,51 +1157,41 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         self.options = options
         self.jinja_variables = jinja_variables
         self.impersonation_chain = impersonation_chain
-        self.job: dict[str, Any] | None = None
+        self.job_id: str | None = None
 
     def execute(self, context: Context) -> dict[str, Any]:
-        def set_current_job(current_job: dict[str, Any]):
-            self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.region, self.job["id"])
-
-        if not self.deferrable:
-            job = self.hook.launch_beam_yaml_job(
-                job_name=self.job_name,
-                yaml_pipeline_file=self.yaml_pipeline_file,
-                append_job_name=self.append_job_name,
-                options=self.options,
-                jinja_variables=self.jinja_variables,
-                project_id=self.project_id,
-                location=self.region,
-                on_new_job_callback=set_current_job,
-            )
-            return job
-
-        self.job = self.hook.launch_beam_yaml_job_deferrable(
+        self.job_id = self.hook.launch_beam_yaml_job(
             job_name=self.job_name,
             yaml_pipeline_file=self.yaml_pipeline_file,
             append_job_name=self.append_job_name,
-            jinja_variables=self.jinja_variables,
             options=self.options,
+            jinja_variables=self.jinja_variables,
             project_id=self.project_id,
             location=self.region,
         )
 
-        DataflowJobLink.persist(self, context, self.project_id, self.region, self.job["id"])
+        DataflowJobLink.persist(self, context, self.project_id, self.region, self.job_id)
 
-        self.defer(
-            trigger=DataflowStartYamlJobTrigger(
-                job_id=self.job["id"],
-                project_id=self.project_id,
-                location=self.region,
-                gcp_conn_id=self.gcp_conn_id,
-                poll_sleep=self.poll_sleep,
-                cancel_timeout=self.cancel_timeout,
-                expected_terminal_state=self.expected_terminal_state,
-                impersonation_chain=self.impersonation_chain,
-            ),
-            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+        if self.deferrable:
+            self.defer(
+                trigger=DataflowStartYamlJobTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_sleep,
+                    cancel_timeout=self.cancel_timeout,
+                    expected_terminal_state=self.expected_terminal_state,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
+
+        self.hook.wait_for_done(
+            job_name=self.job_name, location=self.region, project_id=self.project_id, job_id=self.job_id
         )
+        job = self.hook.get_job(job_id=self.job_id, location=self.region, project_id=self.project_id)
+        return job
 
     def execute_complete(self, context: Context, event: dict) -> dict[str, Any]:
         """Execute after the trigger returns an event."""
@@ -1224,11 +1212,11 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         state.
         """
         self.log.info("On kill called.")
-        if self.job:
+        if self.job_id:
             self.hook.cancel_job(
-                job_id=self.job.get("id"),
-                project_id=self.job.get("projectId"),
-                location=self.job.get("location"),
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.region,
             )
 
     @cached_property
