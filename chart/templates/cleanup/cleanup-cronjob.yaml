@@ -107,12 +107,16 @@ spec:
                 {{- include "container_extra_envs" (list . .Values.cleanup.env) | indent 12 }}
               volumeMounts: {{- include "airflow_config_mount" . | nindent 16 }}
                 - name: tmp-logs
-                  mountPath: {{ template "airflow_logs" . }}                 
+                  mountPath: {{ template "airflow_logs" . }}   
+                - name: tmp
+                  mountPath: /tmp                                
               resources: {{- toYaml .Values.cleanup.resources | nindent 16 }}
           volumes:
             - name: config
               configMap:
                 name: {{ template "airflow_config" . }}      
             - name: tmp-logs
-              emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 16 }}                           
+              emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 16 }} 
+            - name: tmp
+              emptyDir: {}                                         
 {{- end }}
