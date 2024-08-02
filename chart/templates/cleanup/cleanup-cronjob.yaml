@@ -110,6 +110,8 @@ spec:
                 {{- if .Values.volumeMounts }}
                   {{- toYaml .Values.volumeMounts | nindent 16 }}
                 {{- end }}
+                - name: tmp-logs
+                  mountPath: {{ template "airflow_logs" . }}                 
               resources: {{- toYaml .Values.cleanup.resources | nindent 16 }}
           volumes:
             - name: config
@@ -118,4 +120,6 @@ spec:
             {{- if .Values.volumes }}
               {{- toYaml .Values.volumes | nindent 12 }}
             {{- end }}
+            - name: tmp-logs
+              emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 16 }}                           
 {{- end }}
