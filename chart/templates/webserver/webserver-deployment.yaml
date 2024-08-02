@@ -156,9 +156,7 @@ spec:
             - name: tmp-logs
               mountPath: {{ template "airflow_logs" . }}     
             - name: tmp
-              mountPath: /tmp    
-            - name: home
-              mountPath: /opt/airflow                                
+              mountPath: /tmp                             
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -203,6 +201,8 @@ spec:
             {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
+            - name: home
+              mountPath: /opt/airflow
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -298,7 +298,9 @@ spec:
         - name: tmp-logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }} 
         - name: tmp
-          emptyDir: {}                        
+          emptyDir: {}  
+        - name: home
+          emptyDir: {}                                       
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
