@@ -106,51 +106,33 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
-  const [startDate, setStartDate] = useState(
-    dagRun?.queuedAt || dagRun?.startDate
-  );
-
-  const [endDate, setEndDate] = useState(
-    // @ts-ignore
-    dagRun?.endDate ?? moment().add(1, "s").toString()
-  );
+  let startDate = dagRun?.queuedAt || dagRun?.startDate;
+  // @ts-ignore
+  let endDate = dagRun?.endDate ?? moment().add(1, "s").toString();
 
   // Check if any task instance dates are outside the bounds of the dag run dates and update our min start and max end
-  const setGanttDuration = useCallback(
-    (
-      queued: string | null | undefined,
-      start: string | null | undefined,
-      end: string | null | undefined
-    ) => {
-      if (
-        queued &&
-        (!startDate || Date.parse(queued) < Date.parse(startDate))
-      ) {
-        setStartDate(queued);
-      } else if (
-        start &&
-        (!startDate || Date.parse(start) < Date.parse(startDate))
-      ) {
-        setStartDate(start);
-      }
+  groups.children?.forEach((task) => {
+    const taskInstance = task.instances.find((ti) => ti.runId === runId);
+    if (
+      taskInstance?.queuedDttm &&
+      (!startDate ||
+        Date.parse(taskInstance.queuedDttm) < Date.parse(startDate))
+    ) {
+      startDate = taskInstance.queuedDttm;
+    } else if (
+      taskInstance?.startDate &&
+      (!startDate || Date.parse(taskInstance.startDate) < Date.parse(startDate))
+    ) {
+      startDate = taskInstance.startDate;
+    }
 
-      if (end && (!endDate || Date.parse(end) > Date.parse(endDate))) {
-        setEndDate(end);
-      }
-    },
-    [startDate, endDate, setStartDate, setEndDate]
-  );
-
-  useEffect(() => {
-    groups.children?.forEach((task) => {
-      const taskInstance = task.instances.find((ti) => ti.runId === runId);
-      setGanttDuration(
-        taskInstance?.queuedDttm,
-        taskInstance?.startDate,
-        taskInstance?.endDate
-      );
-    });
-  }, [groups.children, runId, setGanttDuration]);
+    if (
+      taskInstance?.endDate &&
+      (!endDate || Date.parse(taskInstance.endDate) > Date.parse(endDate))
+    ) {
+      endDate = taskInstance.endDate;
+    }
+  });
 
   const numBars = Math.round(width / 100);
   const runDuration = getDuration(startDate, endDate);
@@ -213,7 +195,6 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
                 task={c}
                 ganttStartDate={startDate}
                 ganttEndDate={endDate}
-                setGanttDuration={setGanttDuration}
                 key={`gantt-${c.id}`}
               />
             ))}
