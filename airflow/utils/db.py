@@ -1660,11 +1660,14 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not to_revision and not _get_current_revision(session=session) and not use_migration_files:
+    current_revision = _get_current_revision(session=session)
+    if not to_revision and not current_revision and not use_migration_files:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
         return
+
+    previous_revision = current_revision
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool
 
@@ -1683,8 +1686,10 @@ def upgradedb(
                 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = val
             settings.reconfigure_orm()
 
-    if reserialize_dags:
+    current_revision = to_revision or _get_current_revision(session=session)
+    if reserialize_dags and current_revision != previous_revision:
         _reserialize_dags(session=session)
+
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
 
