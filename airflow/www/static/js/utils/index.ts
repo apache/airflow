@@ -25,6 +25,8 @@ import useOffsetTop from "./useOffsetTop";
 // Delay in ms for various hover actions
 const hoverDelay = 200;
 
+const logMarkers = ["::group::", "::endgroup::"];
+
 function getMetaValue(name: string) {
   const elem = document.querySelector(`meta[name="${name}"]`);
   if (!elem) {
@@ -190,6 +192,15 @@ const highlightByKeywords = (
   errorKeywords: string[],
   warningKeywords: string[]
 ): string => {
+  const containsLogMarker = logMarkers.some((marker) =>
+    parsedLine.includes(marker)
+  );
+
+  // Don't color log marker lines that are already highlighted.
+  if (containsLogMarker) {
+    return parsedLine;
+  }
+
   const lowerParsedLine = parsedLine.toLowerCase();
   const red = (line: string) => `\x1b[1m\x1b[31m${line}\x1b[39m\x1b[0m`;
   const yellow = (line: string) => `\x1b[1m\x1b[33m${line}\x1b[39m\x1b[0m`;
