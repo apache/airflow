@@ -71,6 +71,13 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
+      cross-providers-downstream-dict-as-string:
+        description: >
+          Dictionary of providers to run cross providers tests together with
+          versions of downstream providers to be downgraded.
+        required: false
+        default: ""
+        type: string
       run-coverage:
         description: "Whether to run coverage or not (true/false)"
         required: true
@@ -207,11 +214,10 @@ jobs:
             breeze testing tests tests/system/example_empty.py --system core
           elif [[ "${{ inputs.run-cross-providers-tests }}" == "true" ]]; then
             breeze testing tests --run-in-parallel \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}" \
               --mount-sources tests \
               --use-airflow-version wheel \
               --use-packages-from-dist \
-              --cross-providers-upstream-test
+              --cross-providers-downgrade-dict '${{ inputs.cross-providers-downstream-dict-as-string }}'
           else
             echo "Unknown test scope: ${{ inputs.test-scope }}"
             exit 1

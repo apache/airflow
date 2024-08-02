@@ -137,7 +137,7 @@ class ShellParams:
     celery_flower: bool = False
     chicken_egg_providers: str = ""
     collect_only: bool = False
-    cross_providers_upstream_test: bool = False
+    cross_providers_downgrade_dict: dict[str, list[str]] = field(default_factory=dict)
     database_isolation: bool = False
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -217,6 +217,10 @@ class ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
         return new_params
+
+    @property
+    def cross_providers_downgrade_list(self) -> str:
+        return ",".join(self.cross_providers_downgrade_dict.get(self.test_type or "") or [])
 
     @cached_property
     def host_user_id(self) -> str:
@@ -507,7 +511,7 @@ class ShellParams:
         _set_var(_env, "COLLECT_ONLY", self.collect_only)
         _set_var(_env, "COMMIT_SHA", None, commit_sha())
         _set_var(_env, "COMPOSE_FILE", self.compose_file)
-        _set_var(_env, "CROSS_PROVIDERS_UPSTREAM_TEST", self.cross_providers_upstream_test)
+        _set_var(_env, "CROSS_PROVIDERS_DOWNGRADE_LIST", self.cross_providers_downgrade_list)
         _set_var(_env, "DATABASE_ISOLATION", self.database_isolation)
         _set_var(_env, "DB_RESET", self.db_reset)
         _set_var(_env, "DEFAULT_BRANCH", self.airflow_branch)

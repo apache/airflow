@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import multiprocessing as mp
 
 import click
@@ -68,6 +69,13 @@ def _set_default_from_parent(ctx: click.core.Context, option: click.core.Option,
         # # -v static-checks` respect the "global" option)
         value = ctx.parent.params[option.name]
     return value
+
+
+def json_type(value):
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return {}
 
 
 argument_doc_packages = click.argument(
@@ -123,11 +131,14 @@ option_commit_sha = click.option(
     envvar="COMMIT_SHA",
     help="Commit SHA that is used to build the images.",
 )
-option_cross_providers_upstream_test = click.option(
-    "--cross-providers-upstream-test",
-    help="Run cross-providers upstream test.",
-    is_flag=True,
-    envvar="CROSS_PROVIDERS_UPSTREAM_TEST",
+option_cross_providers_downgrade_dict = click.option(
+    "--cross-providers-downgrade-dict",
+    help="Dictionary with providers to test and versions of dependent providers to downgrade. "
+    "This option accepts a JSON string with a dictionary where the keys are provider names "
+    "and the values are lists of versions to downgrade the dependent providers. ",
+    type=json_type,
+    default="",
+    envvar="CROSS_PROVIDERS_DOWNGRADE_DICT",
 )
 option_db_reset = click.option(
     "-d",
