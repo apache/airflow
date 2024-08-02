@@ -2070,6 +2070,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .group_by(DatasetModel.id)
+            .where(~DatasetModel.is_orphaned)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,
