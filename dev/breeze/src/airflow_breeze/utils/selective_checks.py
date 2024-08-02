@@ -56,7 +56,12 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.packages import get_available_packages
+from airflow_breeze.utils.packages import (
+    get_available_packages,
+    get_latest_provider_tag,
+    get_provider_details,
+    tag_exists_for_provider,
+)
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
     AIRFLOW_SOURCES_ROOT,
@@ -723,7 +728,7 @@ class SelectiveChecks:
     def _get_test_types_to_run(
         self,
         split_to_individual_providers: bool = False,
-        exclude_providers_without_upstream_dependency: bool = False,
+        exclude_providers_without_downstream_dependency: bool = False,
     ) -> list[str]:
         if self.full_tests_needed:
             return list(all_selective_test_types())
@@ -781,12 +786,12 @@ class SelectiveChecks:
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
                     candidate_test_types.discard("Providers")
-                    if exclude_providers_without_upstream_dependency:
+                    if exclude_providers_without_downstream_dependency:
                         affected_providers = [
                             provider
                             for provider in affected_providers
                             if get_related_providers(
-                                provider, upstream_dependencies=False, downstream_dependencies=True
+                                provider, upstream_dependencies=True, downstream_dependencies=False
                             )
                         ]
                     if split_to_individual_providers:
@@ -797,8 +802,8 @@ class SelectiveChecks:
                 elif split_to_individual_providers and "Providers" in candidate_test_types:
                     candidate_test_types.discard("Providers")
                     for provider in get_available_packages():
-                        if exclude_providers_without_upstream_dependency and not get_related_providers(
-                            provider, upstream_dependencies=False, downstream_dependencies=True
+                        if exclude_providers_without_downstream_dependency and not get_related_providers(
+                            provider, upstream_dependencies=True, downstream_dependencies=False
                         ):
                             continue
                         candidate_test_types.add(f"Providers[{provider}]")
@@ -884,28 +889,71 @@ class SelectiveChecks:
         return " ".join(sorted(current_test_types))
 
     @cached_property
-    def cross_providers_upstream_test_types_list_as_string(self) -> str | None:
+    def cross_providers_downstream_dict_as_string(self) -> str:
+        """
+        Return string representation of dictionary about downstream providers to be downgraded in cross-providers tests.
+        """
+        from packaging.requirements import Requirement
+
         if not self.run_tests:
-            return None
+            return ""
         current_test_types = set(
             self._get_test_types_to_run(
-                split_to_individual_providers=True, exclude_providers_without_upstream_dependency=True
+                split_to_individual_providers=True, exclude_providers_without_downstream_dependency=True
             )
         )
+
         if "Providers" in current_test_types:
-            current_test_types.remove("Providers")
-            current_test_types.update(
-                {
-                    f"Providers[{provider}]"
-                    for provider in get_available_packages()
-                    if get_related_providers(
+            downstream_providers_with_versions = {}
+            checked_providers = {}
+            for provider in get_available_packages():
+                # Skip if the package has no downstream providers
+                if not (
+                    downstream_providers := get_related_providers(
                         provider, upstream_dependencies=False, downstream_dependencies=True
                     )
-                }
-            )
-        return " ".join(
-            test_type for test_type in sorted(current_test_types) if test_type.startswith("Providers")
-        )
+                ):
+                    continue
+
+                formatted_downstream_providers = []
+                provider_details = get_provider_details(provider)
+
+                for downstream_provider in downstream_providers:
+                    # First check if the downstream provider is not in the dependencies
+                    downstream_provider_versions = get_provider_details(downstream_provider).versions
+                    dependency = list(
+                        filter(
+                            lambda dep: f'apache-airflow-providers-{downstream_provider.replace(".", "-")}'
+                            in dep,
+                            provider_details.dependencies,
+                        )
+                    )
+                    # Skip if downstream provider meets requirement from direct dependency
+                    if dependency and downstream_provider_versions[0] in Requirement(dependency[0]).specifier:
+                        continue
+
+                    # If the downstream provider has not been checked yet, get its latest released version
+                    if downstream_provider not in checked_providers:
+                        if tag_exists_for_provider(
+                            downstream_provider, get_latest_provider_tag(downstream_provider, None)
+                        ):
+                            latest_released_version = downstream_provider_versions[0]
+                        else:
+                            latest_released_version = downstream_provider_versions[1]
+                        checked_providers[downstream_provider] = (
+                            f"{downstream_provider}=={latest_released_version}"
+                        )
+
+                    formatted_downstream_providers.append(checked_providers[downstream_provider])
+
+                if formatted_downstream_providers:
+                    downstream_providers_with_versions[f"Providers[{provider}]"] = (
+                        formatted_downstream_providers
+                    )
+
+            return json.dumps(downstream_providers_with_versions)
+
+        return ""
 
     @cached_property
     def include_success_outputs(

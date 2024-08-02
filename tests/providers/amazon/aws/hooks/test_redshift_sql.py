@@ -284,3 +284,22 @@ class TestRedshiftSQLHookConn:
         assert f"{expected_identity}:{LOGIN_PORT}" == self.db_hook._get_openlineage_redshift_authority_part(
             self.connection
         )
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_openlineage_default_schema")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.get_first")
+    def test_get_openlineage_default_schema(
+        self, mock_get_first, mock_get_openlineage_default_schema, monkeypatch
+    ):
+        hook = RedshiftSQLHook()
+        mock_get_openlineage_default_schema.return_value = default_schema = mock.MagicMock()
+        current_schema = mock.MagicMock()
+        mock_get_first.return_value = [current_schema]
+        monkeypatch.setattr(
+            "airflow.providers.amazon.aws.hooks.redshift_sql._IS_AIRFLOW_2_10_OR_HIGHER", True
+        )
+        assert hook.get_openlineage_default_schema() == current_schema
+
+        monkeypatch.setattr(
+            "airflow.providers.amazon.aws.hooks.redshift_sql._IS_AIRFLOW_2_10_OR_HIGHER", False
+        )
+        assert hook.get_openlineage_default_schema() == default_schema

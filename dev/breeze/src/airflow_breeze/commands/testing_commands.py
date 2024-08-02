@@ -27,8 +27,8 @@ from click import IntRange
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     option_backend,
+    option_cross_providers_downgrade_dict,
     option_database_isolation,
-    option_cross_providers_upstream_test,
     option_db_reset,
     option_debug_resources,
     option_downgrade_pendulum,
@@ -207,7 +207,6 @@ def _run_test(
             helm_test_package=None,
             keep_env_variables=shell_params.keep_env_variables,
             no_db_cleanup=shell_params.no_db_cleanup,
-            cross_providers_upstream_test=shell_params.cross_providers_upstream_test,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
@@ -272,6 +271,7 @@ def _run_test(
 
 def _run_tests_in_pool(
     tests_to_run: list[str],
+    cross_providers_downgrade_dict: dict[str, list[str]] | None,
     parallelism: int,
     shell_params: ShellParams,
     extra_pytest_args: tuple,
@@ -304,6 +304,7 @@ def _run_tests_in_pool(
     # Put the test types in the order we want them to run
     tests_to_run = sorted(tests_to_run, key=lambda x: (sort_key.get(x, len(sorting_order)), x))
     escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
+    cross_providers_downgrade_dict = cross_providers_downgrade_dict or {}
     with ci_group(f"Testing {' '.join(escaped_tests)}"):
         all_params = [f"{test_type}" for test_type in tests_to_run]
         with run_with_pool(
@@ -378,6 +379,7 @@ def run_tests_in_parallel(
     pull_images_for_docker_compose(shell_params)
     _run_tests_in_pool(
         tests_to_run=shell_params.parallel_test_types_list,
+        cross_providers_downgrade_dict=shell_params.cross_providers_downgrade_dict,
         parallelism=parallelism,
         shell_params=shell_params,
         extra_pytest_args=extra_pytest_args,
@@ -508,7 +510,7 @@ option_force_sa_warnings = click.option(
 @option_backend
 @option_collect_only
 @option_database_isolation
-@option_cross_providers_upstream_test
+@option_cross_providers_downgrade_dict
 @option_db_reset
 @option_debug_resources
 @option_downgrade_pendulum
@@ -570,7 +572,7 @@ def command_for_tests(**kwargs):
 @option_backend
 @option_collect_only
 @option_database_isolation
-@option_cross_providers_upstream_test
+@option_cross_providers_downgrade_dict
 @option_debug_resources
 @option_downgrade_pendulum
 @option_downgrade_sqlalchemy
@@ -632,7 +634,7 @@ def command_for_db_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_collect_only
-@option_cross_providers_upstream_test
+@option_cross_providers_downgrade_dict
 @option_debug_resources
 @option_downgrade_sqlalchemy
 @option_downgrade_pendulum
@@ -687,7 +689,7 @@ def _run_test_command(
     airflow_constraints_reference: str,
     backend: str,
     collect_only: bool,
-    cross_providers_upstream_test: bool,
+    cross_providers_downgrade_dict: dict[str, list[str]],
     db_reset: bool,
     database_isolation: bool,
     debug_resources: bool,
@@ -736,7 +738,10 @@ def _run_test_command(
     _verify_parallelism_parameters(
         excluded_parallel_test_types, run_db_tests_only, run_in_parallel, use_xdist
     )
-    test_list = parallel_test_types.split(" ")
+    if cross_providers_downgrade_dict:
+        test_list = list(cross_providers_downgrade_dict.keys())
+    else:
+        test_list = parallel_test_types.split(" ")
     excluded_test_list = excluded_parallel_test_types.split(" ")
     if excluded_test_list:
         test_list = [test for test in test_list if test not in excluded_test_list]
@@ -747,7 +752,7 @@ def _run_test_command(
         backend=backend,
         collect_only=collect_only,
         database_isolation=database_isolation,
-        cross_providers_upstream_test=cross_providers_upstream_test,
+        cross_providers_downgrade_dict=cross_providers_downgrade_dict,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
@@ -975,7 +980,6 @@ def helm_tests(
         helm_test_package=helm_test_package,
         keep_env_variables=False,
         no_db_cleanup=False,
-        cross_providers_upstream_test=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

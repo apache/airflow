@@ -60,9 +60,9 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
-      cross-providers-upstream-test-types-list-as-string:
+      cross-providers-downstream-dict-as-string:
         description: "The list of separate provider test types to run cross-provider tests"
-        required: true
+        required: false
         type: string
 jobs:
   tests-min-sqlalchemy:
@@ -207,15 +207,16 @@ jobs:
     with:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "CrossProviders-Postgres"
-      test-scope: ""
+      test-scope: "All"
       run-cross-providers-tests: "true"
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: ${{ inputs.python-versions }}
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
-      parallel-test-types-list-as-string: >-
-        ${{ inputs.cross-providers-upstream-test-types-list-as-string }}
+      parallel-test-types-list-as-string: "[]"
+      cross-providers-downstream-dict-as-string: >-
+        ${{ inputs.cross-providers-downstream-dict-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}

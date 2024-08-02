@@ -409,29 +409,31 @@ function check_force_lowest_dependencies() {
     set +x
 }
 
-function check_cross_providers_upstream_test() {
-    if [[ ${CROSS_PROVIDERS_UPSTREAM_TEST=} != "true" ]]; then
+function check_cross_providers_downgrade_test() {
+    if [[ ${CROSS_PROVIDERS_DOWNGRADE_LIST} == "" ]]; then
         return
     fi
-    EXTRA=""
-    if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
-        # shellcheck disable=SC2001
-        EXTRA=$(echo ${TEST_TYPE} | sed 's/Providers\[\(.*\)\]/\1/')
-        echo
-        echo "${COLOR_BLUE}Installing latest released version of: ${EXTRA}${COLOR_RESET}"
-        echo
-    else
-        echo
-        echo "${COLOR_BLUE}Need to put something else here.${COLOR_RESET}"
-        echo
-    fi
-    set -x
-    for provider in ${EXTRA//,/ }
-    do
-        echo "${COLOR_BLUE}Installing latest released version of: apache-airflow-providers-${provider//./-}${COLOR_RESET}"
-        uv pip uninstall --python "$(which python)" "apache-airflow-providers-${provider//./-}"
-        uv pip install --python "$(which python)" --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt "apache-airflow-providers-${provider//./-}"
+    echo "${COLOR_BLUE}Downgrading following providers: ${CROSS_PROVIDERS_DOWNGRADE_LIST}${COLOR_RESET}"
+
+    # Initialize an empty array to hold the formatted provider package names
+    local formatted_providers=()
+
+    # Split the comma-separated list of providers and process each entry
+    IFS="," read -r -a providers <<< "$CROSS_PROVIDERS_DOWNGRADE_LIST"
+    for provider in "${providers[@]}"; do
+        # Split the entry on '==' and take the first part (provider name)
+        local provider_name="${provider%%==*}"
+        local provider_version="${provider##*==}"
+
+        # Replace '.' with '-' in the provider name
+        local formatted_provider="apache-airflow-providers-${provider_name//./-}==${provider_version}"
+
+        # Add the formatted provider package name to the list
+        formatted_providers+=("${formatted_provider}")
     done
+
+    set -x
+    pip install --upgrade "${formatted_providers[@]}"
     set +x
 }
 
@@ -442,7 +444,7 @@ check_pydantic
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
-check_cross_providers_upstream_test
+check_cross_providers_downgrade_test
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

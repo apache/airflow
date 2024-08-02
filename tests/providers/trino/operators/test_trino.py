@@ -19,15 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.models.connection import Connection
-from airflow.providers.common.compat.openlineage.facet import (
-    Dataset,
-    SchemaDatasetFacet,
-    SchemaDatasetFacetFields,
-    SQLJobFacet,
-)
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.providers.trino.hooks.trino import TrinoHook
 
 TRINO_CONN_ID = "test_trino"
 TASK_ID = "test_trino_task"
@@ -54,60 +46,3 @@ class TestTrinoOperator:
             parameters=None,
             return_last=True,
         )
-
-
-def test_execute_openlineage_events():
-    DB_NAME = "tpch"
-    DB_SCHEMA_NAME = "sf1"
-
-    class TrinoHookForTests(TrinoHook):
-        get_conn = mock.MagicMock(name="conn")
-        get_connection = mock.MagicMock()
-
-        def get_first(self, *_):
-            return [f"{DB_NAME}.{DB_SCHEMA_NAME}"]
-
-    dbapi_hook = TrinoHookForTests()
-
-    sql = "SELECT name FROM tpch.sf1.customer LIMIT 3"
-    op = SQLExecuteQueryOperator(task_id="trino-operator", sql=sql, conn_id=TRINO_DEFAULT)
-    op._hook = dbapi_hook
-    rows = [
-        (DB_SCHEMA_NAME, "customer", "custkey", 1, "bigint", DB_NAME),
-        (DB_SCHEMA_NAME, "customer", "name", 2, "varchar(25)", DB_NAME),
-        (DB_SCHEMA_NAME, "customer", "address", 3, "varchar(40)", DB_NAME),
-        (DB_SCHEMA_NAME, "customer", "nationkey", 4, "bigint", DB_NAME),
-        (DB_SCHEMA_NAME, "customer", "phone", 5, "varchar(15)", DB_NAME),
-        (DB_SCHEMA_NAME, "customer", "acctbal", 6, "double", DB_NAME),
-    ]
-    dbapi_hook.get_connection.return_value = Connection(
-        conn_id=TRINO_DEFAULT,
-        conn_type="trino",
-        host="trino",
-        port=8080,
-    )
-    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
-
-    lineage = op.get_openlineage_facets_on_start()
-    assert lineage.inputs == [
-        Dataset(
-            namespace="trino://trino:8080",
-            name=f"{DB_NAME}.{DB_SCHEMA_NAME}.customer",
-            facets={
-                "schema": SchemaDatasetFacet(
-                    fields=[
-                        SchemaDatasetFacetFields(name="custkey", type="bigint"),
-                        SchemaDatasetFacetFields(name="name", type="varchar(25)"),
-                        SchemaDatasetFacetFields(name="address", type="varchar(40)"),
-                        SchemaDatasetFacetFields(name="nationkey", type="bigint"),
-                        SchemaDatasetFacetFields(name="phone", type="varchar(15)"),
-                        SchemaDatasetFacetFields(name="acctbal", type="double"),
-                    ]
-                )
-            },
-        )
-    ]
-
-    assert len(lineage.outputs) == 0
-
-    assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}

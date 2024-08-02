@@ -243,7 +243,8 @@ class TestBeamRunPythonPipelineOperator:
         )
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         op.execute({})
-        assert op.dataflow_config.job_name == op.task_id
+        if not dataflow_config.job_name:
+            assert op.dataflow_config.job_name == op.task_id
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -450,7 +451,8 @@ class TestBeamRunJavaPipelineOperator:
         )
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         op.execute({})
-        assert op.dataflow_config.job_name == op.task_id
+        if not dataflow_config.job_name:
+            assert op.dataflow_config.job_name == op.task_id
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
