@@ -38,7 +38,8 @@ const useTaskLog = ({
   mapIndex,
   fullContent = false,
   state,
-  limit = 9000,
+  limit = 1000, // set later dynamically
+  offset = 0, // set later dynamically
 }: Props) => {
   let url: string = "";
   const [isPreviousStatePending, setPrevState] = useState(true);
@@ -74,6 +75,7 @@ const useTaskLog = ({
       taskTryNumber,
       fullContent,
       limit,
+      offset,
     ],
     () => {
       setPrevState(isStatePending);
@@ -83,6 +85,7 @@ const useTaskLog = ({
           map_index: mapIndex,
           full_content: fullContent,
           limit,
+          offset,
         },
       });
     },

@@ -5605,7 +5605,7 @@ components:
       in: query
       schema:
         type: integer
-        default: 5000
+        default: 1000
 
     ContinuationToken:
       in: query
