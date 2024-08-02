@@ -153,6 +153,12 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
+            - name: tmp-logs
+              mountPath: {{ template "airflow_logs" . }}     
+            - name: tmp
+              mountPath: /tmp    
+            - name: home
+              mountPath: /opt/airflow                                
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -289,6 +295,10 @@ spec:
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
         {{- end }}
+        - name: tmp-logs
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }} 
+        - name: tmp
+          emptyDir: {}                        
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
