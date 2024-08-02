@@ -288,7 +288,8 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
         self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
         if open_slots == 0:
-            self.log.info("Executor parallelism limit reached. 0 open slots.")
+            if self.parallelism:
+                self.log.info("Executor parallelism limit reached. 0 open slots.")
         else:
             self.log.debug("%s open slots for executor %s", open_slots, name)
 

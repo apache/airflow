@@ -179,9 +179,10 @@ class PrepareReleaseDocsUserQuitException(Exception):
 TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.DOCUMENTATION: "Documentation only changes - no version change needed, "
     "only documentation needs to be updated",
-    TypeOfChange.BUGFIX: "Bugfix/Misc changes only - bump in PATCHLEVEL version needed",
+    TypeOfChange.BUGFIX: "Bugfix changes only - bump in PATCHLEVEL version needed",
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
+    TypeOfChange.MISC: "Miscellaneous changes - bump in PATCHLEVEL version needed",
 }
 
 
