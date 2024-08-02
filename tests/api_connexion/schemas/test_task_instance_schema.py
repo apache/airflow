@@ -33,6 +33,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestTaskInstanceSchema:
     @pytest.fixture(autouse=True)

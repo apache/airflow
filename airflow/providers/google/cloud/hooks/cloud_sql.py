@@ -929,7 +929,9 @@ class CloudSQLDatabaseHook(BaseHook):
             self.log.info("Neither cert path and cert value provided. Nothing to save.")
             return None
 
-        _temp_file = NamedTemporaryFile(mode="w+b", prefix="/tmp/certs/")
+        certs_folder = "/tmp/certs/"
+        Path(certs_folder).mkdir(parents=True, exist_ok=True)
+        _temp_file = NamedTemporaryFile(mode="w+b", prefix=certs_folder)
         if cert_path:
             with open(cert_path, "rb") as cert_file:
                 _temp_file.write(cert_file.read())

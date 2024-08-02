@@ -321,6 +321,34 @@ Example:
 Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one dataset given to the DAG, and the first of one DatasetEvent for that dataset. An implementation can be quite complex if you have multiple datasets, potentially with multiple DatasetEvents.
 
 
+Manipulating queued dataset events through REST API
+---------------------------------------------------
+
+.. versionadded:: 2.9
+
+In this example, the DAG ``waiting_for_dataset_1_and_2`` will be triggered when tasks update both datasets "dataset-1" and "dataset-2". Once "dataset-1" is updated, Airflow creates a record. This ensures that Airflow knows to trigger the DAG when "dataset-2" is updated. We call such records queued dataset events.
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="waiting_for_dataset_1_and_2",
+        schedule=[Dataset("dataset-1"), Dataset("dataset-2")],
+        ...,
+    ):
+        ...
+
+
+``quededEvent`` API endpoints are introduced to manipulate such records.
+
+* Get a queued Dataset event for a DAG: ``/datasets/queuedEvent/{uri}``
+* Get queued Dataset events for a DAG: ``/dags/{dag_id}/datasets/queuedEvent``
+* Delete a queued Dataset event for a DAG: ``/datasets/queuedEvent/{uri}``
+* Delete queued Dataset events for a DAG: ``/dags/{dag_id}/datasets/queuedEvent``
+* Get queued Dataset events for a Dataset: ``/dags/{dag_id}/datasets/queuedEvent/{uri}``
+* Delete queued Dataset events for a Dataset: ``DELETE /dags/{dag_id}/datasets/queuedEvent/{uri}``
+
+ For how to use REST API and the parameters needed for these endpoints, please refer to :doc:`Airflow API </stable-rest-api-ref>`
+
 Advanced dataset scheduling with conditional expressions
 --------------------------------------------------------
 
@@ -443,6 +471,8 @@ Only one dataset event is emitted for an added dataset, even if it is added to t
 Scheduling based on dataset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Since dataset events added to an alias are just simple dataset events, a downstream depending on the actual dataset can read dataset events of it normally, without considering the associated aliases. A downstream can also depend on a dataset alias. The authoring syntax is referencing the ``DatasetAlias`` by name, and the associated dataset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=DatasetAlias("xxx")`` if and only if the alias is resolved into ``Dataset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``DatasetAlias("out")`` gets associated with at least one dataset at runtime, regardless of the dataset's identity. The downstream DAG is not triggered if no datasets are associated to the alias for a particular given task run. This also means we can do conditional dataset-triggering.
+
+The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "min_file_process_interval" configuration is set to a high value, there is a possibility that the dataset alias may not be resolved. To resolve this issue, you can trigger DAG parsing.
 
 .. code-block:: python
 

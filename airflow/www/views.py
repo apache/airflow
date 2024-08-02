@@ -90,7 +90,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -110,7 +110,6 @@ from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQue
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
-from airflow.models.taskinstancehistory import TaskInstanceHistory as TIHistory
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
@@ -459,7 +458,9 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "label": item.label,
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
-                "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
+                "has_outlet_datasets": any(
+                    isinstance(i, (Dataset, DatasetAlias)) for i in (item.outlets or [])
+                ),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
                 **setup_teardown_type,
@@ -3633,40 +3634,6 @@ class Airflow(AirflowBaseView):
                 htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
                 {"Content-Type": "application/json; charset=utf-8"},
             )
-
-    @expose("/object/task_instance_history")
-    @provide_session
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    def ti_history(self, session: Session = NEW_SESSION):
-        dag_id = request.args.get("dag_id")
-        task_id = request.args.get("task_id")
-        run_id = request.args.get("run_id")
-        map_index = request.args.get("map_index", -1, type=int)
-
-        ti_history = (
-            session.query(TIHistory)
-            .filter(
-                TIHistory.dag_id == dag_id,
-                TIHistory.task_id == task_id,
-                TIHistory.run_id == run_id,
-                TIHistory.map_index == map_index,
-            )
-            .order_by(TIHistory.try_number.asc())
-            .all()
-        )
-
-        attrs = TaskInstance.__table__.columns.keys()
-
-        data = [{attr: getattr(ti, attr) for attr in attrs} for ti in ti_history]
-
-        for entity in data:
-            entity["dag_run_id"] = entity.pop("run_id")
-            entity["queued_when"] = entity.pop("queued_dttm")
-
-        return (
-            htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
-            {"Content-Type": "application/json; charset=utf-8"},
-        )
 
     @expose("/robots.txt")
     @action_logging

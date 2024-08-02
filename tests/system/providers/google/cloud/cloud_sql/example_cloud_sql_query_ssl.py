@@ -38,7 +38,6 @@ from airflow import settings
 from airflow.decorators import task
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.cloud_sql import (
@@ -47,27 +46,17 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
+from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "Not found")
-DAG_ID = "cloudsql-query-ssl"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+DAG_ID = "cloudsql_query_ssl"
 REGION = "us-central1"
 HOME_DIR = Path.home()
 
 COMPOSER_ENVIRONMENT = os.environ.get("COMPOSER_ENVIRONMENT", "")
-if COMPOSER_ENVIRONMENT:
-    # We assume that the test is launched in Cloud Composer environment because the reserved environment
-    # variable is assigned (https://cloud.google.com/composer/docs/composer-2/set-environment-variables)
-    GET_COMPOSER_NETWORK_COMMAND = """
-    gcloud composer environments describe $COMPOSER_ENVIRONMENT \
-    --location=$COMPOSER_LOCATION \
-    --project=$GCP_PROJECT \
-    --format="value(config.nodeConfig.network)"
-    """
-else:
-    # The test is launched locally
-    GET_COMPOSER_NETWORK_COMMAND = "echo"
 
 
 def run_in_composer():
@@ -121,7 +110,7 @@ def ip_configuration() -> dict[str, Any]:
             "requireSsl": False,
             "sslMode": "ENCRYPTED_ONLY",
             "enablePrivatePathForGoogleCloudServices": True,
-            "privateNetwork": """{{ task_instance.xcom_pull('get_composer_network')}}""",
+            "privateNetwork": f"projects/{PROJECT_ID}/global/networks/default",
         }
     else:
         # Use connection to Cloud SQL instance via Public IP from anywhere (mask 0.0.0.0/0).
@@ -195,8 +184,6 @@ SQL = [
     "DROP TABLE TABLE_TEST",
     "DROP TABLE TABLE_TEST2",
 ]
-
-DELETE_CONNECTION_COMMAND = "airflow connections delete {}"
 
 SSL_PATH = f"/{DAG_ID}/{ENV_ID}"
 SSL_LOCAL_PATH_PREFIX = "/tmp"
@@ -273,12 +260,6 @@ with DAG(
     catchup=False,
     tags=["example", "cloudsql", "postgres"],
 ) as dag:
-    get_composer_network = BashOperator(
-        task_id="get_composer_network",
-        bash_command=GET_COMPOSER_NETWORK_COMMAND,
-        do_xcom_push=True,
-    )
-
     for db_provider in DB_PROVIDERS:
         database_type: str = db_provider["database_type"]
         cloud_sql_instance_name: str = db_provider["cloud_sql_instance_name"]
@@ -342,9 +323,9 @@ with DAG(
             connection_id: str, instance: str, db_type: str, ip_address: str, port: str
         ) -> str | None:
             session = settings.Session()
-            if session.query(Connection).filter(Connection.conn_id == connection_id).first():
-                log.warning("Connection '%s' already exists", connection_id)
-                return connection_id
+            log.info("Removing connection %s if it exists", connection_id)
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
 
             connection: dict[str, Any] = deepcopy(CONNECTION_PUBLIC_TCP_SSL_KWARGS)
             connection["extra"]["instance"] = instance
@@ -472,12 +453,15 @@ with DAG(
             trigger_rule=TriggerRule.ALL_DONE,
         )
 
-        delete_connection = BashOperator(
-            task_id=f"delete_connection_{conn_id}",
-            bash_command=DELETE_CONNECTION_COMMAND.format(conn_id),
-            trigger_rule=TriggerRule.ALL_DONE,
-            skip_on_exit_code=1,
-        )
+        @task(task_id=f"delete_connection_{database_type}")
+        def delete_connection(connection_id: str) -> None:
+            session = Session()
+            log.info("Removing connection %s", connection_id)
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+            session.commit()
+
+        delete_connection_task = delete_connection(connection_id=conn_id)
 
         @task(task_id=f"delete_secret_{database_type}")
         def delete_secret(ssl_secret_id, db_type: str) -> None:
@@ -491,8 +475,7 @@ with DAG(
 
         (
             # TEST SETUP
-            get_composer_network
-            >> create_cloud_sql_instance
+            create_cloud_sql_instance
             >> [create_database, create_user_task, get_ip_address_task]
             >> create_connection_task
             >> create_ssl_certificate_task
@@ -501,7 +484,7 @@ with DAG(
             >> query_task
             >> query_task_secret
             # TEST TEARDOWN
-            >> [delete_instance, delete_connection, delete_secret_task]
+            >> [delete_instance, delete_connection_task, delete_secret_task]
         )
 
     # ### Everything below this line is not part of example ###

@@ -267,6 +267,15 @@ class SkipDBTestsSession:
         pass
 
 
+def get_cleaned_traceback(stack_summary: traceback.StackSummary) -> str:
+    clened_traceback = [
+        frame
+        for frame in stack_summary[:-2]
+        if "/_pytest" not in frame.filename and "/pluggy" not in frame.filename
+    ]
+    return "".join(traceback.format_list(clened_traceback))
+
+
 class TracebackSession:
     """
     Session that throws error when you try to use it.
@@ -284,7 +293,7 @@ class TracebackSession:
             "TracebackSession object was used but internal API is enabled. "
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was created."
-            + "\n".join(traceback.format_list(self.traceback))
+            + get_cleaned_traceback(self.traceback)
         )
 
     def remove(*args, **kwargs):
@@ -293,6 +302,9 @@ class TracebackSession:
 
 AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
 AIRFLOW_TESTS_PATH = os.path.join(AIRFLOW_PATH, "tests")
+AIRFLOW_SETTINGS_PATH = os.path.join(AIRFLOW_PATH, "airflow", "settings.py")
+AIRFLOW_UTILS_SESSION_PATH = os.path.join(AIRFLOW_PATH, "airflow", "utils", "session.py")
+AIRFLOW_MODELS_BASEOPERATOR_PATH = os.path.join(AIRFLOW_PATH, "airflow", "models", "baseoperator.py")
 
 
 class TracebackSessionForTests:
@@ -309,26 +321,31 @@ class TracebackSessionForTests:
     db_session_class = None
 
     def __init__(self):
-        self.traceback = traceback.extract_stack()
         self.current_db_session = TracebackSessionForTests.db_session_class()
+        self.created_traceback = traceback.extract_stack()
 
     def __getattr__(self, item):
-        if self.is_called_from_test_code():
+        test_code, frame_summary = self.is_called_from_test_code()
+        if test_code:
             return getattr(self.current_db_session, item)
         raise RuntimeError(
             "TracebackSessionForTests object was used but internal API is enabled. "
-            "Only test code is allowed to use this object. "
+            "Only test code is allowed to use this object.\n"
+            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}{frame_summary.colno}\n"
+            f"     {frame_summary.line}\n\n"
             "You'll need to ensure you are making only RPC calls with this object. "
-            "The stack list below will show where the TracebackSession object was created."
-            + "\n".join(traceback.format_list(self.traceback))
+            "The stack list below will show where the TracebackSession object was called:\n"
+            + get_cleaned_traceback(self.traceback)
+            + "\n\nThe stack list below will show where the TracebackSession object was created:\n"
+            + get_cleaned_traceback(self.created_traceback)
         )
 
     def remove(*args, **kwargs):
         pass
 
-    def is_called_from_test_code(self) -> bool:
+    def is_called_from_test_code(self) -> tuple[bool, traceback.FrameSummary | None]:
         """
-        Check if the object was created from test code.
+        Check if the traceback session was used from the test code.
 
         This is done by checking if the first "airflow" filename in the traceback
         is "airflow/tests" or "regular airflow".
@@ -336,12 +353,40 @@ class TracebackSessionForTests:
         :meta: private
         :return: True if the object was created from test code, False otherwise.
         """
-        for tb in self.traceback:
+        self.traceback = traceback.extract_stack()
+        airflow_frames = [
+            tb
+            for tb in self.traceback
+            if tb.filename.startswith(AIRFLOW_PATH)
+            and not tb.filename == AIRFLOW_SETTINGS_PATH
+            and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
+        ]
+        if any(filename.endswith("conftest.py") for filename, _, _, _ in airflow_frames):
+            # This is a fixture call
+            return True, None
+        if (
+            len(airflow_frames) >= 2
+            and airflow_frames[-2].filename.startswith(AIRFLOW_TESTS_PATH)
+            and airflow_frames[-1].filename == AIRFLOW_MODELS_BASEOPERATOR_PATH
+            and airflow_frames[-1].name == "run"
+        ):
+            # This is baseoperator run method that is called directly from the test code and this is
+            # usual pattern where we create a session in the test code to create dag_runs for tests.
+            # If `run` code will be run inside a real "airflow" code the stack trace would be longer
+            # and it would not be directly called from the test code. Also if subsequently any of the
+            # run_task() method called later from the task code will attempt to execute any DB
+            # method, the stack trace will be longer and we will catch it as "illegal" call.
+            return True, None
+        for tb in airflow_frames[::-1]:
             if tb.filename.startswith(AIRFLOW_PATH):
-                # if this is the also "test" code, we are good, otherwise we are in Airflow code
-                return tb.filename.startswith(AIRFLOW_TESTS_PATH)
+                if tb.filename.startswith(AIRFLOW_TESTS_PATH):
+                    # this is a session created directly in the test code
+                    return True, None
+                else:
+                    return False, tb
         # if it is from elsewhere.... Why???? We should return False in order to crash to find out
-        return False
+        # The traceback line will be always 3rd (two bottom ones are Airflow)
+        return False, self.traceback[-2]
 
 
 def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
