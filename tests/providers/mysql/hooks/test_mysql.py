@@ -290,7 +290,6 @@ class TestMySqlHook:
 
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
-        
     def test_bulk_load_custom(self):
         self.db_hook.bulk_load_custom(
             "table",
