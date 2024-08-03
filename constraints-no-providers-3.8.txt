@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-07-30T07:43:47.930857
+# This constraints file was automatically generated on 2024-08-03T07:38:47.095353
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -26,7 +26,7 @@ Flask==2.2.5
 Jinja2==3.1.4
 Mako==1.3.5
 MarkupSafe==2.1.5
-PyJWT==2.8.0
+PyJWT==2.9.0
 PyYAML==6.0.1
 Pygments==2.18.0
 SQLAlchemy-JSONField==1.0.2
@@ -35,7 +35,8 @@ SQLAlchemy==1.4.53
 WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.13.1
-aiohttp==3.9.5
+aiohappyeyeballs==2.3.4
+aiohttp==3.10.0
 aioitertools==0.11.0
 aiosignal==1.3.1
 alembic==1.13.2
@@ -85,7 +86,7 @@ google-re2==1.1.20240702
 googleapis-common-protos==1.63.2
 graphviz==0.20.3
 greenlet==3.0.3
-grpcio==1.65.1
+grpcio==1.65.4
 gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
@@ -163,7 +164,7 @@ rich-argparse==1.5.2
 rich==13.7.1
 rpds-py==0.19.1
 s3fs==2024.6.1
-sentry-sdk==2.11.0
+sentry-sdk==2.12.0
 setproctitle==1.3.3
 six==1.16.0
 sniffio==1.3.1
@@ -182,7 +183,7 @@ uc-micro-py==1.0.3
 unicodecsv==0.14.1
 universal_pathlib==0.2.2
 urllib3==1.26.19
-uv==0.2.31
+uv==0.2.33
 vine==5.1.0
 virtualenv==20.26.3
 wirerope==0.4.7
