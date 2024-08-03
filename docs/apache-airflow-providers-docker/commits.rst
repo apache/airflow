@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.12.3
+......
+
+Latest change: 2024-07-20
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`d44016ce65 <https://github.com/apache/airflow/commit/d44016ce6565194236d20ecc308f540a4f363a76>`_  2024-07-20   ``DockerSwarmOperator: Support line breaks in service logs (#40705)``
+=================================================================================================  ===========  =====================================================================
+
 3.12.2
 ......
 
-Latest change: 2024-07-08
+Latest change: 2024-07-09
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `dc08893c90 <https://github.com/apache/airflow/commit/dc08893c906b6b2c57a9ec859d5d6ab329af5b30>`_  2024-07-08   ``DockerOperator TaskFlow - correct argyments in python command (#39620)``
 `c8b7dc5ce6 <https://github.com/apache/airflow/commit/c8b7dc5ce69267e064307851be92ab56532df8d2>`_  2024-06-29   ``Improve logging behavior of DockerOperator (#40489)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
