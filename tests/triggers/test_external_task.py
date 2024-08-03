@@ -110,7 +110,7 @@ class TestWorkflowTrigger:
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
-        mock_get_count.return_value = 0
+        mock_get_count.return_value = 1
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             execution_dates=[timezone.datetime(2022, 1, 1)],
@@ -125,7 +125,7 @@ class TestWorkflowTrigger:
         assert trigger_task.done()
         result = trigger_task.result()
         assert isinstance(result, TriggerEvent)
-        assert result.payload == {"status": "success"}
+        assert result.payload == {"status": "failed"}
         mock_get_count.assert_called_once_with(
             dttm_filter=[timezone.datetime(2022, 1, 1)],
             external_task_ids=["external_task_op"],
