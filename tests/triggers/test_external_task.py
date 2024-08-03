@@ -109,7 +109,7 @@ class TestWorkflowTrigger:
 
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
-    async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
+    async def test_task_workflow_trigger_fail_count_eq_1(self, mock_get_count):
         mock_get_count.return_value = 1
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
