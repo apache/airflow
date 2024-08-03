@@ -252,6 +252,8 @@ With some limitations, you can also use ``Context`` in virtual environments.
 
     * it does not provide lazy-loading values.
 
+    * set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
+
 .. tab-set::
 
     .. tab-item:: @task.virtualenv
