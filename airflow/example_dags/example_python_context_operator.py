@@ -23,13 +23,14 @@ Also, demonstrates the usage of the classic Python operators.
 
 from __future__ import annotations
 
+import sys
+
 import pendulum
 
 from airflow import DAG
-from airflow.operators.python import (
-    PythonOperator,
-    PythonVirtualenvOperator,
-)
+from airflow.operators.python import ExternalPythonOperator, PythonOperator, PythonVirtualenvOperator
+
+SOME_EXTERNAL_PYTHON = sys.executable
 
 with DAG(
     dag_id="example_python_context_operator",
@@ -67,5 +68,23 @@ with DAG(
         task_id="print_the_context_venv", python_callable=print_context_venv
     )
     # [END get_current_context_venv]
+
+    # [START get_current_context_external]
+    def print_context_external() -> str:
+        """Print the Airflow context in external python."""
+        from pprint import pprint
+
+        from airflow.operators.python import get_current_context
+
+        context = get_current_context()
+        pprint(context)
+        return "Whatever you return gets printed in the logs"
+
+    print_the_context_external = ExternalPythonOperator(
+        task_id="print_the_context_external",
+        python_callable=print_context_external,
+        python=SOME_EXTERNAL_PYTHON,
+    )
+    # [END get_current_context_external]
 
     _ = print_the_context >> print_the_context_venv

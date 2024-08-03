@@ -65,4 +65,19 @@ def example_python_context_decorator():
     print_the_context_venv = print_context_venv()
     # [END get_current_context_venv]
 
-    _ = print_the_context >> print_the_context_venv
+    # [START get_current_context_external]
+    @task(task_id="print_the_context_external")
+    def print_context_external() -> str:
+        """Print the Airflow context in external python."""
+        from pprint import pprint
+
+        from airflow.operators.python import get_current_context
+
+        context = get_current_context()
+        pprint(context)
+        return "Whatever you return gets printed in the logs"
+
+    print_the_context_external = print_context_external()
+    # [END get_current_context_external]
+
+    _ = print_the_context >> [print_the_context_venv, print_the_context_external]
