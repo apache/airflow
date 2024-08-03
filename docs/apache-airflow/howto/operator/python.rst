@@ -105,9 +105,13 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 Context
 ^^^^^^^
 
-Context description 1
+The ``Context`` is a dictionary object that contains information
+about the environment of the currently running ``DAG``. 
+For example, selecting ``task_instance`` will get the currently running ``TaskInstance`` object.
 
-Context description 2
+It can be used implicitly, such as with ``**kwargs``,
+but can also be used explicitly with ``get_current_context()``. 
+In this case, the type hint can be used for static analysis.
 
 .. tab-set::
 
@@ -233,13 +237,24 @@ operator is not maintaining or cleaning the cache path.
 Context
 ^^^^^^^
 
-Context description 1
+With some limitations, you can also use ``Context`` in virtual environments.
 
-Context description 2
+.. important::
+    Using ``Context`` in a virtual environment is a bit of a challenge 
+    because it involves library dependencies and serialization issues.
+
+    You can bypass this to some extent by using :ref:`Jinja template variables <templates:variables>` and explicitly passing it as a parameter,
+    or by setting ``system_site_packages`` to ``True``.
+
+    You can also use ``get_current_context()`` in the same way as before, but with some limitations.
+
+    * it is a dictionary object of primitive types, not a model defined by Airflow.
+
+    * it does not provide lazy-loading values.
 
 .. tab-set::
 
-    .. tab-item:: @task
+    .. tab-item:: @task.virtualenv
         :sync: taskflow
 
         .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
@@ -319,6 +334,31 @@ If you want the context related to datetime objects like ``data_interval_start``
 
     If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
     ``op_args`` and ``op_kwargs``.
+
+Context
+^^^^^^^
+
+You can use ``Context`` under the same conditions as ``PythonVirtualenvOperator``.
+
+.. tab-set::
+
+    .. tab-item:: @task.external_python
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_external]
+            :end-before: [END get_current_context_external]
+
+    .. tab-item:: ExternalPythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_external]
+            :end-before: [END get_current_context_external]
 
 .. _howto/operator:PythonBranchOperator:
 
