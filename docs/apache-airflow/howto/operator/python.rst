@@ -102,6 +102,33 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
             :start-after: [START howto_operator_python_render_sql]
             :end-before: [END howto_operator_python_render_sql]
 
+Context
+^^^^^^^
+
+Context description 1
+
+Context description 2
+
+.. tab-set::
+
+    .. tab-item:: @task
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context]
+            :end-before: [END get_current_context]
+
+    .. tab-item:: PythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context]
+            :end-before: [END get_current_context]
+
 .. _howto/operator:PythonVirtualenvOperator:
 
 PythonVirtualenvOperator
@@ -203,6 +230,32 @@ In case you have problems during runtime with broken cached virtual environments
 Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
 operator is not maintaining or cleaning the cache path.
 
+Context
+^^^^^^^
+
+Context description 1
+
+Context description 2
+
+.. tab-set::
+
+    .. tab-item:: @task
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_venv]
+            :end-before: [END get_current_context_venv]
+
+    .. tab-item:: PythonVirtualenvOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_venv]
+            :end-before: [END get_current_context_venv]
 
 .. _howto/operator:ExternalPythonOperator:
 
