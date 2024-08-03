@@ -34,6 +34,7 @@ import lazy_object_proxy
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -55,6 +56,7 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, 
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
@@ -665,6 +667,11 @@ class BaseSerialization:
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
+        elif isinstance(var, TaskInstanceKey):
+            return cls._encode(
+                var._asdict(),
+                type_=DAT.TASK_INSTANCE_KEY,
+            )
         elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
@@ -785,6 +792,7 @@ class BaseSerialization:
                     continue
                 d[k] = cls.deserialize(v, use_pydantic_models=True)
             d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
+            d["macros"] = macros
             return Context(**d)
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
@@ -849,6 +857,8 @@ class BaseSerialization:
             return DagCallbackRequest.from_json(var)
         elif type_ == DAT.SLA_CALLBACK_REQUEST:
             return SlaCallbackRequest.from_json(var)
+        elif type_ == DAT.TASK_INSTANCE_KEY:
+            return TaskInstanceKey(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             return _type_to_class[type_][0].model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
