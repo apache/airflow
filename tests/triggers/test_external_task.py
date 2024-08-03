@@ -46,12 +46,18 @@ class TestWorkflowTrigger:
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_success(self, mock_get_count):
         """check the db count get called correctly."""
-        mock_get_count.side_effect = mocked_get_count
+        def curr_mocked_get_count(*args, **kwargs):
+            time.sleep(0.0001)
+            if kwargs["states"] == ["failed"]:
+                return 0
+            return 1
+        mock_get_count.side_effect = curr_mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             execution_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
-            allowed_states=self.STATES,
+            allowed_states=["success"],
+            failed_states=["failed"],
             poke_interval=0.2,
         )
 
@@ -63,13 +69,22 @@ class TestWorkflowTrigger:
         assert trigger_task.done()
         result = trigger_task.result()
         assert result.payload == {"status": "success"}
-        mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
-            external_task_ids=["external_task_op"],
-            external_task_group_id=None,
-            external_dag_id="external_task",
-            states=["success", "fail"],
-        )
+        mock_get_count.assert_has_calls([
+            mock.call(
+                dttm_filter=[timezone.datetime(2022, 1, 1)],
+                external_task_ids=["external_task_op"],
+                external_task_group_id=None,
+                external_dag_id="external_task",
+                states=["failed"],
+            ),
+            mock.call(
+                dttm_filter=[timezone.datetime(2022, 1, 1)],
+                external_task_ids=["external_task_op"],
+                external_task_group_id=None,
+                external_dag_id="external_task",
+                states=["success"],
+            ),
+        ])
         # test that it returns after yielding
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
@@ -110,7 +125,10 @@ class TestWorkflowTrigger:
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_fail_count_eq_1(self, mock_get_count):
-        mock_get_count.return_value = 1
+        def failed_states_mocked_get_count(*args, **kwargs):
+            time.sleep(0.0001)
+            return 1
+        mock_get_count.side_effect = failed_states_mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
             execution_dates=[timezone.datetime(2022, 1, 1)],
