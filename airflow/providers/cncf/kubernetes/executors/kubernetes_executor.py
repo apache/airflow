@@ -613,6 +613,7 @@ class KubernetesExecutor(BaseExecutor):
         if not tis:
             return readable_tis
         pod_labels_combined_str_to_pod_map = self.get_pod_labels_combined_str_to_pod_map()
+        print(pod_labels_combined_str_to_pod_map)
         for ti in tis:
             # Build the pod selector
             base_label_selector = (
@@ -625,6 +626,7 @@ class KubernetesExecutor(BaseExecutor):
                 base_label_selector += f",map_index={ti.map_index}"
 
             label_search_str = f"{base_label_selector},run_id={self._make_safe_label_value(ti.run_id)},try_number={ti.try_number}"
+            print(label_search_str)
             pod = pod_labels_combined_str_to_pod_map.get(label_search_str, None)
             if not pod:
                 self.log.warning("Cannot find pod for ti %s", ti)
