@@ -348,8 +348,6 @@ class TracebackSessionForTests:
     @staticmethod
     def set_allow_db_access(session, flag: bool):
         """Temporarily, e.g. for pytests allow access to DB to prepare stuff."""
-        print(session)
-        print(session.__class__)
         if isinstance(session, TracebackSessionForTests):
             session.allow_db_access = flag
 
