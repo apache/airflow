@@ -165,10 +165,9 @@ def context_to_json(context: Context) -> str:
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.utils.context import Context
 
-    context_copy: dict[str, Any] = {}
-
     deprecated: set[str] = set(Context._DEPRECATION_REPLACEMENTS)  # type: ignore[attr-defined]
-    exclude = {
+    lazy_load: set[str] = {
+        # see more: airflow.models.taskinstance._get_template_context()
         "conf",
         "conn",
         "inlets",
@@ -178,9 +177,12 @@ def context_to_json(context: Context) -> str:
         "outlet_events",
         "triggering_dataset_events",
         "var",
-    } | deprecated
+    }
+    exclude: set[str] = deprecated | lazy_load
 
-    context_copy = {key: context.get(key, None) for key in context.keys() if key not in exclude}
+    context_copy: dict[str, Any] = {
+        key: context.get(key, None) for key in context.keys() if key not in exclude
+    }
 
     dag = context_copy.pop("dag", None)
     if dag is not None:
