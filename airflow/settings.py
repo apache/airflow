@@ -361,8 +361,11 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_SETTINGS_PATH
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
-        if any(filename.endswith("conftest.py") for filename, _, _, _ in airflow_frames):
-            # This is a fixture call
+        if any(
+            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            for filename, _, _, _ in airflow_frames
+        ):
+            # This is a fixture call or testing utilities
             return True, None
         if (
             len(airflow_frames) >= 2

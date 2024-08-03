@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, c
 import attr
 from sqlalchemy import select
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -138,6 +139,7 @@ def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     return _sanitize_uri(str(value))
 
 
+@internal_api_call
 @provide_session
 def expand_alias_to_datasets(
     alias: str | DatasetAlias, *, session: Session = NEW_SESSION

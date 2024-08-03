@@ -55,6 +55,7 @@ def initialize_method_map() -> dict[str, Callable]:
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.datasets import expand_alias_to_datasets
     from airflow.datasets.manager import DatasetManager
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
@@ -106,6 +107,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
+        expand_alias_to_datasets,
         DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,

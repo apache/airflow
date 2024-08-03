@@ -359,7 +359,7 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
 
 
 def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
-    if type(d1) != type(d2):
+    if type(d1) is not type(d2):
         return False
 
     if isinstance(d1, Dataset) and isinstance(d2, Dataset):
