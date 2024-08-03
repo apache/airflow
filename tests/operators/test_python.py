@@ -48,6 +48,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
+from airflow.operators.branch import BranchMixIn
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchExternalPythonOperator,
@@ -1010,7 +1011,26 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
 
+    def test_branch_current_context(self):
+        if not issubclass(self.opcls, BranchMixIn):
+            pytest.skip("This test is only applicable to BranchMixIn")
+
+        def f():
+            import json
+
+            from airflow.operators.python import get_current_context
+
+            context = get_current_context()
+            json.dumps(context)
+            return []
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
+
     def test_current_context(self):
+        if issubclass(self.opcls, BranchMixIn):
+            pytest.skip("This test is not applicable to BranchMixIn")
+
         def f():
             import json
 
