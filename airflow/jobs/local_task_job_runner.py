@@ -20,7 +20,6 @@ from __future__ import annotations
 import signal
 from typing import TYPE_CHECKING
 
-import os
 import psutil
 
 from airflow.configuration import conf
@@ -296,11 +295,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             recorded_pid = ti.pid
             same_process = recorded_pid == current_pid
 
-            is_child_process = (
-                ti.run_as_user
-                and (ti.run_as_user != getuser())
-                or self.task_runner.run_as_user
-                and (self.task_runner != getuser())
+            is_child_process = (ti.run_as_user and (ti.run_as_user != getuser())) or (
+                self.task_runner.run_as_user and (self.task_runner != getuser())
             )
 
             if recorded_pid is not None and is_child_process:
