@@ -640,7 +640,7 @@ without changing the structure of the ``DAG`` or ``Task``.
 It also allows you to set conditions using ``Context``,
 which is essentially the same as using ``pre_execute``.
 
-An example usage of ``run_if`` is as follows:
+An example usage of ``run_if()`` is as follows:
 
 .. code-block:: python
 
@@ -650,6 +650,7 @@ An example usage of ``run_if`` is as follows:
         return "echo 'run'"
 
 The ``echo`` defined in the above code is only executed when the ``task_id`` is ``run``.
+
 If you want to leave a log when you skip a task, you have two options.
 
 .. tab-set::
@@ -674,7 +675,7 @@ If you want to leave a log when you skip a task, you have two options.
             def echo() -> str:
                 return "echo 'run'"
 
-There is also a ``skip_if`` that works the opposite of ``run_if``, and is used in the same way.
+There is also a ``skip_if()`` that works the opposite of ``run_if()``, and is used in the same way.
 
 .. code-block:: python
 
