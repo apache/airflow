@@ -472,6 +472,8 @@ Scheduling based on dataset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Since dataset events added to an alias are just simple dataset events, a downstream depending on the actual dataset can read dataset events of it normally, without considering the associated aliases. A downstream can also depend on a dataset alias. The authoring syntax is referencing the ``DatasetAlias`` by name, and the associated dataset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=DatasetAlias("xxx")`` if and only if the alias is resolved into ``Dataset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``DatasetAlias("out")`` gets associated with at least one dataset at runtime, regardless of the dataset's identity. The downstream DAG is not triggered if no datasets are associated to the alias for a particular given task run. This also means we can do conditional dataset-triggering.
 
+The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "min_file_process_interval" configuration is set to a high value, there is a possibility that the dataset alias may not be resolved. To resolve this issue, you can trigger DAG parsing.
+
 .. code-block:: python
 
     with DAG(dag_id="dataset-producer"):

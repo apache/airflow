@@ -87,6 +87,8 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     :param target_time: datetime after which the job succeeds. (templated)
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+    :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
+        during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
     """
 
@@ -99,7 +101,14 @@ class DateTimeSensorAsync(DateTimeSensor):
     )
     start_from_trigger = False
 
-    def __init__(self, *, start_from_trigger: bool = False, end_from_trigger: bool = False, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        start_from_trigger: bool = False,
+        end_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.end_from_trigger = end_from_trigger
 
