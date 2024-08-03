@@ -106,11 +106,11 @@ Context
 ^^^^^^^
 
 The ``Context`` is a dictionary object that contains information
-about the environment of the currently running ``DAG``. 
+about the environment of the currently running ``DAG``.
 For example, selecting ``task_instance`` will get the currently running ``TaskInstance`` object.
 
 It can be used implicitly, such as with ``**kwargs``,
-but can also be used explicitly with ``get_current_context()``. 
+but can also be used explicitly with ``get_current_context()``.
 In this case, the type hint can be used for static analysis.
 
 .. tab-set::
@@ -240,7 +240,7 @@ Context
 With some limitations, you can also use ``Context`` in virtual environments.
 
 .. important::
-    Using ``Context`` in a virtual environment is a bit of a challenge 
+    Using ``Context`` in a virtual environment is a bit of a challenge
     because it involves library dependencies and serialization issues.
 
     You can bypass this to some extent by using :ref:`Jinja template variables <templates:variables>` and explicitly passing it as a parameter,
