@@ -65,7 +65,7 @@ with DAG(
         return "Whatever you return gets printed in the logs"
 
     print_the_context_venv = PythonVirtualenvOperator(
-        task_id="print_the_context_venv", python_callable=print_context_venv
+        task_id="print_the_context_venv", python_callable=print_context_venv, use_airflow_context=True
     )
     # [END get_current_context_venv]
 
@@ -84,7 +84,8 @@ with DAG(
         task_id="print_the_context_external",
         python_callable=print_context_external,
         python=SOME_EXTERNAL_PYTHON,
+        use_airflow_context=True,
     )
     # [END get_current_context_external]
 
-    _ = print_the_context >> print_the_context_venv
+    _ = print_the_context >> [print_the_context_venv, print_the_context_external]
