@@ -23,9 +23,13 @@ Also, demonstrates the usage of the TaskFlow API.
 
 from __future__ import annotations
 
+import sys
+
 import pendulum
 
 from airflow.decorators import dag, task
+
+SOME_EXTERNAL_PYTHON = sys.executable
 
 
 @dag(
@@ -51,7 +55,7 @@ def example_python_context_decorator():
     # [END get_current_context]
 
     # [START get_current_context_venv]
-    @task(task_id="print_the_context_venv")
+    @task.virtualenv(task_id="print_the_context_venv", use_airflow_context=True)
     def print_context_venv() -> str:
         """Print the Airflow context in venv."""
         from pprint import pprint
@@ -66,7 +70,9 @@ def example_python_context_decorator():
     # [END get_current_context_venv]
 
     # [START get_current_context_external]
-    @task(task_id="print_the_context_external")
+    @task.external_python(
+        task_id="print_the_context_external", python=SOME_EXTERNAL_PYTHON, use_airflow_context=True
+    )
     def print_context_external() -> str:
         """Print the Airflow context in external python."""
         from pprint import pprint
@@ -81,3 +87,6 @@ def example_python_context_decorator():
     # [END get_current_context_external]
 
     _ = print_the_context >> [print_the_context_venv, print_the_context_external]
+
+
+example_python_context_decorator()
