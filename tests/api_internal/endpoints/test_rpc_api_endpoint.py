@@ -37,7 +37,10 @@ from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
-pytestmark = pytest.mark.db_test
+# Note: Sounds a bit strange to disable internal API tests in isolation mode but...
+# As long as the test is modelled to run its own internal API endpoints, it is conflicting
+# to the test setup with a dedicated internal API server.
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -48,10 +51,6 @@ TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"
 mock_test_method = mock.MagicMock()
 
 pytest.importorskip("pydantic", minversion="2.0.0")
-# Note: Sounds a bit strange to disable internal API tests in isolation mode but...
-# As long as the test is modelled to run its own internal API endpoints, it is conflicting
-# to the test setup with a dedicated internal API server.
-pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.fixture(scope="session")
