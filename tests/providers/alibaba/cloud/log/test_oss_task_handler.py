@@ -47,7 +47,7 @@ class TestOSSTaskHandler:
         self.oss_task_handler = OSSTaskHandler(self.base_log_folder, self.oss_log_folder)
 
     @pytest.fixture(autouse=True)
-    def task_instance(self, create_task_instance):
+    def task_instance(self, create_task_instance, dag_maker):
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_oss_task_handler",
             task_id="task_for_testing_oss_task_handler",
@@ -56,6 +56,8 @@ class TestOSSTaskHandler:
         )
         ti.try_number = 1
         ti.raw = False
+        dag_maker.session.merge(ti)
+        dag_maker.session.commit()
         yield
         clear_db_runs()
         clear_db_dags()
