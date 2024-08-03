@@ -1192,6 +1192,10 @@ def create_log_template(request):
         session.commit()
 
         def _delete_log_template():
+            from airflow.models import DagRun, TaskInstance
+
+            session.query(TaskInstance).delete()
+            session.query(DagRun).delete()
             session.delete(log_template)
             session.commit()
 
