@@ -319,6 +319,8 @@ class TracebackSessionForTests:
     """
 
     db_session_class = None
+    allow_db_access = False
+    """For pytests to create/prepare stuff where explicit DB access it needed"""
 
     def __init__(self):
         self.current_db_session = TracebackSessionForTests.db_session_class()
@@ -326,7 +328,7 @@ class TracebackSessionForTests:
 
     def __getattr__(self, item):
         test_code, frame_summary = self.is_called_from_test_code()
-        if test_code:
+        if self.allow_db_access or test_code:
             return getattr(self.current_db_session, item)
         raise RuntimeError(
             "TracebackSessionForTests object was used but internal API is enabled. "
@@ -342,6 +344,14 @@ class TracebackSessionForTests:
 
     def remove(*args, **kwargs):
         pass
+
+    @staticmethod
+    def set_allow_db_access(session, flag: bool):
+        """Temporarily, e.g. for pytests allow access to DB to prepare stuff."""
+        print(session)
+        print(session.__class__)
+        if isinstance(session, TracebackSessionForTests):
+            session.allow_db_access = flag
 
     def is_called_from_test_code(self) -> tuple[bool, traceback.FrameSummary | None]:
         """
