@@ -211,6 +211,8 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
+# This test should not be run in DB isolation mode as it accesses the database directly - deliberately
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):
     ds1 = DatasetModel(id=1, uri="one", extra={"foo": "bar"})
