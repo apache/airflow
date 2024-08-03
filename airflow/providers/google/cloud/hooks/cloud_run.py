@@ -221,21 +221,17 @@ class CloudRunServiceHook(GoogleBaseHook):
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_service(
-        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
-    ) -> Service:
+    def create_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Service:
         create_request = CreateServiceRequest(
-            service_id = service_name,
-            parent = f"projects/{project_id}/locations/{region}",
+            service_id=service_name,
+            parent=f"projects/{project_id}/locations/{region}",
         )
 
         operation = self.get_conn().create_service(create_request)
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_service(
-        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
-    ) -> Service:
+    def delete_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Service:
         delete_request = DeleteServiceRequest(
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
@@ -278,8 +274,7 @@ class CloudRunServiceAsyncHook(GoogleBaseHook):
         self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
     ) -> AsyncOperation:
         create_request = CreateServiceRequest(
-            service_id=service_name,
-            parent=f"projects/{project_id}/locations/{region}"
+            service_id=service_name, parent=f"projects/{project_id}/locations/{region}"
         )
 
         return await self.get_conn().create_service(create_request)

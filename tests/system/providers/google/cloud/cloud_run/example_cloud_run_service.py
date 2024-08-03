@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_run import (
@@ -32,7 +33,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_cloud_run_serivce"
+DAG_ID = "example_cloud_run_service"
 
 region = "us-central1"
 service_name_prefix = "cloudrun-system-test-service"
@@ -65,10 +66,10 @@ with DAG(
     # [END howto_operator_cloud_run_create_service]
 
     assert_created_jobs = PythonOperator(
-        task_id="assert-created-jobs", python_callable=_assert_created_services_xcom, dag=dag
+        task_id="assert-created-services", python_callable=_assert_created_services_xcom, dag=dag
     )
 
-    # [START howto_operator_cloud_delete_service]
+    # [START howto_operator_cloud_run_delete_service]
     delete_service = CloudRunDeleteServiceOperator(
         task_id="delete-service1",
         project_id=PROJECT_ID,
@@ -76,7 +77,7 @@ with DAG(
         service_name=service_name,
         dag=dag,
     )
-    # [END howto_operator_cloud_delete_service]
+    # [END howto_operator_cloud_run_delete_service]
 
     (
         # TEST SETUP

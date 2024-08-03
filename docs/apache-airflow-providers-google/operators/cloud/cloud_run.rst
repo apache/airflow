@@ -73,7 +73,7 @@ Delete a service
 ---------------------
 
 With this configuration we can delete the service:
-:class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunCreateServiceOperator`
+:class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunDeleteServiceOperator`
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run_service.py
     :language: python
@@ -82,7 +82,7 @@ With this configuration we can delete the service:
     :end-before: [END howto_operator_cloud_run_delete_service]
 
 
-Note this operator waits for the job to be deleted, and the deleted Job's dictionary representation is pushed to XCom.
+Note this operator waits for the service to be deleted, and the deleted Service's dictionary representation is pushed to XCom.
 
 Execute a job
 ---------------------

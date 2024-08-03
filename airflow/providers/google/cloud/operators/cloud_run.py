@@ -20,7 +20,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 
 import google.cloud.exceptions
-
 from google.cloud.run_v2 import Job, Service
 
 from airflow.configuration import conf

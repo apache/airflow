@@ -24,13 +24,12 @@ from google.cloud.run_v2 import (
     CreateJobRequest,
     CreateServiceRequest,
     DeleteJobRequest,
+    DeleteServiceRequest,
     GetJobRequest,
     Job,
     ListJobsRequest,
     RunJobRequest,
-    Service,
     UpdateJobRequest,
-    DeleteServiceRequest,
 )
 
 from airflow.exceptions import AirflowException
@@ -327,12 +326,10 @@ class TestCloudRunServiceHook:
 
         create_request = CreateServiceRequest(
             service_id=service_name,
-            parent = f"projects/{project_id}/locations/{region}",
+            parent=f"projects/{project_id}/locations/{region}",
         )
 
-        cloud_run_service_hook.create_service(
-            service_name=service_name, region=region, project_id=project_id
-        )
+        cloud_run_service_hook.create_service(service_name=service_name, region=region, project_id=project_id)
         cloud_run_service_hook._client.create_service.assert_called_once_with(create_request)
 
     @mock.patch(
@@ -349,9 +346,7 @@ class TestCloudRunServiceHook:
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
 
-        cloud_run_service_hook.delete_service(
-            service_name=service_name, region=region, project_id=project_id
-        )
+        cloud_run_service_hook.delete_service(service_name=service_name, region=region, project_id=project_id)
         cloud_run_service_hook._client.delete_service.assert_called_once_with(delete_request)
 
 
