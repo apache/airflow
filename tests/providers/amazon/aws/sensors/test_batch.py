@@ -28,10 +28,7 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.10.0", __file__):
-    from airflow.sensors.base import FailPolicy
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 TASK_ID = "batch_job_sensor"
 JOB_ID = "8222a1c2-b246-4e19-b1b8-0039bb4407c0"
@@ -104,24 +101,25 @@ class TestBatchSensor:
         with pytest.raises(AirflowException):
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     def test_execute_failure_in_deferrable_mode_with_fail_policy(self):
         """Tests that an AirflowSkipException is raised in case of error event and fail_policy is set to True"""
+
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+        else:
+            args["soft_fail"] = True
         deferrable_batch_sensor = BatchSensor(
-            task_id="task",
-            job_id=JOB_ID,
-            region_name=AWS_REGION,
-            deferrable=True,
-            fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
+            task_id="task", job_id=JOB_ID, region_name=AWS_REGION, deferrable=True, **args
         )
 
         with pytest.raises(AirflowSkipException):
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
-        "fail_policy, expected_exception",
-        ((FailPolicy.NONE, AirflowException), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSkipException)),
+        "catch_mode, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @pytest.mark.parametrize(
         "state, error_message",
@@ -139,11 +137,22 @@ class TestBatchSensor:
         mock_get_job_description,
         state,
         error_message,
-        fail_policy,
+        catch_mode,
         expected_exception,
     ):
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            if catch_mode:
+                args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+            else:
+                args["fail_policy"] = FailPolicy.NONE
+        else:
+            args["soft_fail"] = catch_mode
+
         mock_get_job_description.return_value = {"status": state}
-        batch_sensor = BatchSensor(task_id="batch_job_sensor", job_id=JOB_ID, fail_policy=fail_policy)
+        batch_sensor = BatchSensor(task_id="batch_job_sensor", job_id=JOB_ID, **args)
         with pytest.raises(expected_exception, match=error_message):
             batch_sensor.poke({})
 
@@ -215,10 +224,8 @@ class TestBatchComputeEnvironmentSensor:
         )
         assert "AWS Batch compute environment failed" in str(ctx.value)
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
-        "fail_policy, expected_exception",
-        ((FailPolicy.NONE, AirflowException), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSkipException)),
+        "catch_mode, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @pytest.mark.parametrize(
         "compute_env, error_message",
@@ -236,14 +243,25 @@ class TestBatchComputeEnvironmentSensor:
         mock_batch_client,
         compute_env,
         error_message,
-        fail_policy,
+        catch_mode,
         expected_exception,
     ):
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            if catch_mode:
+                args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+            else:
+                args["fail_policy"] = FailPolicy.NONE
+        else:
+            args["soft_fail"] = catch_mode
+
         mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": compute_env}
         batch_compute_environment_sensor = BatchComputeEnvironmentSensor(
             task_id="test_batch_compute_environment_sensor",
             compute_environment=ENVIRONMENT_NAME,
-            fail_policy=fail_policy,
+            **args,
         )
 
         with pytest.raises(expected_exception, match=error_message):
@@ -318,10 +336,8 @@ class TestBatchJobQueueSensor:
         )
         assert "AWS Batch job queue failed" in str(ctx.value)
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @pytest.mark.parametrize(
-        "fail_policy, expected_exception",
-        ((FailPolicy.NONE, AirflowException), (FailPolicy.SKIP_ON_TIMEOUT, AirflowSkipException)),
+        "catch_mode, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @pytest.mark.parametrize("job_queue", ([], [{"status": "UNKNOWN_STATUS"}]))
     @mock.patch.object(BatchClientHook, "client")
@@ -329,12 +345,23 @@ class TestBatchJobQueueSensor:
         self,
         mock_batch_client,
         job_queue,
-        fail_policy,
+        catch_mode,
         expected_exception,
     ):
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            if catch_mode:
+                args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+            else:
+                args["fail_policy"] = FailPolicy.NONE
+        else:
+            args["soft_fail"] = catch_mode
+
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": job_queue}
         batch_job_queue_sensor = BatchJobQueueSensor(
-            task_id="test_batch_job_queue_sensor", job_queue=JOB_QUEUE, fail_policy=fail_policy
+            task_id="test_batch_job_queue_sensor", job_queue=JOB_QUEUE, **args
         )
         batch_job_queue_sensor.treat_non_existing_as_deleted = False
 

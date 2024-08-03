@@ -25,10 +25,7 @@ import pytest
 from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.providers.ftp.hooks.ftp import FTPHook
 from airflow.providers.ftp.sensors.ftp import FTPSensor
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.10.0", __file__):
-    from airflow.sensors.base import FailPolicy
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 class TestFTPSensor:
@@ -74,14 +71,21 @@ class TestFTPSensor:
 
         assert "434" in str(ctx.value.__cause__)
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
     def test_poke_fail_on_transient_error_and_skip(self, mock_hook):
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+        else:
+            args["soft_fail"] = True
+
         op = FTPSensor(
             path="foobar.json",
             ftp_conn_id="bob_ftp",
             task_id="test_task",
-            fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
+            **args,
         )
 
         mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_perm(

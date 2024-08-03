@@ -33,11 +33,8 @@ from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.10.0", __file__):
-    from airflow.sensors.base import FailPolicy
 from airflow.utils.timezone import datetime
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -74,7 +71,6 @@ class TestHttpSensor:
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
             task.execute(context={})
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_poke_exception_with_skip_on_timeout(self, mock_session_send, create_task_of_operator):
         """
@@ -87,6 +83,14 @@ class TestHttpSensor:
         def resp_check(_):
             raise AirflowSensorTimeout("AirflowSensorTimeout raised here!")
 
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+        else:
+            args["soft_fail"] = True
+
         task = create_task_of_operator(
             HttpSensor,
             dag_id="http_sensor_poke_exception",
@@ -97,7 +101,7 @@ class TestHttpSensor:
             response_check=resp_check,
             timeout=5,
             poke_interval=1,
-            fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
+            **args,
         )
         with pytest.raises(AirflowSkipException):
             task.execute(context={})

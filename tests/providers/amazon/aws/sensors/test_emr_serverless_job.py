@@ -23,23 +23,28 @@ import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessJobSensor
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.10.0", __file__):
-    from airflow.sensors.base import FailPolicy
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 class TestEmrServerlessJobSensor:
-    def setup_method(self, fail_policy):
+    def setup_method(self, args, optional_arg=None):
         self.app_id = "vzwemreks"
         self.job_run_id = "job1234"
-        self.sensor = EmrServerlessJobSensor(
-            task_id="test_emrcontainer_sensor",
-            application_id=self.app_id,
-            job_run_id=self.job_run_id,
-            aws_conn_id="aws_default",
-            fail_policy=fail_policy,
-        )
+        if optional_arg:
+            self.sensor = EmrServerlessJobSensor(
+                task_id="test_emrcontainer_sensor",
+                application_id=self.app_id,
+                job_run_id=self.job_run_id,
+                aws_conn_id="aws_default",
+                **optional_arg,
+            )
+        else:
+            self.sensor = EmrServerlessJobSensor(
+                task_id="test_emrcontainer_sensor",
+                application_id=self.app_id,
+                job_run_id=self.job_run_id,
+                aws_conn_id="aws_default",
+            )
 
     def set_get_job_run_return_value(self, return_value: dict[str, str]):
         self.mock_hook = MagicMock()
@@ -85,10 +90,17 @@ class TestPokeRaisesAirflowException(TestEmrServerlessJobSensor):
         self.assert_get_job_run_was_called_once_with_app_and_run_id()
 
 
-@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
 class TestPokeRaisesAirflowSkipException(TestEmrServerlessJobSensor):
-    def setup_method(self, fail_policy=None):
-        super().setup_method(FailPolicy.SKIP_ON_TIMEOUT)
+    def setup_method(self, args, optional_arg=None):
+        optional_arg = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            optional_arg["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+        else:
+            optional_arg["soft_fail"] = True
+
+        super().setup_method(args, optional_arg)
 
     def test_when_state_is_failed_and_soft_fail_is_true_poke_should_raise_skip_exception(self):
         self.set_get_job_run_return_value({"jobRun": {"state": "FAILED", "stateDetails": "mock failed"}})
@@ -96,4 +108,3 @@ class TestPokeRaisesAirflowSkipException(TestEmrServerlessJobSensor):
             self.sensor.poke(None)
         assert "EMR Serverless job failed: mock failed" == str(ctx.value)
         self.assert_get_job_run_was_called_once_with_app_and_run_id()
-        self.sensor.soft_fail = False
