@@ -51,7 +51,7 @@ def deferrable_operator():
         secret_arn=secret_arn,
         statement_name=statement_name,
         parameters=parameters,
-        wait_for_completion=False,
+        wait_for_completion=True,
         poll_interval=poll_interval,
         deferrable=True,
     )
@@ -276,7 +276,6 @@ class TestRedshiftDataOperator:
             poll_interval=poll_interval,
         )
 
-    # @mock.patch("airflow.providers.amazon.aws.operators.redshift_data.RedshiftDataOperator.defer")
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished",
         return_value=False,
