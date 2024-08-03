@@ -48,6 +48,7 @@ TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"
 mock_test_method = mock.MagicMock()
 
 pytest.importorskip("pydantic", minversion="2.0.0")
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.fixture(scope="session")
