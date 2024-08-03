@@ -289,7 +289,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.listener = setup_queue_listener()
         # Set up runner async thread
         self.trigger_runner = TriggerRunner()
-        self.trigger_runner.cleanup_trigger_on_reassigned = conf.getint(
+        self.trigger_runner.cleanup_trigger_on_reassigned = conf.getboolean(
             "triggerer", "cleanup_trigger_on_reassigned", fallback=True
         )
 
@@ -778,15 +778,17 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         Currently, we only distinguish between reassigned and other reasons.
         """
 
-        def add_reasons(ids: set[int], reason: TriggerCancelReason) -> list[tuple[int, TriggerCancelReason]]:
+        def add_reason(ids: set[int], reason: TriggerCancelReason) -> list[tuple[int, TriggerCancelReason]]:
             return [(trigger_id, reason) for trigger_id in ids]
 
+        # find out reassigned triggers
         reassigned_trigger_ids = set(
             Trigger.filter_out_reassigned_triggers(triggerer_id, cancel_trigger_ids)
         )
-        other_reason_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
 
-        trigger_id_reasons = add_reasons(reassigned_trigger_ids, TriggerCancelReason.REASSIGNED)
-        trigger_id_reasons.extend(add_reasons(other_reason_trigger_ids, TriggerCancelReason.OTHER))
+        other_reasons_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
+
+        trigger_id_reasons = add_reason(reassigned_trigger_ids, TriggerCancelReason.REASSIGNED)
+        trigger_id_reasons.extend(add_reason(other_reasons_trigger_ids, TriggerCancelReason.OTHER))
 
         return trigger_id_reasons
