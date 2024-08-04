@@ -47,7 +47,7 @@ JOB_RUN_ID = "11111"
 
 class TestGlueJobOperator:
     @pytest.mark.db_test
-    def test_render_template(self, create_task_instance_of_operator):
+    def test_render_template(self, create_task_instance_of_operator, session):
         ti: TaskInstance = create_task_instance_of_operator(
             GlueJobOperator,
             dag_id=DAG_ID,
@@ -60,6 +60,8 @@ class TestGlueJobOperator:
             s3_bucket="{{ dag.dag_id }}",
             job_name="{{ dag.dag_id }}",
         )
+        session.add(ti)
+        session.commit()
         rendered_template: GlueJobOperator = ti.render_templates()
 
         assert DAG_ID == rendered_template.script_location
