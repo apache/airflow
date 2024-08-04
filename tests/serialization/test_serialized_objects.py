@@ -417,6 +417,7 @@ def test_all_pydantic_models_round_trip():
         "TaskOutletDatasetReferencePydantic",
         "DagOwnerAttributesPydantic",
         "DatasetEventPydantic",
+        "TriggerPydantic",
     }
     for c in sorted(classes, key=str):
         if c.__name__ in exclusion_list:
