@@ -183,7 +183,6 @@ class KubernetesExecutor(BaseExecutor):
 
         For every pod, it creates two below entries in the map
         dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker},<map_index={map_index}>,run_id={run_id}
-        dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker},<map_index={map_index}>,run_id={run_id},try_number={try_number}
         """
         # airflow worker label selector batch call
         kwargs = {"label_selector": f"airflow-worker={self._make_safe_label_value(str(self.job_id))}"}
@@ -199,7 +198,6 @@ class KubernetesExecutor(BaseExecutor):
             airflow_worker = pod.metadata.labels.get("airflow-worker", None)
             map_index = pod.metadata.labels.get("map_index", None)
             run_id = pod.metadata.labels.get("run_id", None)
-            try_number = pod.metadata.labels.get("try_number", None)
             if dag_id is None or task_id is None or airflow_worker is None:
                 continue
             label_search_base_str = f"dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker}"
@@ -207,9 +205,6 @@ class KubernetesExecutor(BaseExecutor):
                 label_search_base_str += f",map_index={map_index}"
             if run_id is not None:
                 label_search_str = f"{label_search_base_str},run_id={run_id}"
-                pod_labels_combined_str_to_pod_map[label_search_str] = pod
-            if try_number is not None:
-                label_search_str = f"{label_search_str},try_number={try_number}"
                 pod_labels_combined_str_to_pod_map[label_search_str] = pod
         return pod_labels_combined_str_to_pod_map
 
@@ -613,7 +608,6 @@ class KubernetesExecutor(BaseExecutor):
         if not tis:
             return readable_tis
         pod_labels_combined_str_to_pod_map = self.get_pod_labels_combined_str_to_pod_map()
-        print(pod_labels_combined_str_to_pod_map)
         for ti in tis:
             # Build the pod selector
             base_label_selector = (
@@ -625,8 +619,7 @@ class KubernetesExecutor(BaseExecutor):
                 # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
                 base_label_selector += f",map_index={ti.map_index}"
 
-            label_search_str = f"{base_label_selector},run_id={self._make_safe_label_value(ti.run_id)},try_number={ti.try_number}"
-            print(label_search_str)
+            label_search_str = f"{base_label_selector},run_id={self._make_safe_label_value(ti.run_id)}"
             pod = pod_labels_combined_str_to_pod_map.get(label_search_str, None)
             if not pod:
                 self.log.warning("Cannot find pod for ti %s", ti)

@@ -19,7 +19,7 @@ from __future__ import annotations
 import random
 import re
 import string
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -1220,8 +1220,6 @@ class TestKubernetesExecutor:
         ti = dag_run.task_instances[0]
         ti.state = State.QUEUED
         ti.queued_by_job_id = 123
-        ti.retries = 1
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
         session.flush()
 
         executor = self.kubernetes_executor
