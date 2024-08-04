@@ -280,7 +280,7 @@ class KubernetesPodOperator(BaseOperator):
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
-        base_container_name: str | None = None,
+        base_container_name: str = BASE_CONTAINER_NAME,
         container_logs: Iterable[str] | str | Literal[True] | None = None,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
@@ -352,7 +352,7 @@ class KubernetesPodOperator(BaseOperator):
         self.cluster_context = cluster_context
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
-        self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
+        self.base_container_name = base_container_name
         # container_logs defaults to the provided base container name, or operator-level BASE_CONTAINER_NAME
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
