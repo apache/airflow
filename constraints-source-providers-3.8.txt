@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-03T07:38:35.305940
+# This constraints file was automatically generated on 2024-08-04T02:03:16.483857
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -88,7 +88,7 @@ async-timeout==4.0.3
 asyncssh==2.15.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.14
-attrs==23.2.0
+attrs==24.1.0
 aws-sam-translator==1.89.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
@@ -511,7 +511,7 @@ rich-click==1.8.3
 rich==13.7.1
 rpds-py==0.19.1
 rsa==4.9
-ruff==0.4.5
+ruff==0.5.5
 s3fs==2024.6.1
 s3transfer==0.10.2
 scramp==1.4.5
@@ -579,7 +579,7 @@ tomli_w==1.0.0
 tomlkit==0.13.0
 tornado==6.4.1
 towncrier==24.7.1
-tqdm==4.66.4
+tqdm==4.66.5
 traitlets==5.14.3
 trino==0.329.0
 trove-classifiers==2024.7.2
