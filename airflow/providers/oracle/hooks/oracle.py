@@ -143,7 +143,7 @@ class OracleHook(DbApiHook):
 
 
         """
-        conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
+        conn = self.connection
         conn_config = {"user": conn.login, "password": conn.password}
         sid = self.connection_extra_lower.get("sid")
         mod = self.connection_extra_lower.get("module")
