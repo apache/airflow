@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-04T02:12:20.034025
+# This constraints file was automatically generated on 2024-08-04T15:05:23.238872
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -594,7 +594,7 @@ python-telegram-bot==21.4
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.5.0
-pyzmq==26.0.3
+pyzmq==26.1.0
 qdrant-client==1.10.1
 reactivex==4.0.4
 readme_renderer==43.0
