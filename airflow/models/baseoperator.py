@@ -780,6 +780,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     dag=dag,
                 )
                 hello_world_task.execute(context)
+    :param execute_on_success_callback_when_skipped: if True and task instance is skipped, on_success_callback will run. If False and task instance is skipped, on_success_callback will not run.
     """
 
     # Implementing Operator.
@@ -919,6 +920,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        execute_on_success_callback_when_skipped: bool = True,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -955,6 +957,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+        self.execute_on_success_callback_when_skipped = execute_on_success_callback_when_skipped
 
         if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
             raise ValueError(
