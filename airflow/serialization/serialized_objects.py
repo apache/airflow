@@ -48,6 +48,7 @@ from airflow.datasets import (
 )
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
+from airflow.models import Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, create_timetable
@@ -70,6 +71,7 @@ from airflow.serialization.pydantic.dataset import DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
+from airflow.serialization.pydantic.trigger import TriggerPydantic
 from airflow.settings import _ENABLE_AIP_44, DAGS_FOLDER, json
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
@@ -78,7 +80,13 @@ from airflow.task.priority_strategy import (
 )
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
+from airflow.utils.context import (
+    ConnectionAccessor,
+    Context,
+    OutletEventAccessor,
+    OutletEventAccessors,
+    VariableAccessor,
+)
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
@@ -467,6 +475,7 @@ _orm_to_model = {
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
     Dataset: DatasetPydantic,
+    Trigger: TriggerPydantic,
 }
 _type_to_class: dict[DAT | str, list] = {
     DAT.BASE_JOB: [JobPydantic, Job],
@@ -475,6 +484,7 @@ _type_to_class: dict[DAT | str, list] = {
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
     DAT.DATA_SET: [DatasetPydantic, Dataset],
+    DAT.TRIGGER: [TriggerPydantic, Trigger],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
 
@@ -793,6 +803,11 @@ class BaseSerialization:
                 d[k] = cls.deserialize(v, use_pydantic_models=True)
             d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
             d["macros"] = macros
+            d["var"] = {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            }
+            d["conn"] = ConnectionAccessor()
             return Context(**d)
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
