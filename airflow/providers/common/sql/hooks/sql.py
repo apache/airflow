@@ -219,7 +219,7 @@ class DbApiHook(BaseHook):
         """
         ``connection.extra_dejson`` but where keys are converted to lower case.
 
-        This is used internally for case-insensitive access of jdbc params.
+        This is used internally for case-insensitive access of extra params.
         """
         return {k.lower(): v for k, v in self.connection_extra.items()}
 
