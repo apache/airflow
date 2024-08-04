@@ -145,24 +145,24 @@ class OracleHook(DbApiHook):
         """
         conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
         conn_config = {"user": conn.login, "password": conn.password}
-        sid = conn.extra_dejson.get("sid")
-        mod = conn.extra_dejson.get("module")
+        sid = self.connection_extra_lower.get("sid")
+        mod = self.connection_extra_lower.get("module")
         schema = conn.schema
 
         # Enable oracledb thick mode if thick_mode is set to True
         # Parameters take precedence over connection config extra
         # Defaults to use thin mode if not provided in params or connection config extra
-        thick_mode = _get_first_bool(self.thick_mode, conn.extra_dejson.get("thick_mode"))
+        thick_mode = _get_first_bool(self.thick_mode, self.connection_extra_lower.get("thick_mode"))
         if thick_mode is True:
             if self.thick_mode_lib_dir is None:
-                self.thick_mode_lib_dir = conn.extra_dejson.get("thick_mode_lib_dir")
+                self.thick_mode_lib_dir = self.connection_extra_lower.get("thick_mode_lib_dir")
                 if not isinstance(self.thick_mode_lib_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_lib_dir expected str or None, "
                         f"got {type(self.thick_mode_lib_dir).__name__}"
                     )
             if self.thick_mode_config_dir is None:
-                self.thick_mode_config_dir = conn.extra_dejson.get("thick_mode_config_dir")
+                self.thick_mode_config_dir = self.connection_extra_lower.get("thick_mode_config_dir")
                 if not isinstance(self.thick_mode_config_dir, (str, type(None))):
                     raise TypeError(
                         f"thick_mode_config_dir expected str or None, "
@@ -174,23 +174,23 @@ class OracleHook(DbApiHook):
 
         # Set oracledb Defaults Attributes if provided
         # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
-        fetch_decimals = _get_first_bool(self.fetch_decimals, conn.extra_dejson.get("fetch_decimals"))
+        fetch_decimals = _get_first_bool(self.fetch_decimals, self.connection_extra_lower.get("fetch_decimals"))
         if isinstance(fetch_decimals, bool):
             oracledb.defaults.fetch_decimals = fetch_decimals
 
-        fetch_lobs = _get_first_bool(self.fetch_lobs, conn.extra_dejson.get("fetch_lobs"))
+        fetch_lobs = _get_first_bool(self.fetch_lobs, self.connection_extra_lower.get("fetch_lobs"))
         if isinstance(fetch_lobs, bool):
             oracledb.defaults.fetch_lobs = fetch_lobs
 
         # Set up DSN
-        service_name = conn.extra_dejson.get("service_name")
+        service_name = self.connection_extra_lower.get("service_name")
         port = conn.port if conn.port else 1521
         if conn.host and sid and not service_name:
             conn_config["dsn"] = oracledb.makedsn(conn.host, port, sid)
         elif conn.host and service_name and not sid:
             conn_config["dsn"] = oracledb.makedsn(conn.host, port, service_name=service_name)
         else:
-            dsn = conn.extra_dejson.get("dsn")
+            dsn = self.connection_extra_lower.get("dsn")
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
@@ -207,10 +207,10 @@ class OracleHook(DbApiHook):
                     dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
-        if "events" in conn.extra_dejson:
-            conn_config["events"] = conn.extra_dejson.get("events")
+        if "events" in self.connection_extra_lower:
+            conn_config["events"] = self.connection_extra_lower.get("events")
 
-        mode = conn.extra_dejson.get("mode", "").lower()
+        mode = self.connection_extra_lower.get("mode", "").lower()
         if mode == "sysdba":
             conn_config["mode"] = oracledb.AUTH_MODE_SYSDBA
         elif mode == "sysasm":
@@ -226,7 +226,7 @@ class OracleHook(DbApiHook):
         elif mode == "sysrac":
             conn_config["mode"] = oracledb.AUTH_MODE_SYSRAC
 
-        purity = conn.extra_dejson.get("purity", "").lower()
+        purity = self.connection_extra_lower.get("purity", "").lower()
         if purity == "new":
             conn_config["purity"] = oracledb.PURITY_NEW
         elif purity == "self":
