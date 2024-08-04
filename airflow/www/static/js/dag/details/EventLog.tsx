@@ -46,7 +46,7 @@ import { useEventLogs } from "src/api";
 import { getMetaValue, useOffsetTop } from "src/utils";
 import type { DagRun } from "src/types";
 import LinkButton from "src/components/LinkButton";
-import type { EventLog } from "src/types/api-generated";
+import type { EventLog as EventLogType } from "src/types/api-generated";
 import { NewTable } from "src/components/NewTable/NewTable";
 import { useTableURLState } from "src/components/NewTable/useTableUrlState";
 import { CodeCell, TimeCell } from "src/components/NewTable/NewCells";
@@ -60,6 +60,7 @@ const configIncludedEvents = getMetaValue("included_audit_log_events");
 
 interface Props {
   taskId?: string;
+  showMapped?: boolean;
   run?: DagRun;
 }
 
@@ -70,9 +71,9 @@ interface Option extends OptionBase {
 
 const dagId = getMetaValue("dag_id") || undefined;
 
-const columnHelper = createColumnHelper<EventLog>();
+const columnHelper = createColumnHelper<EventLogType>();
 
-const AuditLog = ({ taskId, run }: Props) => {
+const EventLog = ({ taskId, run, showMapped }: Props) => {
   const logRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(logRef);
   const { tableURLState, setTableURLState } = useTableURLState({
@@ -138,7 +139,23 @@ const AuditLog = ({ taskId, run }: Props) => {
     const runId = columnHelper.accessor("runId", {
       header: "Run Id",
     });
+
+    const mapIndex = columnHelper.accessor("mapIndex", {
+      header: "Map Index",
+      enableSorting: false,
+      meta: {
+        skeletonWidth: 10,
+      },
+      cell: (props) => (props.getValue() === -1 ? undefined : props.getValue()),
+    });
     const rest = [
+      columnHelper.accessor("tryNumber", {
+        header: "Try Number",
+        enableSorting: false,
+        meta: {
+          skeletonWidth: 10,
+        },
+      }),
       columnHelper.accessor("event", {
         header: "Event",
         meta: {
@@ -146,13 +163,13 @@ const AuditLog = ({ taskId, run }: Props) => {
         },
       }),
       columnHelper.accessor("owner", {
-        header: "Owner",
+        header: "User",
         meta: {
           skeletonWidth: 20,
         },
       }),
       columnHelper.accessor("extra", {
-        header: "Extra",
+        header: "Details",
         cell: CodeCell,
       }),
     ];
@@ -160,9 +177,10 @@ const AuditLog = ({ taskId, run }: Props) => {
       when,
       ...(!run ? [runId] : []),
       ...(!taskId ? [task] : []),
+      ...(showMapped ? [mapIndex] : []),
       ...rest,
     ];
-  }, [taskId, run]);
+  }, [taskId, run, showMapped]);
 
   const memoData = useMemo(() => data?.eventLogs, [data?.eventLogs]);
 
@@ -262,4 +280,4 @@ const AuditLog = ({ taskId, run }: Props) => {
   );
 };
 
-export default AuditLog;
+export default EventLog;

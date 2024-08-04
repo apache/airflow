@@ -20,18 +20,18 @@ from __future__ import annotations
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    SchemaDatasetFacet,
-    SchemaField,
-    SqlJobFacet,
-)
-from openlineage.client.run import Dataset
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook as OriginalRedshiftSQLHook
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    Fields,
+    InputField,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+)
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 MOCK_REGION_NAME = "eu-north-1"
@@ -82,7 +82,7 @@ class TestRedshiftSQLOpenLineage:
         "airflow.providers.amazon.aws.hooks.redshift_sql._IS_AIRFLOW_2_10_OR_HIGHER",
         new_callable=PropertyMock,
     )
-    @patch("airflow.providers.openlineage.utils.utils._IS_AIRFLOW_2_10_OR_HIGHER", new_callable=PropertyMock)
+    @patch("airflow.providers.openlineage.utils.utils.IS_AIRFLOW_2_10_OR_HIGHER", new_callable=PropertyMock)
     @patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     def test_execute_openlineage_events(
         self,
@@ -216,9 +216,9 @@ class TestRedshiftSQLOpenLineage:
                     facets={
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="order_placed_on", type="timestamp"),
-                                SchemaField(name="orders_placed", type="int4"),
+                                SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                                SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                                SchemaDatasetFacetFields(name="orders_placed", type="int4"),
                             ]
                         )
                     },
@@ -229,8 +229,8 @@ class TestRedshiftSQLOpenLineage:
                     facets={
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="additional_constant", type="varchar"),
+                                SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                                SchemaDatasetFacetFields(name="additional_constant", type="varchar"),
                             ]
                         )
                     },
@@ -243,17 +243,17 @@ class TestRedshiftSQLOpenLineage:
                     facets={
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaField(name="order_day_of_week", type="varchar"),
-                                SchemaField(name="order_placed_on", type="timestamp"),
-                                SchemaField(name="orders_placed", type="int4"),
-                                SchemaField(name="additional_constant", type="varchar"),
+                                SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+                                SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+                                SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+                                SchemaDatasetFacetFields(name="additional_constant", type="varchar"),
                             ]
                         ),
                         "columnLineage": ColumnLineageDatasetFacet(
                             fields={
-                                "additional_constant": ColumnLineageDatasetFacetFieldsAdditional(
+                                "additional_constant": Fields(
                                     inputFields=[
-                                        ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                        InputField(
                                             namespace=expected_namespace,
                                             name="database.public.little_table",
                                             field="additional_constant",
@@ -268,6 +268,6 @@ class TestRedshiftSQLOpenLineage:
                 )
             ]
 
-        assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+        assert lineage.job_facets == {"sql": SQLJobFacet(query=sql)}
 
         assert lineage.run_facets["extractionError"].failedTasks == 1

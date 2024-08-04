@@ -46,7 +46,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
         return self.value
 
 
@@ -172,7 +172,7 @@ class Templater(LoggingMixin):
         if isinstance(value, ObjectStoragePath):
             return self._render_object_storage_path(value, context, jinja_env)
         if isinstance(value, ResolveMixin):
-            return value.resolve(context)
+            return value.resolve(context, include_xcom=True)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:

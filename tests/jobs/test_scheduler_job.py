@@ -21,6 +21,7 @@ import contextlib
 import datetime
 import logging
 import os
+import sys
 from collections import deque
 from datetime import timedelta
 from importlib import reload
@@ -1959,6 +1960,125 @@ class TestSchedulerJob:
         else:
             # A single executor will only run up to its available slots
             assert total_enqueued == 31
+        session.rollback()
+
+    @pytest.mark.parametrize(
+        "task1_exec, task2_exec",
+        [
+            ("default_exec", "default_exec"),
+            ("default_exec", "secondary_exec"),
+            ("secondary_exec", "secondary_exec"),
+        ],
+    )
+    def test_execute_task_instances_unlimited_parallelism_multiple_executors(
+        self, task1_exec, task2_exec, dag_maker, mock_executors
+    ):
+        """Test core.parallelism leads to unlimited scheduling, but queries limited by max_tis"""
+
+        dag_id = "SchedulerJobTest.test_execute_task_instances_unlimited"
+        task_id_1 = "dummy_task"
+        task_id_2 = "dummy_task_2"
+        session = settings.Session()
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=1024, session=session):
+            task1 = EmptyOperator(task_id=task_id_1, executor=task1_exec)
+            task2 = EmptyOperator(task_id=task_id_2, executor=task2_exec)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        def _create_dagruns():
+            dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
+            yield dagrun
+            for _ in range(39):
+                dagrun = dag_maker.create_dagrun_after(
+                    dagrun,
+                    run_type=DagRunType.SCHEDULED,
+                    state=State.RUNNING,
+                )
+                yield dagrun
+
+        for dr in _create_dagruns():
+            ti1 = dr.get_task_instance(task1.task_id, session)
+            ti2 = dr.get_task_instance(task2.task_id, session)
+            ti1.state = State.SCHEDULED
+            ti2.state = State.SCHEDULED
+            session.flush()
+
+        scheduler_job.max_tis_per_query = 50
+        for executor in mock_executors:
+            executor.parallelism = 0
+            executor.slots_occupied = 0
+            executor.slots_available = sys.maxsize
+
+        with conf_vars({("core", "parallelism"): "0"}):
+            # 40 dag runs * 2 tasks each = 80.
+            enqueued = self.job_runner._critical_section_enqueue_task_instances(session)
+            # Parallelism is unlimited, but we still only query for max_tis_per_query each time we enqueue
+            assert enqueued == 50
+
+            enqueued = self.job_runner._critical_section_enqueue_task_instances(session)
+            # The remaining 30 are enqueued the next loop
+            assert enqueued == 30
+
+        session.rollback()
+
+    @pytest.mark.parametrize(
+        "task1_exec, task2_exec",
+        [
+            ("default_exec", "default_exec"),
+            ("default_exec", "secondary_exec"),
+            ("secondary_exec", "secondary_exec"),
+        ],
+    )
+    def test_execute_task_instances_unlimited_parallelism_unlimited_max_tis_multiple_executors(
+        self, task1_exec, task2_exec, dag_maker, mock_executors
+    ):
+        """Test core.parallelism leads to unlimited scheduling"""
+
+        dag_id = "SchedulerJobTest.test_execute_task_instances_unlimited"
+        task_id_1 = "dummy_task"
+        task_id_2 = "dummy_task_2"
+        session = settings.Session()
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=1024, session=session):
+            task1 = EmptyOperator(task_id=task_id_1, executor=task1_exec)
+            task2 = EmptyOperator(task_id=task_id_2, executor=task2_exec)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        def _create_dagruns():
+            dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
+            yield dagrun
+            for _ in range(39):
+                dagrun = dag_maker.create_dagrun_after(
+                    dagrun,
+                    run_type=DagRunType.SCHEDULED,
+                    state=State.RUNNING,
+                )
+                yield dagrun
+
+        for dr in _create_dagruns():
+            ti1 = dr.get_task_instance(task1.task_id, session)
+            ti2 = dr.get_task_instance(task2.task_id, session)
+            ti1.state = State.SCHEDULED
+            ti2.state = State.SCHEDULED
+            session.flush()
+
+        scheduler_job.max_tis_per_query = 0
+        for executor in mock_executors:
+            executor.parallelism = 0
+            executor.slots_occupied = 0
+            executor.slots_available = sys.maxsize
+
+        with conf_vars({("core", "parallelism"): "0"}):
+            # 40 dag runs * 2 tasks each = 80. With core.parallelism set to zero then executors have
+            # unlimited slots and with max_tis_per_query set to zero, query will match also allow infinity.
+            # Thus, all tasks should be enqueued in one step
+            enqueued = self.job_runner._critical_section_enqueue_task_instances(session)
+
+            assert enqueued == 80
         session.rollback()
 
     def test_adopt_or_reset_orphaned_tasks(self, dag_maker):
@@ -5675,6 +5795,48 @@ class TestSchedulerJob:
             .order_by(DatasetModel.uri)
         ]
         assert orphaned_datasets == ["ds2", "ds4"]
+
+    def test_dataset_orphaning_ignore_orphaned_datasets(self, dag_maker, session):
+        dataset1 = Dataset(uri="ds1")
+
+        with dag_maker(dag_id="datasets-1", schedule=[dataset1], session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
+        assert non_orphaned_dataset_count == 1
+        orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
+        assert orphaned_dataset_count == 0
+
+        # now remove dataset1 reference
+        with dag_maker(dag_id="datasets-1", schedule=None, session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        self.job_runner._orphan_unreferenced_datasets(session=session)
+        session.flush()
+
+        orphaned_datasets_before_rerun = (
+            session.query(DatasetModel.updated_at, DatasetModel.uri)
+            .filter(DatasetModel.is_orphaned)
+            .order_by(DatasetModel.uri)
+        )
+        assert [dataset.uri for dataset in orphaned_datasets_before_rerun] == ["ds1"]
+        updated_at_timestamps = [dataset.updated_at for dataset in orphaned_datasets_before_rerun]
+
+        # when rerunning we should ignore the already orphaned datasets and thus the updated_at timestamp
+        # should remain the same
+        self.job_runner._orphan_unreferenced_datasets(session=session)
+        session.flush()
+
+        orphaned_datasets_after_rerun = (
+            session.query(DatasetModel.updated_at, DatasetModel.uri)
+            .filter(DatasetModel.is_orphaned)
+            .order_by(DatasetModel.uri)
+        )
+        assert [dataset.uri for dataset in orphaned_datasets_after_rerun] == ["ds1"]
+        assert updated_at_timestamps == [dataset.updated_at for dataset in orphaned_datasets_after_rerun]
 
     def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

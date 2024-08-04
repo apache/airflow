@@ -18,14 +18,8 @@
 from __future__ import annotations
 
 import pytest
-from openlineage.client.facet import (
-    DocumentationDatasetFacet,
-    OwnershipDatasetFacet,
-    OwnershipDatasetFacetOwners,
-    SchemaDatasetFacet,
-    SchemaField,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import documentation_dataset, ownership_dataset, schema_dataset
 
 from airflow.lineage.entities import Column, File, Table, User
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
@@ -98,29 +92,29 @@ def test_convert_to_ol_dataset_from_table_with_columns_and_owners():
         description="test description",
     )
     expected_facets = {
-        "schema": SchemaDatasetFacet(
+        "schema": schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(
+                schema_dataset.SchemaDatasetFacetFields(
                     name="col1",
                     type="type1",
                     description="desc1",
                 ),
-                SchemaField(
+                schema_dataset.SchemaDatasetFacetFields(
                     name="col2",
                     type="type2",
                     description="desc2",
                 ),
             ]
         ),
-        "ownership": OwnershipDatasetFacet(
+        "ownership": ownership_dataset.OwnershipDatasetFacet(
             owners=[
-                OwnershipDatasetFacetOwners(name="user:Mike Smith <mike@company.com>", type=""),
-                OwnershipDatasetFacetOwners(name="user:Theo <theo@company.com>", type=""),
-                OwnershipDatasetFacetOwners(name="user:Smith <smith@company.com>", type=""),
-                OwnershipDatasetFacetOwners(name="user:<jane@company.com>", type=""),
+                ownership_dataset.Owner(name="user:Mike Smith <mike@company.com>", type=""),
+                ownership_dataset.Owner(name="user:Theo <theo@company.com>", type=""),
+                ownership_dataset.Owner(name="user:Smith <smith@company.com>", type=""),
+                ownership_dataset.Owner(name="user:<jane@company.com>", type=""),
             ]
         ),
-        "documentation": DocumentationDatasetFacet(description="test description"),
+        "documentation": documentation_dataset.DocumentationDatasetFacet(description="test description"),
     }
     result = ExtractorManager.convert_to_ol_dataset_from_table(table)
     assert result.namespace == "c1"
@@ -145,26 +139,26 @@ def test_convert_to_ol_dataset_table():
         ],
     )
     expected_facets = {
-        "schema": SchemaDatasetFacet(
+        "schema": schema_dataset.SchemaDatasetFacet(
             fields=[
-                SchemaField(
+                schema_dataset.SchemaDatasetFacetFields(
                     name="col1",
                     type="type1",
                     description="desc1",
                 ),
-                SchemaField(
+                schema_dataset.SchemaDatasetFacetFields(
                     name="col2",
                     type="type2",
                     description="desc2",
                 ),
             ]
         ),
-        "ownership": OwnershipDatasetFacet(
+        "ownership": ownership_dataset.OwnershipDatasetFacet(
             owners=[
-                OwnershipDatasetFacetOwners(name="user:Mike Smith <mike@company.com>", type=""),
-                OwnershipDatasetFacetOwners(name="user:Theo <theo@company.com>", type=""),
-                OwnershipDatasetFacetOwners(name="user:Smith <smith@company.com>", type=""),
-                OwnershipDatasetFacetOwners(name="user:<jane@company.com>", type=""),
+                ownership_dataset.Owner(name="user:Mike Smith <mike@company.com>", type=""),
+                ownership_dataset.Owner(name="user:Theo <theo@company.com>", type=""),
+                ownership_dataset.Owner(name="user:Smith <smith@company.com>", type=""),
+                ownership_dataset.Owner(name="user:<jane@company.com>", type=""),
             ]
         ),
     }

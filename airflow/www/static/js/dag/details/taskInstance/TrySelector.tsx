@@ -49,9 +49,11 @@ const TrySelector = ({
   const { data: tiHistory } = useTIHistory({
     dagId: dagId || "",
     taskId: taskId || "",
-    runId: dagRunId || "",
+    dagRunId: dagRunId || "",
     mapIndex,
-    enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    options: {
+      enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    },
   });
 
   if (!finalTryNumber || finalTryNumber <= 1) return null;
@@ -59,7 +61,7 @@ const TrySelector = ({
   const logAttemptDropdownLimit = 10;
   const showDropdown = finalTryNumber > logAttemptDropdownLimit;
 
-  const tries = (tiHistory || []).filter(
+  const tries = (tiHistory?.taskInstances || []).filter(
     (t) => t?.startDate !== taskInstance?.startDate
   );
   tries?.push(taskInstance);

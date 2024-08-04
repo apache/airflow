@@ -31,6 +31,7 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
@@ -41,6 +42,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     unify_bucket_name_and_key,
 )
 from airflow.utils.timezone import datetime
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 @pytest.fixture
@@ -387,6 +389,15 @@ class TestAwsS3Hook:
         hook.load_string("Contént", "my_key", s3_bucket)
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         assert resource.get()["Body"].read() == b"Cont\xc3\xa9nt"
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    def test_load_string_exposes_lineage(self, s3_bucket, hook_lineage_collector):
+        hook = S3Hook()
+        hook.load_string("Contént", "my_key", s3_bucket)
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"s3://{s3_bucket}/my_key"
+        )
 
     def test_load_string_compress(self, s3_bucket):
         hook = S3Hook()
@@ -970,6 +981,17 @@ class TestAwsS3Hook:
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         assert gz.decompress(resource.get()["Body"].read()) == b"Content"
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    def test_load_file_exposes_lineage(self, s3_bucket, tmp_path, hook_lineage_collector):
+        hook = S3Hook()
+        path = tmp_path / "testfile"
+        path.write_text("Content")
+        hook.load_file(path, "my_key", s3_bucket)
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"s3://{s3_bucket}/my_key"
+        )
+
     def test_load_file_acl(self, s3_bucket, tmp_path):
         hook = S3Hook()
         path = tmp_path / "testfile"
@@ -1025,6 +1047,26 @@ class TestAwsS3Hook:
                 Key="my_key3",
                 CopySource={"Bucket": "airflow-test-s3-bucket", "Key": "my_key", "VersionId": None},
                 ACL="private",
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock_aws
+    def test_copy_object_ol_instrumentation(self, s3_bucket, hook_lineage_collector):
+        mock_hook = S3Hook()
+
+        with mock.patch.object(
+            S3Hook,
+            "get_conn",
+        ):
+            mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket)
+            assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+            assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+                uri=f"s3://{s3_bucket}/my_key"
+            )
+
+            assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+            assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+                uri=f"s3://{s3_bucket}/my_key3"
             )
 
     @mock_aws
@@ -1140,6 +1182,26 @@ class TestAwsS3Hook:
 
         assert path.name == output_file
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
+    def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
+        path = tmp_path / "airflow_tmp_test_s3_hook"
+        mock_temp_file.return_value = path
+        s3_hook = S3Hook(aws_conn_id="s3_test")
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        key = "test_key"
+        bucket = "test_bucket"
+
+        s3_hook.download_file(key=key, bucket_name=bucket)
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri="s3://test_bucket/test_key"
+        )
+
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
     def test_download_file_with_preserve_name(self, mock_open, tmp_path):
         path = tmp_path / "test.log"
@@ -1152,15 +1214,50 @@ class TestAwsS3Hook:
         s3_obj.key = f"s3://{bucket}/{key}"
         s3_obj.download_fileobj = Mock(return_value=None)
         s3_hook.get_key = Mock(return_value=s3_obj)
+        local_path = os.fspath(path.parent)
         s3_hook.download_file(
             key=key,
             bucket_name=bucket,
-            local_path=os.fspath(path.parent),
+            local_path=local_path,
             preserve_file_name=True,
             use_autogenerated_subdir=False,
         )
 
         mock_open.assert_called_once_with(path, "wb")
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
+    def test_download_file_with_preserve_name_exposes_lineage(
+        self, mock_open, tmp_path, hook_lineage_collector
+    ):
+        path = tmp_path / "test.log"
+        bucket = "test_bucket"
+        key = f"test_key/{path.name}"
+
+        s3_hook = S3Hook(aws_conn_id="s3_test")
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.key = f"s3://{bucket}/{key}"
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        local_path = os.fspath(path.parent)
+        s3_hook.download_file(
+            key=key,
+            bucket_name=bucket,
+            local_path=local_path,
+            preserve_file_name=True,
+            use_autogenerated_subdir=False,
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri="s3://test_bucket/test_key/test.log"
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"file://{local_path}/test.log",
+        )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
     def test_download_file_with_preserve_name_with_autogenerated_subdir(self, mock_open, tmp_path):
