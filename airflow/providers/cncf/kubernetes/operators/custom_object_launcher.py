@@ -316,13 +316,13 @@ class CustomObjectLauncher(LoggingMixin):
 
     def get_value_from_spark_job_info(self, spark_job_info, value_keys: list):
         """
-            Get spark job info from driver pod.
-            Example Call:
-                get_spark_job_info_from_driver_pod(spark_job_info, ["status", "applicationState", "state"])
+        Get spark job info from driver pod.
+        Example Call:
+            get_spark_job_info_from_driver_pod(spark_job_info, ["status", "applicationState", "state"])
 
-            :param spark_job_info: spark job info.
-            :param value_keys: search keys. Ordered list of keys to search in spark job info.
-            :return: spark job info in string format.
+        :param spark_job_info: spark job info.
+        :param value_keys: search keys. Ordered list of keys to search in spark job info.
+        :return: spark job info in string format.
         """
         if value_keys is None:
             return None
@@ -348,14 +348,12 @@ class CustomObjectLauncher(LoggingMixin):
             plural=self.plural,
         )
         driver_state = self.get_value_from_spark_job_info(
-            spark_job_info=spark_job_info,
-            value_keys=["status", "applicationState", "state"]
+            spark_job_info=spark_job_info, value_keys=["status", "applicationState", "state"]
         )
         if driver_state:
             if driver_state == CustomObjectStatus.FAILED:
                 err = self.get_value_from_spark_job_info(
-                    spark_job_info=spark_job_info,
-                    value_keys=["status", "applicationState", "errorMessage"]
+                    spark_job_info=spark_job_info, value_keys=["status", "applicationState", "errorMessage"]
                 )
                 err = err if err else "N/A"
                 try:
