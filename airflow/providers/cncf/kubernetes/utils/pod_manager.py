@@ -729,14 +729,14 @@ class PodManager(LoggingMixin):
         :param startup_timeout:  Timeout (in seconds) for startup of the pod
         """
         self.log.info("Checking if xcom sidecar container is started.")
-        curr_time = time.time()
+        start_time = time.time()
         for attempt in itertools.count():
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container is started.")
                 break
             if not attempt:
                 self.log.warning("The xcom sidecar container is not yet started.")
-            if time.time() - curr_time >= startup_timeout:
+            if time.time() - start_time >= startup_timeout:
                 msg = (
                     f"Xcom sidecar container took longer than {startup_timeout} seconds to start. "
                     "Check the container events in kubernetes to determine why."
