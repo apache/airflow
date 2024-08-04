@@ -1412,3 +1412,15 @@ if TYPE_CHECKING:
     # time-machine
     @pytest.fixture  # type: ignore[no-redef]
     def time_machine() -> TimeMachineFixture: ...
+
+
+@pytest.fixture
+def clean_dags_and_dagruns():
+    """Fixture that cleans the database before and after every test."""
+    from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+    clear_db_runs()
+    clear_db_dags()
+    yield  # Test runs here
+    clear_db_dags()
+    clear_db_runs()
