@@ -314,6 +314,30 @@ class CustomObjectLauncher(LoggingMixin):
 
         return self.pod_spec, self.spark_obj_spec
 
+    def get_value_from_spark_job_info(self, spark_job_info, value_keys: list):
+        """
+            Get spark job info from driver pod.
+            Example Call:
+                get_spark_job_info_from_driver_pod(spark_job_info, ["status", "applicationState", "state"])
+
+            :param spark_job_info: spark job info.
+            :param value_keys: search keys. Ordered list of keys to search in spark job info.
+            :return: spark job info in string format.
+        """
+        if value_keys is None:
+            return None
+        for key in value_keys:
+            spark_job_info_part = spark_job_info.get(key)
+            if not spark_job_info:
+                return None
+            elif isinstance(spark_job_info_part, dict):
+                value_keys.remove(key)
+                return self.get_value_from_spark_job_info(spark_job_info_part, value_keys)
+            elif isinstance(spark_job_info_part, str):
+                return spark_job_info_part
+            else:
+                return None
+
     def spark_job_not_running(self, spark_obj_spec):
         """Test if spark_obj_spec has not started."""
         spark_job_info = self.custom_obj_api.get_namespaced_custom_object_status(
@@ -323,17 +347,30 @@ class CustomObjectLauncher(LoggingMixin):
             name=spark_obj_spec["metadata"]["name"],
             plural=self.plural,
         )
-        driver_state = spark_job_info.get("status", {}).get("applicationState", {}).get("state", "SUBMITTED")
-        if driver_state == CustomObjectStatus.FAILED:
-            err = spark_job_info.get("status", {}).get("applicationState", {}).get("errorMessage", "N/A")
-            try:
-                self.pod_manager.fetch_container_logs(
-                    pod=self.pod_spec, container_name="spark-kubernetes-driver"
+        driver_state = self.get_value_from_spark_job_info(
+            spark_job_info=spark_job_info,
+            value_keys=["status", "applicationState", "state"]
+        )
+        if driver_state:
+            if driver_state == CustomObjectStatus.FAILED:
+                err = self.get_value_from_spark_job_info(
+                    spark_job_info=spark_job_info,
+                    value_keys=["status", "applicationState", "errorMessage"]
                 )
-            except Exception:
-                pass
-            raise AirflowException(f"Spark Job Failed. Error stack: {err}")
-        return driver_state == CustomObjectStatus.SUBMITTED
+                err = err if err else "N/A"
+                try:
+                    self.pod_manager.fetch_container_logs(
+                        pod=self.pod_spec, container_name="spark-kubernetes-driver"
+                    )
+                except Exception:
+                    pass
+                raise AirflowException(f"Spark Job Failed. Error stack: {err}")
+
+            return driver_state == CustomObjectStatus.SUBMITTED
+        else:
+            raise AirflowException(
+                "Spark Job Status/Driver State not found. Please check if the Job/Pod is running."
+            )
 
     def check_pod_start_failure(self):
         try:
