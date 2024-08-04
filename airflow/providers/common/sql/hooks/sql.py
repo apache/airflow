@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 import warnings
 from contextlib import closing, contextmanager
-from copy import deepcopy
 from datetime import datetime
 from functools import cached_property
 from typing import (
@@ -209,7 +208,7 @@ class DbApiHook(BaseHook):
     def connection(self) -> Connection:
         if self._connection is None:
             self._connection = self.get_connection(self.get_conn_id())
-        return deepcopy(self._connection)
+        return self._connection
 
     @property
     def connection_extra(self) -> dict:
