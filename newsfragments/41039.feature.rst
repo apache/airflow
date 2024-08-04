@@ -1,1 +1,1 @@
-Enable ``get_current_context()`` to work in virtual environments with some limitations.
+Enable ``get_current_context()`` to work in virtual environments. It has the following limitations and should be used with caution 1) A dictionary object serializable to json, not a model defined by Airflow. 2) Excludes items with lazy loading applied.
