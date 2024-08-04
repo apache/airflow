@@ -667,6 +667,10 @@ class MappedOperator(AbstractOperator):
     def allow_nested_operators(self) -> bool:
         return bool(self.partial_kwargs.get("allow_nested_operators"))
 
+    @property
+    def execute_on_success_callback_when_skipped(self) -> bool:
+        return bool(self.partial_kwargs.get("execute_on_success_callback_when_skipped"))
+
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag

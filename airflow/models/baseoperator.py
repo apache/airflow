@@ -276,6 +276,7 @@ def partial(
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
+    execute_on_success_callback_when_skipped: bool = True,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -345,6 +346,7 @@ def partial(
         "task_display_name": task_display_name,
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
+        "execute_on_success_callback_when_skipped": execute_on_success_callback_when_skipped,
     }
 
     # Inject DAG-level default args into args provided to this function.
