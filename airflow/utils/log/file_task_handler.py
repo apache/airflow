@@ -203,7 +203,7 @@ class FileTaskHandler(logging.Handler):
                 RemovedInAirflow3Warning,
                 # We want to reference the stack that actually instantiates the
                 # handler, not the one that calls super()__init__.
-                stacklevel=(2 if type(self) == FileTaskHandler else 3),
+                stacklevel=(2 if isinstance(self, FileTaskHandler) else 3),
             )
         self.maintain_propagate: bool = False
         self.max_bytes = max_bytes

@@ -64,7 +64,7 @@ apache-airflow-providers-apprise package
 `Apprise <https://github.com/caronc/apprise>`__
 
 
-Release: 1.3.1
+Release: 1.3.2
 
 Provider package
 ----------------

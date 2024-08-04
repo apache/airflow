@@ -37,6 +37,7 @@ Bug Fixes
 * ``Move sensitive information to the secret manager for the system test google_analytics_admin (#40951)``
 * ``Fix Custom Training Job operators to accept results without managed model (#40685)``
 * ``Fix behavior for reattach_state parameter in BigQueryInsertJobOperator (#40664)``
+* ``Fix CloudSQLDatabaseHook temp file handling (#41092)``
 
 Misc
 ~~~~
@@ -49,6 +50,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
 
 10.21.0
 .......

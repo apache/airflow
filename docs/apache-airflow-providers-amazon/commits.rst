@@ -38,11 +38,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.27.0
 ......
 
-Latest change: 2024-07-26
+Latest change: 2024-08-01
 
 =================================================================================================  ===========  =================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================================================
+`7fe573317e <https://github.com/apache/airflow/commit/7fe573317eb630c2d176329c599d6fbbb30f4378>`_  2024-08-01   ``Fix AWS Redshift operators and sensors (#41191)``
+`ab0cf2eb25 <https://github.com/apache/airflow/commit/ab0cf2eb251e6a769df31f471091ee43dc370aff>`_  2024-07-31   ``Deprecate 'SageMakerTrainingPrintLogTrigger' (#41158)``
+`97c4fdce71 <https://github.com/apache/airflow/commit/97c4fdce71e0665997b7c3a8f78324af616c91b4>`_  2024-07-29   ``Fix 'EmrServerlessStartJobOperator' (#41103)``
+`7126678e87 <https://github.com/apache/airflow/commit/7126678e87c11665c06ec29595472cfaa0c7fdd6>`_  2024-07-28   ``Prepare Providers docs ad hoc release (#41074)``
 `c519920661 <https://github.com/apache/airflow/commit/c519920661133a06e917a781e73caeac111b26f5>`_  2024-07-26   ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
 `83ca61a501 <https://github.com/apache/airflow/commit/83ca61a501d755669fc83b1ad9038d0ca9d600ad>`_  2024-07-26   ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
 `68b3159210 <https://github.com/apache/airflow/commit/68b3159210fc4bb1dc0a18fb99ae610ffd0a7b2a>`_  2024-07-24   ``Add RedriveExecution support to 'StepFunctionStartExecutionOperator' (#40976)``
