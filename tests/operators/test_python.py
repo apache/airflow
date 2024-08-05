@@ -1047,6 +1047,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert ti.state == TaskInstanceState.SUCCESS
 
         context = ti.get_template_context(session=session)
+        session.add(ti.dag_run)
+        session.flush()
         serialized_context: dict[Encoding, Any] = BaseSerialization.serialize(context)
         as_json = json.dumps(serialized_context)
 
