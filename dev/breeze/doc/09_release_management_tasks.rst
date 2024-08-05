@@ -650,6 +650,18 @@ This command will build one docker image per python version, with all the airflo
   :width: 100%
   :alt: Breeze build all airflow images
 
+
+Exporting SBOM information
+""""""""""""""""""""""""""
+
+The SBOM information published on our website can be converted into a spreadsheet that we are using to analyse security
+properties of the dependencies. This is done by the ``export-dependency-information`` command.
+
+.. image:: ./images/output_sbom_export-dependency-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_export-dependency-information.svg
+  :width: 100%
+  :alt: Breeze sbom export dependency information
+
 -----
 
 Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
