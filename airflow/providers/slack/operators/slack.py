@@ -269,3 +269,170 @@ class SlackAPIFileOperator(SlackAPIOperator):
             initial_comment=self.initial_comment,
             title=self.title,
         )
+
+
+class SlackAPICreateChannelOperator(SlackAPIOperator):
+    """
+    SlackAPICreateChannelOperator creates a channel.
+
+    A thin wrapper over the SlackAPIOperator, to directly call `conversations.create`
+    and save the results as an XCOM.
+
+    Reference:
+    https://api.slack.com/methods/conversations.create
+    """
+
+    template_fields: Sequence[str] = ("name",)
+
+    def __init__(
+        self,
+        name: str,
+        **kwargs,
+    ) -> None:
+        self.method = "conversations.create"
+        self.name = name
+        super().__init__(method=self.method, **kwargs)
+
+    def construct_api_call_params(self) -> Any:
+        self.api_params = {"name": self.name}
+
+
+class SlackAPIInviteSharedOperator(SlackAPIOperator):
+    """
+    SlackAPIInviteSharedOperator invites an external user to a shared channel.
+
+    A thin wrapper over the SlackAPIOperator, to directly call `conversations.inviteShared`
+    and save the results as an XCOM.
+
+    Reference:
+    https://api.slack.com/methods/conversations.inviteShared
+    """
+
+    template_fields: Sequence[str] = ("channel", "shared_email", "external_limited")
+
+    def __init__(
+        self,
+        channel: str,
+        shared_email: str,
+        external_limited: bool | None = True,
+        **kwargs,
+    ) -> None:
+        self.method = "conversations.inviteShared"
+        self.channel = channel
+        self.shared_email = shared_email
+        self.external_limited = external_limited
+        super().__init__(method=self.method, **kwargs)
+
+    def construct_api_call_params(self) -> Any:
+        self.api_params = {
+            "channel": self.channel,
+            "emails": self.shared_email,
+            "external_limited": self.external_limited,
+        }
+
+
+class SlackAPIJoinConversationOperator(SlackAPIOperator):
+    """
+    SlackAPIJoinConversationOperator joins a channel.
+
+    A thin wrapper over the SlackAPIOperator, to directly call `conversations.join`
+    and save the results as an XCOM.
+
+    Reference:
+    https://api.slack.com/methods/conversations.join
+    """
+
+    template_fields: Sequence[str] = ("channel_id",)
+
+    def __init__(
+        self,
+        channel_id: str,
+        **kwargs,
+    ) -> None:
+        self.method = "conversations.join"
+        self.channel_id = channel_id
+        super().__init__(method=self.method, **kwargs)
+
+    def construct_api_call_params(self) -> Any:
+        self.api_params = {"channel": self.channel_id}
+
+
+class SlackAPIInviteOperator(SlackAPIOperator):
+    """
+    SlackAPIInviteOperator invites a user to a channel.
+
+    A thin wrapper over the SlackAPIOperator, to directly call `conversations.invite`
+    and save the results as an XCOM.
+
+    Reference:
+    https://api.slack.com/methods/conversations.invite
+    """
+
+    template_fields: Sequence[str] = ("channel_id", "users")
+
+    def __init__(
+        self,
+        channel_id: str,
+        users: str,
+        **kwargs,
+    ) -> None:
+        self.method = "conversations.invite"
+        self.channel_id = channel_id
+        self.users = users
+        super().__init__(method=self.method, **kwargs)
+
+    def construct_api_call_params(self) -> Any:
+        self.api_params = {"channel": self.channel_id, "users": self.users}
+
+
+class SlackAPIListUsersOperator(SlackAPIOperator):
+    """
+    SlackAPIListUsersOperator lists users.
+
+    A thin wrapper over the SlackAPIOperator, to directly call `users.list`
+    and save the results as an XCOM.
+
+    Reference:
+    https://api.slack.com/methods/users.list
+    """
+
+    template_fields: Sequence[str] = ("limit",)
+
+    def __init__(
+        self,
+        limit: int = 0,
+        **kwargs,
+    ) -> None:
+        self.method = "users.list"
+        self.limit = limit
+        super().__init__(method=self.method, **kwargs)
+
+    def construct_api_call_params(self) -> Any:
+        self.api_params = {"limit": self.limit}
+
+
+class SlackAPILookupByEmailOperator(SlackAPIOperator):
+    """
+    SlackAPILookupByEmailOperator looks up a user by email address.
+
+    A thin wrapper over the SlackAPIOperator, to directly call `users.lookupByEmail`
+    and save the results as an XCOM.
+
+    Reference:
+    https://api.slack.com/methods/users.lookupByEmail
+    """
+
+    template_fields: Sequence[str] = ("email",)
+
+    def __init__(
+        self,
+        email: str,
+        **kwargs,
+    ) -> None:
+        self.method = "users.lookupByEmail"
+        self.email = email
+        super().__init__(method=self.method, **kwargs)
+
+    def construct_api_call_params(self) -> Any:
+        self.api_params = {"email": self.email}
+
