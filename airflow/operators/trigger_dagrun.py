@@ -150,7 +150,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.allowed_states = [DagRunState(s) for s in allowed_states]
         else:
             self.allowed_states = [DagRunState.SUCCESS]
-        if failed_states:
+        if failed_states or failed_states == []:
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]

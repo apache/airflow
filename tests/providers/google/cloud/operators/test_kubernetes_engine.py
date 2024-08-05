@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 from unittest import mock
+from unittest.mock import mock_open
 
 import pytest
 from google.cloud.container_v1.types import Cluster, NodePool
@@ -739,12 +740,15 @@ class TestGKEPodOperatorAsync:
     )
     @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_async_create_pod_should_execute_successfully(
-        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj
+        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj, mocker
     ):
         """
         Asserts that a task is deferred and the GKEStartPodTrigger will be fired
         when the GKEStartPodOperator is executed in deferrable mode when deferrable=True.
         """
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
         with pytest.raises(TaskDeferred) as exc:

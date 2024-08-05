@@ -20,8 +20,9 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from apprise import NotifyType
+from apprise import NotifyFormat, NotifyType
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.apprise.notifications.apprise import (
     AppriseNotifier,
@@ -36,14 +37,15 @@ class TestAppriseNotifier:
     def test_notifier(self, mock_apprise_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
-        notifier = send_apprise_notification(body="DISK at 99%", notify_type=NotifyType.FAILURE)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            notifier = send_apprise_notification(body="DISK at 99%", notify_type=NotifyType.FAILURE)
         notifier({"dag": dag})
         mock_apprise_hook.return_value.notify.assert_called_once_with(
             body="DISK at 99%",
             notify_type=NotifyType.FAILURE,
             title=None,
-            body_format=None,
-            tag=None,
+            body_format=NotifyFormat.TEXT,
+            tag="all",
             attach=None,
             interpret_escapes=None,
             config=None,
@@ -53,14 +55,15 @@ class TestAppriseNotifier:
     def test_notifier_with_notifier_class(self, mock_apprise_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
-        notifier = AppriseNotifier(body="DISK at 99%", notify_type=NotifyType.FAILURE)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            notifier = AppriseNotifier(body="DISK at 99%", notify_type=NotifyType.FAILURE)
         notifier({"dag": dag})
         mock_apprise_hook.return_value.notify.assert_called_once_with(
             body="DISK at 99%",
             notify_type=NotifyType.FAILURE,
             title=None,
-            body_format=None,
-            tag=None,
+            body_format=NotifyFormat.TEXT,
+            tag="all",
             attach=None,
             interpret_escapes=None,
             config=None,
@@ -71,20 +74,34 @@ class TestAppriseNotifier:
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
 
-        notifier = AppriseNotifier(
-            notify_type=NotifyType.FAILURE,
-            title="DISK at 99% {{dag.dag_id}}",
-            body="System can crash soon {{dag.dag_id}}",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            notifier = AppriseNotifier(
+                notify_type=NotifyType.FAILURE,
+                title="DISK at 99% {{dag.dag_id}}",
+                body="System can crash soon {{dag.dag_id}}",
+            )
         context = {"dag": dag}
         notifier(context)
         mock_apprise_hook.return_value.notify.assert_called_once_with(
             notify_type=NotifyType.FAILURE,
             title="DISK at 99% test_notifier",
             body="System can crash soon test_notifier",
-            body_format=None,
-            tag=None,
+            body_format=NotifyFormat.TEXT,
+            tag="all",
             attach=None,
             interpret_escapes=None,
             config=None,
         )
+
+    @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
+    def test_apprise_deprecation_warnning(self, mock_apprise_hook):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            AppriseNotifier(
+                title="DISK at 99% {{dag.dag_id}}",
+                body="System can crash soon {{dag.dag_id}}",
+            )
+        assert len(record) == 3
+
+        assert record[0].message.args[0] == "`tag` cannot be None. Assign it to be MATCH_ALL_TAG"
+        assert record[1].message.args[0] == "`notify_type` cannot be None. Assign it to be NotifyType.INFO"
+        assert record[2].message.args[0] == "`body_format` cannot be None. Assign it to be  NotifyFormat.TEXT"

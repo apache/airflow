@@ -3279,10 +3279,6 @@ class TaskInstance(Base, LoggingMixin):
 
         :param fail_stop: if true, stop remaining tasks in dag
         """
-        get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
-        )
-
         if error:
             if isinstance(error, BaseException):
                 tb = TaskInstance.get_truncated_error_traceback(error, truncate_to=ti._execute_task)
@@ -3356,6 +3352,10 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
 
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
+        )
+
         return {
             "ti": ti,
             "email_for_state": email_for_state,
@@ -3369,6 +3369,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def save_to_db(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION):
         ti = _coalesce_to_orm_ti(ti=ti, session=session)
+        ti.updated_at = timezone.utcnow()
         session.merge(ti)
         session.flush()
         session.commit()
