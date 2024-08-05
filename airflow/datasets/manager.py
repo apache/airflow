@@ -108,8 +108,10 @@ class DatasetManager(LoggingMixin):
                     "source_map_index": task_instance.map_index,
                 }
             )
+
         dataset_event = DatasetEvent(**event_kwargs)
         session.add(dataset_event)
+        extra_dags_to_queue = set()
         if source_alias_names:
             dataset_alias_models = session.scalars(
                 select(DatasetAliasModel)
@@ -120,18 +122,21 @@ class DatasetManager(LoggingMixin):
                     )
                 )
             ).unique()
+
             for dsa in dataset_alias_models:
                 dsa.dataset_events.append(dataset_event)
                 session.add(dsa)
 
-                # TODO: update dsa.consuming_dags   .dag.schedule_interval
-
-        session.flush()
+                extra_dags_to_queue = {
+                    alias_ref.dag
+                    for alias_ref in dsa.consuming_dags
+                    if alias_ref.dag.is_active and not alias_ref.dag.is_paused
+                }
 
         cls.notify_dataset_changed(dataset=dataset)
 
         Stats.incr("dataset.updates")
-        cls._queue_dagruns(dataset_model, session)
+        cls._queue_dagruns(dataset_model, session, extra_dags_to_queue)
         session.flush()
         return dataset_event
 
@@ -145,7 +150,7 @@ class DatasetManager(LoggingMixin):
         get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
     @classmethod
-    def _queue_dagruns(cls, dataset: DatasetModel, session: Session) -> None:
+    def _queue_dagruns(cls, dataset: DatasetModel, session: Session, extra_dags_to_queue: set) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same dataset, this can fail with a unique
         # constraint violation.
@@ -156,11 +161,13 @@ class DatasetManager(LoggingMixin):
         # where `ti.state` is changed.
 
         if session.bind.dialect.name == "postgresql":
-            return cls._postgres_queue_dagruns(dataset, session)
-        return cls._slow_path_queue_dagruns(dataset, session)
+            return cls._postgres_queue_dagruns(dataset, session, extra_dags_to_queue)
+        return cls._slow_path_queue_dagruns(dataset, session, extra_dags_to_queue)
 
     @classmethod
-    def _slow_path_queue_dagruns(cls, dataset: DatasetModel, session: Session) -> None:
+    def _slow_path_queue_dagruns(
+        cls, dataset: DatasetModel, session: Session, extra_dags_to_queue: set
+    ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             if not dag.is_active or dag.is_paused:
                 return None
@@ -174,18 +181,22 @@ class DatasetManager(LoggingMixin):
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
             return dag.dag_id
 
-        queued_results = (_queue_dagrun_if_needed(ref.dag) for ref in dataset.consuming_dags)
+        dags_to_queue = {ref.dag for ref in dataset.consuming_dags} | extra_dags_to_queue
+
+        queued_results = (_queue_dagrun_if_needed(dag) for dag in dags_to_queue)
         if queued_dag_ids := [r for r in queued_results if r is not None]:
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _postgres_queue_dagruns(cls, dataset: DatasetModel, session: Session) -> None:
+    def _postgres_queue_dagruns(
+        cls, dataset: DatasetModel, session: Session, extra_dags_to_queue: set
+    ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
+        dags_to_queue = {r.dag for r in dataset.consuming_dags} | extra_dags_to_queue
+
         values = [
-            {"target_dag_id": dag.dag_id}
-            for dag in (r.dag for r in dataset.consuming_dags)
-            if dag.is_active and not dag.is_paused
+            {"target_dag_id": dag.dag_id} for dag in dags_to_queue if dag.is_active and not dag.is_paused
         ]
         if not values:
             return
