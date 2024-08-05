@@ -755,6 +755,21 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def email(  # type: ignore[misc]
+        self,
+        *,
+        to: list[str] | str,
+        subject: str,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python callable and uses the callable return value as an email's body to be sent.
+
+        :param to: list of emails to send the email to. (templated)
+        :param from_email: email to send from. (templated)
+        :param subject: subject line for the email. (templated)
+        """
     def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection

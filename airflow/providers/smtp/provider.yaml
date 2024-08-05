@@ -67,6 +67,10 @@ connection-types:
 notifications:
   - airflow.providers.smtp.notifications.smtp.SmtpNotifier
 
+task-decorators:
+  - class-name: airflow.providers.smtp.decorators.email.email_task
+    name: email
+
 config:
   smtp_provider:
     description: "Options for SMTP provider."
