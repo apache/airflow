@@ -28,6 +28,7 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dataset import (
+    DagScheduleDatasetAliasReference,
     DagScheduleDatasetReference,
     DatasetAliasModel,
     DatasetDagRunQueue,
@@ -111,11 +112,20 @@ class DatasetManager(LoggingMixin):
         session.add(dataset_event)
         if source_alias_names:
             dataset_alias_models = session.scalars(
-                select(DatasetAliasModel).where(DatasetAliasModel.name.in_(source_alias_names))
-            )
+                select(DatasetAliasModel)
+                .where(DatasetAliasModel.name.in_(source_alias_names))
+                .options(
+                    joinedload(DatasetAliasModel.consuming_dags).joinedload(
+                        DagScheduleDatasetAliasReference.dag
+                    )
+                )
+            ).unique()
             for dsa in dataset_alias_models:
                 dsa.dataset_events.append(dataset_event)
                 session.add(dsa)
+
+                # TODO: update dsa.consuming_dags   .dag.schedule_interval
+
         session.flush()
 
         cls.notify_dataset_changed(dataset=dataset)

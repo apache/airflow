@@ -103,7 +103,11 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import (
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetModel,
+)
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -3184,6 +3188,8 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
+        from airflow.models.dataset import DagScheduleDatasetAliasReference
+
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
 
@@ -3193,6 +3199,7 @@ class DAG(LoggingMixin):
             .options(joinedload(DagModel.tags, innerjoin=False))
             .where(DagModel.dag_id.in_(dag_ids))
             .options(joinedload(DagModel.schedule_dataset_references))
+            .options(joinedload(DagModel.schedule_dataset_alias_references))
             .options(joinedload(DagModel.task_outlet_dataset_references))
         )
         query = with_row_locks(query, of=DagModel, session=session)
@@ -3294,12 +3301,13 @@ class DAG(LoggingMixin):
             TaskOutletDatasetReference,
         )
 
-        dag_references = defaultdict(set)
+        dag_references: dict[str, set[Dataset | DatasetAlias]] = defaultdict(set)
         outlet_references = defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
         outlet_dataset_alias_models: set[DatasetAliasModel] = set()
+        input_dataset_aliases: set[DatasetAliasModel] = set()
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -3308,12 +3316,20 @@ class DAG(LoggingMixin):
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
             if not (dataset_condition := dag.timetable.dataset_condition):
-                if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
-                    curr_orm_dag.schedule_dataset_references = []
+                if curr_orm_dag:
+                    if curr_orm_dag.schedule_dataset_references:
+                        curr_orm_dag.schedule_dataset_references = []
+                    if curr_orm_dag.schedule_dataset_alias_references:
+                        curr_orm_dag.schedule_dataset_alias_references = []
             else:
                 for _, dataset in dataset_condition.iter_datasets():
-                    dag_references[dag.dag_id].add(dataset.uri)
+                    dag_references[dag.dag_id].add(Dataset(uri=dataset.uri))
                     input_datasets[DatasetModel.from_public(dataset)] = None
+
+                for dataset_alias in dataset_condition.iter_dataset_aliases():
+                    dag_references[dag.dag_id].add(dataset_alias)
+                    input_dataset_aliases.add(DatasetAliasModel.from_public(dataset_alias))
+
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets: list[Dataset] = []
@@ -3366,37 +3382,55 @@ class DAG(LoggingMixin):
         del all_datasets
 
         # store dataset aliases
+        all_datasets_alias_models = input_dataset_aliases | outlet_dataset_alias_models
+        stored_dataset_aliases: dict[str, DatasetAliasModel] = {}
         new_dataset_alias_models: set[DatasetAliasModel] = set()
-        if outlet_dataset_alias_models:
-            outlet_dataset_alias_names = {dataset_alias.name for dataset_alias in outlet_dataset_alias_models}
+        if all_datasets_alias_models:
+            all_dataset_alias_names = {dataset_alias.name for dataset_alias in all_datasets_alias_models}
 
-            stored_dataset_alias_names = session.scalars(
-                select(DatasetAliasModel.name).where(DatasetAliasModel.name.in_(outlet_dataset_alias_names))
-            ).fetchall()
+            stored_dataset_aliases = {
+                dsa_m.name: dsa_m
+                for dsa_m in session.scalars(
+                    select(DatasetAliasModel).where(DatasetAliasModel.name.in_(all_dataset_alias_names))
+                ).fetchall()
+            }
 
-            if stored_dataset_alias_names:
+            if stored_dataset_aliases:
                 new_dataset_alias_models = {
                     dataset_alias_model
-                    for dataset_alias_model in outlet_dataset_alias_models
-                    if dataset_alias_model.name not in stored_dataset_alias_names
+                    for dataset_alias_model in all_datasets_alias_models
+                    if dataset_alias_model.name not in stored_dataset_aliases.keys()
                 }
             else:
-                new_dataset_alias_models = outlet_dataset_alias_models
+                new_dataset_alias_models = all_datasets_alias_models
 
             session.add_all(new_dataset_alias_models)
+        session.flush()
+        stored_dataset_aliases.update(
+            {dataset_alias.name: dataset_alias for dataset_alias in new_dataset_alias_models}
+        )
 
         del new_dataset_alias_models
-        del outlet_dataset_alias_models
+        del all_datasets_alias_models
 
-        # reconcile dag-schedule-on-dataset references
-        for dag_id, uri_list in dag_references.items():
+        # reconcile dag-schedule-on-dataset and dag-schedule-on-dataset-alias references
+        for dag_id, base_dataset_list in dag_references.items():
             dag_refs_needed = {
-                DagScheduleDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id)
-                for uri in uri_list
+                DagScheduleDatasetReference(dataset_id=stored_datasets[base_dataset.uri].id, dag_id=dag_id)
+                if isinstance(base_dataset, Dataset)
+                else DagScheduleDatasetAliasReference(
+                    alias_id=stored_dataset_aliases[base_dataset.name].id, dag_id=dag_id
+                )
+                for base_dataset in base_dataset_list
             }
+
             dag_refs_stored = set(
                 existing_dags.get(dag_id)
                 and existing_dags.get(dag_id).schedule_dataset_references  # type: ignore
+                or []
+            ) | set(
+                existing_dags.get(dag_id)
+                and existing_dags.get(dag_id).schedule_dataset_alias_references  # type: ignore
                 or []
             )
             dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
@@ -3574,6 +3608,7 @@ class DAG(LoggingMixin):
             exclusion_list = {
                 "parent_dag",
                 "schedule_dataset_references",
+                "schedule_dataset_alias_references",
                 "task_outlet_dataset_references",
                 "_old_context_manager_dags",
                 "safe_dag_id",
@@ -3778,6 +3813,11 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
+    )
+    schedule_dataset_alias_references = relationship(
+        "DagScheduleDatasetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
