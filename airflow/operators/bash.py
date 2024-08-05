@@ -133,7 +133,7 @@ class BashOperator(BaseOperator):
         )
 
     .. versionadded:: 2.10.0
-       The `result_processor` parameter.
+       The `output_processor` parameter.
 
     """
 
