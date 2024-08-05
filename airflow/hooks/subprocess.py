@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shutil
 import signal
+import time
 from collections import namedtuple
 from subprocess import PIPE, STDOUT, Popen
-from tempfile import TemporaryDirectory, gettempdir
+from tempfile import TemporaryDirectory, gettempdir, mkdtemp
 
 from airflow.hooks.base import BaseHook
+from airflow.utils.platform import IS_WINDOWS
 
 SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
 
@@ -61,9 +64,24 @@ class SubprocessHook(BaseHook):
             or stdout
         """
         self.log.info("Tmp dir root location: %s", gettempdir())
+
+        safe_cleanup = False
+
         with contextlib.ExitStack() as stack:
             if cwd is None:
-                cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
+                # TemporaryDirectory will call shutil.rmtree() internally when the context exits. On Windows,
+                # shutil.rmtree() is unreliable and there is a race condition, where even after self.sub_process.wait(),
+                # the process will still be holding onto the directory causing an exception. The work-around is
+                # to call shutil.rmtree() in a retry loop. If we're not running under Windows, shutil.rmtree() is
+                # reliable and no retry loop is needed.
+
+                prefix = "airflowtmp"
+
+                if IS_WINDOWS:
+                    cwd = mkdtemp(prefix=prefix)
+                    safe_cleanup = True
+                else:
+                    cwd = stack.enter_context(TemporaryDirectory(prefix=prefix))
 
             def pre_exec():
                 # Restore default signal disposition and invoke setsid
@@ -80,7 +98,7 @@ class SubprocessHook(BaseHook):
                 stderr=STDOUT,
                 cwd=cwd,
                 env=env if env or env == {} else os.environ,
-                preexec_fn=pre_exec,
+                preexec_fn=pre_exec if not IS_WINDOWS else None,
             )
 
             self.log.info("Output:")
@@ -93,9 +111,23 @@ class SubprocessHook(BaseHook):
                     self.log.info("%s", line)
 
             self.sub_process.wait()
-
             self.log.info("Command exited with return code %s", self.sub_process.returncode)
+
             return_code: int = self.sub_process.returncode
+
+        if safe_cleanup and cwd is not None:
+            for retry in range(3):
+                try:
+                    shutil.rmtree(cwd)
+                    if retry > 0:
+                        self.log.info("Removed temporary directory %s on retry #%s", cwd, retry)
+                    break
+                except PermissionError:
+                    if retry == 2:
+                        self.log.warning("Could not remove temporary directory %s", cwd)
+                        raise
+                    else:
+                        time.sleep(1)
 
         return SubprocessResult(exit_code=return_code, output=line)
 
