@@ -67,6 +67,7 @@ def test_render_template(dag_maker):
     assert RENDERED_INDEX == json.loads(operator.json_index_file)
 
 
+@pytest.mark.need_serialized_dag
 @pytest.mark.db_test
 def test_render_template_from_file(tmp_path, dag_maker):
     json_index_file = tmp_path.joinpath("json_index.json")
