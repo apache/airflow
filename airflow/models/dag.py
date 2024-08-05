@@ -2757,7 +2757,7 @@ class DAG(LoggingMixin):
     def task(self) -> TaskDecoratorCollection:
         from airflow.decorators import task
 
-        return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
+        return cast("TaskDecoratorCollection", functools.partial(task, dag=self))  # type: ignore[misc]
 
     def add_task(self, task: Operator) -> None:
         """
