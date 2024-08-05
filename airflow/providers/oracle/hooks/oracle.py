@@ -174,7 +174,9 @@ class OracleHook(DbApiHook):
 
         # Set oracledb Defaults Attributes if provided
         # (https://python-oracledb.readthedocs.io/en/latest/api_manual/defaults.html)
-        fetch_decimals = _get_first_bool(self.fetch_decimals, self.connection_extra_lower.get("fetch_decimals"))
+        fetch_decimals = _get_first_bool(
+            self.fetch_decimals, self.connection_extra_lower.get("fetch_decimals")
+        )
         if isinstance(fetch_decimals, bool):
             oracledb.defaults.fetch_decimals = fetch_decimals
 
