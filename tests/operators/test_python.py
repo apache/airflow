@@ -76,7 +76,6 @@ from tests.test_utils.db import clear_db_runs
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
-    from airflow.serialization.enums import Encoding
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
