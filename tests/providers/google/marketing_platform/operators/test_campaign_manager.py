@@ -86,6 +86,7 @@ class TestGoogleCampaignManagerDeleteReportOperator:
         )
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestGoogleCampaignManagerDownloadReportOperator:
     def setup_method(self):

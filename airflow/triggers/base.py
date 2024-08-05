@@ -47,15 +47,6 @@ class StartTriggerArgs:
     next_kwargs: dict[str, Any] | None = None
     timeout: timedelta | None = None
 
-    def serialize(self):
-        return {
-            "trigger_cls": self.trigger_cls,
-            "trigger_kwargs": self.trigger_kwargs,
-            "next_method": self.next_method,
-            "next_kwargs": self.next_kwargs,
-            "timeout": self.timeout,
-        }
-
 
 class BaseTrigger(abc.ABC, LoggingMixin):
     """

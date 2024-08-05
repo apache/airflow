@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from "axios";
+import axios from "axios";
 import type { API } from "src/types";
 import { useQuery, UseQueryOptions } from "react-query";
 import { useAutoRefresh } from "src/context/autorefresh";
@@ -55,7 +55,7 @@ const useTaskInstance = ({
 
   return useQuery<API.TaskInstance>(
     ["taskInstance", dagId, dagRunId, taskId, mapIndex],
-    () => axios.get<AxiosResponse, API.TaskInstance>(url),
+    () => axios.get(url),
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       ...options,

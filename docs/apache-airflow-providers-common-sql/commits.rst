@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.15.0
+......
+
+Latest change: 2024-07-26
+
+=================================================================================================  ===========  =================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================================
+`f6c7388cfa <https://github.com/apache/airflow/commit/f6c7388cfa70874d84f312a5859a4f510fef0084>`_  2024-07-26   ``Create SQLAlchemy engine from connection in DB Hook and added autocommit param to insert_rows method (#40669)``
+=================================================================================================  ===========  =================================================================================================================
+
 1.14.2
 ......
 
-Latest change: 2024-07-05
+Latest change: 2024-07-09
 
 =================================================================================================  ===========  ============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `3f0979c9f1 <https://github.com/apache/airflow/commit/3f0979c9f1c7b5145c877870b7ca0e63af57bdd5>`_  2024-07-05   ``FIX: DbApiHook.insert_rows unnecessarily restarting connections (#40615)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
 `248e0a2eca <https://github.com/apache/airflow/commit/248e0a2ecab130a39306cf99af329dcbdff9e60d>`_  2024-06-23   ``Resolve postgres deprecations in tests (#40392)``

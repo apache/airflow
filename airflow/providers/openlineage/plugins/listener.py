@@ -23,15 +23,15 @@ from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
-from packaging.version import Version
 from setproctitle import getproctitle, setproctitle
 
-from airflow import __version__ as AIRFLOW_VERSION, settings
+from airflow import settings
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
+    IS_AIRFLOW_2_10_OR_HIGHER,
     get_airflow_job_facet,
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
@@ -53,12 +53,11 @@ if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
 
 _openlineage_listener: OpenLineageListener | None = None
-_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def _get_try_number_success(val):
     # todo: remove when min airflow version >= 2.10.0
-    if _IS_AIRFLOW_2_10_OR_HIGHER:
+    if IS_AIRFLOW_2_10_OR_HIGHER:
         return val.try_number
     return val.try_number - 1
 
@@ -235,7 +234,10 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
-                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                },
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
@@ -244,7 +246,7 @@ class OpenLineageListener:
 
         self._execute(on_success, "on_success", use_fork=True)
 
-    if _IS_AIRFLOW_2_10_OR_HIGHER:
+    if IS_AIRFLOW_2_10_OR_HIGHER:
 
         @hookimpl
         def on_task_instance_failed(
@@ -330,8 +332,11 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
-                run_facets=get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                 error=error,
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                },
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",

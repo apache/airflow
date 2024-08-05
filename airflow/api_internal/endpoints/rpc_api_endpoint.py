@@ -35,6 +35,7 @@ from jwt import (
 
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
@@ -55,6 +56,7 @@ def initialize_method_map() -> dict[str, Callable]:
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.datasets import expand_alias_to_datasets
     from airflow.datasets.manager import DatasetManager
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
@@ -106,6 +108,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
+        expand_alias_to_datasets,
         DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
@@ -129,9 +132,9 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun.fetch_task_instances,
         DagRun.get_previous_dagrun,
         DagRun.get_previous_scheduled_dagrun,
+        DagRun.get_task_instances,
         DagRun.fetch_task_instance,
         DagRun._get_log_template,
-        DagRun._get_task_instances,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
         SerializedDagModel.remove_deleted_dags,
@@ -171,9 +174,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     if accept != "application/json":
         raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
+    clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
-        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        expiration_time_in_seconds=clock_grace,
+        leeway_in_seconds=clock_grace,
         audience="api",
     )
     try:
@@ -230,5 +235,10 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             response = json.dumps(output_json) if output_json is not None else None
             log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
+    except AirflowException as e:  # In case of AirflowException transport the exception class back to caller
+        exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
+        response = json.dumps(exception_json)
+        log.info("Sending exception response: %s", response)
+        return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)

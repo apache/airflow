@@ -21,7 +21,7 @@ import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pendulum
 import pytest
@@ -1866,7 +1866,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     def test_async_create_pod_should_execute_successfully(
-        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push
+        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push, mocker
     ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
@@ -1889,7 +1889,9 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
             do_xcom_push=do_xcom_push,
         )
-        k.config_file_in_dict_representation = {"a": "b"}
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
 
         mocked_pod.return_value.metadata.name = TEST_NAME
         mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE

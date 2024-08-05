@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add method to common.compat to not force hooks to try/except every 2.10 hook lineage call (#40812)``
+
+Misc
+~~~~
+
+* ``Migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Add support for hook lineage for S3Hook (#40819)``
+
 1.0.0
 .....
 

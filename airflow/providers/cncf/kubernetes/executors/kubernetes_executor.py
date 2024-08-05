@@ -472,7 +472,12 @@ class KubernetesExecutor(BaseExecutor):
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
-                self.log.info("Deleted pod: %s in namespace %s", key, namespace)
+                self.log.info(
+                    "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
+                    key,
+                    pod_name,
+                    namespace,
+                )
         else:
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
@@ -694,6 +699,8 @@ class KubernetesExecutor(BaseExecutor):
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+                continue
+
             ti_id = annotations_to_key(pod.metadata.annotations)
             self.running.add(ti_id)
 

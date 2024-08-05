@@ -89,7 +89,7 @@ core:
         This defines the maximum number of task instances that can run concurrently per scheduler in
         Airflow, regardless of the worker count. Generally this value, multiplied by the number of
         schedulers in your cluster, is the maximum number of task instances with the running
-        state in the metadata database.
+        state in the metadata database. Setting this value to zero allows unlimited parallelism.
       version_added: ~
       type: string
       example: ~
@@ -674,6 +674,17 @@ database:
       version_added: 2.3.0
       type: string
       example: 'airflow_local_settings.connect_args'
+      default: ~
+    sql_alchemy_session_maker:
+      description: |
+        Important Warning: Use of sql_alchemy_session_maker Highly Discouraged
+        Import path for function which returns 'sqlalchemy.orm.sessionmaker'.
+        Improper configuration of sql_alchemy_session_maker can lead to serious issues,
+        including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
+        documentation for detailed guidance on proper configuration and best practices.
+      version_added: 2.9.4
+      type: string
+      example: 'airflow_local_settings._sessionmaker'
       default: ~
     load_default_connections:
       description: |

@@ -2732,6 +2732,8 @@ class TestTaskInstance:
 
                 with pytest.raises(KeyError):
                     inlet_events["does_not_exist"]
+                with pytest.raises(KeyError):
+                    inlet_events[DatasetAlias("does_not_exist")]
                 with pytest.raises(IndexError):
                     inlet_events[DatasetAlias(dsa_name)][5]
 

@@ -70,7 +70,7 @@ class TestYandexCloudDataprocHook:
     def test_create_dataproc_cluster_mocked(self, mock_create_operation):
         self._init_hook()
 
-        self.hook.client.create_cluster(
+        self.hook.dataproc_client.create_cluster(
             cluster_name=CLUSTER_NAME,
             ssh_public_keys=SSH_PUBLIC_KEYS,
             folder_id=FOLDER_ID,
@@ -85,14 +85,14 @@ class TestYandexCloudDataprocHook:
     @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
     def test_delete_dataproc_cluster_mocked(self, mock_create_operation):
         self._init_hook()
-        self.hook.client.delete_cluster("my_cluster_id")
+        self.hook.dataproc_client.delete_cluster("my_cluster_id")
         assert mock_create_operation.called
 
     @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
     def test_create_hive_job_hook(self, mock_create_operation):
         self._init_hook()
 
-        self.hook.client.create_hive_job(
+        self.hook.dataproc_client.create_hive_job(
             cluster_id="my_cluster_id",
             continue_on_failure=False,
             name="Hive job",
@@ -106,7 +106,7 @@ class TestYandexCloudDataprocHook:
     def test_create_mapreduce_job_hook(self, mock_create_operation):
         self._init_hook()
 
-        self.hook.client.create_mapreduce_job(
+        self.hook.dataproc_client.create_mapreduce_job(
             archive_uris=None,
             args=[
                 "-mapper",
@@ -141,7 +141,7 @@ class TestYandexCloudDataprocHook:
     def test_create_spark_job_hook(self, mock_create_operation):
         self._init_hook()
 
-        self.hook.client.create_spark_job(
+        self.hook.dataproc_client.create_spark_job(
             archive_uris=["s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip"],
             args=[
                 "s3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2",
@@ -166,7 +166,7 @@ class TestYandexCloudDataprocHook:
     def test_create_pyspark_job_hook(self, mock_create_operation):
         self._init_hook()
 
-        self.hook.client.create_pyspark_job(
+        self.hook.dataproc_client.create_pyspark_job(
             archive_uris=["s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip"],
             args=[
                 "s3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2",
