@@ -62,6 +62,7 @@ from airflow.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
+from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
@@ -1059,9 +1060,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         # FIXME: After `#41067` is merged, we need to fix it.
         # We'll also need to do some special handling for states.
         ignore = ["task_instance", "ti"]
-        for key in ignore:
-            context_from_xcom.pop(key, None)
-            context_from_json.pop(key, None)
+        for context_object in [context_from_xcom, context_from_json]:
+            for key in ignore:
+                context_object[Encoding.VAR.value].pop(key, None)
 
         assert context_from_json == context_from_xcom
 
