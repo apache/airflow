@@ -19,24 +19,16 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
 import jinja2
 from jinja2 import select_autoescape
 
 from airflow.utils.decorators import remove_task_decorator as _remove_task_decorator
 from airflow.utils.process_utils import execute_in_subprocess
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dagrun import DagRun
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.utils.context import Context
 
 
 def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> list[str]:
@@ -157,76 +149,3 @@ def write_python_script(
         )
     template = template_env.get_template("python_virtualenv_script.jinja2")
     template.stream(**jinja_context).dump(filename)
-
-
-def context_to_json(context: Context) -> str:
-    from airflow.models.param import ParamsDict
-    from airflow.models.taskinstance import SimpleTaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-    from airflow.utils.context import Context
-
-    deprecated: set[str] = set(Context._DEPRECATION_REPLACEMENTS)  # type: ignore[attr-defined]
-    lazy_load: set[str] = {
-        # see more: airflow.models.taskinstance._get_template_context()
-        "conf",
-        "conn",
-        "inlets",
-        "inlet_events",
-        "macros",
-        "outlets",
-        "outlet_events",
-        "triggering_dataset_events",
-        "var",
-    }
-    exclude: set[str] = deprecated | lazy_load
-
-    context_copy: dict[str, Any] = {
-        key: context.get(key, None) for key in context.keys() if key not in exclude
-    }
-
-    dag = context_copy.pop("dag", None)
-    if dag is not None:
-        context_copy["dag"] = SerializedDAG.serialize_dag(dag)
-
-    task: BaseOperator | None = context_copy.pop("task", None)
-    if task is not None:
-        context_copy["task"] = SerializedBaseOperator.serialize_operator(task)
-
-    dag_run: DagRun | DagRunPydantic | None = context_copy.pop("dag_run", None)
-    if dag_run is not None:
-        from airflow.utils.pydantic import BaseModel as BaseModelPydantic, is_pydantic_2_installed
-
-        if isinstance(dag_run, BaseModelPydantic):
-            if is_pydantic_2_installed():
-                context_copy["dag_run"] = dag_run.model_dump()
-            else:
-                context_copy["dag_run"] = dag_run.dict()
-        else:
-            unset = object()
-            columns: list[str] = dag_run.__table__.columns.keys()
-            context_copy["dag_run"] = {
-                key: v for key in columns if (v := getattr(dag_run, key, unset)) is not unset
-            }
-
-    context_copy.pop("ti", None)
-    task_instance = context_copy.pop("task_instance", None)
-    if task_instance is not None:
-        simple_task_instance = SimpleTaskInstance.from_ti(task_instance)
-        context_copy["ti"] = context_copy["task_instance"] = simple_task_instance.__dict__.copy()
-
-    params: ParamsDict | dict[str, Any] | None = context_copy.pop("params", None)
-    if params is not None:
-        if isinstance(params, ParamsDict):
-            context_copy["params"] = params.serialize()
-        else:
-            context_copy["params"] = dict(params)
-
-    return json.dumps(context_copy, default=_datetime_to_iso_format)
-
-
-def _datetime_to_iso_format(obj: Any) -> Any:
-    from datetime import datetime as std_datetime
-
-    if isinstance(obj, std_datetime):
-        return obj.isoformat()
-    return obj
