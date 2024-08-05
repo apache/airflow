@@ -155,6 +155,13 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
         raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
+def extract_nested_task_group_id(task):
+    task.task_group._group_id = (
+        f"{task.task_id.split(task.task_group._group_id, 1)[0]}{task.task_group._group_id}"
+    )
+    return task.task_group
+
+
 class InfoJsonEncodable(dict):
     """
     Airflow objects might not be json-encodable overall.
@@ -319,7 +326,7 @@ class TaskInfo(InfoJsonEncodable):
         "operator_class": lambda task: task.task_type,
         "operator_class_path": lambda task: get_fully_qualified_class_name(task),
         "task_group": lambda task: (
-            TaskGroupInfo(task.task_group)
+            TaskGroupInfo(extract_nested_task_group_id(task))
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
