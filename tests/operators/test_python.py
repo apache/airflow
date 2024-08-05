@@ -1029,7 +1029,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
         assert ti.state == TaskInstanceState.SUCCESS
 
-    def test_current_context(self):
+    def test_current_context(self, session):
         if issubclass(self.opcls, BranchMixIn):
             pytest.skip("This test is not applicable to BranchMixIn")
 
@@ -1041,37 +1041,41 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             context = get_current_context()
             return json.dumps(context)
 
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        ti = self.run_as_task(
+            f, return_ti=True, multiple_outputs=False, use_airflow_context=True, session=session
+        )
         assert ti.state == TaskInstanceState.SUCCESS
 
-        context = ti.get_template_context()
+        context = ti.get_template_context(session=session)
+        dag_run = ti.dag_run
+        session.add(dag_run)
+        session.flush()
         serialized_context: dict[Encoding, Any] = BaseSerialization.serialize(context)
         as_json = json.dumps(serialized_context)
 
         context_from_json = json.loads(as_json)
-        context_xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
+        context_xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value", session=session)
         context_from_xcom = json.loads(context_xcom)
 
-        # FIXME
-        # ignore = [
-        #     "task_instance.end_date",
-        #     "task_instance.state",
-        #     "ti.end_date",
-        #     "ti.state",
-        # ]
-        # for ignore_key in ignore:
-        #     nested_from_json = context_from_json
-        #     nested_from_xcom = context_from_xcom
-        #     keys = ignore_key.split(".")
-        #     paths, key = keys[:-1], keys[-1]
-        #     for path in paths:
-        #         nested_from_json = nested_from_json[path]
-        #         nested_from_xcom = nested_from_xcom[path]
+        ignore = [
+            "__var.task_instance.__var.__var.end_date",
+            "__var.task_instance.__var.__var.state",
+            "__var.ti.__var.__var.end_date",
+            "__var.ti.__var.__var.state",
+        ]
+        for ignore_key in ignore:
+            nested_from_json = context_from_json
+            nested_from_xcom = context_from_xcom
+            keys = ignore_key.split(".")
+            paths, key = keys[:-1], keys[-1]
+            for path in paths:
+                nested_from_json = nested_from_json[path]
+                nested_from_xcom = nested_from_xcom[path]
 
-        #     nested_from_json.pop(key, None)
-        #     nested_from_xcom.pop(key, None)
+            nested_from_json.pop(key, None)
+            nested_from_xcom.pop(key, None)
 
-        # assert context_from_json == context_from_xcom
+        assert context_from_json == context_from_xcom
 
     def test_current_context_not_found_error(self):
         def f():
