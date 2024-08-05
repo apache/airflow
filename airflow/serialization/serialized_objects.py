@@ -840,7 +840,7 @@ class BaseSerialization:
             args = deser["args"]
             kwargs = deser["kwargs"]
             del deser
-            exc_cls = import_string(f"airflow.exceptions.{exc_cls_name}")
+            exc_cls = import_string(exc_cls_name)
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var, use_pydantic_models=use_pydantic_models)

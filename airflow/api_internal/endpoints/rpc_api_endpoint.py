@@ -35,6 +35,7 @@ from jwt import (
 
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
@@ -234,5 +235,10 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             response = json.dumps(output_json) if output_json is not None else None
             log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
+    except AirflowException as e:  # In case of AirflowException transport the exception class back to caller
+        exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
+        response = json.dumps(exception_json)
+        log.info("Sending exception response: %s", response)
+        return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)
