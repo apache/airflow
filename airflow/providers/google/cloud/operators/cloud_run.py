@@ -454,7 +454,7 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         self.service_name = service_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        # self._validate_inputs()
+        self._validate_inputs()
 
     def _validate_inputs(self):
         missing_fields = [k for k in ["project_id", "region", "service_name"] if not getattr(self, k)]
