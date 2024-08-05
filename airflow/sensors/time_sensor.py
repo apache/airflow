@@ -57,7 +57,10 @@ class TimeSensorAsync(BaseSensorOperator):
     This frees up a worker slot while it is waiting.
 
     :param target_time: time after which the job succeeds
+    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
+    :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
+        during dynamic task mapping. This argument is not used in standard usage.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -76,9 +79,10 @@ class TimeSensorAsync(BaseSensorOperator):
     def __init__(
         self,
         *,
-        start_from_trigger: bool = False,
-        end_from_trigger: bool = False,
         target_time: datetime.time,
+        start_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
+        end_from_trigger: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

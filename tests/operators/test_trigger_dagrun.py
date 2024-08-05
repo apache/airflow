@@ -646,3 +646,17 @@ class TestDagRunOperator:
         assert mock_task_defer.call_args_list[1].kwargs["trigger"].execution_dates == [
             pendulum.instance(triggered_logical_date)
         ]
+
+    def test_trigger_dagrun_with_no_failed_state(self):
+        logical_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            logical_date=logical_date,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+            dag=self.dag,
+        )
+
+        assert task.failed_states == []
