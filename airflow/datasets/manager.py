@@ -111,7 +111,10 @@ class DatasetManager(LoggingMixin):
 
         dataset_event = DatasetEvent(**event_kwargs)
         session.add(dataset_event)
-        extra_dags_to_queue = set()
+
+        dags_to_queue = {
+            ref.dag for ref in dataset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
+        }
         if source_alias_names:
             dataset_alias_models = session.scalars(
                 select(DatasetAliasModel)
@@ -127,16 +130,18 @@ class DatasetManager(LoggingMixin):
                 dsa.dataset_events.append(dataset_event)
                 session.add(dsa)
 
-                extra_dags_to_queue = {
+                dags_to_queue |= {
                     alias_ref.dag
                     for alias_ref in dsa.consuming_dags
                     if alias_ref.dag.is_active and not alias_ref.dag.is_paused
                 }
+        session.flush()
 
         cls.notify_dataset_changed(dataset=dataset)
 
         Stats.incr("dataset.updates")
-        cls._queue_dagruns(dataset_model, session, extra_dags_to_queue)
+
+        cls._queue_dagruns(dataset_id=dataset_model.id, dags_to_queue=dags_to_queue, session=session)
         session.flush()
         return dataset_event
 
@@ -150,7 +155,7 @@ class DatasetManager(LoggingMixin):
         get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
     @classmethod
-    def _queue_dagruns(cls, dataset: DatasetModel, session: Session, extra_dags_to_queue: set) -> None:
+    def _queue_dagruns(cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same dataset, this can fail with a unique
         # constraint violation.
@@ -159,19 +164,19 @@ class DatasetManager(LoggingMixin):
         # "fallback" to running this in a nested transaction. This is needed
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
+        if not dags_to_queue:
+            return
 
         if session.bind.dialect.name == "postgresql":
-            return cls._postgres_queue_dagruns(dataset, session, extra_dags_to_queue)
-        return cls._slow_path_queue_dagruns(dataset, session, extra_dags_to_queue)
+            return cls._postgres_queue_dagruns(dataset_id, dags_to_queue, session)
+        return cls._slow_path_queue_dagruns(dataset_id, dags_to_queue, session)
 
     @classmethod
     def _slow_path_queue_dagruns(
-        cls, dataset: DatasetModel, session: Session, extra_dags_to_queue: set
+        cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session
     ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            if not dag.is_active or dag.is_paused:
-                return None
-            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=dataset.id)
+            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=dataset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
@@ -181,26 +186,16 @@ class DatasetManager(LoggingMixin):
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
             return dag.dag_id
 
-        dags_to_queue = {ref.dag for ref in dataset.consuming_dags} | extra_dags_to_queue
-
         queued_results = (_queue_dagrun_if_needed(dag) for dag in dags_to_queue)
         if queued_dag_ids := [r for r in queued_results if r is not None]:
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _postgres_queue_dagruns(
-        cls, dataset: DatasetModel, session: Session, extra_dags_to_queue: set
-    ) -> None:
+    def _postgres_queue_dagruns(cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        dags_to_queue = {r.dag for r in dataset.consuming_dags} | extra_dags_to_queue
-
-        values = [
-            {"target_dag_id": dag.dag_id} for dag in dags_to_queue if dag.is_active and not dag.is_paused
-        ]
-        if not values:
-            return
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
+        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
+        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 
 
