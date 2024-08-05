@@ -53,12 +53,12 @@ export const StatusWithNotes = ({
       borderRadius="2px"
       borderWidth={state ? 0 : 1}
       color="white"
-      fontSize={boxSizePx}
+      fontSize={boxSizePx-4}
       textAlign="center"
       verticalAlign="middle"
       {...rest}
     >
-      {!!tryNumber && tryNumber > 1 && tryNumber}
+      {tryNumber > 1 ? tryNumber : null}
     </Box>
   );
 };
