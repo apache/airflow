@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.utils.decorators import remove_task_decorator
-from airflow.utils.python_virtualenv import _generate_pip_conf, context_to_json, prepare_virtualenv
+from airflow.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
 
 
 class TestPrepareVirtualenv:
@@ -138,23 +138,3 @@ class TestPrepareVirtualenv:
         py_source = "@foo\n@task.virtualenv()\n@bar\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
-
-    @pytest.mark.db_test
-    def test_dump_airflow_context(self, create_task_instance):
-        import json
-        from datetime import datetime
-
-        from airflow.models.dagrun import DagRunType
-        from tests.models import DEFAULT_DATE
-
-        ti = create_task_instance(
-            start_date=DEFAULT_DATE,
-            run_type=DagRunType.MANUAL,
-            data_interval=(datetime(2021, 9, 6), datetime(2021, 9, 7)),
-            schedule=None,
-        )
-        context = ti.get_template_context()
-        as_json = context_to_json(context)
-        context_from_json = json.loads(as_json)
-
-        assert isinstance(context_from_json, dict)
