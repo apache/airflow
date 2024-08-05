@@ -3424,16 +3424,13 @@ class DAG(LoggingMixin):
                 for base_dataset in base_dataset_list
             }
 
-            dag_refs_stored = set(
-                existing_dags.get(dag_id)
-                and existing_dags.get(dag_id).schedule_dataset_references  # type: ignore
-                or []
-            ) | set(
-                existing_dags.get(dag_id)
-                and existing_dags.get(dag_id).schedule_dataset_alias_references  # type: ignore
-                or []
+            dag_refs_stored = (
+                set(existing_dags.get(dag_id).schedule_dataset_references)  # type: ignore
+                | set(existing_dags.get(dag_id).schedule_dataset_alias_references)  # type: ignore
+                if existing_dags.get(dag_id)
+                else set()
             )
-            dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
+            dag_refs_to_add = dag_refs_needed - dag_refs_stored
             session.bulk_save_objects(dag_refs_to_add)
             for obj in dag_refs_stored - dag_refs_needed:
                 session.delete(obj)
