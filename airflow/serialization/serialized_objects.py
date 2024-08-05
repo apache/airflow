@@ -730,6 +730,9 @@ class BaseSerialization:
         elif isinstance(var, BaseDataset):
             serialized_dataset = encode_dataset_condition(var)
             return cls._encode(serialized_dataset, type_=serialized_dataset.pop("__type"))
+        elif isinstance(var, TaskInstance):
+            simple_task_instance = SimpleTaskInstance.from_ti(var)
+            return cls.serialize(simple_task_instance, strict=strict, use_pydantic_models=use_pydantic_models)
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
