@@ -570,6 +570,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 from airflow.serialization.serialized_objects import BaseSerialization
 
                 context = get_current_context()
+                # TODO: `TaskInstance`` will also soon be serialized as expected.
+                # see more:
+                #   https://github.com/apache/airflow/issues/40974
+                #   https://github.com/apache/airflow/pull/41067
                 serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(context)
                 with airflow_context_path.open("w+") as file:
                     json.dump(serializable_context, file)
