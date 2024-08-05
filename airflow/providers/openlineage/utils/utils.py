@@ -156,9 +156,10 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
 
 
 def extract_nested_task_group_id(task):
-    task.task_group._group_id = (
-        f"{task.task_id.split(task.task_group._group_id, 1)[0]}{task.task_group._group_id}"
-    )
+    if len(task.task_id.split("." + task.task_group._group_id + ".", 1)) != 1:  # check for nested task group
+        task.task_group._group_id = (
+            f"{task.task_id.split('.' + task.task_group._group_id + '.', 1)[0]}.{task.task_group._group_id}"
+        )
     return task.task_group
 
 
