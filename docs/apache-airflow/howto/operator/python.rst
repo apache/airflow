@@ -250,8 +250,6 @@ With some limitations, you can also use ``Context`` in virtual environments.
 
     * it is a dictionary object of primitive types, not a model defined by Airflow.
 
-    * it does not provide lazy-loading values.
-
     * set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
 
 .. tab-set::
