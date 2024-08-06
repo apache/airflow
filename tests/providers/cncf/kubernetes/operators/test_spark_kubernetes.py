@@ -554,6 +554,7 @@ def test_template_body_templating(create_task_instance_of_operator, session):
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
+        session=session,
         execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     session.add(ti)
@@ -570,7 +571,9 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
     (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
 
     with dag_maker(
-        dag_id="test_resolve_application_file_template_file", template_searchpath=tmp_path.as_posix()
+        dag_id="test_resolve_application_file_template_file",
+        template_searchpath=tmp_path.as_posix(),
+        session=session,
     ):
         SparkKubernetesOperator(
             application_file=filename,
@@ -654,6 +657,7 @@ def test_resolve_application_file_real_file(
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_resolve_application_file_real_file",
         task_id="test_template_body_templating_task",
+        session=session,
     )
     session.add(ti)
     session.commit()
