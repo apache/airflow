@@ -23,7 +23,6 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCom
@@ -68,14 +67,7 @@ class TestBranchDayOfWeekOperator:
             session.query(XCom).delete()
 
     def setup_method(self):
-        self.dag = DAG(
-            "branch_day_of_week_operator_test",
-            start_date=DEFAULT_DATE,
-            schedule=INTERVAL,
-        )
-        self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
-        self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
-        self.branch_3 = None
+        pass
 
     def teardown_method(self):
         with create_session() as session:
@@ -83,7 +75,8 @@ class TestBranchDayOfWeekOperator:
             session.query(TI).delete()
             session.query(XCom).delete()
 
-    def _assert_task_ids_match_states(self, dr, task_ids_to_states):
+    @staticmethod
+    def _assert_task_ids_match_states(dr, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""
         tis = dr.get_task_instances()
         for ti in tis:
@@ -95,143 +88,153 @@ class TestBranchDayOfWeekOperator:
                 assert_msg = f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
                 assert ti.state == expected_state, assert_msg
 
+    @staticmethod
+    def setup_two_downstream_tasks(dag, branch_op):
+        branch_1 = EmptyOperator(task_id="branch_1", dag=dag)
+        branch_2 = EmptyOperator(task_id="branch_2", dag=dag)
+
+        branch_1.set_upstream(branch_op)
+        branch_2.set_upstream(branch_op)
+
     @pytest.mark.parametrize(
         "weekday", TEST_CASE_BRANCH_FOLLOW_TRUE.values(), ids=TEST_CASE_BRANCH_FOLLOW_TRUE.keys()
     )
     @time_machine.travel("2021-01-25")  # Monday
-    def test_branch_follow_true(self, weekday):
+    def test_branch_follow_true(self, weekday, dag_maker, session):
         """Checks if BranchDayOfWeekOperator follows true branch"""
-        branch_op = BranchDayOfWeekOperator(
-            task_id="make_choice",
-            follow_task_ids_if_true=["branch_1", "branch_2"],
-            follow_task_ids_if_false="branch_3",
-            week_day=weekday,
-            dag=self.dag,
-        )
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            branch_op = BranchDayOfWeekOperator(
+                task_id="make_choice",
+                follow_task_ids_if_true=["branch_1", "branch_2"],
+                follow_task_ids_if_false="branch_3",
+                week_day=weekday,
+                dag=dag,
+            )
+            self.setup_two_downstream_tasks(dag=dag, branch_op=branch_op)
 
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
-        self.branch_3.set_upstream(branch_op)
-        self.dag.clear()
+            branch_3 = EmptyOperator(task_id="branch_3", dag=dag)
+            branch_3.set_upstream(branch_op)
 
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        )
+            dr = dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            )
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        self._assert_task_ids_match_states(
-            dr,
-            {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.NONE,
-                "branch_3": State.SKIPPED,
-            },
-        )
+            self._assert_task_ids_match_states(
+                dr,
+                {
+                    "make_choice": State.SUCCESS,
+                    "branch_1": State.NONE,
+                    "branch_2": State.NONE,
+                    "branch_3": State.SKIPPED,
+                },
+            )
 
     @time_machine.travel("2021-01-25")  # Monday
-    def test_branch_follow_true_with_execution_date(self):
+    def test_branch_follow_true_with_execution_date(self, dag_maker, session):
         """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
-
-        branch_op = BranchDayOfWeekOperator(
-            task_id="make_choice",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            week_day="Wednesday",
-            use_task_logical_date=True,  # We compare to DEFAULT_DATE which is Wednesday
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        )
-
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        self._assert_task_ids_match_states(
-            dr,
-            {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.SKIPPED,
-            },
-        )
-
-    @time_machine.travel("2021-01-25")  # Monday
-    def test_branch_follow_false(self):
-        """Checks if BranchDayOfWeekOperator follow false branch"""
-
-        branch_op = BranchDayOfWeekOperator(
-            task_id="make_choice",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            week_day="Sunday",
-            dag=self.dag,
-        )
-
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        )
-
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        self._assert_task_ids_match_states(
-            dr,
-            {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.SKIPPED,
-                "branch_2": State.NONE,
-            },
-        )
-
-    def test_branch_with_no_weekday(self):
-        """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
-        with pytest.raises(AirflowException):
-            BranchDayOfWeekOperator(
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            branch_op = BranchDayOfWeekOperator(
                 task_id="make_choice",
                 follow_task_ids_if_true="branch_1",
                 follow_task_ids_if_false="branch_2",
-                dag=self.dag,
+                week_day="Wednesday",
+                use_task_logical_date=True,  # We compare to DEFAULT_DATE which is Wednesday
+                dag=dag,
             )
 
-    def test_branch_with_invalid_type(self):
+            self.setup_two_downstream_tasks(dag=dag, branch_op=branch_op)
+
+            dr = dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            )
+
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            self._assert_task_ids_match_states(
+                dr,
+                {
+                    "make_choice": State.SUCCESS,
+                    "branch_1": State.NONE,
+                    "branch_2": State.SKIPPED,
+                },
+            )
+
+    @time_machine.travel("2021-01-25")  # Monday
+    def test_branch_follow_false(self, dag_maker, session):
+        """Checks if BranchDayOfWeekOperator follow false branch"""
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            branch_1 = EmptyOperator(task_id="branch_1", dag=dag)
+            branch_2 = EmptyOperator(task_id="branch_2", dag=dag)
+
+            branch_op = BranchDayOfWeekOperator(
+                task_id="make_choice",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                week_day="Sunday",
+                dag=dag,
+            )
+
+            branch_1.set_upstream(branch_op)
+            branch_2.set_upstream(branch_op)
+
+            dr = dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            )
+
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+            self._assert_task_ids_match_states(
+                dr,
+                {
+                    "make_choice": State.SUCCESS,
+                    "branch_1": State.SKIPPED,
+                    "branch_2": State.NONE,
+                },
+            )
+
+    def test_branch_with_no_weekday(self, dag_maker, session):
+        """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
+        with dag_maker("branch_day_of_week_operator_test", session=session) as dag:
+            with pytest.raises(AirflowException):
+                BranchDayOfWeekOperator(
+                    task_id="make_choice",
+                    follow_task_ids_if_true="branch_1",
+                    follow_task_ids_if_false="branch_2",
+                    dag=dag,
+                    week_day=None,
+                )
+
+    def test_branch_with_invalid_type(self, dag_maker, session):
         """Check if BranchDayOfWeekOperator raises exception on unsupported weekday type"""
         invalid_week_day = 5
-        with pytest.raises(
-            TypeError,
-            match=f"Unsupported Type for week_day parameter: {type(invalid_week_day)}."
-            "Input should be iterable type:"
-            "str, set, list, dict or Weekday enum type",
-        ):
-            BranchDayOfWeekOperator(
-                task_id="make_choice",
-                follow_task_ids_if_true="branch_1",
-                follow_task_ids_if_false="branch_2",
-                week_day=invalid_week_day,
-                dag=self.dag,
-            )
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            with pytest.raises(
+                TypeError,
+                match=f"Unsupported Type for week_day parameter: {type(invalid_week_day)}."
+                "Input should be iterable type:"
+                "str, set, list, dict or Weekday enum type",
+            ):
+                BranchDayOfWeekOperator(
+                    task_id="make_choice",
+                    follow_task_ids_if_true="branch_1",
+                    follow_task_ids_if_false="branch_2",
+                    week_day=invalid_week_day,
+                    dag=dag,
+                )
 
     @pytest.mark.parametrize(
         "_,week_day,fail_msg",
@@ -241,58 +244,63 @@ class TestBranchDayOfWeekOperator:
             ("set", {WeekDay.MONDAY, "Thsday"}, "Thsday"),
         ],
     )
-    def test_weekday_branch_invalid_weekday_value(self, _, week_day, fail_msg):
+    def test_weekday_branch_invalid_weekday_value(self, _, week_day, fail_msg, dag_maker, session):
         """Check if BranchDayOfWeekOperator raises exception on wrong value of weekday"""
-        with pytest.raises(AttributeError, match=f'Invalid Week Day passed: "{fail_msg}"'):
-            BranchDayOfWeekOperator(
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            with pytest.raises(AttributeError, match=f'Invalid Week Day passed: "{fail_msg}"'):
+                BranchDayOfWeekOperator(
+                    task_id="make_choice",
+                    follow_task_ids_if_true="branch_1",
+                    follow_task_ids_if_false="branch_2",
+                    week_day=week_day,
+                    dag=dag,
+                )
+
+    @time_machine.travel("2021-01-25")  # Monday
+    def test_branch_xcom_push_true_branch(self, dag_maker, session):
+        """Check if BranchDayOfWeekOperator push to xcom value of follow_task_ids_if_true"""
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            branch_1 = EmptyOperator(task_id="branch_1", dag=dag)
+            branch_2 = EmptyOperator(task_id="branch_2", dag=dag)
+
+            branch_op = BranchDayOfWeekOperator(
                 task_id="make_choice",
                 follow_task_ids_if_true="branch_1",
                 follow_task_ids_if_false="branch_2",
-                week_day=week_day,
-                dag=self.dag,
+                week_day="Monday",
+                dag=dag,
             )
 
-    @time_machine.travel("2021-01-25")  # Monday
-    def test_branch_xcom_push_true_branch(self):
-        """Check if BranchDayOfWeekOperator push to xcom value of follow_task_ids_if_true"""
-        branch_op = BranchDayOfWeekOperator(
-            task_id="make_choice",
-            follow_task_ids_if_true="branch_1",
-            follow_task_ids_if_false="branch_2",
-            week_day="Monday",
-            dag=self.dag,
-        )
+            branch_1.set_upstream(branch_op)
+            branch_2.set_upstream(branch_op)
 
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+            dr = dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            )
 
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        )
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            tis = dr.get_task_instances()
+            for ti in tis:
+                if ti.task_id == "make_choice":
+                    assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
 
-        tis = dr.get_task_instances()
-        for ti in tis:
-            if ti.task_id == "make_choice":
-                assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
-
-    def test_deprecation_warning(self):
+    def test_deprecation_warning(self, dag_maker, session):
         warning_message = (
             """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
         )
-        with pytest.warns(DeprecationWarning) as warnings:
-            BranchDayOfWeekOperator(
-                task_id="week_day_warn",
-                follow_task_ids_if_true="branch_1",
-                follow_task_ids_if_false="branch_2",
-                week_day="Monday",
-                use_task_execution_day=True,
-                dag=self.dag,
-            )
-        assert warning_message == str(warnings[0].message)
+        with dag_maker(dag_id="branch_day_of_week_operator_test", session=session) as dag:
+            with pytest.warns(DeprecationWarning) as warnings:
+                BranchDayOfWeekOperator(
+                    task_id="week_day_warn",
+                    follow_task_ids_if_true="branch_1",
+                    follow_task_ids_if_false="branch_2",
+                    week_day="Monday",
+                    use_task_execution_day=True,
+                    dag=dag,
+                )
+            assert warning_message == str(warnings[0].message)
