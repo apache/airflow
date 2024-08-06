@@ -232,7 +232,7 @@ def test_incorrect_params_wrong_format():
 
 
 @pytest.mark.db_test
-def test_templating(create_task_instance_of_operator):
+def test_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         DatabricksCopyIntoOperator,
         # Templated fields

@@ -203,7 +203,7 @@ class FileTaskHandler(logging.Handler):
                 RemovedInAirflow3Warning,
                 # We want to reference the stack that actually instantiates the
                 # handler, not the one that calls super()__init__.
-                stacklevel=(2 if type(self) == FileTaskHandler else 3),
+                stacklevel=(2 if isinstance(self, FileTaskHandler) else 3),
             )
         self.maintain_propagate: bool = False
         self.max_bytes = max_bytes
@@ -383,26 +383,26 @@ class FileTaskHandler(logging.Handler):
         executor_logs: list[str] = []
         served_logs: list[str] = []
 
-        is_in_running_or_deferred = ti.state in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
-        is_up_for_retry = ti.state == TaskInstanceState.UP_FOR_RETRY
-
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
+        has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
             response = self._executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
                 messages_list.extend(executor_messages)
+                has_k8s_exec_pod = True
         if not (remote_logs and ti.state not in State.unfinished):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if (is_in_running_or_deferred or is_up_for_retry) and not executor_messages and not remote_logs:
+        if (
+            ti.state
+            in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RETRY)
+            and not has_k8s_exec_pod
+        ):
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):

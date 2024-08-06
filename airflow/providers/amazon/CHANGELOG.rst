@@ -42,6 +42,8 @@ Bug Fixes
 * ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
 * ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
 * ``Fix 'RedshiftCreateClusterOperator' to always specify 'PubliclyAccessible' (#40872)``
+* ``Fix Redshift cluster operators and sensors using deferrable mode (#41191)``
+* ``Fix 'EmrServerlessStartJobOperator' with deferrable mode (#41103)``
 
 Misc
 ~~~~
@@ -51,10 +53,11 @@ Misc
 * ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
 * ``Move AWS Managed Service for Apache Flink sensor states to Hook (#40896)``
 * ``Replace usages of task context logger with the log table (#40867)``
-
+* ``Deprecate 'SageMakerTrainingPrintLogTrigger' (#41158)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
 
 8.26.0
 ......

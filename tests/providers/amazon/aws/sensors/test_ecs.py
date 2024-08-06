@@ -44,15 +44,18 @@ TEST_CLUSTER_NAME = "fake-cluster"
 TEST_TASK_ARN = "arn:aws:ecs:us-east-1:012345678910:task/spam-egg"
 TEST_TASK_DEFINITION_ARN = "arn:aws:ecs:us-east-1:012345678910:task-definition/foo-bar:42"
 
+pytestmark = pytest.mark.db_test
+
 
 class EcsBaseTestCase:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator):
+    def setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator, session):
         self.dag_id = f"dag-{slugify(request.cls.__name__)}"
         self.task_id = f"task-{slugify(request.node.name, max_length=40)}"
         self.fake_client = boto3.client("ecs", region_name="eu-west-3")
         monkeypatch.setattr(EcsHook, "conn", self.fake_client)
         self.ti_maker = create_task_instance_of_operator
+        self.session = session
 
     def create_rendered_task(self, operator_class: type[_Operator], **kwargs) -> _Operator:
         """
@@ -60,13 +63,16 @@ class EcsBaseTestCase:
 
         This might help to prevent of unexpected behaviour in Jinja/task field serialisation
         """
-        return self.ti_maker(
+        ti = self.ti_maker(
             operator_class,
             dag_id=self.dag_id,
             task_id=self.task_id,
             execution_date=timezone.datetime(2021, 12, 21),
             **kwargs,
-        ).render_templates()
+        )
+        self.session.add(ti)
+        self.session.commit()
+        return ti.render_templates()
 
 
 class TestEcsBaseSensor(EcsBaseTestCase):
@@ -98,7 +104,6 @@ class TestEcsBaseSensor(EcsBaseTestCase):
         assert client is self.fake_client
 
 
-@pytest.mark.db_test
 class TestEcsClusterStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected", [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)]
@@ -159,7 +164,6 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
 
-@pytest.mark.db_test
 class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected", [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)]
@@ -192,7 +196,6 @@ class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(task_definition=TEST_TASK_DEFINITION_ARN)
 
 
-@pytest.mark.db_test
 class TestEcsTaskStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected",

@@ -32,7 +32,7 @@ class TaskNotRunningDep(BaseTIDep):
 
     def __eq__(self, other):
         """Check if two task instance dependencies are of the same type."""
-        return type(self) == type(other)
+        return type(self) is type(other)
 
     def __hash__(self):
         """Compute the hash value based on the type of the task instance dependency."""
