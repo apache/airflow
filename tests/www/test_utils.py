@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 import re
 import time
 from datetime import datetime
@@ -761,3 +762,7 @@ class TestWidgets:
 
         assert 'readonly="true"' in html_output
         assert "form-control" in html_output
+
+
+def is_db_isolation_mode():
+    return os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true"
