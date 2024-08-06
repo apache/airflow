@@ -183,7 +183,7 @@ def get_log_pages(
     if ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY}:
         return {"total_pages": 1}
 
-    # Fetch s3 log content length, change this to be generic in the future
+    # Added generic abstract class, LogContentReader
     log_key = f"{dag_id}/{dag_run_id}/{task_id}/{key}"  # Updated to use key parameter
     page_size_kb = 100  # Hardcoded page size in KB for now
     page_size_bytes = page_size_kb * 1024
