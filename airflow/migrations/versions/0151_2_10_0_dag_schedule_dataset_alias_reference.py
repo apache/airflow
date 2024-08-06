@@ -31,6 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 import airflow
+from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
 revision = "22ed7efa9da2"
@@ -45,11 +46,20 @@ def upgrade():
     op.create_table(
         "dag_schedule_dataset_alias_reference",
         sa.Column("alias_id", sa.Integer(), nullable=False),
-        sa.Column("dag_id", sa.String(length=250), nullable=False),
+        sa.Column("dag_id", StringID(), primary_key=True, nullable=False),
         sa.Column("created_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
-            ["alias_id"], ["dataset_alias.id"], name="dsdar_dataset_alias_fkey", ondelete="CASCADE"
+            ("alias_id",),
+            ["dataset_alias.id"],
+            name="dsdar_dataset_fkey",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            columns=("dag_id",),
+            refcolumns=["dag.dag_id"],
+            name="dsdar_dag_id_fkey",
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
     )
@@ -59,8 +69,6 @@ def upgrade():
         ["dag_id"],
         unique=False,
     )
-    with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
-        batch_op.create_foreign_key("dsdar_dag_fkey", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")
 
 
 def downgrade():
