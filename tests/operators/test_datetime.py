@@ -53,7 +53,6 @@ class TestBranchDateTimeOperator:
 
     @pytest.fixture(autouse=True)
     def base_tests_setup(self, dag_maker):
-        self.dag_maker = dag_maker
         with dag_maker(
             "branch_datetime_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -231,11 +230,11 @@ class TestBranchDateTimeOperator:
         targets,
     )
     @time_machine.travel("2020-12-01 09:00:00")
-    def test_branch_datetime_operator_use_task_logical_date(self, target_lower, target_upper):
+    def test_branch_datetime_operator_use_task_logical_date(self, dag_maker, target_lower, target_upper):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
         self.branch_op.use_task_logical_date = True
-        self.dr = self.dag_maker.create_dagrun(
+        self.dr = dag_maker.create_dagrun(
             run_id="manual_exec_date__",
             start_date=in_between_date,
             execution_date=in_between_date,
