@@ -27,6 +27,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
     DagScheduleDatasetAliasReference,
     DagScheduleDatasetReference,
@@ -112,9 +113,10 @@ class DatasetManager(LoggingMixin):
         dataset_event = DatasetEvent(**event_kwargs)
         session.add(dataset_event)
 
-        dags_to_queue = {
+        dags_to_queue_from_dataset = {
             ref.dag for ref in dataset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
         }
+        dags_to_queue_from_dataset_alias = set()
         if source_alias_names:
             dataset_alias_models = session.scalars(
                 select(DatasetAliasModel)
@@ -130,17 +132,25 @@ class DatasetManager(LoggingMixin):
                 dsa.dataset_events.append(dataset_event)
                 session.add(dsa)
 
-                dags_to_queue |= {
+                dags_to_queue_from_dataset_alias |= {
                     alias_ref.dag
                     for alias_ref in dsa.consuming_dags
                     if alias_ref.dag.is_active and not alias_ref.dag.is_paused
                 }
+
+        dags_to_reparse = dags_to_queue_from_dataset_alias - dags_to_queue_from_dataset
+        if dags_to_reparse:
+            session.add_all(
+                DagPriorityParsingRequest(fileloc=fileloc)
+                for fileloc in {dag.fileloc for dag in dags_to_reparse}
+            )
         session.flush()
 
         cls.notify_dataset_changed(dataset=dataset)
 
         Stats.incr("dataset.updates")
 
+        dags_to_queue = dags_to_queue_from_dataset | dags_to_queue_from_dataset_alias
         cls._queue_dagruns(dataset_id=dataset_model.id, dags_to_queue=dags_to_queue, session=session)
         session.flush()
         return dataset_event
