@@ -1337,7 +1337,6 @@ class TestStringifiedDAGs:
             "wait_for_past_depends_before_skipping": False,
             "weight_rule": _DownstreamPriorityWeightStrategy(),
             "multiple_outputs": False,
-            "execute_on_success_callback_when_skipped": True,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

@@ -4038,8 +4038,7 @@ class TestTaskInstance:
 
         assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
-    @pytest.mark.parametrize("execute_on_success_callback_when_skipped", [True, False])
-    def test_skipped_task_call_on_skipped_callback(self, dag_maker, execute_on_success_callback_when_skipped):
+    def test_skipped_task_call_on_skipped_callback(self, dag_maker):
         def raise_skip_exception():
             raise AirflowSkipException
 
@@ -4055,7 +4054,6 @@ class TestTaskInstance:
                 python_callable=raise_skip_exception,
                 on_skipped_callback=on_skipped_callback_function,
                 on_success_callback=on_success_callback_function,
-                execute_on_success_callback_when_skipped=execute_on_success_callback_when_skipped,
             )
         dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         ti = dr.task_instances[0]
@@ -4063,10 +4061,7 @@ class TestTaskInstance:
         ti.run()
         assert State.SKIPPED == ti.state
         on_skipped_callback_function.assert_called_once()
-        if execute_on_success_callback_when_skipped:
-            on_success_callback_function.assert_called_once()
-        else:
-            on_success_callback_function.assert_not_called()
+        on_success_callback_function.assert_not_called()
 
     def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
         with dag_maker(serialized=True):
