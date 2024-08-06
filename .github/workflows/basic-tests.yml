@@ -65,8 +65,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - uses: actions/checkout@v4
         with:
           # Need to fetch all history for selective checks tests
@@ -90,8 +89,7 @@ jobs:
     if: inputs.run-www-tests == 'true'
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -119,8 +117,7 @@ jobs:
     if: inputs.needs-api-codegen == 'true'
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -209,8 +206,7 @@ jobs:
     if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -278,8 +274,7 @@ jobs:
     if: inputs.canary-run == 'true' && inputs.latest-versions-only != 'true'
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -350,8 +345,7 @@ jobs:
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:

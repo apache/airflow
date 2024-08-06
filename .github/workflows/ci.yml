@@ -130,8 +130,7 @@ jobs:
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -217,8 +216,7 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
         if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
@@ -563,8 +561,7 @@ jobs:
       IMAGE_TAG: ${{ needs.build-info.outputs.image-tag }}
     steps:
       - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        uses: ./.github/actions/pre_tests_cleanup_repo
         if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
