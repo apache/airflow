@@ -90,7 +90,7 @@ class TestKubernetesJobOperator:
 
         patch.stopall()
 
-    def test_templates(self, create_task_instance_of_operator):
+    def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesJobOperator"
         ti = create_task_instance_of_operator(
             KubernetesJobOperator,
@@ -117,6 +117,9 @@ class TestKubernetesJobOperator:
             image="{{ dag.dag_id }}",
             annotations={"dag-id": "{{ dag.dag_id }}"},
         )
+
+        session.add(ti)
+        session.commit()
 
         rendered = ti.render_templates()
 

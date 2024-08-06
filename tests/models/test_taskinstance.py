@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import logging
 import operator
 import os
 import pathlib
@@ -5140,3 +5141,18 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
+
+
+@mock.patch("airflow.models.taskinstance.TaskInstance._schedule_downstream_tasks")
+def test_swallow_mini_scheduler_exceptions(_schedule_downstream_mock, create_task_instance, caplog):
+    _schedule_downstream_mock.side_effect = Exception("To be swallowed")
+    caplog.set_level(logging.ERROR)
+    ti = create_task_instance(
+        dag_id="dag_for_testing_swallowing_exception",
+        task_id="task_for_testing_swallowing_exception",
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+    )
+    ti.schedule_downstream_tasks()
+    assert "Error scheduling downstream tasks." in caplog.text
+    assert "To be swallowed" in caplog.text
