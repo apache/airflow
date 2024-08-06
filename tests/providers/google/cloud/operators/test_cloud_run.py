@@ -44,6 +44,7 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+SERVICE = Service()
 SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
@@ -402,6 +403,7 @@ class TestCloudRunCreateServiceOperator:
             task_id=TASK_ID,
             project_id=PROJECT_ID,
             region=REGION,
+            service=SERVICE,
             service_name=SERVICE_NAME,
         )
 
@@ -416,12 +418,14 @@ class TestCloudRunCreateServiceOperator:
             task_id=TASK_ID,
             project_id=PROJECT_ID,
             region=REGION,
+            service=SERVICE,
             service_name=SERVICE_NAME,
         )
 
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.create_service.assert_called_once_with(
+            service=SERVICE,
             service_name=SERVICE_NAME,
             region=REGION,
             project_id=PROJECT_ID,
