@@ -29,6 +29,7 @@ from google.cloud.run_v2 import (
     Job,
     ListJobsRequest,
     RunJobRequest,
+    Service,
     UpdateJobRequest,
 )
 
@@ -323,13 +324,16 @@ class TestCloudRunServiceHook:
         service_name = "service1"
         region = "region1"
         project_id = "projectid"
+        service = Service()
 
-        create_request = CreateServiceRequest(
-            service_id=service_name,
-            parent=f"projects/{project_id}/locations/{region}",
+        create_request = CreateServiceRequest()
+        create_request.service = service
+        create_request.service_id = service_name
+        create_request.parent = f"projects/{project_id}/locations/{region}"
+
+        cloud_run_service_hook.create_service(
+            service=service, service_name=service_name, region=region, project_id=project_id
         )
-
-        cloud_run_service_hook.create_service(service_name=service_name, region=region, project_id=project_id)
         cloud_run_service_hook._client.create_service.assert_called_once_with(create_request)
 
     @mock.patch(
@@ -372,11 +376,13 @@ class TestCloudRunServiceAsyncHook:
 
         await hook.create_service(
             service_name="service1",
+            service=Service(),
             region="region1",
             project_id="projectid",
         )
 
         expected_request = CreateServiceRequest(
+            service=Service(),
             service_id="service1",
             parent="projects/projectid/locations/region1",
         )

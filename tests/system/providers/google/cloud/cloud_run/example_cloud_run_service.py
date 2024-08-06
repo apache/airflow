@@ -24,8 +24,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.run_v2 import Service
+from google.cloud.run_v2.types import k8s_min
+
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateServiceOperator,
     CloudRunDeleteServiceOperator,
@@ -33,59 +35,53 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_cloud_run_service"
-
-region = "us-central1"
-service_name_prefix = "cloudrun-system-test-service"
-service_name = f"{service_name_prefix}"
-
-create_task_name = "create-service"
-delete_task_name = "delete-service"
 
 
-def _assert_created_services_xcom(ti):
-    service1_dicts = ti.xcom_pull(task_ids=[create_task_name], key="return_value")
-    assert service_name in service1_dicts[0]["name"]
+# [START howto_operator_cloud_run_service_creation]
+def _create_service():
+    service = Service()
+    container = k8s_min.Container()
+    container.image = "us-docker.pkg.dev/cloudrun/container/placeholder:latest"
+    service.template.containers.append(container)
+    return service
+
+
+# [END howto_operator_cloud_run_service_creation]
 
 
 with DAG(
-    DAG_ID,
+    "example_cloud_run_service",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["cloud-run-service-example"],
 ) as dag:
     # [START howto_operator_cloud_run_create_service]
-    create1 = CloudRunCreateServiceOperator(
-        task_id=create_task_name,
+    create_cloud_run_service = CloudRunCreateServiceOperator(
+        task_id="create-cloud-run-service",
         project_id=PROJECT_ID,
-        region=region,
-        service_name=service_name,
-        dag=dag,
+        region="us-central1",
+        service=_create_service(),
+        service_name="cloudrun-system-test-service",
     )
     # [END howto_operator_cloud_run_create_service]
 
-    assert_created_jobs = PythonOperator(
-        task_id="assert-created-services", python_callable=_assert_created_services_xcom, dag=dag
-    )
-
     # [START howto_operator_cloud_run_delete_service]
-    delete_service = CloudRunDeleteServiceOperator(
-        task_id="delete-service1",
+    delete_cloud_run_service = CloudRunDeleteServiceOperator(
+        task_id="delete-cloud-run-service",
         project_id=PROJECT_ID,
-        region=region,
-        service_name=service_name,
+        region="us-central1",
+        service_name="cloudrun-system-test-service",
         dag=dag,
     )
     # [END howto_operator_cloud_run_delete_service]
 
     (
         # TEST SETUP
-        create1
         # TEST BODY
-        >> assert_created_jobs
+        create_cloud_run_service
         # TEST TEARDOWN
-        >> delete_service
+        >> delete_cloud_run_service
     )
 
     from tests.system.utils.watcher import watcher
