@@ -298,7 +298,7 @@ class Dataset(os.PathLike, BaseDataset):
         yield self.uri, self
 
     def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
-        raise StopIteration()
+        return iter(())
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
@@ -345,10 +345,7 @@ class _DatasetBooleanCondition(BaseDataset):
     def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
         """Filter dataest aliases in the condition."""
         for o in self.objects:
-            if isinstance(o, _DatasetAliasCondition):
-                yield DatasetAlias(o.name)
-            elif isinstance(o, (DatasetAny, DatasetAll)):
-                yield from o.iter_dataset_aliases()
+            yield from o.iter_dataset_aliases()
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
