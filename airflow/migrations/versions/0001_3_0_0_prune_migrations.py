@@ -15,31 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Add ``conf`` column in ``dag_run`` table.
 
-Revision ID: 40e67319e3a9
-Revises: 2e541a1dcfed
-Create Date: 2015-10-29 08:36:31.726728
+"""
+prune migrations.
+
+Revision ID: ff6b78394492
+Revises:
+Create Date: 2024-07-30 08:49:22.066688
 
 """
 
 from __future__ import annotations
 
-import sqlalchemy as sa
-from alembic import op
-
 # revision identifiers, used by Alembic.
-revision = "40e67319e3a9"
-down_revision = "2e541a1dcfed"
+revision = "ff6b78394492"
+down_revision = None
 branch_labels = None
 depends_on = None
-airflow_version = "1.6.0"
+airflow_version = "3.0.0"
 
 
 def upgrade():
-    op.add_column("dag_run", sa.Column("conf", sa.PickleType(), nullable=True))
+    """Apply prune migrations."""
+    pass
 
 
 def downgrade():
-    op.drop_column("dag_run", "conf")
+    """Unapply prune migrations."""
+    pass
