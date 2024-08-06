@@ -84,15 +84,29 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     :param dynamodb_table_name: Dynamodb table to replicate data from
     :param s3_bucket_name: S3 bucket to replicate data to
+    :param s3_bucket_owner: The ID of the Amazon Web Services account that owns the bucket the export will be stored in.
+    (NOTE: S3BucketOwner is a required parameter when exporting to a S3 bucket in another account.)
     :param file_size: Flush file to s3 if file size >= file_size
     :param dynamodb_scan_kwargs: kwargs pass to
         <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transform a dynamodb item to bytes. By default, we dump the json
+    :param point_in_time_export: Boolean value indicating the operator to use 'scan' or 'point in time export'
     :param export_time: Time in the past from which to export table data, counted in seconds from the start of
      the Unix epoch. The table export will be a snapshot of the table's state at this point in time.
     :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
      or ION.
+    :param export_type: Choice of whether to execute as a full export or incremental export. Valid values are FULL_EXPORT
+    or INCREMENTAL_EXPORT. The default value is FULL_EXPORT. If INCREMENTAL_EXPORT is provided, the IncrementalExportSpecification
+    must also be used (incremental_export_from_time, incremental_export_to_time, incremental_export_view_type).
+    :param incremental_export_from_time: Time in the past which provides the inclusive start range for the export table’s data,
+    counted in seconds from the start of the Unix epoch. The incremental export will reflect the table’s state including and after
+    this point in time.
+    :param incremental_export_to_time: Time in the past which provides the exclusive end range for the export table’s data,
+    counted in seconds from the start of the Unix epoch. The incremental export will reflect the table’s state just prior to
+    this point in time. If this is not provided, the latest time with data available will be used.
+    :param incremental_export_view_type: The view type that was chosen for the export. Valid values are NEW_AND_OLD_IMAGES
+    and NEW_IMAGES. The default value is NEW_AND_OLD_IMAGES.
     :param check_interval: The amount of time in seconds to wait between attempts. Only if ``export_time`` is
         provided.
     :param max_attempts: The maximum number of attempts to be made. Only if ``export_time`` is provided.
@@ -120,12 +134,18 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         *,
         dynamodb_table_name: str,
         s3_bucket_name: str,
+        s3_bucket_owner: str,
         file_size: int,
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
+        point_in_time_export: bool = False,
         export_time: datetime | None = None,
         export_format: str = "DYNAMODB_JSON",
+        export_type: str = "FULL_EXPORT",
+        incremental_export_from_time: datetime | None = None,
+        incremental_export_to_time: datetime | None = None,
+        incremental_export_view_type: str = "NEW_AND_OLD_IMAGES",
         check_interval: int = 30,
         max_attempts: int = 60,
         **kwargs,
@@ -137,8 +157,14 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
+        self.s3_bucket_owner = s3_bucket_owner
+        self.point_in_time_export = point_in_time_export
         self.export_time = export_time
         self.export_format = export_format
+        self.export_type = export_type
+        self.incremental_export_from_time = incremental_export_from_time
+        self.incremental_export_to_time = incremental_export_to_time
+        self.incremental_export_view_type = incremental_export_view_type
         self.check_interval = check_interval
         self.max_attempts = max_attempts
 
@@ -148,7 +174,13 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:
-        if self.export_time:
+        # There are 2 seperate export to point in time configuration:
+        # 1. Full export, which takes the export_time arg.
+        # 2. Incremental export, which takes the incremental_export_... args
+        # Hence export could not be used as the proper indicator for the _export_table_to_point_in_time func
+        # This change introduces a new boolean, as the indicator for whether the operator scans and export
+        # entire data or using the point in time functionality.
+        if self.point_in_time_export:
             self._export_table_to_point_in_time()
         else:
             self._export_entire_data()
@@ -158,19 +190,38 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         Export data from start of epoc till `export_time`.
 
         Table export will be a snapshot of the table's state at this point in time.
+
+        Note: S3BucketOwner is a required parameter when exporting to a S3 bucket in another account.
         """
         if self.export_time and self.export_time > datetime.now(self.export_time.tzinfo):
             raise ValueError("The export_time parameter cannot be a future time.")
 
         client = self.hook.conn.meta.client
         table_description = client.describe_table(TableName=self.dynamodb_table_name)
-        response = client.export_table_to_point_in_time(
-            TableArn=table_description.get("Table", {}).get("TableArn"),
-            ExportTime=self.export_time,
-            S3Bucket=self.s3_bucket_name,
-            S3Prefix=self.s3_key_prefix,
-            ExportFormat=self.export_format,
-        )
+
+        export_table_to_point_in_time_args = {
+            "TableArn": table_description.get("Table", {}).get("TableArn"),
+            "ExportTime": self.export_time,
+            "S3Bucket": self.s3_bucket_name,
+            "S3Prefix": self.s3_key_prefix,
+            "S3BucketOwner": self.s3_bucket_owner,
+            "ExportFormat": self.export_format,
+            "ExportType": self.export_type,
+            "IncrementalExportSpecification": {
+                "ExportFromTime": self.incremental_export_from_time,
+                "ExportToTime": self.incremental_export_to_time,
+                "ExportViewType": self.incremental_export_view_type,
+            },
+        }
+        args_filtered = {
+            key: value for key, value in export_table_to_point_in_time_args.items() if value is not None
+        }
+
+        if self.export_type == "FULL_EXPORT":
+            # If it is a full export, no need to pass any incremental export specification.
+            del args_filtered["IncrementalExportSpecification"]
+
+        response = client.export_table_to_point_in_time(**args_filtered)
         waiter = self.hook.get_waiter("export_table")
         export_arn = response.get("ExportDescription", {}).get("ExportArn")
         waiter.wait(
