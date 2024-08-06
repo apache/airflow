@@ -1143,12 +1143,13 @@ def create_serialized_task_instance_of_operator(dag_maker):
 
 
 @pytest.fixture
-def create_task_instance_of_operator(dag_maker, session):
+def create_task_instance_of_operator(dag_maker):
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
         execution_date=None,
+        session=None,
         **operator_kwargs,
     ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
