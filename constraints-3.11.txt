@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-06T02:09:07.306594
+# This constraints file was automatically generated on 2024-08-06T13:49:27.300750
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -85,7 +85,7 @@ alibabacloud_credentials==0.3.5
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.2
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.10
+alibabacloud_tea_openapi==0.3.11
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.15.1
@@ -680,7 +680,7 @@ termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.14.2
+time-machine==2.15.0
 tomli_w==1.0.0
 tomlkit==0.13.0
 tornado==6.4.1
@@ -706,9 +706,9 @@ types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240316
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
-types-redis==4.6.0.20240726
+types-redis==4.6.0.20240806
 types-requests==2.32.0.20240712
-types-setuptools==71.1.0.20240726
+types-setuptools==71.1.0.20240806
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -743,5 +743,5 @@ zeep==4.2.1
 zenpy==2.0.49
 zipp==3.19.2
 zope.event==5.0
-zope.interface==6.4.post2
+zope.interface==7.0
 zstandard==0.23.0
