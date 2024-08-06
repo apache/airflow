@@ -99,11 +99,11 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param export_type: Choice of whether to execute as a full export or incremental export. Valid values are FULL_EXPORT
     or INCREMENTAL_EXPORT. The default value is FULL_EXPORT. If INCREMENTAL_EXPORT is provided, the IncrementalExportSpecification
     must also be used (incremental_export_from_time, incremental_export_to_time, incremental_export_view_type).
-    :param incremental_export_from_time: Time in the past which provides the inclusive start range for the export table’s data,
-    counted in seconds from the start of the Unix epoch. The incremental export will reflect the table’s state including and after
+    :param incremental_export_from_time: Time in the past which provides the inclusive start range for the export table's data,
+    counted in seconds from the start of the Unix epoch. The incremental export will reflect the table's state including and after
     this point in time.
-    :param incremental_export_to_time: Time in the past which provides the exclusive end range for the export table’s data,
-    counted in seconds from the start of the Unix epoch. The incremental export will reflect the table’s state just prior to
+    :param incremental_export_to_time: Time in the past which provides the exclusive end range for the export table's data,
+    counted in seconds from the start of the Unix epoch. The incremental export will reflect the table's state just prior to
     this point in time. If this is not provided, the latest time with data available will be used.
     :param incremental_export_view_type: The view type that was chosen for the export. Valid values are NEW_AND_OLD_IMAGES
     and NEW_IMAGES. The default value is NEW_AND_OLD_IMAGES.
