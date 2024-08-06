@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import signal
 from datetime import datetime, timedelta
@@ -227,6 +228,16 @@ class TestBashOperator:
             output_encoding="utf-8",
         )
         op.execute(context)
+
+    def test_bash_operator_output_processor(self, context):
+        json_string = '{"AAD_BASIC": "Azure Active Directory Basic"}'
+        op = BashOperator(
+            task_id="test_bash_operator_output_processor",
+            bash_command=f"echo '{json_string}'",
+            output_processor=lambda output: json.loads(output),
+        )
+        result = op.execute(context)
+        assert result == json.loads(json_string)
 
     @pytest.mark.db_test
     def test_bash_operator_kill(self, dag_maker):

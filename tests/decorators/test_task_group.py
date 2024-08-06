@@ -111,7 +111,7 @@ def test_partial_evolves_factory():
 
     assert d.task_group_dict == {}  # Calling partial() without expanding does not create a task group.
 
-    assert type(tgp) == type(tg)
+    assert type(tgp) is type(tg)
     assert tgp.partial_kwargs == {"a": 1}  # Partial kwargs are saved.
 
     # Warn if the partial object goes out of scope without being mapped.

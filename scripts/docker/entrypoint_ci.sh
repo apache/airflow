@@ -242,11 +242,16 @@ function check_boto_upgrade() {
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud || true
     # We need to include few dependencies to pass pip check with other dependencies:
     #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
     #   * gcloud-aio-auth limit is needed to be included as it bumps cryptography (sync with google provider)
     #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
+    #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
+    #   Both requests and yandexcloud exclusion above might be removed after
+    #   https://github.com/apache/beam/issues/32080 is addressed
+    #   When you remove yandexcloud from the above list, also remove it from "test_example_dags.py"
+    #   in "tests/always".
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \

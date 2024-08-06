@@ -88,6 +88,8 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
 
     dr = dag_maker.create_dagrun()
     (ti,) = dr.task_instances
+    session.add(ti)
+    session.commit()
     dag.get_task("f").execute(context=ti.get_template_context(session=session))
     mock_hook.assert_called_once_with(
         conn_id="kubernetes_default",
@@ -134,7 +136,8 @@ def test_kubernetes_with_input_output(
 
     dr = dag_maker.create_dagrun()
     (ti,) = dr.task_instances
-
+    session.add(dr)
+    session.commit()
     dag.get_task("my_task_id").execute(context=ti.get_template_context(session=session))
 
     mock_hook.assert_called_once_with(
@@ -212,6 +215,8 @@ def test_kubernetes_with_marked_as_teardown(
     assert teardown_task.is_teardown
 
 
+# Database isolation mode does not support mini-scheduler
+@pytest.mark.skip_if_database_isolation_mode
 def test_kubernetes_with_mini_scheduler(
     dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
 ) -> None:
@@ -231,6 +236,5 @@ def test_kubernetes_with_mini_scheduler(
 
     dr = dag_maker.create_dagrun()
     (ti, _) = dr.task_instances
-
     # check that mini-scheduler works
     ti.schedule_downstream_tasks()

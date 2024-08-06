@@ -35,6 +35,7 @@ type CardProps = {
 };
 
 const gridUrl = getMetaValue("grid_url");
+const dagId = getMetaValue("dag_id");
 
 const TriggeredDagRuns = ({ createdDagRuns, showLink = true }: CardProps) => {
   const containerRef = useContainerRef();
@@ -43,11 +44,10 @@ const TriggeredDagRuns = ({ createdDagRuns, showLink = true }: CardProps) => {
     <Flex alignItems="center">
       {createdDagRuns.map((run) => {
         const runId = (run as any).dagRunId; // For some reason the type is wrong here
-        const splitGridUrl = gridUrl.split("/");
-        splitGridUrl[2] = run.dagId || "";
-        const url = `${splitGridUrl.join("/")}?dag_run_id=${encodeURIComponent(
-          runId
-        )}`;
+        const url = `${gridUrl.replace(
+          dagId,
+          run.dagId || ""
+        )}?dag_run_id=${encodeURIComponent(runId)}`;
 
         return (
           <Tooltip

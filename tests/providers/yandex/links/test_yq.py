@@ -18,10 +18,14 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.yandex.links.yq import YQLink
 from tests.test_utils.mock_operators import MockOperator
+
+yandexcloud = pytest.importorskip("yandexcloud")
 
 
 def test_persist():

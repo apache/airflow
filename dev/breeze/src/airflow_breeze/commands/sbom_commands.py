@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import sys
@@ -25,12 +26,14 @@ from pathlib import Path
 import click
 
 from airflow_breeze.commands.common_options import (
+    option_airflow_version,
     option_answer,
     option_debug_resources,
     option_dry_run,
     option_historical_python_version,
     option_include_success_outputs,
     option_parallelism,
+    option_python,
     option_run_in_parallel,
     option_skip_cleanup,
     option_verbose,
@@ -38,6 +41,7 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
+    DEVEL_DEPS_PATH,
     PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
@@ -46,9 +50,12 @@ from airflow_breeze.utils.cdxgen import (
     SbomCoreJob,
     SbomProviderJob,
     build_all_airflow_versions_base_image,
+    convert_sbom_to_csv,
     get_cdxgen_port_mapping,
+    get_field_names,
     get_requirements_for_provider,
     list_providers_from_providers_requirements,
+    normalize_package_name,
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -627,3 +634,82 @@ def generate_providers_requirements(
                 force=force,
                 output=None,
             )
+
+
+@sbom.command(name="export-dependency-information", help="Export dependency information from SBOM.")
+@option_airflow_version
+@option_python
+@click.option(
+    "-f",
+    "--csv-file",
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=True),
+    help="CSV file to produce.",
+    envvar="CSV_FILE",
+    required=True,
+)
+@click.option(
+    "-s",
+    "--include-open-psf-scorecard",
+    is_flag=True,
+    default=False,
+)
+@option_dry_run
+@option_answer
+def export_dependency_information(
+    python: str,
+    airflow_version: str,
+    csv_file: Path,
+    include_open_psf_scorecard: bool,
+):
+    import requests
+
+    base_url = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}/sbom"
+    sbom_file_base = f"apache-airflow-sbom-{airflow_version}-python{python}-python-only"
+
+    sbom_core_url = f"{base_url}/{sbom_file_base}.json"
+    sbom_full_url = f"{base_url}/{sbom_file_base}-full.json"
+    core_sbom_r = requests.get(sbom_core_url)
+    core_sbom_r.raise_for_status()
+    full_sbom_r = requests.get(sbom_full_url)
+    full_sbom_r.raise_for_status()
+
+    core_dependencies = set()
+
+    core_sbom = core_sbom_r.json()
+
+    full_sbom = full_sbom_r.json()
+
+    dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
+    num_deps = 0
+    with csv_file.open("w") as csvfile:
+        fieldnames = get_field_names(include_open_psf_scorecard)
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for dependency in core_sbom["components"]:
+            name = dependency["name"]
+            normalized_name = normalize_package_name(name)
+            core_dependencies.add(normalized_name)
+            is_devel = normalized_name in dev_deps
+            convert_sbom_to_csv(
+                writer,
+                dependency,
+                is_core=True,
+                is_devel=is_devel,
+                include_open_psf_scorecard=include_open_psf_scorecard,
+            )
+            num_deps += 1
+        for dependency in full_sbom["components"]:
+            name = dependency["name"]
+            normalized_name = normalize_package_name(name)
+            if normalized_name not in core_dependencies:
+                is_devel = normalized_name in dev_deps
+                convert_sbom_to_csv(
+                    writer,
+                    dependency,
+                    is_core=False,
+                    is_devel=is_devel,
+                    include_open_psf_scorecard=include_open_psf_scorecard,
+                )
+                num_deps += 1
+
+    get_console().print(f"[info]Exported {num_deps} dependencies to {csv_file}")

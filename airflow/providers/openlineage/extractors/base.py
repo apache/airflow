@@ -113,7 +113,7 @@ class DefaultExtractor(BaseExtractor):
                 "Operator %s does not have the get_openlineage_facets_on_start method.",
                 self.operator.task_type,
             )
-            return None
+            return OperatorLineage()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         failed_states = [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]
