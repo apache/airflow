@@ -121,7 +121,7 @@ def initialize_method_map() -> dict[str, Callable]:
         MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
-        XCom.get_many,
+        # XCom.get_many, # Not supported because it returns query
         XCom.clear,
         XCom.set,
         Variable.set,
