@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-01T12:23:19.148763
+# This constraints file was automatically generated on 2024-08-06T13:15:27.920116
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -36,7 +36,7 @@ MarkupSafe==2.1.5
 PyAthena==3.8.3
 PyGithub==2.3.0
 PyHive==0.7.0
-PyJWT==2.8.0
+PyJWT==2.9.0
 PyNaCl==1.5.0
 PyYAML==6.0.1
 Pygments==2.18.0
@@ -52,7 +52,7 @@ adlfs==2024.7.0
 aiobotocore==2.13.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.3.4
-aiohttp==3.10.0
+aiohttp==3.10.1
 aioitertools==0.11.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -64,7 +64,7 @@ alibabacloud_credentials==0.3.5
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.2
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.10
+alibabacloud_tea_openapi==0.3.11
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.15.1
@@ -75,7 +75,7 @@ annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
 anyio==4.4.0
-apache-beam==2.57.0
+apache-beam==2.56.0
 apispec==6.6.1
 apprise==1.8.1
 argcomplete==3.4.0
@@ -88,7 +88,7 @@ async-timeout==4.0.3
 asyncssh==2.15.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.14
-attrs==23.2.0
+attrs==24.1.0
 aws-sam-translator==1.89.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
@@ -122,7 +122,7 @@ bcrypt==4.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
-black==24.4.2
+black==24.8.0
 blinker==1.8.2
 boto3==1.34.131
 botocore==1.34.131
@@ -134,7 +134,7 @@ celery==5.4.0
 certifi==2024.7.4
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==1.9.2
+cfn-lint==1.9.5
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -153,7 +153,7 @@ colorlog==6.8.2
 comm==0.2.2
 confluent-kafka==2.5.0
 connexion==2.14.2
-coverage==7.6.0
+coverage==7.6.1
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==3.0.3
@@ -162,7 +162,7 @@ curlify==2.2.1
 databricks-sql-connector==2.9.6
 datadog==0.49.1
 db-dtypes==1.2.0
-debugpy==1.8.2
+debugpy==1.8.5
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.18.2
@@ -260,10 +260,10 @@ greenlet==3.0.3
 grpc-google-iam-v1==0.13.1
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-health-checking==1.62.2
-grpcio-status==1.62.2
-grpcio-tools==1.62.2
-grpcio==1.65.2
+grpcio-health-checking==1.62.3
+grpcio-status==1.62.3
+grpcio-tools==1.62.3
+grpcio==1.65.4
 gssapi==1.8.3
 gunicorn==22.0.0
 h11==0.14.0
@@ -299,7 +299,7 @@ isodate==0.6.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==5.3.0
-jaraco.functools==4.0.1
+jaraco.functools==4.0.2
 jedi==0.19.1
 jeepney==0.8.0
 jmespath==0.10.0
@@ -315,7 +315,7 @@ jsonschema-specifications==2023.12.1
 jsonschema==4.23.0
 jupyter_client==8.6.2
 jupyter_core==5.7.2
-keyring==25.2.1
+keyring==25.3.0
 kombu==5.3.7
 krb5==0.6.0
 kubernetes==30.1.0
@@ -354,7 +354,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.145
+mypy-boto3-rds==1.34.152
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.138
 mypy-extensions==1.0.0
@@ -363,7 +363,7 @@ mysql-connector-python==9.0.0
 mysqlclient==2.2.4
 nbclient==0.10.0
 nbformat==5.10.4
-neo4j==5.23.0
+neo4j==5.23.1
 nest-asyncio==1.6.0
 networkx==3.2.1
 nh3==0.2.18
@@ -371,7 +371,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.37.1
+openai==1.39.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.19.0
@@ -395,7 +395,7 @@ orjson==3.10.6
 oss2==2.18.6
 packaging==24.1
 pandas-gbq==0.23.1
-pandas-stubs==2.2.2.240603
+pandas-stubs==2.2.2.240805
 pandas==2.1.4
 papermill==2.6.0
 paramiko==3.4.0
@@ -407,8 +407,8 @@ pdpyras==5.2.0
 pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.2
-pinecone-client==5.0.0
-pinecone-plugin-inference==1.0.2
+pinecone-client==5.0.1
+pinecone-plugin-inference==1.0.3
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.23.1
@@ -436,7 +436,7 @@ py-partiql-parser==0.5.5
 py4j==0.10.9.7
 pyOpenSSL==24.2.1
 pyarrow-hotfix==0.6
-pyarrow==16.1.0
+pyarrow==14.0.2
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycountry==24.6.1
@@ -483,7 +483,7 @@ python-telegram-bot==21.4
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.5.0
-pyzmq==26.0.3
+pyzmq==26.1.0
 qdrant-client==1.10.1
 reactivex==4.0.4
 readme_renderer==43.0
@@ -496,7 +496,7 @@ requests-kerberos==0.15.0
 requests-mock==1.12.1
 requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
-requests==2.31.0
+requests==2.32.3
 requests_ntlm==1.3.0
 responses==0.25.3
 restructuredtext_lint==1.4.0
@@ -507,7 +507,7 @@ rich-click==1.8.3
 rich==13.7.1
 rpds-py==0.19.1
 rsa==4.9
-ruff==0.4.5
+ruff==0.5.5
 s3fs==2024.6.1
 s3transfer==0.10.2
 scramp==1.4.5
@@ -569,13 +569,13 @@ termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.14.2
+time-machine==2.15.0
 tomli==2.0.1
 tomli_w==1.0.0
 tomlkit==0.13.0
 tornado==6.4.1
 towncrier==24.7.1
-tqdm==4.66.4
+tqdm==4.66.5
 traitlets==5.14.3
 trino==0.329.0
 trove-classifiers==2024.7.2
@@ -596,9 +596,9 @@ types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240316
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
-types-redis==4.6.0.20240726
+types-redis==4.6.0.20240806
 types-requests==2.31.0.6
-types-setuptools==71.1.0.20240726
+types-setuptools==71.1.0.20240806
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -612,7 +612,7 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==1.26.19
 userpath==1.9.2
-uv==0.2.31
+uv==0.2.33
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
@@ -627,12 +627,12 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.291.0
+yandexcloud==0.310.0
 yarl==1.9.4
-ydb==3.14.0
+ydb==3.15.0
 zeep==4.2.1
 zenpy==2.0.49
 zipp==3.19.2
 zope.event==5.0
-zope.interface==6.4.post2
+zope.interface==7.0
 zstandard==0.23.0
