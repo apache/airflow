@@ -130,3 +130,67 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
             "testing",
         ]
         super().__init__(**kwargs)
+
+
+class DmsServerlessTaskCompletedSensor(DmsTaskBaseSensor):
+    """
+    Pokes DMS serverless task until it is completed.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:DmsServerlessTaskCompletedSensor`
+
+    :param replication_config_arn: AWS DMS replication config ARN
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    template_fields: Sequence[str] = aws_template_fields("replication_config_arn")
+
+    def __init__(self, replication_config_arn: str, **kwargs):
+        self.replication_config_arn = replication_config_arn
+        kwargs["replication_task_arn"] = ""
+        kwargs["target_statuses"] = ["stopped"]
+        kwargs["termination_statuses"] = [
+            "creating",
+            "deleting",
+            "failed",
+            "failed-move",
+            "modifying",
+            "moving",
+            "ready",
+            "testing",
+        ]
+        super().__init__(**kwargs)
+
+    def poke(self, context: Context):
+        if not (status := self.hook.get_serverless_task_status(self.replication_config_arn)):
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Failed to read task status, task with ARN {self.replication_config_arn} not found"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
+
+        self.log.info(
+            "DMS Replication serverless task (%s) has status: %s", self.replication_config_arn, status
+        )
+
+        if status in self.target_statuses:
+            return True
+
+        if status in self.termination_statuses:
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Unexpected status: {status}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
+
+        return False

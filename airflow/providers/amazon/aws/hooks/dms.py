@@ -64,6 +64,20 @@ class DmsHook(AwsBaseHook):
 
         return response.get("Marker"), response.get("ReplicationTasks", [])
 
+    def describe_serverless_replication(self, **kwargs) -> tuple[str | None, list]:
+        """
+        Describe one or more replication config existing for serverless replication.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_config`
+
+        :return: Marker and list of replication tasks
+        """
+        dms_client = self.get_conn()
+        response = dms_client.describe_replication_configs(**kwargs)
+
+        return response.get("Marker"), response.get("ReplicationConfigs", [])
+
     def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
         """
         Find and describe replication tasks by task ARN.
@@ -87,6 +101,27 @@ class DmsHook(AwsBaseHook):
 
         return tasks
 
+    def find_replication_configs_by_arn(self, replication_config_arn: str):
+        """
+        Find and describe serverless replication configs by arn.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_config`
+
+        :param replication_config_arn: Replication config arn
+        :return: list of replication configs that match the identifier
+        """
+        _, configs = self.describe_replication_config(
+            Filters=[
+                {
+                    "Name": "replication-config-arn",
+                    "Values": [replication_config_arn],
+                }
+            ]
+        )
+
+        return configs
+
     def get_task_status(self, replication_task_arn: str) -> str | None:
         """
         Retrieve task status.
@@ -105,6 +140,29 @@ class DmsHook(AwsBaseHook):
             return status
         else:
             self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
+            return None
+
+    def get_serverless_task_status(self, replication_config_arn: str) -> str | None:
+        """
+        Retrieve serverless task status.
+
+        :param replication_config_arn: Replication config ARN
+        :return: Current serverless task status
+        """
+        replication = self.find_replication_configs_by_arn(replication_task_arn=replication_config_arn)
+
+        if len(replication) == 1:
+            status = replication[0]["Status"]
+            self.log.info(
+                'Serverless replication task with config ARN(%s) has status "%s".',
+                replication_config_arn,
+                status,
+            )
+            return status
+        else:
+            self.log.info(
+                "Serverless replication task with config ARN(%s) is not found.", replication_config_arn
+            )
             return None
 
     def create_replication_task(
@@ -147,6 +205,45 @@ class DmsHook(AwsBaseHook):
 
         return replication_task_arn
 
+    def create_serverless_replication(
+        self,
+        replication_config_id: str,
+        source_endpoint_arn: str,
+        target_endpoint_arn: str,
+        replication_type: str,
+        compute_config: dict,
+        table_mappings: dict,
+        **kwargs,
+    ) -> str:
+        """
+        Create DMS replication config that can be used to create serverless replication.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.create_replication_config`
+
+        :param replication_config_id: Replication config id
+        :param source_endpoint_arn: Source endpoint ARN
+        :param target_endpoint_arn: Target endpoint ARN
+        :param table_mappings: Table mappings
+        :param compute_config: Compute config
+        :param migration_type: Migration type ('full-load'|'cdc'|'full-load-and-cdc'), full-load by default.
+        :return: Replication config ARN
+        """
+        dms_client = self.get_conn()
+        create_task_response = dms_client.create_replication_config(
+            ReplicationTaskIdentifier=replication_config_id,
+            SourceEndpointArn=source_endpoint_arn,
+            TargetEndpointArn=target_endpoint_arn,
+            ReplicationType=replication_type,
+            ComputeConfig=compute_config,
+            TableMappings=json.dumps(table_mappings),
+            **kwargs,
+        )
+
+        replication_config_arn = create_task_response["ReplicationConfig"]["ReplicationConfigArn"]
+
+        return replication_config_arn
+
     def start_replication_task(
         self,
         replication_task_arn: str,
@@ -170,6 +267,29 @@ class DmsHook(AwsBaseHook):
             **kwargs,
         )
 
+    def start_serverless_replication(
+        self,
+        replication_config_arn: str,
+        start_replication_type: str,
+        **kwargs,
+    ):
+        """
+        Start serverless replication task.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.start_replication`
+
+        :param replication_config_arn: Replication config ARN
+        :param start_replication_type: Replication task start type (default='start-replication')
+            ('start-replication'|'resume-processing'|'reload-target')
+        """
+        dms_client = self.get_conn()
+        dms_client.start_replication(
+            ReplicationTaskArn=replication_config_arn,
+            StartReplicationTaskType=start_replication_type,
+            **kwargs,
+        )
+
     def stop_replication_task(self, replication_task_arn):
         """
         Stop replication task.
@@ -181,6 +301,18 @@ class DmsHook(AwsBaseHook):
         """
         dms_client = self.get_conn()
         dms_client.stop_replication_task(ReplicationTaskArn=replication_task_arn)
+
+    def stop_serverless_replication(self, replication_config_arn):
+        """
+        Stop replication serverless task. This command doesn't deprovision the stopped replication.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.stop_replication`
+
+        :param replication_task_arn: Replication task ARN
+        """
+        dms_client = self.get_conn()
+        dms_client.stop_replication(ReplicationTaskArn=replication_config_arn)
 
     def delete_replication_task(self, replication_task_arn):
         """
@@ -195,6 +327,19 @@ class DmsHook(AwsBaseHook):
         dms_client.delete_replication_task(ReplicationTaskArn=replication_task_arn)
 
         self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.DELETED)
+
+    def delete_serverless_replication(self, replication_config_arn):
+        """
+        Deletes serverless replication task config. This also deprovisions all replication that is
+        provisioned for the specified replication config.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.delete_replication_config`
+
+        :param replication_config_arn: Replication config ARN
+        """
+        dms_client = self.get_conn()
+        dms_client.delete_replication_config(ReplicationConfigArn=replication_config_arn)
 
     def wait_for_task_status(self, replication_task_arn: str, status: DmsTaskWaiterStatus):
         """
