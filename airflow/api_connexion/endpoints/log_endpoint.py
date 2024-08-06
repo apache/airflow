@@ -31,9 +31,9 @@ from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_sch
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import TaskInstance, Trigger
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.log.log_storage_handler import LogContentReader
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -149,8 +149,6 @@ def get_log(
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_LOGS)
 @provide_session
-@unify_bucket_name_and_key
-@provide_bucket_name
 def get_log_pages(
     *,
     dag_id: str,
@@ -161,10 +159,8 @@ def get_log_pages(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get total number of log pages for a specific task instance."""
-    task_log_reader = TaskLogReader()
-
-    if not task_log_reader.supports_read:
-        raise BadRequest("Task log handler does not support read logs.")
+    log_content_reader = LogContentReader()
+    log_storage_handler = log_content_reader.get_storage_handler()
 
     query = (
         select(TaskInstance)
@@ -188,13 +184,11 @@ def get_log_pages(
         return {"total_pages": 1}
 
     # Fetch s3 log content length, change this to be generic in the future
-    s3_hook = S3Hook()
     log_key = f"{dag_id}/{dag_run_id}/{task_id}/{key}"  # Updated to use key parameter
     page_size_kb = 100  # Hardcoded page size in KB for now
     page_size_bytes = page_size_kb * 1024
-
     try:
-        content_length = s3_hook.get_content_length(key=log_key, bucket_name=bucket_name)
+        content_length = log_storage_handler.get_content_length(object_name=log_key, bucket_name=bucket_name)
         total_pages = ceil(content_length / page_size_bytes)
     except Exception:
         raise BadRequest("Error fetching log content length")

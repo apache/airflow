@@ -531,9 +531,8 @@ class TestLogPageFunctionality:
         )
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
         log_file_path.write_text(log_content)
-
         with mock.patch(
-            "airflow.providers.amazon.aws.hooks.s3.S3Hook.get_content_length"
+            "airflow.utils.log.log_storage_handler.S3StorageHandler.get_content_length"
         ) as mock_get_content_length:
             mock_get_content_length.return_value = len(log_content)
 
@@ -568,7 +567,7 @@ class TestLogPageFunctionality:
         log_file_path.write_text(log_content)
 
         with mock.patch(
-            "airflow.providers.amazon.aws.hooks.s3.S3Hook.get_content_length"
+            "airflow.utils.log.log_storage_handler.S3StorageHandler.get_content_length"
         ) as mock_get_content_length:
             mock_get_content_length.return_value = len(log_content)
 
@@ -603,7 +602,7 @@ class TestLogPageFunctionality:
         log_file_path.write_text(log_content)
 
         with mock.patch(
-            "airflow.providers.amazon.aws.hooks.s3.S3Hook.get_content_length"
+            "airflow.utils.log.log_storage_handler.S3StorageHandler.get_content_length"
         ) as mock_get_content_length:
             mock_get_content_length.return_value = len(log_content)
 
