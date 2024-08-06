@@ -714,7 +714,7 @@ class TestLocalTaskJob:
         lm.clear()
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    @pytest.mark.parametrize("signal_type", [signal.SIGTERM, signal.SIGKILL])
+    @pytest.mark.parametrize("signal_type", [signal.SIGHUP, signal.SIGTERM, signal.SIGKILL])
     def test_process_os_signal_calls_on_failure_callback(
         self, monkeypatch, tmp_path, get_test_dag, signal_type
     ):
@@ -1061,6 +1061,8 @@ class TestSigtermOnRunner:
             with timeout(wait_timeout, "Timeout during waiting start LocalTaskJob"):
                 while task_started.value == 0:
                     time.sleep(0.2)
+
+            os.kill(proc.pid, signal.SIGHUP)
             os.kill(proc.pid, signal.SIGTERM)
 
             with timeout(wait_timeout, "Timeout during waiting callback"):
