@@ -363,6 +363,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param service_name: Required. The name of the service to create.
+    :param service: The service descriptor containing the configuration of the service to submit.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -381,6 +382,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         service_name: str,
+        service: dict | Service,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -388,6 +390,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
+        self.service = service
         self.service_name = service_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -408,6 +411,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
 
         try:
             service = hook.create_service(
+                service=self.service,
                 service_name=self.service_name,
                 region=self.region,
                 project_id=self.project_id,
