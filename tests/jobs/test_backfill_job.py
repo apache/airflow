@@ -606,7 +606,7 @@ class TestBackfillJob:
             wraps=job._task_instances_for_dag_run,
         ) as wrapped_task_instances_for_dag_run:
             job.run()
-            dr = wrapped_task_instances_for_dag_run.call_args_list[0][0][0]
+            dr = wrapped_task_instances_for_dag_run.call_args_list[0][0][1]
             assert dr.conf == {"a": 1}
 
     def test_backfill_skip_active_scheduled_dagrun(self, dag_maker, caplog):
@@ -1725,3 +1725,85 @@ class TestBackfillJob:
                 dag_id=dr.dag_id, task_id='make_arg_lists', run_id='test', try_number=1, map_index=-1
             ),
         }
+
+    def test_mapped_dag_unexpandable(self, dag_maker, session):
+        with dag_maker(session=session) as dag:
+
+            @dag.task
+            def get_things():
+                return [1, 2]
+
+            @dag.task
+            def this_fails() -> None:
+                raise RuntimeError("sorry!")
+
+            @dag.task(trigger_rule=TriggerRule.ALL_DONE)
+            def consumer(a, b):
+                print(a, b)
+
+            consumer.expand(a=get_things(), b=this_fails())
+
+        executor = MockExecutor()
+        when = timezone.datetime(2022, 1, 1)
+        BackfillJob(dag=dag, start_date=when, end_date=when, donot_pickle=True, executor=executor).run()
+
+        (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)
+        assert dr.state == DagRunState.FAILED
+
+        # Check that every task has a start and end date
+        tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+        assert len(tis) == 3
+        tis[("get_things", -1)].state == TaskInstanceState.SUCCESS
+        tis[("this_fails", -1)].state == TaskInstanceState.FAILED
+        tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
+
+    def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog):
+
+        with dag_maker() as dag:
+            EmptyOperator(task_id='task1')
+
+        dr = dag_maker.create_dagrun()
+        dr.state = State.SUCCESS
+        session.merge(dr)
+        session.flush()
+        dag.clear()
+        BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            executor=MockExecutor(),
+            donot_pickle=True,
+        ).run()
+
+        (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE, session=session)
+        assert dr.start_date
+        assert f'Failed to record duration of {dr}' not in caplog.text
+
+    def test_task_instances_are_not_set_to_scheduled_when_dagrun_reset(self, dag_maker, session):
+        """Test that when dagrun is reset, task instances are not set to scheduled"""
+
+        with dag_maker() as dag:
+            task1 = EmptyOperator(task_id='task1')
+            task2 = EmptyOperator(task_id='task2')
+            task3 = EmptyOperator(task_id='task3')
+            task1 >> task2 >> task3
+
+        for i in range(1, 4):
+            dag_maker.create_dagrun(
+                run_id=f'test_dagrun_{i}', execution_date=DEFAULT_DATE + datetime.timedelta(days=i)
+            )
+
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=4),
+            executor=MockExecutor(),
+            donot_pickle=True,
+        )
+        for dr in DagRun.find(dag_id=dag.dag_id, session=session):
+            tasks_to_run = job._task_instances_for_dag_run(dag, dr, session=session)
+            states = [ti.state for _, ti in tasks_to_run.items()]
+            assert TaskInstanceState.SCHEDULED in states
+            assert State.NONE in states
