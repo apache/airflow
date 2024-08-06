@@ -115,7 +115,7 @@ class TestBranchDayOfWeekOperator:
             branch_3 = EmptyOperator(task_id="branch_3", dag=dag)
             branch_3.set_upstream(branch_op)
 
-            dr = dag.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id="manual__",
                 start_date=timezone.utcnow(),
                 execution_date=DEFAULT_DATE,
@@ -150,7 +150,7 @@ class TestBranchDayOfWeekOperator:
 
             self.setup_two_downstream_tasks(dag=dag, branch_op=branch_op)
 
-            dr = dag.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id="manual__",
                 start_date=timezone.utcnow(),
                 execution_date=DEFAULT_DATE,
@@ -187,7 +187,7 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-            dr = dag.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id="manual__",
                 start_date=timezone.utcnow(),
                 execution_date=DEFAULT_DATE,
@@ -274,7 +274,7 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-            dr = dag.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id="manual__",
                 start_date=timezone.utcnow(),
                 execution_date=DEFAULT_DATE,
