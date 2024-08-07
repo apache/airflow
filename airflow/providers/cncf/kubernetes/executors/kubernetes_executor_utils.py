@@ -221,7 +221,12 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
-            self.log.error("Event: %s ProviderFailed, annotations: %s", pod_name, annotations_string)
+            # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
+            self.log.error(
+                "Event: %s failed to start with reason ProviderFailed, annotations: %s",
+                pod_name,
+                annotations_string,
+            )
             self.watcher_queue.put(
                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
             )
