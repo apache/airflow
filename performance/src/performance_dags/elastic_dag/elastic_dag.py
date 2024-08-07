@@ -15,8 +15,8 @@ from typing import List, Union, cast
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.operators.python import BashOperator
-from airflow.operators.bash import PythonOperator
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 
