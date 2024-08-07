@@ -19,11 +19,13 @@
 
 import React, { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
+
 import useSelection from "src/dag/useSelection";
 import { boxSize } from "src/dag/StatusBox";
 import { getMetaValue } from "src/utils";
 import type { Task } from "src/types";
 import { useTIHistory } from "src/api";
+
 import InstanceBar from "./InstanceBar";
 
 interface Props {
@@ -69,7 +71,7 @@ const Row = ({
 
   // Adjust gantt start/end if the ti history dates are out of bounds
   useEffect(() => {
-    tiHistory?.forEach(
+    tiHistory?.taskInstances?.forEach(
       (tih) =>
         setGanttDuration &&
         setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate)
@@ -100,7 +102,7 @@ const Row = ({
             ganttEndDate={ganttEndDate}
           />
         )}
-        {(tiHistory?.taskInstances || []).map((ti) => (
+        {tiHistory?.taskInstances?.map((ti) => (
           <InstanceBar
             key={`${taskId}-${ti.tryNumber}`}
             instance={ti}

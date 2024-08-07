@@ -305,7 +305,7 @@ def get_map_type_key(expand_input: ExpandInput | _ExpandInputRef) -> str:
 
     if isinstance(expand_input, _ExpandInputRef):
         return expand_input.key
-    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if v == type(expand_input))
+    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if isinstance(expand_input, v))
 
 
 def create_expand_input(kind: str, value: Any) -> ExpandInput:

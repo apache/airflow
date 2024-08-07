@@ -46,7 +46,7 @@
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
-      "moto[cloudformation,glue]>=5.0.0",
+      "moto[cloudformation,glue]>=5.0.0,<5.0.12",
       "mypy-boto3-appflow>=1.34.0",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
@@ -605,7 +605,7 @@
       "apache-airflow>=2.7.0",
       "asgiref>=3.5.2",
       "dill>=0.2.3",
-      "gcloud-aio-auth>=4.0.0,<5.0.0",
+      "gcloud-aio-auth>=5.2.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
@@ -1348,7 +1348,7 @@
     "deps": [
       "apache-airflow>=2.7.0",
       "yandex-query-client>=0.1.4",
-      "yandexcloud>=0.278.0,!=0.289.0,!=0.290.0,<0.292.0"
+      "yandexcloud>=0.308.0"
     ],
     "devel-deps": [],
     "plugins": [],
