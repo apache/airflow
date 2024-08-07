@@ -923,6 +923,7 @@ def dag_maker(request):
         def __call__(
             self,
             dag_id="test_dag",
+            schedule=None,
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
@@ -951,7 +952,7 @@ def dag_maker(request):
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
             self.kwargs["start_date"] = self.start_date
-            self.dag = DAG(dag_id, **self.kwargs)
+            self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.processor_subdir = processor_subdir
