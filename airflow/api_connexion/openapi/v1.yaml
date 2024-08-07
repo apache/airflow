@@ -1517,6 +1517,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
       responses:
         "200":
           description: Success.
@@ -5177,6 +5178,11 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        order_by:
+          type: string
+          description: |
+            The name of the field to order the results by. Prefix a field name
+            with `-` to reverse the sort order.
 
     # Common data type
     ScheduleInterval:
