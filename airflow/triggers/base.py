@@ -116,6 +116,19 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
+    def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
+        """
+        Returns whether the trigger should be cleaned up.
+
+        :param termination_reason: The reason for terminating the trigger.
+        Since the trigger could be terminated for various reasons, like triggerer restart or reassigned to
+        another triggerer, this method allows the trigger to decide whether it should be cleaned up under the
+        current circumstances.
+
+        By default, will always return True, override this method base custom requirements.
+        """
+        return True
+
     def __repr__(self) -> str:
         classpath, kwargs = self.serialize()
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
@@ -247,8 +260,8 @@ class TaskSkippedEvent(BaseTaskEndEvent):
     task_instance_state = TaskInstanceState.SKIPPED
 
 
-class TriggerCancelReason(Enum):
-    """Reason for cancelling a trigger."""
+class TriggerTerminationReason(Enum):
+    """Reason for terminating a trigger."""
 
     REASSIGNED = "reassigned"
     """When current running trigger already been assigned to run in another triggerer."""

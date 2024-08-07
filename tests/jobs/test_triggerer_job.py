@@ -37,7 +37,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.triggers.base import TriggerEvent, BaseTrigger
+from airflow.triggers.base import TriggerEvent, BaseTrigger, TriggerTerminationReason
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
@@ -841,12 +841,13 @@ class TriggerInstances:
 
 
 class RemoteJobTrigger(BaseTrigger):
-    def __init__(self, remote_job_id):
+    def __init__(self, remote_job_id, cleanup_on_reassignment: bool):
         super().__init__()
         self.remote_job_id = remote_job_id
         self.finished = False
         self.cleanup_done = False
         self.last_status = None
+        self.cleanup_on_reassignment = cleanup_on_reassignment
         TriggerInstances().trigger_instances.append(self)
 
     def get_status(self):
@@ -866,6 +867,11 @@ class RemoteJobTrigger(BaseTrigger):
         self.cleanup_done = True
         print(f"Trigger object {id(self)}: cleanup done")
 
+    def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
+        return not (
+            termination_reason == TriggerTerminationReason.REASSIGNED and not self.cleanup_on_reassignment
+        )
+
     def has_been_cleaned(self):
         return self.cleanup_done
 
@@ -875,41 +881,41 @@ class RemoteJobTrigger(BaseTrigger):
     def serialize(self):
         return (
             "tests.jobs.test_triggerer_job.RemoteJobTrigger",
-            {"remote_job_id": self.remote_job_id},
+            {"remote_job_id": self.remote_job_id, "cleanup_on_reassignment": self.cleanup_on_reassignment},
         )
 
 
 @pytest.mark.asyncio
 async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session, tmp_path):
     """
-     This verifies the resolution of disable the cleanup of triggers if they reassigned to other triggers.
+    This verifies the resolution of disable the cleanup of triggers if they reassigned to other triggers.
 
-     Triggers will be canceled and cleaned up by the current triggerer process
-     if the current triggerer finds that those running trigger instances
-     have been reassigned to other triggerers.
-     However, if the cleanup is called prematurely while the trigger is still in an active state,
-     it could impact the same trigger when reassigned to another triggerer process.
-     Therefore, introducing the capability to disable this behavior in such scenarios.
+    Triggers will be canceled and cleaned up by the current triggerer process
+    if the current triggerer finds that those running trigger instances
+    have been reassigned to other triggerers.
+    However, if the cleanup is called prematurely while the trigger is still in an active state,
+    it could impact the same trigger when reassigned to another triggerer process.
+    Therefore, introducing the capability to disable this behavior in such scenarios.
 
-     The scenario is as follows:
-        1. TaskInstance TI1 calls the remote service to run a job and saves the remote job ID.
-        2. TaskInstance TI1 defers itself and creates Trigger T1, persisting the remote job ID with T1.
-        3. T1 gets picked up by TriggererJobRunner TJR1 and starts running T1, it will use this remote job
-           id to check the remote job status until success or failed.
-        4. TJR1 misses a heartbeat, most likely due to high host load causing delays in
-           each TriggererJobRunner._run_trigger_loop loop.
-        5. A second TriggererJobRunner TJR2 notices that T1 has missed its heartbeat,
-           so it starts the process of picking up any Triggers that TJR1 may have had,
-           including T1.
-        6. TJR1 loads the triggers. Because the running T1 in TJR1 has been reassigned to TJR2,
-           TJR2 updates the triggerer ID of T1 to TJR2.
-           As a result, TJR1 puts T1 in the cancel queue because another triggerer is already running it.
-        7. TJR1 cancels T1, and the cleanup of T1 is called, causing the remote job to be canceled.
-           The T1 instance in TJR2 will find that the remote job has been canceled and exit normally.
-        8. Finally, the remote job fails due to this reassignment.
+    The scenario is as follows:
+       1. TaskInstance TI1 calls the remote service to run a job and saves the remote job ID.
+       2. TaskInstance TI1 defers itself and creates Trigger T1, persisting the remote job ID with T1.
+       3. T1 gets picked up by TriggererJobRunner TJR1 and starts running T1, it will use this remote job
+          id to check the remote job status until success or failed.
+       4. TJR1 misses a heartbeat, most likely due to high host load causing delays in
+          each TriggererJobRunner._run_trigger_loop loop.
+       5. A second TriggererJobRunner TJR2 notices that T1 has missed its heartbeat,
+          so it starts the process of picking up any Triggers that TJR1 may have had,
+          including T1.
+       6. TJR1 loads the triggers. Because the running T1 in TJR1 has been reassigned to TJR2,
+          TJR2 updates the triggerer ID of T1 to TJR2.
+          As a result, TJR1 puts T1 in the cancel queue because another triggerer is already running it.
+       7. TJR1 cancels T1, and the cleanup of T1 is called, causing the remote job to be canceled.
+          The T1 instance in TJR2 will find that the remote job has been canceled and exit normally.
+       8. Finally, the remote job fails due to this reassignment.
 
-     This test verifies that the cleanup behavior is configurable under the reassignment case.
-     """
+    This test verifies that the cleanup behavior is controllable under the reassignment case by trigger.
+    """
     from typing import Callable, Awaitable
     from airflow.configuration import conf
     from airflow.jobs.triggerer_job_runner import TriggerDetails
@@ -922,11 +928,11 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
     # Build the scenario that the trigger reassigned to another triggerer
     # due to the first triggerer missed heartbeat
     async def make_triggerer2_occupy_the_trigger_of_triggerer1(
-        check: Callable[[TriggerDetails, TriggerDetails], Awaitable[None]]
+        check: Callable[[TriggerDetails, TriggerDetails], Awaitable[None]],
+        cleanup_on_reassignment: bool,
     ):
-
         # Create trigger to check the remote job status
-        trigger = RemoteJobTrigger(1)
+        trigger = RemoteJobTrigger(1, cleanup_on_reassignment)
         # Remove this one from the trigger_instances_holder, we only need to track the instances
         # that created by the triggerer job runner
         del trigger_instances_holder.trigger_instances[0]
@@ -952,7 +958,8 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
         # triggerer1 miss heartbeat due to high host load, so triggerer2 can pick up the trigger
         job1.latest_heartbeat = timezone.utcnow() - datetime.timedelta(
-            seconds=health_check_threshold_value + 1)
+            seconds=health_check_threshold_value + 1
+        )
 
         job2 = Job()
         session.add(job1)
@@ -1050,8 +1057,9 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         (cancel_caller, remote_job_id) = remote_service.event_queue[0]
         assert cancel_caller == cancelled_trigger and remote_job_id == 1
 
-    conf.set("triggerer", "cleanup_trigger_on_reassigned", "True")
-    await make_triggerer2_occupy_the_trigger_of_triggerer1(expect_the_trigger_will_be_cleanup_on_reassigned)
+    await make_triggerer2_occupy_the_trigger_of_triggerer1(
+        expect_the_trigger_will_be_cleanup_on_reassigned, True
+    )
 
     async def expect_the_trigger_will_not_be_cleanup_on_reassigned(
         trigger_details1: TriggerDetails, trigger_details2: TriggerDetails
@@ -1079,7 +1087,6 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         (cancel_caller, remote_job_id) = remote_service.event_queue[0]
         assert cancel_caller == trigger_of_job_2 and remote_job_id == 1
 
-    conf.set("triggerer", "cleanup_trigger_on_reassigned", "False")
     assert make_triggerer2_occupy_the_trigger_of_triggerer1(
-        expect_the_trigger_will_not_be_cleanup_on_reassigned
+        expect_the_trigger_will_not_be_cleanup_on_reassigned, False
     )

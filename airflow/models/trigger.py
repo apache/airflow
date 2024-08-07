@@ -317,7 +317,6 @@ class Trigger(Base):
         Get the triggers that reassigned to other triggerers.
         """
         reassigned_trigger_ids = session.scalars(
-            select(cls.id)
-            .where(cls.triggerer_id != triggerer_id, cls.id.in_(local_trigger_ids))
+            select(cls.id).where(cls.triggerer_id != triggerer_id, cls.id.in_(local_trigger_ids))
         ).all()
         return list(reassigned_trigger_ids)
