@@ -23,10 +23,10 @@
         "type": "string"
       }
     },
-    "json_fields": {
-      "description": "List of fields that are in JSON format.",
-      "type": "array",
-      "items": {
+    "languages": {
+      "type": "object",
+      "description": "Languages that are used to fill the values. ``json``, ``text`` are possible.",
+      "additionalProperties": {
         "type": "string"
       }
     }

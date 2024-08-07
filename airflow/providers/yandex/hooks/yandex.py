@@ -112,6 +112,7 @@ class YandexCloudBaseHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "languages": {"service_account_json": "json"},
         }
 
     def __init__(

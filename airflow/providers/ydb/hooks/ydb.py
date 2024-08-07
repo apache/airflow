@@ -218,6 +218,9 @@ class YDBHook(DbApiHook):
                 "service_account_json": 'e.g. {"id": "...", "service_account_id": "...", "private_key": "..."}',
                 "token": "t1.9....AAQ",
             },
+            "languages": {
+                "service_account_json": "json",
+            },
         }
 
     @property

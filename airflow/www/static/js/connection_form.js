@@ -29,41 +29,41 @@ const configTestConnection = getMetaValue("config_test_connection")
 const restApiEnabled = getMetaValue("rest_api_enabled") === "True";
 const connectionTestUrl = getMetaValue("test_url");
 
-// Define editor var which may get populated if extra field exists on the connection
-let editors;
+// Editors for saving CodeMirror editor values to input or textarea fields whenever the connection changes
+let editors = {};
 
 function decode(str) {
   return new DOMParser().parseFromString(str, "text/html").documentElement
     .textContent;
 }
 
-// Function to convert textArea to CodeMirror for JSON fields
-function convertTextAreaToCodeMirror(textAreaId) {
-  const textAreaElem = document.getElementById(textAreaId);
+// Function to convert input(or textarea) to CodeMirror for JSON fields
+function convertInputElToCodeMirror(inputId, language) {
+  const inputElem = document.getElementById(inputId);
+  if (!inputElem) return;
+  if ($(inputElem).is(":hidden")) return;
+  if (language === "text") return;
+  if (inputElem.classList.contains(language)) return;
+  inputElem.classList.add(language);
 
-  if (!textAreaElem) return;
-  if ($(textAreaElem).is(":hidden")) return;
+  // Change input widget to CodeMirror
+  if (language === "json") {
+    editors[inputId] = CodeMirror.fromTextArea(inputElem, {
+      mode: { name: "javascript", json: true },
+      gutters: ["CodeMirror-lint-markers"],
+      lineWrapping: true,
+      lint: true,
+    });
+  }
 
-  // Add class to identify JSON fields
-  if (textAreaElem.classList.contains("json_field")) return;
-
-  editors = {};
-  textAreaElem.classList.add("json_field");
-
-  // Change TextArea widget to CodeMirror
-  editors[textAreaId] = CodeMirror.fromTextArea(textAreaElem, {
-    mode: { name: "javascript", json: true },
-    gutters: ["CodeMirror-lint-markers"],
-    lineWrapping: true,
-    lint: true,
-  });
+  if (!editors[inputId]) return;
 
   // beautify JSON but only if it is not equal to default value of empty string
-  const jsonData = editors[textAreaId].getValue();
+  const jsonData = editors[inputId].getValue();
   if (jsonData !== "") {
     const data = JSON.parse(jsonData);
     const formattedData = JSON.stringify(data, null, 2);
-    editors[textAreaId].setValue(formattedData);
+    editors[inputId].setValue(formattedData);
   }
 }
 
@@ -126,7 +126,7 @@ function restoreFieldBehaviours() {
  *
  * @param {string} connection The connection object to apply to.
  */
-function applyFieldBehaviours(connection) {
+function applyFieldBehaviours(connection, connType) {
   if (connection) {
     if (Array.isArray(connection.hidden_fields)) {
       connection.hidden_fields.forEach((field) => {
@@ -151,8 +151,12 @@ function applyFieldBehaviours(connection) {
       });
     }
 
-    if (Array.isArray(connection.json_fields)) {
-      connection.json_fields.forEach(convertTextAreaToCodeMirror);
+    if (connection.languages) {
+      editors = {};
+      Object.keys(connection.languages).forEach((field) => {
+        const language = connection.languages[field];
+        convertInputElToCodeMirror(`extra__${connType}__${field}`, language);
+      });
     }
   }
 }
@@ -257,7 +261,7 @@ $(document).ready(() => {
     restoreFieldBehaviours();
 
     // Apply behaviours to fields.
-    applyFieldBehaviours(config[connType]);
+    applyFieldBehaviours(config[connType], connType);
 
     // Enable/Disable the Test Connection button. Only applicable if Airflow REST APIs are enabled.
     if (restApiEnabled) {
@@ -402,5 +406,5 @@ $(document).ready(() => {
   changeConnType(connTypeElem.value);
 
   // Convert extra field to CodeMirror if it exists
-  convertTextAreaToCodeMirror("extra");
+  convertInputElToCodeMirror("extra", "json");
 });

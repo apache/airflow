@@ -129,6 +129,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "languages": {
+                "kube_config": "json",
+                "xcom_sidecar_container_resources": "json",
+            },
         }
 
     def __init__(
