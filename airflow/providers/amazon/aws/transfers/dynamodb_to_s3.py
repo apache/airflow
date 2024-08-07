@@ -134,7 +134,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         *,
         dynamodb_table_name: str,
         s3_bucket_name: str,
-        s3_bucket_owner: str,
+        s3_bucket_owner: str | None = None,
         file_size: int,
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
@@ -174,12 +174,12 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:
-        # There are 2 seperate export to point in time configuration:
+        # There are 2 separate export to point in time configuration:
         # 1. Full export, which takes the export_time arg.
         # 2. Incremental export, which takes the incremental_export_... args
-        # Hence export could not be used as the proper indicator for the _export_table_to_point_in_time func
-        # This change introduces a new boolean, as the indicator for whether the operator scans and export
-        # entire data or using the point in time functionality.
+        # Hence export could not be used as the proper indicator for the `_export_table_to_point_in_time`
+        # function. This change introduces a new boolean, as the indicator for whether the operator scans
+        # and export entire data or using the point in time functionality.
         if self.point_in_time_export:
             self._export_table_to_point_in_time()
         else:
@@ -187,9 +187,13 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_table_to_point_in_time(self):
         """
-        Export data from start of epoc till `export_time`.
+        Export data to point in time.
 
+        Full export exports data from start of epoc till `export_time`.
         Table export will be a snapshot of the table's state at this point in time.
+
+        Incremental export exports the data from a specific datetime to a specific datetime
+
 
         Note: S3BucketOwner is a required parameter when exporting to a S3 bucket in another account.
         """
