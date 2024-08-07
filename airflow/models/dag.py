@@ -678,6 +678,12 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, ArgNotSet):
+            warnings.warn(
+                "Creating a DAG with an implicit schedule is deprecated, and will stop working "
+                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
             self.timetable = create_timetable(schedule, self.timezone)
             self.schedule_interval = DEFAULT_SCHEDULE_INTERVAL
         else:
