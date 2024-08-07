@@ -210,7 +210,9 @@ class TriggerDagRunOperator(BaseOperator):
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
-                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
+                dag_bag = DagBag(
+                    dag_folder=dag_model.fileloc, read_dags_from_db=True
+                )  # TODO here fail on internal API, +2
                 dag = dag_bag.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
             else:
@@ -250,7 +252,7 @@ class TriggerDagRunOperator(BaseOperator):
                 )
                 time.sleep(self.poke_interval)
 
-                dag_run.refresh_from_db()
+                dag_run.refresh_from_db()  # TODO here fail on internal API
                 state = dag_run.state
                 if state in self.failed_states:
                     raise AirflowException(f"{self.trigger_dag_id} failed with failed states {state}")
@@ -263,7 +265,7 @@ class TriggerDagRunOperator(BaseOperator):
         # This logical_date is parsed from the return trigger event
         provided_logical_date = event[1]["execution_dates"][0]
         try:
-            dag_run = session.execute(
+            dag_run = session.execute(  # TODO here fail on internal API
                 select(DagRun).where(
                     DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date
                 )
