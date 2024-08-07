@@ -42,6 +42,6 @@ run the ``airflow dag-processor`` CLI command, otherwise, starting the scheduler
 ``DagFileProcessorProcess`` has the following steps:
 
 1. Process file: The entire process must complete within :ref:`dag_file_processor_timeout<config:core__dag_file_processor_timeout>`
-2. The DAG files are loaded as Python module: Must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
+2. Load modules from file: The DAG files are loaded as Python module and this must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
 3. Process modules:  Find DAG objects within Python module
 4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered DAG objects
