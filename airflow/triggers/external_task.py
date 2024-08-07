@@ -27,6 +27,7 @@ from sqlalchemy import func
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.exist import check_for_existence
 from airflow.utils.sensor_helper import _get_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -66,6 +67,7 @@ class WorkflowTrigger(BaseTrigger):
         allowed_states: typing.Iterable[str] | None = None,
         poke_interval: float = 2.0,
         soft_fail: bool = False,
+        check_existence: bool = False,
         **kwargs,
     ):
         self.external_dag_id = external_dag_id
@@ -77,6 +79,7 @@ class WorkflowTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
+        self.check_existence = check_existence
         super().__init__(**kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -99,6 +102,10 @@ class WorkflowTrigger(BaseTrigger):
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
         while True:
+            if self.check_existence:
+                check_for_existence(external_dag_id=self.external_dag_id,
+                                    external_task_ids=self.external_task_ids,
+                                    external_task_group_id=self.external_task_group_id)
             if self.failed_states:
                 failed_count = await self._get_count(self.failed_states)
                 if failed_count > 0:
@@ -203,6 +210,7 @@ class TaskStateTrigger(BaseTrigger):
             while True:
                 delta = utcnow() - self.trigger_start_time
                 if delta.total_seconds() < self._timeout_sec:
+                    check_for_existence()
                     # mypy confuses typing here
                     if await self.count_running_dags() == 0:  # type: ignore[call-arg]
                         self.log.info("Waiting for DAG to start execution...")
