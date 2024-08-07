@@ -57,7 +57,7 @@ class PowerBITrigger(BaseTrigger):
         conn_id: str,
         dataset_id: str,
         group_id: str,
-        dataset_refresh_id: str,
+        # dataset_refresh_id: str,
         end_time: float,
         timeout: float | None = None,
         proxies: dict | None = None,
@@ -69,7 +69,7 @@ class PowerBITrigger(BaseTrigger):
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
-        self.dataset_refresh_id = dataset_refresh_id
+        # self.dataset_refresh_id = dataset_refresh_id
         self.end_time = end_time
         self.check_interval = check_interval
         self.wait_for_termination = wait_for_termination
@@ -85,7 +85,7 @@ class PowerBITrigger(BaseTrigger):
                 "api_version": api_version,
                 "dataset_id": self.dataset_id,
                 "group_id": self.group_id,
-                "dataset_refresh_id": self.dataset_refresh_id,
+                # "dataset_refresh_id": self.dataset_refresh_id,
                 "end_time": self.end_time,
                 "check_interval": self.check_interval,
                 "wait_for_termination": self.wait_for_termination,
@@ -107,6 +107,11 @@ class PowerBITrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to the PowerBI and polls for the dataset refresh status."""
         try:
+            self.dataset_refresh_id = await self.hook.trigger_dataset_refresh(
+                dataset_id=self.dataset_id,
+                group_id=self.group_id,
+            )
+
             dataset_refresh_status = None
             while self.end_time > time.time():
                 refresh_details = await self.hook.get_refresh_details_by_refresh_id(
