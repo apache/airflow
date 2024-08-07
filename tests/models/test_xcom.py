@@ -489,7 +489,6 @@ class TestXComGet:
         assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
 
     @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_get_many_from_prior_dates_with_execution_date(
         self,
         session,
