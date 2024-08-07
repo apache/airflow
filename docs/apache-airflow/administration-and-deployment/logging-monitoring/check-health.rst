@@ -145,8 +145,8 @@ with a non-zero error code.
 
 .. note::
 
-  For this check to work, ``[celery]worker_enable_remote_control`` must be ``True``. 
-  If the parameter is set to ``False``, the command will exit with a non-zero error code. 
+  For this check to work, ``[celery]worker_enable_remote_control`` must be ``True``.
+  If the parameter is set to ``False``, the command will exit with a non-zero error code.
 
 To check if the worker running on the local host is working correctly, run:
 
