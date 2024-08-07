@@ -177,7 +177,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         # There are 2 separate export to point in time configuration:
         # 1. Full export, which takes the export_time arg.
         # 2. Incremental export, which takes the incremental_export_... args
-        # Hence export could not be used as the proper indicator for the `_export_table_to_point_in_time`
+        # Hence export time could not be used as the proper indicator for the `_export_table_to_point_in_time`
         # function. This change introduces a new boolean, as the indicator for whether the operator scans
         # and export entire data or using the point in time functionality.
         if self.point_in_time_export:
