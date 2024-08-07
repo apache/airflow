@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -82,6 +83,8 @@ class TriggerDagRunLink(BaseOperatorLink):
 class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified DAG ID.
+
+    Note that if database isolation mode is enabled, not all features are supported.
 
     :param trigger_dag_id: The ``dag_id`` of the DAG to trigger (templated).
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
@@ -174,6 +177,14 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
 
     def execute(self, context: Context):
+        if InternalApiConfig.get_use_internal_api():
+            if self.reset_dag_run:
+                raise AirflowException("Parameter reset_dag_run=True is broken with Database Isolation Mode.")
+            if self.wait_for_completion:
+                raise AirflowException(
+                    "Parameter wait_for_completion=True is broken with Database Isolation Mode."
+                )
+
         if isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date
         elif isinstance(self.logical_date, str):

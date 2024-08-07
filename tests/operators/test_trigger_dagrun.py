@@ -173,6 +173,7 @@ class TestDagRunOperator:
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_logical_date)
             self.assert_extra_link(dagrun, task, session)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_twice(self, dag_maker):
         """Test TriggerDagRunOperator with custom logical_date."""
         utc_now = timezone.utcnow()
@@ -209,6 +210,7 @@ class TestDagRunOperator:
         assert triggered_dag_run.logical_date == utc_now
         self.assert_extra_link(triggered_dag_run, task, dag_maker.session)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_scheduled_dag_run(self, dag_maker):
         """Test TriggerDagRunOperator with custom logical_date and scheduled dag_run."""
         utc_now = timezone.utcnow()
@@ -392,6 +394,7 @@ class TestDagRunOperator:
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
         assert dr.get_task_instance("test_task").state == TaskInstanceState.SKIPPED
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     @pytest.mark.parametrize(
         "trigger_run_id, trigger_logical_date, expected_dagruns_count",
         [
@@ -426,6 +429,7 @@ class TestDagRunOperator:
             assert len(dag_runs) == expected_dagruns_count
             assert dag_runs[0].external_trigger
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true(self, dag_maker):
         """Test TriggerDagRunOperator with wait_for_completion."""
         logical_date = DEFAULT_DATE
@@ -448,6 +452,7 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true_fail(self, dag_maker):
         """Test TriggerDagRunOperator with wait_for_completion but triggered dag fails."""
         logical_date = DEFAULT_DATE
@@ -508,6 +513,7 @@ class TestDagRunOperator:
         with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=logical_date, end_date=logical_date)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true_defer_false(self, dag_maker):
         """Test TriggerDagRunOperator with wait_for_completion."""
         logical_date = DEFAULT_DATE
@@ -531,6 +537,7 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true(self, dag_maker):
         """Test TriggerDagRunOperator with wait_for_completion."""
         logical_date = DEFAULT_DATE
@@ -563,6 +570,7 @@ class TestDagRunOperator:
 
         task.execute_complete(context={}, event=trigger.serialize())
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure(self, dag_maker):
         """Test TriggerDagRunOperator wait_for_completion dag run in non defined state."""
         logical_date = DEFAULT_DATE
@@ -599,6 +607,7 @@ class TestDagRunOperator:
                 event=trigger.serialize(),
             )
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2(self, dag_maker):
         """Test TriggerDagRunOperator  wait_for_completion dag run in failed state."""
         logical_date = DEFAULT_DATE
@@ -660,6 +669,7 @@ class TestDagRunOperator:
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_execution_date)
             self.assert_extra_link(dagrun, task, session)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=["trigger_logical_date"],
         argvalues=[
@@ -696,6 +706,7 @@ class TestDagRunOperator:
             pendulum.instance(dagruns[0].logical_date)
         ]
 
+    @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_dagstatetrigger_execution_dates_with_clear_and_reset(self, dag_maker):
         """Check DagStateTrigger is called with the triggered DAG's logical date on subsequent defers."""
         with dag_maker(
