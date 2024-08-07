@@ -68,6 +68,8 @@ class TestSlackNotifier:
                 "/pin_100.png",
                 "attachments": "[]",
                 "blocks": "[]",
+                "unfurl_links": True,
+                "unfurl_media": True,
             },
         )
         mock_slack_hook.assert_called_once_with(slack_conn_id="test_conn_id", **hook_extra_kwargs)
@@ -89,6 +91,8 @@ class TestSlackNotifier:
                 "/pin_100.png",
                 "attachments": "[]",
                 "blocks": "[]",
+                "unfurl_links": True,
+                "unfurl_media": True,
             },
         )
 
@@ -114,5 +118,33 @@ class TestSlackNotifier:
                 "/pin_100.png",
                 "attachments": '[{"image_url": "test_slack_notifier.png"}]',
                 "blocks": "[]",
+                "unfurl_links": True,
+                "unfurl_media": True,
+            },
+        )
+
+    @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
+    def test_slack_notifier_unfurl_options(self, mock_slack_hook, dag_maker):
+        with dag_maker("test_slack_notifier_unfurl_options") as dag:
+            EmptyOperator(task_id="task1")
+
+        notifier = send_slack_notification(
+            text="test",
+            unfurl_links=False,
+            unfurl_media=False,
+        )
+        notifier({"dag": dag})
+        mock_slack_hook.return_value.call.assert_called_once_with(
+            "chat.postMessage",
+            json={
+                "channel": "#general",
+                "username": "Airflow",
+                "text": "test",
+                "icon_url": "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static"
+                "/pin_100.png",
+                "attachments": "[]",
+                "blocks": "[]",
+                "unfurl_links": False,
+                "unfurl_media": False,
             },
         )

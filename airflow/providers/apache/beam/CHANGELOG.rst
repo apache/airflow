@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+5.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+
 5.7.1
 .....
 

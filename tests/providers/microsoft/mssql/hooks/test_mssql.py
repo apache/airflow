@@ -23,6 +23,7 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.models import Connection
+from tests.providers.microsoft.conftest import load_file
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -53,6 +54,15 @@ PYMSSQL_CONN_ALT_2 = Connection(
     port=8081,
     extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
 )
+
+
+def get_primary_keys(self, table: str) -> list[str]:
+    return [
+        "GroupDisplayName",
+        "OwnerPrincipalName",
+        "ReportPeriod",
+        "ReportRefreshDate",
+    ]
 
 
 class TestMsSqlHook:
@@ -170,3 +180,87 @@ class TestMsSqlHook:
 
         hook = MsSqlHook()
         hook.get_sqlalchemy_engine()
+
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_primary_keys", get_primary_keys)
+    def test_generate_insert_sql(self, get_connection):
+        get_connection.return_value = PYMSSQL_CONN
+
+        hook = MsSqlHook()
+        sql = hook._generate_insert_sql(
+            table="YAMMER_GROUPS_ACTIVITY_DETAIL",
+            values=[
+                "2024-07-17",
+                "daa5b44c-80d6-4e22-85b5-a94e04cf7206",
+                "no-reply@microsoft.com",
+                "2024-07-17",
+                0,
+                0.0,
+                "MICROSOFT FABRIC (FREE)+MICROSOFT 365 E5",
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                "PT0S",
+                "PT0S",
+                "PT0S",
+                0,
+                0,
+                0,
+                "Yes",
+                0,
+                0,
+                "APACHE",
+                0.0,
+                0,
+                "Yes",
+                1,
+                "2024-07-17T00:00:00+00:00",
+            ],
+            target_fields=[
+                "ReportRefreshDate",
+                "UserId",
+                "UserPrincipalName",
+                "LastActivityDate",
+                "IsDeleted",
+                "DeletedDate",
+                "AssignedProducts",
+                "TeamChatMessageCount",
+                "PrivateChatMessageCount",
+                "CallCount",
+                "MeetingCount",
+                "MeetingsOrganizedCount",
+                "MeetingsAttendedCount",
+                "AdHocMeetingsOrganizedCount",
+                "AdHocMeetingsAttendedCount",
+                "ScheduledOne-timeMeetingsOrganizedCount",
+                "ScheduledOne-timeMeetingsAttendedCount",
+                "ScheduledRecurringMeetingsOrganizedCount",
+                "ScheduledRecurringMeetingsAttendedCount",
+                "AudioDuration",
+                "VideoDuration",
+                "ScreenShareDuration",
+                "AudioDurationInSeconds",
+                "VideoDurationInSeconds",
+                "ScreenShareDurationInSeconds",
+                "HasOtherAction",
+                "UrgentMessages",
+                "PostMessages",
+                "TenantDisplayName",
+                "SharedChannelTenantDisplayNames",
+                "ReplyMessages",
+                "IsLicensed",
+                "ReportPeriod",
+                "LoadDate",
+            ],
+            replace=True,
+        )
+        assert sql == load_file("resources", "replace.sql")

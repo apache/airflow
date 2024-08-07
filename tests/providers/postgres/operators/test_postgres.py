@@ -221,7 +221,10 @@ def test_parameters_are_templatized(create_task_instance_of_operator):
         task_id="test-task",
     )
     task: SQLExecuteQueryOperator = ti.render_templates(
-        {"param": {"conn_id": "pg", "table": "foo", "bar": "egg"}}
+        {
+            "param": {"conn_id": "pg", "table": "foo", "bar": "egg"},
+            "ti": ti,
+        }
     )
     assert task.conn_id == "pg"
     assert task.sql == "SELECT * FROM foo WHERE spam = %(spam)s;"

@@ -18,7 +18,7 @@
 Airflow Unit Tests
 ==================
 
-All unit tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
+All unit tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
@@ -90,8 +90,8 @@ Airflow tests in the CI environment are split into several test types. You can n
 test types you want to use in various ``breeze testing`` sub-commands in three ways:
 
 * via specifying the ``--test-type`` when you run single test type in ``breeze testing tests`` command
-* via specifying space separating list of test types via ``--paralleltest-types`` or
-  ``--exclude-parallel-test-types`` options when you run tests in parallel (in several testing commands)
+* via specifying space separating list of test types via ``--parallel-test-types`` or
+  ``--excluded-parallel-test-types`` options when you run tests in parallel (in several testing commands)
 
 Those test types are defined:
 
@@ -101,7 +101,7 @@ Those test types are defined:
 * ``Core`` - for the core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders)
 * ``Operators`` - tests for the operators (operators folder with exception of Virtualenv Operator tests and
   External Python Operator tests that have their own test type). They are skipped by the
-``virtualenv_operator`` and ``external_python_operator`` test markers that the tests are marked with.
+  ``virtualenv_operator`` and ``external_python_operator`` test markers that the tests are marked with.
 * ``WWW`` - Tests for the Airflow webserver (www folder)
 * ``Providers`` - Tests for all Providers of Airflow (providers folder)
 * ``PlainAsserts`` - tests that require disabling ``assert-rewrite`` feature of Pytest (usually because
@@ -179,7 +179,7 @@ tests in parallel using ``pytest-xdist`` plugin.
 We have a dedicated, opinionated ``breeze testing non-db-tests`` command as well that runs non-DB tests
 (it is also used in CI to run the non-DB tests, where you do not have to specify extra flags for
 parallel running and you can run all the Non-DB tests
-(or just a subset of them with ``--parallel-test-types`` or ``--exclude-parallel-test-types``) in parallel:
+(or just a subset of them with ``--parallel-test-types`` or ``--excluded-parallel-test-types``) in parallel:
 
 .. code-block:: bash
 
@@ -195,7 +195,7 @@ to exclude them from the default set:.
 
 .. code-block:: bash
 
-    breeze testing non-db-tests --exclude-parallel-test-types "Providers API CLI"
+    breeze testing non-db-tests --excluded-parallel-test-types "Providers API CLI"
 
 You can also run the same commands via ``breeze testing tests`` - by adding the necessary flags manually:
 
@@ -218,8 +218,8 @@ Airflow DB tests
 
 Some of the tests of Airflow require a database to connect to in order to run. Those tests store and read data
 from Airflow DB using Airflow's core code and it's crucial to run the tests against all real databases
-that Airflow supports in order to check if the SQLAlchemy queries are correct and if the database
-  schema is correct.
+that Airflow supports in order to check if the SQLAlchemy queries are correct and if the database schema is
+correct.
 
 Those tests should be marked with ``@pytest.mark.db`` decorator on one of the levels:
 
@@ -256,7 +256,7 @@ below runs the ``Core`` tests with ``postgres`` backend and ``3.8`` Python versi
 We have a dedicated, opinionated ``breeze testing db-tests`` command as well that runs DB tests
 (it is also used in CI to run the DB tests, where you do not have to specify extra flags for
 parallel running and you can run all the DB tests
-(or just a subset of them with ``--parallel-test-types`` or ``--exclude-parallel-test-types``) in parallel:
+(or just a subset of them with ``--parallel-test-types`` or ``--excluded-parallel-test-types``) in parallel:
 
 .. code-block:: bash
 
@@ -272,13 +272,13 @@ to exclude them from the default set:.
 
 .. code-block:: bash
 
-    breeze testing db-tests --exclude-parallel-test-types "Providers API CLI"
+    breeze testing db-tests --excluded-parallel-test-types "Providers API CLI"
 
 You can also run the same commands via ``breeze testing tests`` - by adding the necessary flags manually:
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --run-tests-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --run-in-parallel
 
 
 Also - if you want to iterate with the tests you can enter interactive shell and run the tests iteratively -
@@ -291,12 +291,12 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
 support to split all the tests into test-types to run in separate containers and with separate databases
-and you can run the tests using ``--run-tests-in-parallel`` flag (which is automatically enabled when
+and you can run the tests using ``--run-in-parallel`` flag (which is automatically enabled when
 you use ``breeze testing db-tests`` command):
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-tests-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -738,6 +738,39 @@ You can also use fixture to create object that needs database just like this.
         conn = request.getfixturevalue(conn)
         ...
 
+Running tests with Database isolation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Running tests with DB isolation is a special case of tests that require ``internal-api`` component to be
+started in order to execute the tests. Only selected tests can be run with the database isolation
+(TODO: add the list) - they are simulating running untrusted components (dag file processor, triggerer,
+worker) running in an environment where there is no DB configuration and certain "internal_api" endpoints
+are used to communicate with the internal-api component (that can access the DB directly).
+
+In the ``database isolation mode`` the test code can access the DB and perform setup/teardown but the code
+directly from airflow package will fail if the database is accessed directly - all the DB calls should go
+through the internal API component.
+
+When you run ``breeze testing tests --database-isolation`` - the internal API server will be started for
+you automatically:
+
+.. code-block:: shell
+
+   breeze testing tests --database-isolation tests/dag_processing/
+
+However, when you want to run the tests interactively, you need to use ``breeze shell --database-isolation``
+command and either use ``tmux`` to split your terminal and run the internal API component in the second
+pane or run it after re-entering the shell with separate ``breeze exec`` command.
+
+.. code-block:: shell
+
+   breeze shell --database-isolation tests/dag_processing/
+   > tmux
+   > Ctrl-B "
+   > Panel 1: airflow internal-api
+   > Panel 2: pytest tests/dag_processing
+
+
 
 Running Unit tests
 ------------------
@@ -912,7 +945,7 @@ Running Tests using Breeze from the Host
 ........................................
 
 If you wish to only run tests and not to drop into the shell, apply the
-``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
+``tests`` command. You can add extra targets and pytest flags after the ``tests`` command. Note that
 often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
 to breeze command. The Breeze image usually will have all the dependencies needed and it
 will ask you to rebuild the image if it is needed and some new dependencies should be installed.
@@ -1074,10 +1107,11 @@ if the providers still work when installed for older airflow versions.
 The back-compatibility tests based on the configuration specified in the
 ``BASE_PROVIDERS_COMPATIBILITY_CHECKS`` constant in the ``./dev/breeze/src/airflow_breeze/global_constants.py``
 file - where we specify:
-* python version
-* airflow version
+
+* Python version
+* Airflow version
 * which providers should be removed for the tests (exclusions)
-* whether to run tests for this airflow/python version
+* whether to run tests for this Airflow/Python version
 
 Those tests can be used to test compatibility of the providers with past (and future!) releases of airflow.
 For example it could be used to run latest provider versions with released or main
@@ -1145,27 +1179,29 @@ are not part of the public API. We deal with it in one of the following ways:
    you can add more if needed in a similar way.
 
 3) If only some tests are not compatible and use features that are available only in newer airflow version,
-    we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``compat.py``
-    For example:
+   we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``compat.py``
+   For example:
 
-.. code-block::python
+.. code-block:: python
 
   from tests.test_utils.compat import AIRFLOW_V_2_7_PLUS
 
-  @pytest.mark.skip(not AIRFLOW_V_2_7_PLUS, reason="The tests should be skipped for Airflow < 2.7")
+
+  @pytest.mark.skipif(not AIRFLOW_V_2_7_PLUS, reason="The tests should be skipped for Airflow < 2.7")
   def some_test_that_only_works_for_airflow_2_7_plus():
-    pass
+      pass
 
 4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
    In this case you can add conditional ``skipif`` markerfor ``RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES``
    to the test. For example:
 
-.. code-block::python
+.. code-block:: python
 
-  @pytest.mark.skipif(RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
-                      reason="Plugin initialization is done early in case of packages")
+  @pytest.mark.skipif(
+      RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Plugin initialization is done early in case of packages"
+  )
   def test_plugin():
-     pass
+      pass
 
 5) Sometimes Pytest collection fails to work, when certain imports used by the tests either do not exist
    or fail with RuntimeError about compatibility ("minimum Airflow version is required") or because they
@@ -1176,7 +1212,7 @@ are not part of the public API. We deal with it in one of the following ways:
 
    For example:
 
-.. code-block::python
+.. code-block:: python
 
    with ignore_provider_compatibility_error("2.8.0", __file__):
        from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
@@ -1221,14 +1257,14 @@ Herr id how to reproduce it.
 
 5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
 
-.. code-block::bash
+.. code-block:: bash
 
   breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
    --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests
 
 6. You can then run tests as usual:
 
-.. code-block::bash
+.. code-block:: bash
 
    pytest tests/providers/<provider>/test.py
 
@@ -1246,7 +1282,7 @@ restart breeze using the command above.
 
 Rebuilding single provider package can be done using this command:
 
-.. code-block::bash
+.. code-block:: bash
 
   breeze release-management prepare-provider-packages \
     --version-suffix-for-pypi dev0 --package-format wheel <provider>
@@ -1263,14 +1299,14 @@ Tests with lowest-direct dependency resolution for Airflow
 
 You can test minimum dependencies that are installed by Airflow by running (for example to run "Core" tests):
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze testing tests --force-lowest-dependencies --test-type "Core"
 
 You can also iterate on the tests and versions of the dependencies by entering breeze shell and
 running the tests from there:
 
-.. code-block::bash
+.. code-block:: bash
 
 
 
@@ -1294,7 +1330,7 @@ Similarly we can test if the provider tests are working for lowest dependencies 
 
 Those tests can be easily run locally with breeze (replace PROVIDER_ID with id of the provider):
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze testing tests --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
 
@@ -1304,7 +1340,7 @@ the dependency in the provider.yaml file of the appropriate provider and re-run 
 You can also iterate on the tests and versions of the dependencies by entering breeze shell and
 running the tests from there:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
 
@@ -1346,7 +1382,7 @@ committing the change will regenerate the dependencies automatically.
 
 After that, re-run the ``breeze shell --force-lowest-dependencies`` command and see if the tests pass.
 
-.. code-block::bash
+.. code-block:: bash
 
    breeze shell --force-lowest-dependencies --test-type "Providers[PROVIDER_ID]"
 
@@ -1462,6 +1498,26 @@ This parameter is also available in Breeze.
 
     breeze testing db-tests --keep-env-variables
 
+Disable database cleanup before each test module
+................................................
+
+By default, the database is cleared from all items before running tests. This is to avoid potential conflicts with
+existing resources in the database when running tests using the database. However, in some scenarios you might want to
+disable this mechanism and keep the database as is. For example, you might want to run tests in parallel against the
+same database. In that case, you need to disable the database cleanup, otherwise the tests are going to conflict with
+each other (one test will delete the resources that another one is creating).
+
+To disable the database cleanup, you need to provide ``--no-db-cleanup`` as pytest CLI argument.
+
+.. code-block:: bash
+
+    pytest tests/core/ --no-db-cleanup
+
+This parameter is also available in Breeze.
+
+.. code-block:: bash
+
+    breeze testing db-tests --no-db-cleanup
 
 Code Coverage
 -------------

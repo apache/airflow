@@ -33,6 +33,7 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import TrySelector from "./TrySelector";
 
 interface Props {
@@ -54,9 +55,11 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const { data: tiHistory } = useTIHistory({
     dagId,
     taskId: taskId || "",
-    runId: runId || "",
+    dagRunId: runId || "",
     mapIndex: taskInstance?.mapIndex || -1,
-    enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    options: {
+      enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    },
   });
 
   const [selectedTryNumber, setSelectedTryNumber] = useState(
@@ -68,7 +71,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
     if (finalTryNumber) setSelectedTryNumber(finalTryNumber);
   }, [finalTryNumber]);
 
-  const tryInstance = tiHistory?.find(
+  const tryInstance = tiHistory?.taskInstances?.find(
     (ti) => ti.tryNumber === selectedTryNumber
   );
 
@@ -319,7 +322,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
           <Text as="strong" mb={3}>
             Rendered Templates
           </Text>
-          <Table>
+          <Table variant="striped">
             <Tbody>
               {Object.keys(instance.renderedFields).map((key) => {
                 const renderedFields = instance.renderedFields as Record<
@@ -339,7 +342,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-                        <Code fontSize="md">{field as string}</Code>
+                        <RenderedJsonField content={field as string} />
                       </Td>
                     </Tr>
                   );

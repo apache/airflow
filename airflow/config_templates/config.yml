@@ -89,7 +89,7 @@ core:
         This defines the maximum number of task instances that can run concurrently per scheduler in
         Airflow, regardless of the worker count. Generally this value, multiplied by the number of
         schedulers in your cluster, is the maximum number of task instances with the running
-        state in the metadata database.
+        state in the metadata database. Setting this value to zero allows unlimited parallelism.
       version_added: ~
       type: string
       example: ~
@@ -513,6 +513,19 @@ core:
       type: string
       default: ~
       example: 'http://localhost:8080'
+    internal_api_secret_key:
+      description: |
+        Secret key used to authenticate internal API clients to core. It should be as random as possible.
+        However, when running more than 1 instances of webserver / internal API services, make sure all
+        of them use the same ``secret_key`` otherwise calls will fail on authentication.
+        The authentication token generated using the secret key has a short expiry time though - make
+        sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors when the logs are accessed.
+      version_added: 2.10.0
+      type: string
+      sensitive: true
+      example: ~
+      default: "{SECRET_KEY}"
     test_connection:
       description: |
         The ability to allow testing connections across Airflow UI, API and CLI.
@@ -661,6 +674,17 @@ database:
       version_added: 2.3.0
       type: string
       example: 'airflow_local_settings.connect_args'
+      default: ~
+    sql_alchemy_session_maker:
+      description: |
+        Important Warning: Use of sql_alchemy_session_maker Highly Discouraged
+        Import path for function which returns 'sqlalchemy.orm.sessionmaker'.
+        Improper configuration of sql_alchemy_session_maker can lead to serious issues,
+        including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
+        documentation for detailed guidance on proper configuration and best practices.
+      version_added: 2.9.4
+      type: string
+      example: 'airflow_local_settings._sessionmaker'
       default: ~
     load_default_connections:
       description: |
@@ -1687,6 +1711,9 @@ webserver:
 
             When using ``gevent`` you might also want to set the ``_AIRFLOW_PATCH_GEVENT``
             environment variable to ``"1"`` to make sure gevent patching is done as early as possible.
+
+            Be careful to set ``_AIRFLOW_PATCH_GEVENT`` only on the web server as gevent patching may
+            affect the scheduler behavior via the ``multiprocessing`` sockets module and cause crash.
 
             See related Issues / PRs for more details:
 

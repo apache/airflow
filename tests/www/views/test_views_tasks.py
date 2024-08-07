@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from airflow.www.views import TaskInstanceModelView
+from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
@@ -66,7 +66,7 @@ def reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app, reset_dagruns):
+def init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
@@ -1048,6 +1048,35 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         url = f"/dags/{dag.dag_id}/graph"
         resp = admin_client.get(url, follow_redirects=True)
         assert resp.status_code == 200
+
+
+def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
+    """Test the get_date_time_num_runs_dag_runs_form_data function."""
+    from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
+
+    execution_date = pendulum.now(tz="UTC")
+    with dag_maker(
+        dag_id="test_get_date_time_num_runs_dag_runs_form_data",
+        start_date=execution_date,
+    ) as dag:
+        BashOperator(task_id="task_1", bash_command="echo test")
+
+    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        url = f"/dags/{dag.dag_id}/graph"
+        resp = admin_client.get(url, follow_redirects=True)
+        assert resp.status_code == 200
+
+    with create_session() as session:
+        data = get_date_time_num_runs_dag_runs_form_data(resp.request, session, dag)
+
+        dttm = pendulum.parse(data["dttm"].isoformat())
+        base_date = pendulum.parse(data["base_date"].isoformat())
+
+        assert dttm.date() == execution_date.date()
+        assert dttm.time().hour == _safe_parse_datetime(execution_date.time().isoformat()).time().hour
+        assert dttm.time().minute == _safe_parse_datetime(execution_date.time().isoformat()).time().minute
+        assert base_date.date() == execution_date.date()
 
 
 def test_task_instances(admin_client):

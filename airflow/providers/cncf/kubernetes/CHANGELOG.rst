@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+8.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass content of kube/config file to triggerer as a dictionary (#41178)``
+* ``Fix confusing log message in kubernetes executor (#41035)``
+* ``Fix ApiException handling when adopting completed pods (#41109)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Solve failing KPO task with task decorator and imported typing elements (#40642)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 8.3.2
 .....
 

@@ -30,7 +30,7 @@ from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 TEST_DAG_IDS = ["test_dag", "test_dag2"]
 

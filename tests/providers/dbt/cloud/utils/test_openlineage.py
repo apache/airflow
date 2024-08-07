@@ -21,6 +21,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from openlineage.common import __version__
+from packaging.version import parse
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
@@ -42,18 +44,13 @@ class MockResponse:
 
 
 def emit_event(event):
-    run_id = TASK_UUID
-    name = f"{DAG_ID}.{TASK_ID}"
-    run_obj = event.run.facets["parent"].run
-    job_obj = event.run.facets["parent"].job
-    if isinstance(run_obj, dict):
-        assert run_obj["runId"] == run_id
+    # since 1.15.0 there was v2 facets introduced
+    if parse(__version__) >= parse("1.15.0"):
+        assert event.run.facets["parent"].run.runId == TASK_UUID
+        assert event.run.facets["parent"].job.name == f"{DAG_ID}.{TASK_ID}"
     else:
-        assert run_obj.runId == run_id
-    if isinstance(job_obj, dict):
-        assert job_obj["name"] == name
-    else:
-        assert job_obj.name == name
+        assert event.run.facets["parent"].run["runId"] == TASK_UUID
+        assert event.run.facets["parent"].job["name"] == f"{DAG_ID}.{TASK_ID}"
     assert event.job.namespace == "default"
     assert event.job.name.startswith("SANDBOX.TEST_SCHEMA.test_project")
 

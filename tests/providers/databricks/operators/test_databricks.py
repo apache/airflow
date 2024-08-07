@@ -23,10 +23,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -38,7 +36,6 @@ from airflow.providers.databricks.operators.databricks import (
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils import databricks as utils
-from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -251,9 +248,9 @@ def make_run_with_state_mock(
 
 
 class TestDatabricksCreateJobsOperator:
-    def test_validate_json_with_named_parameters(self):
+    def test_init_with_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with the named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksCreateJobsOperator(
             task_id=TASK_ID,
@@ -269,9 +266,7 @@ class TestDatabricksCreateJobsOperator:
             git_source=GIT_SOURCE,
             access_control_list=ACCESS_CONTROL_LIST,
         )
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "name": JOB_NAME,
                 "tags": TAGS,
@@ -289,9 +284,9 @@ class TestDatabricksCreateJobsOperator:
 
         assert expected == op.json
 
-    def test_validate_json_with_json(self):
+    def test_init_with_json(self):
         """
-        Test the _setup_and_validate_json function with json data.
+        Test the initializer with json data.
         """
         json = {
             "name": JOB_NAME,
@@ -307,9 +302,8 @@ class TestDatabricksCreateJobsOperator:
             "access_control_list": ACCESS_CONTROL_LIST,
         }
         op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
-        op._setup_and_validate_json()
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "name": JOB_NAME,
                 "tags": TAGS,
@@ -327,9 +321,9 @@ class TestDatabricksCreateJobsOperator:
 
         assert expected == op.json
 
-    def test_validate_json_with_merging(self):
+    def test_init_with_merging(self):
         """
-        Test the _setup_and_validate_json function when json and other named parameters are both
+        Test the initializer when json and other named parameters are both
         provided. The named parameters should override top level keys in the
         json dict.
         """
@@ -373,9 +367,8 @@ class TestDatabricksCreateJobsOperator:
             git_source=override_git_source,
             access_control_list=override_access_control_list,
         )
-        op._setup_and_validate_json()
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "name": override_name,
                 "tags": override_tags,
@@ -393,158 +386,24 @@ class TestDatabricksCreateJobsOperator:
 
         assert expected == op.json
 
-    def test_validate_json_with_templating(self):
+    def test_init_with_templating(self):
         json = {"name": "test-{{ ds }}"}
 
         dag = DAG("test", start_date=datetime.now())
         op = DatabricksCreateJobsOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content({"name": f"test-{DATE}"})
+        expected = utils.normalise_json_content({"name": f"test-{DATE}"})
         assert expected == op.json
 
-    def test_validate_json_with_bad_type(self):
-        json = {"test": datetime.now(), "name": "test"}
+    def test_init_with_bad_type(self):
+        json = {"test": datetime.now()}
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r"Type \<(type|class) \'datetime.datetime\'\> used "
             r"for parameter json\[test\] is not a number or a string"
         )
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)._setup_and_validate_json()
-
-    def test_validate_json_with_no_name(self):
-        json = {}
-        exception_message = "Missing required parameter: name"
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)._setup_and_validate_json()
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
-        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True):
-            push_json = PythonOperator(
-                task_id="push_json",
-                python_callable=lambda: {
-                    "name": JOB_NAME,
-                    "description": JOB_DESCRIPTION,
-                    "tags": TAGS,
-                    "tasks": TASKS,
-                    "job_clusters": JOB_CLUSTERS,
-                    "email_notifications": EMAIL_NOTIFICATIONS,
-                    "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                    "notification_settings": NOTIFICATION_SETTINGS,
-                    "timeout_seconds": TIMEOUT_SECONDS,
-                    "schedule": SCHEDULE,
-                    "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                    "git_source": GIT_SOURCE,
-                    "access_control_list": ACCESS_CONTROL_LIST,
-                },
-            )
-            op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
-            push_json >> op
-
-        db_mock = db_mock_class.return_value
-        db_mock.create_job.return_value = JOB_ID
-
-        db_mock.find_job_id_by_name.return_value = None
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "name": JOB_NAME,
-                "description": JOB_DESCRIPTION,
-                "tags": TAGS,
-                "tasks": TASKS,
-                "job_clusters": JOB_CLUSTERS,
-                "email_notifications": EMAIL_NOTIFICATIONS,
-                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                "notification_settings": NOTIFICATION_SETTINGS,
-                "timeout_seconds": TIMEOUT_SECONDS,
-                "schedule": SCHEDULE,
-                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                "git_source": GIT_SOURCE,
-                "access_control_list": ACCESS_CONTROL_LIST,
-            }
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksCreateJobsOperator",
-        )
-
-        db_mock.create_job.assert_called_once_with(expected)
-        assert JOB_ID == tis[TASK_ID].xcom_pull()
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
-        with dag_maker("test_xcomarg", render_template_as_native_obj=True):
-
-            @task
-            def push_json() -> dict:
-                return {
-                    "name": JOB_NAME,
-                    "description": JOB_DESCRIPTION,
-                    "tags": TAGS,
-                    "tasks": TASKS,
-                    "job_clusters": JOB_CLUSTERS,
-                    "email_notifications": EMAIL_NOTIFICATIONS,
-                    "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                    "notification_settings": NOTIFICATION_SETTINGS,
-                    "timeout_seconds": TIMEOUT_SECONDS,
-                    "schedule": SCHEDULE,
-                    "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                    "git_source": GIT_SOURCE,
-                    "access_control_list": ACCESS_CONTROL_LIST,
-                }
-
-            json = push_json()
-            op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
-
-        db_mock = db_mock_class.return_value
-        db_mock.create_job.return_value = JOB_ID
-
-        db_mock.find_job_id_by_name.return_value = None
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "name": JOB_NAME,
-                "description": JOB_DESCRIPTION,
-                "tags": TAGS,
-                "tasks": TASKS,
-                "job_clusters": JOB_CLUSTERS,
-                "email_notifications": EMAIL_NOTIFICATIONS,
-                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                "notification_settings": NOTIFICATION_SETTINGS,
-                "timeout_seconds": TIMEOUT_SECONDS,
-                "schedule": SCHEDULE,
-                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                "git_source": GIT_SOURCE,
-                "access_control_list": ACCESS_CONTROL_LIST,
-            }
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksCreateJobsOperator",
-        )
-
-        db_mock.create_job.assert_called_once_with(expected)
-        assert JOB_ID == tis[TASK_ID].xcom_pull()
+            DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_create(self, db_mock_class):
@@ -574,7 +433,7 @@ class TestDatabricksCreateJobsOperator:
 
         return_result = op.execute({})
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "name": JOB_NAME,
                 "description": JOB_DESCRIPTION,
@@ -628,7 +487,7 @@ class TestDatabricksCreateJobsOperator:
 
         return_result = op.execute({})
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "name": JOB_NAME,
                 "description": JOB_DESCRIPTION,
@@ -680,7 +539,7 @@ class TestDatabricksCreateJobsOperator:
 
         op.execute({})
 
-        expected = utils._normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
+        expected = utils.normalise_json_content({"access_control_list": ACCESS_CONTROL_LIST})
 
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
@@ -727,76 +586,66 @@ class TestDatabricksCreateJobsOperator:
 
 
 class TestDatabricksSubmitRunOperator:
-    def test_validate_json_with_notebook_task_named_parameters(self):
+    def test_init_with_notebook_task_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, notebook_task=NOTEBOOK_TASK
         )
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
 
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_spark_python_task_named_parameters(self):
+    def test_init_with_spark_python_task_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with the named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_python_task=SPARK_PYTHON_TASK
         )
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "spark_python_task": SPARK_PYTHON_TASK, "run_name": TASK_ID}
         )
 
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_pipeline_name_task_named_parameters(self):
+    def test_init_with_pipeline_name_task_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with the named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_NAME_TASK)
-        op._setup_and_validate_json()
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID})
 
-        expected = utils._normalise_json_content({"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID})
+        assert expected == utils.normalise_json_content(op.json)
 
-        assert expected == utils._normalise_json_content(op.json)
-
-    def test_validate_json_with_pipeline_id_task_named_parameters(self):
+    def test_init_with_pipeline_id_task_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with the named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_ID_TASK)
-        op._setup_and_validate_json()
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
 
-        expected = utils._normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
+        assert expected == utils.normalise_json_content(op.json)
 
-        assert expected == utils._normalise_json_content(op.json)
-
-    def test_validate_json_with_spark_submit_task_named_parameters(self):
+    def test_init_with_spark_submit_task_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with the named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_submit_task=SPARK_SUBMIT_TASK
         )
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "spark_submit_task": SPARK_SUBMIT_TASK, "run_name": TASK_ID}
         )
 
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_dbt_task_named_parameters(self):
+    def test_init_with_dbt_task_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with the named parameters.
+        Test the initializer with the named parameters.
         """
         git_source = {
             "git_url": "https://github.com/dbt-labs/jaffle_shop",
@@ -806,17 +655,15 @@ class TestDatabricksSubmitRunOperator:
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK, git_source=git_source
         )
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "dbt_task": DBT_TASK, "git_source": git_source, "run_name": TASK_ID}
         )
 
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_dbt_task_mixed_parameters(self):
+    def test_init_with_dbt_task_mixed_parameters(self):
         """
-        Test the _setup_and_validate_json function with mixed parameters.
+        Test the initializer with mixed parameters.
         """
         git_source = {
             "git_url": "https://github.com/dbt-labs/jaffle_shop",
@@ -827,85 +674,73 @@ class TestDatabricksSubmitRunOperator:
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK, json=json
         )
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "dbt_task": DBT_TASK, "git_source": git_source, "run_name": TASK_ID}
         )
 
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_dbt_task_without_git_source_raises_error(self):
+    def test_init_with_dbt_task_without_git_source_raises_error(self):
         """
-        Test the _setup_and_validate_json function without the necessary git_source for dbt_task raises error.
+        Test the initializer without the necessary git_source for dbt_task raises error.
         """
         exception_message = "git_source is required for dbt_task"
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksSubmitRunOperator(
-                task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK
-            )._setup_and_validate_json()
+            DatabricksSubmitRunOperator(task_id=TASK_ID, new_cluster=NEW_CLUSTER, dbt_task=DBT_TASK)
 
-    def test_validate_json_with_dbt_task_json_without_git_source_raises_error(self):
+    def test_init_with_dbt_task_json_without_git_source_raises_error(self):
         """
-        Test the _setup_and_validate_json function without the necessary git_source for dbt_task raises error.
+        Test the initializer without the necessary git_source for dbt_task raises error.
         """
         json = {"dbt_task": DBT_TASK, "new_cluster": NEW_CLUSTER}
 
         exception_message = "git_source is required for dbt_task"
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)._setup_and_validate_json()
+            DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
 
-    def test_validate_json_with_json(self):
+    def test_init_with_json(self):
         """
-        Test the _setup_and_validate_json function with json data.
+        Test the initializer with json data.
         """
         json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_tasks(self):
+    def test_init_with_tasks(self):
         tasks = [{"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}]
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, tasks=tasks)
-        op._setup_and_validate_json()
+        expected = utils.normalise_json_content({"run_name": TASK_ID, "tasks": tasks})
+        assert expected == utils.normalise_json_content(op.json)
 
-        expected = utils._normalise_json_content({"run_name": TASK_ID, "tasks": tasks})
-        assert expected == utils._normalise_json_content(op.json)
-
-    def test_validate_json_with_specified_run_name(self):
+    def test_init_with_specified_run_name(self):
         """
-        Test the _setup_and_validate_json function with a specified run_name.
+        Test the initializer with a specified run_name.
         """
         json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
         )
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_pipeline_task(self):
+    def test_pipeline_task(self):
         """
-        Test the _setup_and_validate_json function with a pipeline task.
+        Test the initializer with a pipeline task.
         """
         pipeline_task = {"pipeline_id": "test-dlt"}
         json = {"new_cluster": NEW_CLUSTER, "run_name": RUN_NAME, "pipeline_task": pipeline_task}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "pipeline_task": pipeline_task, "run_name": RUN_NAME}
         )
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_merging(self):
+    def test_init_with_merging(self):
         """
-        Test the _setup_and_validate_json function when json and other named parameters are both
+        Test the initializer when json and other named parameters are both
         provided. The named parameters should override top level keys in the
         json dict.
         """
@@ -915,38 +750,34 @@ class TestDatabricksSubmitRunOperator:
             "notebook_task": NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "new_cluster": override_new_cluster,
                 "notebook_task": NOTEBOOK_TASK,
                 "run_name": TASK_ID,
             }
         )
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
     @pytest.mark.db_test
-    def test_validate_json_with_templating(self):
+    def test_init_with_templating(self):
         json = {
             "new_cluster": NEW_CLUSTER,
             "notebook_task": TEMPLATED_NOTEBOOK_TASK,
         }
         dag = DAG("test", start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
-        op._setup_and_validate_json()
-
         op.render_template_fields(context={"ds": DATE})
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "new_cluster": NEW_CLUSTER,
                 "notebook_task": RENDERED_TEMPLATED_NOTEBOOK_TASK,
                 "run_name": TASK_ID,
             }
         )
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_git_source(self):
+    def test_init_with_git_source(self):
         json = {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": RUN_NAME}
         git_source = {
             "git_url": "https://github.com/apache/airflow",
@@ -954,9 +785,7 @@ class TestDatabricksSubmitRunOperator:
             "git_branch": "main",
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, git_source=git_source, json=json)
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "new_cluster": NEW_CLUSTER,
                 "notebook_task": NOTEBOOK_TASK,
@@ -964,95 +793,18 @@ class TestDatabricksSubmitRunOperator:
                 "git_source": git_source,
             }
         )
-        assert expected == utils._normalise_json_content(op.json)
+        assert expected == utils.normalise_json_content(op.json)
 
-    def test_validate_json_with_bad_type(self):
+    def test_init_with_bad_type(self):
         json = {"test": datetime.now()}
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r"Type \<(type|class) \'datetime.datetime\'\> used "
             r"for parameter json\[test\] is not a number or a string"
         )
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)._setup_and_validate_json()
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
-        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True):
-            push_json = PythonOperator(
-                task_id="push_json",
-                python_callable=lambda: {
-                    "new_cluster": NEW_CLUSTER,
-                    "notebook_task": NOTEBOOK_TASK,
-                },
-            )
-            op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-            push_json >> op
-
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = RUN_ID
-        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksSubmitRunOperator",
-        )
-
-        db_mock.submit_run.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run.assert_called_once_with(RUN_ID)
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
-        with dag_maker("test_xcomarg", render_template_as_native_obj=True):
-
-            @task
-            def push_json() -> dict:
-                return {
-                    "new_cluster": NEW_CLUSTER,
-                    "notebook_task": NOTEBOOK_TASK,
-                }
-
-            json = push_json()
-
-            op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = RUN_ID
-        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
-        )
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksSubmitRunOperator",
-        )
-
-        db_mock.submit_run.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run.assert_called_once_with(RUN_ID)
+            utils.normalise_json_content(op.json)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):
@@ -1070,7 +822,7 @@ class TestDatabricksSubmitRunOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -1100,7 +852,7 @@ class TestDatabricksSubmitRunOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
             retry_limit=op.databricks_retry_limit,
@@ -1132,7 +884,7 @@ class TestDatabricksSubmitRunOperator:
         with pytest.raises(AirflowException):
             op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "new_cluster": NEW_CLUSTER,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1180,7 +932,7 @@ class TestDatabricksSubmitRunOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -1209,7 +961,7 @@ class TestDatabricksSubmitRunOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -1243,7 +995,7 @@ class TestDatabricksSubmitRunOperator:
         assert isinstance(exc.value.trigger, DatabricksExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -1325,7 +1077,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -1355,7 +1107,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
         )
         db_mock_class.assert_called_once_with(
@@ -1373,20 +1125,18 @@ class TestDatabricksSubmitRunOperator:
 
 
 class TestDatabricksRunNowOperator:
-    def test_validate_json_with_named_parameters(self):
+    def test_init_with_named_parameters(self):
         """
-        Test the _setup_and_validate_json function with named parameters.
+        Test the initializer with the named parameters.
         """
         op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
-        op._setup_and_validate_json()
-
-        expected = utils._normalise_json_content({"job_id": 42})
+        expected = utils.normalise_json_content({"job_id": 42})
 
         assert expected == op.json
 
-    def test_validate_json_with_json(self):
+    def test_init_with_json(self):
         """
-        Test the _setup_and_validate_json function with json data.
+        Test the initializer with json data.
         """
         json = {
             "notebook_params": NOTEBOOK_PARAMS,
@@ -1397,9 +1147,8 @@ class TestDatabricksRunNowOperator:
             "repair_run": False,
         }
         op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
-        op._setup_and_validate_json()
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "jar_params": JAR_PARAMS,
@@ -1412,9 +1161,9 @@ class TestDatabricksRunNowOperator:
 
         assert expected == op.json
 
-    def test_validate_json_with_merging(self):
+    def test_init_with_merging(self):
         """
-        Test the _setup_and_validate_json function when json and other named parameters are both
+        Test the initializer when json and other named parameters are both
         provided. The named parameters should override top level keys in the
         json dict.
         """
@@ -1431,9 +1180,8 @@ class TestDatabricksRunNowOperator:
             jar_params=override_jar_params,
             spark_submit_params=SPARK_SUBMIT_PARAMS,
         )
-        op._setup_and_validate_json()
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": override_notebook_params,
                 "jar_params": override_jar_params,
@@ -1446,14 +1194,13 @@ class TestDatabricksRunNowOperator:
         assert expected == op.json
 
     @pytest.mark.db_test
-    def test_validate_json_with_templating(self):
+    def test_init_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 
         dag = DAG("test", start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
-        op._setup_and_validate_json()
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "jar_params": RENDERED_TEMPLATED_JAR_PARAMS,
@@ -1462,7 +1209,7 @@ class TestDatabricksRunNowOperator:
         )
         assert expected == op.json
 
-    def test_validate_json_with_bad_type(self):
+    def test_init_with_bad_type(self):
         json = {"test": datetime.now()}
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
@@ -1470,116 +1217,7 @@ class TestDatabricksRunNowOperator:
             r"for parameter json\[test\] is not a number or a string"
         )
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)._setup_and_validate_json()
-
-    def test_validate_json_exception_with_job_name_and_job_id(self):
-        exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
-
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(
-                task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME
-            )._setup_and_validate_json()
-
-        run = {"job_id": JOB_ID, "job_name": JOB_NAME}
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, json=run)._setup_and_validate_json()
-
-        run = {"job_id": JOB_ID}
-        with pytest.raises(AirflowException, match=exception_message):
-            DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)._setup_and_validate_json()
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_templated_json(self, db_mock_class, dag_maker):
-        json = "{{ ti.xcom_pull(task_ids='push_json') }}"
-        with dag_maker("test_templated", render_template_as_native_obj=True):
-            push_json = PythonOperator(
-                task_id="push_json",
-                python_callable=lambda: {
-                    "notebook_params": NOTEBOOK_PARAMS,
-                    "notebook_task": NOTEBOOK_TASK,
-                    "jar_params": JAR_PARAMS,
-                    "job_id": JOB_ID,
-                },
-            )
-            op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
-            push_json >> op
-
-        db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = RUN_ID
-        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "notebook_params": NOTEBOOK_PARAMS,
-                "notebook_task": NOTEBOOK_TASK,
-                "jar_params": JAR_PARAMS,
-                "job_id": JOB_ID,
-            }
-        )
-
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksRunNowOperator",
-        )
-        db_mock.run_now.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run.assert_called_once_with(RUN_ID)
-
-    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_validate_json_with_xcomarg_json(self, db_mock_class, dag_maker):
-        with dag_maker("test_xcomarg", render_template_as_native_obj=True):
-
-            @task
-            def push_json() -> dict:
-                return {
-                    "notebook_params": NOTEBOOK_PARAMS,
-                    "notebook_task": NOTEBOOK_TASK,
-                    "jar_params": JAR_PARAMS,
-                    "job_id": JOB_ID,
-                }
-
-            json = push_json()
-
-            op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
-
-        db_mock = db_mock_class.return_value
-        db_mock.run_now.return_value = RUN_ID
-        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
-        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["push_json"].run()
-        tis[TASK_ID].run()
-
-        expected = utils._normalise_json_content(
-            {
-                "notebook_params": NOTEBOOK_PARAMS,
-                "notebook_task": NOTEBOOK_TASK,
-                "jar_params": JAR_PARAMS,
-                "job_id": JOB_ID,
-            }
-        )
-
-        db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit,
-            retry_delay=op.databricks_retry_delay,
-            retry_args=None,
-            caller="DatabricksRunNowOperator",
-        )
-        db_mock.run_now.assert_called_once_with(expected)
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run.assert_called_once_with(RUN_ID)
+            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):
@@ -1594,7 +1232,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1629,7 +1267,7 @@ class TestDatabricksRunNowOperator:
         with pytest.raises(AirflowException):
             op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1685,7 +1323,7 @@ class TestDatabricksRunNowOperator:
         with pytest.raises(AirflowException, match="Exception: Something went wrong"):
             op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1753,7 +1391,7 @@ class TestDatabricksRunNowOperator:
         ):
             op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1797,7 +1435,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1828,7 +1466,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1848,6 +1486,20 @@ class TestDatabricksRunNowOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
 
+    def test_init_exception_with_job_name_and_job_id(self):
+        exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
+
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME)
+
+        run = {"job_id": JOB_ID, "job_name": JOB_NAME}
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(task_id=TASK_ID, json=run)
+
+        run = {"job_id": JOB_ID}
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_with_job_name(self, db_mock_class):
         run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
@@ -1859,7 +1511,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1907,7 +1559,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1941,7 +1593,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -1978,7 +1630,7 @@ class TestDatabricksRunNowOperator:
         assert isinstance(exc.value.trigger, DatabricksExecutionTrigger)
         assert exc.value.method_name == "execute_complete"
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -2088,7 +1740,7 @@ class TestDatabricksRunNowOperator:
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
 
         op.execute(None)
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,
@@ -2122,7 +1774,7 @@ class TestDatabricksRunNowOperator:
 
         op.execute(None)
 
-        expected = utils._normalise_json_content(
+        expected = utils.normalise_json_content(
             {
                 "notebook_params": NOTEBOOK_PARAMS,
                 "notebook_task": NOTEBOOK_TASK,

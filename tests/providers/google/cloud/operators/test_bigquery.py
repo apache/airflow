@@ -26,8 +26,6 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
 from google.cloud.exceptions import Conflict
-from openlineage.client.facet import ErrorMessageRunFacet, ExternalQueryRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import (
     AirflowException,
@@ -35,6 +33,12 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferred,
+)
+from airflow.providers.common.compat.openlineage.facet import (
+    ErrorMessageRunFacet,
+    ExternalQueryRunFacet,
+    InputDataset,
+    SQLJobFacet,
 )
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
@@ -698,7 +702,7 @@ class TestBigQueryOperator:
             operator.execute(MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_operator_defaults(self, mock_hook, create_task_instance_of_operator):
+    def test_bigquery_operator_defaults(self, mock_hook, create_task_instance_of_operator, session):
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
@@ -707,6 +711,8 @@ class TestBigQueryOperator:
                 sql="Select * from test_table",
                 schema_update_options=None,
             )
+        session.add(ti)
+        session.commit()
         operator = ti.task
 
         operator.execute(MagicMock())
@@ -738,6 +744,7 @@ class TestBigQueryOperator:
         self,
         dag_maker,
         create_task_instance_of_operator,
+        session,
     ):
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
             ti = create_task_instance_of_operator(
@@ -747,6 +754,8 @@ class TestBigQueryOperator:
                 task_id=TASK_ID,
                 sql="SELECT * FROM test_table",
             )
+        session.add(ti)
+        session.commit()
         serialized_dag = dag_maker.get_serialized_data()
         deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
         assert hasattr(deserialized_dag.tasks[0], "sql")
@@ -836,6 +845,7 @@ class TestBigQueryOperator:
         self,
         mock_hook,
         create_task_instance_of_operator,
+        session,
     ):
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
             ti = create_task_instance_of_operator(
@@ -846,7 +856,8 @@ class TestBigQueryOperator:
                 sql="SELECT * FROM test_table",
             )
         bigquery_task = ti.task
-
+        session.add(ti)
+        session.commit()
         ti.xcom_push(key="job_id_path", value=TEST_FULL_JOB_ID)
 
         assert (
@@ -856,7 +867,7 @@ class TestBigQueryOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_operator_extra_link_when_multiple_query(
-        self, mock_hook, create_task_instance_of_operator
+        self, mock_hook, create_task_instance_of_operator, session
     ):
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
             ti = create_task_instance_of_operator(
@@ -867,7 +878,8 @@ class TestBigQueryOperator:
                 sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
             )
         bigquery_task = ti.task
-
+        session.add(ti)
+        session.commit()
         ti.xcom_push(key="job_id_path", value=[TEST_FULL_JOB_ID, TEST_FULL_JOB_ID_2])
 
         assert {"BigQuery Console #1", "BigQuery Console #2"} == bigquery_task.operator_extra_link_dict.keys()
@@ -1395,7 +1407,7 @@ class TestBigQueryInsertJobOperator:
         job = MagicMock(
             job_id=real_job_id,
             error_result=False,
-            state="PENDING",
+            state="RUNNING",
             done=lambda: False,
         )
         mock_hook.return_value.get_job.return_value = job
@@ -1407,7 +1419,7 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID,
-            reattach_states={"PENDING"},
+            reattach_states={"PENDING", "RUNNING"},
         )
         result = op.execute(context=MagicMock())
 
@@ -1423,6 +1435,41 @@ class TestBigQueryInsertJobOperator:
         )
 
         assert result == real_job_id
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_reattach_to_done_state(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        mock_hook.return_value.insert_job.side_effect = Conflict("any")
+        job = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+            state="DONE",
+            done=lambda: False,
+        )
+        mock_hook.return_value.get_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            reattach_states={"PENDING"},
+        )
+        with pytest.raises(AirflowException):
+            # Not possible to reattach to any state if job is already DONE
+            op.execute(context=MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_force_rerun(self, mock_hook):
@@ -1809,7 +1856,7 @@ class TestBigQueryInsertJobOperator:
 
         lineage = op.get_openlineage_facets_on_complete(None)
         assert lineage.inputs == [
-            Dataset(namespace="bigquery", name="airflow-openlineage.new_dataset.test_table")
+            InputDataset(namespace="bigquery", name="airflow-openlineage.new_dataset.test_table")
         ]
 
         assert lineage.run_facets == {
@@ -1817,7 +1864,7 @@ class TestBigQueryInsertJobOperator:
             "bigQueryJob": mock.ANY,
             "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
         }
-        assert lineage.job_facets == {"sql": SqlJobFacet(query="SELECT * FROM test_table")}
+        assert lineage.job_facets == {"sql": SQLJobFacet(query="SELECT * FROM test_table")}
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_fails_openlineage_events(self, mock_hook):

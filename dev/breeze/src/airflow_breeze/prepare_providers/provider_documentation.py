@@ -108,16 +108,18 @@ class TypeOfChange(Enum):
     FEATURE = "f"
     BREAKING_CHANGE = "x"
     SKIP = "s"
+    MISC = "m"
 
 
 # defines the precedence order for provider version bumps
-# BREAKING_CHANGE > FEATURE > BUGFIX > DOCUMENTATION > SKIP
+# BREAKING_CHANGE > FEATURE > BUGFIX > MISC > DOCUMENTATION > SKIP
 precedence_order = {
     TypeOfChange.SKIP: 0,
     TypeOfChange.DOCUMENTATION: 1,
-    TypeOfChange.BUGFIX: 2,
-    TypeOfChange.FEATURE: 3,
-    TypeOfChange.BREAKING_CHANGE: 4,
+    TypeOfChange.MISC: 2,
+    TypeOfChange.BUGFIX: 3,
+    TypeOfChange.FEATURE: 4,
+    TypeOfChange.BREAKING_CHANGE: 5,
 }
 
 
@@ -177,9 +179,10 @@ class PrepareReleaseDocsUserQuitException(Exception):
 TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.DOCUMENTATION: "Documentation only changes - no version change needed, "
     "only documentation needs to be updated",
-    TypeOfChange.BUGFIX: "Bugfix/Misc changes only - bump in PATCHLEVEL version needed",
+    TypeOfChange.BUGFIX: "Bugfix changes only - bump in PATCHLEVEL version needed",
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
+    TypeOfChange.MISC: "Miscellaneous changes - bump in PATCHLEVEL version needed",
 }
 
 
@@ -428,7 +431,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     while True:
         get_console().print(
             "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
-            f"change, (s)kip, (q)uit [{display_answers}]?[/] ",
+            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -704,6 +707,7 @@ def update_release_notes(
     with_breaking_changes = False
     maybe_with_new_features = False
     original_provider_yaml_content: str | None = None
+    marked_for_release = False
     if not reapply_templates_only:
         if proceed:
             if non_interactive:
@@ -715,6 +719,7 @@ def update_release_notes(
                     f"Provider {provider_package_id} with "
                     f"version: {current_release_version} marked for release. Proceed?"
                 )
+                marked_for_release = answer == Answer.YES
             if answer == Answer.NO:
                 get_console().print(
                     f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
@@ -785,10 +790,10 @@ def update_release_notes(
 
     provider_details = get_provider_details(provider_package_id)
     current_release_version = provider_details.versions[0]
-    if not non_interactive:
+    if (not non_interactive) and (not marked_for_release):
         answer = user_confirm(
             f"Do you want to leave the version for {provider_package_id} with version: "
-            f"{current_release_version} as is?"
+            f"{current_release_version} as is for the release?"
         )
     else:
         answer = Answer.YES
@@ -899,13 +904,14 @@ def _get_changes_classified(
 
         if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
+        elif type_of_change == TypeOfChange.MISC:
+            classified_changes.misc.append(change)
         elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)
         elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
         else:
-            # for the changes we do not have a category for, add it to misc
-            classified_changes.misc.append(change)
+            classified_changes.other.append(change)
     return classified_changes
 
 

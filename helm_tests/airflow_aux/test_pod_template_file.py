@@ -85,6 +85,7 @@ class TestPodTemplateFile:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
                     }
                 },
             },
@@ -98,6 +99,7 @@ class TestPodTemplateFile:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
+            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
@@ -659,6 +661,27 @@ class TestPodTemplateFile:
         assert annotations == {
             "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
         }
+
+    def test_safe_to_evict_annotation_other_services(self):
+        """Workers' safeToEvict value should not overwrite safeToEvict value of other services."""
+        docs = render_chart(
+            values={
+                "workers": {"safeToEvict": False},
+                "scheduler": {"safeToEvict": True},
+                "triggerer": {"safeToEvict": True},
+                "executor": "KubernetesExecutor",
+                "dagProcessor": {"enabled": True, "safeToEvict": True},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+            ],
+            chart_dir=self.temp_chart_dir,
+        )
+        for doc in docs:
+            annotations = jmespath.search("spec.template.metadata.annotations", doc)
+            assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
 
     def test_workers_pod_annotations(self):
         docs = render_chart(

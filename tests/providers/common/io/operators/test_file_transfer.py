@@ -19,8 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from openlineage.client.run import Dataset
-
+from airflow.providers.common.compat.openlineage.facet import Dataset
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.8.0", __file__):

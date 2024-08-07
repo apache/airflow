@@ -46,7 +46,7 @@ class SqliteHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
-        conn_id = getattr(self, self.conn_name_attr)
+        conn_id = self.get_conn_id()
         airflow_conn = self.get_connection(conn_id)
         if airflow_conn.conn_type is None:
             airflow_conn.conn_type = self.conn_type

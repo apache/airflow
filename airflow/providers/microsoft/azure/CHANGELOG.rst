@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+10.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added priority to Azure Container Instances (#40616)``
+
+Misc
+~~~~
+
+* ``Bump minimum version for azure containerinstance. (#40767)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add S3ToAzureBlobStorageOperator (#40511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 10.1.2
 ......
 

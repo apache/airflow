@@ -2995,7 +2995,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        result_retry: AsyncRetry | _MethodDefault = DEFAULT,
+        result_retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
         asynchronous: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 5,
@@ -3055,6 +3055,13 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                     self.log.info("Batch %s created", self.batch_id)
 
                 else:
+                    DataprocBatchLink.persist(
+                        context=context,
+                        operator=self,
+                        project_id=self.project_id,
+                        region=self.region,
+                        batch_id=self.batch_id,
+                    )
                     return self.operation.operation.name
 
             else:

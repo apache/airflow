@@ -22,9 +22,11 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 state: ready
-source-date-epoch: 1718605422
+source-date-epoch: 1722664874
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.6.1
+  - 5.6.0
   - 5.5.2
   - 5.5.1
   - 5.5.0
@@ -75,7 +77,8 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
-  - apache-airflow-providers-common-sql>=1.10.0
+  - apache-airflow-providers-common-compat>=1.1.0
+  - apache-airflow-providers-common-sql>=1.14.1
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723

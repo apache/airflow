@@ -22,8 +22,9 @@ import json
 import logging
 import threading
 from collections import defaultdict
+from importlib import reload
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -36,6 +37,7 @@ from airflow.exceptions import (
     DagConcurrencyLimitReached,
     NoAvailablePoolSlot,
     TaskConcurrencyLimitReached,
+    UnknownExecutorException,
 )
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_loader import ExecutorLoader
@@ -57,6 +59,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import (
     clear_db_dags,
     clear_db_pools,
@@ -67,7 +70,7 @@ from tests.test_utils.db import (
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 logger = logging.getLogger(__name__)
 
@@ -80,38 +83,96 @@ def dag_bag():
     return DagBag(include_examples=True)
 
 
+class SecondaryMockExecutor(MockExecutor):
+    """Copy of MockExecutor class with a new name for testing with hybrid executors (which currently
+    disallows using the same executor concurrently)"""
+
+
+def _mock_executor(executor=None):
+    if not executor:
+        default_executor = MockExecutor()
+    else:
+        if isinstance(executor, type):
+            default_executor = executor()
+        else:
+            default_executor = executor
+
+    default_executor.name = mock.MagicMock(
+        alias="default_exec",
+        module_path=f"{default_executor.__module__}.{default_executor.__class__.__qualname__}",
+    )
+    with mock.patch("airflow.jobs.job.Job.executors", new_callable=mock.PropertyMock) as executors_mock:
+        with mock.patch("airflow.jobs.job.Job.executor", new_callable=mock.PropertyMock) as executor_mock:
+            with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+                executor_mock.return_value = default_executor
+                executors_mock.return_value = [default_executor]
+                # The executor is mocked, so cannot be loaded/imported. Mock load_executor and return the
+                # correct object for the given input executor name.
+                loader_mock.side_effect = lambda *x: {
+                    ("default_exec",): default_executor,
+                    ("default.exec.module.path",): default_executor,
+                    (None,): default_executor,
+                }[x]
+
+                # Reload the job runner so that it gets a fresh instances of the mocked executor loader
+                from airflow.jobs import backfill_job_runner
+
+                reload(backfill_job_runner)
+
+                yield default_executor
+
+
 @pytest.mark.execution_timeout(120)
 class TestBackfillJob:
-    def _mock_executor(self, executor=None):
-        if not executor:
-            default_executor = MockExecutor()
-        else:
-            default_executor = executor()
-
-        default_executor.name = mock.MagicMock(
-            alias="default_exec",
-            module_path=f"{default_executor.__module__}.{default_executor.__class__.__qualname__}",
-        )
-        with mock.patch("airflow.jobs.job.Job.executors", new_callable=mock.PropertyMock) as executors_mock:
-            with mock.patch("airflow.jobs.job.Job.executor", new_callable=mock.PropertyMock) as executor_mock:
-                with mock.patch(
-                    "airflow.executors.executor_loader.ExecutorLoader.load_executor"
-                ) as loader_mock:
-                    executor_mock.return_value = default_executor
-                    executors_mock.return_value = [default_executor]
-                    # The executor is mocked, so cannot be loaded/imported. Mock load_executor and return the
-                    # correct object for the given input executor name.
-                    loader_mock.side_effect = lambda *x: {
-                        ("default_exec",): default_executor,
-                        ("default.exec.module.path",): default_executor,
-                        (None,): default_executor,
-                    }[x]
-
-                    yield default_executor
-
     @pytest.fixture
     def mock_executor(self):
-        yield from self._mock_executor()
+        yield from _mock_executor()
+
+    def _mock_executors(self):
+        default_executor = MockExecutor()
+        _default_executor = Mock(wraps=default_executor)
+        default_alias = "default_exec"
+        default_module_path = f"{default_executor.__module__}.{default_executor.__class__.__qualname__}"
+        _default_executor.name = mock.MagicMock(alias=default_alias, module_path=default_module_path)
+
+        secondary_executor = SecondaryMockExecutor()
+        _secondary_executor = Mock(wraps=secondary_executor)
+        secondary_alias = "secondary_exec"
+        secondary_module_path = f"{secondary_executor.__module__}.{secondary_executor.__class__.__qualname__}"
+        _secondary_executor.name = mock.MagicMock(alias=secondary_alias, module_path=secondary_module_path)
+
+        with mock.patch(
+            "airflow.jobs.job.Job.executors", new_callable=mock.PropertyMock
+        ) as executors_mock, mock.patch(
+            "airflow.jobs.job.Job.executor", new_callable=mock.PropertyMock
+        ) as executor_mock, mock.patch(
+            "airflow.executors.executor_loader.ExecutorLoader.load_executor"
+        ) as loader_mock, conf_vars(
+            {
+                (
+                    "core",
+                    "executor",
+                ): f"{default_alias}:{default_module_path},{secondary_alias}:{secondary_module_path}"
+            }
+        ):
+            # The executor is mocked, so cannot be loaded/imported. Mock load_executor and return the
+            # correct object for the given input executor name.
+            loader_mock.side_effect = lambda *x: {
+                (_secondary_executor.name.alias,): _secondary_executor,
+                (_secondary_executor.name.module_path,): _secondary_executor,
+                (default_alias,): _default_executor,
+                (default_module_path,): _default_executor,
+                (None,): _default_executor,
+            }[x]
+
+            executor_mock.return_value = _default_executor
+            executors_mock.return_value = [_default_executor, _secondary_executor]
+
+            yield (_default_executor, _secondary_executor)
+
+    @pytest.fixture
+    def mock_executors(self):
+        yield from self._mock_executors()
 
     @staticmethod
     def clean_db():
@@ -368,8 +429,7 @@ class TestBackfillJob:
 
         assert conf_ == dr[0].conf
 
-    @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_max_active_tis_per_dag_limit(self, mock_log, dag_maker, mock_executor):
+    def test_backfill_respect_max_active_tis_per_dag_limit(self, dag_maker, mock_executor):
         max_active_tis_per_dag = 2
         dag = self._get_dummy_dag(
             dag_maker,
@@ -386,6 +446,9 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=7),
         )
+
+        mock_log = Mock()
+        job_runner._log = mock_log
 
         run_job(job=job, execute_callable=job_runner._execute)
 
@@ -423,9 +486,8 @@ class TestBackfillJob:
         assert times_task_concurrency_limit_reached_in_debug > 0
 
     @pytest.mark.parametrize("with_max_active_tis_per_dag", [False, True])
-    @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
     def test_backfill_respect_max_active_tis_per_dagrun_limit(
-        self, mock_log, dag_maker, with_max_active_tis_per_dag, mock_executor
+        self, dag_maker, with_max_active_tis_per_dag, mock_executor
     ):
         max_active_tis_per_dag = 3
         max_active_tis_per_dagrun = 2
@@ -446,6 +508,9 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=7),
         )
+
+        mock_log = Mock()
+        job_runner._log = mock_log
 
         run_job(job=job, execute_callable=job_runner._execute)
 
@@ -503,8 +568,7 @@ class TestBackfillJob:
         assert 0 == times_dag_concurrency_limit_reached_in_debug
         assert times_task_concurrency_limit_reached_in_debug > 0
 
-    @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_dag_concurrency_limit(self, mock_log, dag_maker, mock_executor):
+    def test_backfill_respect_dag_concurrency_limit(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(dag_maker, dag_id="test_backfill_respect_concurrency_limit")
         dag_maker.create_dagrun(state=None)
         dag.max_active_tasks = 2
@@ -517,6 +581,10 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=7),
         )
+
+        mock_log = Mock()
+        job_runner._log = mock_log
+
         run_job(job=job, execute_callable=job_runner._execute)
 
         assert len(executor.history) > 0
@@ -553,8 +621,7 @@ class TestBackfillJob:
         assert 0 == times_task_concurrency_limit_reached_in_debug
         assert times_dag_concurrency_limit_reached_in_debug > 0
 
-    @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_default_pool_limit(self, mock_log, dag_maker, mock_executor):
+    def test_backfill_respect_default_pool_limit(self, dag_maker, mock_executor):
         default_pool_slots = 2
         set_default_pool_slots(default_pool_slots)
 
@@ -569,6 +636,9 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=7),
         )
+
+        mock_log = Mock()
+        job_runner._log = mock_log
 
         run_job(job=job, execute_callable=job_runner._execute)
 
@@ -630,8 +700,7 @@ class TestBackfillJob:
         except AirflowException:
             return
 
-    @patch("airflow.jobs.backfill_job_runner.BackfillJobRunner.log")
-    def test_backfill_respect_pool_limit(self, mock_log, dag_maker, mock_executor):
+    def test_backfill_respect_pool_limit(self, dag_maker, mock_executor):
         session = settings.Session()
 
         slots = 2
@@ -658,6 +727,9 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=7),
         )
+
+        mock_log = Mock()
+        job_runner._log = mock_log
 
         run_job(job=job, execute_callable=job_runner._execute)
 
@@ -713,7 +785,7 @@ class TestBackfillJob:
         ti.refresh_from_db()
         ti.set_state(State.UP_FOR_RESCHEDULE)
 
-        for _ in self._mock_executor():
+        for _ in _mock_executor():
             job = Job()
             job_runner = BackfillJobRunner(
                 job=job,
@@ -1073,7 +1145,7 @@ class TestBackfillJob:
         # raises backwards
         expected_msg = "You cannot backfill backwards because one or more tasks depend_on_past: test_dop_task"
 
-        for _ in self._mock_executor():
+        for _ in _mock_executor():
             # Mock again to get a new executor
             job = Job()
             job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
@@ -1831,6 +1903,73 @@ class TestBackfillJob:
         dr: DagRun = dag.get_last_dagrun()
         assert dr.creating_job_id == job.id
 
+    def test_executor_lifecycle(self, dag_maker, mock_executors):
+        """Ensure that all executors go through the full lifecycle of start, heartbeat, end, etc"""
+        dag_id = "test_executor_lifecycle"
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule="@daily") as dag:
+            EmptyOperator(task_id="dummy_task", dag=dag)
+
+        job = Job()
+        job_runner = BackfillJobRunner(
+            job=job, dag=dag, start_date=timezone.utcnow() - datetime.timedelta(days=1)
+        )
+        run_job(job=job, execute_callable=job_runner._execute)
+
+        for executor_mock in mock_executors:
+            assert executor_mock.job_id == job.id
+            executor_mock.start.assert_called_once()
+            executor_mock.heartbeat.assert_called_once()
+            executor_mock.end.assert_called_once()
+
+    def test_non_existing_executor(self, dag_maker, mock_executors):
+        dag_id = "test_non_existing_executor"
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule="@daily") as dag:
+            EmptyOperator(task_id="dummy_task", dag=dag, executor="foobar")
+
+        job = Job()
+        job_runner = BackfillJobRunner(
+            job=job, dag=dag, start_date=timezone.utcnow() - datetime.timedelta(days=1)
+        )
+        # Executor "foobar" does not exist, so the Backfill job should fail to run those tasks and
+        # throw an UnknownExecutorException
+        with pytest.raises(UnknownExecutorException):
+            run_job(job=job, execute_callable=job_runner._execute)
+
+    def test_hybrid_executors(self, dag_maker, mock_executors, session):
+        dag_id = "test_hybrid_executors"
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, schedule="@daily") as dag:
+            EmptyOperator(task_id="default_exec", dag=dag)
+            EmptyOperator(task_id="default_exec_explicit", dag=dag, executor=mock_executors[0].name.alias)
+            EmptyOperator(task_id="secondary_exec", dag=dag, executor=mock_executors[1].name.alias)
+
+        job = Job()
+        job_runner = BackfillJobRunner(
+            job=job, dag=dag, start_date=timezone.utcnow() - datetime.timedelta(days=1)
+        )
+
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.lookup_executor_name_by_str"):
+            run_job(job=job, execute_callable=job_runner._execute)
+
+        dr = DagRun.find(dag_id=dag.dag_id, session=session)[0]
+
+        call_list = mock_executors[0].queue_task_instance.call_args_list
+        assert len(call_list) == 2
+        assert call_list[0].args[0].task_id == "default_exec"
+        assert call_list[1].args[0].task_id == "default_exec_explicit"
+
+        call_list = mock_executors[1].queue_task_instance.call_args_list
+        assert len(call_list) == 1
+        assert call_list[0].args[0].task_id == "secondary_exec"
+
+        assert dr
+        assert dr.state == DagRunState.SUCCESS
+
+        # Check that every task has a start and end date
+        for ti in dr.task_instances:
+            assert ti.state == TaskInstanceState.SUCCESS
+            assert ti.start_date is not None
+            assert ti.end_date is not None
+
     def test_backfill_has_job_id_int(self, mock_executor):
         """Make sure that backfill jobs are assigned job_ids and that the job_id is an int."""
         dag = self.dagbag.get_dag("test_start_date_scheduling")
@@ -1859,7 +1998,7 @@ class TestBackfillJob:
 
         """
         # This test needs a real executor to run, so that the `make_list` task can write out the TaskMap
-        for _ in self._mock_executor(executor):
+        for _ in _mock_executor(executor):
             self.dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
             dag = self.dagbag.get_dag(dag_id)
 
@@ -1953,7 +2092,6 @@ class TestBackfillJob:
         with patch.object(executor, "change_state", side_effect=on_change_state):
             job_runner._process_backfill_task_instances(
                 ti_status=ti_status,
-                executor=executor,
                 start_date=dr.execution_date,
                 pickle_id=None,
                 session=session,

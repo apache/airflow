@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+3.12.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerSwarmOperator: Support line breaks in service logs (#40705)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerOperator TaskFlow - correct argyments in python command (#39620)``
+
+Misc
+~~~~
+
+* ``Improve logging behavior of DockerOperator (#40489)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 3.12.1
 ......
 

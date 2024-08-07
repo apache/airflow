@@ -28,11 +28,11 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.datasets import Dataset
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDatasetSchemaBase:
@@ -87,6 +87,7 @@ class TestDatasetSchema(TestDatasetSchemaBase):
                     "updated_at": self.timestamp,
                 }
             ],
+            "aliases": [],
         }
 
 
@@ -99,13 +100,19 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
             )
             for i in range(2)
         ]
+        dataset_aliases = [DatasetAliasModel(name=f"alias_{i}") for i in range(2)]
+        for dataset_alias in dataset_aliases:
+            dataset_alias.datasets.append(datasets[0])
         session.add_all(datasets)
+        session.add_all(dataset_aliases)
         session.flush()
         serialized_data = dataset_collection_schema.dump(
             DatasetCollection(datasets=datasets, total_entries=2)
         )
         serialized_data["datasets"][0]["id"] = 1
         serialized_data["datasets"][1]["id"] = 2
+        serialized_data["datasets"][0]["aliases"][0]["id"] = 1
+        serialized_data["datasets"][0]["aliases"][1]["id"] = 2
         assert serialized_data == {
             "datasets": [
                 {
@@ -116,6 +123,10 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "updated_at": self.timestamp,
                     "consuming_dags": [],
                     "producing_tasks": [],
+                    "aliases": [
+                        {"id": 1, "name": "alias_0"},
+                        {"id": 2, "name": "alias_1"},
+                    ],
                 },
                 {
                     "id": 2,
@@ -125,6 +136,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "updated_at": self.timestamp,
                     "consuming_dags": [],
                     "producing_tasks": [],
+                    "aliases": [],
                 },
             ],
             "total_entries": 2,

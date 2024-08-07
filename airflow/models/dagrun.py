@@ -62,7 +62,9 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
+from airflow.traces.tracer import Trace
 from airflow.utils import timezone
+from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -623,7 +625,7 @@ class DagRun(Base, LoggingMixin):
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
         """
-        task_ids = self.dag.task_ids if self.dag and self.dag.partial else None
+        task_ids = DagRun._get_partial_task_ids(self.dag)
         return DagRun.fetch_task_instances(
             dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
         )
@@ -651,6 +653,7 @@ class DagRun(Base, LoggingMixin):
         )
 
     @staticmethod
+    @internal_api_call
     @provide_session
     def fetch_task_instance(
         dag_id: str,
@@ -918,6 +921,37 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
                 self.dag_hash,
             )
+
+            with Trace.start_span_from_dagrun(dagrun=self) as span:
+                if self._state is DagRunState.FAILED:
+                    span.set_attribute("error", True)
+                attributes = {
+                    "category": "DAG runs",
+                    "dag_id": str(self.dag_id),
+                    "execution_date": str(self.execution_date),
+                    "run_id": str(self.run_id),
+                    "queued_at": str(self.queued_at),
+                    "run_start_date": str(self.start_date),
+                    "run_end_date": str(self.end_date),
+                    "run_duration": str(
+                        (self.end_date - self.start_date).total_seconds()
+                        if self.start_date and self.end_date
+                        else 0
+                    ),
+                    "state": str(self._state),
+                    "external_trigger": str(self.external_trigger),
+                    "run_type": str(self.run_type),
+                    "data_interval_start": str(self.data_interval_start),
+                    "data_interval_end": str(self.data_interval_end),
+                    "dag_hash": str(self.dag_hash),
+                    "conf": str(self.conf),
+                }
+                if span.is_recording():
+                    span.add_event(name="queued", timestamp=datetime_to_nano(self.queued_at))
+                    span.add_event(name="started", timestamp=datetime_to_nano(self.start_date))
+                    span.add_event(name="ended", timestamp=datetime_to_nano(self.end_date))
+                span.set_attributes(attributes)
+
             session.flush()
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
@@ -1543,11 +1577,21 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
-            elif ti.task.start_from_trigger is True and ti.task.start_trigger_args is not None:
-                ti.start_date = timezone.utcnow()
-                if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                    ti.try_number += 1
-                ti.defer_task(exception=None, session=session)
+            # check "start_trigger_args" to see whether the operator supports start execution from triggerer
+            # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
+            # this task.
+            # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
+            elif ti.task.start_trigger_args is not None:
+                context = ti.get_template_context()
+                start_from_trigger = ti.task.expand_start_from_trigger(context=context, session=session)
+
+                if start_from_trigger:
+                    ti.start_date = timezone.utcnow()
+                    if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+                        ti.try_number += 1
+                    ti.defer_task(exception=None, session=session)
+                else:
+                    schedulable_ti_ids.append((ti.task_id, ti.map_index))
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
@@ -1633,6 +1677,10 @@ class DagRun(Base, LoggingMixin):
             stacklevel=2,
         )
         return self.get_log_template(session=session).filename
+
+    @staticmethod
+    def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
+        return dag.task_ids if dag and dag.partial else None
 
 
 class DagRunNote(Base):

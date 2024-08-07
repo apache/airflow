@@ -22,9 +22,11 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1718605195
+source-date-epoch: 1722664661
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.10.0
+  - 1.9.1
   - 1.9.0
   - 1.8.0
   - 1.7.1
@@ -104,6 +106,13 @@ config:
         example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
         default: ~
         version_added: ~
+      custom_run_facets:
+        description: |
+          Register custom run facet functions by passing a string of semicolon separated full import paths.
+        type: string
+        example: full.path.to.custom_facet_function;full.path.to.another_custom_facet_function
+        default: ''
+        version_added: 1.10.0
       config_path:
         description: |
           Specify the path to the YAML configuration file.
@@ -152,3 +161,10 @@ config:
         example: ~
         type: integer
         version_added: 1.9.0
+      include_full_task_info:
+        description: |
+          If true, OpenLineage event will include full task info - potentially containing large fields.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: 1.10.0

@@ -58,7 +58,7 @@ else:
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestCliDags:
@@ -425,10 +425,9 @@ class TestCliDags:
             disable_retry=False,
         )
 
-    @mock.patch("workday.AfterWorkdayTimetable.get_next_workday")
     @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
     @mock.patch("airflow.cli.commands.dag_command.DagRun")
-    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_get_next_workday):
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run):
         """
         when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -441,8 +440,6 @@ class TestCliDags:
             start_date + timedelta(days=1),
             start_date + timedelta(days=2),
         ]
-        mock_get_next_workday.side_effect = workdays
-
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -455,7 +452,10 @@ class TestCliDags:
                 "--dry-run",
             ]
         )
-        dag_command.dag_backfill(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=workdays):
+            dag_command.dag_backfill(cli_args)
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
     def test_next_execution(self, tmp_path):
@@ -979,9 +979,8 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("workday.AfterWorkdayTimetable", side_effect=lambda: mock.MagicMock(active_runs_limit=None))
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
         """
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -989,7 +988,10 @@ class TestCliDags:
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
         )
-        dag_command.dag_test(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
+            dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")

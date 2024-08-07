@@ -19,11 +19,12 @@
 name: Tests
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 0 * * *'
+    - cron: '28 1,7,13,19 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
+    branches: ['v[0-9]+-[0-9]+-test']
   pull_request:
     branches: ['main']
+  workflow_dispatch:
 permissions:
   # All other permissions are set to none
   contents: read
@@ -107,8 +108,10 @@ jobs:
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
+      runs-on-as-json-docs-build: ${{ steps.selective-checks.outputs.runs-on-as-json-docs-build }}
       runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-asf: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-asf }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
       is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
@@ -172,6 +175,7 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+      enable-aip-44: "false"
 
   build-ci-images:
     name: >
@@ -283,6 +287,7 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
       mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
@@ -309,7 +314,7 @@ jobs:
       packages: read
     secrets: inherit
     if: >
-      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -457,8 +462,6 @@ jobs:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      separate-test-types-list-as-string: >-
-        ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -486,6 +489,32 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
+
+  tests-with-lowest-direct-resolution:
+    name: "Lowest direct dependency resolution tests"
+    needs: [build-info, wait-for-ci-images]
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    if: >
+      needs.build-info.outputs.run-tests == 'true'
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      test-name: "LowestDeps-Postgres"
+      force-lowest-dependencies: "true"
+      test-scope: "All"
+      backend: "postgres"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
+      excludes: "[]"
+      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      monitor-delay-time-in-seconds: 120
 
   build-prod-images:
     name: >

@@ -101,7 +101,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET
+from airflow.utils.types import NOTSET, AttributeRemoved
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -517,7 +517,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
                 partial_desc.class_method = classmethod(partial)
-        new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+
+        # We patch `__init__` only if the class defines it.
+        if inspect.getmro(new_cls)[1].__init__ is not new_cls.__init__:
+            new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+
         return new_cls
 
 
@@ -978,13 +982,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
 
-        if executor:
-            warnings.warn(
-                "Specifying executors for operators is not yet"
-                f"supported, the value {executor!r} will have no effect",
-                category=UserWarning,
-                stacklevel=2,
-            )
         self.executor = executor
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user
@@ -1245,11 +1242,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @dag.setter
     def dag(self, dag: DAG | None):
         """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
-        from airflow.models.dag import DAG
-
         if dag is None:
             self._dag = None
             return
+
+        # if set to removed, then just set and exit
+        if self._dag.__class__ is AttributeRemoved:
+            self._dag = dag
+            return
+        # if setting to removed, then just set and exit
+        if dag.__class__ is AttributeRemoved:
+            self._dag = AttributeRemoved("_dag")  # type: ignore[assignment]
+            return
+
+        from airflow.models.dag import DAG
+
         if not isinstance(dag, DAG):
             raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
         elif self.has_dag() and self.dag is not dag:
@@ -1761,7 +1768,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
         This is achieved by raising a special exception (TaskDeferred)
-        which is caught in the main _execute_task wrapper.
+        which is caught in the main _execute_task wrapper. Triggers can send execution back to task or end
+        the task instance directly. If the trigger will end the task instance itself, ``method_name`` should
+        be None; otherwise, provide the name of the method that should be used when resuming execution in
+        the task.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
@@ -1791,6 +1801,28 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :meta private:
         """
         return self
+
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_from_trigger.
+
+        :meta private:
+        """
+        return self.start_from_trigger
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original value of start_trigger_args.
+
+        :meta private:
+        """
+        return self.start_trigger_args
 
 
 # TODO: Deprecate for Airflow 3.0

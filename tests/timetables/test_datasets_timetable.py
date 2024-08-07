@@ -18,17 +18,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from pendulum import DateTime
 
-from airflow.datasets import Dataset
-from airflow.models.dataset import DatasetEvent
+from airflow.datasets import Dataset, DatasetAlias
+from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from sqlalchemy import Session
 
 
 class MockTimetable(Timetable):
@@ -253,3 +256,22 @@ def test_run_ordering_inheritance(dataset_timetable: DatasetOrTimeSchedule) -> N
     assert (
         dataset_timetable.run_ordering == parent_run_ordering
     ), "run_ordering does not match the parent class"
+
+
+@pytest.mark.db_test
+def test_summary(session: Session) -> None:
+    dataset_model = DatasetModel(uri="test_dataset")
+    dataset_alias_model = DatasetAliasModel(name="test_dataset_alias")
+    session.add_all([dataset_model, dataset_alias_model])
+    session.commit()
+
+    dataset_alias = DatasetAlias("test_dataset_alias")
+    table = DatasetTriggeredTimetable(dataset_alias)
+    assert table.summary == "Unresolved DatasetAlias"
+
+    dataset_alias_model.datasets.append(dataset_model)
+    session.add(dataset_alias_model)
+    session.commit()
+
+    table = DatasetTriggeredTimetable(dataset_alias)
+    assert table.summary == "Dataset"

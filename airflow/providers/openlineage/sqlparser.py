@@ -20,16 +20,8 @@ from typing import TYPE_CHECKING, Callable
 
 import sqlparse
 from attrs import define
-from openlineage.client.facet import (
-    BaseFacet,
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    ExtractionError,
-    ExtractionErrorRunFacet,
-    SqlJobFacet,
-)
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import column_lineage_dataset, extraction_error_run, sql_job
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -42,6 +34,7 @@ from airflow.typing_compat import TypedDict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from openlineage.client.facet_v2 import JobFacet, RunFacet
     from sqlalchemy.engine import Engine
 
     from airflow.hooks.base import BaseHook
@@ -160,7 +153,6 @@ class SQLParser(LoggingMixin):
             "database": database or database_info.database,
             "use_flat_cross_db_query": database_info.use_flat_cross_db_query,
         }
-        self.log.info("PRE getting schemas for input and output tables")
         return get_table_schemas(
             hook,
             namespace,
@@ -207,11 +199,12 @@ class SQLParser(LoggingMixin):
         if not len(parse_result.column_lineage):
             return
         for dataset in datasets:
-            dataset.facets["columnLineage"] = ColumnLineageDatasetFacet(
+            dataset.facets = dataset.facets or {}
+            dataset.facets["columnLineage"] = column_lineage_dataset.ColumnLineageDatasetFacet(
                 fields={
-                    column_lineage.descendant.name: ColumnLineageDatasetFacetFieldsAdditional(
+                    column_lineage.descendant.name: column_lineage_dataset.Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            column_lineage_dataset.InputField(
                                 namespace=dataset.namespace,
                                 name=".".join(
                                     filter(
@@ -261,18 +254,18 @@ class SQLParser(LoggingMixin):
         :param database: when passed it takes precedence over parsed database name
         :param sqlalchemy_engine: when passed, engine's dialect is used to compile SQL queries
         """
-        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=self.normalize_sql(sql))}
-        parse_result = self.parse(self.split_sql_string(sql))
+        job_facets: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query=self.normalize_sql(sql))}
+        parse_result = self.parse(sql=self.split_sql_string(sql))
         if not parse_result:
             return OperatorLineage(job_facets=job_facets)
 
-        run_facets: dict[str, BaseFacet] = {}
+        run_facets: dict[str, RunFacet] = {}
         if parse_result.errors:
-            run_facets["extractionError"] = ExtractionErrorRunFacet(
+            run_facets["extractionError"] = extraction_error_run.ExtractionErrorRunFacet(
                 totalTasks=len(sql) if isinstance(sql, list) else 1,
                 failedTasks=len(parse_result.errors),
                 errors=[
-                    ExtractionError(
+                    extraction_error_run.Error(
                         errorMessage=error.message,
                         stackTrace=None,
                         task=error.origin_statement,

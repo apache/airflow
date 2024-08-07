@@ -34,6 +34,9 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-version",
                 "--python",
                 "--include-provider-dependencies",
+                "--include-python",
+                "--include-npm",
+                "--all-combinations",
                 "--package-filter",
                 "--force",
             ],
@@ -87,5 +90,16 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-success-outputs",
             ],
         },
+    ],
+    "breeze sbom export-dependency-information": [
+        {
+            "name": "Export dependency information flags",
+            "options": [
+                "--csv-file",
+                "--airflow-version",
+                "--python",
+                "--include-open-psf-scorecard",
+            ],
+        }
     ],
 }

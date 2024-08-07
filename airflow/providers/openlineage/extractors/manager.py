@@ -30,7 +30,7 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from openlineage.client.run import Dataset
+    from openlineage.client.event_v2 import Dataset
 
     from airflow.lineage.entities import Table
     from airflow.models import Operator
@@ -172,7 +172,7 @@ class ExtractorManager(LoggingMixin):
     def convert_to_ol_dataset_from_object_storage_uri(uri: str) -> Dataset | None:
         from urllib.parse import urlparse
 
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         if "/" not in uri:
             return None
@@ -196,20 +196,19 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset_from_table(table: Table) -> Dataset:
-        from openlineage.client.facet import (
-            BaseFacet,
-            OwnershipDatasetFacet,
-            OwnershipDatasetFacetOwners,
-            SchemaDatasetFacet,
-            SchemaField,
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import (
+            DatasetFacet,
+            documentation_dataset,
+            ownership_dataset,
+            schema_dataset,
         )
-        from openlineage.client.run import Dataset
 
-        facets: dict[str, BaseFacet] = {}
+        facets: dict[str, DatasetFacet] = {}
         if table.columns:
-            facets["schema"] = SchemaDatasetFacet(
+            facets["schema"] = schema_dataset.SchemaDatasetFacet(
                 fields=[
-                    SchemaField(
+                    schema_dataset.SchemaDatasetFacetFields(
                         name=column.name,
                         type=column.data_type,
                         description=column.description,
@@ -218,9 +217,9 @@ class ExtractorManager(LoggingMixin):
                 ]
             )
         if table.owners:
-            facets["ownership"] = OwnershipDatasetFacet(
+            facets["ownership"] = ownership_dataset.OwnershipDatasetFacet(
                 owners=[
-                    OwnershipDatasetFacetOwners(
+                    ownership_dataset.Owner(
                         # f.e. "user:John Doe <jdoe@company.com>" or just "user:<jdoe@company.com>"
                         name=f"user:"
                         f"{user.first_name + ' ' if user.first_name else ''}"
@@ -231,6 +230,10 @@ class ExtractorManager(LoggingMixin):
                     for user in table.owners
                 ]
             )
+        if table.description:
+            facets["documentation"] = documentation_dataset.DocumentationDatasetFacet(
+                description=table.description
+            )
         return Dataset(
             namespace=f"{table.cluster}",
             name=f"{table.database}.{table.name}",
@@ -239,7 +242,7 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset(obj) -> Dataset | None:
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.lineage.entities import File, Table
 

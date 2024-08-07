@@ -26,24 +26,101 @@
 Changelog
 ---------
 
-main
-....
+Main
+......
+
+.. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
+  ``deferrable=True`` and ``wait_for_completion=True`` wouldn't enter the deferred state. Instead, the task would occupy
+  an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
+  In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
+  ``deferrable``.
 
 Bug Fixes
 ~~~~~~~~~
 
-* Reduce memory footprint of s3 key trigger (#40473)
+* ``Fix deferred mode for 'RedshiftDataOperator' (#41206)``
 
-  * Decorator ``provide_bucket_name_async`` removed
+8.27.0
+......
 
-      * We do not need a separate decorator for async.  The old one is removed and users can use ``provide_bucket_name`` for coroutine functions, async iterators, and normal synchronous functions.
+Features
+~~~~~~~~
 
-  * Hook method ``get_file_metadata_async`` is now an async iterator
+* ``Add RedriveExecution support to 'StepFunctionStartExecutionOperator' (#40976)``
+* ``openlineage: add support for hook lineage for S3Hook (#40819)``
+* ``Introduce Amazon Kinesis Analytics V2 (Managed Service for Apache Flink application)  (#40765)``
 
-    * Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
+Bug Fixes
+~~~~~~~~~
 
-  * S3KeyTrigger avoids loading all positive matches into memory in some circumstances
+* ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
+* ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
+* ``Fix 'RedshiftCreateClusterOperator' to always specify 'PubliclyAccessible' (#40872)``
+* ``Fix Redshift cluster operators and sensors using deferrable mode (#41191)``
+* ``Fix 'EmrServerlessStartJobOperator' with deferrable mode (#41103)``
 
+Misc
+~~~~
+
+* ``Update 'example_redshift' and 'example_redshift_s3_transfers' to use 'RedshiftDataHook' instead of 'RedshiftSQLHook' (#40970)``
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
+* ``Move AWS Managed Service for Apache Flink sensor states to Hook (#40896)``
+* ``Replace usages of task context logger with the log table (#40867)``
+* ``Deprecate 'SageMakerTrainingPrintLogTrigger' (#41158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
+
+8.26.0
+......
+
+.. note::
+  Reduce memory footprint of S3KeyTrigger
+  Decorator ``provide_bucket_name_async`` is removed.
+  Async does not require a separated decorator.
+  The old one is removed and users can use ``provide_bucket_name`` for coroutine functions, async iterators, and normal synchronous functions.
+  Hook method ``get_file_metadata_async`` is now an async iterator
+  Previously, the metadata objects were accumulated in a list.  Now the objects are yielded as we page through the results.  To get a list you may use ``async for`` in a list comprehension.
+  S3KeyTrigger avoids loading all positive matches into memory in some circumstances
+
+.. note::
+  This release contains significant resources utilization improvements for async sessions
+
+Features
+~~~~~~~~
+
+* ``Do not dynamically determine op links for emr serverless (#40627)``
+* ``Be able to remove ACL in S3 hook's copy_object (#40518)``
+* ``feat(aws): provide the context to check_fn in S3 sensor (#40686)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix OpenLineage extraction for AthenaOperator (#40545)``
+* ``Reduce memory footprint of s3 key trigger (#40473)``
+* ``Adding cluster to ecs trigger event to avoid defer error (#40482)``
+* ``Fix deferrable AWS SageMaker operators (#40706)``
+* ``Make 'AwsAuthManager' compatible with only Airflow >= 2.9 (#40690)``
+* ``Add serialization opt to s3 operator (#40659)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in AWS Glue Data Catalog Sensors (#40492)``
+* ``Use base aws classes in AWS Glue Crawlers Operators/Sensors/Triggers (#40504)``
+* ``Share data loader to across asyncio boto sessions (#40658)``
+* ``Send executor logs to task logs in 'EcsExecutor' (#40468)``
+* ``Send executor logs to task logs in 'AwsBatchExecutor' (#40698)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix docs build re aws changelog (#40488)``
+   * ``Remove todo re bucket_name decorator in s3 hook (#40485)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+   * ``Prepare docs 1st wave July 2024 (#40644)``
 
 8.25.0
 ......

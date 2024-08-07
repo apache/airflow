@@ -95,18 +95,8 @@ class YDBCursor:
 class YDBConnection:
     """YDB connection wrapper."""
 
-    def __init__(self, endpoint: str, database: str, credentials: Any, is_ddl: bool = False):
+    def __init__(self, ydb_session_pool: Any, is_ddl: bool):
         self.is_ddl = is_ddl
-        driver_config = ydb.DriverConfig(
-            endpoint=endpoint,
-            database=database,
-            table_client_settings=YDBConnection._get_table_client_settings(),
-            credentials=credentials,
-        )
-        driver = ydb.Driver(driver_config)
-        # wait until driver become initialized
-        driver.wait(fail_fast=True, timeout=10)
-        ydb_session_pool = ydb.SessionPool(driver, size=5)
         self.delegatee: DbApiConnection = DbApiConnection(ydb_session_pool=ydb_session_pool)
 
     def cursor(self) -> YDBCursor:
@@ -130,16 +120,8 @@ class YDBConnection:
     def close(self) -> None:
         self.delegatee.close()
 
-    @staticmethod
-    def _get_table_client_settings() -> ydb.TableClientSettings:
-        return (
-            ydb.TableClientSettings()
-            .with_native_date_in_result_sets(True)
-            .with_native_datetime_in_result_sets(True)
-            .with_native_timestamp_in_result_sets(True)
-            .with_native_interval_in_result_sets(True)
-            .with_native_json_in_result_sets(False)
-        )
+    def bulk_upsert(self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns):
+        self.delegatee.driver.table_client.bulk_upsert(table_name, rows=rows, column_types=column_types)
 
 
 class YDBHook(DbApiHook):
@@ -155,6 +137,33 @@ class YDBHook(DbApiHook):
     def __init__(self, *args, is_ddl: bool = False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.is_ddl = is_ddl
+
+        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        host: str | None = conn.host
+        if not host:
+            raise ValueError("YDB host must be specified")
+        port: int = conn.port or DEFAULT_YDB_GRPCS_PORT
+
+        connection_extra: dict[str, Any] = conn.extra_dejson
+        database: str | None = connection_extra.get("database")
+        if not database:
+            raise ValueError("YDB database must be specified")
+
+        endpoint = f"{host}:{port}"
+        credentials = get_credentials_from_connection(
+            endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra
+        )
+
+        driver_config = ydb.DriverConfig(
+            endpoint=endpoint,
+            database=database,
+            table_client_settings=YDBHook._get_table_client_settings(),
+            credentials=credentials,
+        )
+        driver = ydb.Driver(driver_config)
+        # wait until driver become initialized
+        driver.wait(fail_fast=True, timeout=10)
+        self.ydb_session_pool = ydb.SessionPool(driver, size=5)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -212,7 +221,7 @@ class YDBHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         connection_extra: dict[str, Any] = conn.extra_dejson
         database: str | None = connection_extra.get("database")
         return URL.create(
@@ -226,26 +235,29 @@ class YDBHook(DbApiHook):
 
     def get_conn(self) -> YDBConnection:
         """Establish a connection to a YDB database."""
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
-        host: str | None = conn.host
-        if not host:
-            raise ValueError("YDB host must be specified")
-        port: int = conn.port or DEFAULT_YDB_GRPCS_PORT
-
-        connection_extra: dict[str, Any] = conn.extra_dejson
-        database: str | None = connection_extra.get("database")
-        if not database:
-            raise ValueError("YDB database must be specified")
-
-        endpoint = f"{host}:{port}"
-        credentials = get_credentials_from_connection(
-            endpoint=endpoint, database=database, connection=conn, connection_extra=connection_extra
-        )
-
-        return YDBConnection(
-            endpoint=endpoint, database=database, credentials=credentials, is_ddl=self.is_ddl
-        )
+        return YDBConnection(self.ydb_session_pool, is_ddl=self.is_ddl)
 
     @staticmethod
     def _serialize_cell(cell: object, conn: YDBConnection | None = None) -> Any:
         return cell
+
+    def bulk_upsert(self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns):
+        """
+        BulkUpsert into database. More optimal way to insert rows into db.
+
+        .. seealso::
+
+            https://ydb.tech/docs/en/recipes/ydb-sdk/bulk-upsert
+        """
+        self.get_conn().bulk_upsert(table_name, rows, column_types)
+
+    @staticmethod
+    def _get_table_client_settings() -> ydb.TableClientSettings:
+        return (
+            ydb.TableClientSettings()
+            .with_native_date_in_result_sets(True)
+            .with_native_datetime_in_result_sets(True)
+            .with_native_timestamp_in_result_sets(True)
+            .with_native_interval_in_result_sets(True)
+            .with_native_json_in_result_sets(False)
+        )

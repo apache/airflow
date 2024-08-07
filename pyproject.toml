@@ -298,12 +298,12 @@ extend-select = [
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
-    "D100", # TODO: Missing docstring in public module
+    "D100", # Unwanted; Docstring at the top of every file.
     "D102", # TODO: Missing docstring in public method
     "D103", # TODO: Missing docstring in public function
-    "D104", # TODO: Missing docstring in public package
-    "D105", # Do not want.  See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
-    "D107", # TODO: Missing docstring in __init__
+    "D104", # Unwanted; Docstring at the top of every `__init__.py` file.
+    "D105", # Unwanted; See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
+    "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
     "D203",
     "D212", # Conflicts with D213.  Both can not be enabled.
     "D214",
@@ -409,6 +409,7 @@ combine-as-imports = true
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
+"tests/providers/yandex/*/*.py" = ["E402"]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]

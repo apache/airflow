@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+1.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug fix: sync perm command not able to use custom security manager (#41020)``
+* ``Bump version checked by FAB provider on logout CSRF protection to 2.10.0 (#40784)``
+
+Misc
+~~~~
+
+* ``AIP-44 make database isolation mode work in Breeze (#40894)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add backward compatibility to CSRF protection of '/logout' method (#40479)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 1.2.0
 .....
 

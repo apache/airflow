@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.2
+.....
+
+Latest change: 2024-07-25
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`95cab23792 <https://github.com/apache/airflow/commit/95cab23792c80f0ecf980ac0a74b8d08431fb3bb>`_  2024-07-25   ``Bug fix: sync perm command not able to use custom security manager (#41020)``
+`6684481c67 <https://github.com/apache/airflow/commit/6684481c67f6a21a72e7f1512b450a433c5313b5>`_  2024-07-20   ``AIP-44 make database isolation mode work in Breeze (#40894)``
+`d029e77f2f <https://github.com/apache/airflow/commit/d029e77f2fd704bec4f4797b09d54c5c824a8536>`_  2024-07-15   ``Bump version checked by FAB provider on logout CSRF protection to 2.10.0 (#40784)``
+=================================================================================================  ===========  =====================================================================================
+
+1.2.1
+.....
+
+Latest change: 2024-07-09
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`2423238295 <https://github.com/apache/airflow/commit/242323829502eece2f6c7748cc9db051f9c247bc>`_  2024-06-28   ``Add backward compatibility to CSRF protection of '/logout' method (#40479)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  ==============================================================================
+
 1.2.0
 .....
 
-Latest change: 2024-06-20
+Latest change: 2024-06-22
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `e24b7c1de3 <https://github.com/apache/airflow/commit/e24b7c1de319a4032e5c682a3f80e38b0dec9248>`_  2024-06-20   ``Add '[webserver]update_fab_perms' to deprecated configs (#40317)``
 `4fbdd07c13 <https://github.com/apache/airflow/commit/4fbdd07c1392eed517ed2af000aae2c2c3f5b3f6>`_  2024-06-20   ``fix: sqa deprecations for airflow providers (#39293)``
 `14deaa2f1f <https://github.com/apache/airflow/commit/14deaa2f1fb8d5dbe4d2e1d9adaa390c5e5efbf8>`_  2024-06-12   ``Add CSRF protection to "/logout" (#40145)``

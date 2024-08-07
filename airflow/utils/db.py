@@ -118,7 +118,7 @@ _REVISION_HEADS_MAP = {
     "2.8.1": "88344c1d9134",
     "2.9.0": "1949afb29106",
     "2.9.2": "686269002441",
-    "2.10.0": "d482b7261ff9",
+    "2.10.0": "22ed7efa9da2",
 }
 
 
@@ -1665,8 +1665,11 @@ def upgradedb(
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
         return
+
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool
+
+        previous_revision = _get_current_revision(session=session)
 
         log.info("Creating tables")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
@@ -1683,10 +1686,12 @@ def upgradedb(
                 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = val
             settings.reconfigure_orm()
 
-    if reserialize_dags:
-        _reserialize_dags(session=session)
-    add_default_pool_if_not_exists(session=session)
-    synchronize_log_template(session=session)
+        current_revision = _get_current_revision(session=session)
+
+        if reserialize_dags and current_revision != previous_revision:
+            _reserialize_dags(session=session)
+        add_default_pool_if_not_exists(session=session)
+        synchronize_log_template(session=session)
 
 
 @provide_session

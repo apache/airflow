@@ -65,7 +65,7 @@ class TestSkipMixin:
             execution_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks, session=session)
+        SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -91,7 +91,7 @@ class TestSkipMixin:
             RemovedInAirflow3Warning,
             match=r"Passing an execution_date to `skip\(\)` is deprecated in favour of passing a dag_run",
         ):
-            SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks, session=session)
+            SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -103,7 +103,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
+        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[])
         assert not session.query.called
         assert not session.commit.called
 

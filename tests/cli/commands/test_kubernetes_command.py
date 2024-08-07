@@ -30,7 +30,7 @@ from airflow.cli.commands import kubernetes_command
 from airflow.executors import executor_loader
 from tests.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestGenerateDagYamlCommand:

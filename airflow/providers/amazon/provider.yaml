@@ -22,9 +22,11 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1718602112
+source-date-epoch: 1722145222
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.27.0
+  - 8.26.0
   - 8.25.0
   - 8.24.0
   - 8.23.0
@@ -88,8 +90,10 @@ versions:
 
 dependencies:
   - apache-airflow>=2.7.0
+  - apache-airflow-providers-common-compat>=1.1.0
   - apache-airflow-providers-common-sql>=1.3.1
   - apache-airflow-providers-http
+  - apache-airflow-providers-common-compat>=1.1.0
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
   # in the `devel-dependencies` section to be the same minimum version.
@@ -135,7 +139,9 @@ additional-extras:
 devel-dependencies:
   - aiobotocore>=2.13.0
   - aws_xray_sdk>=2.12.0
-  - moto[cloudformation,glue]>=5.0.0
+  # The latest 5.0.12 moto breaks some of our tests https://github.com/apache/airflow/issues/41243
+  # Until we fix it, we limit moto to <5.0.12
+  - moto[cloudformation,glue]>=5.0.0,<5.0.12
   - mypy-boto3-appflow>=1.34.0
   - mypy-boto3-rds>=1.34.90
   - mypy-boto3-redshift-data>=1.34.0
@@ -246,6 +252,12 @@ integrations:
   - integration-name: Amazon Kinesis Data Firehose
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon Managed Service for Apache Flink
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst
+    external-doc-url: https://aws.amazon.com/managed-service-apache-flink/
+    logo: /integration-logos/aws/Amazon-Kinesis-Analytics_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon OpenSearch Serverless
     how-to-guide:
@@ -434,6 +446,9 @@ operators:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.operators.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.operators.kinesis_analytics
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
@@ -520,6 +535,9 @@ sensors:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.sensors.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.kinesis_analytics
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -547,7 +565,9 @@ sensors:
 
 dataset-uris:
   - schemes: [s3]
-    handler: null
+    handler: airflow.providers.amazon.aws.datasets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.datasets.s3.convert_dataset_to_openlineage
+    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3
@@ -623,6 +643,9 @@ hooks:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.kinesis_analytics
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
@@ -702,6 +725,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.kinesis_analytics
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.triggers.opensearch_serverless

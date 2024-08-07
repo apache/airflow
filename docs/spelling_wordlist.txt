@@ -878,6 +878,7 @@ Json
 json
 jsonl
 jthomas
+juli
 Jupyter
 jupyter
 jupytercmd
@@ -905,6 +906,7 @@ KiB
 Kibana
 killMode
 Kinesis
+kinesis
 kinit
 kms
 knn
@@ -1449,6 +1451,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+sessionmaker
 setattr
 setdefault
 setMachineType

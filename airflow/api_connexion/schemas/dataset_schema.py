@@ -26,6 +26,7 @@ from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
+    DatasetAliasModel,
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
@@ -59,6 +60,18 @@ class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
     updated_at = auto_field()
 
 
+class DatasetAliasSchema(SQLAlchemySchema):
+    """DatasetAlias DB schema."""
+
+    class Meta:
+        """Meta."""
+
+        model = DatasetAliasModel
+
+    id = auto_field()
+    name = auto_field()
+
+
 class DatasetSchema(SQLAlchemySchema):
     """Dataset DB schema."""
 
@@ -74,6 +87,7 @@ class DatasetSchema(SQLAlchemySchema):
     updated_at = auto_field()
     producing_tasks = fields.List(fields.Nested(TaskOutletDatasetReferenceSchema))
     consuming_dags = fields.List(fields.Nested(DagScheduleDatasetReferenceSchema))
+    aliases = fields.List(fields.Nested(DatasetAliasSchema))
 
 
 class DatasetCollection(NamedTuple):

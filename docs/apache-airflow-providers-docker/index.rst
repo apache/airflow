@@ -70,7 +70,7 @@ apache-airflow-providers-docker package
 `Docker <https://www.docker.com/>`__
 
 
-Release: 3.12.1
+Release: 3.12.3
 
 Provider package
 ----------------

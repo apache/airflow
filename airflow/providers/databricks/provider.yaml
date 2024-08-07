@@ -22,9 +22,11 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 state: ready
-source-date-epoch: 1718604145
+source-date-epoch: 1722663644
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.8.0
+  - 6.7.0
   - 6.6.0
   - 6.5.0
   - 6.4.0
@@ -163,6 +165,10 @@ sensors:
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
     connection-type: databricks
+
+plugins:
+  - name: databricks_workflow
+    plugin-class: airflow.providers.databricks.plugins.databricks_workflow.DatabricksWorkflowPlugin
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink

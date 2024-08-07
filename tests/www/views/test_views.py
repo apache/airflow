@@ -32,6 +32,7 @@ from airflow.configuration import (
     write_webserver_configuration_if_needed,
 )
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.utils.docs import get_doc_url_for_provider
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import (
     ProviderView,
@@ -137,7 +138,9 @@ def test_should_list_providers_on_page_with_details(admin_client):
     resp = admin_client.get("/provider")
     beam_href = '<a href="https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/'
     beam_text = "apache-airflow-providers-apache-beam</a>"
-    beam_description = '<a href="https://beam.apache.org/">Apache Beam</a>'
+    beam_description = (
+        '<a href="https://beam.apache.org/" target="_blank" rel="noopener noreferrer">Apache Beam</a>'
+    )
     check_content_in_response(beam_href, resp)
     check_content_in_response(beam_text, resp)
     check_content_in_response(beam_description, resp)
@@ -147,20 +150,23 @@ def test_should_list_providers_on_page_with_details(admin_client):
 @pytest.mark.parametrize(
     "provider_description, expected",
     [
-        ("`Airbyte <https://airbyte.com/>`__", Markup('<a href="https://airbyte.com/">Airbyte</a>')),
+        (
+            "`Airbyte <https://airbyte.com/>`__",
+            Markup('<a href="https://airbyte.com/" target="_blank" rel="noopener noreferrer">Airbyte</a>'),
+        ),
         (
             "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).",
             Markup(
-                'Amazon integration (including <a href="https://aws.amazon.com/">Amazon Web Services ('
-                "AWS)</a>)."
+                'Amazon integration (including <a href="https://aws.amazon.com/" '
+                'target="_blank" rel="noopener noreferrer">Amazon Web Services (AWS)</a>).'
             ),
         ),
         (
             "`Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc"
             "/>`__",
             Markup(
-                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/">Java '
-                "Database Connectivity (JDBC)</a>"
+                '<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/" '
+                'target="_blank" rel="noopener noreferrer">Java Database Connectivity (JDBC)</a>'
             ),
         ),
         (
@@ -172,6 +178,36 @@ def test_should_list_providers_on_page_with_details(admin_client):
 def test__clean_description(admin_client, provider_description, expected):
     p = ProviderView()
     actual = p._clean_description(provider_description)
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "provider_name, project_url, expected",
+    [
+        (
+            "apache-airflow-providers-airbyte",
+            "Documentation, https://airflow.apache.org/docs/apache-airflow-providers-airbyte/3.8.1/",
+            "https://airflow.apache.org/docs/apache-airflow-providers-airbyte/3.8.1/",
+        ),
+        (
+            "apache-airflow-providers-amazon",
+            "Documentation, https://airflow.apache.org/docs/apache-airflow-providers-amazon/8.25.0/",
+            "https://airflow.apache.org/docs/apache-airflow-providers-amazon/8.25.0/",
+        ),
+        (
+            "apache-airflow-providers-apache-druid",
+            "Documentation, javascript:prompt(document.domain)",
+            # the default one is returned
+            "https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/1.0.0/",
+        ),
+    ],
+)
+@patch("airflow.utils.docs.get_project_url_from_metadata")
+def test_get_doc_url_for_provider(
+    mock_get_project_url_from_metadata, admin_client, provider_name, project_url, expected
+):
+    mock_get_project_url_from_metadata.return_value = [project_url]
+    actual = get_doc_url_for_provider(provider_name, "1.0.0")
     assert actual == expected
 
 

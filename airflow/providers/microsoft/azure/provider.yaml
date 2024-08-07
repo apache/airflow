@@ -20,9 +20,11 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1718604928
+source-date-epoch: 1722664136
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.3.0
+  - 10.2.0
   - 10.1.2
   - 10.1.1
   - 10.1.0
@@ -100,7 +102,7 @@ dependencies:
   - azure-kusto-data>=4.1.0
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
-  - azure-mgmt-containerinstance>=9.0.0
+  - azure-mgmt-containerinstance>=10.1.0
   - msgraph-core>=1.0.0
 
 devel-dependencies:
@@ -294,6 +296,10 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/sftp_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/s3_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.s3_to_wasb
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst

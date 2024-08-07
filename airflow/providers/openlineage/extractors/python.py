@@ -20,7 +20,7 @@ from __future__ import annotations
 import inspect
 from typing import Callable
 
-from openlineage.client.facet import SourceCodeJobFacet
+from openlineage.client.facet_v2 import source_code_job
 
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
@@ -51,10 +51,10 @@ class PythonExtractor(BaseExtractor):
         job_facet: dict = {}
         if conf.is_source_enabled() and source_code:
             job_facet = {
-                "sourceCode": SourceCodeJobFacet(
+                "sourceCode": source_code_job.SourceCodeJobFacet(
                     language="python",
                     # We're on worker and should have access to DAG files
-                    source=source_code,
+                    sourceCode=source_code,
                 )
             }
         else:

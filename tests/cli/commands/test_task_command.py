@@ -26,6 +26,7 @@ import shutil
 import sys
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
+from importlib import reload
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -41,9 +42,11 @@ from airflow.cli.commands import task_command
 from airflow.cli.commands.task_command import LoggerMutationHelper
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
+from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
@@ -51,7 +54,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 if TYPE_CHECKING:
@@ -179,7 +182,7 @@ class TestCliTasks:
 
     def test_cli_test_different_path(self, session, tmp_path):
         """
-        When thedag processor has a different dags folder
+        When the dag processor has a different dags folder
         from the worker, ``airflow tasks run --local`` should still work.
         """
         repo_root = Path(__file__).parents[3]
@@ -451,6 +454,61 @@ class TestCliTasks:
                     ]
                 )
             )
+
+    def test_cli_run_no_local_no_raw_runs_executor(self, dag_maker):
+        from airflow.cli.commands import task_command
+
+        with dag_maker(dag_id="test_executor", schedule="@daily") as dag:
+            with mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader.load_executor"
+            ) as loader_mock, mock.patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
+            ) as get_default_mock:
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2", executor="foo_executor_alias")
+
+                dag_maker.create_dagrun()
+
+                # Reload module to consume newly mocked executor loader
+                reload(task_command)
+
+                loader_mock.return_value = LocalExecutor()
+                get_default_mock.return_value = LocalExecutor()
+
+                # In the task1 case we will use the default executor
+                task_command.task_run(
+                    self.parser.parse_args(
+                        [
+                            "tasks",
+                            "run",
+                            "test_executor",
+                            "task1",
+                            DEFAULT_DATE.isoformat(),
+                        ]
+                    ),
+                    dag,
+                )
+                get_default_mock.assert_called_once()
+                loader_mock.assert_not_called()
+
+                # In the task2 case we will use the executor configured on the task
+                task_command.task_run(
+                    self.parser.parse_args(
+                        [
+                            "tasks",
+                            "run",
+                            "test_executor",
+                            "task2",
+                            DEFAULT_DATE.isoformat(),
+                        ]
+                    ),
+                    dag,
+                )
+                get_default_mock.assert_called_once()  # Call from previous task
+                loader_mock.assert_called_once_with("foo_executor_alias")
+
+        # Reload module to remove mocked version of executor loader
+        reload(task_command)
 
     def test_task_render(self):
         """

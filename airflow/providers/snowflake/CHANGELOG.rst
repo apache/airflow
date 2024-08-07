@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``chore: Add param support for client_request_mfa_token in SnowflakeHook (#40394)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 5.5.2
 .....
 

@@ -26,6 +26,51 @@
 Changelog
 ---------
 
+6.8.0
+.....
+
+.. note::
+  This release reverts some of the functionality added in 6.7.0
+  around json parameter compatible with XComs, Jinja expression values
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksWorkflowPlugin (#40724)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DatabricksPlugin - Fix dag view redirect URL by using url_for redirect (#41040)``
+* ``Fix named parameters templating in Databricks operators (#40864)``
+
+Misc
+~~~~
+
+* ``[Databricks Provider] Revert PRs #40864 and #40471 (#41050)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add DatabricksWorkflowPlugin (#40153)" (#40714)``
+   * ``Add DatabricksWorkflowPlugin (#40153)``
+
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make Databricks operators' json parameter compatible with XComs, Jinja expression values (#40471)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug/fix support azure managed identities in Databricks operator (#40332)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 6.6.0
 .....
 

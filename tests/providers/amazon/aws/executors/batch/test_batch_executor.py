@@ -25,10 +25,12 @@ from unittest import mock
 import pytest
 import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
+from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch import batch_executor, batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor,
@@ -42,9 +44,11 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
+from airflow.version import version as airflow_version_str
 from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests.test_utils.config import conf_vars
 
+airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
 
 MOCK_JOB_ID = "batch-job-id"
@@ -195,7 +199,7 @@ class TestAwsBatchExecutor:
         assert len(mock_executor.active_workers) == 1
 
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor, caplog):
+    def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor):
         """
         Test how jobs are tried when one job fails, but others pass.
 
@@ -203,10 +207,9 @@ class TestAwsBatchExecutor:
         exactly once. Successful jobs are removed from pending_jobs to active_workers, and
         failed jobs are added back to the pending_jobs queue to be run in the next iteration.
         """
-        airflow_key = mock.Mock(spec=tuple)
+        airflow_key = TaskInstanceKey("a", "b", "c", 1, -1)
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
-        caplog.set_level("ERROR")
         airflow_commands = [airflow_cmd1, airflow_cmd2]
         responses = [Exception("Failure 1"), {"jobId": "job-2"}]
 
@@ -229,12 +232,9 @@ class TestAwsBatchExecutor:
         for i in range(2):
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
-        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
         assert len(mock_executor.pending_jobs) == 1
         mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
-
-        caplog.clear()
 
         # Add more tasks to pending_jobs. This simulates tasks being scheduled by Airflow
         airflow_cmd3 = mock.Mock(spec=list)
@@ -252,12 +252,9 @@ class TestAwsBatchExecutor:
         for i in range(2, 5):
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
-        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
         assert len(mock_executor.pending_jobs) == 1
         mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 3
-
-        caplog.clear()
 
         airflow_commands.append(airflow_cmd1)
         responses.append(Exception("Failure 1"))
@@ -265,13 +262,12 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         submit_job_args["containerOverrides"]["command"] = airflow_commands[0]
         assert mock_executor.batch.submit_job.call_args_list[5].kwargs == submit_job_args
-        assert (
-            "This job has been unsuccessfully attempted too many times (3). Dropping the task."
-            == caplog.messages[0]
-        )
+        if airflow_version >= (2, 10, 0):
+            log_record = mock_executor._task_event_logs[0]
+            assert log_record.event == "batch job submit failure"
 
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_all_jobs_when_jobs_fail(self, _, mock_executor, caplog):
+    def test_attempt_all_jobs_when_jobs_fail(self, _, mock_executor):
         """
         Test job retry behaviour when jobs fail validation.
 
@@ -279,10 +275,9 @@ class TestAwsBatchExecutor:
         attempted once. If all jobs fail, then the length of pending tasks should not change,
         until all the tasks have been attempted the maximum number of times.
         """
-        airflow_key = mock.Mock(spec=tuple)
+        airflow_key = TaskInstanceKey("a", "b", "c", 1, -1)
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
-        caplog.set_level("ERROR")
         commands = [airflow_cmd1, airflow_cmd2]
         failures = [Exception("Failure 1"), Exception("Failure 2")]
         submit_job_args = {
@@ -304,29 +299,20 @@ class TestAwsBatchExecutor:
         for i in range(2):
             submit_job_args["containerOverrides"]["command"] = commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
-        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
         assert len(mock_executor.pending_jobs) == 2
-
-        caplog.clear()
 
         mock_executor.batch.submit_job.side_effect = failures
         mock_executor.attempt_submit_jobs()
         for i in range(2):
             submit_job_args["containerOverrides"]["command"] = commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
-        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
         assert len(mock_executor.pending_jobs) == 2
-
-        caplog.clear()
 
         mock_executor.batch.submit_job.side_effect = failures
         mock_executor.attempt_submit_jobs()
-        assert len(caplog.messages) == 3
-        for i in range(2):
-            assert (
-                "This job has been unsuccessfully attempted too many times (3). Dropping the task."
-                == caplog.messages[i]
-            )
+        if VersionInfo.parse(str(airflow_version)) >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [("batch job submit failure", "b", 1)] * 2
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
         mock_executor.batch.submit_job.side_effect = NoCredentialsError()
@@ -471,7 +457,10 @@ class TestAwsBatchExecutor:
     def test_failed_sync(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
         """Test failure states"""
         self._mock_sync(
-            executor=mock_executor, airflow_key=mock_airflow_key(), status="FAILED", attempt_number=2
+            executor=mock_executor,
+            airflow_key=mock_airflow_key(),
+            status="FAILED",
+            attempt_number=2,
         )
 
         mock_executor.sync()
