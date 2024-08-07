@@ -487,9 +487,11 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :sphinx-autoapi-skip:
         """
 
+    # The 'get_many` is not supported via database isolation mode. Attempting to use it in DB isolation
+    # mode will result in a crash - Resulting Query object cannot be **really** serialized
+    # TODO(potiuk) - document it in AIP-44 docs
     @staticmethod
     @provide_session
-    @internal_api_call
     def get_many(
         execution_date: datetime.datetime | None = None,
         key: str | None = None,

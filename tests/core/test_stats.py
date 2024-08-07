@@ -403,7 +403,7 @@ class TestPatternOrBasicValidatorConfigOption:
                     match="The basic metric validator will be deprecated in the future in favor of pattern-matching.  You can try this now by setting config option metrics_use_pattern_match to True.",
                 ):
                     assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-            assert type(airflow.stats.Stats.instance.metrics_validator) == expected
+            assert isinstance(airflow.stats.Stats.instance.metrics_validator, expected)
 
     @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "bax,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
@@ -414,7 +414,7 @@ class TestPatternOrBasicValidatorConfigOption:
             match="The basic metric validator will be deprecated in the future in favor of pattern-matching.  You can try this now by setting config option metrics_use_pattern_match to True.",
         ):
             assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-        assert type(airflow.stats.Stats.instance.metrics_validator) == AllowListValidator
+        assert isinstance(airflow.stats.Stats.instance.metrics_validator, AllowListValidator)
         with caplog.at_level(logging.WARNING):
             assert "Ignoring metrics_block_list" in caplog.text
 

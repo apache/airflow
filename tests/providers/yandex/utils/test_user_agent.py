@@ -18,6 +18,10 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
 
 

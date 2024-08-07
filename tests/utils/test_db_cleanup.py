@@ -50,7 +50,7 @@ from airflow.utils.db_cleanup import (
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(autouse=True)
@@ -339,6 +339,7 @@ class TestDBCleanup:
             "connection",  # leave alone
             "slot_pool",  # leave alone
             "dag_schedule_dataset_reference",  # leave alone for now
+            "dag_schedule_dataset_alias_reference",  # leave alone for now
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
             "dataset_event_dag_run",  # foreign keys

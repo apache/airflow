@@ -91,4 +91,15 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze sbom export-dependency-information": [
+        {
+            "name": "Export dependency information flags",
+            "options": [
+                "--csv-file",
+                "--airflow-version",
+                "--python",
+                "--include-open-psf-scorecard",
+            ],
+        }
+    ],
 }

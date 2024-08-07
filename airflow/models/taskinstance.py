@@ -3369,6 +3369,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def save_to_db(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION):
         ti = _coalesce_to_orm_ti(ti=ti, session=session)
+        ti.updated_at = timezone.utcnow()
         session.merge(ti)
         session.flush()
         session.commit()
@@ -3891,9 +3892,19 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta: private
         """
-        return TaskInstance._schedule_downstream_tasks(
-            ti=self, session=session, max_tis_per_query=max_tis_per_query
-        )
+        try:
+            return TaskInstance._schedule_downstream_tasks(
+                ti=self, session=session, max_tis_per_query=max_tis_per_query
+            )
+        except Exception:
+            self.log.exception(
+                "Error scheduling downstream tasks. Skipping it as this is entirely optional optimisation. "
+                "There might be various reasons for it, please take a look at the stack trace to figure "
+                "out if the root cause can be diagnosed and fixed. See the issue "
+                "https://github.com/apache/airflow/issues/39717 for details and an example problem. If you "
+                "would like to get help in solving root cause, open discussion with all details with your "
+                "managed service support or in Airflow repository."
+            )
 
     def get_relevant_upstream_map_indexes(
         self,

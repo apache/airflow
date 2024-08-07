@@ -28,6 +28,9 @@ from airflow.utils import db, timezone
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
+pytestmark = pytest.mark.need_serialized_dag
+
+
 class FakeConfig:
     data: dict[str, Any]
 

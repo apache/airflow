@@ -25,7 +25,7 @@ import pytest
 from airflow.configuration import conf
 from airflow.utils.log.colored_log import CustomTTYColoredFormatter
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @patch("airflow.utils.log.timezone_aware.TimezoneAware.formatTime")

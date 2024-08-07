@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+Main
+......
+
+.. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
+  ``deferrable=True`` and ``wait_for_completion=True`` wouldn't enter the deferred state. Instead, the task would occupy
+  an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
+  In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
+  ``deferrable``.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferred mode for 'RedshiftDataOperator' (#41206)``
+
 8.27.0
 ......
 
@@ -42,6 +56,8 @@ Bug Fixes
 * ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
 * ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
 * ``Fix 'RedshiftCreateClusterOperator' to always specify 'PubliclyAccessible' (#40872)``
+* ``Fix Redshift cluster operators and sensors using deferrable mode (#41191)``
+* ``Fix 'EmrServerlessStartJobOperator' with deferrable mode (#41103)``
 
 Misc
 ~~~~
@@ -51,10 +67,11 @@ Misc
 * ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
 * ``Move AWS Managed Service for Apache Flink sensor states to Hook (#40896)``
 * ``Replace usages of task context logger with the log table (#40867)``
-
+* ``Deprecate 'SageMakerTrainingPrintLogTrigger' (#41158)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
 
 8.26.0
 ......

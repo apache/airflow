@@ -21,15 +21,16 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Callable, Collection, Container, Iterable, Mapping, overload
+from typing import Any, Callable, Collection, Container, Iterable, Mapping, TypeVar, overload
 
 from kubernetes.client import models as k8s
 
-from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
+from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.branch_virtualenv import branch_virtualenv_task
+from airflow.decorators.condition import AnyConditionFunc
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -59,6 +60,8 @@ __all__ = [
     "setup",
     "teardown",
 ]
+
+_T = TypeVar("_T", bound=Task[..., Any] | _TaskDecorator[..., Any, Any])
 
 class TaskDecoratorCollection:
     @overload
@@ -755,6 +758,22 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+        """
+        Decorate a task to run only if a condition is met.
+
+        :param condition: A function that takes a context and returns a boolean.
+        :param skip_message: The message to log if the task is skipped.
+            If None, a default message is used.
+        """
+    def skip_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+        """
+        Decorate a task to skip if a condition is met.
+
+        :param condition: A function that takes a context and returns a boolean.
+        :param skip_message: The message to log if the task is skipped.
+            If None, a default message is used.
+        """
     def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection

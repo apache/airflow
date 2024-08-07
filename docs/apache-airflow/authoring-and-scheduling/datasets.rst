@@ -496,7 +496,8 @@ The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "
     with DAG(dag_id="dataset-alias-consumer", schedule=DatasetAlias("example-alias")):
         ...
 
-In the example above, before the DAG "dataset-alias-producer" is executed, the dataset alias ``DatasetAlias("example-alias")`` is not yet resolved to ``Dataset("s3://bucket/my-task")``. Consequently, completing the execution of the DAG "dataset-producer" will only trigger the DAG "dataset-consumer" and not the DAG "dataset-alias-consumer". However, upon triggering the DAG "dataset-alias-producer", the ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``, and it will produce a dataset event that triggers the DAG "dataset-consumer". At this point, ``DatasetAlias("example-alias")`` is resolved to ``Dataset("s3://bucket/my-task")``. Therefore, completing the execution of either DAG "dataset-producer" or "dataset-alias-producer" will trigger both the DAG "dataset-consumer" and "dataset-alias-consumer".
+
+In the example provided, once the DAG ``dataset-alias-producer`` is executed, the dataset alias ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``. However, the DAG ``dataset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the DAGs relying on the dataset alias ``DatasetAlias("example-alias")`` when it's resolved into datasets that these DAGs did not previously depend on. As a result, both the "dataset-consumer" and "dataset-alias-consumer" DAGs will be triggered after the execution of DAG ``dataset-alias-producer``.
 
 
 Fetching information from previously emitted dataset events through resolved dataset aliases

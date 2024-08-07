@@ -30,6 +30,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -97,10 +98,17 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    def test_render_template(self):
-        dag_run = DagRun(dag_id=self.operator.dag.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+    def test_render_template(self, session, clean_dags_and_dagruns):
+        dag_run = DagRun(
+            dag_id=self.operator.dag.dag_id,
+            execution_date=DEFAULT_DATE,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         ti.render_templates()
 
         expected_args = [
@@ -121,7 +129,7 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client):
+    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         dag = DAG(
             dag_id="test_file",
             default_args=self.args,
@@ -147,9 +155,13 @@ class TestEmrAddStepsOperator:
             dag=dag,
             do_xcom_push=False,
         )
-        dag_run = DagRun(dag_id=dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=timezone.utcnow(), run_id="test", run_type=DagRunType.MANUAL
+        )
         ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         ti.render_templates()
 
         assert json.loads(test_task.steps) == file_steps

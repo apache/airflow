@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implemented Query Band Support for the Teradata provider (#40716)``
+
+Misc
+~~~~
+
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.4.0
 .....
 

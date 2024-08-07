@@ -115,7 +115,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.7.2``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
-``gcloud-aio-auth``                         ``>=4.0.0,<5.0.0``
+``gcloud-aio-auth``                         ``>=5.2.0``
 ``gcloud-aio-bigquery``                     ``>=6.1.2``
 ``gcloud-aio-storage``                      ``>=9.0.0``
 ``gcsfs``                                   ``>=2023.10.0``

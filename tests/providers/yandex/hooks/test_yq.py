@@ -20,6 +20,10 @@ import json
 from datetime import timedelta
 from unittest import mock
 
+import pytest
+
+yandexcloud = pytest.importorskip("yandexcloud")
+
 import responses
 from responses import matchers
 

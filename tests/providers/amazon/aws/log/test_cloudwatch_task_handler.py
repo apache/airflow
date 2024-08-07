@@ -33,7 +33,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -54,7 +53,7 @@ def logmock():
 class TestCloudwatchTaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory):
+    def setup_tests(self, create_log_template, tmp_path_factory, session):
         self.remote_log_group = "log_group_name"
         self.region_name = "us-west-2"
         self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
@@ -70,15 +69,16 @@ class TestCloudwatchTaskHandler:
         self.dag = DAG(dag_id=dag_id, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
-        with create_session() as session:
-            session.add(dag_run)
-            session.commit()
-            session.refresh(dag_run)
+        session.add(dag_run)
+        session.commit()
+        session.refresh(dag_run)
 
         self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
+        session.add(self.ti)
+        session.commit()
 
         self.remote_log_stream = (f"{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log").replace(
             ":", "_"
@@ -88,8 +88,6 @@ class TestCloudwatchTaskHandler:
         yield
 
         self.cloudwatch_task_handler.handler = None
-        with create_session() as session:
-            session.query(DagRun).delete()
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)

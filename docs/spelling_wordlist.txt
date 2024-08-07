@@ -1451,6 +1451,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+sessionmaker
 setattr
 setdefault
 setMachineType

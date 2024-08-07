@@ -25,7 +25,7 @@ from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_backfill_dep import DagRunNotBackfillDep
 from airflow.utils.types import DagRunType
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDagrunRunningDep:

@@ -30,6 +30,7 @@ from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
 ]
 
 DEFAULT_DATE = datetime(2015, 1, 1)

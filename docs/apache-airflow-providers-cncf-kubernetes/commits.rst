@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.4
+.....
+
+Latest change: 2024-08-02
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`f9c1c61537 <https://github.com/apache/airflow/commit/f9c1c615377869120382905ec97e38e7e7916678>`_  2024-08-02   ``Pass content of kube/config file to triggerer as a dictionary (#41178)``
+`4ef847b7d2 <https://github.com/apache/airflow/commit/4ef847b7d23f9f5a62e02690972fcb5c6a3dcdac>`_  2024-07-31   ``Fix confusing log message in kubernetes executor (#41035)``
+`b014077fe3 <https://github.com/apache/airflow/commit/b014077fe31853b857a081f18a56552abdae3427>`_  2024-07-31   ``Fix ApiException handling when adopting completed pods (#41109)``
+=================================================================================================  ===========  ==========================================================================
+
 8.3.3
 .....
 
-Latest change: 2024-07-08
+Latest change: 2024-07-09
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `95e6ee9868 <https://github.com/apache/airflow/commit/95e6ee9868d4abda0be31bb79c30c47de0704bb8>`_  2024-07-08   ``Solve failing KPO task with task decorator and imported typing elements (#40642)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
 =================================================================================================  ===========  ====================================================================================

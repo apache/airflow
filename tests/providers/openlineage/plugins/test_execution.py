@@ -39,6 +39,9 @@ from airflow.utils.state import State
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
+# TODO(potiuk): Document that openlineage is not supported in DB isolation mode
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

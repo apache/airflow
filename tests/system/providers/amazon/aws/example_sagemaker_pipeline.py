@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerPipelineSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.example_sagemaker import delete_experiments
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_sagemaker_pipeline"
@@ -112,6 +113,7 @@ with DAG(
         await_pipeline2,
         # TEST TEARDOWN
         delete_pipeline(pipeline_name),
+        delete_experiments([pipeline_name]),
     )
 
     from tests.system.utils.watcher import watcher

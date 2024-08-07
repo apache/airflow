@@ -31,7 +31,13 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
-from airflow.exceptions import AirflowRescheduleException, SerializationError, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowRescheduleException,
+    SerializationError,
+    TaskDeferred,
+)
 from airflow.jobs.job import Job
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
@@ -152,6 +158,10 @@ def equal_time(a: datetime, b: datetime) -> bool:
     return a.strftime("%s") == b.strftime("%s")
 
 
+def equal_exception(a: AirflowException, b: AirflowException) -> bool:
+    return a.__class__ == b.__class__ and str(a) == str(b)
+
+
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
     return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
 
@@ -251,6 +261,16 @@ class MockLazySelectSequence(LazySelectSequence):
             OutletEventAccessor(raw_key="test", extra={"key": "value"}),
             DAT.DATASET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
+        ),
+        (
+            AirflowException("test123 wohoo!"),
+            DAT.AIRFLOW_EXC_SER,
+            equal_exception,
+        ),
+        (
+            AirflowFailException("uuups, failed :-("),
+            DAT.AIRFLOW_EXC_SER,
+            equal_exception,
         ),
     ],
 )
@@ -417,6 +437,7 @@ def test_all_pydantic_models_round_trip():
         "TaskOutletDatasetReferencePydantic",
         "DagOwnerAttributesPydantic",
         "DatasetEventPydantic",
+        "TriggerPydantic",
     }
     for c in sorted(classes, key=str):
         if c.__name__ in exclusion_list:

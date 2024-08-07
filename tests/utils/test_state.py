@@ -25,7 +25,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 def test_dagrun_state_enum_escape():

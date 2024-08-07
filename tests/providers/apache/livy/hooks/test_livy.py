@@ -31,6 +31,8 @@ from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, 
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
 DEFAULT_HOST = "livy"

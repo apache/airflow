@@ -52,7 +52,7 @@ from airflow.utils.db import (
 )
 from airflow.utils.session import NEW_SESSION
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDb:

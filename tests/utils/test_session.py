@@ -21,7 +21,7 @@ import pytest
 
 from airflow.utils.session import provide_session
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestSession:

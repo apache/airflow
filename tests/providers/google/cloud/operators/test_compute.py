@@ -488,7 +488,7 @@ class TestGceInstanceStart:
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_start_instance_with_templates(self, _, create_task_instance_of_operator):
+    def test_start_instance_with_templates(self, _, create_task_instance_of_operator, session):
         dag_id = "test_instance_start_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStartInstanceOperator,
@@ -500,6 +500,8 @@ class TestGceInstanceStart:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         assert dag_id == ti.task.project_id
         assert dag_id == ti.task.zone
@@ -579,7 +581,7 @@ class TestGceInstanceStop:
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_instance_stop_with_templates(self, _, create_task_instance_of_operator):
+    def test_instance_stop_with_templates(self, _, create_task_instance_of_operator, session):
         dag_id = "test_instance_stop_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStopInstanceOperator,
@@ -591,6 +593,8 @@ class TestGceInstanceStop:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         assert dag_id == ti.task.project_id
         assert dag_id == ti.task.zone
@@ -660,7 +664,7 @@ class TestGceInstanceSetMachineType:
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator):
+    def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator, session):
         dag_id = "test_set_machine_type_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineSetMachineTypeOperator,
@@ -673,6 +677,8 @@ class TestGceInstanceSetMachineType:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         assert dag_id == ti.task.project_id
         assert dag_id == ti.task.zone

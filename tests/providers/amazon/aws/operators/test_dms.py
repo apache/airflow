@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsStopTaskOperator,
 )
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 TASK_ARN = "test_arn"
 
@@ -246,14 +247,21 @@ class TestDmsDescribeTasksOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
-    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks):
+    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
 
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            execution_date=timezone.utcnow(),
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=describe_task)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         marker, response = describe_task.execute(ti.get_template_context())
 
         assert marker is None

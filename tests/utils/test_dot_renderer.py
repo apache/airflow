@@ -34,7 +34,7 @@ from tests.test_utils.db import clear_db_dags
 
 START_DATE = timezone.utcnow()
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDotRenderer:

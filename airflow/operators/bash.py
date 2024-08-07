@@ -21,7 +21,7 @@ import os
 import shutil
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
@@ -63,6 +63,8 @@ class BashOperator(BaseOperator):
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
         you might set template ``{{ dag_run.dag.folder }}``.
+    :param output_processor: Function to further process the output of the bash script
+        (default is lambda output: output).
 
     Airflow will evaluate the exit code of the Bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success.
@@ -130,6 +132,9 @@ class BashOperator(BaseOperator):
             env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
         )
 
+    .. versionadded:: 2.10.0
+       The `output_processor` parameter.
+
     """
 
     template_fields: Sequence[str] = ("bash_command", "env", "cwd")
@@ -147,6 +152,7 @@ class BashOperator(BaseOperator):
         skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
+        output_processor: Callable[[str], Any] = lambda result: result,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -167,6 +173,7 @@ class BashOperator(BaseOperator):
         )
         self.cwd = cwd
         self.append_env = append_env
+        self.output_processor = output_processor
 
         # When using the @task.bash decorator, the Bash command is not known until the underlying Python
         # callable is executed and therefore set to NOTSET initially. This flag is useful during execution to
@@ -221,7 +228,7 @@ class BashOperator(BaseOperator):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
 
-        # Because the bash_command value is evaluated at runtime using the @tash.bash decorator, the
+        # Because the bash_command value is evaluated at runtime using the @task.bash decorator, the
         # RenderedTaskInstanceField data needs to be rewritten and the bash_command value re-rendered -- the
         # latter because the returned command from the decorated callable could contain a Jinja expression.
         # Both will ensure the correct Bash command is executed and that the Rendered Template view in the UI
@@ -243,7 +250,7 @@ class BashOperator(BaseOperator):
                 f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
             )
 
-        return result.output
+        return self.output_processor(result.output)
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()

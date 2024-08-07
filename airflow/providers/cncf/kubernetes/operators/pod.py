@@ -22,6 +22,7 @@ import datetime
 import json
 import logging
 import math
+import os
 import re
 import shlex
 import string
@@ -695,7 +696,17 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
+        self.convert_config_file_to_dict()
         self.invoke_defer_method()
+
+    def convert_config_file_to_dict(self):
+        """Convert passed config_file to dict representation."""
+        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
+        if config_file:
+            with open(config_file) as f:
+                self._config_dict = yaml.safe_load(f)
+        else:
+            self._config_dict = None
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
@@ -707,7 +718,7 @@ class KubernetesPodOperator(BaseOperator):
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_file=self.config_file,
+                config_dict=self._config_dict,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 get_logs=self.get_logs,

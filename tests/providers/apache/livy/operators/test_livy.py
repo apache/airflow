@@ -425,7 +425,7 @@ class TestLivyOperator:
 
 
 @pytest.mark.db_test
-def test_spark_params_templating(create_task_instance_of_operator):
+def test_spark_params_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         LivyOperator,
         # Templated fields
@@ -450,6 +450,8 @@ def test_spark_params_templating(create_task_instance_of_operator):
         task_id="test_template_body_templating_task",
         execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: LivyOperator = ti.task
     assert task.spark_params == {

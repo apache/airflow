@@ -57,6 +57,8 @@ from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 class TestAirflowKubernetesScheduler:
     @staticmethod

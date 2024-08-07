@@ -60,7 +60,7 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.sentinel.logs
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base")
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert logs.response == mock.sentinel.logs
 
     def test_read_pod_logs_retries_successfully(self):
@@ -70,7 +70,7 @@ class TestPodManager:
             mock.sentinel.logs,
         ]
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base")
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
             [
@@ -125,7 +125,7 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [mock.sentinel.logs]
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base", tail_lines=100)
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
             [
@@ -145,7 +145,7 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [mock.sentinel.logs]
         logs = self.pod_manager.read_pod_logs(mock.sentinel, "base", since_seconds=2)
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
             [

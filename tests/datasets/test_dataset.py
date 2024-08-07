@@ -28,6 +28,7 @@ from sqlalchemy.sql import select
 from airflow.datasets import (
     BaseDataset,
     Dataset,
+    DatasetAlias,
     DatasetAll,
     DatasetAny,
     _DatasetAliasCondition,
@@ -134,6 +135,24 @@ def test_dataset_logic_operations():
 
 def test_dataset_iter_datasets():
     assert list(dataset1.iter_datasets()) == [("s3://bucket1/data1", dataset1)]
+
+
+@pytest.mark.db_test
+def test_dataset_iter_dataset_aliases():
+    base_dataset = DatasetAll(
+        DatasetAlias("example-alias-1"),
+        Dataset("1"),
+        DatasetAny(
+            Dataset("2"),
+            DatasetAlias("example-alias-2"),
+            Dataset("3"),
+            DatasetAll(DatasetAlias("example-alias-3"), Dataset("4"), DatasetAlias("example-alias-4")),
+        ),
+        DatasetAll(DatasetAlias("example-alias-5"), Dataset("5")),
+    )
+    assert list(base_dataset.iter_dataset_aliases()) == [
+        DatasetAlias(f"example-alias-{i}") for i in range(1, 6)
+    ]
 
 
 def test_dataset_evaluate():
@@ -359,7 +378,7 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
 
 
 def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
-    if type(d1) != type(d2):
+    if type(d1) is not type(d2):
         return False
 
     if isinstance(d1, Dataset) and isinstance(d2, Dataset):

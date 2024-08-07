@@ -120,7 +120,7 @@ from tests.test_utils.timetables import cron_timetable, delta_timetable
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 

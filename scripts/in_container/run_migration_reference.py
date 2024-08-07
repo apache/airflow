@@ -88,7 +88,7 @@ def has_version(content):
 def insert_version(old_content, file):
     new_content = re.sub(
         r"(^depends_on.*)",
-        lambda x: f"{x.group(1)}\nairflow_version = '{airflow_version}'",
+        lambda x: f'{x.group(1)}\nairflow_version = "{airflow_version}"',
         old_content,
         flags=re.MULTILINE,
     )

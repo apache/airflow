@@ -24,10 +24,11 @@ import signal
 import sys
 import time
 from abc import abstractmethod
+from csv import DictWriter
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
-from typing import Generator
+from typing import Any, Generator
 
 import yaml
 
@@ -514,3 +515,132 @@ def produce_sbom_for_application_via_cdxgen_server(
         port = port_map[multiprocessing.current_process().name]
         get_console(output=output).print(f"[info]Using port {port}")
     return job.produce(output, port)
+
+
+def convert_licenses(licenses: list[dict[str, Any]]) -> str:
+    license_strings = []
+    for license in licenses:
+        if "license" in license:
+            if "id" in license["license"]:
+                license_strings.append(license["license"]["id"])
+            elif "name" in license["license"]:
+                license_strings.append(license["license"]["name"])
+            else:
+                raise ValueError(f"Unknown license format: {license}")
+        elif "expression" in license:
+            license_strings.append(license["expression"])
+        else:
+            raise ValueError(f"Unknown license format: {license}")
+    return ", ".join(license_strings)
+
+
+def get_vcs(dependency: dict[str, Any]) -> str:
+    if "externalReferences" in dependency:
+        for reference in dependency["externalReferences"]:
+            if reference["type"] == "vcs":
+                return reference["url"]
+    return ""
+
+
+def get_pypi_link(dependency: dict[str, Any]) -> str:
+    if "purl" in dependency and "pkg:pypi" in dependency["purl"]:
+        package, version = dependency["purl"][len("pkg:pypi/") :].split("@")
+        return f"https://pypi.org/project/{package}/{version}/"
+    return ""
+
+
+OPEN_PSF_CHECKS = [
+    "Code-Review",
+    "Maintained",
+    "CII-Best-Practices",
+    "License",
+    "Binary-Artifacts",
+    "Dangerous-Workflow",
+    "Token-Permissions",
+    "Pinned-Dependencies",
+    "Branch-Protection",
+    "Signed-Releases",
+    "Security-Policy",
+    "Dependency-Update-Tool",
+    "Contributors",
+    "CI-Tests",
+    "Fuzzing",
+    "Packaging",
+    "Vulnerabilities",
+    "SAST",
+]
+
+
+def get_open_psf_scorecard(vcs):
+    import requests
+
+    repo_url = vcs.split("://")[1]
+    open_psf_url = f"https://api.securityscorecards.dev/projects/{repo_url}"
+    scorecard_response = requests.get(open_psf_url)
+    if scorecard_response.status_code == 404:
+        return {}
+    scorecard_response.raise_for_status()
+    open_psf_scorecard = scorecard_response.json()
+    results = {}
+    results["OPSF-Score"] = open_psf_scorecard["score"]
+    if "checks" in open_psf_scorecard:
+        for check in open_psf_scorecard["checks"]:
+            check_name = check["name"]
+            results["OPSF-" + check_name] = check["score"]
+            reason = check.get("reason") or ""
+            if check.get("details"):
+                reason += "\n".join(check["details"])
+            results["OPSF-Details-" + check_name] = reason
+    return results
+
+
+def convert_sbom_to_csv(
+    writer: DictWriter,
+    dependency: dict[str, Any],
+    is_core: bool,
+    is_devel: bool,
+    include_open_psf_scorecard: bool = False,
+) -> None:
+    """
+    Convert SBOM to CSV
+    :param writer: CSV writer
+    :param dependency: Dependency to convert
+    :param is_core: Whether the dependency is core or not
+    """
+    get_console().print(f"[info]Converting {dependency['name']} to CSV")
+    vcs = get_vcs(dependency)
+    name = dependency.get("name", "")
+    if name.startswith("apache-airflow"):
+        return
+    row = {
+        "Name": dependency.get("name", ""),
+        "Author": dependency.get("author", ""),
+        "Version": dependency.get("version", ""),
+        "Description": dependency.get("description"),
+        "Core": is_core,
+        "Devel": is_devel,
+        "Licenses": convert_licenses(dependency.get("licenses", [])),
+        "Purl": dependency.get("purl"),
+        "Pypi": get_pypi_link(dependency),
+        "Vcs": vcs,
+    }
+    if vcs and include_open_psf_scorecard:
+        open_psf_scorecard = get_open_psf_scorecard(vcs)
+        row.update(open_psf_scorecard)
+    writer.writerow(row)
+
+
+def get_field_names(include_open_psf_scorecard: bool) -> list[str]:
+    names = ["Name", "Author", "Version", "Description", "Core", "Devel", "Licenses", "Purl", "Pypi", "Vcs"]
+    if include_open_psf_scorecard:
+        names.append("OPSF-Score")
+        for check in OPEN_PSF_CHECKS:
+            names.append("OPSF-" + check)
+            names.append("OPSF-Details-" + check)
+    return names
+
+
+def normalize_package_name(name):
+    import re
+
+    return re.sub(r"[-_.]+", "-", name).lower()

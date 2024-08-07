@@ -629,6 +629,60 @@ method.
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
 
+Conditionally skipping tasks
+----------------------------
+
+The ``run_if()`` and ``skip_if()`` are syntactic sugar for TaskFlow
+that allows you to skip a ``Task`` based on a condition.
+You can use them to simply set execution conditions
+without changing the structure of the ``DAG`` or ``Task``.
+
+It also allows you to set conditions using ``Context``,
+which is essentially the same as using ``pre_execute``.
+
+An example usage of ``run_if()`` is as follows:
+
+.. code-block:: python
+
+    @task.run_if(lambda context: context["task_instance"].task_id == "run")
+    @task.bash()
+    def echo() -> str:
+        return "echo 'run'"
+
+The ``echo`` defined in the above code is only executed when the ``task_id`` is ``run``.
+
+If you want to leave a log when you skip a task, you have two options.
+
+.. tab-set::
+
+    .. tab-item:: Static message
+
+        .. code-block:: python
+
+            @task.run_if(lambda context: context["task_instance"].task_id == "run", skip_message="only task_id is 'run'")
+            @task.bash()
+            def echo() -> str:
+                return "echo 'run'"
+
+    .. tab-item:: using Context
+
+        .. code-block:: python
+
+            @task.run_if(
+                lambda context: (context["task_instance"].task_id == "run", f"{context['ts']}: only task_id is 'run'")
+            )
+            @task.bash()
+            def echo() -> str:
+                return "echo 'run'"
+
+There is also a ``skip_if()`` that works the opposite of ``run_if()``, and is used in the same way.
+
+.. code-block:: python
+
+    @task.skip_if(lambda context: context["task_instance"].task_id == "skip")
+    @task.bash()
+    def echo() -> str:
+        return "echo 'run'"
 
 What's Next?
 ------------

@@ -39,7 +39,7 @@ NAMESPACE = "default"
 CONN_ID = "test_kubernetes_conn_id"
 POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
-CONFIG_FILE = "/path/to/config/file"
+CONFIG_DICT = {"a": "b"}
 IN_CLUSTER = False
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
@@ -58,7 +58,7 @@ def trigger():
         kubernetes_conn_id=CONN_ID,
         poll_interval=POLL_INTERVAL,
         cluster_context=CLUSTER_CONTEXT,
-        config_file=CONFIG_FILE,
+        config_dict=CONFIG_DICT,
         in_cluster=IN_CLUSTER,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
@@ -101,7 +101,7 @@ class TestKubernetesPodTrigger:
             "kubernetes_conn_id": CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
-            "config_file": CONFIG_FILE,
+            "config_dict": CONFIG_DICT,
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,

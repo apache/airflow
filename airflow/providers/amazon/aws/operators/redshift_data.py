@@ -127,8 +127,8 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
         # Set wait_for_completion to False so that it waits for the status in the deferred task.
         wait_for_completion = self.wait_for_completion
-        if self.deferrable and self.wait_for_completion:
-            self.wait_for_completion = False
+        if self.deferrable:
+            wait_for_completion = False
 
         self.statement_id = self.hook.execute_query(
             database=self.database,
@@ -144,7 +144,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             poll_interval=self.poll_interval,
         )
 
-        if self.deferrable:
+        if self.deferrable and self.wait_for_completion:
             is_finished = self.hook.check_query_is_finished(self.statement_id)
             if not is_finished:
                 self.defer(

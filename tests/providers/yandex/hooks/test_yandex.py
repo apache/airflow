@@ -23,6 +23,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from tests.test_utils.config import conf_vars

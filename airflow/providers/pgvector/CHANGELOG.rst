@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.2.2
+.....
+
+Misc
+~~~~
+
+* ``updating pgvector to !=0.3.0 to  avoid recent issue in latest releases(0.3.0) (#40683)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.2.1
 .....
 

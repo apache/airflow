@@ -1484,7 +1484,7 @@ sql_alchemy_conn=sqlite://test
             test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == FutureWarning
+        assert c.category is FutureWarning
         assert (
             "you should use[scheduler/parsing_cleanup_interval] "
             "instead. Please update your `conf.get*`" in str(c.message)
@@ -1494,7 +1494,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == DeprecationWarning
+        assert c.category is DeprecationWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1518,12 +1518,12 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category == DeprecationWarning
+        assert w.category is DeprecationWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()
             assert "your `conf.get*` call to use the new name" in str(w.message)
-            assert w.category == FutureWarning
+            assert w.category is FutureWarning
 
     def test_as_dict_raw(self):
         test_conf = AirflowConfigParser()

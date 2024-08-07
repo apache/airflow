@@ -98,13 +98,7 @@ dependencies:
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   - dill>=0.2.3
-  # When upgrading the major version of gcloud-aio-auth we want to make sure to
-  # 1. use at least version 5.2, which uses offset-aware datetime internally
-  # 2. override Token's new `refresh` method instead of `acquire_access_token`, which allows us to avoid
-  #    dealing with internals like `access_token_acquired_at`
-  # 3. continue to `subclass gcloud.aio.auth.token.Token` instead of `BaseToken`, since instances of
-  #    `_CredentialsToken` are instances of `Token` and used as such
-  - gcloud-aio-auth>=4.0.0,<5.0.0
+  - gcloud-aio-auth>=5.2.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0

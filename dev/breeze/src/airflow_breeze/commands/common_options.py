@@ -398,6 +398,14 @@ option_use_airflow_version = click.option(
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
+option_airflow_version = click.option(
+    "-A",
+    "--airflow-version",
+    help="Airflow version to use for the command.",
+    type=str,
+    envvar="AIRFLOW_VERSION",
+    required=True,
+)
 option_verbose = click.option(
     "-v",
     "--verbose",

@@ -47,7 +47,7 @@ MODEL = "test-model"
 
 class TestTranslationLegacyDatasetLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator):
+    def test_get_link(self, create_task_instance_of_operator, session):
         expected_url = f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/sentences?project={GCP_PROJECT_ID}"
         link = TranslationLegacyDatasetLink()
         ti = create_task_instance_of_operator(
@@ -57,6 +57,8 @@ class TestTranslationLegacyDatasetLink:
             dataset=DATASET,
             location=GCP_LOCATION,
         )
+        session.add(ti)
+        session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
@@ -64,7 +66,7 @@ class TestTranslationLegacyDatasetLink:
 
 class TestTranslationDatasetListLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator):
+    def test_get_link(self, create_task_instance_of_operator, session):
         expected_url = f"{TRANSLATION_BASE_LINK}/datasets?project={GCP_PROJECT_ID}"
         link = TranslationDatasetListLink()
         ti = create_task_instance_of_operator(
@@ -73,6 +75,8 @@ class TestTranslationDatasetListLink:
             task_id="test_dataset_list_link_task",
             location=GCP_LOCATION,
         )
+        session.add(ti)
+        session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task, project_id=GCP_PROJECT_ID)
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
@@ -80,7 +84,7 @@ class TestTranslationDatasetListLink:
 
 class TestTranslationLegacyModelLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator):
+    def test_get_link(self, create_task_instance_of_operator, session):
         expected_url = (
             f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
             f"evaluate;modelId={MODEL}?project={GCP_PROJECT_ID}"
@@ -94,6 +98,8 @@ class TestTranslationLegacyModelLink:
             project_id=GCP_PROJECT_ID,
             location=GCP_LOCATION,
         )
+        session.add(ti)
+        session.commit()
         link.persist(
             context={"ti": ti},
             task_instance=ti.task,
@@ -107,7 +113,7 @@ class TestTranslationLegacyModelLink:
 
 class TestTranslationLegacyModelTrainLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator):
+    def test_get_link(self, create_task_instance_of_operator, session):
         expected_url = (
             f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
             f"train?project={GCP_PROJECT_ID}"
@@ -121,6 +127,8 @@ class TestTranslationLegacyModelTrainLink:
             project_id=GCP_PROJECT_ID,
             location=GCP_LOCATION,
         )
+        session.add(ti)
+        session.commit()
         link.persist(
             context={"ti": ti},
             task_instance=ti.task,
@@ -132,7 +140,7 @@ class TestTranslationLegacyModelTrainLink:
 
 class TestTranslationLegacyModelPredictLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator):
+    def test_get_link(self, create_task_instance_of_operator, session):
         expected_url = (
             f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
             f"predict;modelId={MODEL}?project={GCP_PROJECT_ID}"
@@ -149,6 +157,8 @@ class TestTranslationLegacyModelPredictLink:
             output_config="input_config",
         )
         ti.task.model = Model(dataset_id=DATASET, display_name=MODEL)
+        session.add(ti)
+        session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task, model_id=MODEL, project_id=GCP_PROJECT_ID)
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url

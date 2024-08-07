@@ -16,7 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from deprecated import deprecated
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+
+if TYPE_CHECKING:
+    from yandexcloud._wrappers.dataproc import Dataproc
 
 
 class DataprocHook(YandexCloudBaseHook):
@@ -29,7 +37,19 @@ class DataprocHook(YandexCloudBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.cluster_id = None
-        self.client = self.sdk.wrappers.Dataproc(
+        self.dataproc_client: Dataproc = self.sdk.wrappers.Dataproc(
             default_folder_id=self.default_folder_id,
             default_public_ssh_key=self.default_public_ssh_key,
         )
+
+    @property
+    @deprecated(
+        reason="`client` deprecated and will be removed in the future. Use `dataproc_client` instead",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def client(self):
+        return self.dataproc_client
+
+    @client.setter
+    def client(self, value):
+        self.dataproc_client = value

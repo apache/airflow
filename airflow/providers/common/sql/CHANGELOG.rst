@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Create SQLAlchemy engine from connection in DB Hook and added autocommit param to insert_rows method (#40669)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.14.2
 ......
 

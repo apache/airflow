@@ -44,7 +44,7 @@ class TestJsonClient:
         mock_get.return_value = Response(status_code=500, json={"get_ok": "no"})
         with pytest.raises(OSError) as exc_info:
             self.client._request("/test/except", {"dag_id": "foo"})
-        assert exc_info.type == OSError
+        assert exc_info.type is OSError
         assert "Server error" in str(exc_info.value)
 
     @patch.object(httpx.Client, "post")

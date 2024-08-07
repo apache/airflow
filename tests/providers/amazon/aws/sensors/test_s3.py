@@ -30,6 +30,7 @@ from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -109,10 +110,10 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key_from_jinja(self, mock_head_object):
+    def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
 
-        Variable.set("test_bucket_key", "s3://bucket/key")
+        Variable.set("test_bucket_key", "s3://bucket/key", session=session)
 
         execution_date = timezone.datetime(2020, 1, 1)
 
@@ -124,10 +125,14 @@ class TestS3KeySensor:
             dag=dag,
         )
 
-        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+        )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        context = ti.get_template_context()
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
         ti.render_templates(context)
         op.poke(None)
 
@@ -135,11 +140,11 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object):
+    def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
 
-        Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"])
+        Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"], session=session)
 
         execution_date = timezone.datetime(2020, 1, 1)
 
@@ -151,10 +156,14 @@ class TestS3KeySensor:
             dag=dag,
         )
 
-        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+        )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        context = ti.get_template_context()
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
         ti.render_templates(context)
         op.poke(None)
 
@@ -456,7 +465,7 @@ class TestS3KeysUnchangedSensor:
             )
 
     @pytest.mark.db_test
-    def test_render_template_fields(self):
+    def test_render_template_fields(self, clean_dags_and_dagruns):
         S3KeysUnchangedSensor(
             task_id="sensor_3",
             bucket_name="test-bucket",

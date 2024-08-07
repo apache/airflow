@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.serialization.pydantic.trigger import TriggerPydantic
     from airflow.triggers.base import BaseTrigger
 
 
@@ -136,7 +137,8 @@ class Trigger(Base):
 
     @classmethod
     @internal_api_call
-    def from_object(cls, trigger: BaseTrigger) -> Trigger:
+    @provide_session
+    def from_object(cls, trigger: BaseTrigger, session=NEW_SESSION) -> Trigger | TriggerPydantic:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs)

@@ -24,7 +24,6 @@ import time_machine
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
@@ -63,11 +62,6 @@ class TestLatestOnlyOperator:
         self.clean_db()
 
     def setup_method(self):
-        self.dag = DAG(
-            "test_dag",
-            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
-            schedule=INTERVAL,
-        )
         self.freezer = time_machine.travel(FROZEN_NOW, tick=False)
         self.freezer.start()
 
@@ -75,23 +69,28 @@ class TestLatestOnlyOperator:
         self.freezer.stop()
         self.clean_db()
 
-    def test_run(self):
-        task = LatestOnlyOperator(task_id="latest", dag=self.dag)
+    def test_run(self, dag_maker):
+        with dag_maker(
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
+        ):
+            task = LatestOnlyOperator(task_id="latest")
+        dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    def test_skipping_non_latest(self):
-        latest_task = LatestOnlyOperator(task_id="latest", dag=self.dag)
-        downstream_task = EmptyOperator(task_id="downstream", dag=self.dag)
-        downstream_task2 = EmptyOperator(task_id="downstream_2", dag=self.dag)
-        downstream_task3 = EmptyOperator(
-            task_id="downstream_3", trigger_rule=TriggerRule.NONE_FAILED, dag=self.dag
-        )
+    def test_skipping_non_latest(self, dag_maker):
+        with dag_maker(
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            downstream_task2 = EmptyOperator(task_id="downstream_2")
+            downstream_task3 = EmptyOperator(task_id="downstream_3", trigger_rule=TriggerRule.NONE_FAILED)
 
-        downstream_task.set_upstream(latest_task)
-        downstream_task2.set_upstream(downstream_task)
-        downstream_task3.set_upstream(downstream_task)
+            downstream_task.set_upstream(latest_task)
+            downstream_task2.set_upstream(downstream_task)
+            downstream_task3.set_upstream(downstream_task)
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
@@ -99,7 +98,7 @@ class TestLatestOnlyOperator:
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=timezone.datetime(2016, 1, 1, 12),
@@ -107,7 +106,7 @@ class TestLatestOnlyOperator:
             data_interval=(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12) + INTERVAL),
         )
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=END_DATE,
@@ -152,15 +151,18 @@ class TestLatestOnlyOperator:
             timezone.datetime(2016, 1, 2): "success",
         } == exec_date_to_downstream_state
 
-    def test_not_skipping_external(self):
-        latest_task = LatestOnlyOperator(task_id="latest", dag=self.dag)
-        downstream_task = EmptyOperator(task_id="downstream", dag=self.dag)
-        downstream_task2 = EmptyOperator(task_id="downstream_2", dag=self.dag)
+    def test_not_skipping_external(self, dag_maker):
+        with dag_maker(
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            downstream_task2 = EmptyOperator(task_id="downstream_2")
 
-        downstream_task.set_upstream(latest_task)
-        downstream_task2.set_upstream(downstream_task)
+            downstream_task.set_upstream(latest_task)
+            downstream_task2.set_upstream(downstream_task)
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
@@ -170,7 +172,7 @@ class TestLatestOnlyOperator:
         )
 
         execution_date = timezone.datetime(2016, 1, 1, 12)
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=execution_date,
@@ -179,7 +181,7 @@ class TestLatestOnlyOperator:
             data_interval=(execution_date, execution_date),
         )
 
-        self.dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=END_DATE,

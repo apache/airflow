@@ -62,7 +62,7 @@ apache-airflow-providers-common-compat package
 ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------

@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.1.2
+.....
+
+Misc
+~~~~
+
+* ``Bump qdrant client deps (#40831)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.1.1
 .....
 

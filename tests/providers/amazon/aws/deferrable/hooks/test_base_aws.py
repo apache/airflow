@@ -34,7 +34,7 @@ with contextlib.suppress(ImportError):
 class TestAwsBaseAsyncHook:
     @staticmethod
     def compare_aio_cred(first, second):
-        if type(first) != type(second):
+        if type(first) is not type(second):
             return False
         if first.access_key != second.access_key:
             return False

@@ -45,11 +45,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.21.1
 .......
 
-Latest change: 2024-07-26
+Latest change: 2024-07-30
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`8f616551ca <https://github.com/apache/airflow/commit/8f616551cadbaee53b1bb5952936c163093b0b40>`_  2024-07-30   ``Fix cloudsql-query system tests (#41092)``
+`7126678e87 <https://github.com/apache/airflow/commit/7126678e87c11665c06ec29595472cfaa0c7fdd6>`_  2024-07-28   ``Prepare Providers docs ad hoc release (#41074)``
 `6e3bc84905 <https://github.com/apache/airflow/commit/6e3bc84905f7671ea60aa7e612ddf8c4095b70b8>`_  2024-07-26   ``fix unnecessary imports for CloudSQL hook (#41009)``
 `95b5a0a2ac <https://github.com/apache/airflow/commit/95b5a0a2ac457ff5b0258845eb3e2c790cfaea41>`_  2024-07-24   ``Refactor dataproc system tests (#40720)``
 `0eaa6117bf <https://github.com/apache/airflow/commit/0eaa6117bf0310be798ad2be5c82905bd6fa30b5>`_  2024-07-24   ``Move sensitive information to the secret manager for the system test google_analytics_admin (#40951)``
