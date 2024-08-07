@@ -67,6 +67,9 @@ class StandardTaskRunner(BaseTaskRunner):
         return self.process
 
     def _start_by_fork(self):
+        from http.client import HTTPConnection
+
+        print("Standard Task Runner HTTPConnection.debuglevel", HTTPConnection.debuglevel)
         pid = os.fork()
         if pid:
             self.log.info("Started process %d to run task", pid)
