@@ -1216,7 +1216,7 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             DeleteCustomTrainingJobOperator,
             # Templated fields
@@ -1230,6 +1230,8 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: DeleteCustomTrainingJobOperator = ti.task
         assert task.training_pipeline_id == "training-pipeline-id"
@@ -2032,7 +2034,7 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             DeleteAutoMLTrainingJobOperator,
             # Templated fields
@@ -2045,6 +2047,8 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: DeleteAutoMLTrainingJobOperator = ti.task
         assert task.training_pipeline_id == "training-pipeline-id"

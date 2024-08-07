@@ -40,7 +40,7 @@ from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
+from airflow.settings import _ENABLE_AIP_44, TracebackSessionForTests
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import AttributeRemoved, DagRunType
@@ -211,6 +211,8 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
+# This test should not be run in DB isolation mode as it accesses the database directly - deliberately
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):
     ds1 = DatasetModel(id=1, uri="one", extra={"foo": "bar"})
@@ -229,6 +231,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         session=session,
     )
     execution_date = timezone.utcnow()
+    TracebackSessionForTests.set_allow_db_access(session, True)
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.DATASET_TRIGGERED,
@@ -252,6 +255,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     dr.consumed_dataset_events.append(ds2_event_1)
     dr.consumed_dataset_events.append(ds2_event_2)
     session.commit()
+    TracebackSessionForTests.set_allow_db_access(session, False)
 
     print(ds2_event_2.dataset.consuming_dags)
     pydantic_dse1 = DatasetEventPydantic.model_validate(ds1_event)

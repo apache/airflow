@@ -54,12 +54,14 @@ AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 @pytest.mark.db_test
 @pytest.fixture
-def ctx(create_task_instance):
+def ctx(create_task_instance, session):
     ti = create_task_instance(
         dag_id=DAG_ID,
         task_id=TASK_ID,
         schedule="0 12 * * *",
     )
+    session.add(ti)
+    session.commit()
     return {"task_instance": ti}
 
 

@@ -52,7 +52,7 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-DAG_ID = "cloudsql-query-ssl"
+DAG_ID = "cloudsql_query_ssl"
 REGION = "us-central1"
 HOME_DIR = Path.home()
 
@@ -184,8 +184,6 @@ SQL = [
     "DROP TABLE TABLE_TEST",
     "DROP TABLE TABLE_TEST2",
 ]
-
-DELETE_CONNECTION_COMMAND = "airflow connections delete {}"
 
 SSL_PATH = f"/{DAG_ID}/{ENV_ID}"
 SSL_LOCAL_PATH_PREFIX = "/tmp"

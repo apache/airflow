@@ -58,8 +58,8 @@ const DatasetNode = ({
       <PopoverTrigger>
         <Box
           borderRadius={isZoomedOut ? 10 : 5}
-          borderWidth={1}
-          borderColor="gray.400"
+          borderWidth={datasetEvent ? 2 : 1}
+          borderColor={datasetEvent ? "green" : "gray.400"}
           bg="white"
           height={`${height}px`}
           width={`${width}px`}
