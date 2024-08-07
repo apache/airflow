@@ -341,7 +341,7 @@ class TracebackSessionForTests:
         raise RuntimeError(
             "TracebackSessionForTests object was used but internal API is enabled. "
             "Only test code is allowed to use this object.\n"
-            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}{frame_summary.colno}\n"
+            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}\n"
             f"     {frame_summary.line}\n\n"
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was called:\n"

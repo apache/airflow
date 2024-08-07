@@ -22,18 +22,15 @@ Notes on usage:
 
 Turn on all the DAGs.
 
-Before running any DAG, the schedule of the "dataset-alias-consumer" DAG will show as "unresolved DatasetAlias".
+Before running any DAG, the schedule of the "dataset-alias-consumer" DAG will show as "Unresolved DatasetAlias".
 This is expected because the dataset alias has not been resolved into any dataset yet.
 
 Once the "dataset-alias-producer" DAG is triggered, the "dataset-consumer" DAG should be triggered upon completion.
 This is because the dataset alias "example-alias" is used to add a dataset event to the dataset "s3://bucket/my-task"
 during the "produce_dataset_events_through_dataset_alias" task.
-After the completion of this task, the schedule of the "dataset-alias-consumer" DAG should change to "Dataset" as
-the dataset alias "example-alias" is now resolved to the dataset "s3://bucket/my-task".
-It's expected that the "dataset-alias-consumer" DAG is not triggered at this point, despite also relying on
-the dataset alias "example-alias," which was initially resolved to nothing.
-Once the resolution occurs, triggering either the "dataset-producer" or "dataset-alias-producer" DAG should
-also trigger both the "dataset-consumer" and "dataset-alias-consumer" DAGs.
+As the DAG "dataset-alias-consumer" relies on dataset alias "example-alias" which was previously unresolved,
+the DAG "dataset-alias-consumer" (along with all the DAGs in the same file) will be re-parsed and
+thus update its schedule to the dataset "s3://bucket/my-task" and will be triggered.
 """
 
 from __future__ import annotations

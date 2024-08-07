@@ -605,7 +605,7 @@
       "apache-airflow>=2.7.0",
       "asgiref>=3.5.2",
       "dill>=0.2.3",
-      "gcloud-aio-auth>=4.0.0,<5.0.0",
+      "gcloud-aio-auth>=5.2.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",

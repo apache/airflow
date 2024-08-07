@@ -170,7 +170,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
             self.dataset_condition = _DatasetAliasCondition(self.dataset_condition.name)
 
         if not next(self.dataset_condition.iter_datasets(), False):
-            self._summary = "unresolved DatasetAlias"
+            self._summary = "Unresolved DatasetAlias"
         else:
             self._summary = "Dataset"
 
