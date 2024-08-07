@@ -118,7 +118,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
 
     def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
         """
-        Returns whether the trigger should be cleaned up.
+        Check the trigger should be cleaned up or not base on the context.
 
         :param termination_reason: The reason for terminating the trigger.
         Since the trigger could be terminated for various reasons, like triggerer restart or reassigned to

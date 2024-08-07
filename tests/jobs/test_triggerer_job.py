@@ -269,7 +269,14 @@ class TestTriggerRunner:
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
+        trigger_runner.triggers = {
+            1: {
+                "task": MagicMock(),
+                "name": "mock_name",
+                "events": 0,
+                "termination_reason": None
+            }
+        }
         mock_trigger = MagicMock()
         mock_trigger.task_instance.trigger_timeout = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -281,7 +288,14 @@ class TestTriggerRunner:
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
     async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
+        trigger_runner.triggers = {
+            1: {
+                "task": MagicMock(),
+                "name": "mock_name",
+                "events": 0,
+                "termination_reason": None
+            }
+        }
         mock_trigger = MagicMock()
         mock_trigger.task_instance.trigger_timeout = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -839,6 +853,9 @@ class TriggerInstances:
     def reset(self):
         self.trigger_instances.clear()
 
+    def add_instances(self, instance):
+        self.trigger_instances.append(instance)
+
 
 class RemoteJobTrigger(BaseTrigger):
     def __init__(self, remote_job_id, cleanup_on_reassignment: bool):
@@ -848,7 +865,7 @@ class RemoteJobTrigger(BaseTrigger):
         self.cleanup_done = False
         self.last_status = None
         self.cleanup_on_reassignment = cleanup_on_reassignment
-        TriggerInstances().trigger_instances.append(self)
+        TriggerInstances().add_instances(self)
 
     def get_status(self):
         return RemoteService().get_job(self.remote_job_id).get_status()
@@ -916,7 +933,7 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
 
     This test verifies that the cleanup behavior is controllable under the reassignment case by trigger.
     """
-    from typing import Callable, Awaitable
+    from typing import Awaitable, Callable
     from airflow.configuration import conf
     from airflow.jobs.triggerer_job_runner import TriggerDetails
 
@@ -977,7 +994,7 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         await job_runner1.trigger_runner.create_triggers()
         assert len(job_runner1.trigger_runner.triggers) == 1
 
-        job2.heartbeat(lambda x: {}, session)
+        job2.heartbeat(lambda x: None, session)
         job_runner2.load_triggers()
         assert len(job_runner2.trigger_runner.to_create) == 1
         await job_runner2.trigger_runner.create_triggers()
@@ -988,7 +1005,7 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         assert len(trigger_instances_holder.trigger_instances) == 2
 
         # job_runner2 performs heartbeat normally
-        job2.heartbeat(lambda x: {}, session)
+        job2.heartbeat(lambda x: None, session)
 
         # Let the job_runner2 start to run
         job_runner2.trigger_runner.daemon = True
@@ -1055,7 +1072,8 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         assert len(remote_service.event_queue) == 2
         # The first kill job request comes from the canceled trigger of job_runner1
         (cancel_caller, remote_job_id) = remote_service.event_queue[0]
-        assert cancel_caller == cancelled_trigger and remote_job_id == 1
+        assert cancel_caller == cancelled_trigger
+        assert remote_job_id == 1
 
     await make_triggerer2_occupy_the_trigger_of_triggerer1(
         expect_the_trigger_will_be_cleanup_on_reassigned, True
@@ -1085,7 +1103,8 @@ async def test_disable_trigger_cleanup_on_reassigned_to_other_triggerers(session
         # There should only be one kill request from trigger instances of job_runner2
         assert len(remote_service.event_queue) == 1
         (cancel_caller, remote_job_id) = remote_service.event_queue[0]
-        assert cancel_caller == trigger_of_job_2 and remote_job_id == 1
+        assert cancel_caller == trigger_of_job_2
+        assert remote_job_id == 1
 
     assert make_triggerer2_occupy_the_trigger_of_triggerer1(
         expect_the_trigger_will_not_be_cleanup_on_reassigned, False
