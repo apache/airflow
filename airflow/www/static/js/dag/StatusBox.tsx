@@ -35,11 +35,13 @@ export const boxSizePx = `${boxSize}px`;
 interface StatusWithNotesProps extends BoxProps {
   state: TaskState;
   containsNotes?: boolean;
+  tryNumber?: number;
 }
 
 export const StatusWithNotes = ({
   state,
   containsNotes,
+  tryNumber,
   ...rest
 }: StatusWithNotesProps) => {
   const color = state && stateColors[state] ? stateColors[state] : "white";
@@ -50,8 +52,14 @@ export const StatusWithNotes = ({
       background={getStatusBackgroundColor(color, !!containsNotes)}
       borderRadius="2px"
       borderWidth={state ? 0 : 1}
+      color="white"
+      fontSize={boxSizePx-4}
+      textAlign="center"
+      verticalAlign="middle"
       {...rest}
-    />
+    >
+      {tryNumber > 1 ? tryNumber : null}
+    </Box>
   );
 };
 
@@ -137,6 +145,7 @@ const StatusBox = ({
         <StatusWithNotes
           state={instance.state}
           containsNotes={containsNotes}
+          tryNumber={instance.tryNumber}
           onClick={onClick}
           cursor="pointer"
           data-testid="task-instance"
