@@ -725,7 +725,7 @@ _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
 
 def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
     """DAG serialization interface."""
-    key = next(k for k, v in _XCOM_ARG_TYPES.items() if v == type(value))
+    key = next(k for k, v in _XCOM_ARG_TYPES.items() if isinstance(value, v))
     if key:
         return {"type": key, **value._serialize()}
     return value._serialize()

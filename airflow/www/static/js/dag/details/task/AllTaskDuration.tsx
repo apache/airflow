@@ -101,6 +101,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
   const option: ReactEChartsProps["option"] = {
     legend: {
       orient: "horizontal",
+      type: "scroll",
       icon: "circle",
       data: legendData,
     },

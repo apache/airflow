@@ -40,6 +40,8 @@ from airflow.utils.process_utils import (
     set_new_process_group,
 )
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 class TestReapProcessGroup:
     @staticmethod
@@ -99,6 +101,7 @@ class TestReapProcessGroup:
                 pass
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestExecuteInSubProcess:
     def test_should_print_all_messages1(self, caplog):
@@ -136,6 +139,7 @@ def my_sleep_subprocess_with_signals():
     sleep(100)
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestKillChildProcessesByPids:
     def test_should_kill_process(self):

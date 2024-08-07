@@ -62,6 +62,14 @@ except Exception:
 
 log.info("Configured default timezone %s", TIMEZONE)
 
+if conf.has_option("database", "sql_alchemy_session_maker"):
+    log.info(
+        '[Warning] Found config "sql_alchemy_session_maker", make sure you know what you are doing.\n'
+        "[Warning] Improper configuration of sql_alchemy_session_maker can lead to serious issues, "
+        "including data corruption, unrecoverable application crashes.\n"
+        "[Warning] Please review the SQLAlchemy documentation for detailed guidance on "
+        "proper configuration and best practices."
+    )
 
 HEADER = "\n".join(
     [
@@ -319,6 +327,8 @@ class TracebackSessionForTests:
     """
 
     db_session_class = None
+    allow_db_access = False
+    """For pytests to create/prepare stuff where explicit DB access it needed"""
 
     def __init__(self):
         self.current_db_session = TracebackSessionForTests.db_session_class()
@@ -326,12 +336,12 @@ class TracebackSessionForTests:
 
     def __getattr__(self, item):
         test_code, frame_summary = self.is_called_from_test_code()
-        if test_code:
+        if self.allow_db_access or test_code:
             return getattr(self.current_db_session, item)
         raise RuntimeError(
             "TracebackSessionForTests object was used but internal API is enabled. "
             "Only test code is allowed to use this object.\n"
-            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}{frame_summary.colno}\n"
+            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}\n"
             f"     {frame_summary.line}\n\n"
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was called:\n"
@@ -342,6 +352,12 @@ class TracebackSessionForTests:
 
     def remove(*args, **kwargs):
         pass
+
+    @staticmethod
+    def set_allow_db_access(session, flag: bool):
+        """Temporarily, e.g. for pytests allow access to DB to prepare stuff."""
+        if isinstance(session, TracebackSessionForTests):
+            session.allow_db_access = flag
 
     def is_called_from_test_code(self) -> tuple[bool, traceback.FrameSummary | None]:
         """
@@ -361,8 +377,11 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_SETTINGS_PATH
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
-        if any(filename.endswith("conftest.py") for filename, _, _, _ in airflow_frames):
-            # This is a fixture call
+        if any(
+            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            for filename, _, _, _ in airflow_frames
+        ):
+            # This is a fixture call or testing utilities
             return True, None
         if (
             len(airflow_frames) >= 2
@@ -446,14 +465,19 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     setup_event_handlers(engine)
 
-    Session = scoped_session(
-        sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=engine,
-            expire_on_commit=False,
-        )
-    )
+    if conf.has_option("database", "sql_alchemy_session_maker"):
+        _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
+    else:
+
+        def _session_maker(_engine):
+            return sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=_engine,
+                expire_on_commit=False,
+            )
+
+    Session = scoped_session(_session_maker(engine))
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):

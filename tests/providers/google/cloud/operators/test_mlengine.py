@@ -335,7 +335,7 @@ class TestMLEngineStartBatchPredictionJobOperator:
         assert "A failure message" == str(ctx.value)
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -358,6 +358,8 @@ class TestMLEngineStartBatchPredictionJobOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineStartBatchPredictionJobOperator = ti.task
         assert task.project_id == "project_id"
@@ -428,7 +430,7 @@ class TestMLEngineTrainingCancelJobOperator:
         assert http_error_code == ctx.value.resp.status
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -444,6 +446,8 @@ class TestMLEngineTrainingCancelJobOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineTrainingCancelJobOperator = ti.task
         assert task.project_id == "project_id"
@@ -522,7 +526,7 @@ class TestMLEngineModelOperator:
             task.execute(None)
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=self.deprecation_message,
@@ -538,6 +542,8 @@ class TestMLEngineModelOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineManageModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -571,7 +577,7 @@ class TestMLEngineCreateModelOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -587,6 +593,8 @@ class TestMLEngineCreateModelOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineCreateModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -621,7 +629,7 @@ class TestMLEngineGetModelOperator:
         assert mock_hook.return_value.get_model.return_value == result
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -637,6 +645,8 @@ class TestMLEngineGetModelOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineGetModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -671,7 +681,7 @@ class TestMLEngineDeleteModelOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -687,6 +697,8 @@ class TestMLEngineDeleteModelOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineDeleteModelOperator = ti.task
         assert task.project_id == "project_id"
@@ -725,7 +737,7 @@ class TestMLEngineVersionOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=self.deprecation_message,
@@ -743,6 +755,8 @@ class TestMLEngineVersionOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineManageVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -809,7 +823,7 @@ class TestMLEngineCreateVersion:
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -826,6 +840,8 @@ class TestMLEngineCreateVersion:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineCreateVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -891,7 +907,7 @@ class TestMLEngineSetDefaultVersion:
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -908,6 +924,8 @@ class TestMLEngineSetDefaultVersion:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineSetDefaultVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -957,7 +975,7 @@ class TestMLEngineListVersions:
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -973,6 +991,8 @@ class TestMLEngineListVersions:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineListVersionsOperator = ti.task
         assert task.project_id == "project_id"
@@ -1037,7 +1057,7 @@ class TestMLEngineDeleteVersion:
             task.execute(context=MagicMock())
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -1054,6 +1074,8 @@ class TestMLEngineDeleteVersion:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineDeleteVersionOperator = ti.task
         assert task.project_id == "project_id"
@@ -1349,7 +1371,7 @@ class TestMLEngineStartTrainingJobOperator:
         assert "A failure message" == str(ctx.value)
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match=DEPRECATION_MESSAGE,
@@ -1377,6 +1399,8 @@ class TestMLEngineStartTrainingJobOperator:
                 task_id="test_template_body_templating_task",
                 execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: MLEngineStartTrainingJobOperator = ti.task
         assert task.project_id == "project_id"

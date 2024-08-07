@@ -27,7 +27,10 @@ import * as utils from "src/utils";
 import * as useTaskLogModule from "src/api/useTaskLog";
 import * as useTIHistory from "src/api/useTIHistory";
 import * as useTaskInstance from "src/api/useTaskInstance";
-import type { TaskInstance } from "src/types/api-generated";
+import type {
+  TaskInstance,
+  TaskInstanceCollection,
+} from "src/types/api-generated";
 
 import Logs from "./index";
 
@@ -64,22 +67,25 @@ describe("Test Logs Component.", () => {
   } as UseQueryResult<TaskInstance, unknown>;
 
   const tiHistoryValue = {
-    data: [
-      {
-        tryNumber: 1,
-        startDate: "2024-06-17T01:47:51.724946+00:00",
-        endDate: "2024-06-17T01:50:51.724946+00:00",
-        state: "failed",
-      },
-      {
-        tryNumber: 2,
-        startDate: "2024-06-18T01:47:51.724946+00:00",
-        endDate: "2024-06-18T01:50:51.724946+00:00",
-        state: "failed",
-      },
-    ],
+    data: {
+      taskInstances: [
+        {
+          tryNumber: 1,
+          startDate: "2024-06-17T01:47:51.724946+00:00",
+          endDate: "2024-06-17T01:50:51.724946+00:00",
+          state: "failed",
+        },
+        {
+          tryNumber: 2,
+          startDate: "2024-06-18T01:47:51.724946+00:00",
+          endDate: "2024-06-18T01:50:51.724946+00:00",
+          state: "failed",
+        },
+      ],
+      totalEntries: 2,
+    },
     isSuccess: true,
-  } as UseQueryResult<Partial<TaskInstance>[], unknown>;
+  } as UseQueryResult<TaskInstanceCollection>;
 
   beforeEach(() => {
     useTaskLogMock = jest

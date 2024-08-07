@@ -1121,6 +1121,28 @@ def create_task_instance(dag_maker, create_dummy_dag):
 
 
 @pytest.fixture
+def create_serialized_task_instance_of_operator(dag_maker):
+    def _create_task_instance(
+        operator_class,
+        *,
+        dag_id,
+        execution_date=None,
+        session=None,
+        **operator_kwargs,
+    ) -> TaskInstance:
+        with dag_maker(dag_id=dag_id, serialized=True, session=session):
+            operator_class(**operator_kwargs)
+        if execution_date is None:
+            dagrun_kwargs = {}
+        else:
+            dagrun_kwargs = {"execution_date": execution_date}
+        (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
+        return ti
+
+    return _create_task_instance
+
+
+@pytest.fixture
 def create_task_instance_of_operator(dag_maker):
     def _create_task_instance(
         operator_class,
@@ -1130,7 +1152,7 @@ def create_task_instance_of_operator(dag_maker):
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        with dag_maker(dag_id=dag_id, session=session):
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
             operator_class(**operator_kwargs)
         if execution_date is None:
             dagrun_kwargs = {}
@@ -1192,6 +1214,10 @@ def create_log_template(request):
         session.commit()
 
         def _delete_log_template():
+            from airflow.models import DagRun, TaskInstance
+
+            session.query(TaskInstance).delete()
+            session.query(DagRun).delete()
             session.delete(log_template)
             session.commit()
 
@@ -1408,3 +1434,15 @@ if TYPE_CHECKING:
     # time-machine
     @pytest.fixture  # type: ignore[no-redef]
     def time_machine() -> TimeMachineFixture: ...
+
+
+@pytest.fixture
+def clean_dags_and_dagruns():
+    """Fixture that cleans the database before and after every test."""
+    from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+    clear_db_runs()
+    clear_db_dags()
+    yield  # Test runs here
+    clear_db_dags()
+    clear_db_runs()

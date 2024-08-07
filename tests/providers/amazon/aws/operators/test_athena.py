@@ -38,6 +38,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -224,12 +225,20 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_return_value(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_return_value(
+        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            execution_date=timezone.utcnow(),
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=self.athena)
         ti.dag_run = dag_run
-
+        session.add(ti)
+        session.commit()
         assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID
 
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
