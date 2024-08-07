@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+Main
+......
+
+.. warning:: A bug in ``RedshiftDataOperator`` prevented tasks configured with ``deferrable=True`` and
+  ``wait_for_completion=True`` from entering the deferred state. Instead, the task would occupy an executor slot
+  until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
+  In this version, tasks set up with ``deferrable=True`` and ``wait_for_completion=False`` will not wait anymore.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferred mode for 'RedshiftDataOperator' (#41206)``
+
 8.27.0
 ......
 
