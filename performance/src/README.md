@@ -30,7 +30,8 @@ service built on Apache Airflow.
         Note that instead of a service account the script can use gcloud SDK's application default
         credentials (if they have been set).
 
-1.  You need to have [gcloud SDK installed](https://cloud.google.com/sdk/install) - in order to
+1.  You need to have [gcloud SDK installed](https://cloud.google.com/sdk/install) and `kubectl` with
+    `gcloud components install kubectl` - in order to
     authenticate to GKE cluster (note that private gcloud commands are used to do so).
     The same account mentioned above will be used for authentication with gcloud, you do not
     need to change the active account in gcloud yourself.
