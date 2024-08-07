@@ -177,7 +177,7 @@ class KubernetesExecutor(BaseExecutor):
             return pod_generator.datetime_to_label_safe_datestring(input_value)
         return pod_generator.make_safe_label_value(input_value)
 
-    def get_pod_labels_combined_str_to_pod_map(self):
+    def get_pod_labels_combined_str_to_pod_map(self) -> dict[str, k8s.V1Pod]:
         """
         List the worker pods owned by this scheduler and create a map containing pod combined labels search str -> pod.
 
