@@ -121,14 +121,14 @@ class TestVariable:
         )
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
-    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog):
+    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         mock_backend = mock.Mock()
         mock_backend.get_variable.return_value = "secret_val"
         mock_backend.__class__.__name__ = "MockSecretsBackend"
         mock_ensure_secrets.return_value = [mock_backend, MetastoreBackend]
 
-        Variable.set(key="key", value="new-db-value", session=None)
+        Variable.set(key="key", value="new-db-value", session=session)
         assert Variable.get("key") == "secret_val"
 
         assert caplog.messages[0] == (
