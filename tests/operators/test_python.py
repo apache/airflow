@@ -283,6 +283,18 @@ class TestPythonOperator(BasePythonTest):
         with pytest.raises(ValueError, match=error_message):
             ti.run()
 
+    def test_unpack_operator_kwargs(self):
+        """Makes sure that keyword arguments are not continually processed after an unpack operator."""
+
+        error_message = "Should be run"
+
+        def func(*unpacked_args, keyword_only_arg):
+            raise RuntimeError(error_message)
+
+        ti = self.create_ti(func, op_args=[1, 2], op_kwargs={"keyword_only_arg": 1})
+        with pytest.raises(RuntimeError, match=error_message):
+            ti.run()
+
     def test_provide_context_does_not_fail(self):
         """Ensures that provide_context doesn't break dags in 2.0."""
 
