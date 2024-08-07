@@ -1,13 +1,12 @@
 SCRIPT_PATH="src/run_multiple_performance_tests.py"
-PATH_TO_STUDY_FILE="src/sample_studies/composer2.json"
-PATH_TO_ELASTIC_DAG_CONFIG_FILE="src/performance_dags/elastic_dag/elastic_dag_configurations/bigquery_insert_job_workflow.json"
+PATH_TO_STUDY_FILE="sample_studies/composer2.json"
+PATH_TO_ELASTIC_DAG_CONFIG_FILE="src/performance_dags/elastic_dag/elastic_dag_configurations/tiny_workflow.json"
 CI_BUILD_ID="manual"
 MAX_CONCURRENCY=50
-OUTPUT_PATH="./results"
 
 python $SCRIPT_PATH \
 --study-file-path $PATH_TO_STUDY_FILE \
 --elastic-dag-config-file-path $PATH_TO_ELASTIC_DAG_CONFIG_FILE \
 --script-user $USER \
 --ci-build-id $CI_BUILD_ID \
---max-concurrency $MAX_CONCURRENCY \
+--max-concurrency $MAX_CONCURRENCY

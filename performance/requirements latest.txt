@@ -11,36 +11,28 @@ google-auth
 google-auth-httplib2
 google-cloud-container
 google-cloud-monitoring
-google-cloud-storage
-google-cloud-bigquery
 grpcio
 httplib2
 # Pin to avoid conflicts with virtualenv:
 #
 # > virtualenv 20.0.31 requires importlib-metadata<2,>=0.12; python_version < "3.8", but
 # > you'll have importlib-metadata 2.0.0 which is incompatible.
-importlib-metadata<2,>=0.12
+importlib-metadata
 Jinja2
 kubernetes
 loguru
-Markdown
-MarkupSafe
-matplotlib
 numpy
 packaging
 pandas
 parameterized
-pdfkit
 pre-commit
-Pygments
 pylint
 pytest
 python-dateutil
 pytz
 PyYAML
 requests
-rich
-scipy
+# scipy
 setuptools
 shortuuid
 six

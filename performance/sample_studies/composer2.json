@@ -10,13 +10,13 @@
         }
     ],
     "default_args": {
-        "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_composer2_generic.json",
-        "output_path": "results/",
+        "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_composer2_generic.json",
+        "output_path": "/tmp/results/",
         "jinja_variables": {
-            "project_id": "composer-performance-tests",
+            "project_id": "bjankiewicz-dev",
             "location_id": "us-central1",
             "zone_id": "us-central1-c",
-            "api_endpoint": "https://qa-composer.sandbox.googleapis.com/"
+            "api_endpoint": "https://composer.googleapis.com/"
         }
     },
     "default_flags": ["delete_if_exists", "delete_upon_finish"],

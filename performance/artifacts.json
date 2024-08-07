@@ -1,0 +1,604 @@
+[
+  {
+    "createTime": "2024-05-13T14:39:50.055039Z",
+    "metadata": {
+      "buildTime": "2024-05-13T13:37:18.896253378Z",
+      "imageSizeBytes": "2166073979",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:02fb65d7a1ec4a686f20e4c3256b26ea20a5f26408d6cd40f4494fec62ccd39b"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-02fb65d7a1ec4a686f20e4c3256b26ea20a5f26408d6cd40f4494fec62ccd39b"
+    ],
+    "updateTime": "2024-06-26T06:52:25.955135Z",
+    "version": "sha256:02fb65d7a1ec4a686f20e4c3256b26ea20a5f26408d6cd40f4494fec62ccd39b"
+  },
+  {
+    "createTime": "2024-02-15T12:46:21.791311Z",
+    "metadata": {
+      "buildTime": "2024-02-15T12:39:59.798295042Z",
+      "imageSizeBytes": "2057868496",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:05b4df0743a53102bda9d3622f5c44cf38ae444f6fd6fe0ef038c5876a54953f"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-05b4df0743a53102bda9d3622f5c44cf38ae444f6fd6fe0ef038c5876a54953f"
+    ],
+    "updateTime": "2024-03-12T08:38:34.184815Z",
+    "version": "sha256:05b4df0743a53102bda9d3622f5c44cf38ae444f6fd6fe0ef038c5876a54953f"
+  },
+  {
+    "createTime": "2024-05-21T15:18:00.502047Z",
+    "metadata": {
+      "buildTime": "2024-05-20T18:15:30.522394791Z",
+      "imageSizeBytes": "2151516130",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:05d24e3dc8f25acfd0d6f3c19c679c3f29ba0017bd543a3c5eab77f165b09e0b"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-05-19-RC3",
+      "composer-2.8.1-airflow-2-7-3",
+      "composer-3.0.1-preview.4-airflow-2-7-3",
+      "deprecated-public-image-05d24e3dc8f25acfd0d6f3c19c679c3f29ba0017bd543a3c5eab77f165b09e0b"
+    ],
+    "updateTime": "2024-06-26T06:52:26.995343Z",
+    "version": "sha256:05d24e3dc8f25acfd0d6f3c19c679c3f29ba0017bd543a3c5eab77f165b09e0b"
+  },
+  {
+    "createTime": "2024-06-20T11:45:39.845503Z",
+    "metadata": {
+      "buildTime": "2024-06-20T10:31:46.979065588Z",
+      "imageSizeBytes": "2161136908",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:107ed1328e6714baf5a6b94e32a397642eb3928f812078c044bf2cb292dc2978"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-107ed1328e6714baf5a6b94e32a397642eb3928f812078c044bf2cb292dc2978"
+    ],
+    "updateTime": "2024-07-10T16:02:42.364767Z",
+    "version": "sha256:107ed1328e6714baf5a6b94e32a397642eb3928f812078c044bf2cb292dc2978"
+  },
+  {
+    "createTime": "2024-07-25T18:49:19.629375Z",
+    "metadata": {
+      "buildTime": "2024-07-25T16:14:51.786804115Z",
+      "imageSizeBytes": "2182255494",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:169b6422af2a96cdfa7e50b816fb23640810dcf80393d062c9019098aeaa622d"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "latest"
+    ],
+    "updateTime": "2024-07-25T18:49:19.629375Z",
+    "version": "sha256:169b6422af2a96cdfa7e50b816fb23640810dcf80393d062c9019098aeaa622d"
+  },
+  {
+    "createTime": "2024-07-04T09:39:15.159583Z",
+    "metadata": {
+      "buildTime": "2024-07-03T11:25:56.923124381Z",
+      "imageSizeBytes": "2169215999",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:18ae064c5d96460fe9d4fa0dcbc797b2218bbcaad8864f3ffe4cac20ec6ff715"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-07-02-RC2",
+      "composer-2.8.4-airflow-2-7-3",
+      "deprecated-public-image-18ae064c5d96460fe9d4fa0dcbc797b2218bbcaad8864f3ffe4cac20ec6ff715"
+    ],
+    "updateTime": "2024-07-10T16:02:43.425743Z",
+    "version": "sha256:18ae064c5d96460fe9d4fa0dcbc797b2218bbcaad8864f3ffe4cac20ec6ff715"
+  },
+  {
+    "createTime": "2024-04-29T09:25:07.974911Z",
+    "metadata": {
+      "buildTime": "2024-04-26T19:47:27.453501771Z",
+      "imageSizeBytes": "2170230647",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:252aef690d28b7aa51ccc511a9cadb6a0cc77a5ddcf90453e0745ac2f4feb985"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-04-25-RC3",
+      "composer-2.7.1-airflow-2-7-3",
+      "composer-3.0.1-preview.2-airflow-2-7-3",
+      "deprecated-public-image-252aef690d28b7aa51ccc511a9cadb6a0cc77a5ddcf90453e0745ac2f4feb985"
+    ],
+    "updateTime": "2024-05-27T11:56:10.897615Z",
+    "version": "sha256:252aef690d28b7aa51ccc511a9cadb6a0cc77a5ddcf90453e0745ac2f4feb985"
+  },
+  {
+    "createTime": "2024-07-04T09:39:17.722495Z",
+    "metadata": {
+      "buildTime": "2024-07-04T00:45:48.073112621Z",
+      "imageSizeBytes": "2169224341",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:382ca76e0592111a92c928401eb7e5b6c176ec906783f8fa5e20af512a301f52"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-382ca76e0592111a92c928401eb7e5b6c176ec906783f8fa5e20af512a301f52"
+    ],
+    "updateTime": "2024-07-10T16:02:44.470543Z",
+    "version": "sha256:382ca76e0592111a92c928401eb7e5b6c176ec906783f8fa5e20af512a301f52"
+  },
+  {
+    "createTime": "2024-01-25T09:34:13.607759Z",
+    "metadata": {
+      "buildTime": "2024-01-24T07:28:45.527663511Z",
+      "imageSizeBytes": "2079861247",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:3a1e707fed8d437f3ad22425d80fc2880abb18e29943e3f74da881e1bef1a8f7"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-01-22-RC3",
+      "composer-2.5.5-airflow-2-7-3",
+      "deprecated-public-image-3a1e707fed8d437f3ad22425d80fc2880abb18e29943e3f74da881e1bef1a8f7"
+    ],
+    "updateTime": "2024-03-12T08:38:35.180495Z",
+    "version": "sha256:3a1e707fed8d437f3ad22425d80fc2880abb18e29943e3f74da881e1bef1a8f7"
+  },
+  {
+    "createTime": "2024-07-25T18:49:17.102863Z",
+    "metadata": {
+      "buildTime": "2024-07-25T13:42:44.389925878Z",
+      "imageSizeBytes": "2181420882",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:4e145782c0a8be085926decb846d466bff2b303df295bd95f1b277bfdc1447cd"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-07-22-RC6",
+      "composer-2.8.7-airflow-2-7-3"
+    ],
+    "updateTime": "2024-07-25T18:58:21.964703Z",
+    "version": "sha256:4e145782c0a8be085926decb846d466bff2b303df295bd95f1b277bfdc1447cd"
+  },
+  {
+    "createTime": "2024-03-12T14:02:26.495407Z",
+    "metadata": {
+      "buildTime": "2024-03-12T12:40:05.899290721Z",
+      "imageSizeBytes": "2194076930",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:4f230cccfc3b294a341832336ccfba256f29158cf8072c27d5ff35190dee7f97"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-4f230cccfc3b294a341832336ccfba256f29158cf8072c27d5ff35190dee7f97"
+    ],
+    "updateTime": "2024-04-22T21:17:55.071999Z",
+    "version": "sha256:4f230cccfc3b294a341832336ccfba256f29158cf8072c27d5ff35190dee7f97"
+  },
+  {
+    "createTime": "2024-03-19T16:21:11.548751Z",
+    "metadata": {
+      "buildTime": "2024-03-19T12:39:36.914234984Z",
+      "imageSizeBytes": "2199184993",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:5615098e2f7025f04416bc9bc1f7aa50b7fbfa6527c82836f1f0f4ca760da3c5"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-5615098e2f7025f04416bc9bc1f7aa50b7fbfa6527c82836f1f0f4ca760da3c5"
+    ],
+    "updateTime": "2024-04-22T21:17:56.159087Z",
+    "version": "sha256:5615098e2f7025f04416bc9bc1f7aa50b7fbfa6527c82836f1f0f4ca760da3c5"
+  },
+  {
+    "createTime": "2024-03-12T14:02:24.563599Z",
+    "metadata": {
+      "buildTime": "2024-03-10T18:42:25.702257474Z",
+      "imageSizeBytes": "2082137644",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:5a55f27186d375ffe281739efb1b9be4ba34dd0174a8fb72906dcc44a30a15db"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-03-09-RC3",
+      "composer-2.6.4-airflow-2-7-3",
+      "deprecated-public-image-5a55f27186d375ffe281739efb1b9be4ba34dd0174a8fb72906dcc44a30a15db"
+    ],
+    "updateTime": "2024-04-22T21:17:57.321487Z",
+    "version": "sha256:5a55f27186d375ffe281739efb1b9be4ba34dd0174a8fb72906dcc44a30a15db"
+  },
+  {
+    "createTime": "2024-06-05T09:53:42.961023Z",
+    "metadata": {
+      "buildTime": "2024-06-05T01:08:16.976772086Z",
+      "imageSizeBytes": "2152074553",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:674e2c46488e1bd2ab7d4ca0bafe6fd70cec7fbccee6d63a84040e7a26beef1f"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-674e2c46488e1bd2ab7d4ca0bafe6fd70cec7fbccee6d63a84040e7a26beef1f"
+    ],
+    "updateTime": "2024-06-26T06:52:27.943135Z",
+    "version": "sha256:674e2c46488e1bd2ab7d4ca0bafe6fd70cec7fbccee6d63a84040e7a26beef1f"
+  },
+  {
+    "createTime": "2024-06-20T11:45:40.114063Z",
+    "metadata": {
+      "buildTime": "2024-06-18T13:37:02.045786931Z",
+      "imageSizeBytes": "2150056526",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:6a036470393881a0335ae1191694d02ad8e61e70fe429d485212cd17167e009f"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-06-17-RC2",
+      "composer-2.8.3-airflow-2-7-3",
+      "deprecated-public-image-6a036470393881a0335ae1191694d02ad8e61e70fe429d485212cd17167e009f"
+    ],
+    "updateTime": "2024-07-10T16:02:45.546159Z",
+    "version": "sha256:6a036470393881a0335ae1191694d02ad8e61e70fe429d485212cd17167e009f"
+  },
+  {
+    "createTime": "2024-04-29T09:25:08.220079Z",
+    "metadata": {
+      "buildTime": "2024-04-29T07:45:07.854260129Z",
+      "imageSizeBytes": "2170238096",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:6a6783b3fe03abe93c470b64aff293ff9a675887b5cefb01624ee5a46211015f"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-6a6783b3fe03abe93c470b64aff293ff9a675887b5cefb01624ee5a46211015f"
+    ],
+    "updateTime": "2024-05-27T11:56:11.896623Z",
+    "version": "sha256:6a6783b3fe03abe93c470b64aff293ff9a675887b5cefb01624ee5a46211015f"
+  },
+  {
+    "createTime": "2024-07-10T05:15:17.036671Z",
+    "metadata": {
+      "buildTime": "2024-07-10T00:49:00.126943879Z",
+      "imageSizeBytes": "2169432778",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:6bc2e11c48cdf3c501b85e157221ba3d01871eac4b516fe211b891cba97af7c5"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [],
+    "updateTime": "2024-07-10T05:15:17.036671Z",
+    "version": "sha256:6bc2e11c48cdf3c501b85e157221ba3d01871eac4b516fe211b891cba97af7c5"
+  },
+  {
+    "createTime": "2024-03-26T15:18:36.631087Z",
+    "metadata": {
+      "buildTime": "2024-03-26T12:39:51.204278795Z",
+      "imageSizeBytes": "2199167448",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:6bc77a54a5b27abd91b1c153feafdab3ca011a2e2866d6ae126c299d53ad7008"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-6bc77a54a5b27abd91b1c153feafdab3ca011a2e2866d6ae126c299d53ad7008"
+    ],
+    "updateTime": "2024-04-22T21:17:58.480959Z",
+    "version": "sha256:6bc77a54a5b27abd91b1c153feafdab3ca011a2e2866d6ae126c299d53ad7008"
+  },
+  {
+    "createTime": "2024-03-26T15:18:39.545199Z",
+    "metadata": {
+      "buildTime": "2024-03-25T18:47:40.237560976Z",
+      "imageSizeBytes": "2199163294",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:811636756e7ddcf783e5fcbd4fef2508d8af43eac682a2b17319f2edf5319cdd"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-03-24-RC3",
+      "composer-2.6.6-airflow-2-7-3",
+      "deprecated-public-image-811636756e7ddcf783e5fcbd4fef2508d8af43eac682a2b17319f2edf5319cdd"
+    ],
+    "updateTime": "2024-04-22T21:17:59.544223Z",
+    "version": "sha256:811636756e7ddcf783e5fcbd4fef2508d8af43eac682a2b17319f2edf5319cdd"
+  },
+  {
+    "createTime": "2024-02-05T14:13:08.520575Z",
+    "metadata": {
+      "buildTime": "2024-02-05T12:43:41.818843646Z",
+      "imageSizeBytes": "2085797946",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:8456dd493209d0d8ae7cc95faeb8e100440ed48ae37df42538097c390bb04a28"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-8456dd493209d0d8ae7cc95faeb8e100440ed48ae37df42538097c390bb04a28"
+    ],
+    "updateTime": "2024-03-12T08:38:36.210623Z",
+    "version": "sha256:8456dd493209d0d8ae7cc95faeb8e100440ed48ae37df42538097c390bb04a28"
+  },
+  {
+    "createTime": "2024-07-10T05:15:18.668607Z",
+    "metadata": {
+      "buildTime": "2024-07-08T19:43:15.992212624Z",
+      "imageSizeBytes": "2169416023",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:8850a75047295a328341140e1db3cdc011e134ae2eaf7d28908201ac874015b4"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-07-07-RC6",
+      "composer-2.8.5-airflow-2-7-3"
+    ],
+    "updateTime": "2024-07-10T05:31:11.752015Z",
+    "version": "sha256:8850a75047295a328341140e1db3cdc011e134ae2eaf7d28908201ac874015b4"
+  },
+  {
+    "createTime": "2024-02-22T12:49:16.744335Z",
+    "metadata": {
+      "buildTime": "2024-02-21T15:16:57.331348074Z",
+      "imageSizeBytes": "2058975734",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:8c214edbfc09d1b1e70bdfbf8c5a4cbcb2d4a07b7d9e2a6e89ac3ea5b1447a63"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-02-20-RC3",
+      "composer-2.6.2-airflow-2-7-3",
+      "deprecated-public-image-8c214edbfc09d1b1e70bdfbf8c5a4cbcb2d4a07b7d9e2a6e89ac3ea5b1447a63"
+    ],
+    "updateTime": "2024-03-12T08:38:37.281791Z",
+    "version": "sha256:8c214edbfc09d1b1e70bdfbf8c5a4cbcb2d4a07b7d9e2a6e89ac3ea5b1447a63"
+  },
+  {
+    "createTime": "2024-07-24T11:12:47.770383Z",
+    "metadata": {
+      "buildTime": "2024-07-23T19:37:37.625807334Z",
+      "imageSizeBytes": "2182178621",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:a8bfb0bc65bb64850fb82a86450171cecc4d4917a7caf220e49bb06158d02279"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-07-22-RC3",
+      "composer-3.0.1-preview.10-airflow-2-7-3"
+    ],
+    "updateTime": "2024-07-24T11:28:12.418127Z",
+    "version": "sha256:a8bfb0bc65bb64850fb82a86450171cecc4d4917a7caf220e49bb06158d02279"
+  },
+  {
+    "createTime": "2024-07-17T12:50:47.884127Z",
+    "metadata": {
+      "buildTime": "2024-07-17T07:33:41.644241159Z",
+      "imageSizeBytes": "2179337329",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:b07fe465375984523e0677ed721bed780760318c6d2a16c3f35755b7d52b418c"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [],
+    "updateTime": "2024-07-17T12:50:47.884127Z",
+    "version": "sha256:b07fe465375984523e0677ed721bed780760318c6d2a16c3f35755b7d52b418c"
+  },
+  {
+    "createTime": "2024-07-17T12:50:51.029087Z",
+    "metadata": {
+      "buildTime": "2024-07-16T19:44:53.749458263Z",
+      "imageSizeBytes": "2179319680",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:b7e23f1d428d040791c702d15f47823efcf8a1faad476780ac1cb66c41fdb3f8"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-07-15-RC3",
+      "composer-2.8.6-airflow-2-7-3"
+    ],
+    "updateTime": "2024-07-17T13:16:02.403039Z",
+    "version": "sha256:b7e23f1d428d040791c702d15f47823efcf8a1faad476780ac1cb66c41fdb3f8"
+  },
+  {
+    "createTime": "2024-05-21T15:17:48.452975Z",
+    "metadata": {
+      "buildTime": "2024-05-21T13:45:14.782427963Z",
+      "imageSizeBytes": "2151488040",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:b9967cf0e6f7dd1988da95829c56d651b2587bed8058c1a1082ee487dfec43f8"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-b9967cf0e6f7dd1988da95829c56d651b2587bed8058c1a1082ee487dfec43f8"
+    ],
+    "updateTime": "2024-06-26T06:52:28.965311Z",
+    "version": "sha256:b9967cf0e6f7dd1988da95829c56d651b2587bed8058c1a1082ee487dfec43f8"
+  },
+  {
+    "createTime": "2024-04-16T15:30:12.055743Z",
+    "metadata": {
+      "buildTime": "2024-04-16T11:33:02.217039965Z",
+      "imageSizeBytes": "2205065496",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:c1db099157b153b3f3cbb9e854ee84b25e52ada484dc385d848776e7f911df8f"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-c1db099157b153b3f3cbb9e854ee84b25e52ada484dc385d848776e7f911df8f"
+    ],
+    "updateTime": "2024-05-07T18:03:11.580655Z",
+    "version": "sha256:c1db099157b153b3f3cbb9e854ee84b25e52ada484dc385d848776e7f911df8f"
+  },
+  {
+    "createTime": "2024-02-15T12:46:19.813487Z",
+    "metadata": {
+      "buildTime": "2024-02-14T18:55:19.749193969Z",
+      "imageSizeBytes": "2056994176",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:d4f50fd16090cad328d830cddd4d7e775755600b8ef9d1ad0196e8e1438dd90f"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-02-13-RC3",
+      "composer-2.6.1-airflow-2-7-3",
+      "deprecated-public-image-d4f50fd16090cad328d830cddd4d7e775755600b8ef9d1ad0196e8e1438dd90f"
+    ],
+    "updateTime": "2024-03-12T08:38:38.269599Z",
+    "version": "sha256:d4f50fd16090cad328d830cddd4d7e775755600b8ef9d1ad0196e8e1438dd90f"
+  },
+  {
+    "createTime": "2024-02-28T15:48:45.372591Z",
+    "metadata": {
+      "buildTime": "2024-02-28T12:50:42.360280892Z",
+      "imageSizeBytes": "2081657349",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:db6eb3d39c8c01c75e80d5da2ad551005654707200a465b1712270e6eb778b56"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-db6eb3d39c8c01c75e80d5da2ad551005654707200a465b1712270e6eb778b56"
+    ],
+    "updateTime": "2024-04-22T21:18:00.555647Z",
+    "version": "sha256:db6eb3d39c8c01c75e80d5da2ad551005654707200a465b1712270e6eb778b56"
+  },
+  {
+    "createTime": "2024-06-05T09:53:44.303743Z",
+    "metadata": {
+      "buildTime": "2024-06-04T11:45:07.078384793Z",
+      "imageSizeBytes": "2152867801",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:ebdbb44de5a1c9d1eeadc1f310405c8fe5097004bee7d16115091638cf97bc0e"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-06-03-RC1",
+      "composer-2.8.2-airflow-2-7-3",
+      "deprecated-public-image-ebdbb44de5a1c9d1eeadc1f310405c8fe5097004bee7d16115091638cf97bc0e"
+    ],
+    "updateTime": "2024-06-26T06:52:29.899679Z",
+    "version": "sha256:ebdbb44de5a1c9d1eeadc1f310405c8fe5097004bee7d16115091638cf97bc0e"
+  },
+  {
+    "createTime": "2024-02-22T12:49:19.224511Z",
+    "metadata": {
+      "buildTime": "2024-02-21T23:51:14.151439409Z",
+      "imageSizeBytes": "2058991816",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:ed6d0517739e6bccb2b70f9b2e3f082bb3b008ac5afcee1f9f3dcabe0fda2205"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-ed6d0517739e6bccb2b70f9b2e3f082bb3b008ac5afcee1f9f3dcabe0fda2205"
+    ],
+    "updateTime": "2024-03-12T08:38:39.256703Z",
+    "version": "sha256:ed6d0517739e6bccb2b70f9b2e3f082bb3b008ac5afcee1f9f3dcabe0fda2205"
+  },
+  {
+    "createTime": "2024-07-24T11:12:42.519071Z",
+    "metadata": {
+      "buildTime": "2024-07-24T07:30:40.021031375Z",
+      "imageSizeBytes": "2181318744",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:eed3d3f65e492dbaa4a5567f7174cc7c46de0cae105f3d0959d2a752a06a301a"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [],
+    "updateTime": "2024-07-24T11:12:42.519071Z",
+    "version": "sha256:eed3d3f65e492dbaa4a5567f7174cc7c46de0cae105f3d0959d2a752a06a301a"
+  },
+  {
+    "createTime": "2024-04-16T15:30:11.239135Z",
+    "metadata": {
+      "buildTime": "2024-04-15T17:40:15.411811435Z",
+      "imageSizeBytes": "2203713882",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:ef32daaa0be8b97747e14aefa3d337e8720bf8d6ae43b3039cbb563cca397fb6"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-04-14-RC3",
+      "composer-2.7.0-airflow-2-7-3",
+      "composer-3.0.1-preview.1-airflow-2-7-3",
+      "deprecated-public-image-ef32daaa0be8b97747e14aefa3d337e8720bf8d6ae43b3039cbb563cca397fb6"
+    ],
+    "updateTime": "2024-05-07T18:03:12.772335Z",
+    "version": "sha256:ef32daaa0be8b97747e14aefa3d337e8720bf8d6ae43b3039cbb563cca397fb6"
+  },
+  {
+    "createTime": "2024-05-13T14:39:52.011679Z",
+    "metadata": {
+      "buildTime": "2024-05-12T19:33:55.033864535Z",
+      "imageSizeBytes": "2166070704",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:f2bde297f7eacf3cfe94c0b6dc07dda078410fddbfafeb7f760c75a99e482279"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-05-11-RC3",
+      "composer-2.8.0-airflow-2-7-3",
+      "composer-3.0.1-preview.3-airflow-2-7-3",
+      "deprecated-public-image-f2bde297f7eacf3cfe94c0b6dc07dda078410fddbfafeb7f760c75a99e482279"
+    ],
+    "updateTime": "2024-06-26T06:52:30.841711Z",
+    "version": "sha256:f2bde297f7eacf3cfe94c0b6dc07dda078410fddbfafeb7f760c75a99e482279"
+  },
+  {
+    "createTime": "2024-01-25T09:34:10.783663Z",
+    "metadata": {
+      "buildTime": "2024-01-25T06:39:31.585847921Z",
+      "imageSizeBytes": "2079952240",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:f78a2fa21cc43bf82b3a63c6426523870c62fba33bdf8b57c57fadef3cf679dc"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "deprecated-public-image-f78a2fa21cc43bf82b3a63c6426523870c62fba33bdf8b57c57fadef3cf679dc"
+    ],
+    "updateTime": "2024-03-12T08:38:40.276927Z",
+    "version": "sha256:f78a2fa21cc43bf82b3a63c6426523870c62fba33bdf8b57c57fadef3cf679dc"
+  },
+  {
+    "createTime": "2024-02-28T15:48:44.681759Z",
+    "metadata": {
+      "buildTime": "2024-02-27T12:41:49.082242661Z",
+      "imageSizeBytes": "2081382037",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:f94917657755d680ec21f0a5a92bddd70427ef79e27163d9f73fb17d2319a326"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-02-26-RC2",
+      "composer-2.6.3-airflow-2-7-3",
+      "deprecated-public-image-f94917657755d680ec21f0a5a92bddd70427ef79e27163d9f73fb17d2319a326"
+    ],
+    "updateTime": "2024-03-12T08:38:41.296943Z",
+    "version": "sha256:f94917657755d680ec21f0a5a92bddd70427ef79e27163d9f73fb17d2319a326"
+  },
+  {
+    "createTime": "2024-03-19T16:21:13.978399Z",
+    "metadata": {
+      "buildTime": "2024-03-18T06:42:02.918197430Z",
+      "imageSizeBytes": "2198178002",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:fbbd923a446e90455d5f097f87b34824300473f15c78287ee80cfbd8bfafd48e"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-03-17-RC1",
+      "composer-2.6.5-airflow-2-7-3",
+      "deprecated-public-image-fbbd923a446e90455d5f097f87b34824300473f15c78287ee80cfbd8bfafd48e"
+    ],
+    "updateTime": "2024-04-22T21:18:01.642879Z",
+    "version": "sha256:fbbd923a446e90455d5f097f87b34824300473f15c78287ee80cfbd8bfafd48e"
+  },
+  {
+    "createTime": "2024-02-05T14:13:11.253807Z",
+    "metadata": {
+      "buildTime": "2024-02-04T18:42:53.629017690Z",
+      "imageSizeBytes": "2085798759",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "name": "projects/cloud-airflow-releaser/locations/europe/repositories/airflow-worker-scheduler-2-7-3/dockerImages/airflow-worker-scheduler-2-7-3@sha256:fe8b82cf788641f5f2335d4778bd43535aa685a99632c167fc71bb0b1d73b39a"
+    },
+    "package": "europe-docker.pkg.dev/cloud-airflow-releaser/airflow-worker-scheduler-2-7-3/airflow-worker-scheduler-2-7-3",
+    "tags": [
+      "cloud_composer_service_2024-02-03-RC3",
+      "composer-2.6.0-airflow-2-7-3",
+      "deprecated-public-image-fe8b82cf788641f5f2335d4778bd43535aa685a99632c167fc71bb0b1d73b39a"
+    ],
+    "updateTime": "2024-03-12T08:38:42.318799Z",
+    "version": "sha256:fe8b82cf788641f5f2335d4778bd43535aa685a99632c167fc71bb0b1d73b39a"
+  }
+]

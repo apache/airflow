@@ -1,21 +1,21 @@
 {
     "study_components": [
         {
-            "component_name": "composer_1_10_12",
+            "component_name": "composer_2_8_3",
             "baseline_component_name": "vanilla_gke_1_28_11",
             "args": {
-                "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_generic.json",
+                "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_generic.json",
                 "jinja_variables": {
-                    "airflow_version": "1.10.12"
+                    "airflow_version": "2.7.3"
                 }
             }
         },
         {
             "component_name": "vanilla_gke_1_28_11",
             "args": {
-                "environment_specification_file_path": "../environments/kubernetes/gke/vanilla/configurations/config_generic.json",
+                "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_generic.json",
                 "jinja_variables": {
-                    "airflow_image_tag": "2.9.1"
+                    "airflow_image_tag": "2.7.3"
                 }
             }
         }

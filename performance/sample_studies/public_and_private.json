@@ -3,7 +3,7 @@
         {
             "component_name": "public_ip",
             "args": {
-                "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_small.json",
+                "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_small.json",
                 "jinja_variables": {
                     "environment_id": "public-small-env"
                 }
@@ -13,7 +13,7 @@
             "component_name": "private_ip",
             "baseline_component_name": "public_ip",
             "args": {
-                "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_small_private.json",
+                "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_small_private.json",
                 "jinja_variables": {
                     "force_routing": "true",
                     "network_id": "default",

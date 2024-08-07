@@ -50,14 +50,14 @@
         }
     ],
     "default_args": {
-        "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_generic.json",
+        "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_generic.json",
         "jinja_variables": {
             "project_id": "composer-performance-tests",
             "location_id": "us-central1",
             "zone_id": "us-central1-c",
-            "api_endpoint": "https://dev-composer.sandbox.googleapis.com/",
-            "composer_version": "1.17.0-preview.4",
-            "airflow_version": "2.0.1"
+            "api_endpoint": "https://composer.googleapis.com/",
+            "composer_version": "2.8.3",
+            "airflow_version": "2.7.3"
         }
     },
     "default_flags": ["delete_if_exists", "delete_upon_finish"],

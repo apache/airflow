@@ -3,7 +3,7 @@
         {
             "component_name": "component_1",
             "args": {
-                "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_big.json",
+                "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_big.json",
                 "jinja_variables": {
                     "environment_id": "big-env"
                 }
@@ -13,7 +13,7 @@
             "component_name": "component_2",
             "baseline_component_name": "component_1",
             "args": {
-                "environment_specification_file_path": "../environments/kubernetes/gke/composer/composer_configurations/config_small.json",
+                "environment_specification_file_path": "../src/environments/kubernetes/gke/composer/composer_configurations/config_big.json",
                 "jinja_variables": {
                     "environment_id": "small-env",
                     "project_id": "another-project-id"
