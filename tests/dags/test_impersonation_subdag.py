@@ -36,7 +36,7 @@ def print_today():
     print(f"Today is {timezone.utcnow()}")
 
 
-subdag = DAG("impersonation_subdag.test_subdag_operation", default_args=default_args)
+subdag = DAG("impersonation_subdag.test_subdag_operation", schedule=None, default_args=default_args)
 
 
 PythonOperator(python_callable=print_today, task_id="exec_python_fn", dag=subdag)
