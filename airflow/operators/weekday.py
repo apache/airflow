@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 
 class BranchDayOfWeekOperator(BaseBranchOperator):
-    """Branches into one of two lists of tasks depending on the current day.
+    """
+    Branches into one of two lists of tasks depending on the current day.
 
     For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:BranchDayOfWeekOperator`
@@ -73,8 +74,10 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
         # add downstream dependencies as you would do with any branch operator
         weekend_check >> [workday, weekend]
 
-    :param follow_task_ids_if_true: task id or task ids to follow if criteria met
-    :param follow_task_ids_if_false: task id or task ids to follow if criteria does not met
+    :param follow_task_ids_if_true: task_id, task_group_id, or a list of task_ids and/or task_group_ids
+        to follow if criteria met.
+    :param follow_task_ids_if_false: task_id, task_group_id, or a list of task_ids and/or task_group_ids
+        to follow if criteria not met.
     :param week_day: Day of the week to check (full name). Optionally, a set
         of days can also be provided using a set. Example values:
 

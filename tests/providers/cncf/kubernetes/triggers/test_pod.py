@@ -39,7 +39,7 @@ NAMESPACE = "default"
 CONN_ID = "test_kubernetes_conn_id"
 POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
-CONFIG_FILE = "/path/to/config/file"
+CONFIG_DICT = {"a": "b"}
 IN_CLUSTER = False
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
@@ -58,7 +58,7 @@ def trigger():
         kubernetes_conn_id=CONN_ID,
         poll_interval=POLL_INTERVAL,
         cluster_context=CLUSTER_CONTEXT,
-        config_file=CONFIG_FILE,
+        config_dict=CONFIG_DICT,
         in_cluster=IN_CLUSTER,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
@@ -101,7 +101,7 @@ class TestKubernetesPodTrigger:
             "kubernetes_conn_id": CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
-            "config_file": CONFIG_FILE,
+            "config_dict": CONFIG_DICT,
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
@@ -346,6 +346,43 @@ class TestKubernetesPodTrigger:
                     "namespace": NAMESPACE,
                     "status": "timeout",
                     "message": "Pod did not leave 'Pending' phase within specified timeout",
+                }
+            )
+            == actual
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_run_loop_return_success_for_completed_pod_after_timeout(
+        self, mock_hook, mock_method, trigger, caplog
+    ):
+        """
+        Test that the trigger correctly recognizes the pod is not pending even after the timeout has been
+        reached. This may happen when a new triggerer process takes over the trigger, the pod already left
+        pending state and the timeout has been reached.
+        """
+        trigger.trigger_start_time = TRIGGER_START_TIME - datetime.timedelta(minutes=2)
+        mock_hook.get_pod.return_value = self._mock_pod_result(
+            mock.MagicMock(
+                status=mock.MagicMock(
+                    phase=PodPhase.SUCCEEDED,
+                )
+            )
+        )
+        mock_method.return_value = ContainerState.TERMINATED
+
+        caplog.set_level(logging.INFO)
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert (
+            TriggerEvent(
+                {
+                    "name": POD_NAME,
+                    "namespace": NAMESPACE,
+                    "message": "All containers inside pod have started successfully.",
+                    "status": "success",
                 }
             )
             == actual

@@ -41,7 +41,8 @@ def _convert_to_float_if_possible(s: str) -> float | str:
 
 
 def _parse_boolean(val: str) -> str | bool:
-    """Try to parse a string into boolean.
+    """
+    Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
     """
@@ -127,6 +128,8 @@ class BaseSQLOperator(BaseOperator):
 
     conn_id_field = "conn_id"
 
+    template_fields: Sequence[str] = ("conn_id", "database", "hook_params")
+
     def __init__(
         self,
         *,
@@ -139,7 +142,7 @@ class BaseSQLOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
-        self.hook_params = {} if hook_params is None else hook_params
+        self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
 
     @cached_property
@@ -175,7 +178,10 @@ class BaseSQLOperator(BaseOperator):
             )
 
         if self.database:
-            hook.schema = self.database
+            if hook.conn_type == "postgres":
+                hook.database = self.database
+            else:
+                hook.schema = self.database
 
         return hook
 
@@ -220,7 +226,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLExecuteQueryOperator`
     """
 
-    template_fields: Sequence[str] = ("conn_id", "sql", "parameters", "hook_params")
+    template_fields: Sequence[str] = ("sql", "parameters", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (".sql", ".json")
     template_fields_renderers = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
@@ -425,7 +431,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "hook_params")
+    template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
@@ -653,7 +659,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id", "hook_params")
+    template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
 
     template_fields_renderers = {"sql": "sql"}
 
@@ -769,7 +775,7 @@ class SQLCheckOperator(BaseSQLOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ("sql", "hook_params")
+    template_fields: Sequence[str] = ("sql", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -815,11 +821,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
-    template_fields: Sequence[str] = (
-        "sql",
-        "pass_value",
-        "hook_params",
-    )
+    template_fields: Sequence[str] = ("sql", "pass_value", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -916,7 +918,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields: Sequence[str] = ("sql1", "sql2", "hook_params")
+    template_fields: Sequence[str] = ("sql1", "sql2", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -1044,7 +1046,12 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     :param max_threshold: numerical value or max threshold sql to be executed (templated)
     """
 
-    template_fields: Sequence[str] = ("sql", "min_threshold", "max_threshold", "hook_params")
+    template_fields: Sequence[str] = (
+        "sql",
+        "min_threshold",
+        "max_threshold",
+        *BaseSQLOperator.template_fields,
+    )
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",
@@ -1142,7 +1149,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     :param parameters: (optional) the parameters to render the SQL query with.
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
     ui_color = "#a22034"

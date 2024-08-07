@@ -30,6 +30,7 @@ from airflow.api_connexion.exceptions import BadRequest, NotFound, PermissionDen
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
+    TaskInstanceHistoryCollection,
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
     set_single_task_instance_state_form,
@@ -38,6 +39,8 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_dependencies_collection_schema,
     task_instance_batch_form,
     task_instance_collection_schema,
+    task_instance_history_collection_schema,
+    task_instance_history_schema,
     task_instance_reference_collection_schema,
     task_instance_reference_schema,
     task_instance_schema,
@@ -48,6 +51,7 @@ from airflow.exceptions import TaskNotFound
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -173,6 +177,7 @@ def get_mapped_task_instances(
     state: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
+    executor: list[str] | None = None,
     limit: int | None = None,
     offset: int | None = None,
     order_by: str | None = None,
@@ -221,6 +226,7 @@ def get_mapped_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=executor)
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -323,6 +329,7 @@ def get_task_instances(
     state: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
+    executor: list[str] | None = None,
     offset: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -354,6 +361,7 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=executor)
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -401,7 +409,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         if not get_auth_manager().batch_is_authorized_dag(requests):
             raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
-        dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+        dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
     states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
@@ -428,6 +436,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.state, values=states)
     base_query = _apply_array_filter(base_query, key=TI.pool, values=data["pool"])
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
+    base_query = _apply_array_filter(base_query, key=TI.executor, values=data["executor"])
 
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
@@ -441,7 +450,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         ),
         isouter=True,
     ).add_columns(SlaMiss)
-    ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
+    ti_query = base_query.options(
+        joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
+    )
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
 
@@ -746,4 +757,109 @@ def get_mapped_task_instance_dependencies(
     """Get dependencies blocking mapped task instance from getting scheduled."""
     return get_task_instance_dependencies(
         dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_task_instance_try_details(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get details of a task instance try."""
+
+    def _query(orm_object):
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
+        )
+        try:
+            result = session.execute(query).one_or_none()
+        except MultipleResultsFound:
+            raise NotFound(
+                "Task instance not found",
+                detail="Task instance is mapped, add the map_index value to the URL",
+            )
+        return result
+
+    result = _query(TI) or _query(TIH)
+    if result is None:
+        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}, map_index={map_index}, try_number={task_try_number}."
+        raise NotFound("Task instance not found", detail=error_message)
+    return task_instance_history_schema.dump(result[0])
+
+
+@provide_session
+def get_mapped_task_instance_try_details(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get details of a mapped task instance try."""
+    return get_task_instance_try_details(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        task_try_number=task_try_number,
+        map_index=map_index,
+        session=session,
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_task_instance_tries(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get list of task instances history."""
+
+    def _query(orm_object):
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.map_index == map_index,
+        )
+        return query
+
+    task_instances = session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    return task_instance_history_collection_schema.dump(
+        TaskInstanceHistoryCollection(task_instances=task_instances, total_entries=len(task_instances))
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_mapped_task_instance_tries(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get list of mapped task instances history."""
+    return get_task_instance_tries(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        map_index=map_index,
+        session=session,
     )

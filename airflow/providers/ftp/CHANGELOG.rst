@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+3.10.1
+......
+
+Misc
+~~~~
+
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow FTPHook to change port number (#39465)``
+
 3.9.1
 .....
 

@@ -35,14 +35,55 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.6.1
+.....
+
+Latest change: 2024-07-23
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`0206a4cbcf <https://github.com/apache/airflow/commit/0206a4cbcfbf85ab035c25533b12f022c22cae3a>`_  2024-07-23   ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+`bef82d6ab3 <https://github.com/apache/airflow/commit/bef82d6ab38d627dc1b42981c90b9f8d36852f4c>`_  2024-07-19   ``Clean up remaining getattr connection DbApiHook (#40665)``
+=================================================================================================  ===========  ====================================================================
+
+5.6.0
+.....
+
+Latest change: 2024-07-09
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+`c310159bc2 <https://github.com/apache/airflow/commit/c310159bc2363c12110b11febd5febaab8670210>`_  2024-06-25   ``chore: Add param support for client_request_mfa_token (#40394)``
+=================================================================================================  ===========  ==================================================================
+
+5.5.2
+.....
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`f0b51cdacc <https://github.com/apache/airflow/commit/f0b51cdacc6155e4e4495a88109a01decab9e201>`_  2024-06-12   ``openlineage: add some debug logging around sql parser call sites (#40200)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`b805a9dba0 <https://github.com/apache/airflow/commit/b805a9dba09c222ebbd9d7293d75d318c7af21b0>`_  2024-05-28   ``Bump Snowflake client driver versions per support policy (#39886)``
+=================================================================================================  ===========  ==================================================================================
+
 5.5.1
 .....
 
-Latest change: 2024-05-20
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `4ee46b984d <https://github.com/apache/airflow/commit/4ee46b984da73974f0a30bcf361ac36e995993c3>`_  2024-05-20   ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``

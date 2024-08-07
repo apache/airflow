@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from mypy_boto3_rds.type_defs import TagTypeDef
@@ -782,7 +783,7 @@ class RdsStartDbOperator(RdsBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     response=start_db_response,
-                    db_type=RdsDbType.INSTANCE,
+                    db_type=self.db_type,
                 ),
                 method_name="execute_complete",
             )
@@ -881,12 +882,25 @@ class RdsStopDbOperator(RdsBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     response=stop_db_response,
-                    db_type=RdsDbType.INSTANCE,
+                    db_type=self.db_type,
                 ),
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            self._wait_until_db_stopped()
+            waiter = self.hook.get_waiter(f"db_{self.db_type.value}_stopped")
+            waiter_key = (
+                "DBInstanceIdentifier" if self.db_type == RdsDbType.INSTANCE else "DBClusterIdentifier"
+            )
+            kwargs = {waiter_key: self.db_identifier}
+            waiter.wait(
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+                **kwargs,
+            )
         return json.dumps(stop_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
@@ -914,23 +928,6 @@ class RdsStopDbOperator(RdsBaseOperator):
                 )
             response = self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.db_identifier)
         return response
-
-    def _wait_until_db_stopped(self):
-        self.log.info("Waiting for DB %s to reach 'stopped' state", self.db_type.value)
-        if self.db_type == RdsDbType.INSTANCE:
-            self.hook.wait_for_db_instance_state(
-                self.db_identifier,
-                target_state="stopped",
-                check_interval=self.waiter_delay,
-                max_attempts=self.waiter_max_attempts,
-            )
-        else:
-            self.hook.wait_for_db_cluster_state(
-                self.db_identifier,
-                target_state="stopped",
-                check_interval=self.waiter_delay,
-                max_attempts=self.waiter_max_attempts,
-            )
 
 
 __all__ = [

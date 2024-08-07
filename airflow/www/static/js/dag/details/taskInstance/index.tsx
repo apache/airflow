@@ -31,6 +31,7 @@ import Details from "./Details";
 import DatasetUpdateEvents from "./DatasetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
 import TaskFailedDependency from "./TaskFailedDependency";
+import TaskDocumentation from "./TaskDocumentation";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -64,7 +65,9 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     dagRunId: runId,
     taskId,
     mapIndex,
-    enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    options: {
+      enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    },
   });
 
   const showTaskSchedulingDependencies =
@@ -90,6 +93,7 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           operator={operator}
         />
       )}
+      {!isGroupOrMappedTaskSummary && <TaskDocumentation taskId={taskId} />}
       {!isGroupOrMappedTaskSummary && (
         <NotesAccordion
           dagId={dagId}

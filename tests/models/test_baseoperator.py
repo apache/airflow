@@ -32,6 +32,7 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
+    BASEOPERATOR_ARGS_EXPECTED_TYPES,
     BaseOperator,
     BaseOperatorMeta,
     chain,
@@ -41,6 +42,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.sql.operators import sql
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -357,6 +359,32 @@ class TestBaseOperator:
         task.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
         assert task.arg1 == "footemplated"
         assert task.arg2 == "bartemplated"
+
+    @pytest.mark.db_test
+    def test_render_template_fields_func_using_context(self):
+        """Verify if operator attributes are correctly templated."""
+
+        def fn_to_template(context, jinja_env):
+            tmp = context["task"].render_template("{{ bar }}", context, jinja_env)
+            return "foo_" + tmp
+
+        task = MockOperator(task_id="op1", arg2=fn_to_template)
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context={"bar": "bartemplated", "task": task})
+        assert task.arg2 == "foo_bartemplated"
+
+    @pytest.mark.db_test
+    def test_render_template_fields_simple_func(self):
+        """Verify if operator attributes are correctly templated."""
+
+        def fn_to_template(**kwargs):
+            a = "foo_" + ("bar" * 3)
+            return a
+
+        task = MockOperator(task_id="op1", arg2=fn_to_template)
+        task.render_template_fields({})
+        assert task.arg2 == "foo_barbarbar"
 
     @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
     def test_render_template_fields_no_change(self, content):
@@ -785,6 +813,22 @@ class TestBaseOperator:
         # leaking a lot of state)
         assert caplog.messages == ["test"]
 
+    def test_invalid_type_for_default_arg(self):
+        error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
+        with pytest.raises(TypeError, match=error_msg):
+            BaseOperator(task_id="test", default_args={"max_active_tis_per_dag": "not_an_int"})
+
+    def test_invalid_type_for_operator_arg(self):
+        error_msg = "'max_active_tis_per_dag' has an invalid type <class 'str'> with value not_an_int, expected type is <class 'int'>"
+        with pytest.raises(TypeError, match=error_msg):
+            BaseOperator(task_id="test", max_active_tis_per_dag="not_an_int")
+
+    @mock.patch("airflow.models.baseoperator.validate_instance_args")
+    def test_baseoperator_init_validates_arg_types(self, mock_validate_instance_args):
+        operator = BaseOperator(task_id="test")
+
+        mock_validate_instance_args.assert_called_once_with(operator, BASEOPERATOR_ARGS_EXPECTED_TYPES)
+
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
@@ -1072,3 +1116,23 @@ def test_get_task_instances(session):
     assert task.get_task_instances(
         session=session, start_date=second_execution_date, end_date=second_execution_date
     ) == [ti_2]
+
+
+def test_mro():
+    class Mixin(sql.BaseSQLOperator):
+        pass
+
+    class Branch(Mixin, sql.BranchSQLOperator):
+        pass
+
+    # The following throws an exception if metaclass breaks MRO:
+    #   airflow.exceptions.AirflowException: Invalid arguments were passed to Branch (task_id: test). Invalid arguments were:
+    #   **kwargs: {'sql': 'sql', 'follow_task_ids_if_true': ['x'], 'follow_task_ids_if_false': ['y']}
+    op = Branch(
+        task_id="test",
+        conn_id="abc",
+        sql="sql",
+        follow_task_ids_if_true=["x"],
+        follow_task_ids_if_false=["y"],
+    )
+    assert isinstance(op, Branch)

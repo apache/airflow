@@ -83,7 +83,6 @@ if TYPE_CHECKING:
         AirflowKubernetesScheduler,
     )
 
-
 # CLI Args
 ARG_NAMESPACE = Arg(
     ("--namespace",),
@@ -160,16 +159,7 @@ class KubernetesExecutor(BaseExecutor):
 
         pods = []
         for namespace in namespaces:
-            # Dynamic Client list pods is throwing TypeError when there are no matching pods to return
-            # This bug was fixed in MR https://github.com/kubernetes-client/python/pull/2155
-            # TODO: Remove the try-except clause once we upgrade the K8 Python client version which
-            # includes the above MR
-            try:
-                pods.extend(
-                    dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items
-                )
-            except TypeError:
-                continue
+            pods.extend(dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items)
 
         return pods
 
@@ -482,7 +472,12 @@ class KubernetesExecutor(BaseExecutor):
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
-                self.log.info("Deleted pod: %s in namespace %s", key, namespace)
+                self.log.info(
+                    "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
+                    key,
+                    pod_name,
+                    namespace,
+                )
         else:
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
@@ -577,7 +572,22 @@ class KubernetesExecutor(BaseExecutor):
                 for pod in pod_list:
                     self.adopt_launched_task(kube_client, pod, tis_to_flush_by_key)
             self._adopt_completed_pods(kube_client)
-            tis_to_flush.extend(tis_to_flush_by_key.values())
+
+            # as this method can be retried within a short time frame
+            # (wrapped in a run_with_db_retries of scheduler_job_runner,
+            # and get retried due to an OperationalError, for example),
+            # there is a chance that in second attempt, adopt_launched_task will not be called even once
+            # as all pods are already adopted in the first attempt.
+            # and tis_to_flush_by_key will contain TIs that are already adopted.
+            # therefore, we need to check if the TIs are already adopted by the first attempt and remove them.
+            def _iter_tis_to_flush():
+                for key, ti in tis_to_flush_by_key.items():
+                    if key in self.running:
+                        self.log.info("%s is already adopted, no need to flush.", ti)
+                    else:
+                        yield ti
+
+            tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
@@ -689,6 +699,8 @@ class KubernetesExecutor(BaseExecutor):
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+                continue
+
             ti_id = annotations_to_key(pod.metadata.annotations)
             self.running.add(ti_id)
 

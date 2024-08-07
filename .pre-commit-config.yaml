@@ -210,8 +210,16 @@ repos:
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
+      - id: check-taskinstance-tis-attrs
+        name: Check that TI and TIS have the same attributes
+        entry: ./scripts/ci/pre_commit/check_ti_vs_tis_attributes.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.16.0
+    rev: 1.18.0
     hooks:
       - id: blacken-docs
         name: Run black on Python code blocks in documentation files
@@ -224,7 +232,7 @@ repos:
         alias: blacken-docs
         additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -297,7 +305,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
+    rev: v2.3.0
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -335,7 +343,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.4.5"]
+        additional_dependencies: ["ruff==0.5.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -345,7 +353,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.4.5"]
+        additional_dependencies: ["ruff==0.5.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -379,6 +387,14 @@ repos:
         require_serial: true
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/check_airflow_k8s_not_used.py
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-common-compat-used-for-openlineage
+        name: Check common.compat is used for OL deprecated classes
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/openlineage/
+        entry: ./scripts/ci/pre_commit/check_common_compat_used_for_openlineage.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-providers-bug-report-template
         name: Check airflow-bug-report provider list is sorted/unique
@@ -437,21 +453,21 @@ repos:
         files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.2', 'tabulate']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0', 'tabulate']
       - id: check-hatch-build-order
         name: Check order of dependencies in hatch_build.py
         language: python
         files: ^hatch_build.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.2']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.24.2']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -544,6 +560,7 @@ repos:
         entry: ./scripts/ci/pre_commit/new_session_in_provide_session.py
         pass_filenames: true
         files: ^airflow/.+\.py$
+        exclude: ^airflow/serialization/pydantic/.*
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -675,6 +692,15 @@ repos:
           (?x)
           ^airflow/providers/.*\.py$
         exclude: ^.*/.*_vendor/
+      - id: check-get-lineage-collector-providers
+        language: python
+        name: Check providers import hook lineage code from compat
+        description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
+          airflow.lineage.hook.
+        entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
+        files: ^airflow/providers/.*\.py$
+        exclude: ^airflow/providers/common/compat/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python
@@ -1090,7 +1116,7 @@ repos:
         name: TS types generation / ESLint / Prettier against UI files
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
+        files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/www_lint.py
         additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
         pass_filenames: false

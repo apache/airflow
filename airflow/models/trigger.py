@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.serialization.pydantic.trigger import TriggerPydantic
     from airflow.triggers.base import BaseTrigger
 
 
@@ -136,7 +137,8 @@ class Trigger(Base):
 
     @classmethod
     @internal_api_call
-    def from_object(cls, trigger: BaseTrigger) -> Trigger:
+    @provide_session
+    def from_object(cls, trigger: BaseTrigger, session=NEW_SESSION) -> Trigger | TriggerPydantic:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs)
@@ -161,7 +163,8 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
-        """Delete all triggers that have no tasks dependent on them.
+        """
+        Delete all triggers that have no tasks dependent on them.
 
         Triggers have a one-to-many relationship to task instances, so we need
         to clean those up first. Afterwards we can drop the triggers not
@@ -202,14 +205,7 @@ class Trigger(Base):
                 TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
             )
         ):
-            # Add the event's payload into the kwargs for the task
-            next_kwargs = task_instance.next_kwargs or {}
-            next_kwargs["event"] = event.payload
-            task_instance.next_kwargs = next_kwargs
-            # Remove ourselves as its trigger
-            task_instance.trigger_id = None
-            # Finally, mark it as scheduled so it gets re-queued
-            task_instance.state = TaskInstanceState.SCHEDULED
+            event.handle_submit(task_instance=task_instance)
 
     @classmethod
     @internal_api_call
@@ -295,7 +291,8 @@ class Trigger(Base):
 
     @classmethod
     def get_sorted_triggers(cls, capacity: int, alive_triggerer_ids: list[int] | Select, session: Session):
-        """Get sorted triggers based on capacity and alive triggerer ids.
+        """
+        Get sorted triggers based on capacity and alive triggerer ids.
 
         :param capacity: The capacity of the triggerer.
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.

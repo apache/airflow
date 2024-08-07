@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``chore: Add param support for client_request_mfa_token in SnowflakeHook (#40394)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``openlineage: add some debug logging around sql parser call sites (#40200)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``Bump Snowflake client driver versions to minimum 2.7.11 per support policy (#39886)``
+
 5.5.1
 .....
 

@@ -22,6 +22,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
@@ -37,6 +38,9 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
+    if InternalApiConfig.get_use_internal_api():
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
+        from airflow.models.trigger import Trigger  # noqa: F401
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(

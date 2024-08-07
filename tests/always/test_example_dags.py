@@ -47,9 +47,9 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Generally, these should be resolved as soon as a parameter or operator is deprecated.
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
-    "tests/system/providers/amazon/aws/example_emr_notebook_execution.py",
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
     "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
+    "tests/system/providers/google/cloud/datapipelines/example_datapipeline.py",
     "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
@@ -59,9 +59,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/google/cloud/life_sciences/example_life_sciences.py",
     "tests/system/providers/google/marketing_platform/example_analytics.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
-    "tests/system/providers/jdbc/example_jdbc_queries.py",
-    "tests/system/providers/microsoft/mssql/example_mssql.py",
-    "tests/system/providers/trino/example_trino.py",
 )
 
 
@@ -127,6 +124,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         for prefix in PROVIDERS_PREFIXES
         for provider in suspended_providers_folders
     ]
+    temporary_excluded_upgrade_boto_providers_folders = [
+        AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
+        for prefix in PROVIDERS_PREFIXES
+        # TODO - remove me when https://github.com/apache/beam/issues/32080 is addressed
+        #        and we bring back yandex to be run in case of upgrade boto
+        for provider in ["yandex"]
+    ]
     current_python_excluded_providers_folders = [
         AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
         for prefix in PROVIDERS_PREFIXES
@@ -141,6 +145,11 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
 
             if candidate.startswith(tuple(suspended_providers_folders)):
                 param_marks.append(pytest.mark.skip(reason="Suspended provider"))
+
+            if os.environ.get("UPGRADE_BOTO", "false") == "true" and candidate.startswith(
+                tuple(temporary_excluded_upgrade_boto_providers_folders)
+            ):
+                param_marks.append(pytest.mark.skip(reason="Temporary excluded upgrade boto provider"))
 
             if candidate.startswith(tuple(current_python_excluded_providers_folders)):
                 param_marks.append(
@@ -192,10 +201,11 @@ def test_should_be_importable(example: str):
     assert len(dagbag.dag_ids) >= 1
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):
-    with assert_queries_count(0, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
+    with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
             include_examples=False,

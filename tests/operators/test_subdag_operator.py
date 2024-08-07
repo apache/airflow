@@ -23,7 +23,7 @@ from unittest.mock import Mock
 import pytest
 
 import airflow
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -40,6 +40,8 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 default_args = {"start_date": DEFAULT_DATE}
+
+WARNING_MESSAGE = """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."""
 
 
 class TestSubDagOperator:
@@ -65,7 +67,8 @@ class TestSubDagOperator:
         subdag_bad2 = DAG("bad.test", default_args=default_args)
         subdag_bad3 = DAG("bad.bad", default_args=default_args)
 
-        SubDagOperator(task_id="test", dag=dag, subdag=subdag_good)
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            SubDagOperator(task_id="test", dag=dag, subdag=subdag_good)
         with pytest.raises(AirflowException):
             SubDagOperator(task_id="test", dag=dag, subdag=subdag_bad1)
         with pytest.raises(AirflowException):
@@ -79,37 +82,39 @@ class TestSubDagOperator:
         """
         with DAG("parent", default_args=default_args) as dag:
             subdag = DAG("parent.test", default_args=default_args)
-            op = SubDagOperator(task_id="test", subdag=subdag)
+            with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+                op = SubDagOperator(task_id="test", subdag=subdag)
 
             assert op.dag == dag
             assert op.subdag == subdag
 
-    def test_subdag_pools(self):
+    def test_subdag_pools(self, dag_maker):
         """
         Subdags and subdag tasks can't both have a pool with 1 slot
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.child", default_args=default_args)
+        with dag_maker("parent", default_args=default_args, serialized=True) as dag:
+            pass
 
-        session = airflow.settings.Session()
         pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
         pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10, include_deferred=False)
-        session.add(pool_1)
-        session.add(pool_10)
-        session.commit()
+        dag_maker.session.add(pool_1)
+        dag_maker.session.add(pool_10)
+        dag_maker.session.commit()
 
-        EmptyOperator(task_id="dummy", dag=subdag, pool="test_pool_1")
+        with dag_maker("parent.child", default_args=default_args, serialized=True) as subdag:
+            EmptyOperator(task_id="dummy", pool="test_pool_1")
 
         with pytest.raises(AirflowException):
             SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_1")
 
         # recreate dag because failed subdagoperator was already added
         dag = DAG("parent", default_args=default_args)
-        SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_10")
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_10")
 
-        session.delete(pool_1)
-        session.delete(pool_10)
-        session.commit()
+        dag_maker.session.delete(pool_1)
+        dag_maker.session.delete(pool_10)
+        dag_maker.session.commit()
 
     def test_subdag_pools_no_possible_conflict(self):
         """
@@ -129,7 +134,8 @@ class TestSubDagOperator:
         EmptyOperator(task_id="dummy", dag=subdag, pool="test_pool_10")
 
         mock_session = Mock()
-        SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_1", session=mock_session)
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_1", session=mock_session)
         assert not mock_session.query.called
 
         session.delete(pool_1)
@@ -143,7 +149,8 @@ class TestSubDagOperator:
         """
         dag = DAG("parent", default_args=default_args)
         subdag = DAG("parent.test", default_args=default_args)
-        subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
 
         subdag.create_dagrun = Mock()
         subdag.create_dagrun.return_value = self.dag_run_running
@@ -180,7 +187,8 @@ class TestSubDagOperator:
         conf = {"key": "value"}
         dag = DAG("parent", default_args=default_args)
         subdag = DAG("parent.test", default_args=default_args)
-        subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1, conf=conf)
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1, conf=conf)
 
         subdag.create_dagrun = Mock()
         subdag.create_dagrun.return_value = self.dag_run_running
@@ -215,7 +223,8 @@ class TestSubDagOperator:
         """
         dag = DAG("parent", default_args=default_args)
         subdag = DAG("parent.test", default_args=default_args)
-        subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
 
         subdag.create_dagrun = Mock()
         subdag.create_dagrun.return_value = self.dag_run_running
@@ -242,7 +251,8 @@ class TestSubDagOperator:
         subdag = DAG("parent.test", default_args=default_args)
 
         subdag.create_dagrun = Mock()
-        subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
+        with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+            subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.return_value = self.dag_run_success
 
@@ -259,6 +269,7 @@ class TestSubDagOperator:
         subdag.create_dagrun.assert_not_called()
         assert 3 == subdag_task._get_dagrun.call_count
 
+    @pytest.mark.skip_if_database_isolation_mode  # this uses functions which operate directly on DB
     def test_rerun_failed_subdag(self, dag_maker):
         """
         When there is an existing DagRun with failed state, reset the DagRun and the
@@ -278,7 +289,9 @@ class TestSubDagOperator:
             dummy_task_instance.refresh_from_task(dummy_task)
             dummy_task_instance.state == State.FAILED
 
-            with dag_maker("parent", default_args=default_args, session=session):
+            with dag_maker("parent", default_args=default_args, session=session), pytest.warns(
+                RemovedInAirflow3Warning, match=WARNING_MESSAGE
+            ):
                 subdag_task = SubDagOperator(task_id="test", subdag=subdag, poke_interval=1)
             dag_maker.create_dagrun(execution_date=DEFAULT_DATE, run_type=DagRunType.SCHEDULED)
 
@@ -320,12 +333,13 @@ class TestSubDagOperator:
         dag_maker.create_dagrun(execution_date=DEFAULT_DATE)
 
         with dag_maker("parent", default_args=default_args):
-            subdag_task = SubDagOperator(
-                task_id="test",
-                subdag=subdag,
-                poke_interval=1,
-                propagate_skipped_state=propagate_option,
-            )
+            with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
+                subdag_task = SubDagOperator(
+                    task_id="test",
+                    subdag=subdag,
+                    poke_interval=1,
+                    propagate_skipped_state=propagate_option,
+                )
             dummy_dag_task = EmptyOperator(task_id="dummy_dag")
             subdag_task >> dummy_dag_task
         dag_run = dag_maker.create_dagrun(execution_date=DEFAULT_DATE)

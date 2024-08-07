@@ -90,7 +90,8 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """Given TI | TIKey, return a TI object.
+    """
+    Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """

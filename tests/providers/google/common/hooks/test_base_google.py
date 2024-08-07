@@ -413,6 +413,10 @@ class TestGoogleBaseHook:
             target_principal=None,
             delegates=None,
             is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert ("CREDENTIALS", "PROJECT_ID") == result
 
@@ -451,6 +455,10 @@ class TestGoogleBaseHook:
             target_principal=None,
             delegates=None,
             is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -482,6 +490,10 @@ class TestGoogleBaseHook:
             target_principal=None,
             delegates=None,
             is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -503,6 +515,10 @@ class TestGoogleBaseHook:
             target_principal=None,
             delegates=None,
             is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -540,6 +556,10 @@ class TestGoogleBaseHook:
             target_principal=None,
             delegates=None,
             is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert ("CREDENTIALS", "SECOND_PROJECT_ID") == result
 
@@ -576,6 +596,10 @@ class TestGoogleBaseHook:
             target_principal=None,
             delegates=None,
             is_anonymous=True,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
 
     @pytest.mark.skipif(
@@ -784,6 +808,10 @@ class TestGoogleBaseHook:
             target_principal=target_principal,
             delegates=delegates,
             is_anonymous=None,
+            idp_issuer_url=None,
+            client_id=None,
+            client_secret=None,
+            idp_extra_params_dict=None,
         )
         assert (mock_credentials, PROJECT_ID) == result
 

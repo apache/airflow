@@ -83,7 +83,8 @@ if TYPE_CHECKING:
 
 
 class ExpandableFactory(Protocol):
-    """Protocol providing inspection against wrapped function.
+    """
+    Protocol providing inspection against wrapped function.
 
     This is used in ``validate_expand_kwargs`` and implemented by function
     decorators like ``@task`` and ``@task_group``.
@@ -509,8 +510,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
             expand_input_attr="op_kwargs_expand_input",
-            start_trigger=self.operator_class.start_trigger,
-            next_method=self.operator_class.next_method,
+            start_trigger_args=self.operator_class.start_trigger_args,
+            start_from_trigger=self.operator_class.start_from_trigger,
         )
         return XComArg(operator=operator)
 
@@ -549,11 +550,13 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(
+        self, context: Context, session: Session, *, include_xcom: bool
+    ) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
             raise AssertionError(f"unexpected expand_input: {self.expand_input}")
-        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
+        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session, include_xcom=include_xcom)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
@@ -572,7 +575,8 @@ class DecoratedMappedOperator(MappedOperator):
 
 
 class Task(Protocol, Generic[FParams, FReturn]):
-    """Declaration of a @task-decorated callable for type-checking.
+    """
+    Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated
     function wrapped in it (not *exactly* since it actually returns an XComArg,
@@ -627,7 +631,8 @@ def task_decorator_factory(
     decorated_operator_class: type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
-    """Generate a wrapper that wraps a function into an Airflow operator.
+    """
+    Generate a wrapper that wraps a function into an Airflow operator.
 
     Can be reused in a single DAG.
 

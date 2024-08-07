@@ -27,6 +27,22 @@ Changelog
 ---------
 
 
+2.7.3
+.....
+
+Misc
+~~~~
+
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+2.7.2
+.....
+
+Misc
+~~~~
+
+* ``remove deprecation drill (#39732)``
+
 2.7.1
 .....
 

@@ -26,7 +26,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_logs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -132,12 +132,16 @@ class TestGetEventLog(TestEventLogEndpoint):
             f"/api/v1/eventLogs/{event_log_id}", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
+        data = response.json
+        data["try_number"]
         assert response.json == {
             "event_log_id": event_log_id,
             "event": "TEST_EVENT",
             "dag_id": "TEST_DAG_ID",
             "task_id": "TEST_TASK_ID",
             "run_id": "TEST_RUN_ID",
+            "map_index": -1,
+            "try_number": 0,
             "execution_date": self.default_time.isoformat(),
             "owner": "airflow",
             "when": self.default_time.isoformat(),
@@ -199,6 +203,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
@@ -210,6 +216,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time_2.isoformat(),
@@ -221,6 +229,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": None,
                     "task_id": None,
                     "run_id": None,
+                    "map_index": None,
+                    "try_number": None,
                     "execution_date": None,
                     "owner": "root",
                     "when": self.default_time_2.isoformat(),
@@ -249,6 +259,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "zsh",  # Order by name, sort order is descending(-)
                     "when": self.default_time_2.isoformat(),
@@ -260,6 +272,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": None,
                     "task_id": None,
                     "run_id": None,
+                    "map_index": None,
+                    "try_number": None,
                     "execution_date": None,
                     "owner": "root",
                     "when": self.default_time_2.isoformat(),
@@ -271,6 +285,8 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),

@@ -89,7 +89,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py",
                                                      self.python_command)} &&"""
             f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in", self.python_command)} &&'
-            f"{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out'"
+            f"{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out none /tmp/script.out'"
         )
 
     def execute(self, context: Context):

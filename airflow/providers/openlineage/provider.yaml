@@ -22,9 +22,12 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1715684338
+source-date-epoch: 1722664661
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.10.0
+  - 1.9.1
+  - 1.9.0
   - 1.8.0
   - 1.7.1
   - 1.7.0
@@ -45,8 +48,8 @@ dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.6.0
   - attrs>=22.2
-  - openlineage-integration-common>=1.15.0
-  - openlineage-python>=1.15.0
+  - openlineage-integration-common>=1.16.0
+  - openlineage-python>=1.16.0
 
 integrations:
   - integration-name: OpenLineage
@@ -103,6 +106,13 @@ config:
         example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
         default: ~
         version_added: ~
+      custom_run_facets:
+        description: |
+          Register custom run facet functions by passing a string of semicolon separated full import paths.
+        type: string
+        example: full.path.to.custom_facet_function;full.path.to.another_custom_facet_function
+        default: ''
+        version_added: 1.10.0
       config_path:
         description: |
           Specify the path to the YAML configuration file.
@@ -144,3 +154,17 @@ config:
         example: ~
         type: integer
         version_added: 1.8.0
+      execution_timeout:
+        description: |
+          Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction.
+        default: "10"
+        example: ~
+        type: integer
+        version_added: 1.9.0
+      include_full_task_info:
+        description: |
+          If true, OpenLineage event will include full task info - potentially containing large fields.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: 1.10.0

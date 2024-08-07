@@ -116,13 +116,14 @@ class TestAwsBaseSensor:
         ],
     )
     def test_execute(self, dag_maker, op_kwargs):
-        with dag_maker("test_aws_base_sensor"):
+        with dag_maker("test_aws_base_sensor", serialized=True):
             FakeDynamoDBSensor(task_id="fake-task-id", **op_kwargs, poke_interval=1)
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.parametrize(
         "region, region_name",
         [
@@ -146,7 +147,10 @@ class TestAwsBaseSensor:
 
     def test_conflicting_region_name(self):
         error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(ValueError, match=error_match):
+        with pytest.raises(ValueError, match=error_match), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
+        ):
             FakeDynamoDBSensor(
                 task_id="fake-task-id",
                 aws_conn_id=TEST_CONN,
@@ -177,6 +181,7 @@ class TestAwsBaseSensor:
         with pytest.raises(AttributeError, match=error_match):
             SoWrongSensor(task_id="fake-task-id")
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.parametrize(
         "region, region_name, expected_region_name",
         [
@@ -186,7 +191,7 @@ class TestAwsBaseSensor:
     )
     @pytest.mark.db_test
     def test_region_in_partial_sensor(self, region, region_name, expected_region_name, dag_maker):
-        with dag_maker("test_region_in_partial_sensor"):
+        with dag_maker("test_region_in_partial_sensor", serialized=True):
             FakeDynamoDBSensor.partial(
                 task_id="fake-task-id",
                 region=region,
@@ -200,9 +205,10 @@ class TestAwsBaseSensor:
                 ti.run()
             assert ti.task.region_name == expected_region_name
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_ambiguous_region_in_partial_sensor(self, dag_maker):
-        with dag_maker("test_ambiguous_region_in_partial_sensor"):
+        with dag_maker("test_ambiguous_region_in_partial_sensor", serialized=True):
             FakeDynamoDBSensor.partial(
                 task_id="fake-task-id",
                 region="eu-west-1",

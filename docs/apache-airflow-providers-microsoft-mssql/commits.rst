@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.0
+.....
+
+Latest change: 2024-07-26
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`f3db8761eb <https://github.com/apache/airflow/commit/f3db8761ebe214839421416462219baae5b822dd>`_  2024-07-26   ``Added support for replace option when using insert_rows with MsSqlHook (#40836)``
+`bef82d6ab3 <https://github.com/apache/airflow/commit/bef82d6ab38d627dc1b42981c90b9f8d36852f4c>`_  2024-07-19   ``Clean up remaining getattr connection DbApiHook (#40665)``
+=================================================================================================  ===========  ===================================================================================
+
+3.7.2
+.....
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`f0677275f9 <https://github.com/apache/airflow/commit/f0677275f9a974386193e0ff4b3469303e135447>`_  2024-05-27   ``Add 'mssql' integration tests and relocate existing unit tests (#39831)``
+=================================================================================================  ===========  ==================================================================================
+
 3.7.1
 .....
 
-Latest change: 2024-05-13
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `dc61da2509 <https://github.com/apache/airflow/commit/dc61da2509536bb509a4a2e1781ff47aa36b62b4>`_  2024-05-13   ``remove extra return (#39582)``
 `9e61daff7d <https://github.com/apache/airflow/commit/9e61daff7d271ddf3ad3e1e54f16d6af881acb67>`_  2024-05-13   ``use 'cached_property' to reuse 'get_connections' value in 'mssql' provider (#39575)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``

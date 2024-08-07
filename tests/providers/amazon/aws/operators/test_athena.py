@@ -20,23 +20,25 @@ import json
 from unittest import mock
 
 import pytest
-from openlineage.client.facet import (
-    SchemaDatasetFacet,
-    SchemaField,
-    SqlJobFacet,
-    SymlinksDatasetFacet,
-    SymlinksDatasetFacetIdentifiers,
-)
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    ExternalQueryRunFacet,
+    Identifier,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SQLJobFacet,
+    SymlinksDatasetFacet,
+)
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -223,12 +225,20 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
-    def test_return_value(self, mock_conn, mock_run_query, mock_check_query_status):
+    def test_return_value(
+        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            execution_date=timezone.utcnow(),
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=self.athena)
         ti.dag_run = dag_run
-
+        session.add(ti)
+        session.commit()
         assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID
 
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
@@ -264,6 +274,24 @@ class TestAthenaOperator:
             query_execution_id=ATHENA_QUERY_ID,
         )
 
+    def test_execute_complete_reassigns_query_execution_id_after_deferring(self):
+        """Assert that we use query_execution_id from event after deferral."""
+
+        operator = AthenaOperator(
+            task_id="test_athena_operator",
+            query="SELECT * FROM TEST_TABLE",
+            database="TEST_DATABASE",
+            deferrable=True,
+        )
+        assert operator.query_execution_id is None
+
+        query_execution_id = "123456"
+        operator.execute_complete(
+            context=None,
+            event={"status": "success", "value": query_execution_id},
+        )
+        assert operator.query_execution_id == query_execution_id
+
     @mock.patch.object(AthenaHook, "region_name", new_callable=mock.PropertyMock)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_operator_openlineage_data(self, mock_conn, mock_region_name):
@@ -285,6 +313,7 @@ class TestAthenaOperator:
             max_polling_attempts=3,
             dag=self.dag,
         )
+        op.query_execution_id = "12345"  # Mocking what will be available after execution
 
         expected_lineage = OperatorLineage(
             inputs=[
@@ -294,7 +323,7 @@ class TestAthenaOperator:
                     facets={
                         "symlinks": SymlinksDatasetFacet(
                             identifiers=[
-                                SymlinksDatasetFacetIdentifiers(
+                                Identifier(
                                     namespace="s3://bucket",
                                     name="/discount/data/path/",
                                     type="TABLE",
@@ -303,27 +332,27 @@ class TestAthenaOperator:
                         ),
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaField(
+                                SchemaDatasetFacetFields(
                                     name="ID",
                                     type="int",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                SchemaDatasetFacetFields(
                                     name="AMOUNT_OFF",
                                     type="int",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                SchemaDatasetFacetFields(
                                     name="CUSTOMER_EMAIL",
                                     type="varchar",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                SchemaDatasetFacetFields(
                                     name="STARTS_ON",
                                     type="timestamp",
                                     description="from deserializer",
                                 ),
-                                SchemaField(
+                                SchemaDatasetFacetFields(
                                     name="ENDS_ON",
                                     type="timestamp",
                                     description="from deserializer",
@@ -340,7 +369,7 @@ class TestAthenaOperator:
                     facets={
                         "symlinks": SymlinksDatasetFacet(
                             identifiers=[
-                                SymlinksDatasetFacetIdentifiers(
+                                Identifier(
                                     namespace="s3://bucket",
                                     name="/data/test_table/data/path",
                                     type="TABLE",
@@ -349,7 +378,7 @@ class TestAthenaOperator:
                         ),
                         "schema": SchemaDatasetFacet(
                             fields=[
-                                SchemaField(
+                                SchemaDatasetFacetFields(
                                     name="column",
                                     type="string",
                                     description="from deserializer",
@@ -361,9 +390,10 @@ class TestAthenaOperator:
                 Dataset(namespace="s3://test_s3_bucket", name="/"),
             ],
             job_facets={
-                "sql": SqlJobFacet(
+                "sql": SQLJobFacet(
                     query="INSERT INTO TEST_TABLE SELECT CUSTOMER_EMAIL FROM DISCOUNTS",
                 )
             },
+            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
         )
-        assert op.get_openlineage_facets_on_start() == expected_lineage
+        assert op.get_openlineage_facets_on_complete(None) == expected_lineage

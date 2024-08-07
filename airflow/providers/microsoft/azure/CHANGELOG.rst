@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+10.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added priority to Azure Container Instances (#40616)``
+
+Misc
+~~~~
+
+* ``Bump minimum version for azure containerinstance. (#40767)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add S3ToAzureBlobStorageOperator (#40511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+10.1.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
+* ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+   * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
+
 10.1.1
 ......
 

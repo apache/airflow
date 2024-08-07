@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AirflowRunFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "dag": {
+              "$ref": "#/$defs/DAG"
+            },
+            "dagRun": {
+              "$ref": "#/$defs/DagRun"
+            },
+            "taskInstance": {
+              "$ref": "#/$defs/TaskInstance"
+            },
+            "task": {
+              "$ref": "#/$defs/Task"
+            },
+            "taskUuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "dag",
+            "dagRun",
+            "taskInstance",
+            "task",
+            "taskUuid"
+          ]
+        }
+      ]
+    },
+    "Task": {
+      "type": "object",
+      "properties": {
+        "depends_on_past": {
+          "type": "boolean"
+        },
+        "downstream_task_ids": {
+          "type": "string"
+        },
+        "execution_timeout": {
+          "type": "string"
+        },
+        "executor_config": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "ignore_first_depends_on_past": {
+          "type": "boolean"
+        },
+        "is_setup": {
+          "type": "boolean"
+        },
+        "is_teardown": {
+          "type": "boolean"
+        },
+        "mapped": {
+          "type": "boolean"
+        },
+        "max_active_tis_per_dag": {
+          "type": "integer"
+        },
+        "max_active_tis_per_dagrun": {
+          "type": "integer"
+        },
+        "max_retry_delay": {
+          "type": "string"
+        },
+        "multiple_outputs": {
+          "type": "boolean"
+        },
+        "operator_class": {
+          "description": "Module + class name of the operator",
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "priority_weight": {
+          "type": "integer"
+        },
+        "queue": {
+          "type": "string"
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "retry_exponential_backoff": {
+          "type": "boolean"
+        },
+        "run_as_user": {
+          "type": "string"
+        },
+        "sla": {
+          "type": "number"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "trigger_rule": {
+          "type": "string"
+        },
+        "upstream_task_ids": {
+          "type": "string"
+        },
+        "wait_for_downstream": {
+          "type": "boolean"
+        },
+        "wait_for_past_depends_before_skipping": {
+          "type": "boolean"
+        },
+        "weight_rule": {
+          "type": "string"
+        },
+        "task_group": {
+          "description": "Task group related information",
+          "type": "object",
+          "properties": {
+            "group_id": {
+              "type": "string"
+            },
+            "downstream_group_ids": {
+              "type": "string"
+            },
+            "downstream_task_ids": {
+              "type": "string"
+            },
+            "prefix_group_id": {
+              "type": "boolean"
+            },
+            "tooltip": {
+              "type": "string"
+            },
+            "upstream_group_ids": {
+              "type": "string"
+            },
+            "upstream_task_ids": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true,
+          "required": ["group_id"]
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "task_id"
+      ]
+    },
+    "DAG": {
+      "type": "object",
+      "properties": {
+        "dag_id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "schedule_interval": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "string"
+        },
+        "timetable": {
+          "description": "Describes timetable (successor of schedule_interval)",
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "dag_id",
+        "start_date"
+      ]
+    },
+    "TaskInstance": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "number"
+        },
+        "map_index": {
+          "type": "integer"
+        },
+        "pool": {
+          "type": "string"
+        },
+        "try_number": {
+          "type": "integer"
+        },
+        "queued_dttm": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "log_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "pool",
+        "try_number"
+      ]
+    },
+    "DagRun": {
+      "type": "object",
+      "properties": {
+        "conf": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "dag_id": {
+          "type": "string"
+        },
+        "data_interval_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "data_interval_end": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "external_trigger": {
+          "type": "boolean"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "run_type": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "dag_id",
+        "run_id"
+      ]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "airflow": {
+      "$ref": "#/$defs/AirflowRunFacet"
+    }
+  }
+}

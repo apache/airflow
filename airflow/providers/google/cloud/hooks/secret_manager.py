@@ -111,21 +111,24 @@ class SecretsManagerHook(GoogleBaseHook):
 
 
 class GoogleCloudSecretManagerHook(GoogleBaseHook):
-    """Hook for the Google Cloud Secret Manager API.
+    """
+    Hook for the Google Cloud Secret Manager API.
 
     See https://cloud.google.com/secret-manager
     """
 
     @cached_property
     def client(self):
-        """Create a Secret Manager Client.
+        """
+        Create a Secret Manager Client.
 
         :return: Secret Manager client.
         """
         return SecretManagerServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     def get_conn(self) -> SecretManagerServiceClient:
-        """Retrieve the connection to Secret Manager.
+        """
+        Retrieve the connection to Secret Manager.
 
         :return: Secret Manager client.
         """
@@ -141,7 +144,8 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Secret:
-        """Create a secret.
+        """
+        Create a secret.
 
         .. seealso::
             For more details see API documentation:
@@ -180,7 +184,8 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> SecretVersion:
-        """Add a version to the secret.
+        """
+        Add a version to the secret.
 
         .. seealso::
             For more details see API documentation:
@@ -218,7 +223,8 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListSecretsPager:
-        """List secrets.
+        """
+        List secrets.
 
         .. seealso::
             For more details see API documentation:
@@ -250,7 +256,8 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def secret_exists(self, project_id: str, secret_id: str) -> bool:
-        """Check whether secret exists.
+        """
+        Check whether secret exists.
 
         :param project_id: Required. ID of the GCP project that owns the job.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
@@ -276,7 +283,8 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AccessSecretVersionResponse:
-        """Access a secret version.
+        """
+        Access a secret version.
 
         .. seealso::
             For more details see API documentation:
@@ -311,7 +319,8 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
-        """Delete a secret.
+        """
+        Delete a secret.
 
         .. seealso::
             For more details see API documentation:

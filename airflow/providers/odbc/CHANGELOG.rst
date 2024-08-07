@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+4.6.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
 4.6.1
 .....
 

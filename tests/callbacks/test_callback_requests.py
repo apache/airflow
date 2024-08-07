@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -31,6 +31,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 pytestmark = pytest.mark.db_test
 
@@ -78,7 +79,6 @@ class TestCallbackRequest:
                 full_filepath="filepath",
                 simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
                 processor_subdir="/test_dir",
-                is_failure_callback=True,
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str=json_str)
@@ -94,7 +94,6 @@ class TestCallbackRequest:
             full_filepath="filepath",
             simple_task_instance=SimpleTaskInstance.from_ti(ti),
             processor_subdir="/test_dir",
-            is_failure_callback=True,
         )
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
@@ -117,18 +116,21 @@ class TestCallbackRequest:
         actual = TaskCallbackRequest.from_json(data).simple_task_instance.executor_config["pod_override"]
         assert actual == test_pod
 
-    def test_simple_ti_roundtrip_dates(self):
+    def test_simple_ti_roundtrip_dates(self, dag_maker):
         """A callback request including a TI with an exec config with a V1Pod should safely roundtrip."""
-        from unittest.mock import MagicMock
-
         from airflow.callbacks.callback_requests import TaskCallbackRequest
         from airflow.models import TaskInstance
         from airflow.models.taskinstance import SimpleTaskInstance
         from airflow.operators.bash import BashOperator
 
-        op = BashOperator(task_id="hi", bash_command="hi")
-        ti = TaskInstance(task=op)
-        ti.set_state("SUCCESS", session=MagicMock())
+        with dag_maker(schedule=timedelta(weeks=1), serialized=True):
+            op = BashOperator(task_id="hi", bash_command="hi")
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            external_trigger=True,
+        )
+        ti = TaskInstance(task=op, run_id=dr.run_id)
+        ti.set_state("SUCCESS")
         start_date = ti.start_date
         end_date = ti.end_date
         s = SimpleTaskInstance.from_ti(ti)

@@ -59,8 +59,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -856,7 +854,7 @@ class CloudSQLDatabaseHook(BaseHook):
         # Port and socket path and db_hook are automatically generated
         self.sql_proxy_tcp_port = None
         self.sql_proxy_unique_path: str | None = None
-        self.db_hook: PostgresHook | MySqlHook | None = None
+        self.db_hook: BaseHook | None = None
         self.reserved_tcp_socket: socket.socket | None = None
         # Generated based on clock + clock sequence. Unique per host (!).
         # This is important as different hosts share the database
@@ -908,7 +906,8 @@ class CloudSQLDatabaseHook(BaseHook):
     def _set_temporary_ssl_file(
         self, cert_name: str, cert_path: str | None = None, cert_value: str | None = None
     ) -> str | None:
-        """Save the certificate as a temporary file.
+        """
+        Save the certificate as a temporary file.
 
         This method was implemented in order to overcome psql connection error caused by excessive file
         permissions: "private key file "..." has group or world access; file must have permissions
@@ -930,7 +929,9 @@ class CloudSQLDatabaseHook(BaseHook):
             self.log.info("Neither cert path and cert value provided. Nothing to save.")
             return None
 
-        _temp_file = NamedTemporaryFile(mode="w+b", prefix="/tmp/certs/")
+        certs_folder = "/tmp/certs/"
+        Path(certs_folder).mkdir(parents=True, exist_ok=True)
+        _temp_file = NamedTemporaryFile(mode="w+b", prefix=certs_folder)
         if cert_path:
             with open(cert_path, "rb") as cert_file:
                 _temp_file.write(cert_file.read())
@@ -1019,7 +1020,8 @@ class CloudSQLDatabaseHook(BaseHook):
 
     @staticmethod
     def _generate_unique_path() -> str:
-        """Generate a unique path.
+        """
+        Generate a unique path.
 
         We don't using mkdtemp here since it can generate paths close to 60
         characters. We append project/location/instance to the path, Postgres
@@ -1106,7 +1108,8 @@ class CloudSQLDatabaseHook(BaseHook):
         return instance_specification
 
     def create_connection(self) -> Connection:
-        """Create a connection.
+        """
+        Create a connection.
 
         Connection ID will be randomly generated according to whether it uses
         proxy, TCP, UNIX sockets, SSL.
@@ -1117,7 +1120,8 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection
 
     def get_sqlproxy_runner(self) -> CloudSqlProxyRunner:
-        """Retrieve Cloud SQL Proxy runner.
+        """
+        Retrieve Cloud SQL Proxy runner.
 
         It is used to manage the proxy lifecycle per task.
 
@@ -1136,21 +1140,28 @@ class CloudSQLDatabaseHook(BaseHook):
             gcp_conn_id=self.gcp_conn_id,
         )
 
-    def get_database_hook(self, connection: Connection) -> PostgresHook | MySqlHook:
-        """Retrieve database hook.
+    def get_database_hook(self, connection: Connection) -> BaseHook:
+        """
+        Retrieve database hook.
 
         This is the actual Postgres or MySQL database hook that uses proxy or
         connects directly to the Google Cloud SQL database.
         """
         if self.database_type == "postgres":
-            db_hook: PostgresHook | MySqlHook = PostgresHook(connection=connection, schema=self.database)
+            from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+            db_hook: BaseHook = PostgresHook(connection=connection, database=self.database)
         else:
+            from airflow.providers.mysql.hooks.mysql import MySqlHook
+
             db_hook = MySqlHook(connection=connection, schema=self.database)
         self.db_hook = db_hook
         return db_hook
 
     def cleanup_database_hook(self) -> None:
         """Clean up database hook after it was used."""
+        from airflow.providers.postgres.hooks.postgres import PostgresHook
+
         if self.database_type == "postgres":
             if not self.db_hook:
                 raise ValueError("The db_hook should be set")
@@ -1168,7 +1179,8 @@ class CloudSQLDatabaseHook(BaseHook):
         self.sql_proxy_tcp_port = self.reserved_tcp_socket.getsockname()[1]
 
     def free_reserved_port(self) -> None:
-        """Free TCP port.
+        """
+        Free TCP port.
 
         Makes it immediately ready to be used by Cloud SQL Proxy.
         """

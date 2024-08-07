@@ -48,6 +48,14 @@ const warningKeywords = getMetaValue("color_log_warning_keywords")
   .filter((keyword) => keyword.length > 0)
   .map((keyword) => keyword.toLowerCase());
 
+// Detect log groups which can be collapsed
+// Either in Github like format '::group::<group name>' to '::endgroup::'
+// see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines
+// Or in ADO pipeline like format '##[group]<group name>' to '##[endgroup]'
+// see https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands
+export const logGroupStart = / INFO - (::|##\[])group(::|\])([^\n])*/g;
+export const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
+
 export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
@@ -74,14 +82,7 @@ export const parseLogs = (
   const ansiUp = new AnsiUp();
   ansiUp.url_allowlist = {};
 
-  const urlRegex = /((https?:\/\/|http:\/\/)[^\s]+)/g;
-  // Detect log groups which can be collapsed
-  // Either in Github like format '::group::<group name>' to '::endgroup::'
-  // see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines
-  // Or in ADO pipeline like format '##[group]<group name>' to '##[endgroup]'
-  // see https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands
-  const logGroupStart = / INFO - (::|##\[])group(::|\])([^\n])*/g;
-  const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
+  const urlRegex = /((https?:\/\/|http:\/\/)(?:(?!&#x27;|&quot;)[^\s])+)/g;
   // Coloring (blue-60 as chakra style, is #0060df) and style such that log group appears like a link
   const logGroupStyle = "color:#0060df;cursor:pointer;font-weight:bold;";
 
@@ -125,7 +126,9 @@ export const parseLogs = (
       parsedLine = highlightByKeywords(
         parsedLine,
         errorKeywords,
-        warningKeywords
+        warningKeywords,
+        logGroupStart,
+        logGroupEnd
       );
       // for lines with color convert to nice HTML
       const coloredLine = ansiUp.ansi_to_html(parsedLine);

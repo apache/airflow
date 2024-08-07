@@ -114,7 +114,7 @@ class TestAwsBaseOperator:
         ],
     )
     def test_execute(self, op_kwargs, dag_maker):
-        with dag_maker("test_aws_base_operator"):
+        with dag_maker("test_aws_base_operator", serialized=True):
             FakeS3Operator(task_id="fake-task-id", **op_kwargs)
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
@@ -144,7 +144,10 @@ class TestAwsBaseOperator:
 
     def test_conflicting_region_name(self):
         error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(ValueError, match=error_match):
+        with pytest.raises(ValueError, match=error_match), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
+        ):
             FakeS3Operator(
                 task_id="fake-task-id",
                 aws_conn_id=TEST_CONN,
@@ -177,6 +180,7 @@ class TestAwsBaseOperator:
         with pytest.raises(AttributeError, match=error_match):
             SoWrongOperator(task_id="fake-task-id")
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.parametrize(
         "region, region_name, expected_region_name",
         [
@@ -186,7 +190,7 @@ class TestAwsBaseOperator:
     )
     @pytest.mark.db_test
     def test_region_in_partial_operator(self, region, region_name, expected_region_name, dag_maker):
-        with dag_maker("test_region_in_partial_operator"):
+        with dag_maker("test_region_in_partial_operator", serialized=True):
             FakeS3Operator.partial(
                 task_id="fake-task-id",
                 region=region,
@@ -200,9 +204,10 @@ class TestAwsBaseOperator:
                 ti.run()
             assert ti.task.region_name == expected_region_name
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_ambiguous_region_in_partial_operator(self, dag_maker):
-        with dag_maker("test_ambiguous_region_in_partial_operator"):
+        with dag_maker("test_ambiguous_region_in_partial_operator", serialized=True):
             FakeS3Operator.partial(
                 task_id="fake-task-id",
                 region="eu-west-1",

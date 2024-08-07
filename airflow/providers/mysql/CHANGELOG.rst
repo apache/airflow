@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+5.6.3
+.....
+
+Misc
+~~~~
+
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Resolving mysql deprecated operator warnings (#39725)``
+
 5.6.1
 .....
 

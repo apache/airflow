@@ -83,7 +83,6 @@ class TestProjectStructure:
             "tests/providers/apache/hdfs/log/test_hdfs_task_handler.py",
             "tests/providers/apache/hdfs/sensors/test_hdfs.py",
             "tests/providers/apache/hive/plugins/test_hive.py",
-            "tests/providers/apache/kafka/hooks/test_base.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
             "tests/providers/celery/executors/test_default_celery.py",
             "tests/providers/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
@@ -152,8 +151,6 @@ class TestProjectStructure:
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "tests/providers/mongo/sensors/test_mongo.py",
-            "tests/providers/redis/operators/test_redis_publish.py",
-            "tests/providers/redis/sensors/test_redis_key.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
@@ -167,6 +164,8 @@ class TestProjectStructure:
         modules_files = list(os.path.relpath(f, ROOT_FOLDER) for f in modules_files)
         # Exclude example_dags
         modules_files = list(f for f in modules_files if "/example_dags/" not in f)
+        # Exclude _vendor
+        modules_files = list(f for f in modules_files if "/_vendor/" not in f)
         # Exclude __init__.py
         modules_files = list(f for f in modules_files if not f.endswith("__init__.py"))
         # Change airflow/ to tests/
@@ -364,6 +363,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+        "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
+        "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
@@ -414,8 +415,11 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job."
-        "GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
@@ -527,13 +531,12 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.transfers.base.AwsToAwsBaseOperator",
         "airflow.providers.amazon.aws.operators.comprehend.ComprehendBaseOperator",
         "airflow.providers.amazon.aws.sensors.comprehend.ComprehendBaseSensor",
+        "airflow.providers.amazon.aws.sensors.kinesis_analytics.KinesisAnalyticsV2BaseSensor",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
         # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
-        # Glue Catalog sensor difficult to test
-        "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
     }
 
     DEPRECATED_CLASSES = {

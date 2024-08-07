@@ -37,6 +37,8 @@ class EventLogSchema(SQLAlchemySchema):
     dag_id = auto_field(dump_only=True)
     task_id = auto_field(dump_only=True)
     run_id = auto_field(dump_only=True)
+    map_index = auto_field(dump_only=True)
+    try_number = auto_field(dump_only=True)
     event = auto_field(dump_only=True)
     execution_date = auto_field(dump_only=True)
     owner = auto_field(dump_only=True)

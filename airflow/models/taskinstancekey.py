@@ -48,8 +48,14 @@ class TaskInstanceKey(NamedTuple):
 
     @property
     def key(self) -> TaskInstanceKey:
-        """For API-compatibly with TaskInstance.
+        """
+        For API-compatibly with TaskInstance.
 
         Returns self
         """
         return self
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Create TaskInstanceKey from dictionary."""
+        return cls(**dictionary)

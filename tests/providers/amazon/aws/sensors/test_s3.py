@@ -22,12 +22,15 @@ from unittest import mock
 
 import pytest
 import time_machine
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -107,10 +110,10 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_bucket_key_from_jinja(self, mock_head_object):
+    def test_parse_bucket_key_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
 
-        Variable.set("test_bucket_key", "s3://bucket/key")
+        Variable.set("test_bucket_key", "s3://bucket/key", session=session)
 
         execution_date = timezone.datetime(2020, 1, 1)
 
@@ -122,10 +125,14 @@ class TestS3KeySensor:
             dag=dag,
         )
 
-        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+        )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        context = ti.get_template_context()
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
         ti.render_templates(context)
         op.poke(None)
 
@@ -133,11 +140,11 @@ class TestS3KeySensor:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
-    def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object):
+    def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object, session, clean_dags_and_dagruns):
         mock_head_object.return_value = None
         mock_head_object.side_effect = [{"ContentLength": 0}, {"ContentLength": 0}]
 
-        Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"])
+        Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"], session=session)
 
         execution_date = timezone.datetime(2020, 1, 1)
 
@@ -149,10 +156,14 @@ class TestS3KeySensor:
             dag=dag,
         )
 
-        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+        )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        context = ti.get_template_context()
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
         ti.render_templates(context)
         op.poke(None)
 
@@ -285,6 +296,145 @@ class TestS3KeySensor:
         with pytest.raises(expected_exception, match=message):
             op.execute_complete(context={}, event={"status": "error", "message": message})
 
+    @mock_aws
+    def test_custom_metadata_default_return_vals(self):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "Size" not in f:
+                    return False
+            return True
+
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="test-bucket")
+        hook.load_string(
+            bucket_name="test-bucket",
+            key="test-key",
+            string_data="test-body",
+        )
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["Size"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["Content"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is False
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+
+    @mock_aws
+    def test_custom_metadata_default_custom_vals(self):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "LastModified" not in f or "ETag" not in f or "Size" in f:
+                    return False
+            return True
+
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="test-bucket")
+        hook.load_string(
+            bucket_name="test-bucket",
+            key="test-key",
+            string_data="test-body",
+        )
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["LastModified", "ETag"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+
+    @mock_aws
+    def test_custom_metadata_all_attributes(self):
+        def check_fn(files: list) -> bool:
+            hook = S3Hook()
+            metadata_keys = set(hook.head_object(bucket_name="test-bucket", key="test-key").keys())
+            test_data_keys = set(files[0].keys())
+
+            return test_data_keys == metadata_keys
+
+        hook = S3Hook()
+        hook.create_bucket(bucket_name="test-bucket")
+        hook.load_string(
+            bucket_name="test-bucket",
+            key="test-key",
+            string_data="test-body",
+        )
+
+        op = S3KeySensor(
+            task_id="test-metadata",
+            bucket_key="test-key",
+            bucket_name="test-bucket",
+            metadata_keys=["*"],
+            check_fn=check_fn,
+        )
+        assert op.poke(None) is True
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata")
+    def test_custom_metadata_wildcard(self, mock_file_metadata, mock_head_object):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "ETag" not in f or "MissingMeta" not in f:
+                    return False
+            return True
+
+        op = S3KeySensor(
+            task_id="test-head-metadata",
+            bucket_key=["s3://test-bucket/test-key*"],
+            metadata_keys=["MissingMeta", "ETag"],
+            check_fn=check_fn,
+            wildcard_match=True,
+        )
+
+        mock_file_metadata.return_value = [{"Key": "test-key", "ETag": 0}]
+        mock_head_object.return_value = {"MissingMeta": 0, "ContentLength": 100}
+        assert op.poke(None) is True
+        mock_head_object.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata")
+    def test_custom_metadata_wildcard_all_attributes(self, mock_file_metadata, mock_head_object):
+        def check_fn(files: list) -> bool:
+            for f in files:
+                if "ContentLength" not in f or "MissingMeta" not in f:
+                    return False
+            return True
+
+        op = S3KeySensor(
+            task_id="test-head-metadata",
+            bucket_key=["s3://test-bucket/test-key*"],
+            metadata_keys=["*"],
+            check_fn=check_fn,
+            wildcard_match=True,
+        )
+
+        mock_file_metadata.return_value = [{"Key": "test-key", "ETag": 0}]
+        mock_head_object.return_value = {"MissingMeta": 0, "ContentLength": 100}
+        assert op.poke(None) is True
+        mock_head_object.assert_called_once()
+
+        mock_head_object.return_value = {"MissingMeta": 0}
+        assert op.poke(None) is False
+
 
 class TestS3KeysUnchangedSensor:
     def setup_method(self):
@@ -315,7 +465,7 @@ class TestS3KeysUnchangedSensor:
             )
 
     @pytest.mark.db_test
-    def test_render_template_fields(self):
+    def test_render_template_fields(self, clean_dags_and_dagruns):
         S3KeysUnchangedSensor(
             task_id="sensor_3",
             bucket_name="test-bucket",

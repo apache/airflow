@@ -19,8 +19,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField, set_producer
-from openlineage.client.run import Dataset
+from openlineage.client import set_producer
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import schema_dataset
 from openlineage.common.sql import DbTableMeta
 from sqlalchemy import Column, MetaData, Table
 
@@ -38,13 +39,13 @@ DB_NAME = "FOOD_DELIVERY"
 DB_SCHEMA_NAME = "PUBLIC"
 DB_TABLE_NAME = DbTableMeta("DISCOUNTS")
 
-SCHEMA_FACET = SchemaDatasetFacet(
+SCHEMA_FACET = schema_dataset.SchemaDatasetFacet(
     fields=[
-        SchemaField(name="ID", type="int4"),
-        SchemaField(name="AMOUNT_OFF", type="int4"),
-        SchemaField(name="CUSTOMER_EMAIL", type="varchar"),
-        SchemaField(name="STARTS_ON", type="timestamp"),
-        SchemaField(name="ENDS_ON", type="timestamp"),
+        schema_dataset.SchemaDatasetFacetFields(name="ID", type="int4"),
+        schema_dataset.SchemaDatasetFacetFields(name="AMOUNT_OFF", type="int4"),
+        schema_dataset.SchemaDatasetFacetFields(name="CUSTOMER_EMAIL", type="varchar"),
+        schema_dataset.SchemaDatasetFacetFields(name="STARTS_ON", type="timestamp"),
+        schema_dataset.SchemaDatasetFacetFields(name="ENDS_ON", type="timestamp"),
     ]
 )
 

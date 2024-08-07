@@ -434,7 +434,7 @@ Then, next time when you start Breeze, it will have the data pre-populated.
 These are all available flags of ``down`` command:
 
 .. image:: ./images/output-down.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output-down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_down.svg
   :width: 100%
   :alt: Breeze down
 

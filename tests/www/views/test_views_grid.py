@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -93,7 +94,7 @@ def dag_with_runs(dag_without_runs):
     run_2 = dag_without_runs.create_dagrun(
         run_id="run_2",
         run_type=DagRunType.SCHEDULED,
-        execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
+        execution_date=date + timedelta(days=1),
     )
 
     return run_1, run_2
@@ -159,6 +160,7 @@ def test_no_runs(admin_client, dag_without_runs):
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
@@ -405,6 +407,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
@@ -458,6 +461,7 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 

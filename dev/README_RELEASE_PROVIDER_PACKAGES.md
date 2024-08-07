@@ -738,7 +738,7 @@ EOF
 
 Due to the nature of packages, not all packages have to be released as convenience
 packages in the final release. During the voting process
-the voting PMCs might decide to exclude certain packages from the release if some critical
+the voting PMC members might decide to exclude certain packages from the release if some critical
 problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
@@ -757,7 +757,7 @@ The following files should be present (6 files):
 * .tar.gz + .asc + .sha512 (one set of files per provider)
 * -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow/
@@ -1345,7 +1345,8 @@ NOTE!
 
 
 As a rule we announce only new providers that were added.
-If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+If you believe there is a reason to announce in social media for another case consult with PMC
+members about it.
 
 Example for special cases:
 
@@ -1361,7 +1362,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 

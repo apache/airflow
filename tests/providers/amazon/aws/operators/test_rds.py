@@ -813,8 +813,7 @@ class TestRdsStopDbOperator:
         del cls.hook
 
     @mock_aws
-    @patch.object(RdsHook, "wait_for_db_instance_state")
-    def test_stop_db_instance(self, mock_await_status):
+    def test_stop_db_instance(self):
         _create_db_instance(self.hook)
         stop_db_instance = RdsStopDbOperator(task_id="test_stop_db_instance", db_identifier=DB_INSTANCE_NAME)
         _patch_hook_get_connection(stop_db_instance.hook)
@@ -822,11 +821,10 @@ class TestRdsStopDbOperator:
         result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         status = result["DBInstances"][0]["DBInstanceStatus"]
         assert status == "stopped"
-        mock_await_status.assert_called()
 
     @mock_aws
-    @patch.object(RdsHook, "wait_for_db_instance_state")
-    def test_stop_db_instance_no_wait(self, mock_await_status):
+    @patch.object(RdsHook, "get_waiter")
+    def test_stop_db_instance_no_wait(self, mock_get_waiter):
         _create_db_instance(self.hook)
         stop_db_instance = RdsStopDbOperator(
             task_id="test_stop_db_instance_no_wait", db_identifier=DB_INSTANCE_NAME, wait_for_completion=False
@@ -836,7 +834,7 @@ class TestRdsStopDbOperator:
         result = self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         status = result["DBInstances"][0]["DBInstanceStatus"]
         assert status == "stopped"
-        mock_await_status.assert_not_called()
+        mock_get_waiter.assert_not_called()
 
     @mock.patch.object(RdsHook, "conn")
     def test_deferred(self, conn_mock):
@@ -872,8 +870,7 @@ class TestRdsStopDbOperator:
         assert len(instance_snapshots) == 1
 
     @mock_aws
-    @patch.object(RdsHook, "wait_for_db_cluster_state")
-    def test_stop_db_cluster(self, mock_await_status):
+    def test_stop_db_cluster(self):
         _create_db_cluster(self.hook)
         stop_db_cluster = RdsStopDbOperator(
             task_id="test_stop_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
@@ -884,7 +881,6 @@ class TestRdsStopDbOperator:
         describe_result = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
         status = describe_result["DBClusters"][0]["Status"]
         assert status == "stopped"
-        mock_await_status.assert_called()
 
     @mock_aws
     def test_stop_db_cluster_create_snapshot_logs_warning_message(self, caplog):

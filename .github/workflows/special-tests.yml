@@ -40,6 +40,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Which version of python should be used by default"
         required: true
         type: string
+      python-versions:
+        description: "The list of python versions (stringified JSON array) to run the tests on."
+        required: true
+        type: string
       default-postgres-version:
         description: "The default version of the postgres to use"
         required: true

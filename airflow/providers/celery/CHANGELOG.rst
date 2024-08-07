@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Increase broker's visibility timeout to 24hrs (#40879)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing exception types to include TypeError, which is what is raised in (#40012)``
+* ``catch sentry flush if exception happens in _execute_in_fork finally block (#40060)``
+
+Misc
+~~~~
+
+* ``Add PID and return code to _execute_in_fork logging (#40058)``
+
 3.7.1
 .....
 

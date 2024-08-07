@@ -32,9 +32,9 @@ Authoring interface                      via Databricks (Web-based with Databric
 =======================================  =============================================  =================================
 Workflow compute pricing                 ✅                                             ✅
 Notebook code in source control          ✅                                             ✅
-Workflow structure in source control                                                    ✅
+Workflow structure in source control     ✅                                             ✅
 Retry from beginning                     ✅                                             ✅
-Retry single task                                                                       ✅
+Retry single task                        ✅                                             ✅
 Task groups within Workflows                                                            ✅
 Trigger workflows from other DAGs                                                       ✅
 Workflow-level parameters                                                               ✅

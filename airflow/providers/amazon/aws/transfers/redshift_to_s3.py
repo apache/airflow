@@ -84,6 +84,7 @@ class RedshiftToS3Operator(BaseOperator):
         "unload_options",
         "select_query",
         "redshift_conn_id",
+        "redshift_data_api_kwargs",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"select_query": "sql"}
@@ -128,7 +129,7 @@ class RedshiftToS3Operator(BaseOperator):
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
         # Un-escape already escaped queries
-        select_query = re.sub(r"''(.+)''", r"'\1'", select_query)
+        select_query = re.sub(r"''(.+?)''", r"'\1'", select_query)
         return f"""
                     UNLOAD ($${select_query}$$)
                     TO 's3://{self.s3_bucket}/{s3_key}'

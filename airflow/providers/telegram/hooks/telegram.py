@@ -142,17 +142,18 @@ class TelegramHook(BaseHook):
 
         :param api_params: params for telegram_instance.send_message. It can also be used to override chat_id
         """
-        kwargs = {
-            "chat_id": self.chat_id,
+        kwargs: dict[str, Any] = {
             "parse_mode": telegram.constants.ParseMode.HTML,
             "disable_web_page_preview": True,
         }
+        if self.chat_id is not None:
+            kwargs["chat_id"] = self.chat_id
         kwargs.update(api_params)
 
         if "text" not in kwargs or kwargs["text"] is None:
             raise AirflowException("'text' must be provided for telegram message")
 
-        if kwargs["chat_id"] is None:
+        if kwargs.get("chat_id") is None:
             raise AirflowException("'chat_id' must be provided for telegram message")
 
         response = asyncio.run(self.connection.send_message(**kwargs))
