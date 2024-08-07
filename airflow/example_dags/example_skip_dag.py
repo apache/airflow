@@ -63,6 +63,7 @@ def create_test_pipeline(suffix, trigger_rule):
 
 with DAG(
     dag_id="example_skip_dag",
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

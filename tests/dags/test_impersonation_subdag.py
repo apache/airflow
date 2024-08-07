@@ -29,7 +29,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 default_args = {"owner": "airflow", "start_date": DEFAULT_DATE, "run_as_user": "airflow_test_user"}
 
-dag = DAG(dag_id="impersonation_subdag", default_args=default_args)
+dag = DAG(dag_id="impersonation_subdag", schedule=None, default_args=default_args)
 
 
 def print_today():

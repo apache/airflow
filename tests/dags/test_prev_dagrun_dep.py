@@ -26,7 +26,7 @@ DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(start_date=DEFAULT_DATE, owner="airflow")
 
 # DAG tests depends_on_past dependencies
-dag_dop = DAG(dag_id="test_depends_on_past", default_args=default_args)
+dag_dop = DAG(dag_id="test_depends_on_past", schedule=None, default_args=default_args)
 with dag_dop:
     dag_dop_task = EmptyOperator(
         task_id="test_dop_task",
