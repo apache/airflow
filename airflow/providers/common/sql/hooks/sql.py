@@ -38,7 +38,6 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from airflow.utils.log.logging_mixin import LoggingMixin
 from more_itertools import chunked
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
@@ -50,8 +49,8 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
-from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -147,19 +146,16 @@ class Dialect(LoggingMixin):
     @lru_cache
     def get_column_names(self, table: str) -> list[str]:
         column_names = list(
-            column["name"]
-            for column in self.inspector.get_columns(
-                *self._extract_schema_from_table(table)
-            )
+            column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
         )
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
 
     @lru_cache
     def get_primary_keys(self, table: str) -> list[str]:
-        primary_keys = self.inspector.get_pk_constraint(
-            *self._extract_schema_from_table(table)
-        ).get("constrained_columns", [])
+        primary_keys = self.inspector.get_pk_constraint(*self._extract_schema_from_table(table)).get(
+            "constrained_columns", []
+        )
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
         return primary_keys
 
@@ -194,9 +190,7 @@ class Dialect(LoggingMixin):
         else:
             target_fields = ""
 
-        return self._insert_statement_format.format(
-            table, target_fields, ",".join(placeholders)
-        )
+        return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """
@@ -218,9 +212,7 @@ class Dialect(LoggingMixin):
         else:
             target_fields = ""
 
-        return self._replace_statement_format.format(
-            table, target_fields, ",".join(placeholders)
-        )
+        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
 
 class ConnectorProtocol(Protocol):
