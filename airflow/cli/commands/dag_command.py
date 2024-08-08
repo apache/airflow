@@ -43,7 +43,7 @@ from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.cli import get_dag, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
@@ -154,7 +154,15 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
         raise AirflowException("Provide a start_date and/or end_date")
 
     if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
+        with create_session() as session:
+            query = select(DagModel)
+
+            if args.treat_dag_id_as_regex:
+                query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
+            else:
+                query = query.where(DagModel.dag_id == args.dag_id)
+
+        dags = session.scalars(query).all()
     elif isinstance(dag, list):
         dags = dag
     else:
