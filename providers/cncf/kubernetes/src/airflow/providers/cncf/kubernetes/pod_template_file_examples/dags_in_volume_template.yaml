@@ -73,6 +73,6 @@ spec:
     - configMap:
         name: RELEASE-NAME-airflow-config
       name: airflow-config
-    - emtpyDir: {}
+    - emptyDir: {}
       name: tmp
 # [END template_with_dags_in_volume]

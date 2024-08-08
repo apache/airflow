@@ -201,7 +201,7 @@ spec:
             {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
-            - name: home
+            - name: opt
               mountPath: /opt/airflow
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
@@ -299,7 +299,7 @@ spec:
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }} 
         - name: tmp
           emptyDir: {}  
-        - name: home
+        - name: opt
           emptyDir: {}                                       
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
