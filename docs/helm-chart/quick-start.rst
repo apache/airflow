@@ -217,6 +217,13 @@ Example below adds ``lxml`` PyPI package.
           --set images.airflow.repository=my-image \
           --set images.airflow.tag=0.0.1
 
+If you put your image in a private docker repository, the name of secret can be set at registry.secretName
+
+.. code-block:: yaml
+
+  registry:
+    secretName: your-secret-name-in-kubernetes
+
 Further extending and customizing the image
 ...........................................
 
