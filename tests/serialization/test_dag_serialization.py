@@ -1561,7 +1561,7 @@ class TestStringifiedDAGs:
         from airflow.sensors.external_task import ExternalTaskSensor
 
         execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test_deps_sorted", start_date=execution_date) as dag:
+        with DAG(dag_id="test_deps_sorted", schedule=None, start_date=execution_date) as dag:
             task1 = ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
@@ -1627,7 +1627,7 @@ class TestStringifiedDAGs:
             deps = frozenset([*BaseOperator.deps, CustomTestTriggerRule()])
 
         execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test_serialize_custom_ti_deps", start_date=execution_date) as dag:
+        with DAG(dag_id="test_serialize_custom_ti_deps", schedule=None, start_date=execution_date) as dag:
             DummyTask(task_id="task1")
 
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])

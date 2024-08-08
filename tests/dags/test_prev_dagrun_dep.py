@@ -34,7 +34,7 @@ with dag_dop:
     )
 
 # DAG tests wait_for_downstream dependencies
-dag_wfd = DAG(dag_id="test_wait_for_downstream", default_args=default_args)
+dag_wfd = DAG(dag_id="test_wait_for_downstream", schedule=None, default_args=default_args)
 with dag_wfd:
     dag_wfd_upstream = EmptyOperator(
         task_id="upstream_task",
