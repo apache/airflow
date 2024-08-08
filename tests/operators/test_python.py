@@ -1019,7 +1019,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             from airflow.utils.context import Context
 
             context = get_current_context()
-            if not isinstance(context, Context):
+            if not isinstance(context, Context):  # type: ignore[misc]
                 error_msg = f"Expected Context, got {type(context)}"
                 raise TypeError(error_msg)
 
@@ -1067,7 +1067,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             from airflow.utils.context import Context
 
             context = get_current_context()
-            if not isinstance(context, Context):
+            if not isinstance(context, Context):  # type: ignore[misc]
                 error_msg = f"Expected Context, got {type(context)}"
                 raise TypeError(error_msg)
 
@@ -1505,7 +1505,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             from airflow.utils.context import Context
 
             context = get_current_context()
-            if not isinstance(context, Context):
+            if not isinstance(context, Context):  # type: ignore[misc]
                 error_msg = f"Expected Context, got {type(context)}"
                 raise TypeError(error_msg)
 
@@ -1847,7 +1847,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
             from airflow.utils.context import Context
 
             context = get_current_context()
-            if not isinstance(context, Context):
+            if not isinstance(context, Context):  # type: ignore[misc]
                 error_msg = f"Expected Context, got {type(context)}"
                 raise TypeError(error_msg)
 
