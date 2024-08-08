@@ -57,6 +57,8 @@ class AttributeRemoved:
         self.attribute_name = attribute_name
 
     def __getattr__(self, item):
+        if item == "attribute_name":
+            return super().__getattribute__(item)
         raise RuntimeError(
             f"Attribute {self.attribute_name} was removed on "
             f"serialization and must be set again - found when accessing {item}."

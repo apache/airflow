@@ -234,15 +234,22 @@ def build_scarf_url(dags_count: int) -> str:
     db_name = usage_data_collection.get_database_name()
     executor = usage_data_collection.get_executor()
     python_version = usage_data_collection.get_python_version()
+    plugin_counts = usage_data_collection.get_plugin_counts()
+    plugins_count = plugin_counts["plugins"]
+    flask_blueprints_count = plugin_counts["flask_blueprints"]
+    appbuilder_views_count = plugin_counts["appbuilder_views"]
+    appbuilder_menu_items_count = plugin_counts["appbuilder_menu_items"]
+    timetables_count = plugin_counts["timetables"]
 
     # Path Format:
-    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
+    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}/{plugin_count}/{flask_blueprint_count}/{appbuilder_view_count}/{appbuilder_menu_item_count}/{timetables}
     #
     # This path redirects to a Pixel tracking URL
     scarf_url = (
         f"{scarf_domain}/webserver"
         f"/{version}/{python_version}"
         f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
+        f"/{plugins_count}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetables_count}"
     )
 
     return scarf_url

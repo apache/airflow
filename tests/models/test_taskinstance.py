@@ -82,7 +82,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.settings import TIMEZONE
+from airflow.settings import TIMEZONE, TracebackSessionForTests
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -104,7 +104,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test]
 
 
 @pytest.fixture
@@ -288,7 +288,7 @@ class TestTaskInstance:
         assert not ti.test_mode
 
     @patch.object(DAG, "get_concurrency_reached")
-    def test_requeue_over_dag_concurrency(self, mock_concurrency_reached, create_task_instance):
+    def test_requeue_over_dag_concurrency(self, mock_concurrency_reached, create_task_instance, dag_maker):
         mock_concurrency_reached.return_value = True
 
         ti = create_task_instance(
@@ -1403,7 +1403,9 @@ class TestTaskInstance:
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
 
-        ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
+        dr = dag_maker.create_dagrun(execution_date=run_date)
+        dag_maker.session.commit()
+        ti = dr.get_task_instance(downstream.task_id)
         ti.task = downstream
 
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
@@ -1412,6 +1414,8 @@ class TestTaskInstance:
             session=dag_maker.session,
         )
         completed = all(dep.passed for dep in dep_results)
+
+        ti = dr.get_task_instance(downstream.task_id)
 
         assert completed == expect_passed
         assert ti.state == expect_state
@@ -1511,15 +1515,16 @@ class TestTaskInstance:
             do_something_else.expand(i=nums)
 
         dr = dag_maker.create_dagrun()
-
+        dag_maker.session.commit()
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
         ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         for map_index in range(1, 5):
-            ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
+            ti = TaskInstance(dr.task_instances[-1].task, run_id=dr.run_id, map_index=map_index)
             session.add(ti)
             ti.dag_run = dr
         session.flush()
+        session.commit()
         downstream = ti.task
         ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
         ti.task = downstream
@@ -1528,7 +1533,10 @@ class TestTaskInstance:
             dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
             session=session,
         )
+        TracebackSessionForTests.set_allow_db_access(session, True)
         completed = all(dep.passed for dep in dep_results)
+        TracebackSessionForTests.set_allow_db_access(session, False)
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
 
         assert completed == expect_completed
         assert ti.state == expect_state
@@ -2946,7 +2954,7 @@ class TestTaskInstance:
         dag_maker,
     ) -> list:
         dag_id = "test_previous_dates"
-        with dag_maker(dag_id=dag_id, schedule=schedule_interval, catchup=catchup):
+        with dag_maker(dag_id=dag_id, schedule=schedule_interval, catchup=catchup, serialized=True):
             task = EmptyOperator(task_id="task")
 
         def get_test_ti(execution_date: pendulum.DateTime, state: str) -> TI:
@@ -3134,22 +3142,26 @@ class TestTaskInstance:
         assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
         assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
 
-    def test_template_render(self, create_task_instance):
+    def test_template_render(self, create_task_instance, session):
         ti = create_task_instance(
             dag_id="test_template_render",
             task_id="test_template_render_task",
             schedule="0 12 * * *",
         )
+        session.add(ti)
+        session.commit()
         template_context = ti.get_template_context()
         result = ti.task.render_template("Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context)
         assert result == "Task: test_template_render -> test_template_render_task"
 
-    def test_template_render_deprecated(self, create_task_instance):
+    def test_template_render_deprecated(self, create_task_instance, session):
         ti = create_task_instance(
             dag_id="test_template_render",
             task_id="test_template_render_task",
             schedule="0 12 * * *",
         )
+        session.add(ti)
+        session.commit()
         template_context = ti.get_template_context()
         with pytest.deprecated_call():
             result = ti.task.render_template("Execution date: {{ execution_date }}", template_context)
@@ -3168,7 +3180,7 @@ class TestTaskInstance:
             ("{{ conn.a_connection.extra_dejson.extra__asana__workspace }}", "extra1"),
         ],
     )
-    def test_template_with_connection(self, content, expected_output, create_task_instance):
+    def test_template_with_connection(self, content, expected_output, create_task_instance, session):
         """
         Test the availability of variables in templates
         """
@@ -3191,6 +3203,8 @@ class TestTaskInstance:
             )
 
         ti = create_task_instance()
+        session.add(ti)
+        session.commit()
 
         context = ti.get_template_context()
         result = ti.task.render_template(content, context)
@@ -3205,22 +3219,26 @@ class TestTaskInstance:
             ('{{ var.value.get("missing_variable", "fallback") }}', "fallback"),
         ],
     )
-    def test_template_with_variable(self, content, expected_output, create_task_instance):
+    def test_template_with_variable(self, content, expected_output, create_task_instance, session):
         """
         Test the availability of variables in templates
         """
         Variable.set("a_variable", "a test value")
 
         ti = create_task_instance()
+        session.add(ti)
+        session.commit()
         context = ti.get_template_context()
         result = ti.task.render_template(content, context)
         assert result == expected_output
 
-    def test_template_with_variable_missing(self, create_task_instance):
+    def test_template_with_variable_missing(self, create_task_instance, session):
         """
         Test the availability of variables in templates
         """
         ti = create_task_instance()
+        session.add(ti)
+        session.commit()
         context = ti.get_template_context()
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.value.get("missing_variable") }}', context)
@@ -3235,19 +3253,23 @@ class TestTaskInstance:
             ('{{ var.json.get("missing_variable", {"a": {"test": "fallback"}})["a"]["test"] }}', "fallback"),
         ],
     )
-    def test_template_with_json_variable(self, content, expected_output, create_task_instance):
+    def test_template_with_json_variable(self, content, expected_output, create_task_instance, session):
         """
         Test the availability of variables in templates
         """
         Variable.set("a_variable", {"a": {"test": "value"}}, serialize_json=True)
 
         ti = create_task_instance()
+        session.add(ti)
+        session.commit()
         context = ti.get_template_context()
         result = ti.task.render_template(content, context)
         assert result == expected_output
 
-    def test_template_with_json_variable_missing(self, create_task_instance):
+    def test_template_with_json_variable_missing(self, create_task_instance, session):
         ti = create_task_instance()
+        session.add(ti)
+        session.commit()
         context = ti.get_template_context()
         with pytest.raises(KeyError):
             ti.task.render_template('{{ var.json.get("missing_variable") }}', context)
@@ -3279,7 +3301,7 @@ class TestTaskInstance:
         assert len(recorded_message) == 1
         assert recorded_message[0].startswith(message_beginning)
 
-    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance):
+    def test_template_with_custom_timetable_deprecated_context(self, create_task_instance, session):
         with pytest.warns(
             RemovedInAirflow3Warning,
             match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
@@ -3291,6 +3313,8 @@ class TestTaskInstance:
                 execution_date=timezone.datetime(2021, 9, 6),
                 data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
             )
+        session.add(ti)
+        session.commit()
         context = ti.get_template_context()
         with pytest.deprecated_call():
             assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)

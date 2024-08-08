@@ -32,15 +32,20 @@ import {
   TabPanel,
   TabPanels,
   Text,
+  Flex,
+  useDisclosure,
+  IconButton,
 } from "@chakra-ui/react";
 import { HiDatabase } from "react-icons/hi";
-import { MdEvent, MdAccountTree, MdDetails } from "react-icons/md";
+import { MdEvent, MdAccountTree, MdDetails, MdPlayArrow } from "react-icons/md";
 
 import Time from "src/components/Time";
 import BreadcrumbText from "src/components/BreadcrumbText";
 import { useOffsetTop } from "src/utils";
 import { useDatasetDependencies } from "src/api";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import Tooltip from "src/components/Tooltip";
+import { useContainerRef } from "src/context/containerRef";
 
 import DatasetEvents from "./DatasetEvents";
 import DatasetsList from "./DatasetsList";
@@ -48,6 +53,7 @@ import DatasetDetails from "./DatasetDetails";
 import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
 import SearchBar from "./SearchBar";
+import CreateDatasetEventModal from "./CreateDatasetEvent";
 
 const DATASET_URI_PARAM = "uri";
 const DAG_ID_PARAM = "dag_id";
@@ -88,6 +94,9 @@ const Datasets = () => {
 
   const { data: datasetDependencies, isLoading } = useDatasetDependencies();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const { isOpen, onToggle, onClose } = useDisclosure();
+  const containerRef = useContainerRef();
 
   const selectedUri = decodeURIComponent(
     searchParams.get(DATASET_URI_PARAM) || ""
@@ -133,46 +142,68 @@ const Datasets = () => {
 
   return (
     <Box alignItems="flex-start" justifyContent="space-between">
-      <Breadcrumb
-        ml={3}
-        pt={2}
-        mt={4}
-        separator={
-          <Heading as="h3" size="md" color="gray.300">
-            /
-          </Heading>
-        }
+      <Flex
+        grow={1}
+        justifyContent="space-between"
+        alignItems="flex-end"
+        p={3}
+        pb={0}
       >
-        <BreadcrumbItem>
-          <BreadcrumbLink
-            onClick={() => onSelect()}
-            isCurrentPage={!selectedUri}
-          >
-            <Heading as="h3" size="md">
-              Datasets
+        <Breadcrumb
+          mt={4}
+          separator={
+            <Heading as="h3" size="md" color="gray.300">
+              /
             </Heading>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
+          }
+        >
+          <BreadcrumbItem>
+            <BreadcrumbLink
+              onClick={() => onSelect()}
+              isCurrentPage={!selectedUri}
+            >
+              <Heading as="h3" size="md">
+                Datasets
+              </Heading>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
 
+          {selectedUri && (
+            <BreadcrumbItem isCurrentPage={!!selectedUri && !selectedTimestamp}>
+              <BreadcrumbLink onClick={() => onSelect({ uri: selectedUri })}>
+                <BreadcrumbText label="URI" value={selectedUri} />
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          )}
+
+          {selectedTimestamp && (
+            <BreadcrumbItem isCurrentPage={!!selectedTimestamp}>
+              <BreadcrumbLink>
+                <BreadcrumbText
+                  label="Timestamp"
+                  value={<Time dateTime={selectedTimestamp} />}
+                />
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          )}
+        </Breadcrumb>
         {selectedUri && (
-          <BreadcrumbItem isCurrentPage={!!selectedUri && !selectedTimestamp}>
-            <BreadcrumbLink onClick={() => onSelect({ uri: selectedUri })}>
-              <BreadcrumbText label="URI" value={selectedUri} />
-            </BreadcrumbLink>
-          </BreadcrumbItem>
+          <Tooltip
+            label="Manually create dataset event"
+            hasArrow
+            portalProps={{ containerRef }}
+          >
+            <IconButton
+              variant="outline"
+              colorScheme="blue"
+              aria-label="Manually create dataset event"
+              onClick={onToggle}
+            >
+              <MdPlayArrow />
+            </IconButton>
+          </Tooltip>
         )}
-
-        {selectedTimestamp && (
-          <BreadcrumbItem isCurrentPage={!!selectedTimestamp}>
-            <BreadcrumbLink>
-              <BreadcrumbText
-                label="Timestamp"
-                value={<Time dateTime={selectedTimestamp} />}
-              />
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-        )}
-      </Breadcrumb>
+      </Flex>
       <Tabs ref={contentRef} isLazy index={tabIndex} onChange={onChangeTab}>
         <TabList>
           {!selectedUri && (
@@ -249,6 +280,13 @@ const Datasets = () => {
           )}
         </TabPanels>
       </Tabs>
+      {selectedUri && (
+        <CreateDatasetEventModal
+          isOpen={isOpen}
+          onClose={onClose}
+          uri={selectedUri}
+        />
+      )}
     </Box>
   );
 };
