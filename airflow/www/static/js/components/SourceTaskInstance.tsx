@@ -35,6 +35,7 @@ type SourceTIProps = {
 };
 
 const gridUrl = getMetaValue("grid_url");
+const dagId = getMetaValue("dag_id") || "__DAG_ID__";
 
 const SourceTaskInstance = ({
   datasetEvent,
@@ -56,7 +57,7 @@ const SourceTaskInstance = ({
   });
 
   let url = `${gridUrl?.replace(
-    "__DAG_ID__",
+    dagId,
     sourceDagId || ""
   )}?dag_run_id=${encodeURIComponent(
     sourceRunId || ""
