@@ -867,6 +867,20 @@ logging:
       type: string
       example: ~
       default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+    log_format_re_pattern:
+      description: |
+        Defines the pattern for split Log to independent messages
+      version_added: 2.9.2
+      type: string
+      example: ~
+      default: (\s*?\[.+?\] {{.+?:[0-9]+}} \w+ - )
+    log_format_deduplicate_logs:
+      description: |
+        Flag to enable/disable deduplication between log messages
+      version_added: 2.9.2
+      type: boolean
+      example: ~
+      default: "True"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration
