@@ -66,7 +66,7 @@ with open(sys.argv[3], "r") as file:
 
 {% if use_airflow_context | default(false) -%}
 if len(sys.argv) > 5:
-    import sys
+    import json
     from types import ModuleType
 
     from airflow.operators import python as airflow_python
@@ -77,8 +77,8 @@ if len(sys.argv) > 5:
         @staticmethod
         def get_current_context():
             with open(sys.argv[5]) as file:
-                text = file.read()
-                return BaseSerialization.deserialize(text, use_pydantic_models=True)
+                context = json.load(file)
+                return BaseSerialization.deserialize(context, use_pydantic_models=True)
 
         def __getattr__(self, name: str):
             return getattr(airflow_python, name)
