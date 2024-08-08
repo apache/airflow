@@ -33,6 +33,7 @@ from packaging.version import parse
 
 from airflow import __version__ as airflow_version, settings
 from airflow.configuration import conf
+from airflow.plugins_manager import get_plugin_info
 
 
 def usage_data_collection():
@@ -95,3 +96,15 @@ def get_executor() -> str:
 
 def get_python_version() -> str:
     return platform.python_version()
+
+
+def get_plugin_counts() -> dict[str, int]:
+    plugin_info = get_plugin_info()
+
+    return {
+        "plugins": len(plugin_info),
+        "flask_blueprints": sum(len(x["flask_blueprints"]) for x in plugin_info),
+        "appbuilder_views": sum(len(x["appbuilder_views"]) for x in plugin_info),
+        "appbuilder_menu_items": sum(len(x["appbuilder_menu_items"]) for x in plugin_info),
+        "timetables": sum(len(x["timetables"]) for x in plugin_info),
+    }

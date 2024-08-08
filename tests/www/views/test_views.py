@@ -599,26 +599,35 @@ def test_invalid_dates(app, admin_client, url, content):
     assert re.search(content, resp.get_data().decode())
 
 
-@pytest.mark.parametrize("enabled, dags_count", [(False, 5), (True, 5)])
+@pytest.mark.parametrize("enabled", [False, True])
 @patch("airflow.utils.usage_data_collection.get_platform_info", return_value=("Linux", "x86_64"))
 @patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
 @patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
 @patch("airflow.utils.usage_data_collection.get_executor", return_value="SequentialExecutor")
 @patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.8.5")
+@patch("airflow.utils.usage_data_collection.get_plugin_counts")
 def test_build_scarf_url(
-    get_platform_info,
-    get_database_version,
-    get_database_name,
-    get_executor,
+    get_plugin_counts,
     get_python_version,
+    get_executor,
+    get_database_name,
+    get_database_version,
+    get_platform_info,
     enabled,
-    dags_count,
 ):
+    get_plugin_counts.return_value = {
+        "plugins": 10,
+        "flask_blueprints": 15,
+        "appbuilder_views": 20,
+        "appbuilder_menu_items": 25,
+        "timetables": 30,
+    }
     with patch("airflow.settings.is_usage_data_collection_enabled", return_value=enabled):
-        result = build_scarf_url(dags_count)
+        result = build_scarf_url(5)
         expected_url = (
             "https://apacheairflow.gateway.scarf.sh/webserver/"
             f"{airflow_version}/3.8.5/Linux/x86_64/postgres/12.3/SequentialExecutor/5"
+            f"/10/15/20/25/30"
         )
         if enabled:
             assert result == expected_url

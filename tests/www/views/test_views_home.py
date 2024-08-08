@@ -29,6 +29,7 @@ from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
+from tests.test_utils.permissions import _resource_name
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 pytestmark = pytest.mark.db_test
@@ -147,7 +148,10 @@ def user_single_dag(app):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-            (permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_FILTER_DAG_IDS[0])),
+            (
+                permissions.ACTION_CAN_READ,
+                _resource_name(TEST_FILTER_DAG_IDS[0], permissions.RESOURCE_DAG),
+            ),
         ],
     )
 
@@ -172,7 +176,10 @@ def user_single_dag_edit(app):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("filter_test_1")),
+            (
+                permissions.ACTION_CAN_EDIT,
+                _resource_name("filter_test_1", permissions.RESOURCE_DAG),
+            ),
         ],
     )
 

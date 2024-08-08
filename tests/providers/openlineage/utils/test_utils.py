@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import pathlib
 from unittest.mock import MagicMock, patch
 
 from airflow import DAG
@@ -138,6 +139,7 @@ def test_get_airflow_dag_run_facet():
             dag={
                 "dag_id": "dag",
                 "description": None,
+                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
                 "owner": "airflow",
                 "timetable": {},
                 "schedule_interval": "@once",
