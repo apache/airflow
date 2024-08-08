@@ -1,1 +1,1 @@
-Enable ``get_current_context()`` to work in virtual environments. This is a dictionary object, not a model defined by Airflow, so care should be taken when using it.
+Enable ``get_current_context()`` to work in virtual environments. The following ``Operators`` are affected: ``PythonVirtualenvOperator``, ``BranchPythonVirtualenvOperator``, ``ExternalPythonOperator``, ``BranchExternalPythonOperator``
