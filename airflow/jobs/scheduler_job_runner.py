@@ -2048,6 +2048,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.flush()
 
     def _set_orphaned(self, dataset: DatasetModel) -> int:
+        if dataset.is_orphaned:
+            return 0
+
         self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
         dataset.is_orphaned = expression.true()
         return 1
