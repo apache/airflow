@@ -39,9 +39,9 @@ except ImportError:
     pytest.skip("MySQL not available", allow_module_level=True)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_bigquery_to_mysql"
+DAG_ID = "bigquery_to_mysql"
 
-DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "INVALID BUCKET NAME")
 TABLE = "table_42"
 destination_table = "mysql_table_test"

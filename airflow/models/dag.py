@@ -67,7 +67,6 @@ from sqlalchemy import (
     Text,
     and_,
     case,
-    delete,
     func,
     not_,
     or_,
@@ -104,7 +103,11 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import (
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetModel,
+)
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -173,7 +176,9 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection["Dataset"]]
+ScheduleArg = Union[
+    ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection[Union["Dataset", "DatasetAlias"]]
+]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -304,7 +309,6 @@ def _triggerer_is_healthy():
     return job and job.is_alive()
 
 
-@internal_api_call
 @provide_session
 def _create_orm_dagrun(
     dag,
@@ -451,6 +455,8 @@ class DAG(LoggingMixin):
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
+        or it can specify the resource name if there is a DAGs Run resource, e.g.,
+        "{'role1': {'DAG Runs': {'can_create'}}, 'role2': {'DAGs': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -540,7 +546,7 @@ class DAG(LoggingMixin):
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
         params: abc.MutableMapping | None = None,
-        access_control: dict | None = None,
+        access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
         render_template_as_native_obj: bool = False,
@@ -669,8 +675,8 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable(schedule)
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, Dataset) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be datasets")
+            if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be datasets or dataset aliases")
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, ArgNotSet):
@@ -859,7 +865,7 @@ class DAG(LoggingMixin):
         return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other):
-        if type(self) == type(other):
+        if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
             return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
@@ -907,21 +913,33 @@ class DAG(LoggingMixin):
         """
         if access_control is None:
             return None
-        new_perm_mapping = {
+        new_dag_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
             permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
         }
+
+        def update_old_perm(permission: str):
+            new_perm = new_dag_perm_mapping.get(permission, permission)
+            if new_perm != permission:
+                warnings.warn(
+                    f"The '{permission}' permission is deprecated. Please use '{new_perm}'.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=3,
+                )
+            return new_perm
+
         updated_access_control = {}
         for role, perms in access_control.items():
-            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
-
-        if access_control != updated_access_control:
-            warnings.warn(
-                "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
-                "Please use 'can_read' and 'can_edit', respectively.",
-                RemovedInAirflow3Warning,
-                stacklevel=3,
-            )
+            updated_access_control[role] = updated_access_control.get(role, {})
+            if isinstance(perms, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
+            else:
+                updated_access_control[role] = perms
+            if permissions.RESOURCE_DAG in updated_access_control[role]:
+                updated_access_control[role][permissions.RESOURCE_DAG] = {
+                    update_old_perm(perm) for perm in updated_access_control[role][permissions.RESOURCE_DAG]
+                }
 
         return updated_access_control
 
@@ -3184,6 +3202,8 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
+        from airflow.models.dataset import DagScheduleDatasetAliasReference
+
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
 
@@ -3193,6 +3213,7 @@ class DAG(LoggingMixin):
             .options(joinedload(DagModel.tags, innerjoin=False))
             .where(DagModel.dag_id.in_(dag_ids))
             .options(joinedload(DagModel.schedule_dataset_references))
+            .options(joinedload(DagModel.schedule_dataset_alias_references))
             .options(joinedload(DagModel.task_outlet_dataset_references))
         )
         query = with_row_locks(query, of=DagModel, session=session)
@@ -3294,12 +3315,13 @@ class DAG(LoggingMixin):
             TaskOutletDatasetReference,
         )
 
-        dag_references = defaultdict(set)
+        dag_references: dict[str, set[Dataset | DatasetAlias]] = defaultdict(set)
         outlet_references = defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
-        outlet_dataset_alias_models: list[DatasetAliasModel] = []
+        outlet_dataset_alias_models: set[DatasetAliasModel] = set()
+        input_dataset_aliases: set[DatasetAliasModel] = set()
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -3308,21 +3330,29 @@ class DAG(LoggingMixin):
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
             if not (dataset_condition := dag.timetable.dataset_condition):
-                if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
-                    curr_orm_dag.schedule_dataset_references = []
+                if curr_orm_dag:
+                    if curr_orm_dag.schedule_dataset_references:
+                        curr_orm_dag.schedule_dataset_references = []
+                    if curr_orm_dag.schedule_dataset_alias_references:
+                        curr_orm_dag.schedule_dataset_alias_references = []
             else:
                 for _, dataset in dataset_condition.iter_datasets():
-                    dag_references[dag.dag_id].add(dataset.uri)
+                    dag_references[dag.dag_id].add(Dataset(uri=dataset.uri))
                     input_datasets[DatasetModel.from_public(dataset)] = None
+
+                for dataset_alias in dataset_condition.iter_dataset_aliases():
+                    dag_references[dag.dag_id].add(dataset_alias)
+                    input_dataset_aliases.add(DatasetAliasModel.from_public(dataset_alias))
+
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets: list[Dataset] = []
-                dataset_alias_outlets: list[DatasetAlias] = []
+                dataset_alias_outlets: set[DatasetAlias] = set()
                 for outlet in task.outlets:
                     if isinstance(outlet, Dataset):
                         dataset_outlets.append(outlet)
                     elif isinstance(outlet, DatasetAlias):
-                        dataset_alias_outlets.append(outlet)
+                        dataset_alias_outlets.add(outlet)
 
                 if not dataset_outlets:
                     if curr_outlet_references:
@@ -3339,7 +3369,7 @@ class DAG(LoggingMixin):
                     outlet_datasets[DatasetModel.from_public(d)] = None
 
                 for d_a in dataset_alias_outlets:
-                    outlet_dataset_alias_models.append(DatasetAliasModel.from_public(d_a))
+                    outlet_dataset_alias_models.add(DatasetAliasModel.from_public(d_a))
 
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
@@ -3366,49 +3396,55 @@ class DAG(LoggingMixin):
         del all_datasets
 
         # store dataset aliases
-        new_dataset_alias_models: list[DatasetAliasModel] = []
-        if outlet_dataset_alias_models:
-            outlet_dataset_alias_names = [dataset_alias.name for dataset_alias in outlet_dataset_alias_models]
+        all_datasets_alias_models = input_dataset_aliases | outlet_dataset_alias_models
+        stored_dataset_aliases: dict[str, DatasetAliasModel] = {}
+        new_dataset_alias_models: set[DatasetAliasModel] = set()
+        if all_datasets_alias_models:
+            all_dataset_alias_names = {dataset_alias.name for dataset_alias in all_datasets_alias_models}
 
-            stored_dataset_alias_names = session.scalars(
-                select(DatasetAliasModel.name).where(DatasetAliasModel.name.in_(outlet_dataset_alias_names))
-            ).fetchall()
-            removed_dataset_alias_names = session.scalars(
-                select(DatasetAliasModel.name).where(
-                    DatasetAliasModel.name.not_in(outlet_dataset_alias_names)
-                )
-            ).fetchall()
+            stored_dataset_aliases = {
+                dsa_m.name: dsa_m
+                for dsa_m in session.scalars(
+                    select(DatasetAliasModel).where(DatasetAliasModel.name.in_(all_dataset_alias_names))
+                ).fetchall()
+            }
 
-            if stored_dataset_alias_names:
-                new_dataset_alias_models = [
+            if stored_dataset_aliases:
+                new_dataset_alias_models = {
                     dataset_alias_model
-                    for dataset_alias_model in outlet_dataset_alias_models
-                    if dataset_alias_model.name not in stored_dataset_alias_names
-                ]
+                    for dataset_alias_model in all_datasets_alias_models
+                    if dataset_alias_model.name not in stored_dataset_aliases.keys()
+                }
             else:
-                new_dataset_alias_models = outlet_dataset_alias_models
-            session.add_all(new_dataset_alias_models)
+                new_dataset_alias_models = all_datasets_alias_models
 
-            if removed_dataset_alias_names:
-                session.execute(
-                    delete(DatasetAliasModel).where(DatasetAliasModel.name.in_(removed_dataset_alias_names))
-                )
+            session.add_all(new_dataset_alias_models)
+        session.flush()
+        stored_dataset_aliases.update(
+            {dataset_alias.name: dataset_alias for dataset_alias in new_dataset_alias_models}
+        )
 
         del new_dataset_alias_models
-        del outlet_dataset_alias_models
+        del all_datasets_alias_models
 
-        # reconcile dag-schedule-on-dataset references
-        for dag_id, uri_list in dag_references.items():
+        # reconcile dag-schedule-on-dataset and dag-schedule-on-dataset-alias references
+        for dag_id, base_dataset_list in dag_references.items():
             dag_refs_needed = {
-                DagScheduleDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id)
-                for uri in uri_list
+                DagScheduleDatasetReference(dataset_id=stored_datasets[base_dataset.uri].id, dag_id=dag_id)
+                if isinstance(base_dataset, Dataset)
+                else DagScheduleDatasetAliasReference(
+                    alias_id=stored_dataset_aliases[base_dataset.name].id, dag_id=dag_id
+                )
+                for base_dataset in base_dataset_list
             }
-            dag_refs_stored = set(
-                existing_dags.get(dag_id)
-                and existing_dags.get(dag_id).schedule_dataset_references  # type: ignore
-                or []
+
+            dag_refs_stored = (
+                set(existing_dags.get(dag_id).schedule_dataset_references)  # type: ignore
+                | set(existing_dags.get(dag_id).schedule_dataset_alias_references)  # type: ignore
+                if existing_dags.get(dag_id)
+                else set()
             )
-            dag_refs_to_add = {x for x in dag_refs_needed if x not in dag_refs_stored}
+            dag_refs_to_add = dag_refs_needed - dag_refs_stored
             session.bulk_save_objects(dag_refs_to_add)
             for obj in dag_refs_stored - dag_refs_needed:
                 session.delete(obj)
@@ -3583,6 +3619,7 @@ class DAG(LoggingMixin):
             exclusion_list = {
                 "parent_dag",
                 "schedule_dataset_references",
+                "schedule_dataset_alias_references",
                 "task_outlet_dataset_references",
                 "_old_context_manager_dags",
                 "safe_dag_id",
@@ -3787,6 +3824,11 @@ class DagModel(Base):
     )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
+    )
+    schedule_dataset_alias_references = relationship(
+        "DagScheduleDatasetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
@@ -4009,6 +4051,7 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
+
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
@@ -4133,7 +4176,7 @@ def dag(
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
     params: abc.MutableMapping | None = None,
-    access_control: dict | None = None,
+    access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
     render_template_as_native_obj: bool = False,

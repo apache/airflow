@@ -84,6 +84,7 @@ class RedshiftToS3Operator(BaseOperator):
         "unload_options",
         "select_query",
         "redshift_conn_id",
+        "redshift_data_api_kwargs",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"select_query": "sql"}

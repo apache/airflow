@@ -17,19 +17,12 @@
 from __future__ import annotations
 
 from attrs import define
-from deprecated import deprecated
-from openlineage.client.facet import BaseFacet
+from openlineage.client.facet_v2 import JobFacet, RunFacet
 from openlineage.client.utils import RedactMixin
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
-
-@deprecated(
-    reason="To be removed in the next release. Make sure to use information from AirflowRunFacet instead.",
-    category=AirflowProviderDeprecationWarning,
-)
-@define(slots=False)
-class AirflowMappedTaskRunFacet(BaseFacet):
+@define
+class AirflowMappedTaskRunFacet(RunFacet):
     """Run facet containing information about mapped tasks."""
 
     mapIndex: int
@@ -47,8 +40,8 @@ class AirflowMappedTaskRunFacet(BaseFacet):
         )
 
 
-@define(slots=False)
-class AirflowJobFacet(BaseFacet):
+@define
+class AirflowJobFacet(JobFacet):
     """
     Composite Airflow job facet.
 
@@ -70,8 +63,8 @@ class AirflowJobFacet(BaseFacet):
     tasks: dict
 
 
-@define(slots=False)
-class AirflowStateRunFacet(BaseFacet):
+@define
+class AirflowStateRunFacet(RunFacet):
     """
     Airflow facet providing state information.
 
@@ -89,8 +82,8 @@ class AirflowStateRunFacet(BaseFacet):
     tasksState: dict[str, str]
 
 
-@define(slots=False)
-class AirflowRunFacet(BaseFacet):
+@define
+class AirflowRunFacet(RunFacet):
     """Composite Airflow run facet."""
 
     dag: dict
@@ -100,7 +93,15 @@ class AirflowRunFacet(BaseFacet):
     taskUuid: str
 
 
-@define(slots=False)
+@define
+class AirflowDagRunFacet(RunFacet):
+    """Composite Airflow DAG run facet."""
+
+    dag: dict
+    dagRun: dict
+
+
+@define
 class UnknownOperatorInstance(RedactMixin):
     """
     Describes an unknown operator.
@@ -115,12 +116,8 @@ class UnknownOperatorInstance(RedactMixin):
     _skip_redact = ["name", "type"]
 
 
-@deprecated(
-    reason="To be removed in the next release. Make sure to use information from AirflowRunFacet instead.",
-    category=AirflowProviderDeprecationWarning,
-)
-@define(slots=False)
-class UnknownOperatorAttributeRunFacet(BaseFacet):
+@define
+class UnknownOperatorAttributeRunFacet(RunFacet):
     """RunFacet that describes unknown operators in an Airflow DAG."""
 
     unknownItems: list[UnknownOperatorInstance]

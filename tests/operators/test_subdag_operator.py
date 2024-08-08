@@ -88,21 +88,21 @@ class TestSubDagOperator:
             assert op.dag == dag
             assert op.subdag == subdag
 
-    def test_subdag_pools(self):
+    def test_subdag_pools(self, dag_maker):
         """
         Subdags and subdag tasks can't both have a pool with 1 slot
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.child", default_args=default_args)
+        with dag_maker("parent", default_args=default_args, serialized=True) as dag:
+            pass
 
-        session = airflow.settings.Session()
         pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
         pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10, include_deferred=False)
-        session.add(pool_1)
-        session.add(pool_10)
-        session.commit()
+        dag_maker.session.add(pool_1)
+        dag_maker.session.add(pool_10)
+        dag_maker.session.commit()
 
-        EmptyOperator(task_id="dummy", dag=subdag, pool="test_pool_1")
+        with dag_maker("parent.child", default_args=default_args, serialized=True) as subdag:
+            EmptyOperator(task_id="dummy", pool="test_pool_1")
 
         with pytest.raises(AirflowException):
             SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_1")
@@ -112,9 +112,9 @@ class TestSubDagOperator:
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
             SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_10")
 
-        session.delete(pool_1)
-        session.delete(pool_10)
-        session.commit()
+        dag_maker.session.delete(pool_1)
+        dag_maker.session.delete(pool_10)
+        dag_maker.session.commit()
 
     def test_subdag_pools_no_possible_conflict(self):
         """
@@ -269,6 +269,7 @@ class TestSubDagOperator:
         subdag.create_dagrun.assert_not_called()
         assert 3 == subdag_task._get_dagrun.call_count
 
+    @pytest.mark.skip_if_database_isolation_mode  # this uses functions which operate directly on DB
     def test_rerun_failed_subdag(self, dag_maker):
         """
         When there is an existing DagRun with failed state, reset the DagRun and the

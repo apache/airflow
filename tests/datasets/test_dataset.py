@@ -25,8 +25,17 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDataset, Dataset, DatasetAll, DatasetAny, _sanitize_uri
-from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.datasets import (
+    BaseDataset,
+    Dataset,
+    DatasetAlias,
+    DatasetAll,
+    DatasetAny,
+    _DatasetAliasCondition,
+    _get_normalized_scheme,
+    _sanitize_uri,
+)
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
@@ -126,6 +135,24 @@ def test_dataset_logic_operations():
 
 def test_dataset_iter_datasets():
     assert list(dataset1.iter_datasets()) == [("s3://bucket1/data1", dataset1)]
+
+
+@pytest.mark.db_test
+def test_dataset_iter_dataset_aliases():
+    base_dataset = DatasetAll(
+        DatasetAlias("example-alias-1"),
+        Dataset("1"),
+        DatasetAny(
+            Dataset("2"),
+            DatasetAlias("example-alias-2"),
+            Dataset("3"),
+            DatasetAll(DatasetAlias("example-alias-3"), Dataset("4"), DatasetAlias("example-alias-4")),
+        ),
+        DatasetAll(DatasetAlias("example-alias-5"), Dataset("5")),
+    )
+    assert list(base_dataset.iter_dataset_aliases()) == [
+        DatasetAlias(f"example-alias-{i}") for i in range(1, 6)
+    ]
 
 
 def test_dataset_evaluate():
@@ -351,7 +378,7 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
 
 
 def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
-    if type(d1) != type(d2):
+    if type(d1) is not type(d2):
         return False
 
     if isinstance(d1, Dataset) and isinstance(d2, Dataset):
@@ -447,26 +474,121 @@ def test_datasets_expression_error(expression: Callable[[], None], error: str) -
     assert str(info.value) == error
 
 
-def mock_get_uri_normalizer(normalized_scheme):
+def test_get_normalized_scheme():
+    assert _get_normalized_scheme("http://example.com") == "http"
+    assert _get_normalized_scheme("HTTPS://example.com") == "https"
+    assert _get_normalized_scheme("ftp://example.com") == "ftp"
+    assert _get_normalized_scheme("file://") == "file"
+
+    assert _get_normalized_scheme("example.com") == ""
+    assert _get_normalized_scheme("") == ""
+    assert _get_normalized_scheme(" ") == ""
+
+
+def _mock_get_uri_normalizer_raising_error(normalized_scheme):
     def normalizer(uri):
         raise ValueError("Incorrect URI format")
 
     return normalizer
 
 
-@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+def _mock_get_uri_normalizer_noop(normalized_scheme):
+    def normalizer(uri):
+        return uri
+
+    return normalizer
+
+
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
 @patch("airflow.datasets.warnings.warn")
-def test__sanitize_uri_raises_warning(mock_warn):
+def test_sanitize_uri_raises_warning(mock_warn):
     _sanitize_uri("postgres://localhost:5432/database.schema.table")
     msg = mock_warn.call_args.args[0]
     assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant" in msg
     assert "In Airflow 3, this will raise an exception." in msg
 
 
-@patch("airflow.datasets._get_uri_normalizer", mock_get_uri_normalizer)
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
 @conf_vars({("core", "strict_dataset_uri_validation"): "True"})
-def test__sanitize_uri_raises_exception():
+def test_sanitize_uri_raises_exception():
     with pytest.raises(ValueError) as e_info:
         _sanitize_uri("postgres://localhost:5432/database.schema.table")
     assert isinstance(e_info.value, ValueError)
     assert str(e_info.value) == "Incorrect URI format"
+
+
+@patch("airflow.datasets._get_uri_normalizer", lambda x: None)
+def test_normalize_uri_no_normalizer_found():
+    dataset = Dataset(uri="any_uri_without_normalizer_defined")
+    assert dataset.normalized_uri is None
+
+
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
+def test_normalize_uri_invalid_uri():
+    dataset = Dataset(uri="any_uri_not_aip60_compliant")
+    assert dataset.normalized_uri is None
+
+
+@patch("airflow.datasets._get_uri_normalizer", _mock_get_uri_normalizer_noop)
+@patch("airflow.datasets._get_normalized_scheme", lambda x: "valid_scheme")
+def test_normalize_uri_valid_uri():
+    dataset = Dataset(uri="valid_aip60_uri")
+    assert dataset.normalized_uri == "valid_aip60_uri"
+
+
+@pytest.mark.skip_if_database_isolation_mode
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_datasets")
+class Test_DatasetAliasCondition:
+    @pytest.fixture
+    def ds_1(self, session):
+        """Example dataset links to dataset alias resolved_dsa_2."""
+        ds_uri = "test_uri"
+        ds_1 = DatasetModel(id=1, uri=ds_uri)
+
+        session.add(ds_1)
+        session.commit()
+
+        return ds_1
+
+    @pytest.fixture
+    def dsa_1(self, session):
+        """Example dataset alias links to no datasets."""
+        dsa_name = "test_name"
+        dsa_1 = DatasetAliasModel(name=dsa_name)
+
+        session.add(dsa_1)
+        session.commit()
+
+        return dsa_1
+
+    @pytest.fixture
+    def resolved_dsa_2(self, session, ds_1):
+        """Example dataset alias links to no dataset dsa_1."""
+        dsa_name = "test_name_2"
+        dsa_2 = DatasetAliasModel(name=dsa_name)
+        dsa_2.datasets.append(ds_1)
+
+        session.add(dsa_2)
+        session.commit()
+
+        return dsa_2
+
+    def test_init(self, dsa_1, ds_1, resolved_dsa_2):
+        cond = _DatasetAliasCondition(name=dsa_1.name)
+        assert cond.objects == []
+
+        cond = _DatasetAliasCondition(name=resolved_dsa_2.name)
+        assert cond.objects == [Dataset(uri=ds_1.uri)]
+
+    def test_as_expression(self, dsa_1, resolved_dsa_2):
+        for dsa in (dsa_1, resolved_dsa_2):
+            cond = _DatasetAliasCondition(dsa.name)
+            assert cond.as_expression() == {"alias": dsa.name}
+
+    def test_evalute(self, dsa_1, resolved_dsa_2, ds_1):
+        cond = _DatasetAliasCondition(dsa_1.name)
+        assert cond.evaluate({ds_1.uri: True}) is False
+
+        cond = _DatasetAliasCondition(resolved_dsa_2.name)
+        assert cond.evaluate({ds_1.uri: True}) is True

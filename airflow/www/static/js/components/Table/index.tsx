@@ -288,4 +288,5 @@ export const Table = ({
   );
 };
 
+export * from "./CardList";
 export * from "./Cells";

@@ -207,7 +207,7 @@ class DockerSwarmOperator(DockerOperator):
                 since=since,
                 timestamps=True,
             )
-            logs = b"".join(logs).decode().splitlines()
+            logs = list(map(lambda line: line.decode("utf-8"), logs))
             if last_line_logged in logs:
                 logs = logs[logs.index(last_line_logged) + 1 :]
             for line in logs:

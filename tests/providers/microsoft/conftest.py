@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import string
+from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
 from typing import TYPE_CHECKING, Any, Iterable, TypeVar
@@ -162,13 +164,31 @@ def mock_context(task) -> Context:
     return Context(values)  # type: ignore[misc]
 
 
+def remove_license_header(content: str) -> str:
+    """
+    Removes license header from the given content.
+    """
+    # Define the pattern to match both block and single-line comments
+    pattern = r"(/\*.*?\*/)|(--.*?(\r?\n|\r))|(#.*?(\r?\n|\r))"
+
+    # Check if there is a license header at the beginning of the file
+    if re.match(pattern, content, flags=re.DOTALL):
+        # Use re.DOTALL to allow .* to match newline characters in block comments
+        return re.sub(pattern, "", content, flags=re.DOTALL).strip()
+    return content.strip()
+
+
 def load_json(*args: str):
-    with open(join(dirname(__file__), "azure", join(*args)), encoding="utf-8") as file:
+    directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]  # type: ignore
+    with open(join(dirname(__file__), directory, join(*args)), encoding="utf-8") as file:
         return json.load(file)
 
 
 def load_file(*args: str, mode="r", encoding="utf-8"):
-    with open(join(dirname(__file__), "azure", join(*args)), mode=mode, encoding=encoding) as file:
+    directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]  # type: ignore
+    with open(join(dirname(__file__), directory, join(*args)), mode=mode, encoding=encoding) as file:
+        if mode == "r":
+            return remove_license_header(file.read())
         return file.read()
 
 

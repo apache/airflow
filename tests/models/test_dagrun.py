@@ -51,7 +51,7 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 if TYPE_CHECKING:
@@ -2041,6 +2041,38 @@ def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     empty_ti = next(x for x in tis if x.task_id == "empty_task")
     assert real_ti.try_number == 1
     assert empty_ti.try_number == 1
+
+
+def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
+    """
+    Test that an operator with start_trigger_args set can be directly deferred during scheduling.
+    """
+
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs={},
+            next_method="execute_complete",
+            timeout=None,
+        )
+        start_from_trigger = False
+
+        def __init__(self, *args, start_from_trigger: bool = False, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.start_from_trigger = start_from_trigger
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        TestOperator.partial(task_id="test_task").expand(start_from_trigger=[True, False])
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    dr.schedule_tis(dr.task_instances, session=session)
+    tis = [(ti.state, ti.map_index) for ti in dr.task_instances]
+    assert tis[0] == (TaskInstanceState.DEFERRED, 0)
+    assert tis[1] == (None, 1)
 
 
 def test_mapped_expand_kwargs(dag_maker):

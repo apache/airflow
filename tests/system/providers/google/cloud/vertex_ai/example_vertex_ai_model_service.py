@@ -61,7 +61,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_model_service_operations"
+DAG_ID = "vertex_ai_model_service_operations"
 REGION = "us-central1"
 TRAIN_DISPLAY_NAME = f"train-housing-custom-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"custom-housing-model-{ENV_ID}"
@@ -87,7 +87,12 @@ TABULAR_DATASET = {
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 
-LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
+# VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
+# For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
+# Because `gcs/data/` is shared folder for Airflow's workers.
+LOCAL_TRAINING_SCRIPT_PATH = os.environ.get(
+    "VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH", "california_housing_training_script.py"
+)
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -323,6 +328,13 @@ with DAG(
         >> delete_bucket
     )
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

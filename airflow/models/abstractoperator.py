@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
     from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
@@ -427,6 +428,27 @@ class AbstractOperator(Templater, DAGNode):
         """
         raise NotImplementedError()
 
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
+        execution directly from triggerer.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the start_trigger_args value of the current abstract operator.
+
+        MappedOperator uses this to unmap start_trigger_args to decide how to start a task from triggerer.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
     @property
     def priority_weight_total(self) -> int:
         """
@@ -444,11 +466,11 @@ class AbstractOperator(Templater, DAGNode):
             _UpstreamPriorityWeightStrategy,
         )
 
-        if type(self.weight_rule) == _AbsolutePriorityWeightStrategy:
+        if isinstance(self.weight_rule, _AbsolutePriorityWeightStrategy):
             return self.priority_weight
-        elif type(self.weight_rule) == _DownstreamPriorityWeightStrategy:
+        elif isinstance(self.weight_rule, _DownstreamPriorityWeightStrategy):
             upstream = False
-        elif type(self.weight_rule) == _UpstreamPriorityWeightStrategy:
+        elif isinstance(self.weight_rule, _UpstreamPriorityWeightStrategy):
             upstream = True
         else:
             upstream = False

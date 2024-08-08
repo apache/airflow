@@ -266,6 +266,11 @@ option_mysql_version = click.option(
     envvar="MYSQL_VERSION",
     show_default=True,
 )
+option_no_db_cleanup = click.option(
+    "--no-db-cleanup",
+    help="Do not clear the database before each test module",
+    is_flag=True,
+)
 option_installation_package_format = click.option(
     "--package-format",
     type=BetterChoice(ALLOWED_INSTALLATION_PACKAGE_FORMATS),
@@ -392,6 +397,14 @@ option_use_airflow_version = click.option(
     "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
+)
+option_airflow_version = click.option(
+    "-A",
+    "--airflow-version",
+    help="Airflow version to use for the command.",
+    type=str,
+    envvar="AIRFLOW_VERSION",
+    required=True,
 )
 option_verbose = click.option(
     "-v",

@@ -480,14 +480,13 @@ class SnowflakeHook(DbApiHook):
         return urlparse(uri).hostname
 
     def get_openlineage_database_specific_lineage(self, _) -> OperatorLineage | None:
-        from openlineage.client.facet import ExternalQueryRunFacet
-
+        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if self.query_ids:
             self.log.debug("openlineage: getting connection to get database info")
-            connection = self.get_connection(getattr(self, self.conn_name_attr))
+            connection = self.get_connection(self.get_conn_id())
             namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
             return OperatorLineage(
                 run_facets={

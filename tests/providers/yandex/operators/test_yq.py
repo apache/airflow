@@ -21,6 +21,9 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+
+yandexcloud = pytest.importorskip("yandexcloud")
+
 import responses
 from responses import matchers
 

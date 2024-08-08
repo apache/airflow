@@ -24,7 +24,7 @@ import re
 from contextlib import redirect_stdout, suppress
 from functools import wraps
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 import attrs
 from deprecated import deprecated
@@ -37,11 +37,11 @@ from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move t
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowDagRunFacet,
     AirflowJobFacet,
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
     AirflowStateRunFacet,
-    BaseFacet,
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
@@ -55,12 +55,16 @@ from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
+    from openlineage.client.facet_v2 import RunFacet
+
     from airflow.models import DagRun, TaskInstance
+    from airflow.utils.state import TaskInstanceState
 
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def try_import_from_string(string: str) -> Any:
@@ -78,12 +82,56 @@ def get_job_name(task: TaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
-def get_custom_facets(task_instance: TaskInstance | None = None) -> dict[str, Any]:
-    custom_facets = {}
+def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
+    log.debug(
+        "AirflowMappedTaskRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        custom_facets["airflow_mappedTask"] = AirflowMappedTaskRunFacet.from_task_instance(task_instance)
+        return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
+    return {}
+
+
+def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) -> dict[str, RunFacet]:
+    custom_facets = {}
+
+    # Append custom run facets by executing the custom_run_facet functions.
+    for custom_facet_func in conf.custom_run_facets():
+        try:
+            func: Callable[[TaskInstance, TaskInstanceState], dict[str, RunFacet]] | None = (
+                try_import_from_string(custom_facet_func)
+            )
+            if not func:
+                log.warning(
+                    "OpenLineage is unable to import custom facet function `%s`; will ignore it.",
+                    custom_facet_func,
+                )
+                continue
+            facets: dict[str, RunFacet] | None = func(ti, ti_state)
+            if facets and isinstance(facets, dict):
+                duplicate_facet_keys = [facet_key for facet_key in facets if facet_key in custom_facets]
+                if duplicate_facet_keys:
+                    log.warning(
+                        "Duplicate OpenLineage custom facets key(s) found: `%s` from function `%s`; "
+                        "this will overwrite the previous value.",
+                        ", ".join(duplicate_facet_keys),
+                        custom_facet_func,
+                    )
+                log.debug(
+                    "Adding OpenLineage custom facet with key(s): `%s` from function `%s`.",
+                    tuple(facets),
+                    custom_facet_func,
+                )
+                custom_facets.update(facets)
+        except Exception as exc:
+            log.warning(
+                "Error processing custom facet function `%s`; will ignore it. Error was: %s: %s",
+                custom_facet_func,
+                type(exc).__name__,
+                exc,
+            )
     return custom_facets
 
 
@@ -175,7 +223,19 @@ class InfoJsonEncodable(dict):
                     setattr(self, field, getattr(self.obj, field))
                     self._fields.append(field)
         else:
-            for field, val in self.obj.__dict__.items():
+            if hasattr(self.obj, "__dict__"):
+                obj_fields = self.obj.__dict__
+            elif attrs.has(self.obj.__class__):  # e.g. attrs.define class with slots=True has no __dict__
+                obj_fields = {
+                    field.name: getattr(self.obj, field.name) for field in attrs.fields(self.obj.__class__)
+                }
+            else:
+                raise ValueError(
+                    "Cannot iterate over fields: "
+                    f"The object of type {type(self.obj).__name__} neither has a __dict__ attribute "
+                    "nor is defined as an attrs class."
+                )
+            for field, val in obj_fields.items():
                 if field not in self._fields and field not in self.excludes and field not in self.renames:
                     setattr(self, field, val)
                     self._fields.append(field)
@@ -184,7 +244,7 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "owner", "schedule_interval", "start_date", "tags"]
+    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -307,13 +367,24 @@ class TaskGroupInfo(InfoJsonEncodable):
     ]
 
 
+def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
+    if not dag_run.dag:
+        return {}
+    return {
+        "airflowDagRun": AirflowDagRunFacet(
+            dag=DagInfo(dag_run.dag),
+            dagRun=DagRunInfo(dag_run),
+        )
+    }
+
+
 def get_airflow_run_facet(
     dag_run: DagRun,
     dag: DAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
-) -> dict[str, BaseFacet]:
+) -> dict[str, AirflowRunFacet]:
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
@@ -325,7 +396,7 @@ def get_airflow_run_facet(
     }
 
 
-def get_airflow_job_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
     if not dag_run.dag:
         return {}
     return {
@@ -337,7 +408,7 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
     }
 
 
-def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, BaseFacet]:
+def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFacet]:
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run.get_state(),
@@ -469,6 +540,10 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
 def get_unknown_source_attribute_run_facet(task: BaseOperator, name: str | None = None):
     if not name:
         name = get_operator_class(task).__name__
+    log.debug(
+        "UnknownOperatorAttributeRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     return {
         "unknownSourceAttribute": attrs.asdict(
             UnknownOperatorAttributeRunFacet(
@@ -596,6 +671,34 @@ def normalize_sql(sql: str | Iterable[str]):
 
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    if not _IS_AIRFLOW_2_10_OR_HIGHER:
+    if not IS_AIRFLOW_2_10_OR_HIGHER:
         return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
     return True
+
+
+def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageDataset | None:
+    """
+    Convert a Dataset with an AIP-60 compliant URI to an OpenLineageDataset.
+
+    This function returns None if no URI normalizer is defined, no dataset converter is found or
+    some core Airflow changes are missing and ImportError is raised.
+    """
+    try:
+        from airflow.datasets import _get_normalized_scheme
+        from airflow.providers_manager import ProvidersManager
+
+        ol_converters = ProvidersManager().dataset_to_openlineage_converters
+        normalized_uri = dataset.normalized_uri
+    except (ImportError, AttributeError):
+        return None
+
+    if normalized_uri is None:
+        return None
+
+    if not (normalized_scheme := _get_normalized_scheme(normalized_uri)):
+        return None
+
+    if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
+        return None
+
+    return airflow_to_ol_converter(Dataset(uri=normalized_uri, extra=dataset.extra), lineage_context)

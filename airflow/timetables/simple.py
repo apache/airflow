@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
+from airflow.datasets import DatasetAlias, _DatasetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -165,6 +166,13 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
     def __init__(self, datasets: BaseDataset) -> None:
         super().__init__()
         self.dataset_condition = datasets
+        if isinstance(self.dataset_condition, DatasetAlias):
+            self.dataset_condition = _DatasetAliasCondition(self.dataset_condition.name)
+
+        if not next(self.dataset_condition.iter_datasets(), False):
+            self._summary = "Unresolved DatasetAlias"
+        else:
+            self._summary = "Dataset"
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -174,7 +182,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
 
     @property
     def summary(self) -> str:
-        return "Dataset"
+        return self._summary
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_dataset_condition

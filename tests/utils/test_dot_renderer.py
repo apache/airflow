@@ -26,7 +26,7 @@ from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.serialization.serialized_objects import DagDependency
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -34,7 +34,7 @@ from tests.test_utils.db import clear_db_dags
 
 START_DATE = timezone.utcnow()
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDotRenderer:

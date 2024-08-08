@@ -111,8 +111,9 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
         )
 
-        dag_file_processor.process_file(file_path, [], False, session)
+        dag_file_processor.process_file(file_path, [], False)
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback(self, mock_get_dagbag, create_dummy_dag, get_test_dag):
         """
@@ -143,11 +144,13 @@ class TestDagFileProcessor:
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
+        session.commit()
 
         DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
 
         assert sla_callback.called
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback_invalid_sla(self, mock_get_dagbag, create_dummy_dag):
         """
@@ -180,6 +183,7 @@ class TestDagFileProcessor:
         DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
         sla_callback.assert_not_called()
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback_sent_notification(self, mock_get_dagbag, create_dummy_dag):
         """
@@ -225,6 +229,7 @@ class TestDagFileProcessor:
 
         sla_callback.assert_not_called()
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(
@@ -272,6 +277,7 @@ class TestDagFileProcessor:
         # ti is successful thereby trying to insert a duplicate record.
         DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_continue_checking_the_task_instances_after_recording_missing_sla(
@@ -318,11 +324,16 @@ class TestDagFileProcessor:
         assert sla_miss_count == 2
         mock_stats_incr.assert_called_with("sla_missed", tags={"dag_id": "test_sla_miss", "task_id": "dummy"})
 
+    @pytest.mark.skip_if_database_isolation_mode
     @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback_exception(
-        self, mock_get_dagbag, mock_stats_incr, mock_get_log, create_dummy_dag
+        self,
+        mock_get_dagbag,
+        mock_stats_incr,
+        mock_get_log,
+        create_dummy_dag,
     ):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
@@ -372,6 +383,7 @@ class TestDagFileProcessor:
                 tags={"dag_id": f"test_sla_miss_{i}", "func_name": sla_callback.__name__},
             )
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.send_email")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(
@@ -407,12 +419,18 @@ class TestDagFileProcessor:
         assert email1 in send_email_to
         assert email2 not in send_email_to
 
+    @pytest.mark.skip_if_database_isolation_mode
     @patch.object(DagFileProcessor, "logger")
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
     @mock.patch("airflow.utils.email.send_email")
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_email_exception(
-        self, mock_get_dagbag, mock_send_email, mock_stats_incr, mock_get_log, create_dummy_dag
+        self,
+        mock_get_dagbag,
+        mock_send_email,
+        mock_stats_incr,
+        mock_get_log,
+        create_dummy_dag,
     ):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
@@ -453,6 +471,7 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.assert_called_once_with("sla_email_notification_failure", tags={"dag_id": dag_id})
 
+    @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_deleted_task(self, mock_get_dagbag, create_dummy_dag):
         """
@@ -508,7 +527,7 @@ class TestDagFileProcessor:
                 full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
             )
         ]
-        dag_file_processor.execute_callbacks(dagbag, requests, session)
+        dag_file_processor.execute_callbacks(dagbag, requests, dag_file_processor.UNIT_TEST_MODE, session)
         mock_ti_handle_failure.assert_called_once_with(
             error="Message", test_mode=conf.getboolean("core", "unit_test_mode"), session=session
         )
@@ -546,7 +565,7 @@ class TestDagFileProcessor:
                 full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
             )
         ]
-        dag_file_processor.execute_callbacks_without_dag(requests, session)
+        dag_file_processor.execute_callbacks_without_dag(requests, True, session)
         mock_ti_handle_failure.assert_called_once_with(
             error="Message", test_mode=conf.getboolean("core", "unit_test_mode"), session=session
         )
@@ -577,7 +596,7 @@ class TestDagFileProcessor:
                 full_filepath="A", simple_task_instance=SimpleTaskInstance.from_ti(ti), msg="Message"
             )
         ]
-        dag_file_processor.execute_callbacks(dagbag, requests)
+        dag_file_processor.execute_callbacks(dagbag, requests, False)
 
         with create_session() as session:
             tis = session.query(TaskInstance)
@@ -611,7 +630,7 @@ class TestDagFileProcessor:
                     msg="Message",
                 )
             ]
-            dag_file_processor.process_file(dag.fileloc, requests, session=session)
+            dag_file_processor.process_file(dag.fileloc, requests)
 
         ti.refresh_from_db()
         msg = " ".join([str(k) for k in ti.key.primary]) + " fired callback"
@@ -1016,7 +1035,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             with assert_queries_count(
-                expected_count=94,
+                expected_count=154,
                 margin=10,
                 session=session,
             ):

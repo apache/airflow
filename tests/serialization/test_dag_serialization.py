@@ -60,11 +60,11 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
@@ -238,8 +238,13 @@ serialized_simple_dag_ground_truth = {
             "__type": "dict",
             "__var": {
                 "test_role": {
-                    "__type": "set",
-                    "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                    "__type": "dict",
+                    "__var": {
+                        "DAGs": {
+                            "__type": "set",
+                            "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                        }
+                    },
                 }
             },
         },
@@ -1737,6 +1742,95 @@ class TestStringifiedDAGs:
             )
 
     @pytest.mark.db_test
+    def test_dag_deps_datasets_with_duplicate_dataset(self):
+        """
+        Check that dag_dependencies node is populated correctly for a DAG with duplicate datasets.
+        """
+        from airflow.sensors.external_task import ExternalTaskSensor
+
+        d1 = Dataset("d1")
+        d2 = Dataset("d2")
+        d3 = Dataset("d3")
+        d4 = Dataset("d4")
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
+            ExternalTaskSensor(
+                task_id="task1",
+                external_dag_id="external_dag_id",
+                mode="reschedule",
+            )
+            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
+
+            @dag.task(outlets=[d4])
+            def other_dataset_writer(x):
+                pass
+
+            other_dataset_writer.expand(x=[1, 2])
+
+        dag = SerializedDAG.to_dict(dag)
+        actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
+        expected = sorted(
+            [
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d4",
+                },
+                {
+                    "source": "external_dag_id",
+                    "target": "test",
+                    "dependency_type": "sensor",
+                    "dependency_id": "task1",
+                },
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d3",
+                },
+                {
+                    "source": "test",
+                    "target": "dataset",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d2",
+                },
+                {
+                    "source": "dataset",
+                    "target": "test",
+                    "dependency_type": "dataset",
+                    "dependency_id": "d1",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+                {
+                    "dependency_id": "d1",
+                    "dependency_type": "dataset",
+                    "source": "dataset",
+                    "target": "test",
+                },
+            ],
+            key=lambda x: tuple(x.values()),
+        )
+        assert actual == expected
+
+    @pytest.mark.db_test
     def test_dag_deps_datasets(self):
         """
         Check that dag_dependencies node is populated correctly for a DAG with datasets.
@@ -2195,8 +2289,8 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.triggers.testing.SuccessTrigger",
-                trigger_kwargs=None,
+                trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+                trigger_kwargs={"delta": timedelta(seconds=1)},
                 next_method="execute_complete",
                 next_kwargs=None,
                 timeout=None,
@@ -2205,7 +2299,7 @@ class TestStringifiedDAGs:
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.start_trigger_args.trigger_kwargs = {}
+                self.start_trigger_args.trigger_kwargs = {"delta": timedelta(seconds=2)}
                 self.start_from_trigger = True
 
             def execute_complete(self):
@@ -2234,16 +2328,28 @@ class TestStringifiedDAGs:
             Test2Operator(task_id="test_task_2")
 
         serialized_obj = SerializedDAG.to_dict(dag)
+        tasks = serialized_obj["dag"]["tasks"]
 
-        for task in serialized_obj["dag"]["tasks"]:
-            assert task["__var"]["start_trigger_args"] == {
-                "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
-                "trigger_kwargs": {},
-                "next_method": "execute_complete",
-                "next_kwargs": None,
-                "timeout": None,
-            }
-            assert task["__var"]["start_from_trigger"] is True
+        assert tasks[0]["__var"]["start_trigger_args"] == {
+            "__type": "START_TRIGGER_ARGS",
+            "trigger_cls": "airflow.triggers.temporal.TimeDeltaTrigger",
+            # "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "next_method": "execute_complete",
+            "next_kwargs": None,
+            "timeout": None,
+        }
+        assert tasks[0]["__var"]["start_from_trigger"] is True
+
+        assert tasks[1]["__var"]["start_trigger_args"] == {
+            "__type": "START_TRIGGER_ARGS",
+            "trigger_cls": "airflow.triggers.testing.SuccessTrigger",
+            "trigger_kwargs": {"__type": "dict", "__var": {}},
+            "next_method": "execute_complete",
+            "next_kwargs": None,
+            "timeout": None,
+        }
+        assert tasks[1]["__var"]["start_from_trigger"] is True
 
 
 def test_kubernetes_optional():

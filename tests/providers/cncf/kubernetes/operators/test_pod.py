@@ -21,7 +21,7 @@ import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pendulum
 import pytest
@@ -52,7 +52,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -135,10 +135,11 @@ class TestKubernetesPodOperator:
 
         patch.stopall()
 
-    def test_templates(self, create_task_instance_of_operator):
+    def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"
         ti = create_task_instance_of_operator(
             KubernetesPodOperator,
+            session=session,
             dag_id=dag_id,
             task_id="task-id",
             namespace="{{ dag.dag_id }}",
@@ -172,6 +173,8 @@ class TestKubernetesPodOperator:
             ],
         )
 
+        session.add(ti)
+        session.commit()
         rendered = ti.render_templates()
 
         assert dag_id == rendered.container_resources.limits["memory"]
@@ -1866,7 +1869,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     def test_async_create_pod_should_execute_successfully(
-        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push
+        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push, mocker
     ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
@@ -1889,7 +1892,9 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
             do_xcom_push=do_xcom_push,
         )
-        k.config_file_in_dict_representation = {"a": "b"}
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
 
         mocked_pod.return_value.metadata.name = TEST_NAME
         mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE

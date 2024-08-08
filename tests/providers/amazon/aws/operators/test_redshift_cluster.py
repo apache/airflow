@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import Mock
 
 import boto3
 import pytest
@@ -318,6 +319,7 @@ class TestResumeClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
+            wait_for_completion=True,
             deferrable=True,
         )
 
@@ -340,6 +342,7 @@ class TestResumeClusterOperator:
             task_id="task_test",
             cluster_identifier="test_cluster",
             aws_conn_id="aws_conn_test",
+            wait_for_completion=True,
             deferrable=True,
         )
 
@@ -366,7 +369,7 @@ class TestResumeClusterOperator:
         mock_get_waiter.assert_called_with("cluster_resumed")
         assert mock_get_waiter.call_count == 2
         mock_get_waiter().wait.assert_called_once_with(
-            ClusterIdentifier="test_cluster", WaiterConfig={"Delay": 10, "MaxAttempts": 10}
+            ClusterIdentifier="test_cluster", WaiterConfig={"Delay": 30, "MaxAttempts": 30}
         )
 
     def test_resume_cluster_failure(self):
@@ -437,6 +440,22 @@ class TestPauseClusterOperator:
             redshift_operator.execute(None)
         assert mock_conn.pause_cluster.call_count == 10
 
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "get_conn")
+    def test_pause_cluster_wait_for_completion(self, mock_get_conn, mock_get_waiter):
+        """Test Pause cluster operator with defer when deferrable param is true"""
+        mock_get_conn.return_value.pause_cluster.return_value = True
+        waiter = Mock()
+        mock_get_waiter.return_value = waiter
+
+        redshift_operator = RedshiftPauseClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", wait_for_completion=True
+        )
+
+        redshift_operator.execute(context=None)
+
+        waiter.wait.assert_called_once()
+
     @mock.patch.object(RedshiftHook, "cluster_status")
     @mock.patch.object(RedshiftHook, "get_conn")
     def test_pause_cluster_deferrable_mode(self, mock_get_conn, mock_cluster_status):
@@ -445,7 +464,7 @@ class TestPauseClusterOperator:
         mock_cluster_status.return_value = "available"
 
         redshift_operator = RedshiftPauseClusterOperator(
-            task_id="task_test", cluster_identifier="test_cluster", deferrable=True
+            task_id="task_test", cluster_identifier="test_cluster", wait_for_completion=True, deferrable=True
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -466,7 +485,7 @@ class TestPauseClusterOperator:
         mock_cluster_status.return_value = "deleting"
 
         redshift_operator = RedshiftPauseClusterOperator(
-            task_id="task_test", cluster_identifier="test_cluster", deferrable=True
+            task_id="task_test", cluster_identifier="test_cluster", wait_for_completion=True, deferrable=True
         )
 
         with pytest.raises(AirflowException):
