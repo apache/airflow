@@ -240,7 +240,7 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "owner", "schedule_interval", "start_date", "tags"]
+    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
