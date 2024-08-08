@@ -41,7 +41,7 @@ class MsSqlDialect(Dialect):
         )
         primary_keys = [pk[0] for pk in primary_keys] if primary_keys else []  # type: ignore
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
-        return primary_keys
+        return primary_keys  # type: ignore
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         primary_keys = self.get_primary_keys(table)

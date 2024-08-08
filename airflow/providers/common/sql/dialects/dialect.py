@@ -47,11 +47,11 @@ class Dialect(LoggingMixin):
 
     @property
     def _insert_statement_format(self) -> str:
-        return self.hook._insert_statement_format
+        return self.hook._insert_statement_format  # type: ignore
 
     @property
     def _replace_statement_format(self) -> str:
-        return self.hook._replace_statement_format
+        return self.hook._replace_statement_format  # type: ignore
 
     @classmethod
     def _extract_schema_from_table(cls, table: str) -> list[str]:
