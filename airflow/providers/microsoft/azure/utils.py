@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 import warnings
 from functools import partial, wraps
 from urllib.parse import urlparse, urlunparse
@@ -27,6 +28,41 @@ from azure.core.pipeline.transport import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from msrest.authentication import BasicTokenAuthentication
+
+
+class AzureCloud(Enum):
+    AzureGlobal = 'AzureGlobal'
+    AzureChinaCloud = 'AzureChinaCloud'
+    AzureUSGovernment = 'AzureUSGovernment'
+
+
+class AzureEndpoint:
+    @staticmethod
+    def get_management_endpoint(cloud: AzureCloud, https: bool = True) -> str:
+        endpoint = f'management.azure.com'
+        if cloud == AzureCloud.AzureChinaCloud:
+            endpoint = f'management.chinacloudapi.cn'
+        elif cloud == AzureCloud.AzureUSGovernment:
+            endpoint = f'management.usgovcloudapi.net'
+        return f'https://{endpoint}' if https else endpoint
+
+    @staticmethod
+    def get_login_endpoint(cloud: AzureCloud, https: bool = True) -> str:
+        endpoint = f'login.microsoftonline.com'
+        if cloud == AzureCloud.AzureChinaCloud:
+            endpoint = f'login.partner.microsoftonline.cn'
+        elif cloud == AzureCloud.AzureUSGovernment:
+            endpoint = f'login.microsoftonline.us'
+        return f'https://{endpoint}' if https else endpoint
+
+    @staticmethod
+    def get_adf_endpoint(cloud: AzureCloud, https: bool = True) -> str:
+        endpoint = 'adf.azure.com'
+        if cloud == AzureCloud.AzureChinaCloud:
+            endpoint = f'adf.azure.cn'
+        elif cloud == AzureCloud.AzureUSGovernment:
+            endpoint = f'adf.azure.us'
+        return f'https://{endpoint}' if https else endpoint
 
 
 def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
@@ -57,10 +93,10 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
 
 
 def _get_default_azure_credential(
-    *,
-    managed_identity_client_id: str | None = None,
-    workload_identity_tenant_id: str | None = None,
-    use_async: bool = False,
+        *,
+        managed_identity_client_id: str | None = None,
+        workload_identity_tenant_id: str | None = None,
+        use_async: bool = False,
 ) -> DefaultAzureCredential | AsyncDefaultAzureCredential:
     """
     Get DefaultAzureCredential based on provided arguments.
@@ -82,12 +118,12 @@ def _get_default_azure_credential(
 
 
 get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(
-    _get_default_azure_credential,  #  type: ignore[arg-type]
+    _get_default_azure_credential,  # type: ignore[arg-type]
     use_async=False,
 )
 
 get_async_default_azure_credential: partial[AsyncDefaultAzureCredential] = partial(
-    _get_default_azure_credential,  #  type: ignore[arg-type]
+    _get_default_azure_credential,  # type: ignore[arg-type]
     use_async=True,
 )
 
@@ -126,13 +162,13 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     """
 
     def __init__(
-        self,
-        credential=None,
-        resource_id="https://management.azure.com/.default",
-        *,
-        managed_identity_client_id: str | None = None,
-        workload_identity_tenant_id: str | None = None,
-        **kwargs,
+            self,
+            credential=None,
+            resource_id="https://management.azure.com/.default",
+            *,
+            managed_identity_client_id: str | None = None,
+            workload_identity_tenant_id: str | None = None,
+            **kwargs,
     ):
         """
         Adapt azure-identity credentials for backward compatibility.
