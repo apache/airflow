@@ -111,7 +111,7 @@ class KiotaRequestAdapterHook(BaseHook):
         timeout: float | None = None,
         proxies: dict | None = None,
         host: str = NationalClouds.Global.value,
-        scopes: list[str] = ["https://graph.microsoft.com/.default"],  # noqa: B006
+        scopes: list[str] | None = None,
         api_version: APIVersion | str | None = None,
     ):
         super().__init__()
@@ -119,7 +119,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.timeout = timeout
         self.proxies = proxies
         self.host = host
-        self.scopes = scopes
+        self.scopes = scopes or ["https://graph.microsoft.com/.default"]
         self._api_version = self.resolve_api_version_from_value(api_version)
 
     @property
