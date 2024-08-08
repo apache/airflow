@@ -3021,18 +3021,26 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context):
+        if self.region is None:
+            raise AirflowException("Region should be set here")
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # batch_id might not be set and will be generated
         if self.batch_id:
+            project_id = self.project_id or hook.project_id
             link = DATAPROC_BATCH_LINK.format(
-                region=self.region, project_id=self.project_id, batch_id=self.batch_id
+                region=self.region, project_id=project_id, batch_id=self.batch_id
             )
             self.log.info("Creating batch %s", self.batch_id)
             self.log.info("Once started, the batch job will be available at %s", link)
+            DataprocBatchLink.persist(
+                context=context,
+                operator=self,
+                project_id=project_id,
+                region=self.region,
+                batch_id=self.batch_id,
+            )
         else:
             self.log.info("Starting batch job. The batch ID will be generated since it was not provided.")
-        if self.region is None:
-            raise AirflowException("Region should be set here")
         try:
             self.operation = hook.create_batch(
                 region=self.region,
@@ -3055,13 +3063,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                     self.log.info("Batch %s created", self.batch_id)
 
                 else:
-                    DataprocBatchLink.persist(
-                        context=context,
-                        operator=self,
-                        project_id=self.project_id,
-                        region=self.region,
-                        batch_id=self.batch_id,
-                    )
                     return self.operation.operation.name
 
             else:
