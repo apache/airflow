@@ -111,6 +111,7 @@ class SFTPTrigger(BaseTrigger):
                             {
                                 "status": "success",
                                 "message": f"Sensed {len(files_sensed)} files: {files_sensed}",
+                                "files": files_sensed
                             }
                         )
                         return
@@ -119,10 +120,18 @@ class SFTPTrigger(BaseTrigger):
                     if _newer_than:
                         mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                         if _newer_than <= mod_time_utc:
-                            yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                            yield TriggerEvent({
+                                "status": "success",
+                                "message": f"Sensed file: {self.path}",
+                                "files": [self.path]
+                            })
                             return
                     else:
-                        yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                        yield TriggerEvent({
+                            "status": "success",
+                            "message": f"Sensed file: {self.path}",
+                            "files": [self.path]
+                        })
                         return
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:

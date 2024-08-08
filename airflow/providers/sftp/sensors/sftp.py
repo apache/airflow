@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import collections.abc
 import os
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
@@ -76,6 +77,25 @@ class SFTPSensor(BaseSensorOperator):
         self.op_kwargs = op_kwargs or {}
         self.deferrable = deferrable
 
+    def _handle_files(self, files: list[str] | None = None) -> PokeReturnValue | bool:
+        if files is None or not len(files):
+            return False
+
+        if self.python_callable is not None:
+            if isinstance(self.op_kwargs, collections.abc.MutableMapping):
+                self.op_kwargs["files_found"] = files
+            callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
+            return PokeReturnValue(
+                is_done=True,
+                xcom_value={
+                    "files_found": files,
+                    "decorator_return_value": callable_return,
+                    "return_value": callable_return
+                },
+            )
+
+        return True
+
     def poke(self, context: Context) -> PokeReturnValue | bool:
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
@@ -128,18 +148,7 @@ class SFTPSensor(BaseSensorOperator):
                 files_found.append(actual_file_to_check)
 
         self.hook.close_conn()
-        if not len(files_found):
-            return False
-
-        if self.python_callable is not None:
-            if self.op_kwargs:
-                self.op_kwargs["files_found"] = files_found
-            callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
-            return PokeReturnValue(
-                is_done=True,
-                xcom_value={"files_found": files_found, "decorator_return_value": callable_return},
-            )
-        return True
+        return self._handle_files(files_found)
 
     def execute(self, context: Context) -> Any:
         # Unlike other async sensors, we do not follow the pattern of calling the synchronous self.poke()
@@ -169,7 +178,7 @@ class SFTPSensor(BaseSensorOperator):
         else:
             return super().execute(context=context)
 
-    def execute_complete(self, context: dict[str, Any], event: Any = None) -> None:
+    def execute_complete(self, context: dict[str, Any], event: Any = None) -> bool | PokeReturnValue:
         """
         Execute callback when the trigger fires; returns immediately.
 
@@ -183,6 +192,6 @@ class SFTPSensor(BaseSensorOperator):
             if "status" in event and event["status"] == "success":
                 self.log.info("%s completed successfully.", self.task_id)
                 self.log.info(event["message"])
-                return None
+                return self._handle_files(event.get('files', None))
 
         raise AirflowException("No event received in trigger callback")
