@@ -90,7 +90,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration not found directly in Airflow. "
                     "Looking for legacy environment configuration. "
                 )
-                self._client = OpenLineageClient.from_environment()
+                self._client = OpenLineageClient()
         return self._client
 
     def get_openlineage_config(self) -> dict | None:
