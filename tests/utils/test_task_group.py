@@ -1392,7 +1392,7 @@ def test_task_group_edge_modifier_chain():
     from airflow.models.baseoperator import chain
     from airflow.utils.edgemodifier import Label
 
-    with DAG(dag_id="test", start_date=pendulum.DateTime(2022, 5, 20)) as dag:
+    with DAG(dag_id="test", schedule=None, start_date=pendulum.DateTime(2022, 5, 20)) as dag:
         start = EmptyOperator(task_id="sleep_3_seconds")
 
         with TaskGroup(group_id="group1") as tg:
@@ -1416,7 +1416,7 @@ def test_task_group_edge_modifier_chain():
 def test_mapped_task_group_id_prefix_task_id():
     from tests.test_utils.mock_operators import MockOperator
 
-    with DAG(dag_id="d", start_date=DEFAULT_DATE) as dag:
+    with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE) as dag:
         t1 = MockOperator.partial(task_id="t1").expand(arg1=[])
         with TaskGroup("g"):
             t2 = MockOperator.partial(task_id="t2").expand(arg1=[])
@@ -1429,7 +1429,7 @@ def test_mapped_task_group_id_prefix_task_id():
 
 
 def test_iter_tasks():
-    with DAG("test_dag", start_date=pendulum.parse("20200101")) as dag:
+    with DAG("test_dag", schedule=None, start_date=pendulum.parse("20200101")) as dag:
         with TaskGroup("section_1") as tg1:
             EmptyOperator(task_id="task1")
 
@@ -1466,6 +1466,7 @@ def test_iter_tasks():
 def test_override_dag_default_args():
     with DAG(
         dag_id="test_dag",
+        schedule=None,
         start_date=pendulum.parse("20200101"),
         default_args={
             "retries": 1,
@@ -1489,6 +1490,7 @@ def test_override_dag_default_args():
 def test_override_dag_default_args_in_nested_tg():
     with DAG(
         dag_id="test_dag",
+        schedule=None,
         start_date=pendulum.parse("20200101"),
         default_args={
             "retries": 1,
@@ -1513,6 +1515,7 @@ def test_override_dag_default_args_in_nested_tg():
 def test_override_dag_default_args_in_multi_level_nested_tg():
     with DAG(
         dag_id="test_dag",
+        schedule=None,
         start_date=pendulum.parse("20200101"),
         default_args={
             "retries": 1,
@@ -1542,7 +1545,7 @@ def test_override_dag_default_args_in_multi_level_nested_tg():
 
 
 def test_task_group_arrow_with_setups_teardowns():
-    with DAG(dag_id="hi", start_date=pendulum.datetime(2022, 1, 1)):
+    with DAG(dag_id="hi", schedule=None, start_date=pendulum.datetime(2022, 1, 1)):
         with TaskGroup(group_id="tg1") as tg1:
             s1 = BaseOperator(task_id="s1")
             w1 = BaseOperator(task_id="w1")
@@ -1555,7 +1558,7 @@ def test_task_group_arrow_with_setups_teardowns():
 
 
 def test_task_group_arrow_with_setup_group():
-    with DAG(dag_id="setup_group_teardown_group", start_date=pendulum.now()):
+    with DAG(dag_id="setup_group_teardown_group", schedule=None, start_date=pendulum.now()):
         with TaskGroup("group_1") as g1:
 
             @setup
@@ -1613,7 +1616,7 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
     When recursing upstream for a non-teardown leaf, we should ignore setups that
     are direct upstream of a teardown.
     """
-    with DAG(dag_id="setup_group_teardown_group_2", start_date=pendulum.now()):
+    with DAG(dag_id="setup_group_teardown_group_2", schedule=None, start_date=pendulum.now()):
         with TaskGroup("group_1") as g1:
 
             @setup
@@ -1657,7 +1660,7 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
 
 def test_task_group_with_invalid_arg_type_raises_error():
     error_msg = "'ui_color' has an invalid type <class 'int'> with value 123, expected type is <class 'str'>"
-    with DAG(dag_id="dag_with_tg_invalid_arg_type"):
+    with DAG(dag_id="dag_with_tg_invalid_arg_type", schedule=None):
         with pytest.raises(TypeError, match=error_msg):
             with TaskGroup("group_1", ui_color=123):
                 EmptyOperator(task_id="task1")
@@ -1665,7 +1668,7 @@ def test_task_group_with_invalid_arg_type_raises_error():
 
 @mock.patch("airflow.utils.task_group.validate_instance_args")
 def test_task_group_init_validates_arg_types(mock_validate_instance_args):
-    with DAG(dag_id="dag_with_tg_valid_arg_types"):
+    with DAG(dag_id="dag_with_tg_valid_arg_types", schedule=None):
         with TaskGroup("group_1", ui_color="red") as tg:
             EmptyOperator(task_id="task1")
 

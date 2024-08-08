@@ -132,7 +132,7 @@ class TestCycleTester:
 
     def test_cycle_arbitrary_loop(self):
         # test arbitrary loop
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # E-> A -> B -> F -> A
         #       -> C -> F
