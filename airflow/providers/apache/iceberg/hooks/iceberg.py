@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests
+from pyiceberg.catalog import Catalog, load_catalog
 from requests import HTTPError
 
 from airflow.hooks.base import BaseHook
@@ -46,15 +46,17 @@ class IcebergHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for Iceberg connection."""
         return {
-            "hidden_fields": ["schema", "port"],
+            "hidden_fields": ["port"],
             "relabeling": {
                 "host": "Base URL",
                 "login": "Client ID",
                 "password": "Client Secret",
+                "schema": "Warehouse",
             },
             "placeholders": {
                 "login": "client_id (token credentials auth)",
                 "password": "secret (token credentials auth)",
+                "schema": "Warehouse",
             },
         }
 
@@ -72,19 +74,26 @@ class IcebergHook(BaseHook):
         except Exception as e:
             return False, str(e)
 
-    def get_conn(self) -> str:
+    def load_rest_catalog(self) -> Catalog:
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
         base_url = conn.host
         base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password
-        data = {"client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials"}
 
-        response = requests.post(f"{base_url}/{TOKENS_ENDPOINT}", data=data)
-        response.raise_for_status()
+        properties = {
+            "type": "rest",
+            "uri": base_url,
+            "credential": f"{client_id}:{client_secret}",
+            "warehouse": conn.schema,
+        }
+        return load_catalog(self.conn_id, **properties)
 
-        return response.json()["access_token"]
+    def get_conn(self) -> str:
+        """Obtain a short-lived access token via a client_id and client_secret."""
+        cat = self.load_rest_catalog()
+        return cat.properties["token"]
 
     def get_token_macro(self):
         return f"{{{{ conn.{self.conn_id}.get_hook().get_conn() }}}}"

@@ -31,7 +31,7 @@ dependencies:
   - apache-airflow>=2.7.0
 
 devel-dependencies:
-  - pyiceberg>=0.5.0
+  - pyiceberg>=0.5.1
 
 integrations:
   - integration-name: Iceberg
@@ -43,6 +43,11 @@ hooks:
   - integration-name: Iceberg
     python-modules:
       - airflow.providers.apache.iceberg.hooks.iceberg
+
+sensors:
+  - integration-name: Iceberg
+    python-modules:
+      - airflow.providers.apache.iceberg.sensors.iceberg
 
 connection-types:
   - hook-class-name: airflow.providers.apache.iceberg.hooks.iceberg.IcebergHook
