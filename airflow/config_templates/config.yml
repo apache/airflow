@@ -551,6 +551,14 @@ core:
       type: integer
       example: ~
       default: "4096"
+    purge_stale_dags:
+      description: |
+        Stale dags are deleted by default, set this to False
+        if you want to keep them.
+      version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "True"
 database:
   description: ~
   options:

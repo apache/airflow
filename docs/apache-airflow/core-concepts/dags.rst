@@ -924,3 +924,19 @@ if it fails for ``N`` number of times consecutively.
 we can also provide and override these configuration from DAG argument:
 
 - ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
+
+Disable deletion of stale DAGs
+------------------------------
+
+A small clarification about obsolete DAGs: For the DAGs to become obsolete,
+they must be deleted from the DAG file. And it is at this point that the purge_stale_dags function will carry out the purge of these DAGs in the database.
+
+A use case where we want to keep obsolete DAGs:
+
+In a versioned DAG context, it may be necessary to run two versions of DAG in parallel in two versions of workers.
+
+It can also be useful to keep obsolete DAGs if they are still being used on the version (n-1) of the worker.
+
+However, as the scheduler will not have the DAGs of the version (n-1), it will automatically launch the purge of non-existing DAGs in the DAG file.
+
+To keep obsolete DAGs, we can set the value of the ``AIRFLOW__CORE__PURGE_STALE_DAGS`` variable to ``False``. By default, it is set to ``True``.
