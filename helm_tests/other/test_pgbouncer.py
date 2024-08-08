@@ -101,7 +101,7 @@ class TestPgbouncer:
     def test_pgbouncer_service_static_cluster_ip(self):
         docs = render_chart(
             values={
-                "pgbouncer": {"enabled": True, "service": {"ip": "10.10.10.10"}},
+                "pgbouncer": {"enabled": True, "service": {"clusterIp": "10.10.10.10"}},
             },
             show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
         )
