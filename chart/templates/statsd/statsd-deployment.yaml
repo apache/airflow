@@ -137,6 +137,6 @@ spec:
         - name: config
           configMap:
             name: {{ include "airflow.fullname" . }}-statsd
-        - emtpyDir: {}
+        - emptyDir: {}
           name: tmp            
 {{- end }}
