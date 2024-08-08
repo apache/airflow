@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.conftest import get_airflow_connection
@@ -48,7 +48,6 @@ def powerbi_trigger():
         api_version=API_VERSION,
         dataset_id=DATASET_ID,
         group_id=GROUP_ID,
-        dataset_refresh_id=DATASET_REFRESH_ID,
         end_time=POWERBI_DATASET_END_TIME,
         check_interval=CHECK_INTERVAL,
         wait_for_termination=True,
@@ -56,6 +55,17 @@ def powerbi_trigger():
     )
 
     return trigger
+
+
+@pytest.fixture
+def mock_powerbi_hook():
+    hook = PowerBIHook()
+    return hook
+
+
+# @pytest.fixture
+# def mock_trigger_dataset_refresh(mock_powerbi_hook):
+#     mock_powerbi_hook.trigger_dataset_refresh = AsyncMock(return_value=DATASET_REFRESH_ID)
 
 
 def test_powerbi_trigger_serialization():
@@ -71,7 +81,6 @@ def test_powerbi_trigger_serialization():
             api_version=API_VERSION,
             dataset_id=DATASET_ID,
             group_id=GROUP_ID,
-            dataset_refresh_id=DATASET_REFRESH_ID,
             end_time=POWERBI_DATASET_END_TIME,
             check_interval=CHECK_INTERVAL,
             wait_for_termination=True,
@@ -84,7 +93,6 @@ def test_powerbi_trigger_serialization():
             "conn_id": POWERBI_CONN_ID,
             "dataset_id": DATASET_ID,
             "group_id": GROUP_ID,
-            "dataset_refresh_id": DATASET_REFRESH_ID,
             "end_time": POWERBI_DATASET_END_TIME,
             "proxies": None,
             "api_version": API_VERSION,
@@ -95,9 +103,13 @@ def test_powerbi_trigger_serialization():
 
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
-async def test_powerbi_trigger_run_inprogress(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+async def test_powerbi_trigger_run_inprogress(
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+):
     """Assert task isn't completed until timeout if dataset refresh is in progress."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.IN_PROGRESS}
+    mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
     task = asyncio.create_task(powerbi_trigger.run().__anext__())
     await asyncio.sleep(0.5)
 
@@ -108,9 +120,13 @@ async def test_powerbi_trigger_run_inprogress(mock_get_refresh_details_by_refres
 
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
-async def test_powerbi_trigger_run_failed(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+async def test_powerbi_trigger_run_failed(
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+):
     """Assert event is triggered upon failed dataset refresh."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}
+    mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
     generator = powerbi_trigger.run()
     actual = await generator.asend(None)
@@ -127,9 +143,13 @@ async def test_powerbi_trigger_run_failed(mock_get_refresh_details_by_refresh_id
 
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
-async def test_powerbi_trigger_run_completed(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+async def test_powerbi_trigger_run_completed(
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+):
     """Assert event is triggered upon successful dataset refresh."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.COMPLETED}
+    mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
     generator = powerbi_trigger.run()
     actual = await generator.asend(None)
@@ -147,11 +167,16 @@ async def test_powerbi_trigger_run_completed(mock_get_refresh_details_by_refresh
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
 async def test_powerbi_trigger_run_exception_during_refresh_check_loop(
-    mock_get_refresh_details_by_refresh_id, mock_cancel_dataset_refresh, powerbi_trigger
+    mock_trigger_dataset_refresh,
+    mock_get_refresh_details_by_refresh_id,
+    mock_cancel_dataset_refresh,
+    powerbi_trigger,
 ):
     """Assert that run catch exception if Power BI API throw exception"""
     mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception")
+    mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
     task = [i async for i in powerbi_trigger.run()]
     response = TriggerEvent(
@@ -169,12 +194,17 @@ async def test_powerbi_trigger_run_exception_during_refresh_check_loop(
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
 async def test_powerbi_trigger_run_exception_during_refresh_cancellation(
-    mock_get_refresh_details_by_refresh_id, mock_cancel_dataset_refresh, powerbi_trigger
+    mock_trigger_dataset_refresh,
+    mock_get_refresh_details_by_refresh_id,
+    mock_cancel_dataset_refresh,
+    powerbi_trigger,
 ):
     """Assert that run catch exception if Power BI API throw exception"""
     mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception")
     mock_cancel_dataset_refresh.side_effect = Exception("Exception caused by cancel_dataset_refresh")
+    mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
     task = [i async for i in powerbi_trigger.run()]
     response = TriggerEvent(
@@ -192,12 +222,14 @@ async def test_powerbi_trigger_run_exception_during_refresh_cancellation(
 
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
 async def test_powerbi_trigger_run_exception_without_refresh_id(
-    mock_get_refresh_details_by_refresh_id, powerbi_trigger
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
 ):
     """Assert handling of exception when there is no dataset_refresh_id"""
     powerbi_trigger.dataset_refresh_id = None
     mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception for no dataset_refresh_id")
+    mock_trigger_dataset_refresh.return_value = None
 
     task = [i async for i in powerbi_trigger.run()]
     response = TriggerEvent(
@@ -213,9 +245,13 @@ async def test_powerbi_trigger_run_exception_without_refresh_id(
 
 @pytest.mark.asyncio
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
-async def test_powerbi_trigger_run_timeout(mock_get_refresh_details_by_refresh_id, powerbi_trigger):
+@mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
+async def test_powerbi_trigger_run_timeout(
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+):
     """Assert that powerbi run timesout after end_time elapses"""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.IN_PROGRESS}
+    mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
     generator = powerbi_trigger.run()
     actual = await generator.asend(None)

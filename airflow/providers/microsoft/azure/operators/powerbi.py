@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -56,7 +55,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     :param dataset_id: The dataset id.
     :param group_id: The workspace id.
-    :param wait_for_termination: Wait until the pre-existing or current triggered refresh completes before exiting.
     :param conn_id: Airflow Connection ID that contains the connection information for the Power BI account used for authentication.
     :param timeout: Time in seconds to wait for a dataset to reach a terminal status for asynchronous waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Number of seconds to wait before rechecking the
@@ -76,7 +74,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         *,
         dataset_id: str,
         group_id: str,
-        wait_for_termination: bool = True,
         conn_id: str = PowerBIHook.default_conn_name,
         timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
@@ -88,14 +85,10 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
         self.group_id = group_id
-        self.wait_for_termination = wait_for_termination
+        self.wait_for_termination = True
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
-
-    @classmethod
-    def run_async(cls, future: Any) -> Any:
-        return asyncio.get_event_loop().run_until_complete(future)
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""

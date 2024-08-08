@@ -63,7 +63,7 @@ with DAG(
         dataset_id=DATASET_ID,
         group_id=GROUP_ID,
         check_interval=30,
-        wait_for_termination=False,
+        timeout=120,
     )
     # [END howto_operator_powerbi_refresh_no_wait_for_termination]
 
