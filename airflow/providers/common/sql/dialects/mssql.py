@@ -19,7 +19,8 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List
 
-from airflow.providers.common.sql.hooks.sql import Dialect, fetch_all_handler
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
 
 class MsSqlDialect(Dialect):
