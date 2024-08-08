@@ -85,6 +85,10 @@ def get_job_name(task: TaskInstance) -> str:
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
+    log.debug(
+        "AirflowMappedTaskRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
         return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
     return {}
@@ -536,6 +540,10 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
 def get_unknown_source_attribute_run_facet(task: BaseOperator, name: str | None = None):
     if not name:
         name = get_operator_class(task).__name__
+    log.debug(
+        "UnknownOperatorAttributeRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     return {
         "unknownSourceAttribute": attrs.asdict(
             UnknownOperatorAttributeRunFacet(
