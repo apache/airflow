@@ -40,7 +40,8 @@ from urllib.parse import urlparse
 import sqlparse
 from more_itertools import chunked
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Inspector
+from sqlalchemy.engine import Inspector, make_url
+from sqlalchemy.exc import ArgumentError
 
 from airflow.exceptions import (
     AirflowException,
@@ -48,6 +49,8 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -159,6 +162,9 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
+    dialects: dict[str, type] = {
+        "mssql": MsSqlDialect,
+    }
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -257,6 +263,25 @@ class DbApiHook(BaseHook):
     @property
     def inspector(self) -> Inspector:
         return Inspector.from_engine(self.get_sqlalchemy_engine())
+
+    @cached_property
+    def dialect_name(self) -> str:
+        try:
+            return make_url(self.get_uri()).get_dialect().name
+        except ArgumentError:
+            conn = self.get_connection(self.get_conn_id())
+            config = conn.extra_dejson
+            name = config.get("sqlalchemy_scheme")
+            if name:
+                return name.split("+")[0] if "+" in name else name
+            return config.get("scheme", conn.conn_type)
+
+    @cached_property
+    def dialect(self) -> Dialect:
+        self.log.debug("dialect_name: %s", self.dialect_name)
+        if self.dialect_name:
+            return self.dialects.get(self.dialect_name, Dialect)(self)
+        return Dialect(self)
 
     def get_pandas_df(
         self,
@@ -549,24 +574,18 @@ class DbApiHook(BaseHook):
 
         :param table: Name of the target table
         :param values: The row to insert into the table
-        :param target_fields: The names of the columns to fill in the table
+        :param target_fields: The names of the columns to fill in the table. If no target fields are
+            specified, they will be determined dynamically from the table's metadata.
         :param replace: Whether to replace/upsert instead of insert
         :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
+        if not target_fields:
+            target_fields = self.dialect.get_column_names(table)
 
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ""
+        if replace:
+            return self.dialect.generate_replace_sql(table, values, target_fields, **kwargs)
 
-        if not replace:
-            return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
-
-        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
+        return self.dialect.generate_insert_sql(table, values, target_fields, **kwargs)
 
     @contextmanager
     def _create_autocommit_connection(self, autocommit: bool = False):
