@@ -1009,7 +1009,7 @@ def dag_maker(request):
 
 
 @pytest.fixture
-def create_dummy_dag(dag_maker):
+def create_dummy_dag(dag_maker, session):
     """Create a `DAG` with a single `EmptyOperator` task.
 
     DagRun and DagModel is also created.
@@ -1050,7 +1050,7 @@ def create_dummy_dag(dag_maker):
 
         if AIRFLOW_V_2_9_PLUS:
             op_kwargs["task_display_name"] = task_display_name
-        with dag_maker(dag_id, **kwargs) as dag:
+        with dag_maker(dag_id=dag_id, session=session, serialized=True, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
@@ -1077,7 +1077,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def create_task_instance(dag_maker, create_dummy_dag):
+def create_task_instance(dag_maker, create_dummy_dag, session):
     """Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
     Uses ``create_dummy_dag`` to create the dag structure.
@@ -1094,6 +1094,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         map_index=-1,
         **kwargs,
     ) -> TaskInstance:
+        dag_maker.session = session
         if execution_date is None:
             from airflow.utils import timezone
 

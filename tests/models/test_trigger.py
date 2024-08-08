@@ -37,19 +37,11 @@ from airflow.triggers.base import (
     TriggerEvent,
 )
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
-
-
-@pytest.fixture
-def session():
-    """Fixture that provides a SQLAlchemy session"""
-    with create_session() as session:
-        yield session
 
 
 @pytest.fixture(autouse=True)
@@ -150,6 +142,7 @@ def test_submit_failure(session, create_task_instance):
     assert updated_task_instance.next_method == "__fail__"
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.parametrize(
     "event_cls, expected",
     [
