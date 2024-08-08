@@ -244,7 +244,7 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
     def serialize(self):
         cls = self.__class__
-        # Note the DagRun object will be detached here and fails serialization, we need to create a new
+        # Note the DagRun object will be detached here and fails serialization, we need to create a new one
         from airflow.models import DagRun
 
         dag_run = DagRun(

@@ -125,6 +125,7 @@ def trigger_dag(
     :param conf: configuration
     :param execution_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
+    :param session: Unused. Only added in compatibility with database isolation mode
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
     """
     dag_model = DagModel.get_current(dag_id)
