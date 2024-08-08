@@ -140,7 +140,7 @@ class KiotaRequestAdapterHook(BaseHook):
     def get_api_version(self, config: dict) -> str:
         return self._api_version or self.resolve_api_version_from_value(
             config.get("api_version"), APIVersion.v1.value
-        )
+        )  # type: ignore
 
     def get_host(self, connection: Connection) -> str:
         if connection.schema and connection.host:
