@@ -220,5 +220,7 @@ spec:
         {{- if .Values.pgbouncer.extraVolumes }}
           {{- tpl (toYaml .Values.pgbouncer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        - emtpyDir: {}
+          name: tmp            
       {{- end }}
 {{- end }}

@@ -141,6 +141,8 @@ spec:
             {{- if .Values.apiServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            - name: tmp
+              mountPath: /tmp              
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -237,4 +239,6 @@ spec:
         {{- if .Values.apiServer.extraVolumes }}
           {{- tpl (toYaml .Values.apiServer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        - emtpyDir: {}
+          name: tmp        
 {{- end }}
