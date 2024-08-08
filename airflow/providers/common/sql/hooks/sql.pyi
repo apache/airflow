@@ -32,6 +32,9 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
+
+from airflow.utils.log.logging_mixin import LoggingMixin
+
 from airflow.exceptions import (
     AirflowException as AirflowException,
     AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
@@ -40,7 +43,7 @@ from airflow.exceptions import (
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
-from functools import cached_property as cached_property
+from functools import cached_property as cached_property, lru_cache
 from pandas import DataFrame as DataFrame
 from sqlalchemy.engine import Inspector, URL as URL
 from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
@@ -51,6 +54,28 @@ SQL_PLACEHOLDERS: Incomplete
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool): ...
 def fetch_all_handler(cursor) -> list[tuple] | None: ...
 def fetch_one_handler(cursor) -> list[tuple] | None: ...
+
+class Dialect(LoggingMixin):
+    def __init__(self, hook: DbApiHook) -> None: ...
+    @property
+    def placeholder(self) -> str: ...
+    @property
+    def inspector(self) -> Inspector: ...
+    @lru_cache
+    def get_column_names(self, table: str) -> list[str]: ...
+    @lru_cache
+    def get_primary_keys(self, table: str) -> list[str]: ...
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    def generate_insert_sql(self, table, values, target_fields, **kwargs) -> str: ...
+    def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str: ...
 
 class ConnectorProtocol(Protocol):
     def connect(self, host: str, port: int, username: str, schema: str) -> Any: ...
