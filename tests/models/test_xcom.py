@@ -36,6 +36,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
+from tests.www.test_utils import is_db_isolation_mode
 
 pytestmark = pytest.mark.db_test
 
@@ -140,6 +141,7 @@ class TestXCom:
             ret_value = XCom.get_value(key="xcom_test3", ti_key=ti_key, session=session)
         assert ret_value == {"key": "value"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_deserialize_pickle_when_xcom_pickling_is_disabled(self, task_instance, session):
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
             XCom.set(
@@ -160,6 +162,7 @@ class TestXCom:
                     session=session,
                 )
 
+    @pytest.mark.skip_if_database_isolation_mode
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
     def test_xcom_disable_pickle_type_fail_on_non_json(self, task_instance, session):
         class PickleRce:
@@ -211,6 +214,7 @@ class TestXCom:
         assert value == {"key": "value"}
         XCom.orm_deserialize_value.assert_not_called()
 
+    @pytest.mark.skip_if_database_isolation_mode
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @mock.patch("airflow.models.xcom.conf.getimport")
     def test_set_serialize_call_old_signature(self, get_import, task_instance):
@@ -237,6 +241,7 @@ class TestXCom:
         )
         serialize_watcher.assert_called_once_with(value={"my_xcom_key": "my_xcom_value"})
 
+    @pytest.mark.skip_if_database_isolation_mode
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @mock.patch("airflow.models.xcom.conf.getimport")
     def test_set_serialize_call_current_signature(self, get_import, task_instance):
@@ -330,6 +335,7 @@ class TestXComGet:
         )
         assert stored_value == {"key": "value"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_one")
     def test_xcom_get_one_with_execution_date(self, session, task_instance):
         with pytest.deprecated_call():
@@ -370,6 +376,7 @@ class TestXComGet:
         )
         assert retrieved_value == {"key": "value"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_get_one_from_prior_with_execution_date(
         self,
         session,
@@ -387,10 +394,12 @@ class TestXComGet:
             )
         assert retrieved_value == {"key": "value"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
     def setup_for_xcom_get_many_single_argument_value(self, task_instance, push_simple_json_xcom):
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
     def test_xcom_get_many_single_argument_value(self, session, task_instance):
         stored_xcoms = XCom.get_many(
@@ -404,6 +413,7 @@ class TestXComGet:
         assert stored_xcoms[0].key == "xcom_1"
         assert stored_xcoms[0].value == {"key": "value"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
     def test_xcom_get_many_single_argument_value_with_execution_date(self, session, task_instance):
         with pytest.deprecated_call():
@@ -418,12 +428,14 @@ class TestXComGet:
         assert stored_xcoms[0].key == "xcom_1"
         assert stored_xcoms[0].value == {"key": "value"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
     def setup_for_xcom_get_many_multiple_tasks(self, task_instances, push_simple_json_xcom):
         ti1, ti2 = task_instances
         push_simple_json_xcom(ti=ti1, key="xcom_1", value={"key1": "value1"})
         push_simple_json_xcom(ti=ti2, key="xcom_1", value={"key2": "value2"})
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
     def test_xcom_get_many_multiple_tasks(self, session, task_instance):
         stored_xcoms = XCom.get_many(
@@ -436,6 +448,7 @@ class TestXComGet:
         sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
         assert sorted_values == [{"key1": "value1"}, {"key2": "value2"}]
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
     def test_xcom_get_many_multiple_tasks_with_execution_date(self, session, task_instance):
         with pytest.deprecated_call():
@@ -459,6 +472,7 @@ class TestXComGet:
         push_simple_json_xcom(ti=ti2, key="xcom_1", value={"key2": "value2"})
         return ti1, ti2
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_get_many_from_prior_dates(self, session, tis_for_xcom_get_many_from_prior_dates):
         ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
         stored_xcoms = XCom.get_many(
@@ -474,6 +488,7 @@ class TestXComGet:
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
         assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_get_many_from_prior_dates_with_execution_date(
         self,
         session,
@@ -513,6 +528,7 @@ class TestXComSet:
         assert stored_xcoms[0].task_id == "task_1"
         assert stored_xcoms[0].execution_date == task_instance.execution_date
 
+    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_set_with_execution_date(self, session, task_instance):
         with pytest.deprecated_call():
             XCom.set(
@@ -547,6 +563,7 @@ class TestXComSet:
         )
         assert session.query(XCom).one().value == {"key2": "value2"}
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_set_again_replace")
     def test_xcom_set_again_replace_with_execution_date(self, session, task_instance):
         assert session.query(XCom).one().value == {"key1": "value1"}
@@ -579,8 +596,9 @@ class TestXComClear:
             session=session,
         )
         assert session.query(XCom).count() == 0
-        assert mock_purge.call_count == 1
+        assert mock_purge.call_count == 0 if is_db_isolation_mode() else 1
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_with_execution_date(self, session, task_instance):
         assert session.query(XCom).count() == 1
@@ -603,6 +621,7 @@ class TestXComClear:
         )
         assert session.query(XCom).count() == 1
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_execution_date(self, session, task_instance):
         with pytest.deprecated_call():

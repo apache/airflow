@@ -139,6 +139,7 @@ class TestKubernetesPodOperator:
         dag_id = "TestKubernetesPodOperator"
         ti = create_task_instance_of_operator(
             KubernetesPodOperator,
+            session=session,
             dag_id=dag_id,
             task_id="task-id",
             namespace="{{ dag.dag_id }}",

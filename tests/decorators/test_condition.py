@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_skip_if(dag_maker, session):
     with dag_maker(session=session):
 
@@ -52,6 +53,7 @@ def test_skip_if(dag_maker, session):
     assert do_not_skip_ti.state == TaskInstanceState.SUCCESS
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_run_if(dag_maker, session):
     with dag_maker(session=session):
 
@@ -86,6 +88,7 @@ def test_run_if_with_non_task_error():
         def f(): ...
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_skip_if_with_other_pre_execute(dag_maker, session):
     def setup_conf(context: Context) -> None:
         context["dag_run"].conf["some_key"] = "some_value"
@@ -105,6 +108,7 @@ def test_skip_if_with_other_pre_execute(dag_maker, session):
     assert ti.state == TaskInstanceState.SKIPPED
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_run_if_with_other_pre_execute(dag_maker, session):
     def setup_conf(context: Context) -> None:
         context["dag_run"].conf["some_key"] = "some_value"

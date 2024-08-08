@@ -238,8 +238,13 @@ serialized_simple_dag_ground_truth = {
             "__type": "dict",
             "__var": {
                 "test_role": {
-                    "__type": "set",
-                    "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                    "__type": "dict",
+                    "__var": {
+                        "DAGs": {
+                            "__type": "set",
+                            "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                        }
+                    },
                 }
             },
         },

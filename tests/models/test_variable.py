@@ -24,7 +24,6 @@ from unittest import mock
 import pytest
 from cryptography.fernet import Fernet
 
-from airflow import settings
 from airflow.models import Variable, crypto, variable
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
@@ -49,12 +48,11 @@ class TestVariable:
         crypto._fernet = None
 
     @conf_vars({("core", "fernet_key"): ""})
-    def test_variable_no_encryption(self):
+    def test_variable_no_encryption(self, session):
         """
         Test variables without encryption
         """
-        Variable.set("key", "value")
-        session = settings.Session()
+        Variable.set(key="key", value="value", session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert not test_var.is_encrypted
         assert test_var.val == "value"
@@ -63,18 +61,17 @@ class TestVariable:
         self.mask_secret.assert_called_once_with("value", "key")
 
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
-    def test_variable_with_encryption(self):
+    def test_variable_with_encryption(self, session):
         """
         Test variables with encryption
         """
-        Variable.set("key", "value")
-        session = settings.Session()
+        Variable.set(key="key", value="value", session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert test_var.is_encrypted
         assert test_var.val == "value"
 
     @pytest.mark.parametrize("test_value", ["value", ""])
-    def test_var_with_encryption_rotate_fernet_key(self, test_value):
+    def test_var_with_encryption_rotate_fernet_key(self, test_value, session):
         """
         Tests rotating encrypted variables.
         """
@@ -82,8 +79,7 @@ class TestVariable:
         key2 = Fernet.generate_key()
 
         with conf_vars({("core", "fernet_key"): key1.decode()}):
-            Variable.set("key", test_value)
-            session = settings.Session()
+            Variable.set(key="key", value=test_value, session=session)
             test_var = session.query(Variable).filter(Variable.key == "key").one()
             assert test_var.is_encrypted
             assert test_var.val == test_value
@@ -104,9 +100,9 @@ class TestVariable:
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
 
-    def test_variable_set_with_env_variable(self, caplog):
+    def test_variable_set_with_env_variable(self, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
-        Variable.set("key", "db-value")
+        Variable.set(key="key", value="db-value", session=session)
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
             # setting value while shadowed by an env variable will generate a warning
             Variable.set("key", "new-db-value")
@@ -125,14 +121,14 @@ class TestVariable:
         )
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
-    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog):
+    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         mock_backend = mock.Mock()
         mock_backend.get_variable.return_value = "secret_val"
         mock_backend.__class__.__name__ = "MockSecretsBackend"
         mock_ensure_secrets.return_value = [mock_backend, MetastoreBackend]
 
-        Variable.set("key", "new-db-value")
+        Variable.set(key="key", value="new-db-value", session=session)
         assert Variable.get("key") == "secret_val"
 
         assert caplog.messages[0] == (
@@ -141,44 +137,43 @@ class TestVariable:
             "will be updated, but to read it you have to delete the conflicting variable from "
             "MockSecretsBackend"
         )
+        Variable.delete("key")
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
         Variable.set("tested_var_set_id", value, serialize_json=True)
         assert value == Variable.get("tested_var_set_id", deserialize_json=True)
 
-    def test_variable_update(self):
-        Variable.set("test_key", "value1")
-        assert "value1" == Variable.get("test_key")
-        Variable.update("test_key", "value2")
+    def test_variable_update(self, session):
+        Variable.set(key="test_key", value="value1", session=session)
+        assert "value1" == Variable.get(key="test_key")
+        Variable.update(key="test_key", value="value2", session=session)
         assert "value2" == Variable.get("test_key")
 
-    def test_variable_update_fails_on_non_metastore_variable(self):
+    def test_variable_update_fails_on_non_metastore_variable(self, session):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
             with pytest.raises(AttributeError):
-                Variable.update("key", "new-value")
+                Variable.update(key="key", value="new-value", session=session)
 
-    def test_variable_update_preserves_description(self):
-        Variable.set("key", "value", description="a test variable")
+    def test_variable_update_preserves_description(self, session):
+        Variable.set(key="key", value="value", description="a test variable", session=session)
         assert Variable.get("key") == "value"
         Variable.update("key", "value2")
-        session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert test_var.val == "value2"
         assert test_var.description == "a test variable"
 
-    def test_set_variable_sets_description(self):
-        Variable.set("key", "value", description="a test variable")
-        session = settings.Session()
+    def test_set_variable_sets_description(self, session):
+        Variable.set(key="key", value="value", description="a test variable", session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert test_var.description == "a test variable"
         assert test_var.val == "value"
 
-    def test_variable_set_existing_value_to_blank(self):
+    def test_variable_set_existing_value_to_blank(self, session):
         test_value = "Some value"
         test_key = "test_key"
-        Variable.set(test_key, test_value)
-        Variable.set(test_key, "")
+        Variable.set(key=test_key, value=test_value, session=session)
+        Variable.set(key=test_key, value="", session=session)
         assert "" == Variable.get("test_key")
 
     def test_get_non_existing_var_should_return_default(self):
@@ -214,10 +209,10 @@ class TestVariable:
         Variable.setdefault(key, value, deserialize_json=True)
         assert value == Variable.get(key, deserialize_json=True)
 
-    def test_variable_setdefault_existing_json(self):
+    def test_variable_setdefault_existing_json(self, session):
         key = "tested_var_setdefault_2_id"
         value = {"city": "Paris", "Happiness": True}
-        Variable.set(key, value, serialize_json=True)
+        Variable.set(key=key, value=value, serialize_json=True, session=session)
         val = Variable.setdefault(key, value, deserialize_json=True)
         # Check the returned value, and the stored value are handled correctly.
         assert value == val
@@ -241,13 +236,10 @@ class TestVariable:
         with pytest.raises(KeyError):
             Variable.get(key)
 
-    def test_masking_from_db(self):
+    def test_masking_from_db(self, session):
         """Test secrets are masked when loaded directly from the DB"""
 
         # Normally people will use `Variable.get`, but just in case, catch direct DB access too
-
-        session = settings.Session()
-
         try:
             var = Variable(
                 key=f"password-{os.getpid()}",
@@ -308,12 +300,10 @@ class TestVariable:
         ('{"api_key": "s3cr3t", "another_secret": "123456"}', True, ["s3cr3t", "123456"]),
     ],
 )
-def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values):
+def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values, session):
     from airflow.utils.log.secrets_masker import _secrets_masker
 
     SecretCache.reset()
-
-    session = settings.Session()
 
     try:
         var = Variable(

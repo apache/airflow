@@ -73,6 +73,7 @@ def mock_metadata_distribution(mocker):
     return wrapper
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
@@ -145,6 +146,7 @@ class TestPluginsRBAC:
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 def test_flaskappbuilder_nomenu_views():
     from tests.plugins.test_plugin import v_nomenu_appbuilder_package

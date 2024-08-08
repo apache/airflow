@@ -73,6 +73,7 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
+    toggleTheme: `${JS_DIR}/toggle_theme.js`,
     grid: `${JS_DIR}/dag/index.tsx`,
     clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
     datasets: `${JS_DIR}/datasets/index.tsx`,

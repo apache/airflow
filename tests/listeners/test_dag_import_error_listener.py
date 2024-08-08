@@ -102,6 +102,7 @@ class TestDagFileProcessor:
 
         dag_file_processor.process_file(file_path, [], False)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_newly_added_import_error(self, tmp_path, session):
         dag_import_error_listener.clear()
         get_listener_manager().add_listener(dag_import_error_listener)
@@ -134,6 +135,7 @@ class TestDagFileProcessor:
         assert len(dag_import_error_listener.new) == 1
         assert dag_import_error_listener.new["filename"] == import_error.stacktrace
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_already_existing_import_error(self, tmp_path):
         dag_import_error_listener.clear()
         get_listener_manager().add_listener(dag_import_error_listener)

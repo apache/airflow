@@ -587,6 +587,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                                 "schedule_interval": "86400.0 seconds",
                                 "start_date": "2024-06-01T00:00:00+00:00",
                                 "tags": [],
+                                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
                             },
                             dagRun={
                                 "conf": {},

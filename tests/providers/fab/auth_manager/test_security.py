@@ -59,11 +59,12 @@ from tests.test_utils.api_connexion_utils import (
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
+from tests.test_utils.permissions import _resource_name
 
 pytestmark = pytest.mark.db_test
 
-READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
-READ_ONLY = {permissions.ACTION_CAN_READ}
+READ_WRITE = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}}
+READ_ONLY = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ}}
 
 logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 logging.getLogger().setLevel(logging.DEBUG)
@@ -108,7 +109,7 @@ def _clear_db_dag_and_runs():
 
 
 def _delete_dag_permissions(dag_id, security_manager):
-    dag_resource_name = permissions.resource_name_for_dag(dag_id)
+    dag_resource_name = _resource_name(dag_id, permissions.RESOURCE_DAG)
     for dag_action_name in security_manager.DAG_ACTIONS:
         security_manager.delete_permission(dag_action_name, dag_resource_name)
 
@@ -751,6 +752,19 @@ def test_access_control_with_non_existent_role(security_manager):
     assert "role does not exist" in str(ctx.value)
 
 
+def test_access_control_with_non_allowed_resource(security_manager):
+    with pytest.raises(AirflowException) as ctx:
+        security_manager._sync_dag_view_permissions(
+            dag_id="access-control-test",
+            access_control={
+                "Public": {
+                    permissions.RESOURCE_POOL: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+                }
+            },
+        )
+    assert "invalid resource name" in str(ctx.value)
+
+
 def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
     username = "dag_access_user"
     role_name = "dag_access_role"
@@ -789,6 +803,17 @@ def test_access_control_with_invalid_permission(app, security_manager):
                     access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
+
+            with pytest.raises(AirflowException) as ctx:
+                security_manager._sync_dag_view_permissions(
+                    "access_control_test",
+                    access_control={rolename: {permissions.RESOURCE_DAG_RUN: {action}}},
+                )
+            if hasattr(permissions, "resource_name"):
+                assert "invalid permission" in str(ctx.value)
+            else:
+                # Test with old airflow running new FAB
+                assert "invalid resource name" in str(ctx.value)
 
 
 def test_access_control_is_set_on_init(
@@ -890,7 +915,11 @@ def test_correct_roles_have_perms_to_read_config(security_manager):
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
-    access_control = {"Public": {permissions.ACTION_CAN_READ}}
+    access_control = (
+        {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
+        if hasattr(permissions, "resource_name")
+        else {"Public": {permissions.ACTION_CAN_READ}}
+    )
 
     collect_dags_from_db_mock = mock.Mock()
     dagbag_mock = mock.Mock()
@@ -906,7 +935,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) not in all_perms
         assert ("can_edit", dag_resource_name) not in all_perms
@@ -917,13 +946,13 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     collect_dags_from_db_mock.assert_called_once_with()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
 
     security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name_for_dag("has_access_control"),
+        "has_access_control",
         access_control,
     )
 
@@ -973,7 +1002,7 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         DeprecationWarning,
         match=(
             "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name_for_dag` instead."
+            "Please use `airflow.security.permissions.resource_name` instead."
         ),
     ):
         security_manager.prefixed_dag_id("hello")
