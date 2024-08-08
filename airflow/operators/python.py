@@ -56,6 +56,7 @@ from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
@@ -574,7 +575,13 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 # see more:
                 #   https://github.com/apache/airflow/issues/40974
                 #   https://github.com/apache/airflow/pull/41067
-                serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(context)
+                with create_session() as session:
+                    # FIXME: DetachedInstanceError
+                    dag_run, task_instance = context["dag_run"], context["task_instance"]
+                    session.add_all([dag_run, task_instance])
+                    serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(
+                        context, use_pydantic_models=True
+                    )
                 with airflow_context_path.open("w+") as file:
                     json.dump(serializable_context, file)
 
