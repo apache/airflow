@@ -229,6 +229,8 @@ spec:
         {{- if .Values.dagProcessor.extraContainers }}
           {{- tpl (toYaml .Values.dagProcessor.extraContainers) . | nindent 8 }}
         {{- end }}
+            - name: tmp
+              mountPath: /tmp         
       volumes:
         - name: config
           configMap:
@@ -262,6 +264,8 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
+        - emtpyDir: {}
+          name: tmp          
 {{- end }}
 {{- end }}
 {{- end }}

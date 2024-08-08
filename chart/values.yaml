@@ -55,7 +55,14 @@ securityContext: {}
 # Detailed default security context for airflow deployments
 securityContexts:
   pod: {}
-  containers: {}
+  containers: 
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
 
 # Global container lifecycle hooks for airflow containers
 containerLifecycleHooks: {}
@@ -2791,7 +2798,14 @@ dags:
     #  runAsGroup: 0
 
     securityContexts:
-      container: {}
+      container: 
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        runAsNonRoot: true
+        readOnlyRootFilesystem: false
 
     # container level lifecycle hooks
     containerLifecycleHooks: {}

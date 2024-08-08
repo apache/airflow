@@ -104,6 +104,8 @@ spec:
           volumeMounts:
             - name: redis-db
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp                
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -120,6 +122,8 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Values.redis.persistence.existingClaim }}
   {{- else }}
+        - emtpyDir: {}
+          name: tmp
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim

@@ -145,6 +145,8 @@ spec:
             {{- if .Values._rpcServer.extraVolumeMounts }}
               {{- tpl (toYaml .Values._rpcServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            - name: tmp
+              mountPath: /tmp              
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -256,4 +258,6 @@ spec:
         {{- if .Values._rpcServer.extraVolumes }}
           {{- tpl (toYaml .Values._rpcServer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        - emtpyDir: {}
+          name: tmp        
 {{- end }}

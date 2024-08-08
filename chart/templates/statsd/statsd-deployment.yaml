@@ -132,8 +132,12 @@ spec:
             - name: config
               mountPath: /etc/statsd-exporter/mappings.yml
               subPath: mappings.yml
+            - name: tmp
+              mountPath: /tmp                
       volumes:
         - name: config
           configMap:
             name: {{ include "airflow.fullname" . }}-statsd
+        - emtpyDir: {}
+          name: tmp            
 {{- end }}
