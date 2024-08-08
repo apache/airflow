@@ -102,7 +102,7 @@ class TestVariable:
 
     def test_variable_set_with_env_variable(self, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
-        Variable.set(key="key", value="new-db-value", session=session)
+        Variable.set(key="key", value="db-value", session=session)
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
             # setting value while shadowed by an env variable will generate a warning
             Variable.set("key", "new-db-value")
