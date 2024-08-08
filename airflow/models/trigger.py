@@ -308,3 +308,21 @@ class Trigger(Base):
             skip_locked=True,
         )
         return session.execute(query).all()
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def filter_out_reassigned_triggers(
+        cls, triggerer_id: int, local_trigger_ids: set[int], session: Session = NEW_SESSION
+    ) -> list[int]:
+        """
+        Get the triggers that reassigned to other triggerers.
+
+        :param triggerer_id: Current triggerer's id.
+        :param local_trigger_ids: The ids of triggers that running in this triggerer.
+        :param session: The database session
+        """
+        reassigned_trigger_ids = session.scalars(
+            select(cls.id).where(cls.triggerer_id != triggerer_id, cls.id.in_(local_trigger_ids))
+        ).all()
+        return list(reassigned_trigger_ids)

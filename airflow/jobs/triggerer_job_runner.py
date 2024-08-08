@@ -38,7 +38,7 @@ from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, span
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import TriggerEvent, TriggerTerminationReason
 from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -441,6 +441,7 @@ class TriggerDetails(TypedDict):
     task: asyncio.Task
     name: str
     events: int
+    termination_reason: TriggerTerminationReason | None
 
 
 class TriggerRunner(threading.Thread, LoggingMixin):
@@ -463,7 +464,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     to_create: deque[tuple[int, BaseTrigger]]
 
     # Inbound queue of deleted triggers
-    to_cancel: deque[int]
+    to_cancel: deque[tuple[int, TriggerTerminationReason]]
 
     # Outbound queue of events
     events: deque[tuple[int, TriggerEvent]]
@@ -538,10 +539,13 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         This allows the cleanup job to delete them.
         """
         while self.to_cancel:
-            trigger_id = self.to_cancel.popleft()
+            trigger_id, reason = self.to_cancel.popleft()
             if trigger_id in self.triggers:
+                # Add more context here before cancelling
+                to_be_cancelled = self.triggers[trigger_id]
+                to_be_cancelled["termination_reason"] = reason
                 # We only delete if it did not exit already
-                self.triggers[trigger_id]["task"].cancel()
+                to_be_cancelled["task"].cancel()
             await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self):
@@ -643,7 +647,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # allow triggers a chance to cleanup, either in that case or if
             # they exit cleanly. Exception from cleanup methods are ignored.
             with suppress(Exception):
-                await trigger.cleanup()
+                trigger_details = self.triggers[trigger_id]
+                if trigger.should_cleanup(trigger_details.get("termination_reason")):
+                    await trigger.cleanup()
             if SEND_TRIGGER_END_MARKER:
                 self.mark_trigger_end(trigger)
 
@@ -677,7 +683,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         running_trigger_ids = set(self.triggers.keys())
         known_trigger_ids = (
             running_trigger_ids.union(x[0] for x in self.events)
-            .union(self.to_cancel)
+            .union(x[0] for x in self.to_cancel)
             .union(x[0] for x in self.to_create)
             .union(trigger[0] for trigger in self.failed_triggers)
         )
@@ -725,7 +731,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             self.set_trigger_logging_metadata(new_trigger_orm.task_instance, new_id, new_trigger_instance)
             self.to_create.append((new_id, new_trigger_instance))
         # Enqueue orphaned triggers for cancellation
-        self.to_cancel.extend(cancel_trigger_ids)
+        self.to_cancel.extend(self.add_trigger_cancel_reasons(self.job_id, cancel_trigger_ids))
 
     def set_trigger_logging_metadata(self, ti: TaskInstance, trigger_id, trigger):
         """
@@ -751,3 +757,28 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         if classpath not in self.trigger_cache:
             self.trigger_cache[classpath] = import_string(classpath)
         return self.trigger_cache[classpath]
+
+    @staticmethod
+    def add_trigger_cancel_reasons(
+        triggerer_id, cancel_trigger_ids: set[int]
+    ) -> list[tuple[int, TriggerTerminationReason]]:
+        """
+        Add trigger cancel reasons to give consumer more context.
+
+        Currently, we only distinguish between reassigned and other reasons.
+        """
+
+        def add_reason(
+            ids: set[int], reason: TriggerTerminationReason
+        ) -> list[tuple[int, TriggerTerminationReason]]:
+            return [(trigger_id, reason) for trigger_id in ids]
+
+        # find out reassigned triggers
+        reassigned_trigger_ids = set(Trigger.filter_out_reassigned_triggers(triggerer_id, cancel_trigger_ids))
+
+        other_reasons_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
+
+        trigger_id_reasons = add_reason(reassigned_trigger_ids, TriggerTerminationReason.REASSIGNED)
+        trigger_id_reasons.extend(add_reason(other_reasons_trigger_ids, TriggerTerminationReason.OTHER))
+
+        return trigger_id_reasons

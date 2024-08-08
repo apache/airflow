@@ -21,6 +21,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, AsyncIterator
+from enum import Enum
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -114,6 +115,19 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         that cleanup method failed, you should wrap your code with try/except block
         and handle it appropriately (in async-compatible way).
         """
+
+    def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
+        """
+        Check the trigger should be cleaned up or not base on the context.
+
+        :param termination_reason: The reason for terminating the trigger.
+        Since the trigger could be terminated for various reasons, like triggerer restart or reassigned to
+        another triggerer, this method allows the trigger to decide whether it should be cleaned up under the
+        current circumstances.
+
+        By default, will always return True, override this method base custom requirements.
+        """
+        return True
 
     def __repr__(self) -> str:
         classpath, kwargs = self.serialize()
@@ -244,3 +258,12 @@ class TaskSkippedEvent(BaseTaskEndEvent):
     """Yield this event in order to end the task with status 'skipped'."""
 
     task_instance_state = TaskInstanceState.SKIPPED
+
+
+class TriggerTerminationReason(Enum):
+    """Reason for terminating a trigger."""
+
+    REASSIGNED = "reassigned"
+    """When current running trigger already been assigned to run in another triggerer."""
+
+    OTHER = "other"
