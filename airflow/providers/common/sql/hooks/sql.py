@@ -179,7 +179,6 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated INSERT SQL statement
         """
-
         placeholders = [
             self.placeholder,
         ] * len(values)
@@ -201,7 +200,6 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated REPLACE SQL statement
         """
-
         placeholders = [
             self.placeholder,
         ] * len(values)
