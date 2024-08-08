@@ -1223,7 +1223,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, state="DONE", error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1264,7 +1266,9 @@ class TestBigQueryInsertJobOperator:
             "configuration": configuration,
             "jobReference": "a",
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, state="DONE", error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
         mock_hook.return_value.insert_job.return_value.to_api_repr.return_value = mock_configuration
 
@@ -1302,7 +1306,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, state="DONE", error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1408,8 +1414,14 @@ class TestBigQueryInsertJobOperator:
             job_id=real_job_id,
             error_result=False,
             state="RUNNING",
-            done=lambda: False,
         )
+
+        # Make the job's result method change the state to DONE when called
+        def job_result(*args, **kwargs):
+            job.state = "DONE"
+
+        job.result.side_effect = job_result
+
         mock_hook.return_value.get_job.return_value = job
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
@@ -1433,7 +1445,6 @@ class TestBigQueryInsertJobOperator:
             retry=DEFAULT_RETRY,
             timeout=None,
         )
-
         assert result == real_job_id
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -1486,6 +1497,7 @@ class TestBigQueryInsertJobOperator:
 
         job = MagicMock(
             job_id=real_job_id,
+            state="DONE",
             error_result=False,
         )
         mock_hook.return_value.insert_job.return_value = job
@@ -1825,7 +1837,9 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, state="DONE", error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1959,7 +1973,9 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": {"foo": "bar"},
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, state="DONE", error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1989,7 +2005,9 @@ class TestBigQueryInsertJobOperator:
             },
             "labels": None,
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id=real_job_id, state="DONE", error_result=False
+        )
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
