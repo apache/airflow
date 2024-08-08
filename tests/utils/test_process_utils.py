@@ -120,6 +120,10 @@ class TestExecuteInSubProcess:
             "KITTY",
         ] == msgs
 
+    def test_using_env_works(self, caplog):
+        execute_in_subprocess(["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1"))
+        assert "My value is 1" in caplog.text
+
     def test_should_raise_exception(self):
         with pytest.raises(CalledProcessError):
             process_utils.execute_in_subprocess(["bash", "-c", "exit 1"])
