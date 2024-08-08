@@ -963,6 +963,48 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             self.run_as_task(f, op_args=[42], serializer=serializer)
         assert f"Unable to import `{serializer}` module." in caplog.text
 
+    def test_environment_variables(self):
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
+        assert task.execute_callable() == "ABCDE"
+
+    def test_environment_variables_with_inherit_env_true(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "QWERT")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, inherit_env=True)
+        assert task.execute_callable() == "QWERT"
+
+    def test_environment_variables_with_inherit_env_false(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(AirflowException):
+            self.run_as_task(f, inherit_env=False)
+
+    def test_environment_variables_overriding(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "ABCDE")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
+        assert task.execute_callable() == "EFGHI"
+
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
@@ -1488,6 +1530,57 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(AirflowException, match="Invalid tasks found:"):
             self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
+
+    def test_environment_variables(self):
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'ABCDE'}",
+        ):
+            self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
+
+    def test_environment_variables_with_inherit_env_true(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "QWERT")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'QWERT'}",
+        ):
+            self.run_as_task(f, inherit_env=True)
+
+    def test_environment_variables_with_inherit_env_false(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(AirflowException):
+            self.run_as_task(f, inherit_env=False)
+
+    def test_environment_variables_overriding(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "ABCDE")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'EFGHI'}",
+        ):
+            self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
 
     def test_with_no_caching(self):
         """
