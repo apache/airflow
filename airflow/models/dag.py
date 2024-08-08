@@ -142,6 +142,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.decorators import TaskDecoratorCollection
+    from airflow.decorators.assets import AssetDefinition
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
@@ -692,6 +693,9 @@ class DAG(LoggingMixin):
         # it's only use is for determining the relative
         # fileloc based only on the serialize dag
         self._processor_dags_folder = None
+
+        # Additional information if this is created from an @asset definition.
+        self._wrapped_definition: AssetDefinition | None = None
 
         validate_instance_args(self, DAG_ARGS_EXPECTED_TYPES)
 
