@@ -112,7 +112,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_scheme_and_host(self):
         with patch(
-        "airflow.hooks.base.BaseHook.get_connection",
+            "airflow.hooks.base.BaseHook.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -123,8 +123,8 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_no_scheme_or_host(self):
         with patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=get_airflow_connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             connection = mock_connection()
