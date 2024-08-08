@@ -190,5 +190,5 @@ def get_airflow_connection(
         port=80,
         login=login,
         password=password,
-        extra={"tenant_id": tenant_id, "api_version": api_version.value, "proxies": proxies or {}},
+        extra={"tenant_id": tenant_id, "api_version": api_version, "proxies": proxies or {}},
     )
