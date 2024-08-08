@@ -1,0 +1,1 @@
+Enable ``get_current_context()`` to work in virtual environments. The following ``Operators`` are affected: ``PythonVirtualenvOperator``, ``BranchPythonVirtualenvOperator``, ``ExternalPythonOperator``, ``BranchExternalPythonOperator``
