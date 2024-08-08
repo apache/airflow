@@ -1804,6 +1804,13 @@ class TestKubernetesJobWatcher:
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
 
+    def test_process_status_provider_failed(self):
+        self.pod.status.reason = "ProviderFailed"
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.assert_watcher_queue_called_once_with_state(State.FAILED)
+
     def test_process_status_succeeded(self):
         self.pod.status.phase = "Succeeded"
         self.events.append({"type": "MODIFIED", "object": self.pod})
