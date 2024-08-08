@@ -291,8 +291,8 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
-            (tmp_file, duplicate_key_handling, extra_options),
+            f"LOAD DATA LOCAL INFILE %s {duplicate_key_handling} INTO TABLE {table} {extra_options}",
+            (tmp_file,),
         )
 
         cursor.close()
