@@ -103,6 +103,8 @@ spec:
           volumeMounts:
             - name: redis-db
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp                
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -114,6 +116,8 @@ spec:
         - name: redis-db
           emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}
   {{- else }}
+        - emtpyDir: {}
+          name: tmp
   volumeClaimTemplates:
     - metadata:
         name: redis-db
