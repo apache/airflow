@@ -112,8 +112,10 @@ spec:
                 secretKeyRef:
                   name: {{ template "redis_password_secret" . }}
                   key: password
-  {{- if not .Values.redis.persistence.enabled }}
       volumes:
+        - emptyDir: {}
+          name: tmp  
+  {{- if not .Values.redis.persistence.enabled }}
         - name: redis-db
           emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}
   {{- else if .Values.redis.persistence.existingClaim }}
@@ -122,8 +124,6 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Values.redis.persistence.existingClaim }}
   {{- else }}
-        - emtpyDir: {}
-          name: tmp
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
