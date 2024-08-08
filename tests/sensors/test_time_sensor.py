@@ -71,7 +71,7 @@ class TestTimeSensorAsync:
         assert exc_info.value.method_name == "execute_complete"
 
     def test_target_time_aware(self):
-        with DAG("test_target_time_aware", start_date=timezone.datetime(2020, 1, 1, 23, 0)):
+        with DAG("test_target_time_aware", schedule=None, start_date=timezone.datetime(2020, 1, 1, 23, 0)):
             aware_time = time(0, 1).replace(tzinfo=pendulum.local_timezone())
             op = TimeSensorAsync(task_id="test", target_time=aware_time)
             assert op.target_datetime.tzinfo == timezone.utc

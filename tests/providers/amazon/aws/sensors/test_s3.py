@@ -117,7 +117,7 @@ class TestS3KeySensor:
 
         execution_date = timezone.datetime(2020, 1, 1)
 
-        dag = DAG("test_s3_key", start_date=execution_date)
+        dag = DAG("test_s3_key", schedule=None, start_date=execution_date)
         op = S3KeySensor(
             task_id="s3_key_sensor",
             bucket_key="{{ var.value.test_bucket_key }}",

@@ -188,7 +188,11 @@ class TestRdsSnapshotExistenceSensor:
 class TestRdsExportTaskExistenceSensor:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
 
     @classmethod
@@ -223,7 +227,11 @@ class TestRdsExportTaskExistenceSensor:
 class TestRdsDbSensor:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook()
 
     @classmethod
