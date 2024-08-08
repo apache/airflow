@@ -56,7 +56,9 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_conn_with_custom_base_url(self):
         connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id, host="api.fabric.microsoft.com", api_version="v1",
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
         )
 
         with patch(
@@ -110,7 +112,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_scheme_and_host(self):
         with patch(
-            "airflow.hooks.base.BaseHook.get_connection",
+        "airflow.hooks.base.BaseHook.get_connection",
             side_effect=get_airflow_connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
