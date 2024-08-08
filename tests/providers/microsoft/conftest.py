@@ -178,7 +178,7 @@ def get_airflow_connection(
     password: str = "client_secret",
     tenant_id: str = "tenant-id",
     proxies: dict | None = None,
-    api_version: str = APIVersion.v1.value,
+    api_version: APIVersion | str | None = APIVersion.v1.value,
 ):
     from airflow.models import Connection
 
