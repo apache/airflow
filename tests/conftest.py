@@ -923,7 +923,7 @@ def dag_maker(request):
         def __call__(
             self,
             dag_id="test_dag",
-            schedule=None,
+            schedule=timedelta(days=1),
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
