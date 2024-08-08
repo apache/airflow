@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import copy
-import json
 import logging
 import os
 import pickle
@@ -32,7 +31,7 @@ from functools import partial
 from importlib.util import find_spec
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -48,7 +47,6 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
-from airflow.operators.branch import BranchMixIn
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchExternalPythonOperator,
@@ -62,8 +60,6 @@ from airflow.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
-from airflow.serialization.enums import Encoding
-from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.python_virtualenv import prepare_virtualenv
@@ -1017,62 +1013,27 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         if not issubclass(self.opcls, BranchMixIn):
             pytest.skip("This test is only applicable to BranchMixIn")
 
+    def test_current_context(self):
         def f():
-            import json
-
             from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
 
             context = get_current_context()
-            json.dumps(context)
+            if not isinstance(context, Context):
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
             return []
 
         ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
         assert ti.state == TaskInstanceState.SUCCESS
 
-    def test_current_context(self, session):
-        if issubclass(self.opcls, BranchMixIn):
-            pytest.skip("This test is not applicable to BranchMixIn")
-
-        def f():
-            import json
-
-            from airflow.operators.python import get_current_context
-
-            context = get_current_context()
-            return json.dumps(context)
-
-        ti = self.run_as_task(
-            f, return_ti=True, multiple_outputs=False, use_airflow_context=True, session=session
-        )
-        assert ti.state == TaskInstanceState.SUCCESS
-
-        context = ti.get_template_context(session=session)
-        session.add(ti.dag_run)
-        session.flush()
-        serialized_context: dict[Encoding, Any] = BaseSerialization.serialize(context)
-        as_json = json.dumps(serialized_context)
-
-        context_from_json: dict[str, Any] = json.loads(as_json)
-        context_xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value", session=session)
-        context_from_xcom: dict[str, Any] = json.loads(context_xcom)
-
-        # FIXME: After `#41067` is merged, we need to fix it.
-        # We'll also need to do some special handling for states.
-        ignore = ["task_instance", "ti"]
-        for context_object in [context_from_xcom, context_from_json]:
-            for key in ignore:
-                context_object[Encoding.VAR.value].pop(key, None)
-
-        assert context_from_json == context_from_xcom
-
     def test_current_context_not_found_error(self):
         def f():
-            import json
-
             from airflow.operators.python import get_current_context
 
-            context = get_current_context()
-            return json.dumps(context)
+            get_current_context()
+            return []
 
         with pytest.raises(
             AirflowException,
@@ -1080,6 +1041,42 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "Are you running within an airflow task?",
         ):
             self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
+
+    def test_current_context_airflow_not_found_error(self):
+        airflow_flag: dict[str, bool] = {"expect_airflow": False}
+        error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+
+        if not issubclass(self.opcls, ExternalPythonOperator):
+            airflow_flag["system_site_packages"] = False
+            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
+
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(AirflowException, match=error_msg):
+            self.run_as_task(
+                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
+            )
+
+    def test_use_airflow_context_touch_other_variables(self):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            from airflow.operators.python import PythonOperator  # noqa: F401
+
+            return []
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1502,6 +1499,29 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
+    def test_current_context_system_site_packages(self, session):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(
+            f,
+            return_ti=True,
+            multiple_outputs=False,
+            use_airflow_context=True,
+            session=session,
+            expect_airflow=False,
+            system_site_packages=True,
+        )
+        assert ti.state == TaskInstanceState.SUCCESS
+
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1820,6 +1840,29 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
             if "venv_cache_path" not in kwargs:
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
+
+    def test_current_context_system_site_packages(self, session):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(
+            f,
+            return_ti=True,
+            multiple_outputs=False,
+            use_airflow_context=True,
+            session=session,
+            expect_airflow=False,
+            system_site_packages=True,
+        )
+        assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
