@@ -18,19 +18,58 @@
 from __future__ import annotations
 
 import logging
+import re
 import shlex
 from unittest import mock
 
 import pytest
 
 from airflow.security import kerberos
-from airflow.security.kerberos import get_kerberos_principle, renew_from_kt
+from airflow.security.kerberos import get_kerberos_principle, perform_krb181_workaround, renew_from_kt
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
 
 class TestKerberos:
+    def test_perform_krb181_workaround(self):
+        principal = "test-principal"
+        expected_return_code = 0
+
+        with mock.patch("airflow.security.kerberos.subprocess") as mock_subprocess:
+            mock_subprocess.call.return_value = expected_return_code
+
+            return_code = perform_krb181_workaround(principal)
+
+            assert return_code == expected_return_code
+            mock_subprocess.call.assert_called_once_with(
+                # WARN: /tmp/airlfow_krb5_ccache is defined in airflow/config_templates/config.yaml
+                ["kinit", "-c", "/tmp/airflow_krb5_ccache", "-R"],
+                close_fds=True,
+            )
+
+    def test_perform_krb181_workaround_failed(self, caplog):
+        principal = "tmp-principal"
+        expected_return_code = 1
+        # WARN: /tmp/airlfow_krb5_ccache is defined in airflow/config_templates/config.yaml
+        failed_message_pattern = re.compile(
+            "Couldn't renew kerberos ticket in order to work around Kerberos 1.8.1 issue. Please check that "
+            rf"the ticket for '{principal}/[a-zA-Z0-9.-]+' is still renewable:\n  \$ kinit -f -c /tmp/airflow_krb5_ccache\n"
+            "If the 'renew until' date is the same as the 'valid starting' date, the ticket cannot be renewed. Please check your KDC "
+            rf"configuration, and the ticket renewal policy \(maxrenewlife\) for the '{principal}/[a-zA-Z0-9.-]+' and `krbtgt' "
+            "principals."
+        )
+
+        with mock.patch("airflow.security.kerberos.subprocess") as mock_subprocess:
+            mock_subprocess.call.return_value = expected_return_code
+
+            with caplog.at_level(logging.ERROR, logger=kerberos.log.name):
+                caplog.clear()
+                return_code = perform_krb181_workaround(principal)
+
+            assert return_code == expected_return_code
+            assert failed_message_pattern.match(caplog.messages[0])
+
     @pytest.mark.parametrize(
         "kerberos_config, expected_cmd",
         [
