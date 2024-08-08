@@ -75,6 +75,8 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ):
         log_str = b"\n".join(
             self.conn.lrange(self._render_filename(ti, try_number), start=0, end=-1)

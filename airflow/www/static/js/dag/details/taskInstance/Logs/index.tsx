@@ -18,7 +18,16 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Text, Box, Flex, Checkbox, Icon, Spinner } from "@chakra-ui/react";
+import {
+  Text,
+  Box,
+  Flex,
+  Button,
+  Checkbox,
+  Icon,
+  Spinner,
+  ButtonGroup,
+} from "@chakra-ui/react";
 import { MdInfo, MdWarning } from "react-icons/md";
 
 import { getMetaValue } from "src/utils";
@@ -156,7 +165,7 @@ const Logs = ({
     <>
       {showExternalLogRedirect && externalLogName && (
         <Box my={1}>
-          <Text>View Logs in {externalLogName} (by attempts):</Text>
+          <Text>View Logs in {externalLogName} Task Instance Try Number:</Text>
           <Flex flexWrap="wrap">
             {Array.from({ length: finalTryNumber || 1 }, (_, i) => i + 1).map(
               (tryNumber) => (
@@ -274,13 +283,34 @@ const Logs = ({
         <Spinner />
       ) : (
         !!parsedLogs && (
-          <LogBlock
-            parsedLogs={parsedLogs}
-            wrap={wrap}
-            tryNumber={selectedTryNumber}
-            unfoldedGroups={unfoldedLogGroups}
-            setUnfoldedLogGroup={setUnfoldedLogGroup}
-          />
+          <Box flex="1" overflow="auto" maxHeight="60vh">
+            <LogBlock
+              parsedLogs={parsedLogs}
+              wrap={wrap}
+              tryNumber={selectedTryNumber}
+              unfoldedGroups={unfoldedLogGroups}
+              setUnfoldedLogGroup={setUnfoldedLogGroup}
+            />
+            <Box my={3}>
+              {/* Temporary fix adding overflow (for long logs). Componentizing logs will fix it. Will do later */}
+              <Text as="span">Log Page Number</Text>
+              <Flex flexWrap="wrap" my={2}>
+                {/* TODO: Replace [1,2] with API call to get the log size -> # required pages */}
+                {[1, 2].map((index) => (
+                  <ButtonGroup size="sm">
+                    <Button
+                      variant={selectedTryNumber === index ? "solid" : "ghost"}
+                      colorScheme="blue"
+                      onClick={() => setSelectedTryNumber(index)}
+                      data-testid={`log-attempt-select-button-${index}`}
+                    >
+                      {index}
+                    </Button>
+                  </ButtonGroup>
+                ))}
+              </Flex>
+            </Box>
+          </Box>
         )
       )}
     </>

@@ -351,6 +351,8 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ):
         """
         Template method that contains custom logic of reading logs given the try_number.
@@ -364,6 +366,8 @@ class FileTaskHandler(logging.Handler):
                                   which was retrieved in previous calls, this
                                   part will be skipped and only following test
                                   returned to be added to tail.
+        :param offset: Starting index for log entries (for pagination)
+        :param limit: Maximum number of log entries to return (for pagination)
         :return: log message as a string and metadata.
                  Following attributes are used in metadata:
                  end_of_log: Boolean, True if end of log is reached or False
@@ -371,9 +375,6 @@ class FileTaskHandler(logging.Handler):
                              This is determined by the status of the TaskInstance
                  log_pos: (absolute) Char position to which the log is retrieved
         """
-        # Task instance here might be different from task instance when
-        # initializing the handler. Thus explicitly getting log location
-        # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
         remote_logs: list[str] = []
@@ -381,6 +382,7 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
+
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -393,17 +395,17 @@ class FileTaskHandler(logging.Handler):
                 messages_list.extend(executor_messages)
                 has_k8s_exec_pod = True
         if not (remote_logs and ti.state not in State.unfinished):
-            # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
+        if (
+            ti.state
+            in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RETRY)
+            and not has_k8s_exec_pod
+        ):
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
-            # ordinarily we don't check served logs, with the assumption that users set up
-            # remote logging or shared drive for logs for persistence, but that's not always true
-            # so even if task is done, if no local logs or remote logs are found, we'll check the worker
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
 
@@ -415,17 +417,19 @@ class FileTaskHandler(logging.Handler):
                 *served_logs,
             )
         )
-        log_pos = len(logs)
+
+        # Apply pagination
+        paginated_logs = logs[offset : offset + limit]
+        log_output = paginated_logs
+
+        log_pos = offset + len(paginated_logs)
+        end_of_log = not paginated_logs or len(paginated_logs) < limit
+
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
-        if metadata and "log_pos" in metadata:
-            previous_chars = metadata["log_pos"]
-            logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
-        out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
+        out_message = messages + log_output if offset == 0 else log_output
+
+        updated_metadata = {"end_of_log": end_of_log, "log_pos": log_pos}
+        return out_message, updated_metadata
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -458,7 +462,7 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(self, task_instance, try_number=None, metadata=None, offset=0, limit=1000):
         """
         Read logs of given task instance from local machine.
 
@@ -467,30 +471,27 @@ class FileTaskHandler(logging.Handler):
                            it returns all logs separated by try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
         :return: a list of listed tuples which order log string by host
+        :param offset: Starting offset for log entries
+        :param limit: Maximum number of log entries to return
+        :return: a list of listed tuples which order log string by host
         """
-        # Task instance increments its try number when it starts to run.
-        # So the log for a particular task try will only show up when
-        # try number gets incremented in DB, i.e logs produced the time
-        # after cli run and before try_number + 1 in DB will not be displayed.
         if try_number is None:
             next_try = task_instance.next_try_number
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
-            logs = [
-                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
+            return [[("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")]], [
+                {"end_of_log": True}
             ]
-            return logs, [{"end_of_log": True}]
         else:
             try_numbers = [try_number]
 
-        logs = [""] * len(try_numbers)
-        metadata_array = [{}] * len(try_numbers)
+        logs: list[str] = [""] * len(try_numbers)
+        metadata_array: list[dict] = [{}] * len(try_numbers)
 
-        # subclasses implement _read and may not have log_type, which was added recently
         for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata)
-            # es_task_handler return logs grouped by host. wrap other handler returning log string
-            # with default/ empty host so that UI can render the response in the same way
+            log, out_metadata = self._read(
+                task_instance, try_number_element, metadata, offset=offset, limit=limit
+            )
             logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
             metadata_array[i] = out_metadata
 

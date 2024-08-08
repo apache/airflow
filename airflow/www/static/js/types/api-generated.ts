@@ -643,7 +643,7 @@ export interface paths {
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
     /**
      * Get logs for a specific task instance and its try number.
-     * To get log from specific character position, following way of using
+     * To get log from a specific character position, the following way of using
      * URLSafeSerializer can be used.
      *
      * Example:
@@ -653,7 +653,7 @@ export interface paths {
      * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
      * key = app.config["SECRET_KEY"]
      * serializer = URLSafeSerializer(key)
-     * token = serializer.dumps({"log_pos": 10000})
+     * token = serializer.dumps({"offset": 10000})
      *
      * response = self.client.get(
      *     request_url,
@@ -662,12 +662,12 @@ export interface paths {
      *     environ_overrides={"REMOTE_USER": "test"},
      * )
      * continuation_token = response.json["continuation_token"]
-     *     metadata = URLSafeSerializer(key).loads(continuation_token)
-     *     log_pos = metadata["log_pos"]
-     *     end_of_log = metadata["end_of_log"]
+     * metadata = URLSafeSerializer(key).loads(continuation_token)
+     * offset = metadata["offset"]
+     * end_of_log = metadata["end_of_log"]
      * ```
-     * If log_pos is passed as 10000 like the above example, it renders the logs starting
-     * from char position 10000 to last (not the end as the logs may be tailing behind in
+     * If offset is passed as 10000 like the above example, it renders the logs starting
+     * from char position 10000 to the last (not the end as the logs may be tailing behind in
      * running state). This way pagination can be done with metadata as part of the token.
      */
     get: operations["get_log"];
@@ -690,6 +690,8 @@ export interface paths {
         full_content?: components["parameters"]["FullContent"];
         /** Filter on map index for mapped task. */
         map_index?: components["parameters"]["FilterMapIndex"];
+        offset?: components["parameters"]["Offset"];
+        limit?: components["parameters"]["Limit"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -697,6 +699,9 @@ export interface paths {
         token?: components["parameters"]["ContinuationToken"];
       };
     };
+  };
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logPages": {
+    get: operations["get_log_pages"];
   };
   "/dags/{dag_id}/details": {
     /** The response contains many DAG attributes, so the response can be large. If possible, consider using GET /dags/{dag_id}. */
@@ -2579,6 +2584,8 @@ export interface components {
      * By default, only the first fragment will be returned.
      */
     FullContent: boolean;
+    Offset: number;
+    Limit: number;
     /**
      * @description A token that allows you to continue fetching logs.
      * If passed, it will specify the location from which the download should be continued.
@@ -4696,7 +4703,7 @@ export interface operations {
   };
   /**
    * Get logs for a specific task instance and its try number.
-   * To get log from specific character position, following way of using
+   * To get log from a specific character position, the following way of using
    * URLSafeSerializer can be used.
    *
    * Example:
@@ -4706,7 +4713,7 @@ export interface operations {
    * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
    * key = app.config["SECRET_KEY"]
    * serializer = URLSafeSerializer(key)
-   * token = serializer.dumps({"log_pos": 10000})
+   * token = serializer.dumps({"offset": 10000})
    *
    * response = self.client.get(
    *     request_url,
@@ -4715,12 +4722,12 @@ export interface operations {
    *     environ_overrides={"REMOTE_USER": "test"},
    * )
    * continuation_token = response.json["continuation_token"]
-   *     metadata = URLSafeSerializer(key).loads(continuation_token)
-   *     log_pos = metadata["log_pos"]
-   *     end_of_log = metadata["end_of_log"]
+   * metadata = URLSafeSerializer(key).loads(continuation_token)
+   * offset = metadata["offset"]
+   * end_of_log = metadata["end_of_log"]
    * ```
-   * If log_pos is passed as 10000 like the above example, it renders the logs starting
-   * from char position 10000 to last (not the end as the logs may be tailing behind in
+   * If offset is passed as 10000 like the above example, it renders the logs starting
+   * from char position 10000 to the last (not the end as the logs may be tailing behind in
    * running state). This way pagination can be done with metadata as part of the token.
    */
   get_log: {
@@ -4743,6 +4750,8 @@ export interface operations {
         full_content?: components["parameters"]["FullContent"];
         /** Filter on map index for mapped task. */
         map_index?: components["parameters"]["FilterMapIndex"];
+        offset?: components["parameters"]["Offset"];
+        limit?: components["parameters"]["Limit"];
         /**
          * A token that allows you to continue fetching logs.
          * If passed, it will specify the location from which the download should be continued.
@@ -4762,6 +4771,37 @@ export interface operations {
         };
       };
       400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  get_log_pages: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The DAG run ID. */
+        dag_run_id: components["parameters"]["DAGRunID"];
+        /** The task ID. */
+        task_id: components["parameters"]["TaskID"];
+      };
+      query: {
+        /** The name of the bucket. */
+        bucket_name: string;
+        /** The key parameter. */
+        key: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": {
+            total_pages?: number;
+          };
+        };
+      };
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
@@ -5929,6 +5969,10 @@ export type GetExtraLinksVariables = CamelCasedPropertiesDeep<
 export type GetLogVariables = CamelCasedPropertiesDeep<
   operations["get_log"]["parameters"]["path"] &
     operations["get_log"]["parameters"]["query"]
+>;
+export type GetLogPagesVariables = CamelCasedPropertiesDeep<
+  operations["get_log_pages"]["parameters"]["path"] &
+    operations["get_log_pages"]["parameters"]["query"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_details"]["parameters"]["path"] &

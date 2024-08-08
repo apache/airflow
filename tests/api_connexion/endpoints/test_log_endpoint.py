@@ -29,9 +29,11 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.decorators import task
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_runs
@@ -58,6 +60,11 @@ def configured_app(minimal_app_for_api):
 
     delete_user(app, username="test")
     delete_user(app, username="test_no_permissions")
+
+
+@pytest.fixture(scope="module")
+def bucket_name():
+    return "test_log_page_bucket"
 
 
 class TestGetLog:
@@ -193,7 +200,7 @@ class TestGetLog:
             == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\n{log_content}')]"
         )
         info = serializer.loads(response.json["continuation_token"])
-        assert info == {"end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
+        assert info == {"download_logs": False, "end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
         assert 200 == response.status_code
 
     @pytest.mark.parametrize(
@@ -450,3 +457,294 @@ class TestGetLog:
         )
         assert response.status_code == 404
         assert response.json["title"] == "TaskInstance not found"
+
+
+class TestLogPageFunctionality:
+    DAG_ID = "dag_for_testing_log_page_endpoint"
+    RUN_ID = "dag_run_id_for_testing_log_page_endpoint"
+    TASK_ID = "task_for_testing_log_page_endpoint"
+    TRY_NUMBER = 1
+
+    default_time = "2020-06-10T20:00:00+00:00"
+
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app, dag_maker, session) -> None:
+        self.app = configured_app
+        self.client = self.app.test_client()
+
+        with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
+            EmptyOperator(task_id=self.TASK_ID)
+
+        dr = dag_maker.create_dagrun(
+            run_id=self.RUN_ID,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+
+        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+
+        for ti in dr.task_instances:
+            ti.try_number = 1
+            ti.hostname = "localhost"
+
+        self.ti = dr.task_instances[0]
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_should_return_1_page_for_non_terminal_state(self, session):
+        ti = (
+            session.query(TaskInstance)
+            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
+            .first()
+        )
+        ti.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
+            query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {"total_pages": 1}
+
+    def test_should_return_multiple_pages_for_success(self, tmp_path, session):
+        ti = (
+            session.query(TaskInstance)
+            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
+            .first()
+        )
+        ti.state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        log_content = "A" * 300 * 1024  # 300 KB of 'A's
+        log_file_path = (
+            tmp_path
+            / f"dag_id={self.DAG_ID}"
+            / f"run_id={self.RUN_ID}"
+            / f"task_id={self.TASK_ID}"
+            / "attempt=1.log"
+        )
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_path.write_text(log_content)
+        with mock.patch(
+            "airflow.utils.log.log_storage_handler.S3StorageHandler.get_content_length"
+        ) as mock_get_content_length:
+            mock_get_content_length.return_value = len(log_content)
+
+            response = self.client.get(
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
+                query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
+                headers={"Accept": "application/json"},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+
+            assert response.status_code == 200
+            assert response.json == {"total_pages": 3}
+
+    def test_should_return_multiple_pages_failed_state(self, tmp_path, session):
+        ti = (
+            session.query(TaskInstance)
+            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
+            .first()
+        )
+        ti.state = TaskInstanceState.FAILED
+        session.commit()
+
+        log_content = "A" * 400 * 1024  # 300 KB of 'A's
+        log_file_path = (
+            tmp_path
+            / f"dag_id={self.DAG_ID}"
+            / f"run_id={self.RUN_ID}"
+            / f"task_id={self.TASK_ID}"
+            / "attempt=1.log"
+        )
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_path.write_text(log_content)
+
+        with mock.patch(
+            "airflow.utils.log.log_storage_handler.S3StorageHandler.get_content_length"
+        ) as mock_get_content_length:
+            mock_get_content_length.return_value = len(log_content)
+
+            response = self.client.get(
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
+                query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
+                headers={"Accept": "application/json"},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+
+            assert response.status_code == 200
+            assert response.json == {"total_pages": 4}
+
+    def test_should_return_multiple_pages_for_up_for_retry(self, tmp_path, session):
+        ti = (
+            session.query(TaskInstance)
+            .filter_by(task_id=self.TASK_ID, dag_id=self.DAG_ID, run_id=self.RUN_ID)
+            .first()
+        )
+        ti.state = TaskInstanceState.UP_FOR_RETRY
+        session.commit()
+
+        log_content = "A" * 300 * 1024  # 300 KB of 'A's
+        log_file_path = (
+            tmp_path
+            / f"dag_id={self.DAG_ID}"
+            / f"run_id={self.RUN_ID}"
+            / f"task_id={self.TASK_ID}"
+            / "attempt=1.log"
+        )
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_path.write_text(log_content)
+
+        with mock.patch(
+            "airflow.utils.log.log_storage_handler.S3StorageHandler.get_content_length"
+        ) as mock_get_content_length:
+            mock_get_content_length.return_value = len(log_content)
+
+            response = self.client.get(
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logPages",
+                query_string={"bucket_name": "test_log_page_bucket", "key": "log.txt"},
+                headers={"Accept": "application/json"},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+
+            assert response.status_code == 200
+            assert response.json == {"total_pages": 3}
+
+
+class TestGetPaginationLog:
+    DAG_ID = "dag_for_testing_log_pagination"
+    RUN_ID = "dag_run_id_for_testing_log_pagination"
+    TASK_ID = "task_for_testing_log_pagination"
+    MAPPED_TASK_ID = "mapped_task_for_testing_pagination"
+    TRY_NUMBER = 1
+
+    default_time = "2024-06-10T20:00:00+00:00"
+
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, configured_app, configure_loggers, dag_maker, session) -> None:
+        self.app = configured_app
+        self.client = self.app.test_client()
+        # Make sure that the configure_logging is not cached
+        self.old_modules = dict(sys.modules)
+
+        with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
+            EmptyOperator(task_id=self.TASK_ID)
+
+            @task(task_id=self.MAPPED_TASK_ID)
+            def add_one(x: int):
+                return x + 1
+
+            add_one.expand(x=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun(
+            run_id=self.RUN_ID,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+
+        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+
+        # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
+        with dag_maker(
+            f"{self.DAG_ID}_copy", start_date=timezone.parse(self.default_time), session=session
+        ) as dummy_dag:
+            EmptyOperator(task_id=self.TASK_ID)
+        dag_maker.create_dagrun(
+            run_id=self.RUN_ID,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+
+        for ti in dr.task_instances:
+            ti.try_number = 1
+            ti.hostname = "localhost"
+
+        self.ti = dr.task_instances[0]
+
+    @pytest.fixture
+    def configure_loggers(self, tmp_path, create_log_template):
+        self.log_dir = tmp_path
+
+        # TASK_ID
+        dir_path = tmp_path / f"dag_id={self.DAG_ID}" / f"run_id={self.RUN_ID}" / f"task_id={self.TASK_ID}"
+        dir_path.mkdir(parents=True)
+
+        log = dir_path / "attempt=1.log"
+        log.write_text("Log for testing.Line01.Line02.Line03.Line04.Line05")
+
+        # MAPPED_TASK_ID
+        for map_index in range(3):
+            dir_path = (
+                tmp_path
+                / f"dag_id={self.DAG_ID}"
+                / f"run_id={self.RUN_ID}"
+                / f"task_id={self.MAPPED_TASK_ID}"
+                / f"map_index={map_index}"
+            )
+
+            dir_path.mkdir(parents=True)
+
+            log = dir_path / "attempt=1.log"
+            log.write_text("Log for testing.")
+
+        # Create a custom logging configuration
+        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+        logging_config["handlers"]["task"]["base_log_folder"] = self.log_dir
+
+        logging.config.dictConfig(logging_config)
+
+        yield
+
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_log_pagination(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
+        offset = 0
+        limit = 18
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            query_string={"token": token, "offset": offset, "limit": limit},
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        expected_filename = (
+            f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt=1.log"
+        )
+        assert (
+            response.json["content"]
+            == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\nLog for testing.Li')]"
+        )
+        info = serializer.loads(response.json["continuation_token"])
+        assert info == {
+            "download_logs": False,
+            "end_of_log": False,
+            "log_pos": 18,
+        }  # TODO: Understand why download_logs is being set/reset to false
+        assert 200 == response.status_code
+
+    def test_invalid_pagination(self):
+        """Test pagination with invalid parameters."""
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+        response = self.client.get(
+            f"/api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{self.TRY_NUMBER}",
+            query_string={"token": token, "offset": -1, "limit": 5000},  # Invalid parameters
+            headers={"Accept": "application/json"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400

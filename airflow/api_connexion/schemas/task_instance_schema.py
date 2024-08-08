@@ -282,6 +282,12 @@ class TaskDependencyCollectionSchema(Schema):
     dependencies = fields.List(fields.Nested(TaskDependencySchema))
 
 
+class TaskInstanceLogPageSchema(Schema):
+    """Task pagination schema, subjected to change."""
+
+    total_pages = fields.Int(required=True)
+
+
 task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
 task_dependencies_collection_schema = TaskDependencyCollectionSchema()
@@ -292,5 +298,6 @@ set_single_task_instance_state_form = SetSingleTaskInstanceStateFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
 set_task_instance_note_form_schema = SetTaskInstanceNoteFormSchema()
+task_instance_log_page_schema = TaskInstanceLogPageSchema()
 task_instance_history_schema = TaskInstanceHistorySchema()
 task_instance_history_collection_schema = TaskInstanceHistoryCollectionSchema()
