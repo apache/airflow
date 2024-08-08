@@ -18,11 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.datasets import Dataset
-
 from airflow import models
+from airflow.datasets import Dataset
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
-from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 
 DAG_ID = "example_msfabric"
 
