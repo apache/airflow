@@ -269,7 +269,7 @@ def make_simple_dag():
     """Make very simple DAG to verify serialization result."""
     with DAG(
         dag_id="simple_dag",
-        schedule=None,
+        schedule=timedelta(days=1),
         default_args={
             "retries": 1,
             "retry_delay": timedelta(minutes=5),
