@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.task.priority_strategy import PriorityWeightStrategy
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -29,7 +30,8 @@ if TYPE_CHECKING:
 class DecreasingPriorityStrategy(PriorityWeightStrategy):
     """A priority weight strategy that decreases the priority weight with each attempt of the DAG task."""
 
-    def get_weight(self, ti: TaskInstance):
+    @provide_session
+    def get_weight(self, ti: TaskInstance, session=NEW_SESSION):
         return max(3 - ti.try_number + 1, 1)
 
 
