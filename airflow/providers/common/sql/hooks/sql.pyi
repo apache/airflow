@@ -32,15 +32,19 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from functools import cached_property as cached_property
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
-
-from pandas import DataFrame as DataFrame
-from sqlalchemy.engine import Inspector, URL as URL
-
+from airflow.exceptions import (
+    AirflowException as AirflowException,
+    AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
+)
 from airflow.hooks.base import BaseHook as BaseHook
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
+from functools import cached_property as cached_property
+from pandas import DataFrame as DataFrame
+from sqlalchemy.engine import Inspector, URL as URL
+from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, Type, TypeVar, overload
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
@@ -58,6 +62,7 @@ class DbApiHook(BaseHook):
     supports_autocommit: bool
     supports_executemany: bool
     connector: ConnectorProtocol | None
+    dialects: dict[str, Type[Dialect]]
     log_sql: Incomplete
     descriptions: Incomplete
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
@@ -71,6 +76,10 @@ class DbApiHook(BaseHook):
     def get_sqlalchemy_engine(self, engine_kwargs: Incomplete | None = None): ...
     @property
     def inspector(self) -> Inspector: ...
+    @cached_property
+    def dialect_name(self) -> str: ...
+    @ cached_property
+    def dialect(self) -> Dialect: ...
     def get_pandas_df(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, **kwargs
     ) -> DataFrame: ...
