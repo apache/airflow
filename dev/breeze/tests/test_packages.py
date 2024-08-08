@@ -431,7 +431,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.7.0"),
+        ("amazon", "2.7.1"),
         ("common.io", "2.8.0"),
     ],
 )
@@ -496,7 +496,7 @@ def test_provider_jinja_context():
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.7.0",
+        "MIN_AIRFLOW_VERSION": "2.7.1",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

@@ -24,7 +24,12 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import XCom
 from airflow.sensors.base import PokeReturnValue
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.10.0", __file__):
+    from airflow.sensors.base import FailPolicy
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -141,8 +146,9 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    def test_basic_sensor_soft_fail(self, dag_maker):
-        @task.sensor(timeout=0, soft_fail=True)
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
+    def test_basic_sensor_skip_on_timeout(self, dag_maker):
+        @task.sensor(timeout=0, fail_policy=FailPolicy.SKIP_ON_TIMEOUT)
         def sensor_f():
             return PokeReturnValue(is_done=False, xcom_value="xcom_value")
 
@@ -165,8 +171,9 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    def test_basic_sensor_soft_fail_returns_bool(self, dag_maker):
-        @task.sensor(timeout=0, soft_fail=True)
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="FailPolicy present from Airflow 2.10.0")
+    def test_basic_sensor_skip_on_timeout_returns_bool(self, dag_maker):
+        @task.sensor(timeout=0, fail_policy=FailPolicy.SKIP_ON_TIMEOUT)
         def sensor_f():
             return False
 

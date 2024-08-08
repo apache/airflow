@@ -25,9 +25,10 @@ import pytest
 from paramiko.sftp import SFTP_FAILURE, SFTP_NO_SUCH_FILE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="arg-type"
@@ -53,14 +54,22 @@ class TestSFTPSensor:
         assert not output
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, OSError), (True, AirflowSkipException))
+        "catch_mode, expected_exception", ((False, AirflowSensorTimeout), (True, AirflowSensorTimeout))
     )
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_sftp_failure(self, sftp_hook_mock, soft_fail: bool, expected_exception):
+    def test_sftp_failure(self, sftp_hook_mock, catch_mode, expected_exception):
         sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(SFTP_FAILURE, "SFTP failure")
-        sftp_sensor = SFTPSensor(
-            task_id="unit_test", path="/path/to/file/1970-01-01.txt", soft_fail=soft_fail
-        )
+        args = {}
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.sensors.base import FailPolicy
+
+            if catch_mode:
+                args["fail_policy"] = FailPolicy.SKIP_ON_TIMEOUT
+            else:
+                args["fail_policy"] = FailPolicy.NONE
+        else:
+            args["soft_fail"] = catch_mode
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt", **args)
         context = {"ds": "1970-01-01"}
         with pytest.raises(expected_exception):
             sftp_sensor.poke(context)

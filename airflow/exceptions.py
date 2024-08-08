@@ -68,6 +68,10 @@ class AirflowSensorTimeout(AirflowException):
     """Raise when there is a timeout on sensor polling."""
 
 
+class AirflowPokeFailException(AirflowException):
+    """Raise when a sensor must not try to poke again."""
+
+
 class AirflowRescheduleException(AirflowException):
     """
     Raise when the task should be re-scheduled at a later time.
@@ -451,6 +455,17 @@ except ImportError:
 
     class PodReconciliationError(AirflowException):  # type: ignore[no-redef]
         """Raised when an error is encountered while trying to merge pod configs."""
+
+
+class RemovedInAirflow3SoftWarning(DeprecationWarning):
+    """
+    Issued for usage of deprecated features that will be removed in Airflow3.
+
+    But that do not fail in the tests.
+    """
+
+    deprecated_since: str | None = None
+    "Indicates the airflow version that started raising this deprecation warning"
 
 
 class RemovedInAirflow3Warning(DeprecationWarning):

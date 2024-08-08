@@ -24,7 +24,7 @@ import pytest
 import time_machine
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -283,7 +283,7 @@ class TestS3KeySensor:
         )
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowException))
     )
     def test_fail_execute_complete(self, soft_fail, expected_exception):
         op = S3KeySensor(
@@ -525,7 +525,7 @@ class TestS3KeysUnchangedSensor:
         assert self.sensor.poke(dict())
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowException))
     )
     def test_fail_is_keys_unchanged(self, soft_fail, expected_exception):
         op = S3KeysUnchangedSensor(task_id="sensor", bucket_name="test-bucket", prefix="test-prefix/path")
@@ -538,7 +538,7 @@ class TestS3KeysUnchangedSensor:
             op.is_keys_unchanged(current_objects=current_objects)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowException))
     )
     def test_fail_execute_complete(self, soft_fail, expected_exception):
         op = S3KeysUnchangedSensor(task_id="sensor", bucket_name="test-bucket", prefix="test-prefix/path")
