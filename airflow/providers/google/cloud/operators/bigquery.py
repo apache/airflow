@@ -315,7 +315,7 @@ class BigQueryCheckOperator(
             # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
             # Row passed to _validate_records is a collection of values only, without column names.
             self._validate_records(next(iter(job.result()), []))  # type: ignore[arg-type]
-            self.log.info("Current state of job %s is %s", job.job_id, job.state)
+            self.log.debug("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
@@ -471,7 +471,7 @@ class BigQueryValueCheckOperator(
             # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
             # Row passed to check_value is a collection of values only, without column names.
             self.check_value(next(iter(job.result()), []))  # type: ignore[arg-type]
-            self.log.info("Current state of job %s is %s", job.job_id, job.state)
+            self.log.debug("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
@@ -3039,7 +3039,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                     ),
                     method_name="execute_complete",
                 )
-            self.log.info("Current state of job %s is %s", job.job_id, job.state)
+            self.log.debug("Current state of job %s is %s", job.job_id, job.state)
             self._handle_job_error(job)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
