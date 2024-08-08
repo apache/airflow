@@ -86,39 +86,6 @@ class DefaultResponseHandler(ResponseHandler):
         return value
 
 
-class DefaultResponseHandler(ResponseHandler):
-    """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
-
-    @staticmethod
-    def get_value(response: NativeResponseType) -> Any:
-        with suppress(JSONDecodeError):
-            return response.json()
-        content = response.content
-        if not content:
-            return {key: value for key, value in response.headers.items()}
-        return content
-
-    async def handle_response_async(
-        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
-    ) -> Any:
-        """
-        Invoke this callback method when a response is received.
-
-        param response: The type of the native response object.
-        param error_map: The error dict to use in case of a failed request.
-        """
-        value = self.get_value(response)
-        if response.status_code not in {200, 201, 202, 204, 302}:
-            message = value or response.reason_phrase
-            status_code = HTTPStatus(response.status_code)
-            if status_code == HTTPStatus.BAD_REQUEST:
-                raise AirflowBadRequest(message)
-            elif status_code == HTTPStatus.NOT_FOUND:
-                raise AirflowNotFoundException(message)
-            raise AirflowException(message)
-        return value
-
-
 class KiotaRequestAdapterHook(BaseHook):
     """
     A Microsoft Graph API interaction hook, a Wrapper around KiotaRequestAdapter.
