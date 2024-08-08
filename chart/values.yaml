@@ -776,6 +776,21 @@ workers:
 
   env: []
 
+  ## Creates placeHolder for Workers in Kubernetes Executor Mode
+  placeHolder:
+    enabled: false
+    replicas: 2
+    labels: ~
+    placeHolderPriority: ~
+    annotations: ~
+    podAnnotations: ~
+    podDisruptionBudget:
+      config: ~
+      # minAvailable and maxUnavailable are mutually exclusive
+      # maxUnavailable: 1
+      # minAvailable: 1
+
+
   volumeClaimTemplates: []
   # Additional volumeClaimTemplates needed.
   # Comment out the above and uncomment the section below to enable it.

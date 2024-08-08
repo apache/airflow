@@ -1,0 +1,121 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+####################################
+## Airflow PlaceHolder StatefulSet
+####################################
+{{- if .Values.workers.placeHolder.enabled }}
+{{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.workers.affinity .Values.affinity }}
+{{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := .Values.workers.placeHolder.topologySpreadConstraints }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" "true" }}
+{{- $podAnnotations :=  mergeOverwrite (deepCopy .Values.airflowPodAnnotations) .Values.workers.podAnnotations (.Values.workers.placeHolder.podAnnotations) $safeToEvict }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "airflow.fullname" . }}-place-holder
+  labels:
+    tier: airflow
+    component: place-holder
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.workers.placeHolder.annotations }}
+  annotations: {{- toYaml .Values.workers.placeHolder.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.workers.placeHolder.replicas }}
+  revisionHistoryLimit: 0
+  serviceName: {{ include "airflow.fullname" . }}-place-holder
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      tier: airflow
+      component: place-holder
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: place-holder
+        release: {{ .Release.Name }}
+        {{- if or (.Values.labels) (.Values.workers.placeHolder.labels) }}
+          {{- mustMerge .Values.workers.placeHolder.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/webserver-secret-key: {{ include (print $.Template.BasePath "/secrets/webserver-secret-key-secret.yaml") . | sha256sum }}
+        checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if $podAnnotations }}
+          {{- toYaml $podAnnotations | nindent 8 }}
+        {{- end }}
+    spec:
+      priorityClassName: {{ include "airflow.fullname" . }}-placeholder-pc
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity:
+        {{- if $affinity }}
+          {{- toYaml $affinity | nindent 8 }}
+        {{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: place-holder
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+        {{- end }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              tier: airflow
+              component: place-holder
+              release: {{ .Release.Name }}
+      terminationGracePeriodSeconds: 0
+      restartPolicy: Always
+      serviceAccountName: {{ include "worker.serviceAccountName" . }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      containers:
+        - name: placeholder
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "while true; do sleep 30; done;" ]
+          resources: {{- toYaml .Values.workers.resources | nindent 12 }}
+{{- end }}
+{{- end }}
