@@ -32,13 +32,8 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.exceptions import (
-    AirflowException as AirflowException,
-    AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
-)
 from airflow.hooks.base import BaseHook as BaseHook
-from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.dialect import Dialect
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property

@@ -50,7 +50,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
-from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.dialect import Dialect
 from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
 
 if TYPE_CHECKING:
