@@ -189,7 +189,7 @@ class TestEmrAddStepsOperator:
             job_flow_name="test_cluster",
             cluster_states=["RUNNING", "WAITING"],
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
         )
 
         with patch(
