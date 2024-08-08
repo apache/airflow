@@ -734,6 +734,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
+        if use_airflow_context and (not expect_airflow and not system_site_packages):
+            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
+            raise AirflowException(error_msg)
         if not requirements:
             self.requirements: list[str] = []
         elif isinstance(requirements, str):
@@ -1009,6 +1012,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
+        if use_airflow_context and not expect_airflow:
+            error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+            raise AirflowException(error_msg)
         self.python = python
         self.expect_pendulum = expect_pendulum
         super().__init__(
