@@ -20,12 +20,13 @@ from functools import lru_cache
 from typing import List
 
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 
 
 class MsSqlDialect(Dialect):
     @lru_cache
     def get_primary_keys(self, table: str) -> List[str]:
+        from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+
         primary_keys = self.run(
             f"""
                 SELECT c.name
