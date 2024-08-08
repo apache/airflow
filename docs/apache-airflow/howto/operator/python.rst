@@ -106,7 +106,7 @@ Context
 ^^^^^^^
 
 The ``Context`` is a dictionary object that contains information
-about the environment of the currently running ``DAG``.
+about the environment of the ``DagRun``.
 For example, selecting ``task_instance`` will get the currently running ``TaskInstance`` object.
 
 It can be used implicitly, such as with ``**kwargs``,
