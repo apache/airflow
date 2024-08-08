@@ -243,14 +243,13 @@ With some limitations, you can also use ``Context`` in virtual environments.
     Using ``Context`` in a virtual environment is a bit of a challenge
     because it involves library dependencies and serialization issues.
 
-    You can bypass this to some extent by using :ref:`Jinja template variables <templates:variables>` and explicitly passing it as a parameter,
-    or by setting ``system_site_packages`` to ``True``.
+    You can bypass this to some extent by using :ref:`Jinja template variables <templates:variables>` and explicitly passing it as a parameter.
 
     You can also use ``get_current_context()`` in the same way as before, but with some limitations.
 
-    * it is a dictionary object of primitive types, not a model defined by Airflow.
-
     * set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
+
+    * set ``system_site_packages`` to ``True`` or set ``expect_airflow`` to ``True``
 
 .. tab-set::
 
