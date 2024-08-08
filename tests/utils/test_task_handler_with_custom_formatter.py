@@ -22,6 +22,7 @@ import logging
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -100,10 +101,12 @@ def assert_prefix_multiple(task_instance: TaskInstance, prefix: str) -> None:
 
 def test_custom_formatter_default_format(task_instance):
     """The default format provides no prefix."""
-    assert_prefix_once(task_instance, "")
+    with pytest.warns(RemovedInAirflow3Warning):
+        assert_prefix_once(task_instance, "")
 
 
 @conf_vars({("logging", "task_log_prefix_template"): "{{ ti.dag_id }}-{{ ti.task_id }}"})
 def test_custom_formatter_custom_format_not_affected_by_config(task_instance):
     """Certifies that the prefix is only added once, even after repeated calls"""
-    assert_prefix_multiple(task_instance, f"{DAG_ID}-{TASK_ID}")
+    with pytest.warns(RemovedInAirflow3Warning):
+        assert_prefix_multiple(task_instance, f"{DAG_ID}-{TASK_ID}")

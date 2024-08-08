@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 
 if TYPE_CHECKING:
@@ -49,6 +51,11 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         if ti.raw or self.formatter is None or self.prefix_jinja_template is not None:
             return
         prefix = conf.get("logging", "task_log_prefix_template")
+        warnings.warn(
+            "This class is deprecated and will be removed in Airflow 3.0",
+            category=RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
 
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)
