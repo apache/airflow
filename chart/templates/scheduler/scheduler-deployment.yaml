@@ -276,6 +276,8 @@ spec:
               value: "{{ .Values.airflowHome }}"
           {{- end }}
           volumeMounts:
+            - name: opt
+              mountPath: /opt/airflow              
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             {{- include "airflow_config_mount" . | nindent 12 }}
@@ -291,7 +293,7 @@ spec:
           {{- end }}
         {{- if .Values.scheduler.extraContainers }}
           {{- tpl (toYaml .Values.scheduler.extraContainers) . | nindent 8 }}
-        {{- end }}
+        {{- end }}      
       volumes:
         - name: config
           configMap:
@@ -323,7 +325,9 @@ spec:
         - name: tmp-logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}     
         - name: tmp
-          emptyDir: {}               
+          emptyDir: {}  
+        - emptyDir: {}
+          name: opt                        
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

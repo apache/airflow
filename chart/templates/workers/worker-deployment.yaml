@@ -213,6 +213,8 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
+            - name: tmp-logs
+              mountPath: {{ template "airflow_logs" . }}              
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -271,6 +273,8 @@ spec:
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+            - name: opt
+              mountPath: /opt/airflow   
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.kerberos.enabled }}
             - name: kerberos-keytab
@@ -342,6 +346,8 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
+            - name: worker-opt
+              mountPath: /opt/airflow             
         {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos
@@ -430,6 +436,12 @@ spec:
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
+        - name: tmp-logs
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}  
+        - emptyDir: {}
+          name: opt 
+        - emptyDir: {}
+          name: worker-opt                         
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
