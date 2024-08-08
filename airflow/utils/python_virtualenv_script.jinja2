@@ -66,7 +66,6 @@ with open(sys.argv[3], "r") as file:
 
 {% if use_airflow_context | default(false) -%}
 if len(sys.argv) > 5:
-    import json
     from types import ModuleType
 
     from airflow.operators import python as airflow_python
@@ -76,8 +75,8 @@ if len(sys.argv) > 5:
     class _MockPython(ModuleType):
         @staticmethod
         def get_current_context():
-            with open(sys.argv[5]) as file:
-                context = json.load(file)
+            with open(sys.argv[5], "rb") as file:
+                context = {{ pickling_library }}.load(file)
                 return BaseSerialization.deserialize(context, use_pydantic_models=True)
 
         def __getattr__(self, name: str):

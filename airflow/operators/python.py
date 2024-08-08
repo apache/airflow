@@ -543,7 +543,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             string_args_path = tmp_dir / "string_args.txt"
             script_path = tmp_dir / "script.py"
             termination_log_path = tmp_dir / "termination.log"
-            airflow_context_path = tmp_dir / "airflow_context.json"
+            airflow_context_path = tmp_dir / "airflow_context.b"
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
@@ -575,8 +575,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 #   https://github.com/apache/airflow/issues/40974
                 #   https://github.com/apache/airflow/pull/41067
                 serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(context)
-                with airflow_context_path.open("w+") as file:
-                    json.dump(serializable_context, file)
+                as_bytes: bytes = self.pickling_library.dumps(serializable_context)
+                with airflow_context_path.open("wb+") as file:
+                    file.write(as_bytes)
 
             env_vars = dict(os.environ) if self.inherit_env else {}
             if self.env_vars:
