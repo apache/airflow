@@ -130,7 +130,9 @@ class KiotaRequestAdapterHook(BaseHook):
         return self._api_version
 
     @staticmethod
-    def resolve_api_version_from_value(api_version: APIVersion | str, default: str | None = None) -> str | None:
+    def resolve_api_version_from_value(
+        api_version: APIVersion | str, default: str | None = None
+    ) -> str | None:
         if isinstance(api_version, APIVersion):
             return api_version.value
         return api_version or default
