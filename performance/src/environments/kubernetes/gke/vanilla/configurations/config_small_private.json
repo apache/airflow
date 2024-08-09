@@ -1,0 +1,64 @@
+{
+  "environment_type": "VANILLA_GKE",
+  "project_id": "{{project_id}}",
+  "airflow_image_tag": "{{airflow_image_tag}}",
+  "docker_image": "{{docker_image}}",
+  "env_variable_sets": {{env_variable_sets}},
+  "helm_chart_sets": {{helm_chart_sets}},
+  "force_routing": {{force_routing}},
+  "cluster_config": {
+    "name": "{{cluster_id}}",
+    "locations": [
+      "{{zone_id}}"
+    ],
+    "addons_config": {
+      "horizontal_pod_autoscaling": {},
+      "kubernetes_dashboard": {
+          "disabled": true
+      },
+      "network_policy_config": {
+          "disabled": true
+      }
+    },
+    "node_pools": [
+      {
+        "name": "default-pool",
+        "config": {
+          "machine_type": "n1-standard-2",
+          "disk_size_gb": 100,
+          "oauth_scopes": ["https://www.googleapis.com/auth/cloud-platform"],
+          "metadata": {
+            "VmDnsSetting": "ZonalPreferred",
+            "disable-legacy-endpoints": "true",
+            "serial-port-logging-enable": "false"
+          },
+          "image_type": "COS",
+          "tags": [],
+          "shielded_instance_config": {
+            "enable_integrity_monitoring": true
+          }
+        },
+        "initial_node_count": 3,
+        "management": {
+          "auto_upgrade": true,
+          "auto_repair": true
+        }
+      }
+    ],
+    "default_max_pods_constraint": {
+        "max_pods_per_node": 32
+    },
+    "ip_allocation_policy": {
+      "use_ip_aliases": true
+    },
+    "network_config": {
+      "network": "projects/{{project_id}}/global/networks/{{network_id}}",
+      "subnetwork": "projects/{{project_id}}/regions/{{location_id}}/subnetworks/{{subnetwork_id}}"
+    },
+    "private_cluster_config": {
+      "enable_private_nodes": true,
+      "enable_private_endpoint": {{enable_private_endpoint}},
+      "master_ipv4_cidr_block": "172.16.8.0/28"
+    }
+  }
+}

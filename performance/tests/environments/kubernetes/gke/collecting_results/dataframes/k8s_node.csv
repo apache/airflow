@@ -1,0 +1,9 @@
+timestamp,project_id,location,cluster_name,node_name,non_existing_label_2,node_metric_2,node_metric_1
+1,project_id,location,cluster_name,node_A,non_existing_2,0,800
+1,project_id,location,cluster_name,node_B,non_existing_2,100,900
+3,project_id,location,cluster_name,node_A,non_existing_2,200,1000
+3,project_id,location,cluster_name,node_B,non_existing_2,300,1100
+5,project_id,location,cluster_name,node_A,non_existing_2,400,1200
+5,project_id,location,cluster_name,node_B,non_existing_2,500,1300
+7,project_id,location,cluster_name,node_A,non_existing_2,600,1400
+7,project_id,location,cluster_name,node_B,non_existing_2,700,1500

@@ -1,0 +1,40 @@
+astroid
+attrs
+autoflake
+beautifulsoup4
+black
+click
+docker
+google
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-cloud-container
+google-cloud-monitoring
+grpcio
+httplib2
+# Pin to avoid conflicts with virtualenv:
+#
+# > virtualenv 20.0.31 requires importlib-metadata<2,>=0.12; python_version < "3.8", but
+# > you'll have importlib-metadata 2.0.0 which is incompatible.
+importlib-metadata
+Jinja2
+kubernetes
+loguru
+numpy
+packaging
+pandas
+parameterized
+pre-commit
+pylint
+pytest
+python-dateutil
+pytz
+PyYAML
+requests
+# scipy
+setuptools
+shortuuid
+six
+tabulate
+urllib3

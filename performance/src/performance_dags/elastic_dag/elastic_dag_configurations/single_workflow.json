@@ -1,0 +1,11 @@
+{
+  "PERF_DAG_PREFIX": "single_workflow",
+  "PERF_DAGS_COUNT": "1",
+  "PERF_TASKS_COUNT": "5000",
+  "PERF_START_AGO": "150m",
+  "PERF_SCHEDULE_INTERVAL": "150m",
+  "PERF_SHAPE": "no_structure",
+  "PERF_SLEEP_TIME": "0",
+  "PERF_OPERATOR_TYPE": "python",
+  "PERF_MAX_RUNS": "1"
+}
