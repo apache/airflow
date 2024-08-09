@@ -47,6 +47,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
+from airflow.sensors.base import get_current_context as async_get_current_context
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.typing_compat import Literal
@@ -1179,9 +1180,15 @@ def get_current_context() -> Context:
     Current context will only have value if this method was called after an operator
     was starting to execute.
     """
-    if not _CURRENT_CONTEXT:
-        raise AirflowException(
-            "Current context was requested but no context was found! "
-            "Are you running within an airflow task?"
-        )
-    return _CURRENT_CONTEXT[-1]
+
+    if _CURRENT_CONTEXT:
+        return _CURRENT_CONTEXT[-1]
+    else:
+        context = async_get_current_context()
+        if context:
+            return context
+
+    raise AirflowException(
+        "Current context was requested but no context was found! "
+        "Are you running within an airflow task?"
+    )
