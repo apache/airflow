@@ -2570,11 +2570,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        claims_options = self.oauth_remotes['azure'].client_kwargs.get("claims_options", None)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
             keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())
-            claims = authlib_jwt.decode(id_token, keyset)
+            claims = authlib_jwt.decode(id_token, key=keyset, claims_options=claims_options)
             claims.validate()
             return claims
 
