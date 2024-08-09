@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 
-from airflow.datasets import DatasetAlias, extract_event_key
+from airflow.assets import DatasetAlias, extract_event_key
 
 if TYPE_CHECKING:
-    from airflow.datasets import Dataset
+    from airflow.assets import Dataset
 
 
 @attrs.define(init=False)

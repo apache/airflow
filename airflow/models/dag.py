@@ -81,8 +81,8 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.assets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,

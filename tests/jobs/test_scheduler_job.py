@@ -36,12 +36,12 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
+from airflow.assets import Dataset
+from airflow.assets.manager import DatasetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.datasets import Dataset
-from airflow.datasets.manager import DatasetManager
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR

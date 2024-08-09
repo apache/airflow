@@ -67,10 +67,10 @@ from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
+from airflow.assets import Dataset, DatasetAlias
+from airflow.assets.manager import dataset_manager
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias
-from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,

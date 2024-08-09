@@ -31,7 +31,7 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure

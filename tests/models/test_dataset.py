@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.datasets import DatasetAlias
+from airflow.assets import DatasetAlias
 from airflow.models.dataset import DatasetAliasModel
 
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import uuid
 from unittest.mock import patch
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.io.path import ObjectStoragePath
 
 

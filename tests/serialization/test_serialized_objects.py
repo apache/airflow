@@ -31,7 +31,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 from pydantic import BaseModel
 
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
+from airflow.assets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,

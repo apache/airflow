@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
-from airflow.datasets import DatasetAlias, _DatasetAliasCondition
+from airflow.assets import DatasetAlias, _DatasetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.datasets import BaseDataset
+    from airflow.assets import BaseDataset
     from airflow.models.dataset import DatasetEvent
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType

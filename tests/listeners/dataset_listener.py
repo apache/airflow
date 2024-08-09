@@ -23,7 +23,7 @@ import typing
 from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
-    from airflow.datasets import Dataset
+    from airflow.assets import Dataset
 
 
 changed: list[Dataset] = []

@@ -40,7 +40,7 @@ import attr
 import re2
 import typing_extensions
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,

@@ -39,7 +39,7 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.datasets import DatasetAlias
+from airflow.assets import DatasetAlias
 from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
@@ -2418,7 +2418,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_extra(self, dag_maker, session):
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
 
         with dag_maker(schedule=None, session=session) as dag:
 
@@ -2460,7 +2460,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_extra_ignore_different(self, dag_maker, session):
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
 
         with dag_maker(schedule=None, session=session):
 
@@ -2482,8 +2482,8 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_extra_yield(self, dag_maker, session):
-        from airflow.datasets import Dataset
-        from airflow.datasets.metadata import Metadata
+        from airflow.assets import Dataset
+        from airflow.assets.metadata import Metadata
 
         with dag_maker(schedule=None, session=session) as dag:
 
@@ -2532,7 +2532,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_alias(self, dag_maker, session):
-        from airflow.datasets import Dataset, DatasetAlias
+        from airflow.assets import Dataset, DatasetAlias
 
         ds_uri = "test_outlet_dataset_alias_test_case_ds"
         dsa_name_1 = "test_outlet_dataset_alias_test_case_dsa_1"
@@ -2581,7 +2581,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_multiple_dataset_alias(self, dag_maker, session):
-        from airflow.datasets import Dataset, DatasetAlias
+        from airflow.assets import Dataset, DatasetAlias
 
         ds_uri = "test_outlet_mdsa_ds"
         dsa_name_1 = "test_outlet_mdsa_dsa_1"
@@ -2642,8 +2642,8 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
-        from airflow.datasets import DatasetAlias
-        from airflow.datasets.metadata import Metadata
+        from airflow.assets import DatasetAlias
+        from airflow.assets.metadata import Metadata
 
         ds_uri = "test_outlet_dataset_alias_through_metadata_ds"
         dsa_name = "test_outlet_dataset_alias_through_metadata_dsa"
@@ -2687,7 +2687,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_alias_dataset_not_exists(self, dag_maker, session):
-        from airflow.datasets import Dataset, DatasetAlias
+        from airflow.assets import Dataset, DatasetAlias
 
         dsa_name = "test_outlet_dataset_alias_dataset_not_exists_dsa"
         ds_uri = "did_not_exists"
@@ -2727,7 +2727,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_inlet_dataset_extra(self, dag_maker, session):
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
 
         read_task_evaluated = False
 
@@ -2790,7 +2790,7 @@ class TestTaskInstance:
         session.add_all([ds_model, dsa_model])
         session.commit()
 
-        from airflow.datasets import Dataset, DatasetAlias
+        from airflow.assets import Dataset, DatasetAlias
 
         read_task_evaluated = False
 
@@ -2849,7 +2849,7 @@ class TestTaskInstance:
         session.add(dsa_model)
         session.commit()
 
-        from airflow.datasets import DatasetAlias
+        from airflow.assets import DatasetAlias
 
         with dag_maker(schedule=None, session=session):
 
@@ -2880,7 +2880,7 @@ class TestTaskInstance:
         ],
     )
     def test_inlet_dataset_extra_slice(self, dag_maker, session, slicer, expected):
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
 
         ds_uri = "test_inlet_dataset_extra_slice"
 
@@ -2943,7 +2943,7 @@ class TestTaskInstance:
         session.add_all([ds_model, dsa_model])
         session.commit()
 
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
 
         with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
 
@@ -2988,7 +2988,7 @@ class TestTaskInstance:
         Test that when a task that produces dataset has ran, that changing the consumer
         dag dataset will not cause primary key blank-out
         """
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
 

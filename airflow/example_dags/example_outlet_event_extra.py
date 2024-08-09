@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.datasets import Dataset
-from airflow.datasets.metadata import Metadata
+from airflow.assets import Dataset
+from airflow.assets.metadata import Metadata
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator

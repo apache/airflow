@@ -24,6 +24,7 @@ from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.assets import Dataset
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -284,7 +285,7 @@ def resolve_dataset_manager() -> DatasetManager:
     _dataset_manager_class = conf.getimport(
         section="core",
         key="dataset_manager_class",
-        fallback="airflow.datasets.manager.DatasetManager",
+        fallback="airflow.assets.manager.DatasetManager",
     )
     _dataset_manager_kwargs = conf.getjson(
         section="core",

@@ -87,10 +87,10 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
+from airflow.assets import Dataset, DatasetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.datasets import Dataset, DatasetAlias
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,

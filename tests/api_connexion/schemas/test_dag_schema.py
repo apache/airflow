@@ -27,7 +27,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
 

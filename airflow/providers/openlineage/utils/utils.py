@@ -649,7 +649,7 @@ def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageD
     some core Airflow changes are missing and ImportError is raised.
     """
     try:
-        from airflow.datasets import _get_normalized_scheme
+        from airflow.assets import _get_normalized_scheme
         from airflow.providers_manager import ProvidersManager
 
         ol_converters = ProvidersManager().dataset_to_openlineage_converters
