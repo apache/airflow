@@ -22,14 +22,18 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from sqlalchemy.orm.session import Session
 
 
 def _trigger_dag(
@@ -103,12 +107,15 @@ def _trigger_dag(
     return dag_runs
 
 
+@internal_api_call
+@provide_session
 def trigger_dag(
     dag_id: str,
     run_id: str | None = None,
     conf: dict | str | None = None,
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
+    session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
     Triggers execution of DAG specified by dag_id.
@@ -118,6 +125,7 @@ def trigger_dag(
     :param conf: configuration
     :param execution_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
+    :param session: Unused. Only added in compatibility with database isolation mode
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
     """
     dag_model = DagModel.get_current(dag_id)
