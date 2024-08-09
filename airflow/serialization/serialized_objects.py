@@ -1447,7 +1447,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
-        if var is not None and op.has_dag() and attrname.endswith("_date"):
+        if (
+            var is not None
+            and op.has_dag()
+            and op.dag.__class__ is not AttributeRemoved
+            and attrname.endswith("_date")
+        ):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.
             dag_date = getattr(op.dag, attrname, None)
