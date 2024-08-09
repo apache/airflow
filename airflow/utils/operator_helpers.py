@@ -163,6 +163,13 @@ class KeywordParameters:
         has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
 
         for name in itertools.islice(signature.parameters.keys(), len(args)):
+            if signature.parameters[name].kind in [
+                inspect.Parameter.KEYWORD_ONLY,
+                inspect.Parameter.VAR_KEYWORD,
+            ]:
+                # this is only checking positional arguments
+                continue
+
             # Check if args conflict with names in kwargs.
             if name in kwargs:
                 raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
