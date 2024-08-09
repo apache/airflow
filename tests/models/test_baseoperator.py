@@ -1044,7 +1044,7 @@ def test_teardown_and_fail_stop(dag_maker):
     in this case, the second teardown skips because its setup skips.
     """
 
-    with dag_maker(fail_stop=True, serialized=True) as dag:
+    with dag_maker(fail_stop=True) as dag:
         for num in (1, 2):
             with TaskGroup(f"tg_{num}"):
 
