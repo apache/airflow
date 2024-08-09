@@ -444,7 +444,7 @@ The following example creates a dataset event against the S3 URI ``f"s3://bucket
 
     @task(outlets=[DatasetAlias("my-task-outputs")])
     def my_task_with_metadata():
-        s3_dataset = Dataset("s3://bucket/my-task}")
+        s3_dataset = Dataset("s3://bucket/my-task")
         yield Metadata(s3_dataset, extra={"k": "v"}, alias="my-task-outputs")
 
 Only one dataset event is emitted for an added dataset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple dataset events. In the following example, two dataset events will be emitted.
