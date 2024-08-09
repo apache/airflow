@@ -34,9 +34,9 @@ isort:skip_file
 from _typeshed import Incomplete
 
 from airflow.exceptions import (
-     AirflowException as AirflowException,
-     AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
-     AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
+    AirflowException as AirflowException,
+    AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
+    AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.providers.common.sql.dialects.mssql import MsSqlDialect as MsSqlDialect
