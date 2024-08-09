@@ -23,7 +23,7 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.operators.python import _SERIALIZERS, _SerializerTypeDef
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.python_virtualenv import write_python_script
@@ -90,7 +90,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             warnings.warn(
                 "`use_dill` is deprecated and will be removed in a future version. "
                 "Please provide serializer='dill' instead.",
-                RemovedInAirflow3Warning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             if serializer:
