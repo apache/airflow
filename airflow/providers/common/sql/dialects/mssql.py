@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from functools import lru_cache
+import functools
 from typing import List
 
 from airflow.providers.common.sql.hooks.dialect import Dialect
@@ -24,7 +24,9 @@ from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 
 
 class MsSqlDialect(Dialect):
-    @lru_cache
+    """Microsoft SQL Server dialect implementation."""
+
+    @functools.lru_cache
     def get_primary_keys(self, table: str) -> List[str]:
         primary_keys = self.run(
             f"""

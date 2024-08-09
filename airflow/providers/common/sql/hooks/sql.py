@@ -31,7 +31,6 @@ from typing import (
     Mapping,
     Protocol,
     Sequence,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -135,7 +134,7 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
-    dialects: dict[str, Type[Dialect]] = {
+    dialects: dict[str, type[Dialect]] = {
         "mssql": MsSqlDialect,
     }
 

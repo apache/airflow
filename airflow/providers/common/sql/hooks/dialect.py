@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from functools import lru_cache
+import functools
 from typing import Any, Callable, Iterable, Mapping, TypeVar
 
 from sqlalchemy.engine import Inspector
@@ -27,6 +27,8 @@ T = TypeVar("T")
 
 
 class Dialect(LoggingMixin):
+    """Generic dialect implementation."""
+
     def __init__(self, hook):
         super().__init__()
 
@@ -57,7 +59,7 @@ class Dialect(LoggingMixin):
     def _extract_schema_from_table(cls, table: str) -> list[str]:
         return table.split(".")[::-1]
 
-    @lru_cache
+    @functools.lru_cache
     def get_column_names(self, table: str) -> list[str]:
         column_names = list(
             column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
@@ -65,7 +67,7 @@ class Dialect(LoggingMixin):
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
 
-    @lru_cache
+    @functools.lru_cache
     def get_primary_keys(self, table: str) -> list[str]:
         primary_keys = self.inspector.get_pk_constraint(*self._extract_schema_from_table(table)).get(
             "constrained_columns", []
