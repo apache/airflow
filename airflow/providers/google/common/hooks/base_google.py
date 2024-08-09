@@ -274,6 +274,9 @@ class GoogleBaseHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "languages": {
+                "keyfile_dict": "json",
+            },
         }
 
     def __init__(

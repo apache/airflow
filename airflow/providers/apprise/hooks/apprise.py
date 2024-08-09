@@ -146,4 +146,7 @@ class AppriseHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "languages": {
+                "config": "json",
+            },
         }

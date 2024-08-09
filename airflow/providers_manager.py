@@ -1111,6 +1111,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         try:
             connection_type = getattr(hook_class, "conn_type")
 
+            if not customized_fields.get("languages"):
+                customized_fields["languages"] = {}
+            if not customized_fields["languages"].get("extra"):
+                customized_fields["languages"]["extra"] = "json"
+
             self._customized_form_fields_schema_validator.validate(customized_fields)
 
             if connection_type:
@@ -1125,6 +1130,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     hook_class.__name__,
                 )
                 return
+
             self._field_behaviours[connection_type] = customized_fields
         except Exception as e:
             log.warning(
