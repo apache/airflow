@@ -571,10 +571,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 from airflow.serialization.serialized_objects import BaseSerialization
 
                 context = get_current_context()
-                # TODO: `TaskInstance`` will also soon be serialized as expected.
-                # see more:
-                #   https://github.com/apache/airflow/issues/40974
-                #   https://github.com/apache/airflow/pull/41067
                 with create_session() as session:
                     # FIXME: DetachedInstanceError
                     dag_run, task_instance = context["dag_run"], context["task_instance"]
