@@ -27,7 +27,7 @@ from typing import ClassVar
 import attr
 import pytest
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.serialization.serde import (
     CLASSNAME,
     DATA,
@@ -336,7 +336,7 @@ class TestSerDe:
         """
         uri = "s3://does/not/exist"
         data = {
-            "__type": "airflow.datasets.Dataset",
+            "__type": "airflow.assets.Dataset",
             "__source": None,
             "__var": {
                 "__var": {

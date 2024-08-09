@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dataset import DatasetModel
 from airflow.operators.empty import EmptyOperator

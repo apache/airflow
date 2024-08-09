@@ -34,7 +34,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.datasets import Dataset, DatasetAlias
+from airflow.assets import Dataset, DatasetAlias
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone

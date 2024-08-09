@@ -37,7 +37,7 @@ https://app.codecov.io/github/apache/airflow
     "airflow/callbacks",
     "airflow/config_templates",
     "airflow/dag_processing",
-    "airflow/datasets",
+    "airflow/assets",
     "airflow/decorators",
     "airflow/hooks",
     "airflow/io",

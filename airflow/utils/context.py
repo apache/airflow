@@ -40,7 +40,7 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import (
+from airflow.assets import (
     Dataset,
     DatasetAlias,
     DatasetAliasEvent,

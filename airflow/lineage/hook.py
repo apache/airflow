@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Union
 
 import attr
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 
