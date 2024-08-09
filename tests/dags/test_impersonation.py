@@ -30,7 +30,7 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_impersonation", default_args=args)
+dag = DAG(dag_id="test_impersonation", schedule=None, default_args=args)
 
 run_as_user = "airflow_test_user"
 

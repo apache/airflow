@@ -1928,7 +1928,7 @@ class TestAsyncGCSToBigQueryOperator:
         assert operator.job_id == generated_job_id
 
     def create_context(self, task):
-        dag = DAG(dag_id="dag")
+        dag = DAG(dag_id="dag", schedule=None)
         logical_date = datetime(2022, 1, 1, 0, 0, 0)
         dag_run = DagRun(
             dag_id=dag.dag_id,

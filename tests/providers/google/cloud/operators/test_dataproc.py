@@ -413,7 +413,11 @@ class DataprocTestBase:
     @classmethod
     def setup_class(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
-        cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id=TEST_DAG_ID,
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
 
     def setup_method(self):
         self.mock_ti = MagicMock()

@@ -29,7 +29,7 @@ from airflow.sensors.bash import BashSensor
 class TestBashSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        dag = DAG("test_dag_id", default_args=args)
+        dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
 
     def test_true_condition(self):

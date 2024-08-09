@@ -27,6 +27,7 @@ from airflow.utils.task_group import TaskGroup
 
 with DAG(
     dag_id="example_setup_teardown",
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

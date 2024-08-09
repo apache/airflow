@@ -66,7 +66,7 @@ class TestCloudwatchTaskHandler:
         date = datetime(2020, 1, 1)
         dag_id = "dag_for_testing_cloudwatch_task_handler"
         task_id = "task_for_testing_cloudwatch_log_handler"
-        self.dag = DAG(dag_id=dag_id, start_date=date)
+        self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
         session.add(dag_run)

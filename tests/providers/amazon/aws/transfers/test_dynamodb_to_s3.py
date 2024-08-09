@@ -297,7 +297,7 @@ class TestDynamodbToS3:
 
     @pytest.mark.db_test
     def test_render_template(self, session):
-        dag = DAG("test_render_template_dag_id", start_date=datetime(2020, 1, 1))
+        dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
             dag=dag,

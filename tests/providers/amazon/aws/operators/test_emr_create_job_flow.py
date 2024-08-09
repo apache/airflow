@@ -81,6 +81,7 @@ class TestEmrCreateJobFlowOperator:
             region_name="ap-southeast-2",
             dag=DAG(
                 TEST_DAG_ID,
+                schedule=None,
                 default_args=args,
                 template_searchpath=TEMPLATE_SEARCHPATH,
                 template_undefined=StrictUndefined,

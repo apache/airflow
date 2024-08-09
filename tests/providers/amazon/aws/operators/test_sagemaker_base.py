@@ -169,7 +169,7 @@ class TestSageMakerExperimentOperator:
 
         # putting a DAG around the operator so that jinja template gets rendered
         execution_date = timezone.datetime(2020, 1, 1)
-        dag = DAG("test_experiment", start_date=execution_date)
+        dag = DAG("test_experiment", schedule=None, start_date=execution_date)
         op = SageMakerCreateExperimentOperator(
             name="the name",
             description="the desc",

@@ -69,6 +69,7 @@ with DAG(
     dag_id="fizzbuzz-load-topic",
     description="Load Data to fizz_buzz topic",
     start_date=datetime(2022, 11, 1),
+    schedule=None,
     catchup=False,
     tags=["fizz-buzz"],
 ) as dag:

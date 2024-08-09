@@ -284,7 +284,7 @@ class TestGetLog:
 
         # Recreate DAG without tasks
         dagbag = self.app.dag_bag
-        dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
         del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag, root_dag=dag)
 

@@ -36,7 +36,7 @@ args = {
 
 
 dag_id = "test_mark_state"
-dag = DAG(dag_id=dag_id, default_args=args)
+dag = DAG(dag_id=dag_id, schedule=None, default_args=args)
 
 
 def success_callback(context):

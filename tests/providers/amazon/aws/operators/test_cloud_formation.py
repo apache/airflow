@@ -78,7 +78,7 @@ class TestCloudFormationCreateStackOperator:
             task_id="test_task",
             stack_name=stack_name,
             cloudformation_parameters={"TimeoutInMinutes": timeout, "TemplateBody": template_body},
-            dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
+            dag=DAG("test_dag_id", schedule=None, default_args=DEFAULT_ARGS),
         )
 
         operator.execute(MagicMock())
@@ -119,7 +119,7 @@ class TestCloudFormationDeleteStackOperator:
         operator = CloudFormationDeleteStackOperator(
             task_id="test_task",
             stack_name=stack_name,
-            dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
+            dag=DAG("test_dag_id", schedule=None, default_args=DEFAULT_ARGS),
         )
 
         operator.execute(MagicMock())

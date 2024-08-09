@@ -104,6 +104,7 @@ aws_to_gcs_transfer_body_2[JOB_NAME] = GCP_TRANSFER_JOB_2_NAME
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
     tags=["example", "aws", "gcs", "transfer"],
 ) as dag:

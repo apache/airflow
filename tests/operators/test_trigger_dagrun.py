@@ -72,7 +72,11 @@ class TestDagRunOperator:
             session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
             session.commit()
 
-        self.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        self.dag = DAG(
+            dag_id=TEST_DAG_ID,
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         dagbag = DagBag(f.name, read_dags_from_db=False, include_examples=False)
         dagbag.bag_dag(self.dag, root_dag=self.dag)
         dagbag.sync_to_db()

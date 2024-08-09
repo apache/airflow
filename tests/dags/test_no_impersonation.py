@@ -30,7 +30,7 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_no_impersonation", default_args=args)
+dag = DAG(dag_id="test_no_impersonation", schedule=None, default_args=args)
 
 test_command = textwrap.dedent(
     """\

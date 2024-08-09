@@ -46,7 +46,7 @@ class TestMongoToS3Operator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
         self.mock_operator = MongoToS3Operator(
             task_id=TASK_ID,

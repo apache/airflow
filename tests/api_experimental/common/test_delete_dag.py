@@ -73,7 +73,11 @@ class TestDeleteDAGSuccessfulDelete:
 
         task = EmptyOperator(
             task_id="dummy",
-            dag=DAG(dag_id=self.key, default_args={"start_date": timezone.datetime(2022, 1, 1)}),
+            dag=DAG(
+                dag_id=self.key,
+                schedule=None,
+                default_args={"start_date": timezone.datetime(2022, 1, 1)},
+            ),
             owner="airflow",
         )
 

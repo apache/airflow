@@ -66,7 +66,7 @@ job_cluster_spec = [
 dag = DAG(
     dag_id="example_databricks_workflow",
     start_date=datetime(2022, 1, 1),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     tags=["example", "databricks"],
 )

@@ -36,7 +36,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 class TestHiveToDynamoDBOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", default_args=args)
+        dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
         self.sql = "SELECT 1"
         self.hook = DynamoDBHook(aws_conn_id="aws_default", region_name="us-east-1")

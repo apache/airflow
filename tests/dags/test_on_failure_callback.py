@@ -31,7 +31,7 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_on_failure_callback", default_args=args)
+dag = DAG(dag_id="test_on_failure_callback", schedule=None, default_args=args)
 
 
 def write_data_to_callback(context):

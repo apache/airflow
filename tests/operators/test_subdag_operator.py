@@ -61,11 +61,11 @@ class TestSubDagOperator:
         """
         Subdag names must be {parent_dag}.{subdag task}
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag_good = DAG("parent.test", default_args=default_args)
-        subdag_bad1 = DAG("parent.bad", default_args=default_args)
-        subdag_bad2 = DAG("bad.test", default_args=default_args)
-        subdag_bad3 = DAG("bad.bad", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag_good = DAG("parent.test", schedule=None, default_args=default_args)
+        subdag_bad1 = DAG("parent.bad", schedule=None, default_args=default_args)
+        subdag_bad2 = DAG("bad.test", schedule=None, default_args=default_args)
+        subdag_bad3 = DAG("bad.bad", schedule=None, default_args=default_args)
 
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
             SubDagOperator(task_id="test", dag=dag, subdag=subdag_good)
@@ -80,8 +80,8 @@ class TestSubDagOperator:
         """
         Creating a sub DAG within a main DAG's context manager
         """
-        with DAG("parent", default_args=default_args) as dag:
-            subdag = DAG("parent.test", default_args=default_args)
+        with DAG("parent", schedule=None, default_args=default_args) as dag:
+            subdag = DAG("parent.test", schedule=None, default_args=default_args)
             with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
                 op = SubDagOperator(task_id="test", subdag=subdag)
 
@@ -108,7 +108,7 @@ class TestSubDagOperator:
             SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_1")
 
         # recreate dag because failed subdagoperator was already added
-        dag = DAG("parent", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
             SubDagOperator(task_id="child", dag=dag, subdag=subdag, pool="test_pool_10")
 
@@ -121,8 +121,8 @@ class TestSubDagOperator:
         Subdags and subdag tasks with no pool overlap, should not to query
         pools
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.child", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag = DAG("parent.child", schedule=None, default_args=default_args)
 
         session = airflow.settings.Session()
         pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
@@ -147,8 +147,8 @@ class TestSubDagOperator:
         When SubDagOperator executes, it creates a DagRun if there is no existing one
         and wait until the DagRun succeeds.
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.test", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag = DAG("parent.test", schedule=None, default_args=default_args)
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
             subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
 
@@ -185,8 +185,8 @@ class TestSubDagOperator:
         and wait until the DagRun succeeds.
         """
         conf = {"key": "value"}
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.test", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag = DAG("parent.test", schedule=None, default_args=default_args)
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
             subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1, conf=conf)
 
@@ -221,8 +221,8 @@ class TestSubDagOperator:
         """
         When the DagRun failed during the execution, it raises an Airflow Exception.
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.test", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag = DAG("parent.test", schedule=None, default_args=default_args)
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
             subdag_task = SubDagOperator(task_id="test", subdag=subdag, dag=dag, poke_interval=1)
 
@@ -247,8 +247,8 @@ class TestSubDagOperator:
         """
         When there is an existing DagRun in SUCCESS state, skip the execution.
         """
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.test", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag = DAG("parent.test", schedule=None, default_args=default_args)
 
         subdag.create_dagrun = Mock()
         with pytest.warns(RemovedInAirflow3Warning, match=WARNING_MESSAGE):
@@ -367,8 +367,8 @@ class TestSubDagOperator:
             mock_skip.assert_not_called()
 
     def test_deprecation_warning(self):
-        dag = DAG("parent", default_args=default_args)
-        subdag = DAG("parent.test", default_args=default_args)
+        dag = DAG("parent", schedule=None, default_args=default_args)
+        subdag = DAG("parent.test", schedule=None, default_args=default_args)
         warning_message = """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."""
 
         with pytest.warns(DeprecationWarning) as warnings:

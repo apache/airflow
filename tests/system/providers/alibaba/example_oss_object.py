@@ -35,6 +35,7 @@ DAG_ID = "oss_object_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     default_args={"bucket_name": "your bucket", "region": "your region"},
     max_active_runs=1,
     tags=["example"],

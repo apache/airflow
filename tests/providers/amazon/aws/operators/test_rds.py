@@ -146,7 +146,11 @@ class TestBaseRdsOperator:
 
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.op = RdsBaseOperator(task_id="test_task", aws_conn_id="aws_default", dag=cls.dag)
 
     @classmethod
@@ -162,7 +166,11 @@ class TestBaseRdsOperator:
 class TestRdsCreateDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -261,7 +269,11 @@ class TestRdsCreateDbSnapshotOperator:
 class TestRdsCopyDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -367,7 +379,11 @@ class TestRdsCopyDbSnapshotOperator:
 class TestRdsDeleteDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -470,7 +486,11 @@ class TestRdsDeleteDbSnapshotOperator:
 class TestRdsStartExportTaskOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -536,7 +556,11 @@ class TestRdsStartExportTaskOperator:
 class TestRdsCancelExportTaskOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -596,7 +620,11 @@ class TestRdsCancelExportTaskOperator:
 class TestRdsCreateEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -658,7 +686,11 @@ class TestRdsCreateEventSubscriptionOperator:
 class TestRdsDeleteEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -687,7 +719,11 @@ class TestRdsDeleteEventSubscriptionOperator:
 class TestRdsCreateDbInstanceOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -749,7 +785,11 @@ class TestRdsCreateDbInstanceOperator:
 class TestRdsDeleteDbInstanceOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -803,7 +843,11 @@ class TestRdsDeleteDbInstanceOperator:
 class TestRdsStopDbOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -903,7 +947,11 @@ class TestRdsStopDbOperator:
 class TestRdsStartDbOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 

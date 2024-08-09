@@ -51,7 +51,7 @@ class_instance = CallableClass()
 
 logger.info("class_instance type: %s", type(class_instance))
 
-dag = DAG(dag_id="test_task_view_type_check", default_args=default_args)
+dag = DAG(dag_id="test_task_view_type_check", schedule=None, default_args=default_args)
 
 dag_task1 = PythonOperator(
     task_id="test_dagrun_functool_partial",
