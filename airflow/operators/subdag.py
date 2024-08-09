@@ -154,7 +154,15 @@ class SubDagOperator(BaseSensorOperator):
                 select(TaskInstance)
                 .where(TaskInstance.dag_id == self.subdag.dag_id)
                 .where(TaskInstance.execution_date == execution_date)
-                .where(TaskInstance.state.in_((TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED)))
+                .where(
+                    TaskInstance.state.in_(
+                        (
+                            TaskInstanceState.FAILED,
+                            TaskInstanceState.UPSTREAM_FAILED,
+                            TaskInstanceState.FAILED_IN_QUEUE,
+                        )
+                    )
+                )
             )
 
             for task_instance in failed_task_instances:

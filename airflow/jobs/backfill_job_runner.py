@@ -105,6 +105,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         skipped: set[TaskInstanceKey] = attr.ib(factory=set)
         succeeded: set[TaskInstanceKey] = attr.ib(factory=set)
         failed: set[TaskInstanceKey] = attr.ib(factory=set)
+        failed_in_queue: set[TaskInstanceKey] = attr.ib(factory=set)
         not_ready: set[TaskInstanceKey] = attr.ib(factory=set)
         deadlocked: set[TaskInstance] = attr.ib(factory=set)
         active_runs: set[DagRun] = attr.ib(factory=set)
@@ -209,6 +210,10 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 ti_status.failed.add(ti_key)
                 ti_status.running.pop(ti_key)
                 continue
+            if ti.state == TaskInstanceState.FAILED_IN_QUEUE:
+                self.log.error("Task instance %s failed in queue", ti)
+                ti_status.failed_in_queue.add(ti_key)
+                ti_status.queued.pop(ti_key)
             # special case: if the task needs to run again put it back
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
@@ -452,7 +457,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
     def _log_progress(self, ti_status: _DagRunTaskStatus) -> None:
         self.log.info(
             "[backfill progress] | finished run %s of %s | tasks waiting: %s | succeeded: %s | "
-            "running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s",
+            "running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s | failed in queue: %s",
             ti_status.finished_runs,
             ti_status.total_runs,
             len(ti_status.to_run),
@@ -462,6 +467,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             len(ti_status.skipped),
             len(ti_status.deadlocked),
             len(ti_status.not_ready),
+            len(ti_status.failed_in_queue),
         )
 
         self.log.debug("Finished dag run loop iteration. Remaining tasks %s", ti_status.to_run.values())
@@ -524,7 +530,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
-                    if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
+                    if ti.state in (
+                        TaskInstanceState.FAILED,
+                        TaskInstanceState.UPSTREAM_FAILED,
+                        TaskInstanceState.FAILED_IN_QUEUE,
+                    ):
                         self.log.error("Task instance %s with state %s", ti, ti.state)
                         if key in ti_status.running:
                             ti_status.running.pop(key)
@@ -535,7 +545,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                             ti_status.active_runs.add(ti.dag_run)
                 else:
                     # Default behaviour which works for subdag.
-                    if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
+                    if ti.state in (
+                        TaskInstanceState.FAILED,
+                        TaskInstanceState.UPSTREAM_FAILED,
+                        TaskInstanceState.FAILED_IN_QUEUE,
+                    ):
                         self.log.error("Task instance %s with state %s", ti, ti.state)
                         ti_status.failed.add(key)
                         ti_status.to_run.pop(key)

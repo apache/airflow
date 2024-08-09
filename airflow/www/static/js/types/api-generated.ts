@@ -2414,6 +2414,7 @@ export interface components {
           | "success"
           | "running"
           | "failed"
+          | "failed_in_queue"
           | "upstream_failed"
           | "skipped"
           | "up_for_retry"
