@@ -32,17 +32,27 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
+
+from airflow.exceptions import (
+     AirflowException as AirflowException,
+     AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
+     AirflowProviderDeprecationWarning as AirflowProviderDeprecationWarning,
+)
 from airflow.hooks.base import BaseHook as BaseHook
-from airflow.providers.common.sql.hooks.dialect import Dialect
+from airflow.providers.common.sql.dialects.mssql import MsSqlDialect as MsSqlDialect
+from airflow.providers.common.sql.hooks.dialect import Dialect as Dialect
+
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
 from sqlalchemy.engine import Inspector, URL as URL
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, Type, TypeVar, overload
+
+from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
+WARNING_MESSAGE: str
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool): ...
 def fetch_all_handler(cursor) -> list[tuple] | None: ...
@@ -57,7 +67,7 @@ class DbApiHook(BaseHook):
     supports_autocommit: bool
     supports_executemany: bool
     connector: ConnectorProtocol | None
-    dialects: dict[str, Type[Dialect]]
+    dialects: dict[str, type[Dialect]]
     log_sql: Incomplete
     descriptions: Incomplete
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
@@ -73,7 +83,7 @@ class DbApiHook(BaseHook):
     def inspector(self) -> Inspector: ...
     @cached_property
     def dialect_name(self) -> str: ...
-    @ cached_property
+    @cached_property
     def dialect(self) -> Dialect: ...
     def get_pandas_df(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, **kwargs
