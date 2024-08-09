@@ -197,26 +197,23 @@ class TestVariable:
             "thisIdDoesNotExist", default_var=default_value, deserialize_json=True
         )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_variable_setdefault_round_trip(self):
+    def test_variable_setdefault_round_trip(self, session):
         key = "tested_var_setdefault_1_id"
         value = "Monday morning breakfast in Paris"
-        Variable.setdefault(key, value)
+        Variable.setdefault(key=key, default=value, session=session)
         assert value == Variable.get(key)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_variable_setdefault_round_trip_json(self):
+    def test_variable_setdefault_round_trip_json(self, session):
         key = "tested_var_setdefault_2_id"
         value = {"city": "Paris", "Happiness": True}
-        Variable.setdefault(key, value, deserialize_json=True)
+        Variable.setdefault(key=key, default=value, deserialize_json=True, session=None)
         assert value == Variable.get(key, deserialize_json=True)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_variable_setdefault_existing_json(self, session):
         key = "tested_var_setdefault_2_id"
         value = {"city": "Paris", "Happiness": True}
         Variable.set(key=key, value=value, serialize_json=True, session=session)
-        val = Variable.setdefault(key, value, deserialize_json=True)
+        val = Variable.setdefault(key=key, default=value, deserialize_json=True, session=session)
         # Check the returned value, and the stored value are handled correctly.
         assert value == val
         assert value == Variable.get(key, deserialize_json=True)
