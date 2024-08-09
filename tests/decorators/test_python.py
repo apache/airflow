@@ -207,6 +207,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert identity_notyping_with_decorator_call(5).operator.multiple_outputs is False
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
         def identity2(x: int, y: int) -> Tuple[int, int]:
@@ -225,6 +226,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_ignore_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
@@ -303,6 +305,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with pytest.raises(AirflowException):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_empty_dict(self):
         @task_decorator(multiple_outputs=True)
         def empty_dict():
@@ -316,6 +319,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == {}
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_return_none(self):
         @task_decorator(multiple_outputs=True)
         def test_func():
@@ -329,6 +333,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() is None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
 
@@ -353,6 +358,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert rendered_op_args[2] == f"dag {self.dag_id} ran on {self.ds_templated}."
         assert rendered_op_args[3] == Named(self.ds_templated, "unchanged")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
 
@@ -431,6 +437,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert self.dag_non_serialized.task_ids[-1] == "__do_run__20"
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
 
@@ -487,6 +494,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             ret = test_apply_default()
         assert "owner" in ret.operator.op_kwargs
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
@@ -615,6 +623,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             weights.append(task.priority_weight)
         assert weights == [0, 1, 2]
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_python_callable_args_work_as_well_as_baseoperator_args(self):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
 
@@ -740,6 +749,7 @@ def test_partial_mapped_decorator() -> None:
     assert doubled.operator is not trippled.operator
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     with dag_maker(session=session):
 
@@ -767,6 +777,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
     with dag_maker(session=session):
 
@@ -797,6 +808,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
         assert unmapped.retry_delay == timedelta(seconds=30)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_mapped_render_template_fields(dag_maker, session):
     @task_decorator
     def fn(arg1, arg2): ...
@@ -851,6 +863,7 @@ def test_task_decorator_has_wrapped_attr():
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
     from airflow.utils.trigger_rule import TriggerRule
@@ -887,6 +900,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert result == "'example' None"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
     from airflow.exceptions import AirflowSkipException
@@ -944,6 +958,7 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset
 
