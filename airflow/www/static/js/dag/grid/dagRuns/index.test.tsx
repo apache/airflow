@@ -119,7 +119,9 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { getByText } = render(<DagRuns />, { wrapper: TableWrapper });
+    const { getByText } = render(<DagRuns />, {
+      wrapper: TableWrapper,
+    });
     expect(
       // @ts-ignore
       getByText(moment.utc(datestring).format("MMM DD, HH:mm"))
@@ -138,7 +140,9 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { queryAllByText } = render(<DagRuns />, { wrapper: TableWrapper });
+    const { queryAllByText } = render(<DagRuns />, {
+      wrapper: TableWrapper,
+    });
     expect(
       // @ts-ignore
       queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm"))
@@ -157,7 +161,9 @@ describe("Test DagRuns", () => {
           data,
         } as any)
     );
-    const { queryAllByText } = render(<DagRuns />, { wrapper: TableWrapper });
+    const { queryAllByText } = render(<DagRuns />, {
+      wrapper: TableWrapper,
+    });
     expect(
       // @ts-ignore
       queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm"))
@@ -173,7 +179,9 @@ describe("Test DagRuns", () => {
         } as any)
     );
 
-    const { queryByTestId } = render(<DagRuns />, { wrapper: TableWrapper });
+    const { queryByTestId } = render(<DagRuns />, {
+      wrapper: TableWrapper,
+    });
     expect(queryByTestId("run")).toBeNull();
 
     spy.mockRestore();
