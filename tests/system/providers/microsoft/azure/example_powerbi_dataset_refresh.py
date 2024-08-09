@@ -56,7 +56,7 @@ with DAG(
 ) as dag:
     set_up_connection = create_connection(CONN_ID)
 
-    # [START howto_operator_powerbi_refresh_no_wait_for_termination]
+    # [START howto_operator_powerbi_refresh_async]
     refresh_powerbi_dataset = PowerBIDatasetRefreshOperator(
         conn_id="powerbi_default",
         task_id="refresh_powerbi_dataset",
@@ -65,7 +65,7 @@ with DAG(
         check_interval=30,
         timeout=120,
     )
-    # [END howto_operator_powerbi_refresh_no_wait_for_termination]
+    # [END howto_operator_powerbi_refresh_async]
 
     chain(
         # TEST SETUP
