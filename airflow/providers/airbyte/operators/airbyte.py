@@ -25,8 +25,14 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
+from airflow.providers.airbyte.utils.utils import get_field_type, get_streams, resolve_table_schema
 
 if TYPE_CHECKING:
+    from openlineage.client.generated.column_lineage_dataset import ColumnLineageDatasetFacet
+    from openlineage.client.generated.schema_dataset import SchemaDatasetFacet, SchemaDatasetFacetFields
+
+    from airflow.providers.airbyte.hooks.model import _JobStatistics
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -144,3 +150,304 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
             hook.cancel_job(self.job_id)
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        hook = AirbyteHook(
+            airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
+        )
+
+        # get job data
+        jobs_statistics = hook.get_job_statistics(self.job_id)
+
+        connection = hook.get_airbyte_connection_info(self.connection_id)
+        if connection is None:
+            return OperatorLineage()
+
+        destination_id = connection.get("destinationId", None)
+        if destination_id is None:
+            self.log.warning("DestinationID is missing in the response")
+            return OperatorLineage()
+
+        source_id = connection.get("sourceId", None)
+        if source_id is None:
+            self.log.warning("SourceID is missing in the response")
+            return OperatorLineage()
+
+        destination_response = hook.get_airbyte_destination(destination_id)
+        if destination_response is None:
+            return OperatorLineage()
+
+        source_response = hook.get_airbyte_source(source_id)
+        if source_response is None:
+            return OperatorLineage()
+
+        return self.resolve_metadata(
+            connection=connection,
+            namespace="airbyte",
+            destination=destination_response,
+            source_response=source_response,
+            job_statistics=jobs_statistics,
+        )
+
+    def resolve_metadata(
+        self,
+        connection: dict[str, Any],
+        destination: dict[str, Any],
+        source_response: dict[str, Any],
+        namespace: str,
+        job_statistics: _JobStatistics,
+    ) -> OperatorLineage:
+        """
+        Resolve metadata for the OpenLineage lineage.
+
+        It takes information about the connection from airbyte API, currently config API is fully supported,
+        due to limited capabilities of Airbyte API. Destination is used only to get the information about the
+        destination schema to properly resolve the schema for the output dataset if destination schema has been
+        selected.
+
+        :param connection: it's the response from config API about the connection
+        :param destination: it's the response from config API about the destination
+        :param source_response: it's the response from config API about the source
+        :param namespace: it's namespace for the OpenLineage metadata
+        :param job_statistics: JobStatistics object
+        :return:
+        """
+        from openlineage.client.generated.base import InputDataset, OutputDataset
+        from openlineage.client.generated.external_query_run import ExternalQueryRunFacet
+        from openlineage.client.generated.output_statistics_output_dataset import (
+            OutputStatisticsOutputDatasetFacet,
+        )
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        ol_schema_resolver = _AirbyteOlSchemaResolver()
+
+        streams = get_streams(connection)
+
+        prefix = connection.get("prefix", "")
+
+        inputs = []
+        outputs = []
+
+        for stream_data in streams:
+            stream: dict[str, Any] = stream_data.get("stream", {})
+
+            stream_name = stream.get("name", "")
+
+            input_schema = stream.get("namespace", "")
+
+            resolved_schema = resolve_table_schema(
+                name_source=connection.get("namespaceDefinition", "source"),
+                source=stream,
+                destination=destination,
+                connection=connection,
+            )
+
+            properties = self.get_properties(stream)
+
+            target_table_name = prefix + stream_name
+
+            column_lineage = _ColumnLineageResolver.resolve_column_lineage(
+                namespace=namespace,
+                schema=resolved_schema,
+                stream=properties,
+            )
+
+            schema_facet = self.get_schema(ol_schema_resolver, properties)
+
+            outputs.append(
+                OutputDataset(
+                    namespace=self.resolve_output_namespace(destination),
+                    name=f"{resolved_schema}.{target_table_name}"
+                    if resolved_schema != ""
+                    else target_table_name,
+                    facets={
+                        "schema": schema_facet,
+                        "columnLineage": column_lineage,
+                    },
+                    outputFacets={
+                        "outputStatistics": OutputStatisticsOutputDatasetFacet(
+                            rowCount=job_statistics.records_emitted.get(stream_name, 0),
+                        ),
+                    },
+                )
+            )
+
+            inputs.append(
+                InputDataset(
+                    namespace=self.resolve_input_namespace(source_response),
+                    name=f"{input_schema}.{stream_name}" if input_schema != "" else stream_name,
+                    facets={"schema": schema_facet},
+                )
+            )
+
+        return OperatorLineage(
+            inputs=inputs,
+            outputs=outputs,
+            run_facets={
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId=str(self.job_id),
+                    source="airbyte",
+                )
+            },
+        )
+
+    @staticmethod
+    def resolve_input_namespace(source: dict[str, Any]) -> str:
+        source_name = source.get("sourceName", "").lower()
+
+        configuration = source.get("connectionConfiguration", {})
+
+        host = configuration.get("host", "")
+        port = configuration.get("port", "")
+
+        if port:
+            return f"{source_name}://{host}:{port}"
+
+        return f"{source_name}://{host}"
+
+    @staticmethod
+    def resolve_output_namespace(destination: dict[str, Any]) -> str:
+        destination_name = destination.get("destinationName", "").lower()
+
+        configuration = destination.get("connectionConfiguration", {})
+
+        host = configuration.get("host", "")
+        port = configuration.get("port", "")
+
+        if port:
+            return f"{destination_name}://{host}:{port}"
+
+        return f"{destination_name}://{host}"
+
+    @staticmethod
+    def get_schema(
+        schema_resolver: _AirbyteOlSchemaResolver, properties: dict[str, Any]
+    ) -> SchemaDatasetFacet:
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacet
+
+        schema = schema_resolver.map_airbyte_type_to_ol_schema_field(properties)
+
+        schema_facet = SchemaDatasetFacet(fields=schema)
+
+        return schema_facet
+
+    @staticmethod
+    def get_properties(stream: dict[str, Any]) -> dict[str, Any]:
+        json_schema = stream.get("jsonSchema", {})
+
+        properties: dict[str, Any] = json_schema.get("properties")
+
+        return properties
+
+
+class _AirbyteOlSchemaResolver:
+    def map_airbyte_type_to_ol_schema_field(self, stream: dict[str, Any]) -> list[SchemaDatasetFacetFields]:
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacetFields
+
+        schema = []
+
+        for field_name, field_metadata in stream.items():
+            airbyte_target_field_type = get_field_type(field_metadata)
+            if airbyte_target_field_type == "":
+                continue
+
+            if airbyte_target_field_type == "object":
+                schema.append(
+                    SchemaDatasetFacetFields(
+                        name=field_name,
+                        type="struct",
+                        fields=self.map_airbyte_type_to_ol_schema_field(field_metadata.get("properties")),
+                    )
+                )
+                continue
+
+            if airbyte_target_field_type == "array":
+                schema.append(self.map_array_type_to_ol_schema_field(field_metadata, field_name))
+                continue
+
+            if airbyte_target_field_type in ["string", "int", "float", "boolean", "date", "time"]:
+                schema.append(SchemaDatasetFacetFields(name=field_name, type=airbyte_target_field_type))
+                continue
+
+        return schema
+
+    def map_array_type_to_ol_schema_field(
+        self, field_metadata: dict[str, Any], field_name: str
+    ) -> SchemaDatasetFacetFields:
+        from openlineage.client.generated.schema_dataset import SchemaDatasetFacetFields
+
+        items = field_metadata.get("items", {})
+        items_type = items.get("type", None)
+        items_format = items.get("format", None)
+
+        field_type = get_field_type(items)
+
+        if field_type == "object":
+            return SchemaDatasetFacetFields(
+                name=field_name,
+                type="array",
+                fields=self.map_airbyte_type_to_ol_schema_field(
+                    {
+                        "_element": {
+                            "name": "_element",
+                            "type": [
+                                get_field_type({"type": items_type, "format": items_format}),
+                            ],
+                            "properties": items.get("properties", []),
+                        }
+                    }
+                ),
+            )
+
+        if field_type == "array":
+            return SchemaDatasetFacetFields(
+                name=field_name,
+                type="array",
+                fields=self.map_airbyte_type_to_ol_schema_field(
+                    {
+                        "_element": {
+                            "name": "_element",
+                            "type": ["array"],
+                            "items": items.get("items", []),
+                        }
+                    }
+                ),
+            )
+
+        return SchemaDatasetFacetFields(
+            name=field_name,
+            type="array",
+            fields=[SchemaDatasetFacetFields(name="_element", type=field_type)],
+        )
+
+
+class _ColumnLineageResolver:
+    @staticmethod
+    def resolve_column_lineage(
+        namespace: str, schema: str | None, stream: dict[str, Any]
+    ) -> ColumnLineageDatasetFacet:
+        from openlineage.client.generated.column_lineage_dataset import (
+            ColumnLineageDatasetFacet,
+            Fields,
+            InputField,
+        )
+
+        fields = {}
+
+        for field_name in stream.keys():
+            fields[field_name] = Fields(
+                inputFields=[
+                    InputField(
+                        namespace=namespace,
+                        name=schema if schema is not None else "",
+                        field=field_name,
+                    )
+                ],
+                transformationType="IDENTITY",
+                transformationDescription="",
+            )
+
+        return ColumnLineageDatasetFacet(fields=fields)
