@@ -732,6 +732,21 @@ def test_interleave_logs_correct_ordering():
     assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
 
 
+def test_interleave_logs_correct_dedupe():
+    sample_without_dupe = """test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test"""
+
+    assert sample_without_dupe == "\n".join(_interleave_logs(',\n    '.join(['test'] * 10)))
+
+
 def test_permissions_for_new_directories(tmp_path):
     # Set umask to 0o027: owner rwx, group rx-w, other -rwx
     old_umask = os.umask(0o027)
