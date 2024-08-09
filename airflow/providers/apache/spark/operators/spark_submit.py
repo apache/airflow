@@ -58,7 +58,9 @@ class SparkSubmitOperator(BaseOperator):
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
     :param keytab: Full path to the file that contains the keytab (templated)
+                        (will overwrite any keytab defined in the connection's extra JSON)
     :param principal: The name of the kerberos principal used for keytab (templated)
+                        (will overwrite any principal defined in the connection's extra JSON)
     :param proxy_user: User to impersonate when submitting the application (templated)
     :param name: Name of the job (default airflow-spark). (templated)
     :param num_executors: Number of executors to launch
