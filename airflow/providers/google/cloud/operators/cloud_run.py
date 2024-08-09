@@ -427,11 +427,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
                 service_name=self.service_name, region=self.region, project_id=self.project_id
             )
         except google.cloud.exceptions.GoogleCloudError as e:
-            self.log.error(
-                "An error occurred while interacting with Google Cloud Run: %s. Error code: %s",
-                self.e.message,
-                self.e.error_code,
-            )
+            self.log.error("An error occurred. Exiting.")
             raise e
 
         return Service.to_dict(service)

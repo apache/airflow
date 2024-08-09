@@ -464,7 +464,7 @@ class TestCloudRunCreateServiceOperator:
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute_when_other_error(self, hook_mock):
-        error_message = "An error occurred while interacting with Google Cloud Run"
+        error_message = "An error occurred. Exiting."
         hook_mock.return_value.create_service.side_effect = GoogleCloudError(error_message, errors=None)
 
         operator = CloudRunCreateServiceOperator(
