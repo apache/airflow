@@ -47,26 +47,26 @@ class TestVariable:
         db.clear_db_variables()
         crypto._fernet = None
 
-    @conf_vars({("core", "fernet_key"): ""})
+    @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): True})
     def test_variable_no_encryption(self, session):
         """
         Test variables without encryption
         """
         Variable.set(key="key", value="value", session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = Variable.get("key")
         assert not test_var.is_encrypted
         assert test_var.val == "value"
         # We always call mask_secret for variables, and let the SecretsMasker decide based on the name if it
         # should mask anything. That logic is tested in test_secrets_masker.py
         self.mask_secret.assert_called_once_with("value", "key")
 
-    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode(), ("core", "unit_test_mode"): True})
     def test_variable_with_encryption(self, session):
         """
         Test variables with encryption
         """
         Variable.set(key="key", value="value", session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = Variable.get("key")
         assert test_var.is_encrypted
         assert test_var.val == "value"
 
@@ -105,7 +105,7 @@ class TestVariable:
         Variable.set(key="key", value="db-value", session=session)
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
             # setting value while shadowed by an env variable will generate a warning
-            Variable.set("key", "new-db-value")
+            Variable.set(key="key", value="new-db-value", session=session)
             # value set above is not returned because the env variable value takes priority
             assert "env-value" == Variable.get("key")
         # invalidate the cache to re-evaluate value
@@ -137,11 +137,11 @@ class TestVariable:
             "will be updated, but to read it you have to delete the conflicting variable from "
             "MockSecretsBackend"
         )
-        Variable.delete("key")
+        Variable.delete(key="key", session=session)
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
-        Variable.set("tested_var_set_id", value, serialize_json=True)
+        Variable.set(key="tested_var_set_id", value=value, serialize_json=True)
         assert value == Variable.get("tested_var_set_id", deserialize_json=True)
 
     def test_variable_update(self, session):
@@ -184,9 +184,9 @@ class TestVariable:
         with pytest.raises(KeyError):
             Variable.get("thisIdDoesNotExist")
 
-    def test_update_non_existing_var_should_raise_key_error(self):
+    def test_update_non_existing_var_should_raise_key_error(self, session):
         with pytest.raises(KeyError):
-            Variable.update("thisIdDoesNotExist", "value")
+            Variable.update(key="thisIdDoesNotExist", value="value", session=session)
 
     def test_get_non_existing_var_with_none_default_should_return_none(self):
         assert Variable.get("thisIdDoesNotExist", default_var=None) is None
@@ -197,18 +197,21 @@ class TestVariable:
             "thisIdDoesNotExist", default_var=default_value, deserialize_json=True
         )
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_variable_setdefault_round_trip(self):
         key = "tested_var_setdefault_1_id"
         value = "Monday morning breakfast in Paris"
         Variable.setdefault(key, value)
         assert value == Variable.get(key)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_variable_setdefault_round_trip_json(self):
         key = "tested_var_setdefault_2_id"
         value = {"city": "Paris", "Happiness": True}
         Variable.setdefault(key, value, deserialize_json=True)
         assert value == Variable.get(key, deserialize_json=True)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_variable_setdefault_existing_json(self, session):
         key = "tested_var_setdefault_2_id"
         value = {"city": "Paris", "Happiness": True}
@@ -218,21 +221,21 @@ class TestVariable:
         assert value == val
         assert value == Variable.get(key, deserialize_json=True)
 
-    def test_variable_delete(self):
+    def test_variable_delete(self, session):
         key = "tested_var_delete"
         value = "to be deleted"
 
         # No-op if the variable doesn't exist
-        Variable.delete(key)
+        Variable.delete(key=key, session=session)
         with pytest.raises(KeyError):
             Variable.get(key)
 
         # Set the variable
-        Variable.set(key, value)
+        Variable.set(key=key, value=value, session=session)
         assert value == Variable.get(key)
 
         # Delete the variable
-        Variable.delete(key)
+        Variable.delete(key=key, session=session)
         with pytest.raises(KeyError):
             Variable.get(key)
 
@@ -276,7 +279,7 @@ class TestVariable:
         mock_backend.get_variable.assert_called_once()  # second call was not made because of cache
         assert first == second
 
-    def test_cache_invalidation_on_set(self):
+    def test_cache_invalidation_on_set(self, session):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env"):
             a = Variable.get("key")  # value is saved in cache
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env_two"):
@@ -284,7 +287,7 @@ class TestVariable:
         assert a == b
 
         # setting a new value invalidates the cache
-        Variable.set("key", "new_value")
+        Variable.set(key="key", value="new_value", session=session)
 
         c = Variable.get("key")  # cache should not be used
 
@@ -310,8 +313,7 @@ def test_masking_only_secret_values(variable_value, deserialize_json, expected_m
             key=f"password-{os.getpid()}",
             val=variable_value,
         )
-        session.add(var)
-        session.flush()
+        Variable.set(key=var.key, value=var.val, session=session)
 
         # Make sure we re-load it, not just get the cached object back
         session.expunge(var)

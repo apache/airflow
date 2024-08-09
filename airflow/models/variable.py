@@ -122,12 +122,14 @@ class Variable(Base, LoggingMixin):
         else:
             return obj
 
-    @classmethod
+    @staticmethod
+    @provide_session
+    @internal_api_call
     def get(
-        cls,
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
+        session: Session = None,
     ) -> Any:
         """
         Get a value for an Airflow Variable Key.
@@ -135,10 +137,11 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
+        :param session: Session
         """
-        var_val = Variable.get_variable_from_secrets(key=key)
+        var_val = Variable.get_variable_from_secrets(key=key, session=session)
         if var_val is None:
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
+            if Variable.check_if_no_default_sentinel_for_given_default_value(default_var):
                 return default_var
             else:
                 raise KeyError(f"Variable {key} does not exist")
@@ -150,6 +153,10 @@ class Variable(Base, LoggingMixin):
             else:
                 mask_secret(var_val, key)
                 return var_val
+
+    @classmethod
+    def check_if_no_default_sentinel_for_given_default_value(cls, default_var: Any) -> bool:
+        return default_var is cls.__NO_DEFAULT_SENTINEL
 
     @staticmethod
     @provide_session
@@ -170,9 +177,10 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param session: Session
         """
         # check if the secret exists in the custom secrets' backend.
-        Variable.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key=key, session=session)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -201,8 +209,9 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param session: Session
         """
-        Variable.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key=key, session=session)
 
         if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
@@ -210,7 +219,9 @@ class Variable(Base, LoggingMixin):
         if obj is None:
             raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
-        Variable.set(key, value, description=obj.description, serialize_json=serialize_json)
+        Variable.set(
+            key=key, value=value, description=obj.description, serialize_json=serialize_json, session=session
+        )
 
     @staticmethod
     @provide_session
@@ -232,7 +243,8 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
-    def check_for_write_conflict(key: str) -> None:
+    @provide_session
+    def check_for_write_conflict(key: str, session: Session = None) -> None:
         """
         Log a warning if a variable exists outside the metastore.
 
@@ -241,11 +253,12 @@ class Variable(Base, LoggingMixin):
         subsequent reads will not read the set value.
 
         :param key: Variable Key
+        :param session: Session
         """
         for secrets_backend in ensure_secrets_loaded():
             if not isinstance(secrets_backend, MetastoreBackend):
                 try:
-                    var_val = secrets_backend.get_variable(key=key)
+                    var_val = secrets_backend.get_variable(key=key, session=session)
                     if var_val is not None:
                         _backend_name = type(secrets_backend).__name__
                         log.warning(
@@ -267,11 +280,13 @@ class Variable(Base, LoggingMixin):
             return None
 
     @staticmethod
-    def get_variable_from_secrets(key: str) -> str | None:
+    @provide_session
+    def get_variable_from_secrets(key: str, session: Session = None) -> str | None:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
         :param key: Variable Key
+        :param session: Session
         :return: Variable Value
         """
         # check cache first
@@ -285,7 +300,7 @@ class Variable(Base, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                var_val = secrets_backend.get_variable(key=key)
+                var_val = secrets_backend.get_variable(key=key, session=session)
                 if var_val is not None:
                     break
             except Exception:

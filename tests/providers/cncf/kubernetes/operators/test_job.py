@@ -116,6 +116,7 @@ class TestKubernetesJobOperator:
             cmds="{{ dag.dag_id }}",
             image="{{ dag.dag_id }}",
             annotations={"dag-id": "{{ dag.dag_id }}"},
+            session=session,
         )
 
         session.add(ti)
