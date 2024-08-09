@@ -1037,14 +1037,14 @@ def get_states(dr):
     return dict(ti_dict)
 
 
-@pytest.mark.db_test
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_teardown_and_fail_stop(dag_maker):
     """
     when fail_stop enabled, teardowns should run according to their setups.
     in this case, the second teardown skips because its setup skips.
     """
 
-    with dag_maker(fail_stop=True) as dag:
+    with dag_maker(fail_stop=True, serialized=True) as dag:
         for num in (1, 2):
             with TaskGroup(f"tg_{num}"):
 
@@ -1082,6 +1082,7 @@ def test_teardown_and_fail_stop(dag_maker):
     assert states == expected
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_get_task_instances(session):
     import pendulum
