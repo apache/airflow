@@ -169,6 +169,10 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         return_code = None
         try:
             self.task_runner.start()
+            self.task_started_at = timezone.utcnow()
+            self.task_execution_timeout = (
+                self.task_instance.task.execution_timeout if self.task_instance.task is not None else None
+            )
             local_task_job_heartbeat_sec = conf.getint("scheduler", "local_task_job_heartbeat_sec")
             if local_task_job_heartbeat_sec < 1:
                 heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
@@ -234,6 +238,31 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                             f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
                             f"({heartbeat_time_limit}s)."
                         )
+
+                    if self.task_execution_timeout is not None:
+                        # If the time elapsed is longer than the execution timeout,
+                        # then we need to do terminate the process
+                        elapsed_time = timezone.utcnow() - self.task_started_at
+                        timed_out = elapsed_time > self.task_execution_timeout
+                        if timed_out:
+                            Stats.incr("local_task_job_execution_timeout", 1, 1)
+                            self.log.error(
+                                "The task (#%s) timed out after %s seconds! Terminating...",
+                                self.task_instance.task_id,
+                                self.task_execution_timeout.total_seconds(),
+                            )
+                            if span.is_recording():
+                                span.add_event(
+                                    name="error",
+                                    attributes={
+                                        "message": "Task timeout",
+                                        "task_execution_timeout(s)": self.task_execution_timeout.total_seconds(),
+                                        "elapsed_time(s)": elapsed_time.total_seconds(),
+                                    },
+                                )
+                            self.task_runner.terminate()
+                            break
+
             return return_code
         finally:
             # Print a marker for log grouping of details before task execution

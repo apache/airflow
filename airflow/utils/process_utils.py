@@ -46,23 +46,23 @@ from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
-# When killing processes, time to wait after issuing a SIGTERM before issuing a
-# SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint("core", "KILLED_TASK_CLEANUP_TIME")
+# When killing processes, time to wait after issuing a signal (e.g: SIGHUP, SIGTERM) before issuing a
+# other signal (e.g: SIGTERM, SIGKILL).
+# Possible WAIT scenarios between signals: SIGHUP -> WAIT -> SIGTERM -> WAIT -> SIGKILL
+DEFAULT_TIME_TO_WAIT_AFTER_SIGNALS = conf.getint("core", "KILLED_TASK_CLEANUP_TIME")
 
 
 def reap_process_group(
     process_group_id: int,
     logger,
-    sig: signal.Signals = signal.SIGTERM,
-    timeout: int = DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM,
+    timeout: int = DEFAULT_TIME_TO_WAIT_AFTER_SIGNALS,
 ) -> dict[int, int]:
     """
-    Send sig (SIGTERM) to the process group of pid.
+    Send sig (SIGHUP) to the process group of pid.
 
     Tries really hard to terminate all processes in the group (including grandchildren). Will send
-    sig (SIGTERM) to the process group of pid. If any process is alive after timeout
-    a SIGKILL will be send.
+    sig (SIGHUP) to the process group of pid. If any process is alive after timeout
+    a SIGTERM will be sent. If any process is still alive then a SIGKILL will be sent.
 
     :param process_group_id: process group id to kill.
            The process that wants to create the group should run
@@ -71,10 +71,13 @@ def reap_process_group(
            "root" of the group has pid = gid and all other processes in the group have different
            pids but the same gid (equal the pid of the root process)
     :param logger: log handler
-    :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
     returncodes = {}
+
+    def on_hangup(p):
+        logger.info("Process %s (%s) hung up with exit code %s", p, p.pid, p.returncode)
+        returncodes[p.id] = p.returncode
 
     def on_terminate(p):
         logger.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
@@ -129,21 +132,39 @@ def reap_process_group(
             except OSError:
                 pass
 
+    # try SIGHUP
     logger.info(
         "Sending %s to group %s. PIDs of all processes in the group: %s",
-        sig,
+        signal.SIGHUP,
         process_group_id,
         [p.pid for p in all_processes_in_the_group],
     )
     try:
-        signal_procs(sig)
+        signal_procs(signal.SIGHUP)
     except OSError as err:
         # No such process, which means there is no such process group - our job
         # is done
         if err.errno == errno.ESRCH:
             return returncodes
 
-    _, alive = psutil.wait_procs(all_processes_in_the_group, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(all_processes_in_the_group, timeout=timeout, callback=on_hangup)
+
+    if alive:  # try SIGTERM
+        logger.info(
+            "Sending %s to group %s. PIDs of all processes in the group: %s",
+            signal.SIGTERM,
+            process_group_id,
+            [p.pid for p in all_processes_in_the_group],
+        )
+        try:
+            signal_procs(signal.SIGTERM)
+        except OSError as err:
+            # No such process, which means there is no such process group - our job
+            # is done
+            if err.errno == errno.ESRCH:
+                return returncodes
+
+        _, alive = psutil.wait_procs(all_processes_in_the_group, timeout=timeout, callback=on_terminate)
 
     if alive:
         for proc in alive:
