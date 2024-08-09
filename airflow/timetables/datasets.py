@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import typing
 
-from airflow.datasets import BaseDataset, DatasetAll
+from airflow.assets import BaseDataset, DatasetAll
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.simple import DatasetTriggeredTimetable as DatasetTriggeredSchedule
 from airflow.utils.types import DagRunType
@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.datasets import Dataset
+    from airflow.assets import Dataset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 

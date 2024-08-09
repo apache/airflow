@@ -32,7 +32,7 @@ from openlineage.client.utils import RedactMixin
 from packaging.version import Version
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
@@ -684,7 +684,7 @@ def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageD
     some core Airflow changes are missing and ImportError is raised.
     """
     try:
-        from airflow.datasets import _get_normalized_scheme
+        from airflow.assets import _get_normalized_scheme
         from airflow.providers_manager import ProvidersManager
 
         ol_converters = ProvidersManager().dataset_to_openlineage_converters

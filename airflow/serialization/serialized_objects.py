@@ -35,10 +35,7 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.compat.functools import cache
-from airflow.configuration import conf
-from airflow.datasets import (
+from airflow.assets import (
     BaseDataset,
     Dataset,
     DatasetAlias,
@@ -46,6 +43,9 @@ from airflow.datasets import (
     DatasetAny,
     _DatasetAliasCondition,
 )
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.compat.functools import cache
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models import Trigger

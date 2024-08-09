@@ -45,8 +45,8 @@ from sqlalchemy import inspect, select
 from sqlalchemy.exc import SAWarning
 
 from airflow import settings
+from airflow.assets import Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias, DatasetAll, DatasetAny
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,

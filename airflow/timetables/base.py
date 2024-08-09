@@ -19,13 +19,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Iterator, NamedTuple, Sequence
 from warnings import warn
 
-from airflow.datasets import BaseDataset
+from airflow.assets import BaseDataset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.datasets import Dataset
+    from airflow.assets import Dataset
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.utils.types import DagRunType
 

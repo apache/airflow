@@ -25,7 +25,7 @@ import pendulum
 import pytest
 
 import airflow.example_dags as example_dags_module
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode

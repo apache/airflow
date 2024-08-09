@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import plugins_manager
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.hooks.base import BaseHook
 from airflow.lineage import hook
 from airflow.lineage.hook import (
