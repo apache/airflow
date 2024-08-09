@@ -29,14 +29,14 @@ Airflow Git Branches
 
 All new development in Airflow happens in the ``main`` branch which is now Airflow 3. All PRs should target that branch.
 
-We also have a ``v2-10-test`` branch that are used to test ``2.10.x`` series of Airflow 2 and where maintainers
+We also have a ``v2-10-test`` branch that is used to test ``2.10.x`` series of Airflow 2 and where maintainers
 cherry-pick selected commits from the main branch.
 
-For Contributors:
+*For Contributors*:
 All bug fixes after 2.10.0 release will target Airflow 3. We will make the best effort to make them available in 2.10.x,
 but if somebody wants to guarantee that a fix is included in 2.10.x, they need to raise the PR explicitly to the v2-10-test branch too.
 
-For Committers:
+*For Committers*:
 When merging bugfix PRs to the ``main`` branch, the committers should also try to cherry-pick it to v2-10-test branch.
 If there are merge conflicts, the committer should add a comment on the original PR, informing the author and asking them
 to raise a separate PR against ``v2-10-test`` branch. If this doesn't happen, there is no guarantee that the PR will be part of 2.10.x
