@@ -23,7 +23,7 @@ from io import StringIO as StringBuffer
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
@@ -331,3 +331,23 @@ class TestDockerDecorator:
         assert 'with open(sys.argv[4], "w") as file:' not in log_content
         last_line_of_docker_operator_log = log_content.splitlines()[-1]
         assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
+
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+        ],
+    )
+    def test_ambiguous_serializer(self, dag_maker, serializer):
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True, serializer=serializer)
+        def f():
+            pass
+
+        with dag_maker():
+            with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+                with pytest.raises(
+                    AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
+                ):
+                    f()
