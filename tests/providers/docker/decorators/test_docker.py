@@ -361,3 +361,64 @@ class TestDockerDecorator:
         with dag_maker():
             with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
                 f()
+
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param(
+                "dill",
+                marks=pytest.mark.skipif(
+                    DILL_INSTALLED, reason="For this test case `dill` shouldn't be installed"
+                ),
+                id="dill",
+            ),
+            pytest.param(
+                "cloudpickle",
+                marks=pytest.mark.skipif(
+                    CLOUDPICKLE_INSTALLED, reason="For this test case `cloudpickle` shouldn't be installed"
+                ),
+                id="cloudpickle",
+            ),
+        ],
+    )
+    def test_advanced_serializer_not_installed(self, dag_maker, serializer, caplog):
+        """Test case for check raising an error if dill/cloudpickle is not installed."""
+
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer=serializer)
+        def f(): ...
+
+        with dag_maker():
+            with pytest.raises(ModuleNotFoundError):
+                f()
+        assert f"Unable to import `{serializer}` module." in caplog.text
+
+    @CLOUDPICKLE_MARKER
+    def test_add_cloudpickle(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="cloudpickle")
+        def f():
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
+
+        with dag_maker():
+            f()
+
+    @DILL_MARKER
+    def test_add_dill(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="dill")
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            f()
+
+    @DILL_MARKER
+    def test_add_dill_use_dill(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True)
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+                f()
