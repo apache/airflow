@@ -449,6 +449,8 @@ const Details = ({
               openGroupIds={openGroupIds}
               gridScrollRef={gridScrollRef}
               ganttScrollRef={ganttScrollRef}
+              taskId={taskId}
+              runId={runId}
             />
           </TabPanel>
           <TabPanel height="100%">
