@@ -90,7 +90,7 @@ class TestYDBExecuteQueryOperator:
             {"id": 2, "name": "bears", "age": 22},
             {"id": 3, "name": "foxes", "age": 9},
         ]
-        hook.bulk_upsert("/local/team", rows=rows, column_types=column_types)
+        hook.bulk_upsert("team", rows=rows, column_types=column_types)
 
         result = age_sum_op.execute(self.mock_context)
         assert result == [(48,)]

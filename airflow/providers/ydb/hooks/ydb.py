@@ -138,7 +138,7 @@ class YDBHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.is_ddl = is_ddl
 
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         host: str | None = conn.host
         if not host:
             raise ValueError("YDB host must be specified")
@@ -148,6 +148,7 @@ class YDBHook(DbApiHook):
         database: str | None = connection_extra.get("database")
         if not database:
             raise ValueError("YDB database must be specified")
+        self.database: str = database
 
         endpoint = f"{host}:{port}"
         credentials = get_credentials_from_connection(
@@ -222,15 +223,13 @@ class YDBHook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         conn: Connection = self.get_connection(self.get_conn_id())
-        connection_extra: dict[str, Any] = conn.extra_dejson
-        database: str | None = connection_extra.get("database")
         return URL.create(
             drivername="ydb",
             username=conn.login,
             password=conn.password,
             host=conn.host,
             port=conn.port,
-            query={"database": database},
+            query={"database": self.database},
         )
 
     def get_conn(self) -> YDBConnection:
@@ -249,7 +248,7 @@ class YDBHook(DbApiHook):
 
             https://ydb.tech/docs/en/recipes/ydb-sdk/bulk-upsert
         """
-        self.get_conn().bulk_upsert(table_name, rows, column_types)
+        self.get_conn().bulk_upsert(f"{self.database}/{table_name}", rows, column_types)
 
     @staticmethod
     def _get_table_client_settings() -> ydb.TableClientSettings:

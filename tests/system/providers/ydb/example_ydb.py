@@ -19,7 +19,11 @@ from __future__ import annotations
 import datetime
 import os
 
+import ydb
+
 from airflow import DAG
+from airflow.decorators import task
+from airflow.providers.ydb.hooks.ydb import YDBHook
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
 # [START ydb_operator_howto_guide]
@@ -30,6 +34,26 @@ from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "ydb_operator_dag"
+
+
+@task
+def populate_pet_table_via_bulk_upsert():
+    hook = YDBHook()
+    column_types = (
+        ydb.BulkUpsertColumns()
+        .add_column("pet_id", ydb.OptionalType(ydb.PrimitiveType.Int32))
+        .add_column("name", ydb.PrimitiveType.Utf8)
+        .add_column("pet_type", ydb.PrimitiveType.Utf8)
+        .add_column("birth_date", ydb.PrimitiveType.Utf8)
+        .add_column("owner", ydb.PrimitiveType.Utf8)
+    )
+
+    rows = [
+        {"pet_id": 3, "name": "Lester", "pet_type": "Hamster", "birth_date": "2020-06-23", "owner": "Lily"},
+        {"pet_id": 4, "name": "Quincy", "pet_type": "Parrot", "birth_date": "2013-08-11", "owner": "Anne"},
+    ]
+    hook.bulk_upsert("pet", rows=rows, column_types=column_types)
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -63,12 +87,6 @@ with DAG(
 
               UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
               VALUES (2, 'Susie', 'Cat', '2019-05-01', 'Phil');
-
-              UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-              VALUES (3, 'Lester', 'Hamster', '2020-06-23', 'Lily');
-
-              UPSERT INTO pet (pet_id, name, pet_type, birth_date, owner)
-              VALUES (4, 'Quincy', 'Parrot', '2013-08-11', 'Anne');
             """,
     )
     # [END ydb_operator_howto_guide_populate_pet_table]
@@ -83,7 +101,13 @@ with DAG(
     )
     # [END ydb_operator_howto_guide_get_birth_date]
 
-    create_pet_table >> populate_pet_table >> get_all_pets >> get_birth_date
+    (
+        create_pet_table
+        >> populate_pet_table
+        >> populate_pet_table_via_bulk_upsert()
+        >> get_all_pets
+        >> get_birth_date
+    )
     # [END ydb_operator_howto_guide]
 
     from tests.system.utils.watcher import watcher
