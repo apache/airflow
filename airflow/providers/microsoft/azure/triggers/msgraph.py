@@ -122,7 +122,7 @@ class MSGraphTrigger(BaseTrigger):
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
-        api_version: APIVersion | None = None,
+        api_version: APIVersion | str | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
     ):
         super().__init__()
@@ -152,14 +152,13 @@ class MSGraphTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the HttpTrigger arguments and classpath."""
-        api_version = self.api_version.value if self.api_version else None
         return (
             f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
                 "conn_id": self.conn_id,
                 "timeout": self.timeout,
                 "proxies": self.proxies,
-                "api_version": api_version,
+                "api_version": self.api_version.value,
                 "serializer": f"{self.serializer.__class__.__module__}.{self.serializer.__class__.__name__}",
                 "url": self.url,
                 "path_parameters": self.path_parameters,

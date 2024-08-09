@@ -99,7 +99,7 @@ class MSGraphAsyncOperator(BaseOperator):
         key: str = XCOM_RETURN_KEY,
         timeout: float | None = None,
         proxies: dict | None = None,
-        api_version: APIVersion | None = None,
+        api_version: APIVersion | str | None = None,
         pagination_function: Callable[[MSGraphAsyncOperator, dict], tuple[str, dict]] | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
