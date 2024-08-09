@@ -50,6 +50,7 @@ class CustomLineageBackend(LineageBackend):
 
 
 class TestLineage:
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_lineage(self, dag_maker):
         f1s = "/tmp/does_not_exist_1-{}"
         f2s = "/tmp/does_not_exist_2-{}"
@@ -134,6 +135,7 @@ class TestLineage:
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_attr_outlet(self, dag_maker):
         a = A()
 

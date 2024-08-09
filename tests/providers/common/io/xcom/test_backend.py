@@ -65,12 +65,13 @@ def reset_cache():
 
 
 @pytest.fixture
-def task_instance(create_task_instance_of_operator):
+def task_instance(create_task_instance_of_operator, session):
     return create_task_instance_of_operator(
         EmptyOperator,
         dag_id="test-dag-id",
         task_id="test-task-id",
         execution_date=timezone.datetime(2021, 12, 3, 4, 56),
+        session=session,
     )
 
 

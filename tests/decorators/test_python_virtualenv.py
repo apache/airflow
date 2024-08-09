@@ -51,8 +51,9 @@ class TestPythonVirtualenvDecorator:
             """Ensure cloudpickle is correctly installed."""
             import cloudpickle  # noqa: F401
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -63,8 +64,9 @@ class TestPythonVirtualenvDecorator:
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -76,8 +78,9 @@ class TestPythonVirtualenvDecorator:
             import dill  # noqa: F401
 
         with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with dag_maker():
+            with dag_maker(serialized=True):
                 ret = f()
+            dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -88,8 +91,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             pass
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -109,8 +113,9 @@ class TestPythonVirtualenvDecorator:
                 return True
             raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -131,8 +136,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             import funcsigs  # noqa: F401
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -158,8 +164,9 @@ class TestPythonVirtualenvDecorator:
             if funcsigs.__version__ != "0.4":
                 raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -193,8 +200,9 @@ class TestPythonVirtualenvDecorator:
             if attrs.__version__ != "23.1.0":
                 raise Exception
 
-        with dag_maker(template_searchpath=tmp_path.as_posix()):
+        with dag_maker(template_searchpath=tmp_path.as_posix(), serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -217,8 +225,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             import funcsigs  # noqa: F401
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -236,8 +245,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -263,8 +273,9 @@ class TestPythonVirtualenvDecorator:
                 return
             raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -285,8 +296,9 @@ class TestPythonVirtualenvDecorator:
             else:
                 raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f(0, 1, c=True)
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -295,8 +307,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             return None
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -305,8 +318,9 @@ class TestPythonVirtualenvDecorator:
         def f(_):
             return None
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -316,8 +330,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             return 1
 
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             ret = f()
+        dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
@@ -330,8 +345,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             return 1
 
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             ret = f()
+        dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
@@ -347,8 +363,9 @@ class TestPythonVirtualenvDecorator:
         def f():
             return 1
 
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             ret = f()
+        dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
@@ -369,7 +386,7 @@ class TestPythonVirtualenvDecorator:
             assert isinstance(value, dict)
             return value["unique_id"]
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = in_venv(value)
 
         dr = dag_maker.create_dagrun()
