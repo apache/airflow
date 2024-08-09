@@ -351,3 +351,13 @@ class TestDockerDecorator:
                     AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
                 ):
                     f()
+
+    def test_invalid_serializer(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="airflow")
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
+                f()
