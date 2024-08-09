@@ -46,7 +46,7 @@ def a_function(_, __):
     """A function with two args"""
 
 
-partial_function = functools.partial(a_function, arg_x=1)
+partial_function = functools.partial(a_function, 1)
 class_instance = CallableClass()
 
 logger.info("class_instance type: %s", type(class_instance))
