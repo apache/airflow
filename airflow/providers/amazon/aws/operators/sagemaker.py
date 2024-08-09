@@ -36,7 +36,6 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
-    SageMakerTrainingPrintLogTrigger,
     SageMakerTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
@@ -46,8 +45,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
-    from openlineage.client.run import Dataset
-
+    from airflow.providers.common.compat.openlineage.facet import Dataset
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
@@ -208,7 +206,7 @@ class SageMakerBaseOperator(BaseOperator):
 
     @staticmethod
     def path_to_s3_dataset(path) -> Dataset:
-        from openlineage.client.run import Dataset
+        from airflow.providers.common.compat.openlineage.facet import Dataset
 
         path = path.replace("s3://", "")
         split_path = path.split("/")
@@ -1196,25 +1194,15 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             if self.max_ingestion_time:
                 timeout = datetime.timedelta(seconds=self.max_ingestion_time)
 
-            trigger: SageMakerTrainingPrintLogTrigger | SageMakerTrigger
-            if self.print_log:
-                trigger = SageMakerTrainingPrintLogTrigger(
-                    job_name=self.config["TrainingJobName"],
-                    poke_interval=self.check_interval,
-                    aws_conn_id=self.aws_conn_id,
-                )
-            else:
-                trigger = SageMakerTrigger(
+            self.defer(
+                timeout=timeout,
+                trigger=SageMakerTrigger(
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",
                     poke_interval=self.check_interval,
                     max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                )
-
-            self.defer(
-                timeout=timeout,
-                trigger=trigger,
+                ),
                 method_name="execute_complete",
             )
 

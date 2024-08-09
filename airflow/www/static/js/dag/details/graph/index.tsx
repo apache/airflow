@@ -30,7 +30,14 @@ import ReactFlow, {
   Viewport,
 } from "reactflow";
 
-import { useDatasets, useGraphData, useGridData } from "src/api";
+import {
+  useDagDetails,
+  useDatasetEvents,
+  useDatasets,
+  useGraphData,
+  useGridData,
+  useUpstreamDatasetEvents,
+} from "src/api";
 import useSelection from "src/dag/useSelection";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
@@ -51,82 +58,185 @@ interface Props {
 
 const dagId = getMetaValue("dag_id");
 
+type DatasetExpression = {
+  all?: (string | DatasetExpression)[];
+  any?: (string | DatasetExpression)[];
+};
+
+const getUpstreamDatasets = (
+  datasetExpression: DatasetExpression,
+  firstChildId: string,
+  level = 0
+) => {
+  let edges: WebserverEdge[] = [];
+  let nodes: DepNode[] = [];
+  let type: DepNode["value"]["class"] | undefined;
+  const datasetIds: string[] = [];
+  let nestedExpression: DatasetExpression | undefined;
+  if (datasetExpression?.any) {
+    type = "or-gate";
+    datasetExpression.any.forEach((de) => {
+      if (typeof de === "string") datasetIds.push(de);
+      else nestedExpression = de;
+    });
+  } else if (datasetExpression?.all) {
+    type = "and-gate";
+    datasetExpression.all.forEach((de) => {
+      if (typeof de === "string") datasetIds.push(de);
+      else nestedExpression = de;
+    });
+  }
+
+  if (type && datasetIds.length) {
+    edges.push({
+      sourceId: `${type}-${level}`,
+      // Point upstream datasets to the first task
+      targetId: firstChildId,
+      isSourceDataset: level === 0,
+    });
+    nodes.push({
+      id: `${type}-${level}`,
+      value: {
+        class: type,
+        label: "",
+      },
+    });
+    datasetIds.forEach((d: string) => {
+      nodes.push({
+        id: d,
+        value: {
+          class: "dataset",
+          label: d,
+        },
+      });
+      edges.push({
+        sourceId: d,
+        targetId: `${type}-${level}`,
+      });
+    });
+
+    if (nestedExpression) {
+      const data = getUpstreamDatasets(
+        nestedExpression,
+        `${type}-${level}`,
+        (level += 1)
+      );
+      edges = [...edges, ...data.edges];
+      nodes = [...nodes, ...data.nodes];
+    }
+  }
+  return {
+    nodes,
+    edges,
+  };
+};
+
 const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+  const { selected } = useSelection();
 
   const {
     data: { dagRuns, groups },
   } = useGridData();
 
+  const { data: dagDetails } = useDagDetails();
+
   useEffect(() => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
+
+  const { nodes: datasetsNodes, edges: datasetEdges } = getUpstreamDatasets(
+    dagDetails.datasetExpression as DatasetExpression,
+    data?.nodes?.children ? data.nodes.children[0].id : ""
+  );
+
+  const {
+    data: { datasetEvents: upstreamDatasetEvents = [] },
+  } = useUpstreamDatasetEvents({
+    dagId,
+    dagRunId: selected.runId || "",
+    options: { enabled: !!datasetsNodes.length && !!selected.runId },
+  });
+
+  const {
+    data: { datasetEvents: downstreamDatasetEvents = [] },
+  } = useDatasetEvents({
+    sourceDagId: dagId,
+    sourceRunId: selected.runId || undefined,
+    options: { enabled: !!selected.runId },
+  });
 
   const { data: datasetsCollection } = useDatasets({
     dagIds: [dagId],
   });
 
-  const rawNodes =
-    data?.nodes && datasetsCollection?.datasets?.length
-      ? {
-          ...data.nodes,
-          children: [
-            ...(data.nodes.children || []),
-            ...(datasetsCollection?.datasets || []).map(
-              (dataset) =>
-                ({
-                  id: dataset?.id?.toString() || "",
-                  value: {
-                    class: "dataset",
-                    label: dataset.uri,
-                  },
-                } as DepNode)
-            ),
-          ],
-        }
-      : data?.nodes;
-
-  const datasetEdges: WebserverEdge[] = [];
+  const downstreamDatasetNodes: DepNode[] = [];
+  const downstreamDatasetEdges: WebserverEdge[] = [];
 
   datasetsCollection?.datasets?.forEach((dataset) => {
     const producingTask = dataset?.producingTasks?.find(
       (t) => t.dagId === dagId
     );
-    const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
-    if (dataset.id) {
+    if (dataset.uri) {
       // check that the task is in the graph
       if (
         producingTask?.taskId &&
         getTask({ taskId: producingTask?.taskId, task: groups })
       ) {
-        datasetEdges.push({
+        downstreamDatasetEdges.push({
           sourceId: producingTask.taskId,
-          targetId: dataset.id.toString(),
+          targetId: dataset.uri,
         });
-      }
-      if (consumingDag && data?.nodes?.children?.length) {
-        datasetEdges.push({
-          sourceId: dataset.id.toString(),
-          // Point upstream datasets to the first task
-          targetId: data.nodes?.children[0].id,
-          isSourceDataset: true,
+        downstreamDatasetNodes.push({
+          id: dataset.uri,
+          value: {
+            class: "dataset",
+            label: dataset.uri,
+          },
         });
       }
     }
   });
 
+  // Check if there is a dataset event even though we did not find a dataset
+  downstreamDatasetEvents.forEach((de) => {
+    const hasNode = downstreamDatasetNodes.find(
+      (node) => node.id === de.datasetUri
+    );
+    if (!hasNode && de.sourceTaskId && de.datasetUri) {
+      downstreamDatasetEdges.push({
+        sourceId: de.sourceTaskId,
+        targetId: de.datasetUri,
+      });
+      downstreamDatasetNodes.push({
+        id: de.datasetUri,
+        value: {
+          class: "dataset",
+          label: de.datasetUri,
+        },
+      });
+    }
+  });
+
   const { data: graphData } = useGraphLayout({
-    edges: [...(data?.edges || []), ...datasetEdges],
-    nodes: rawNodes,
+    edges: [...(data?.edges || []), ...datasetEdges, ...downstreamDatasetEdges],
+    nodes: data?.nodes
+      ? {
+          ...data.nodes,
+          children: [
+            ...(data?.nodes.children || []),
+            ...datasetsNodes,
+            ...downstreamDatasetNodes,
+          ],
+        }
+      : data?.nodes,
     openGroupIds,
     arrange,
   });
-
-  const { selected } = useSelection();
 
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
@@ -151,6 +261,9 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         groups,
         hoveredTaskState,
         isZoomedOut,
+        datasetEvents: selected.runId
+          ? [...upstreamDatasetEvents, ...downstreamDatasetEvents]
+          : [],
       }),
     [
       graphData?.children,
@@ -161,6 +274,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       groups,
       hoveredTaskState,
       isZoomedOut,
+      upstreamDatasetEvents,
+      downstreamDatasetEvents,
     ]
   );
 

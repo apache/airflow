@@ -191,6 +191,26 @@ If not set, it's using ``default`` namespace. Provide the name of the namespace 
 
 .. _options:disable:
 
+Timeout
+^^^^^^^
+
+To add a layer of isolation between task execution and OpenLineage, adding a level of assurance that OpenLineage execution does not
+interfere with task execution in a way other than taking time, OpenLineage methods run in separate process.
+The code runs with default timeout of 10 seconds. You can increase this by setting the ``execution_timeout`` value.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    execution_timeout = 60
+
+``AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT=60
+
+
 Disable
 ^^^^^^^
 You can disable sending OpenLineage events without uninstalling OpenLineage provider by setting
@@ -271,7 +291,7 @@ serializing only a few known attributes, we exclude certain non-serializable ele
 Custom Extractors
 ^^^^^^^^^^^^^^^^^
 
-If you use :ref:`custom Extractors <custom_extractors:openlineage>` feature, register the extractors by passing
+To use :ref:`custom Extractors <custom_extractors:openlineage>` feature, register the extractors by passing
 a string of semicolon separated Airflow Operators full import paths to ``extractors`` option in Airflow configuration.
 
 .. code-block:: ini
@@ -285,6 +305,24 @@ a string of semicolon separated Airflow Operators full import paths to ``extract
 .. code-block:: ini
 
   AIRFLOW__OPENLINEAGE__EXTRACTORS='full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass'
+
+Custom Run Facets
+^^^^^^^^^^^^^^^^^
+
+To inject :ref:`custom run facets <custom_facets:openlineage>`, register the custom run facet functions by passing
+a string of semicolon separated full import paths to ``custom_run_facets`` option in Airflow configuration.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    custom_run_facets = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
+
+``AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
 
 Enabling OpenLineage on DAG/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

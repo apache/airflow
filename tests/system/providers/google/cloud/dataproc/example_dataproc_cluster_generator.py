@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -32,25 +31,32 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_cluster_generation"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
-REGION = "europe-west1"
-ZONE = "europe-west1-b"
-INIT_FILE_SRC = str(Path(__file__).parent / "resources" / "pip-install.sh")
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+INIT_FILE = "pip-install.sh"
+GCS_INIT_FILE = f"gs://{RESOURCE_DATA_BUCKET}/dataproc/{INIT_FILE}"
+
+CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
+
+REGION = "us-east4"
+ZONE = "us-east4-a"
 
 # Cluster definition: Generating Cluster Config for DataprocCreateClusterOperator
 # [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
-
-INIT_FILE = "pip-install.sh"
-
 CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     project_id=PROJECT_ID,
     zone=ZONE,
@@ -60,7 +66,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     worker_disk_size=32,
     num_workers=2,
     storage_bucket=BUCKET_NAME,
-    init_actions_uris=[f"gs://{BUCKET_NAME}/{INIT_FILE}"],
+    init_actions_uris=[GCS_INIT_FILE],
     metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
     num_preemptible_workers=1,
     preemptibility="PREEMPTIBLE",
@@ -80,11 +86,13 @@ with DAG(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=INIT_FILE_SRC,
-        dst=INIT_FILE,
-        bucket=BUCKET_NAME,
+    move_init_file = GCSSynchronizeBucketsOperator(
+        task_id="move_init_file",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="dataproc",
+        destination_bucket=BUCKET_NAME,
+        destination_object="dataproc",
+        recursive=True,
     )
 
     # [START how_to_cloud_dataproc_create_cluster_generate_cluster_config_operator]
@@ -114,7 +122,7 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> upload_file
+        >> move_init_file
         # TEST BODY
         >> create_dataproc_cluster
         # TEST TEARDOWN

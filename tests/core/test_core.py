@@ -78,7 +78,7 @@ class TestCore:
             except Exception:
                 pass
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             op = PythonOperator(
                 task_id="test_timeout",
                 execution_timeout=timedelta(seconds=1),
@@ -90,7 +90,7 @@ class TestCore:
 
     def test_task_fail_duration(self, dag_maker):
         """If a task fails, the duration should be recorded in TaskFail"""
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             op1 = BashOperator(task_id="pass_sleepy", bash_command="sleep 3")
             op2 = BashOperator(
                 task_id="fail_sleepy",
@@ -134,7 +134,7 @@ class TestCore:
         execution_ds = execution_date.strftime("%Y-%m-%d")
         execution_ds_nodash = execution_ds.replace("-", "")
 
-        with dag_maker(schedule=timedelta(weeks=1)):
+        with dag_maker(schedule=timedelta(weeks=1), serialized=True):
             task = EmptyOperator(task_id="test_externally_triggered_dag_context")
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -163,6 +163,7 @@ class TestCore:
         with dag_maker(
             schedule=timedelta(weeks=1),
             params={"key_1": "value_1", "key_2": "value_2_old"},
+            serialized=True,
         ):
             task1 = EmptyOperator(
                 task_id="task1",

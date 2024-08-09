@@ -18,43 +18,21 @@
  */
 
 import React, { useMemo, useState } from "react";
-import {
-  Box,
-  Heading,
-  Flex,
-  Text,
-  Link,
-  ButtonGroup,
-  Button,
-} from "@chakra-ui/react";
+import { Box, Flex, Text, Link, ButtonGroup, Button } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 import type { Row, SortingRule } from "react-table";
 import { useSearchParams } from "react-router-dom";
 
 import { useDatasetsSummary } from "src/api";
-import { Table, TimeCell } from "src/components/Table";
+import { CellProps, Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
 import type { DateOption } from "src/api/useDatasetsSummary";
-import type { DatasetDependencies } from "src/api/useDatasetDependencies";
-import SearchBar from "./SearchBar";
+
+import type { OnSelectProps } from "./types";
 
 interface Props {
-  datasetDependencies?: DatasetDependencies;
-  selectedDagId?: string;
-  selectedUri?: string;
-  onSelectNode: (id: string, type: string) => void;
-}
-
-interface CellProps {
-  cell: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any;
-    row: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      original: Record<string, any>;
-    };
-  };
+  onSelect: (props: OnSelectProps) => void;
 }
 
 const DetailCell = ({ cell: { row } }: CellProps) => {
@@ -78,12 +56,7 @@ const dateOptions: Record<string, DateOption> = {
   hour: { count: 1, unit: "hour" },
 };
 
-const DatasetsList = ({
-  datasetDependencies,
-  onSelectNode,
-  selectedDagId,
-  selectedUri,
-}: Props) => {
+const DatasetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
 
@@ -104,7 +77,6 @@ const DatasetsList = ({
     limit,
     offset,
     order,
-    // uri,
     updatedAfter: dateFilter ? dateOptions[dateFilter] : undefined,
   });
 
@@ -128,18 +100,13 @@ const DatasetsList = ({
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
   const onDatasetSelect = (row: Row<API.Dataset>) => {
-    if (row.original.uri) onSelectNode(row.original.uri, "dataset");
+    if (row.original.uri) onSelect({ uri: row.original.uri });
   };
 
   const docsUrl = getMetaValue("datasets_docs");
 
   return (
-    <Box>
-      <Flex justifyContent="space-between" alignItems="center">
-        <Heading mt={3} mb={2} fontWeight="normal" size="lg">
-          Datasets
-        </Heading>
-      </Flex>
+    <>
       {!datasets.length && !isLoading && !dateFilter && (
         <Text mb={4} data-testid="no-datasets-msg">
           Looks like you do not have any datasets yet. Check out the{" "}
@@ -185,12 +152,6 @@ const DatasetsList = ({
           })}
         </ButtonGroup>
       </Flex>
-      <SearchBar
-        datasetDependencies={datasetDependencies}
-        selectedDagId={selectedDagId}
-        selectedUri={selectedUri}
-        onSelectNode={onSelectNode}
-      />
       <Box borderWidth={1} mt={2}>
         <Table
           data={data}
@@ -210,7 +171,7 @@ const DatasetsList = ({
           onRowClicked={onDatasetSelect}
         />
       </Box>
-    </Box>
+    </>
   );
 };
 

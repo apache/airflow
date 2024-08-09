@@ -364,17 +364,6 @@ class TestRedshiftToS3Transfer:
         assert extra["role_arn"] in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
-    def test_template_fields_overrides(self):
-        assert RedshiftToS3Operator.template_fields == (
-            "s3_bucket",
-            "s3_key",
-            "schema",
-            "table",
-            "unload_options",
-            "select_query",
-            "redshift_conn_id",
-        )
-
     @pytest.mark.parametrize("param", ["sql", "parameters"])
     def test_invalid_param_in_redshift_data_api_kwargs(self, param):
         """

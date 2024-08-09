@@ -124,10 +124,13 @@ class TestS3ToSFTPOperator:
         assert not s3_hook.check_for_bucket(self.s3_bucket)
 
     def delete_remote_resource(self):
+        # Initiate SHH hook
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook.no_host_key_check = True
         # check the remote file content
         remove_file_task = SSHOperator(
             task_id="test_rm_file",
-            ssh_hook=self.hook,
+            ssh_hook=hook,
             command=f"rm {self.sftp_path}",
             do_xcom_push=True,
             dag=self.dag,

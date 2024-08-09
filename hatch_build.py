@@ -40,6 +40,7 @@ GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provi
 PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 PRE_INSTALLED_PROVIDERS = [
+    "common.compat",
     "common.io",
     "common.sql",
     "fab>=1.0.2",
@@ -200,6 +201,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
+        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
+        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",

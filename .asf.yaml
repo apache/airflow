@@ -119,7 +119,6 @@ github:
     - sunank200
     - vatsrahul1001
     - cmarteepants
-    - romsharon98
 
 notifications:
   jobs: jobs@airflow.apache.org

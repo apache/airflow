@@ -78,7 +78,6 @@ class TestCallbackRequest:
                 full_filepath="filepath",
                 simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
                 processor_subdir="/test_dir",
-                is_failure_callback=True,
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str=json_str)
@@ -94,7 +93,6 @@ class TestCallbackRequest:
             full_filepath="filepath",
             simple_task_instance=SimpleTaskInstance.from_ti(ti),
             processor_subdir="/test_dir",
-            is_failure_callback=True,
         )
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
