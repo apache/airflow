@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 
 import google.cloud.exceptions
+from google.api_core.exceptions import AlreadyExists
 from google.cloud.run_v2 import Job, Service
 
 from airflow.configuration import conf
@@ -416,8 +417,21 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
                 region=self.region,
                 project_id=self.project_id,
             )
-        except google.cloud.exceptions.Conflict as e:
-            self.log.error("An error occurred. Exiting.")
+        except AlreadyExists:
+            self.log.info(
+                "Already existed Cloud run service, service_name=%s, region=%s",
+                self.service_name,
+                self.region,
+            )
+            return hook.get_service(
+                service_name=self.service_name, region=self.region, project_id=self.project_id
+            )
+        except google.cloud.exceptions.GoogleCloudError as e:
+            self.log.error(
+                "An error occurred while interacting with Google Cloud Run: %s. Error code: %s",
+                self.e.message,
+                self.e.error_code,
+            )
             raise e
 
         return Service.to_dict(service)
