@@ -63,8 +63,6 @@ __all__ = [
 
 _T = TypeVar("_T", bound=Task[..., Any] | _TaskDecorator[..., Any, Any])
 
-Serializer = Literal["pickle", "cloudpickle", "dill"]
-
 class TaskDecoratorCollection:
     @overload
     def python(  # type: ignore[misc]
@@ -116,7 +114,7 @@ class TaskDecoratorCollection:
         # _PythonVirtualenvDecoratedOperator.
         requirements: None | Iterable[str] | str = None,
         python_version: None | str | int | float = None,
-        serializer: Serializer | None = None,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
         pip_install_options: list[str] | None = None,
@@ -190,7 +188,7 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
-        serializer: Serializer | None = None,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
@@ -255,7 +253,7 @@ class TaskDecoratorCollection:
         # _PythonVirtualenvDecoratedOperator.
         requirements: None | Iterable[str] | str = None,
         python_version: None | str | int | float = None,
-        serializer: Serializer | None = None,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
         pip_install_options: list[str] | None = None,
@@ -318,7 +316,7 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
-        serializer: Serializer | None = None,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         use_dill: bool = False,
@@ -382,7 +380,7 @@ class TaskDecoratorCollection:
         *,
         multiple_outputs: bool | None = None,
         python_command: str = "python3",
-        serializer: Serializer | None = None,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
