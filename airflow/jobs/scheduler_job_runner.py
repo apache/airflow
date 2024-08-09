@@ -1440,6 +1440,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ]
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
+                else:
+                    dataset_event_filters.append(
+                        DatasetEvent.timestamp > DagScheduleDatasetReference.created_at
+                    )
 
                 dataset_events = session.scalars(
                     select(DatasetEvent)
