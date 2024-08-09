@@ -66,7 +66,7 @@ except ImportError:
             raise
         return cloudpickle
 
-    _SERIALIZERS: dict[Serializer, Any] = {
+    _SERIALIZERS: dict[Serializer, Any] = {  # type: ignore[no-redef]
         "pickle": lazy_object_proxy.Proxy(_load_pickle),
         "dill": lazy_object_proxy.Proxy(_load_dill),
         "cloudpickle": lazy_object_proxy.Proxy(_load_cloudpickle),
