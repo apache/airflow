@@ -30,10 +30,13 @@ from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
 from airflow.operators.bash import BashOperator
+from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
+    _get_all_packages_installed,
     _is_name_redactable,
+    get_airflow_debug_facet,
     get_airflow_run_facet,
     get_fully_qualified_class_name,
     is_operator_disabled,
@@ -53,6 +56,27 @@ class SafeStrDict(dict):
             except (TypeError, NotImplementedError):
                 continue
         return str(dict(castable))
+
+
+@patch("airflow.providers.openlineage.utils.utils.metadata.distributions")
+def test_get_all_packages_installed(mock_distributions):
+    mock_distributions.return_value = [MagicMock(metadata={"Name": "package1"}, version="1.0.0")]
+    assert _get_all_packages_installed() == {"package1": "1.0.0"}
+
+
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode", return_value=False)
+def test_get_airflow_debug_facet_not_in_debug_mode(mock_debug_mode):
+    assert get_airflow_debug_facet() == {}
+
+
+@patch("airflow.providers.openlineage.utils.utils._get_all_packages_installed")
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode")
+def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_packages):
+    mock_debug_mode.return_value = True
+    mock_get_packages.return_value = {"package1": "1.0.0"}
+    result = get_airflow_debug_facet()
+    expected_result = {"debug": AirflowDebugRunFacet(packages={"package1": "1.0.0"})}
+    assert result == expected_result
 
 
 @pytest.mark.db_test

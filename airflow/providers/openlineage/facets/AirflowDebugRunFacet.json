@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "AirflowDebugRunFacet": {
+        "allOf": [
+          {
+            "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "packages": {
+                "description": "The names and versions of all installed Python packages.",
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": ["packages"]
+          }
+        ],
+        "type": "object"
+      }
+    },
+    "type": "object",
+    "properties": {
+      "debug": {
+        "$ref": "#/$defs/AirflowDebugRunFacet"
+      }
+    }
+  }

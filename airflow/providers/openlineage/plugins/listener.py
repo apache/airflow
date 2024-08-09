@@ -32,6 +32,7 @@ from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     IS_AIRFLOW_2_10_OR_HIGHER,
+    get_airflow_debug_facet,
     get_airflow_job_facet,
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
@@ -122,6 +123,9 @@ class OpenLineageListener:
             )
             return
 
+        # Needs to be calculated outside of inner method so that it gets cached for usage in fork processes
+        debug_facet = get_airflow_debug_facet()
+
         @print_warning(self.log)
         def on_running():
             # that's a workaround to detect task running from deferred state
@@ -166,6 +170,7 @@ class OpenLineageListener:
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **debug_facet,
                 },
             )
             Stats.gauge(
@@ -237,6 +242,7 @@ class OpenLineageListener:
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
                 },
             )
             Stats.gauge(
@@ -336,6 +342,7 @@ class OpenLineageListener:
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
                 },
             )
             Stats.gauge(

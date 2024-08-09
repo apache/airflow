@@ -41,6 +41,7 @@ from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VE
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
     get_airflow_dag_run_facet,
+    get_airflow_debug_facet,
     get_airflow_state_run_facet,
 )
 from airflow.stats import Stats
@@ -361,7 +362,7 @@ class OpenLineageAdapter(LoggingMixin):
                     job_name=dag_run.dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets=get_airflow_dag_run_facet(dag_run),
+                    run_facets={**get_airflow_dag_run_facet(dag_run), **get_airflow_debug_facet()},
                 ),
                 inputs=[],
                 outputs=[],
@@ -385,7 +386,7 @@ class OpenLineageAdapter(LoggingMixin):
                         dag_id=dag_run.dag_id,
                         execution_date=dag_run.execution_date,
                     ),
-                    facets={**get_airflow_state_run_facet(dag_run)},
+                    facets={**get_airflow_state_run_facet(dag_run), **get_airflow_debug_facet()},
                 ),
                 inputs=[],
                 outputs=[],
@@ -414,6 +415,7 @@ class OpenLineageAdapter(LoggingMixin):
                             message=msg, programmingLanguage="python"
                         ),
                         **get_airflow_state_run_facet(dag_run),
+                        **get_airflow_debug_facet(),
                     },
                 ),
                 inputs=[],

@@ -168,3 +168,11 @@ config:
         example: ~
         type: boolean
         version_added: 1.10.0
+      debug_mode:
+        description: |
+          If true, OpenLineage events will include information useful for debugging - potentially
+          containing large fields e.g. all installed packages and their versions.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: 1.11.0

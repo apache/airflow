@@ -102,6 +102,13 @@ class AirflowDagRunFacet(RunFacet):
 
 
 @define
+class AirflowDebugRunFacet(RunFacet):
+    """Airflow Debug run facet."""
+
+    packages: dict
+
+
+@define
 class UnknownOperatorInstance(RedactMixin):
     """
     Describes an unknown operator.

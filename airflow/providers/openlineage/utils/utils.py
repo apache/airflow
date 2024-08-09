@@ -23,6 +23,7 @@ import logging
 import re
 from contextlib import redirect_stdout, suppress
 from functools import wraps
+from importlib import metadata
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
@@ -38,6 +39,7 @@ from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
+    AirflowDebugRunFacet,
     AirflowJobFacet,
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
@@ -374,6 +376,28 @@ def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
         "airflowDagRun": AirflowDagRunFacet(
             dag=DagInfo(dag_run.dag),
             dagRun=DagRunInfo(dag_run),
+        )
+    }
+
+
+@conf.cache
+def _get_all_packages_installed() -> dict[str, str]:
+    """
+    Retrieve a dictionary of all installed packages and their versions.
+
+    This operation involves scanning the system's installed packages, which can be a heavy operation.
+    It is recommended to cache the result to avoid repeated, expensive lookups.
+    """
+    return {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}
+
+
+def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
+    if not conf.debug_mode():
+        return {}
+    log.warning("OpenLineage debug_mode is enabled. Be aware that this may log and emit extensive details.")
+    return {
+        "debug": AirflowDebugRunFacet(
+            packages=_get_all_packages_installed(),
         )
     }
 
