@@ -80,6 +80,14 @@ class LivyHook(HttpHook, LoggingMixin):
     conn_type = "livy"
     hook_name = "Apache Livy"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        return super().get_connection_form_widgets()
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return super().get_ui_field_behaviour()
+
     def __init__(
         self,
         livy_conn_id: str = default_conn_name,
@@ -87,11 +95,9 @@ class LivyHook(HttpHook, LoggingMixin):
         extra_headers: dict[str, Any] | None = None,
         auth_type: Any | None = None,
     ) -> None:
-        super().__init__(http_conn_id=livy_conn_id)
+        super().__init__(http_conn_id=livy_conn_id, auth_type=auth_type)
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
-        if auth_type:
-            self.auth_type = auth_type
 
     def get_conn(self, headers: dict[str, Any] | None = None) -> Any:
         """
@@ -490,6 +496,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         extra_headers: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
+        self.auth_type = self.default_auth_type
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 

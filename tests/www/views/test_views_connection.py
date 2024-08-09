@@ -428,8 +428,12 @@ def test_process_form_invalid_extra_removed(admin_client):
     """
     Test that when an invalid json `extra` is passed in the form, it is removed and _not_
     saved over the existing extras.
+
+    Note: This can only be tested with a Hook which does not have any custom fields (otherwise
+    the custom fields override the extra data when editing a Connection). Thus, this is currently
+    tested with ftp.
     """
-    conn_details = {"conn_id": "test_conn", "conn_type": "http"}
+    conn_details = {"conn_id": "test_conn", "conn_type": "ftp"}
     conn = Connection(**conn_details, extra='{"foo": "bar"}')
     conn.id = 1
 
