@@ -63,7 +63,7 @@ class _AssetMainOperator(PythonOperator):
 
 
 @attrs.define(kw_only=True)
-class AssetDefinition:
+class AssetDefinition(Asset):
     """
     Asset representation from decorating a function with ``@asset``.
 
@@ -71,7 +71,6 @@ class AssetDefinition:
     """
 
     name: str  # TODO: This should be stored on Asset.
-    asset: Asset
     function: types.FunctionType
     schedule: ScheduleArg
 
@@ -82,7 +81,7 @@ class AssetDefinition:
                 task_id="__main__",
                 # TODO: This should use the name argument instead.
                 inlets=[Asset(uri=k) for k in parameters if k not in ("self", "context")],
-                outlets=[self.asset],
+                outlets=[self],
                 python_callable=self.function,
                 definition_name=self.name,
             )
@@ -107,10 +106,8 @@ class asset:
             raise ValueError(f"prohibited name for asset: {name}")
         return AssetDefinition(
             name=name,
-            asset=Asset(
-                uri=name if self.uri is None else str(self.uri),
-                extra=self.extra,
-            ),
+            uri=name if self.uri is None else str(self.uri),
+            extra=self.extra,
             function=f,
             schedule=self.schedule,
         )
