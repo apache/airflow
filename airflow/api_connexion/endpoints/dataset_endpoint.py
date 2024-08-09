@@ -43,8 +43,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
     queued_event_collection_schema,
     queued_event_schema,
 )
-from airflow.datasets import Dataset
-from airflow.datasets.manager import dataset_manager
+from airflow.assets import Dataset
+from airflow.assets.manager import dataset_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
+from airflow.assets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 

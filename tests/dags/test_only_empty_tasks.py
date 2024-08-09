@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 

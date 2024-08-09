@@ -54,11 +54,11 @@ log = logging.getLogger(__name__)
 @functools.lru_cache
 def initialize_method_map() -> dict[str, Callable]:
     from airflow.api.common.trigger_dag import trigger_dag
+    from airflow.assets import expand_alias_to_datasets
+    from airflow.assets.manager import DatasetManager
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.datasets import expand_alias_to_datasets
-    from airflow.datasets.manager import DatasetManager
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun

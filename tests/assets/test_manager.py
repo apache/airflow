@@ -24,8 +24,8 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
-from airflow.datasets import Dataset
-from airflow.datasets.manager import DatasetManager
+from airflow.assets import Dataset
+from airflow.assets.manager import DatasetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel

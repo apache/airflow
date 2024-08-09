@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pendulum import DateTime
 
-from airflow.datasets import Dataset, DatasetAlias
+from airflow.assets import Dataset, DatasetAlias
 from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import DatasetOrTimeSchedule

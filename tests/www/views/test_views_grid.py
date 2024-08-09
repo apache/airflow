@@ -24,7 +24,7 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag

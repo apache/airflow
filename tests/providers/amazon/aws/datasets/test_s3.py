@@ -20,7 +20,7 @@ import urllib.parse
 
 import pytest
 
-from airflow.datasets import Dataset
+from airflow.assets import Dataset
 from airflow.providers.amazon.aws.datasets.s3 import (
     convert_dataset_to_openlineage,
     create_dataset,

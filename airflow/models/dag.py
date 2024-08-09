@@ -82,9 +82,9 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.assets import BaseDataset, Dataset, DatasetAlias, DatasetAll
+from airflow.assets.manager import dataset_manager
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
-from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
@@ -2971,7 +2971,7 @@ class DAG(LoggingMixin):
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
-        from airflow.datasets import Dataset
+        from airflow.assets import Dataset
         from airflow.models.dataset import (
             DagScheduleDatasetReference,
             DatasetModel,

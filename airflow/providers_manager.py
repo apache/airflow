@@ -91,7 +91,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.datasets import Dataset
+    from airflow.assets import Dataset
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.typing_compat import Literal
@@ -884,7 +884,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _discover_dataset_uri_resources(self) -> None:
         """Discovers and registers dataset URI handlers, factories, and converters for all providers."""
-        from airflow.datasets import normalize_noop
+        from airflow.assets import normalize_noop
 
         def _safe_register_resource(
             provider_package_name: str,
