@@ -23,7 +23,7 @@ from io import StringIO as StringBuffer
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
@@ -346,7 +346,9 @@ class TestDockerDecorator:
             pass
 
         with dag_maker():
-            with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
+            ):
                 with pytest.raises(
                     AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
                 ):
@@ -420,5 +422,7 @@ class TestDockerDecorator:
             import dill  # noqa: F401
 
         with dag_maker():
-            with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
+            ):
                 f()
