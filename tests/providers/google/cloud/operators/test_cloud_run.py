@@ -24,12 +24,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from google.cloud.run_v2 import Job
+from google.api_core.exceptions import AlreadyExists
+from google.cloud.exceptions import GoogleCloudError
+from google.cloud.run_v2 import Job, Service
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
+    CloudRunCreateServiceOperator,
     CloudRunDeleteJobOperator,
+    CloudRunDeleteServiceOperator,
     CloudRunExecuteJobOperator,
     CloudRunListJobsOperator,
     CloudRunUpdateJobOperator,
@@ -37,10 +41,13 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
+CLOUD_RUN_SERVICE_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunServiceHook"
 TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
+SERVICE = Service()
+SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
     "task_count": 1,
@@ -49,6 +56,9 @@ OVERRIDES = {
 
 JOB = Job()
 JOB.name = JOB_NAME
+
+SERVICE = Service()
+SERVICE.name = SERVICE_NAME
 
 
 def _assert_common_template_fields(template_fields):
@@ -387,3 +397,124 @@ class TestCloudRunListJobsOperator:
         limit = -1
         with pytest.raises(expected_exception=AirflowException):
             CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
+
+
+class TestCloudRunCreateServiceOperator:
+    def test_template_fields(self):
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "service_name" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute(self, hook_mock):
+        hook_mock.return_value.create_service.return_value = SERVICE
+
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute_already_exists(self, hook_mock):
+        hook_mock.return_value.create_service.side_effect = AlreadyExists("Service already exists")
+        hook_mock.return_value.get_service.return_value = SERVICE
+
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+        )
+
+        result = operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+        hook_mock.return_value.get_service.assert_called_once_with(
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+
+        assert result == SERVICE
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute_when_other_error(self, hook_mock):
+        error_message = "An error occurred. Exiting."
+        hook_mock.return_value.create_service.side_effect = GoogleCloudError(error_message, errors=None)
+
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+        )
+
+        with pytest.raises(expected_exception=GoogleCloudError) as context:
+            operator.execute(context=mock.MagicMock())
+
+        assert error_message == context.value.message
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+
+
+class TestCloudRunDeleteServiceOperator:
+    def test_template_fields(self):
+        operator = CloudRunDeleteServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service_name=SERVICE_NAME,
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "service_name" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute(self, hook_mock):
+        hook_mock.return_value.delete_service.return_value = SERVICE
+
+        operator = CloudRunDeleteServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service_name=SERVICE_NAME,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.delete_service.assert_called_once_with(
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
