@@ -338,7 +338,7 @@ In this example, the DAG ``waiting_for_dataset_1_and_2`` will be triggered when 
         ...
 
 
-``quededEvent`` API endpoints are introduced to manipulate such records.
+``queuedEvent`` API endpoints are introduced to manipulate such records.
 
 * Get a queued Dataset event for a DAG: ``/datasets/queuedEvent/{uri}``
 * Get queued Dataset events for a DAG: ``/dags/{dag_id}/datasets/queuedEvent``
@@ -347,7 +347,7 @@ In this example, the DAG ``waiting_for_dataset_1_and_2`` will be triggered when 
 * Get queued Dataset events for a Dataset: ``/dags/{dag_id}/datasets/queuedEvent/{uri}``
 * Delete queued Dataset events for a Dataset: ``DELETE /dags/{dag_id}/datasets/queuedEvent/{uri}``
 
- For how to use REST API and the parameters needed for these endpoints, please refer to :doc:`Airflow API </stable-rest-api-ref>`
+ For how to use REST API and the parameters needed for these endpoints, please refer to :doc:`Airflow API </stable-rest-api-ref>`.
 
 Advanced dataset scheduling with conditional expressions
 --------------------------------------------------------
