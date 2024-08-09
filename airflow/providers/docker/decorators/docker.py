@@ -20,17 +20,57 @@ import base64
 import os
 import warnings
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.operators.python import _SERIALIZERS, _SerializerTypeDef
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
     from airflow.utils.context import Context
+
+    Serializer = Literal["pickle", "dill", "cloudpickle"]
+
+try:
+    from airflow.operators.python import _SERIALIZERS
+except ImportError:
+    import logging
+
+    import lazy_object_proxy
+
+    log = logging.getLogger(__name__)
+
+    def _load_pickle():
+        import pickle
+
+        return pickle
+
+    def _load_dill():
+        try:
+            import dill
+        except ModuleNotFoundError:
+            log.error("Unable to import `dill` module. Please please make sure that it installed.")
+            raise
+        return dill
+
+    def _load_cloudpickle():
+        try:
+            import cloudpickle
+        except ModuleNotFoundError:
+            log.error(
+                "Unable to import `cloudpickle` module. "
+                "Please install it with: pip install 'apache-airflow[cloudpickle]'"
+            )
+            raise
+        return cloudpickle
+
+    _SERIALIZERS: dict[Serializer, Any] = {
+        "pickle": lazy_object_proxy.Proxy(_load_pickle),
+        "dill": lazy_object_proxy.Proxy(_load_dill),
+        "cloudpickle": lazy_object_proxy.Proxy(_load_cloudpickle),
+    }
 
 
 def _generate_decode_command(env_var, file, python_command):
@@ -83,7 +123,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         use_dill=False,
         python_command="python3",
         expect_airflow: bool = True,
-        serializer: _SerializerTypeDef | None = None,
+        serializer: Serializer | None = None,
         **kwargs,
     ) -> None:
         if use_dill:
@@ -110,7 +150,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         self.python_command = python_command
         self.expect_airflow = expect_airflow
         self.use_dill = serializer == "dill"
-        self.serializer: _SerializerTypeDef = serializer
+        self.serializer: Serializer = serializer
 
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
