@@ -830,6 +830,8 @@ class MappedOperator(AbstractOperator):
             op.is_setup = is_setup
             op.is_teardown = is_teardown
             op.on_failure_fail_dagrun = on_failure_fail_dagrun
+            op.downstream_task_ids = self.downstream_task_ids
+            op.upstream_task_ids = self.upstream_task_ids
             return op
 
         # After a mapped operator is serialized, there's no real way to actually
@@ -839,6 +841,8 @@ class MappedOperator(AbstractOperator):
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
+        if "upstream_task_ids" not in self.operator_class:  # upstream_task_ids is not serialized
+            self.operator_class["upstream_task_ids"] = list(self.upstream_task_ids)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
             SerializedBaseOperator.set_task_dag_references(op, self.dag)

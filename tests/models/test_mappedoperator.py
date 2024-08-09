@@ -36,6 +36,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.python import PythonOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
@@ -831,6 +832,62 @@ def test_task_mapping_with_explicit_task_group():
 
     assert finish.upstream_list == [mapped]
     assert mapped.downstream_list == [finish]
+
+
+def test_mapped_operator_attributes_after_unmapping(dag_maker, session):
+    with set_current_task_instance_session(session=session):
+        with dag_maker(session=session):
+            task1 = BaseOperator(task_id="task1")
+            mapped = MockOperator.partial(task_id="mapped").expand_kwargs(task1.output)
+            finish = MockOperator(task_id="finish")
+
+            mapped >> finish
+
+        dr = dag_maker.create_dagrun()
+        ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+        ti.xcom_push(key=XCOM_RETURN_KEY, value=[{"arg1": 1}], session=session)
+
+        session.add(
+            TaskMap(
+                dag_id=dr.dag_id,
+                task_id=task1.task_id,
+                run_id=dr.run_id,
+                map_index=-1,
+                length=1,
+                keys=None,
+            )
+        )
+        session.flush()
+
+        mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+        mapped_ti.refresh_from_task(mapped)
+        mapped_ti.map_index = 0
+        assert isinstance(mapped_ti.task, MappedOperator)
+        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        assert isinstance(mapped_ti.task, MockOperator)
+        assert mapped_ti.task_id == "mapped"
+        assert sorted(mapped_ti.task.upstream_task_ids) == ["task1"]
+        assert sorted(mapped_ti.task.downstream_task_ids) == ["finish"]
+
+
+@pytest.mark.db_test
+def test_serialized_mapped_operator_has_upstream_downstream_after_unmapping(dag_maker):
+    with dag_maker(dag_id="dag") as dag:
+        task1 = BaseOperator(task_id="task1")
+        mapped = MockOperator.partial(task_id="mapped").expand_kwargs(task1.output)
+        finish = BaseOperator(task_id="finish")
+
+        mapped >> finish
+
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+    serialized_task = serialized_dag.get_task("mapped")
+
+    assert isinstance(serialized_task, MappedOperator)
+    assert isinstance(serialized_task.operator_class, dict)
+
+    serialized_unmapped_task = serialized_task.unmap(None)
+    assert sorted(serialized_unmapped_task.upstream_task_ids) == ["task1"]
+    assert sorted(serialized_unmapped_task.downstream_task_ids) == ["finish"]
 
 
 class TestMappedSetupTeardown:
