@@ -24,6 +24,8 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import AlreadyExists
+from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
 from airflow.exceptions import AirflowException, TaskDeferred
@@ -423,6 +425,60 @@ class TestCloudRunCreateServiceOperator:
         )
 
         operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute_already_exists(self, hook_mock):
+        hook_mock.return_value.create_service.side_effect = AlreadyExists("Service already exists")
+        hook_mock.return_value.get_service.return_value = SERVICE
+
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+        )
+
+        result = operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_service.assert_called_once_with(
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+        hook_mock.return_value.get_service.assert_called_once_with(
+            service_name=SERVICE_NAME,
+            region=REGION,
+            project_id=PROJECT_ID,
+        )
+
+        assert result == SERVICE
+
+    @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
+    def test_execute_when_other_error(self, hook_mock):
+        error_message = "An error occurred while interacting with Google Cloud Run"
+        hook_mock.return_value.create_service.side_effect = GoogleCloudError(error_message, errors=None)
+
+        operator = CloudRunCreateServiceOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            service=SERVICE,
+            service_name=SERVICE_NAME,
+        )
+
+        with pytest.raises(expected_exception=GoogleCloudError) as context:
+            operator.execute(context=mock.MagicMock())
+
+        assert error_message == context.value.message
 
         hook_mock.return_value.create_service.assert_called_once_with(
             service=SERVICE,

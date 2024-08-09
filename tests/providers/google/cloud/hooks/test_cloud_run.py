@@ -26,6 +26,7 @@ from google.cloud.run_v2 import (
     DeleteJobRequest,
     DeleteServiceRequest,
     GetJobRequest,
+    GetServiceRequest,
     Job,
     ListJobsRequest,
     RunJobRequest,
@@ -314,6 +315,23 @@ class TestCloudRunServiceHook:
         cloud_run_service_hook = CloudRunServiceHook()
         cloud_run_service_hook.get_credentials = self.dummy_get_credentials
         return cloud_run_service_hook
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesClient")
+    def test_get_service(self, mock_batch_service_client, cloud_run_service_hook):
+        service_name = "service1"
+        region = "region1"
+        project_id = "projectid"
+
+        get_service_request = GetServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+
+        cloud_run_service_hook.get_service(service_name=service_name, region=region, project_id=project_id)
+        cloud_run_service_hook._client.get_service.assert_called_once_with(get_service_request)
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
