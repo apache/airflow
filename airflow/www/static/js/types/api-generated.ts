@@ -2312,6 +2312,11 @@ export interface components {
       queue?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       executor?: string[];
+      /**
+       * @description The name of the field to order the results by. Prefix a field name
+       * with `-` to reverse the sort order.
+       */
+      order_by?: string;
     };
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
@@ -4057,6 +4062,13 @@ export interface operations {
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
         offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by.
+         * Prefix a field name with `-` to reverse the sort order.
+         *
+         * *New in version 2.1.0*
+         */
+        order_by?: components["parameters"]["OrderBy"];
       };
     };
     responses: {
