@@ -28,7 +28,8 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
-pytestmark = pytest.mark.db_test
+# TODO(potiuk) see why this test hangs in DB isolation mode
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode

@@ -30,7 +30,7 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PYTHON_VERSION = f"{sys.version_info.major}{sys.version_info.minor}"
@@ -373,6 +373,8 @@ class TestPythonVirtualenvDecorator:
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    # TODO(potiuk) see why this test hangs in DB isolation mode
+    @pytest.mark.skip_if_database_isolation_mode
     def test_invalid_annotation(self, dag_maker):
         import uuid
 

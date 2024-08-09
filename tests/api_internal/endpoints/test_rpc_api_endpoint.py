@@ -30,7 +30,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www import app
@@ -72,7 +71,6 @@ def equals(a, b) -> bool:
     return a == b
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestRpcApiEndpoint:
     @pytest.fixture
     def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
