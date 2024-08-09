@@ -234,16 +234,16 @@ $(document).ready(() => {
   /**
    * Displays the Flask style alert on UI via JS
    *
-   * @param {boolean} status - true for success, false for error, null for warning
+   * @param {string} status - Status can be either success, error, or warning
    * @param {string} message - The text message to show in alert box
    */
   function displayAlert(status, message) {
     let alertClass;
-    if (status === true) {
+    if (status === "success") {
       alertClass = "alert-success";
-    } else if (status === false) {
+    } else if (status === "error") {
       alertClass = "alert-error";
-    } else if (status === null) {
+    } else if (status === "warning") {
       alertClass = "alert-warning";
     }
     let alertBox = $(".container .row .alert");
@@ -263,7 +263,7 @@ $(document).ready(() => {
   }
 
   displayAlert(
-    null,
+    "warning",
     "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one."
   );
 
@@ -315,7 +315,7 @@ $(document).ready(() => {
             extra = JSON.parse(this.value);
           } catch (e) {
             if (e instanceof SyntaxError) {
-              displayAlert(false, "Extra field value is not valid JSON.");
+              displayAlert("error", "Extra field value is not valid JSON.");
             }
             throw e;
           }
@@ -357,10 +357,10 @@ $(document).ready(() => {
       dataType: "json",
       data: getSerializedFormData("form#model_form"),
       success(data) {
-        displayAlert(data.status, data.message);
+        displayAlert("success", data.message);
       },
       error(jq, err, msg) {
-        displayAlert(false, msg);
+        displayAlert("error", msg);
       },
     });
   });
