@@ -133,12 +133,12 @@ def _interleave_logs(*logs):
     for log in logs:
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
-    for _, _, v in sorted(
+    for timestamp, _, line in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
     ):
-        if v != last:  # dedupe
-            yield v
-        last = v
+        if line != last or not timestamp:  # dedupe
+            yield line
+        last = line
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
