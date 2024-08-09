@@ -505,6 +505,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             token_life_time=self.token_life_time,
             token_renewal_delta=self.token_renewal_delta,
             deferrable=self.deferrable,
+            **self.hook_params
         )
         self.query_ids = self._hook.execute_query(
             self.sql,  # type: ignore[arg-type]
