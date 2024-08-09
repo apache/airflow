@@ -20,7 +20,6 @@ from __future__ import annotations
 import os
 import warnings
 from contextlib import closing
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
 
 import psycopg2
@@ -88,7 +87,6 @@ class PostgresHook(DbApiHook):
             )
             kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
-        self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
@@ -142,8 +140,7 @@ class PostgresHook(DbApiHook):
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""
-        conn_id = self.get_conn_id()
-        conn = deepcopy(self.connection or self.get_connection(conn_id))
+        conn = self.connection
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get("iam", False):
