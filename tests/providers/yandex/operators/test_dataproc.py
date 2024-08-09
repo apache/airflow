@@ -122,7 +122,7 @@ class TestDataprocClusterCreateOperator:
             masternode_resource_preset=None,
             s3_bucket="my_bucket_name",
             service_account_id=None,
-            services=("HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"),
+            services=["HDFS", "YARN", "MAPREDUCE", "HIVE", "SPARK"],
             ssh_public_keys=[
                 "ssh-rsa AAA5B3NzaC1yc2EAA1ADA2ABA3AA4QCxO38tKA0XIs9ivPxt7AYdf3bgtAR1ow3Qkb9GPQ6wkFHQq"
                 "cFDe6faKCxH6iDRt2o4D8L8Bx6zN42uZSB0nf8jkIxFTcEU3mFSXEbWByg78ao3dMrAAj1tyr1H1pON6P0="
