@@ -381,6 +381,21 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_previous_execution_date(task_instance=self, state=state, session=session)
 
+    def get_previous_start_date(
+        self,
+        state: DagRunState | None = None,
+        session: Session | None = None,
+    ) -> pendulum.DateTime | None:
+        """
+        Return the execution date from property previous_ti_success.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        :param session: SQLAlchemy ORM Session
+        """
+        from airflow.models.taskinstance import _get_previous_start_date
+
+        return _get_previous_start_date(task_instance=self, state=state, session=session)
+
     def email_alert(self, exception, task: BaseOperator) -> None:
         """
         Send alert email with exception information.
