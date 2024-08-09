@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Iterable, Mapping, TypeVar
-
-from sqlalchemy.engine import Inspector
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Inspector
 
 T = TypeVar("T")
 
