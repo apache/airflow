@@ -113,6 +113,11 @@ github:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+    v2-10-test:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_conversation_resolution: true
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
