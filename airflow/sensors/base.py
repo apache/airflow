@@ -17,17 +17,24 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import base64
+import contextlib
 import datetime
 import functools
 import hashlib
+import inspect
 import time
 import traceback
+import typing
+from contextvars import ContextVar
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
+from asgiref.sync import sync_to_async
 from sqlalchemy import select
 
-from airflow import settings
+from airflow import settings, DAG
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -40,10 +47,13 @@ from airflow.exceptions import (
     TaskDeferralError,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskinstance import get_executable_task_and_context
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
+from airflow.triggers.base import TriggerEvent, BaseTrigger
 from airflow.utils import timezone
 
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
@@ -51,6 +61,7 @@ from airflow.utils import timezone
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -112,6 +123,65 @@ def _orig_start_date(
         .with_only_columns(TaskReschedule.start_date)
         .limit(1)
     )
+
+
+current_context: ContextVar[Context] = ContextVar('current_context')
+
+
+@contextlib.asynccontextmanager
+async def async_set_current_context(context: Context) -> typing.AsyncIterator[Context, None, None]:
+    token = current_context.set(context)
+    try:
+        yield context
+    finally:
+        current_context.reset(token)
+
+
+def get_current_context() -> Context:
+    return current_context.get(None)
+
+
+class InternalSensorTrigger(BaseTrigger):
+    def __init__(
+        self,
+        **kwargs,
+    ):
+        super().__init__()
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize FileTrigger arguments and classpath."""
+        return (
+            "airflow.sensors.base.InternalSensorTrigger",
+            {},
+        )
+
+    @provide_session
+    async def async_execute_sensor_with_ti(self, session: Session):
+        dag_bag = DagBag()
+        dag: DAG = dag_bag.get_dag(self.task_instance.dag_id, session=session)
+        task = dag.get_task(task_id=self.task_instance.task_id)
+
+        ti = TaskInstance(
+            task=task,
+            run_id=self.task_instance.run_id,
+            map_index=self.task_instance.map_index,
+            state=TaskInstanceState.DEFERRED
+        )
+        executable_task, context = await get_executable_task_and_context(ti)
+        async with async_set_current_context(context):
+            result = await executable_task.async_execute_sensor(context=context)
+
+        return result
+
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+        import cloudpickle
+        try:
+            poke_return = await self.async_execute_sensor_with_ti()
+        except Exception as e:
+            exception = base64.b64encode(cloudpickle.dumps(e)).decode('utf-8')
+            yield TriggerEvent({"status": "failed", "exception": exception})
+        else:
+            yield TriggerEvent({"status": "success", "poke_return": poke_return})
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -177,6 +247,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         max_wait: timedelta | float | None = None,
         silent_fail: bool = False,
         never_fail: bool = False,
+        execute_in_triggers: bool = False,
+        reschedule_time_threshold: timedelta | float = 240,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -191,6 +263,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         self.silent_fail = silent_fail
         self.never_fail = never_fail
+        self.execute_in_triggers = execute_in_triggers
+        self.reschedule_time_threshold = reschedule_time_threshold
         self._validate_input_values()
 
     @staticmethod
@@ -246,44 +320,33 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
+        if self.execute_in_triggers:
+            self.defer(
+                trigger=InternalSensorTrigger(),
+                method_name="execute_complete"
+            )
+        else:
+            result = asyncio.run(self.async_execute_sensor(context=context))
+            return result
+
+    async def async_execute_sensor(self, context: Context):
         started_at: datetime.datetime | float
 
-        if self.reschedule:
-            ti = context["ti"]
-            max_tries: int = ti.max_tries or 0
-            retries: int = self.retries or 0
-            # If reschedule, use the start date of the first try (first try can be either the very
-            # first execution of the task, or the first execution after the task was cleared.)
-            first_try_number = max_tries - retries + 1
-            start_date = _orig_start_date(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index,
-                try_number=first_try_number,
-            )
-            if not start_date:
-                start_date = timezone.utcnow()
-            started_at = start_date
+        started_at = start_monotonic = time.monotonic()
 
-            def run_duration() -> float:
-                # If we are in reschedule mode, then we have to compute diff
-                # based on the time in a DB, so can't use time.monotonic
-                return (timezone.utcnow() - start_date).total_seconds()
-
-        else:
-            started_at = start_monotonic = time.monotonic()
-
-            def run_duration() -> float:
-                return time.monotonic() - start_monotonic
+        def run_duration() -> float:
+            return time.monotonic() - start_monotonic
 
         poke_count = 1
-        log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
         xcom_value = None
         while True:
             try:
-                poke_return = self.poke(context)
+                if inspect.iscoroutinefunction(self.poke):
+                    poke_return = await self.poke(context=context)
+                else:
+                    poke_return = await sync_to_async(self.poke, thread_sensitive=False)(context=context)
+
             except (
                 AirflowSensorTimeout,
                 AirflowTaskTimeout,
@@ -310,31 +373,74 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     xcom_value = poke_return.xcom_value
                 break
 
-            if run_duration() > self.timeout:
-                # If sensor is in soft fail mode but times out raise AirflowSkipException.
-                message = (
-                    f"Sensor has timed out; run duration of {run_duration()} seconds exceeds "
-                    f"the specified timeout of {self.timeout}."
-                )
+            self.run_duration_check(run_duration)
+            sleep_time = self._get_next_poke_interval(started_at, run_duration, poke_count)
+            self.log.info(f"Next poke interval {sleep_time}")
+            # fall back to reschedule
+            # self.reschedule this can be removed, left it here to check the current test cases.
+            if sleep_time > self.reschedule_time_threshold or self.reschedule:
+                await self._reschedule(context=context)
 
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
-                else:
-                    raise AirflowSensorTimeout(message)
-            if self.reschedule:
-                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_count)
-                reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
-                if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
-                    raise AirflowSensorTimeout(
-                        f"Cannot reschedule DAG {log_dag_id} to {reschedule_date.isoformat()} "
-                        f"since it is over MySQL's TIMESTAMP storage limit."
-                    )
-                raise AirflowRescheduleException(reschedule_date)
-            else:
-                time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))
-                poke_count += 1
+            await asyncio.sleep(sleep_time)
+            poke_count += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
+
+    async def _reschedule(self, context: Context):
+
+        poke_count = 1
+        ti = context["ti"]
+        max_tries: int = ti.max_tries or 0
+        retries: int = self.retries or 0
+        log_dag_id = self.dag.dag_id if self.has_dag() else ""
+        # If reschedule, use the start date of the first try (first try can be either the very
+        # first execution of the task, or the first execution after the task was cleared.)
+        first_try_number = max_tries - retries + 1
+        start_date = _orig_start_date(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            try_number=first_try_number,
+        )
+        if not start_date:
+            start_date = timezone.utcnow()
+        started_at = start_date
+
+        def run_duration() -> float:
+            # If we are in reschedule mode, then we have to compute diff
+            # based on the time in a DB, so can't use time.monotonic
+            return (timezone.utcnow() - start_date).total_seconds()
+
+        self.run_duration_check(run_duration)
+        next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_count,
+                                                          is_reschedule=True)
+        reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
+        if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
+            raise AirflowSensorTimeout(
+                f"Cannot reschedule DAG {log_dag_id} to {reschedule_date.isoformat()} "
+                f"since it is over MySQL's TIMESTAMP storage limit."
+            )
+        raise AirflowRescheduleException(reschedule_date)
+
+    def run_duration_check(self, run_duration: Callable[[], float]):
+        if run_duration() > self.timeout:
+            # If sensor is in soft fail mode but times out raise AirflowSkipException.
+            message = (
+                f"Sensor has timed out; run duration of {run_duration()} seconds exceeds "
+                f"the specified timeout of {self.timeout}."
+            )
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            else:
+                raise AirflowSensorTimeout(message)
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None):
+        import cloudpickle
+        if event.get("status") == "failed":
+            exception = cloudpickle.loads(base64.b64decode(event.get("exception").encode('utf-8')))
+            raise exception
+        return event.get("poke_return")
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         try:
@@ -349,12 +455,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         started_at: datetime.datetime | float,
         run_duration: Callable[[], float],
         poke_count: int,
+        is_reschedule=False,
     ) -> float:
         """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 
-        if self.reschedule:
+        if self.reschedule or is_reschedule:
             # Calculate elapsed time since the sensor started
             elapsed_time = run_duration()
 

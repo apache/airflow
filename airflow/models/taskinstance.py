@@ -146,7 +146,6 @@ TR = TaskReschedule
 _CURRENT_CONTEXT: list[Context] = []
 log = logging.getLogger(__name__)
 
-
 if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import PurePath
@@ -168,7 +167,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
-
 
 PAST_DEPENDS_MET = "past_depends_met"
 
@@ -369,6 +367,18 @@ def _run_raw_task(
                 )
 
         return None
+
+
+async def get_executable_task_and_context(ti: TaskInstance | TaskInstancePydantic,
+                                          session: Session | None = None, ):
+    context = ti.get_template_context(ignore_param_exceptions=False, session=session)
+
+    exec_task = await TaskInstance._prepare_executable_task(
+        self=ti,
+        context=context,
+    )
+
+    return exec_task, context
 
 
 @contextlib.contextmanager
@@ -1536,7 +1546,8 @@ def _run_finished_callback(
             try:
                 callback(context)
             except Exception:
-                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
+                log.exception("Error when executing %s callback",
+                              callback.__name__)  # type: ignore[attr-defined]
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
@@ -3156,6 +3167,20 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _execute_task(self, context, task_orig)
 
+    async def _prepare_executable_task(self, context: Context):
+        self.task.params = context["params"]
+        with set_current_context(context):
+            dag = self.task.get_dag()
+            if dag is not None:
+                jinja_env = dag.get_template_env()
+            else:
+                jinja_env = None
+            task_orig = self.render_templates(context=context, jinja_env=jinja_env)
+
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        os.environ.update(airflow_context_vars)
+        return self.task
+
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
@@ -3860,7 +3885,7 @@ class TaskInstance(Base, LoggingMixin):
                 ti
                 for ti in info.schedulable_tis
                 if ti.task_id not in skippable_task_ids
-                and not (
+                   and not (
                     ti.task.inherits_from_empty_operator
                     and not ti.task.on_execute_callback
                     and not ti.task.on_success_callback
