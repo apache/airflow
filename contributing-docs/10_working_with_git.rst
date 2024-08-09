@@ -27,28 +27,30 @@ that we are using rebase workflow. It also explains how to sync your fork with t
 Airflow Git Branches
 ====================
 
-All new development in Airflow happens in the ``main`` branch. All PRs should target that branch.
+All new development in Airflow happens in the ``main`` branch which is now Airflow 3. All PRs should target that branch.
 
-We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where maintainers
-cherry-pick selected commits from the main branch.
+We also have a ``v2-10-test`` branch that are used to test ``2.x.x`` series of Airflow and where maintainers
+cherry-pick selected commits from the main branch. If a fix is about Airflow 2 and not related to Airflow 3, the PR should
+be made against the ``v2-10-stable`` branch.
 
-Cherry-picking is done with the ``-x`` flag.
+Cherry-picking is done with the ``-x`` flag. In the future, this can happen automatically with the help of a bot and appropriate
+label on a PR.
 
-The ``v2-*-test`` branch might be broken at times during testing. Expect force-pushes there so
-maintainers should coordinate between themselves on who is working on the ``v2-*-test`` branch -
+The ``v2-10-test`` branch might be broken at times during testing. Expect force-pushes there so
+maintainers should coordinate between themselves on who is working on the ``v2-10-test`` branch -
 usually these are developers with the release manager permissions.
 
-The ``v2-*-stable`` branch is rather stable - there are minimum changes coming from approved PRs that
+The ``v2-10-stable`` branch is rather stable - there are minimum changes coming from approved PRs that
 passed the tests. This means that the branch is rather, well, "stable".
 
-Once the ``v2-*-test`` branch stabilizes, the ``v2-*-stable`` branch is synchronized with ``v2-*-test``.
-The ``v2-*-stable`` branches are used to release ``2.*.x`` releases.
+Once the ``v2-10-test`` branch stabilizes, the ``v2-10-stable`` branch is synchronized with ``v2-10-test``.
+The ``v2-10-stable`` branches are used to release ``2.*.x`` releases.
 
 The general approach is that cherry-picking a commit that has already had a PR and unit tests run
-against main is done to ``v2-*-test`` branches, but PRs from contributors towards 2.0 should target
-``v2-*-stable`` branches.
+against main is done to ``v2-10-test`` branch, but PRs from contributors towards 2.0 should target
+``v2-10-stable`` branch.
 
-The ``v2-*-test`` branches and ``v2-*-stable`` ones are merged just before the release and that's the
+The ``v2-10-test`` branch and ``v2-10-stable`` ones are merged just before the release and that's the
 time when they converge.
 
 The production images are released in DockerHub from:
