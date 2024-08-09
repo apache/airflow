@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import base64
 import os
-import pickle
+import warnings
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
-import dill
-
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.operators.python import _SERIALIZERS, _SerializerTypeDef
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.python_virtualenv import write_python_script
 
@@ -53,7 +53,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     :param python_callable: A reference to an object that is callable
     :param python: Python binary name to use
-    :param use_dill: Whether dill should be used to serialize the callable
     :param expect_airflow: whether to expect airflow to be installed in the docker environment. if this
           one is specified, the script to run callable will attempt to load Airflow macros.
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -63,6 +62,16 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
+    :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+        - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+        - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+          this requires to include cloudpickle in your requirements.
+        - ``"dill"``: Use dill for serialize more complex types,
+          this requires to include dill in your requirements.
+    :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+        the args and result (pickle is default). This allows more complex types
+        but requires you to include dill in your requirements.
     """
 
     custom_operator_name = "@task.docker"
@@ -74,12 +83,35 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         use_dill=False,
         python_command="python3",
         expect_airflow: bool = True,
+        serializer: _SerializerTypeDef | None = None,
         **kwargs,
     ) -> None:
+        if use_dill:
+            warnings.warn(
+                "`use_dill` is deprecated and will be removed in a future version. "
+                "Please provide serializer='dill' instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=3,
+            )
+            if serializer:
+                raise AirflowException(
+                    "Both 'use_dill' and 'serializer' parameters are set. Please set only one of them"
+                )
+            serializer = "dill"
+        serializer = serializer or "pickle"
+        if serializer not in _SERIALIZERS:
+            msg = (
+                f"Unsupported serializer {serializer!r}. "
+                f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
+            )
+            raise AirflowException(msg)
+
         command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
-        self.use_dill = use_dill
+        self.use_dill = serializer == "dill"
+        self.serializer: _SerializerTypeDef = serializer
+
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
         )
@@ -128,9 +160,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     @property
     def pickling_library(self):
-        if self.use_dill:
-            return dill
-        return pickle
+        return _SERIALIZERS[self.serializer]
 
 
 def docker_task(
