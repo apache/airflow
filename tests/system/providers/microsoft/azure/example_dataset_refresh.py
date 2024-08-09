@@ -44,7 +44,7 @@ with DAG(
 
     # [START howto_operator_powerbi_refresh_dataset]
     dataset_refresh = PowerBIDatasetRefreshOperator(
-        powerbi_conn_id="powerbi_default",
+        conn_id="powerbi_default",
         task_id="dataset_refresh",
         dataset_id="dataset-id",
         group_id="group-id",
@@ -53,7 +53,7 @@ with DAG(
 
     # [START howto_operator_powerbi_refresh_dataset_async]
     dataset_refresh2 = PowerBIDatasetRefreshOperator(
-        powerbi_conn_id="powerbi_default",
+        conn_id="powerbi_default",
         task_id="dataset_refresh_async",
         dataset_id="dataset-id",
         group_id="group-id",
@@ -63,7 +63,7 @@ with DAG(
 
     # [START howto_operator_powerbi_refresh_dataset_force_refresh]
     dataset_refresh3 = PowerBIDatasetRefreshOperator(
-        powerbi_conn_id="powerbi_default",
+        conn_id="powerbi_default",
         task_id="dataset_refresh_force_refresh",
         dataset_id="dataset-id",
         group_id="group-id",
