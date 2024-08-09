@@ -409,6 +409,34 @@ function check_force_lowest_dependencies() {
     set +x
 }
 
+function check_cross_providers_downgrade_test() {
+    if [[ ${CROSS_PROVIDERS_DOWNGRADE_LIST} == "" ]]; then
+        return
+    fi
+    echo "${COLOR_BLUE}Downgrading following providers: ${CROSS_PROVIDERS_DOWNGRADE_LIST}${COLOR_RESET}"
+
+    # Initialize an empty array to hold the formatted provider package names
+    local formatted_providers=()
+
+    # Split the comma-separated list of providers and process each entry
+    IFS="," read -r -a providers <<< "$CROSS_PROVIDERS_DOWNGRADE_LIST"
+    for provider in "${providers[@]}"; do
+        # Split the entry on '==' and take the first part (provider name)
+        local provider_name="${provider%%==*}"
+        local provider_version="${provider##*==}"
+
+        # Replace '.' with '-' in the provider name
+        local formatted_provider="apache-airflow-providers-${provider_name//./-}==${provider_version}"
+
+        # Add the formatted provider package name to the list
+        formatted_providers+=("${formatted_provider}")
+    done
+
+    set -x
+    pip install --upgrade "${formatted_providers[@]}"
+    set +x
+}
+
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
@@ -416,6 +444,7 @@ check_pydantic
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
+check_cross_providers_downgrade_test
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

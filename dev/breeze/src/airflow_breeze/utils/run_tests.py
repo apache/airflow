@@ -316,7 +316,9 @@ def generate_args_for_pytest(
     if skip_db_tests:
         if parallel_test_types_list:
             args = convert_parallel_types_to_folders(
-                parallel_test_types_list, skip_provider_tests, python_version=python_version
+                parallel_test_types_list,
+                skip_provider_tests,
+                python_version=python_version,
             )
         else:
             args = ["tests"] if test_type != "None" else []
@@ -405,7 +407,9 @@ def generate_args_for_pytest(
 
 
 def convert_parallel_types_to_folders(
-    parallel_test_types_list: list[str], skip_provider_tests: bool, python_version: str
+    parallel_test_types_list: list[str],
+    skip_provider_tests: bool,
+    python_version: str,
 ):
     args = []
     for _test_type in parallel_test_types_list:
