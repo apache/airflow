@@ -744,7 +744,7 @@ def test_interleave_logs_correct_dedupe():
     test,
     test"""
 
-    assert sample_without_dupe == "\n".join(_interleave_logs(',\n    '.join(['test'] * 10)))
+    assert sample_without_dupe == "\n".join(_interleave_logs(",\n    ".join(["test"] * 10)))
 
 
 def test_permissions_for_new_directories(tmp_path):
