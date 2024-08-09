@@ -26,6 +26,7 @@ from google.cloud.run_v2 import (
     DeleteJobRequest,
     DeleteServiceRequest,
     GetJobRequest,
+    GetServiceRequest,
     Job,
     JobsAsyncClient,
     JobsClient,
@@ -219,6 +220,13 @@ class CloudRunServiceHook(GoogleBaseHook):
             self._client = ServicesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
         return self._client
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
+        get_service_request = GetServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+        return self.get_conn().get_service(get_service_request)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_service(
