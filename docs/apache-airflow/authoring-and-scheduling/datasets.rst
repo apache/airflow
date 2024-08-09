@@ -338,7 +338,7 @@ In this example, the DAG ``waiting_for_dataset_1_and_2`` will be triggered when 
         ...
 
 
-``quededEvent`` API endpoints are introduced to manipulate such records.
+``queuedEvent`` API endpoints are introduced to manipulate such records.
 
 * Get a queued Dataset event for a DAG: ``/datasets/queuedEvent/{uri}``
 * Get queued Dataset events for a DAG: ``/dags/{dag_id}/datasets/queuedEvent``
