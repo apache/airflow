@@ -110,12 +110,16 @@ class KiotaRequestAdapterHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
+        host: str = NationalClouds.Global.value,
+        scopes: list[str] | None = None,
         api_version: APIVersion | str | None = None,
     ):
         super().__init__()
         self.conn_id = conn_id
         self.timeout = timeout
         self.proxies = proxies
+        self.host = host
+        self.scopes = scopes or ["https://graph.microsoft.com/.default"]
         self._api_version = self.resolve_api_version_from_value(api_version)
 
     @property
@@ -141,11 +145,10 @@ class KiotaRequestAdapterHook(BaseHook):
             )
         return self._api_version
 
-    @staticmethod
-    def get_host(connection: Connection) -> str:
+    def get_host(self, connection: Connection) -> str:
         if connection.schema and connection.host:
             return f"{connection.schema}://{connection.host}"
-        return NationalClouds.Global.value
+        return self.host
 
     @staticmethod
     def format_no_proxy_url(url: str) -> str:
@@ -198,7 +201,7 @@ class KiotaRequestAdapterHook(BaseHook):
             proxies = self.proxies or config.get("proxies", {})
             msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
-            scopes = config.get("scopes", ["https://graph.microsoft.com/.default"])
+            scopes = config.get("scopes", self.scopes)
             verify = config.get("verify", True)
             trust_env = config.get("trust_env", False)
             disable_instance_discovery = config.get("disable_instance_discovery", False)
