@@ -122,7 +122,10 @@ class TaskDecoratorCollection:
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -165,9 +168,16 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param env_vars: A dictionary containing additional environment variables to set for the virtual
+            environment when it is executed.
+        :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+            environment. If set to ``True``, the virtual environment will inherit the environment variables
+            of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+            executed with a clean environment.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -181,7 +191,10 @@ class TaskDecoratorCollection:
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -206,9 +219,16 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param env_vars: A dictionary containing additional environment variables to set for the virtual
+            environment when it is executed.
+        :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+            environment. If set to ``True``, the virtual environment will inherit the environment variables
+            of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+            executed with a clean environment.
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch(  # type: ignore[misc]
@@ -242,6 +262,7 @@ class TaskDecoratorCollection:
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -283,6 +304,7 @@ class TaskDecoratorCollection:
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
