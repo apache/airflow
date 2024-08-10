@@ -21,11 +21,8 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.models.connection import Connection
 
 
@@ -137,8 +134,7 @@ class BaseSecretsBackend(ABC):
             return [conn]
         return []
 
-    @provide_session
-    def get_variable(self, key: str, session: Session = None) -> str | None:
+    def get_variable(self, key: str) -> str | None:
         """
         Return value for Airflow Variable.
 
@@ -147,7 +143,6 @@ class BaseSecretsBackend(ABC):
         i.e. MetastoreBackend.get_variable().
 
         :param key: Variable Key
-        :param session: Session
         :return: Variable Value
         """
         raise NotImplementedError()

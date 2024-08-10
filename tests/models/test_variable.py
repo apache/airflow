@@ -100,6 +100,7 @@ class TestVariable:
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_variable_set_with_env_variable(self, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set(key="key", value="db-value", session=session)
@@ -120,6 +121,7 @@ class TestVariable:
             "EnvironmentVariablesBackend"
         )
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
     def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)

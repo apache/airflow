@@ -129,7 +129,6 @@ def initialize_method_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
-        Variable.get,
         Variable.setdefault,
         DAG.fetch_callback,
         DAG.fetch_dagrun,
