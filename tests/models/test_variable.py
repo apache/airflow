@@ -47,26 +47,26 @@ class TestVariable:
         db.clear_db_variables()
         crypto._fernet = None
 
-    @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): True})
+    @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): "True"})
     def test_variable_no_encryption(self, session):
         """
         Test variables without encryption
         """
         Variable.set(key="key", value="value", session=session)
-        test_var = Variable.get("key")
+        test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert not test_var.is_encrypted
         assert test_var.val == "value"
         # We always call mask_secret for variables, and let the SecretsMasker decide based on the name if it
         # should mask anything. That logic is tested in test_secrets_masker.py
         self.mask_secret.assert_called_once_with("value", "key")
 
-    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode(), ("core", "unit_test_mode"): True})
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_variable_with_encryption(self, session):
         """
         Test variables with encryption
         """
         Variable.set(key="key", value="value", session=session)
-        test_var = Variable.get("key")
+        test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert test_var.is_encrypted
         assert test_var.val == "value"
 
@@ -208,7 +208,7 @@ class TestVariable:
     def test_variable_setdefault_round_trip_json(self, session):
         key = "tested_var_setdefault_2_id"
         value = {"city": "Paris", "Happiness": True}
-        Variable.setdefault(key=key, default=value, deserialize_json=True, session=None)
+        Variable.setdefault(key=key, default=value, deserialize_json=True, session=session)
         assert value == Variable.get(key, deserialize_json=True)
 
     def test_variable_setdefault_existing_json(self, session):
@@ -312,8 +312,8 @@ def test_masking_only_secret_values(variable_value, deserialize_json, expected_m
             key=f"password-{os.getpid()}",
             val=variable_value,
         )
-        Variable.set(key=var.key, value=var.val, session=session)
-
+        session.add(var)
+        session.flush()
         # Make sure we re-load it, not just get the cached object back
         session.expunge(var)
         _secrets_masker().patterns = set()
