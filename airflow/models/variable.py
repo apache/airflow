@@ -145,7 +145,7 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
-        var_val = Variable.get_variable_from_secrets(key)
+        var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -182,7 +182,7 @@ class Variable(Base, LoggingMixin):
         :param session: Session
         """
         # check if the secret exists in the custom secrets' backend.
-        Variable.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key=key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
