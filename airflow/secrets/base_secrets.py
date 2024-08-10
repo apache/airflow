@@ -138,10 +138,6 @@ class BaseSecretsBackend(ABC):
         """
         Return value for Airflow Variable.
 
-        The implementation of this method should take session
-        because the underlying implementation may run with db isolation.
-        i.e. MetastoreBackend.get_variable().
-
         :param key: Variable Key
         :return: Variable Value
         """
