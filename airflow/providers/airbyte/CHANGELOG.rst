@@ -38,9 +38,6 @@ Breaking changes
   You must remove the ``api_type`` parameter from your DAG it isn't required anymore.
   The default scheme is now ``https`` instead of ``http``.
 
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Breaking change, update provider to use Airbyte API Python SDK (#41122)``
 
 3.9.0
 .....
