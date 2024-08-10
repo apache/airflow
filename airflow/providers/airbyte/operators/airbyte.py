@@ -64,7 +64,6 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         asynchronous: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         api_version: str = "v1",
-        api_type: Literal["config", "cloud"] = "config",
         wait_seconds: float = 3,
         timeout: float = 3600,
         **kwargs,
@@ -87,34 +86,34 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         end_time = time.time() + self.timeout
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
-        if not self.asynchronous:
-            self.log.info("Waiting for job %s to complete", self.job_id)
-            if self.deferrable:
-                if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
-                    self.defer(
-                        timeout=self.execution_timeout,
-                        trigger=AirbyteSyncTrigger(
-                            conn_id=self.airbyte_conn_id,
-                            job_id=self.job_id,
-                            end_time=end_time,
-                            poll_interval=60,
-                        ),
-                        method_name="execute_complete",
-                    )
-                elif state == JobStatusEnum.SUCCEEDED:
-                    self.log.info("Job %s completed successfully", self.job_id)
-                    return
-                elif state == JobStatusEnum.FAILED:
-                    raise AirflowException(f"Job failed:\n{self.job_id}")
-                elif state == JobStatusEnum.CANCELLED:
-                    raise AirflowException(f"Job was cancelled:\n{self.job_id}")
-                else:
-                    raise AirflowException(
-                        f"Encountered unexpected state `{state}` for job_id `{self.job_id}"
-                    )
-            else:
-                hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+
+        if self.asynchronous:
+            self.log.info("Async Task returning job_id %s", self.job_id)
+            return self.job_id
+
+        if not self.deferrable:
+            hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+
+        if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=AirbyteSyncTrigger(
+                    conn_id=self.airbyte_conn_id,
+                    job_id=self.job_id,
+                    end_time=end_time,
+                    poll_interval=60,
+                ),
+                method_name="execute_complete",
+            )
+        elif state == JobStatusEnum.SUCCEEDED:
             self.log.info("Job %s completed successfully", self.job_id)
+            return
+        elif state == JobStatusEnum.FAILED:
+            raise AirflowException(f"Job failed:\n{self.job_id}")
+        elif state == JobStatusEnum.CANCELLED:
+            raise AirflowException(f"Job was cancelled:\n{self.job_id}")
+        else:
+            raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
 
         return self.job_id
 

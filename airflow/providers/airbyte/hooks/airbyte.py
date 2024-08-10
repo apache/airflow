@@ -158,7 +158,7 @@ class AirbyteHook(BaseHook):
             )
             return res.job_response
         except Exception as e:
-            raise AirflowException(str(e))
+            raise AirflowException(e)
 
     def cancel_job(self, job_id: int) -> Any:
         """
@@ -174,7 +174,7 @@ class AirbyteHook(BaseHook):
             )
             return cancel_job_res.job_response
         except Exception as e:
-            raise AirflowException(str(e))
+            raise AirflowException(e)
 
     def test_connection(self):
         """Tests the Airbyte connection by hitting the health API."""
