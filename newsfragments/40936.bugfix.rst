@@ -1,0 +1,1 @@
+Fix ``on_success_callback`` will not run if task is skipped.
