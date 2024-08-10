@@ -2404,6 +2404,11 @@
                     ],
                     "default": null
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 10
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -5363,6 +5368,11 @@
                     ],
                     "default": null
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for webserver to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -6545,6 +6555,11 @@
                             }
                         }
                     }
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for statsd to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
