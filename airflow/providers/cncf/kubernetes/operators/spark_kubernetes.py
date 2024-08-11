@@ -51,6 +51,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
     :param code_path: path to the spark code in image,
     :param namespace: kubernetes namespace to put sparkApplication
+    :param name: name of the pod in which the task will run, will be used (plus a random
+        suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
+        containing only [a-z0-9.-]).
     :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
     :param template_spec: kubernetes sparkApplication specification
     :param get_logs: get the stdout of the container as logs of the tasks.
@@ -65,7 +68,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
     :param kubernetes_conn_id: the connection to Kubernetes cluster
-    :param cluster_context: context of the cluster
     """
 
     template_fields = ["application_file", "namespace", "template_spec"]
