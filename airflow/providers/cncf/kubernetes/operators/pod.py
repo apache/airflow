@@ -495,8 +495,9 @@ class KubernetesPodOperator(BaseOperator):
         if include_try_number:
             labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
-        if context["dag"].parent_dag:
+        if getattr(context["dag"], "parent_dag", False):
             labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
+
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():

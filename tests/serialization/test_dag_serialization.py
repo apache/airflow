@@ -364,9 +364,6 @@ def collect_dags(dag_folder=None):
             if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
                 continue
             dags.update(make_example_dags(directory))
-
-    # Filter subdags as they are stored in same row in Serialized Dag table
-    dags = {dag_id: dag for dag_id, dag in dags.items() if not dag.is_subdag}
     return dags
 
 
@@ -640,7 +637,6 @@ class TestStringifiedDAGs:
                 # Checked separately
                 "_task_type",
                 "_operator_name",
-                "subdag",
                 # Type is excluded, so don't check it
                 "_log",
                 # List vs tuple. Check separately
@@ -713,14 +709,6 @@ class TestStringifiedDAGs:
             serialized_partial_kwargs = {**default_partial_kwargs, **serialized_task.partial_kwargs}
             original_partial_kwargs = {**default_partial_kwargs, **task.partial_kwargs}
             assert serialized_partial_kwargs == original_partial_kwargs
-
-        # Check that for Deserialized task, task.subdag is None for all other Operators
-        # except for the SubDagOperator where task.subdag is an instance of DAG object
-        if task.task_type == "SubDagOperator":
-            assert serialized_task.subdag is not None
-            assert isinstance(serialized_task.subdag, DAG)
-        else:
-            assert serialized_task.subdag is None
 
     @pytest.mark.parametrize(
         "dag_start_date, task_start_date, expected_task_start_date",
@@ -1254,7 +1242,6 @@ class TestStringifiedDAGs:
 
         # The parameters we add manually in Serialization need to be ignored
         ignored_keys: set = {
-            "is_subdag",
             "tasks",
             "has_on_success_callback",
             "has_on_failure_callback",

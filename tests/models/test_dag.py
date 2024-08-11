@@ -84,7 +84,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -96,7 +95,7 @@ from airflow.timetables.simple import (
 )
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
@@ -291,42 +290,6 @@ class TestDag:
         assert op7.dag == dag
         assert op8.dag == dag
         assert op9.dag == dag2
-
-    def test_dag_topological_sort_include_subdag_tasks(self):
-        child_dag = DAG(
-            "parent_dag.child_dag",
-            schedule="@daily",
-            start_date=DEFAULT_DATE,
-        )
-
-        with child_dag:
-            EmptyOperator(task_id="a_child")
-            EmptyOperator(task_id="b_child")
-
-        parent_dag = DAG(
-            "parent_dag",
-            schedule="@daily",
-            start_date=DEFAULT_DATE,
-        )
-
-        # a_parent -> child_dag -> (a_child | b_child) -> b_parent
-        with parent_dag:
-            op1 = EmptyOperator(task_id="a_parent")
-            with pytest.warns(
-                RemovedInAirflow3Warning, match="Please use `airflow.utils.task_group.TaskGroup`."
-            ):
-                op2 = SubDagOperator(task_id="child_dag", subdag=child_dag)
-            op3 = EmptyOperator(task_id="b_parent")
-
-            op1 >> op2 >> op3
-
-        topological_list = parent_dag.topological_sort(include_subdag_tasks=True)
-
-        assert self._occur_before("a_parent", "child_dag", topological_list)
-        assert self._occur_before("child_dag", "a_child", topological_list)
-        assert self._occur_before("child_dag", "b_child", topological_list)
-        assert self._occur_before("a_child", "b_parent", topological_list)
-        assert self._occur_before("b_child", "b_parent", topological_list)
 
     def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
@@ -1374,16 +1337,6 @@ class TestDag:
         )
         with dag:
             EmptyOperator(task_id="task", owner="owner1")
-            subdag = DAG(
-                "dag.subtask",
-                start_date=DEFAULT_DATE,
-            )
-            # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
-            subdag.parent_dag = dag
-            with pytest.warns(
-                RemovedInAirflow3Warning, match="Please use `airflow.utils.task_group.TaskGroup`."
-            ):
-                SubDagOperator(task_id="subtask", owner="owner2", subdag=subdag)
         session = settings.Session()
         dag.sync_to_db(session=session)
 
@@ -1393,12 +1346,6 @@ class TestDag:
         assert orm_dag.default_view is not None
         assert orm_dag.default_view == conf.get("webserver", "dag_default_view").lower()
         assert orm_dag.safe_dag_id == "dag"
-
-        orm_subdag = session.query(DagModel).filter(DagModel.dag_id == "dag.subtask").one()
-        assert set(orm_subdag.owners.split(", ")) == {"owner1", "owner2"}
-        assert orm_subdag.is_active
-        assert orm_subdag.safe_dag_id == "dag__dot__subtask"
-        assert orm_subdag.fileloc == orm_dag.fileloc
         session.close()
 
     def test_sync_to_db_default_view(self):
@@ -1409,17 +1356,6 @@ class TestDag:
         )
         with dag:
             EmptyOperator(task_id="task", owner="owner1")
-            with pytest.warns(
-                RemovedInAirflow3Warning, match="Please use `airflow.utils.task_group.TaskGroup`."
-            ):
-                SubDagOperator(
-                    task_id="subtask",
-                    owner="owner2",
-                    subdag=DAG(
-                        "dag.subtask",
-                        start_date=DEFAULT_DATE,
-                    ),
-                )
         session = settings.Session()
         dag.sync_to_db(session=session)
 
@@ -1427,81 +1363,6 @@ class TestDag:
         assert orm_dag.default_view is not None
         assert orm_dag.default_view == "graph"
         session.close()
-
-    @provide_session
-    def test_is_paused_subdag(self, session):
-        subdag_id = "dag.subdag"
-        subdag = DAG(
-            subdag_id,
-            start_date=DEFAULT_DATE,
-        )
-        with subdag:
-            EmptyOperator(
-                task_id="dummy_task",
-            )
-
-        dag_id = "dag"
-        dag = DAG(
-            dag_id,
-            start_date=DEFAULT_DATE,
-        )
-
-        with dag, pytest.warns(
-            RemovedInAirflow3Warning, match="Please use `airflow.utils.task_group.TaskGroup`."
-        ):
-            SubDagOperator(task_id="subdag", subdag=subdag)
-
-        # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
-        subdag.parent_dag = dag
-
-        session.query(DagModel).filter(DagModel.dag_id.in_([subdag_id, dag_id])).delete(
-            synchronize_session=False
-        )
-
-        dag.sync_to_db(session=session)
-
-        unpaused_dags = (
-            session.query(DagModel.dag_id, DagModel.is_paused)
-            .filter(
-                DagModel.dag_id.in_([subdag_id, dag_id]),
-            )
-            .all()
-        )
-
-        assert {
-            (dag_id, False),
-            (subdag_id, False),
-        } == set(unpaused_dags)
-
-        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True, including_subdags=False)
-
-        paused_dags = (
-            session.query(DagModel.dag_id, DagModel.is_paused)
-            .filter(
-                DagModel.dag_id.in_([subdag_id, dag_id]),
-            )
-            .all()
-        )
-
-        assert {
-            (dag_id, True),
-            (subdag_id, False),
-        } == set(paused_dags)
-
-        DagModel.get_dagmodel(dag.dag_id).set_is_paused(is_paused=True)
-
-        paused_dags = (
-            session.query(DagModel.dag_id, DagModel.is_paused)
-            .filter(
-                DagModel.dag_id.in_([subdag_id, dag_id]),
-            )
-            .all()
-        )
-
-        assert {
-            (dag_id, True),
-            (subdag_id, True),
-        } == set(paused_dags)
 
     def test_existing_dag_is_paused_upon_creation(self):
         dag = DAG("dag_paused")
@@ -2151,8 +2012,6 @@ class TestDag:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             dag_run_state=dag_run_state,
-            include_subdags=False,
-            include_parentdag=False,
             session=session,
         )
 
@@ -2213,8 +2072,6 @@ class TestDag:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             dag_run_state=dag_run_state,
-            include_subdags=False,
-            include_parentdag=False,
             session=session,
         )
         session.refresh(upstream_ti)
@@ -2356,96 +2213,6 @@ my_postgres_conn:
         path = tmp_path / "testfile.yaml"
         path.write_text(test_connections_string)
         dag.test(conn_file_path=os.fspath(path))
-
-    def _make_test_subdag(self, session):
-        dag_id = "test_subdag"
-        self._clean_up(dag_id)
-        task_id = "t1"
-        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = EmptyOperator(task_id=task_id, dag=dag)
-        subdag = DAG(dag_id + ".test", start_date=DEFAULT_DATE, max_active_runs=1)
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.",
-        ):
-            SubDagOperator(task_id="test", subdag=subdag, dag=dag)
-        t_2 = EmptyOperator(task_id="task", dag=subdag)
-        subdag.parent_dag = dag
-
-        dag.sync_to_db()
-
-        session = settings.Session()
-        dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.FAILED,
-            start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
-            session=session,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        )
-        subdag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.FAILED,
-            start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
-            session=session,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        )
-        task_instance_1 = TI(t_1, run_id=f"manual__{DEFAULT_DATE.isoformat()}", state=State.RUNNING)
-        task_instance_2 = TI(t_2, run_id=f"manual__{DEFAULT_DATE.isoformat()}", state=State.RUNNING)
-        session.merge(task_instance_1)
-        session.merge(task_instance_2)
-
-        return dag, subdag
-
-    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_set_dagrun_state_for_subdag(self, dag_run_state):
-        session = settings.Session()
-        dag, subdag = self._make_test_subdag(session)
-        session.flush()
-
-        dag.clear(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
-            dag_run_state=dag_run_state,
-            include_subdags=True,
-            include_parentdag=False,
-            session=session,
-        )
-
-        dagrun = (
-            session.query(
-                DagRun,
-            )
-            .filter(DagRun.dag_id == subdag.dag_id)
-            .one()
-        )
-        assert dagrun.state == dag_run_state
-        session.rollback()
-
-    @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_set_dagrun_state_for_parent_dag(self, dag_run_state):
-        session = settings.Session()
-        dag, subdag = self._make_test_subdag(session)
-        session.flush()
-
-        subdag.clear(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
-            dag_run_state=dag_run_state,
-            include_subdags=True,
-            include_parentdag=True,
-            session=session,
-        )
-
-        dagrun = (
-            session.query(
-                DagRun,
-            )
-            .filter(DagRun.dag_id == dag.dag_id)
-            .one()
-        )
-        assert dagrun.state == dag_run_state
 
     @pytest.mark.parametrize(
         "ti_state_begin, ti_state_end",
@@ -2725,50 +2492,6 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
-
-    def test_next_dagrun_after_not_for_subdags(self):
-        """
-        Test the subdags are never marked to have dagruns created, as they are
-        handled by the SubDagOperator, not the scheduler
-        """
-
-        def subdag(parent_dag_name, child_dag_name, args):
-            """
-            Create a subdag.
-            """
-            dag_subdag = DAG(
-                dag_id=f"{parent_dag_name}.{child_dag_name}",
-                schedule="@daily",
-                default_args=args,
-            )
-
-            for i in range(2):
-                EmptyOperator(task_id=f"{child_dag_name}-task-{i + 1}", dag=dag_subdag)
-
-            return dag_subdag
-
-        with DAG(
-            dag_id="test_subdag_operator",
-            start_date=datetime.datetime(2019, 1, 1),
-            max_active_runs=1,
-            schedule=timedelta(minutes=1),
-        ) as dag, pytest.warns(
-            RemovedInAirflow3Warning, match="Please use `airflow.utils.task_group.TaskGroup`."
-        ):
-            section_1 = SubDagOperator(
-                task_id="section-1",
-                subdag=subdag(dag.dag_id, "section-1", {"start_date": dag.start_date}),
-            )
-
-        subdag = section_1.subdag
-        # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
-        subdag.parent_dag = dag
-
-        next_parent_info = dag.next_dagrun_info(None)
-        assert next_parent_info.logical_date == timezone.datetime(2019, 1, 1, 0, 0)
-
-        next_subdag_info = subdag.next_dagrun_info(None)
-        assert next_subdag_info is None, "SubDags should never have DagRuns created by the scheduler"
 
     def test_next_dagrun_info_on_29_feb(self):
         dag = DAG(

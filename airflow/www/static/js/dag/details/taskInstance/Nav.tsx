@@ -61,24 +61,9 @@ const Nav = forwardRef<HTMLDivElement, Props>(
 
     const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
 
-    const subDagLink = appendSearchParams(
-      gridUrl.replace(dagId, `${dagId}.${taskId}`),
-      subDagParams
-    );
-
-    // TODO: base subdag zooming as its own attribute instead of via operator name
-    const isSubDag = operator === "SubDagOperator";
-
     return (
       <Flex flexWrap="wrap" ref={ref} mb={2}>
-        {(!isMapped || mapIndex !== undefined) && (
-          <>
-            <LinkButton href={detailsLink}>More Details</LinkButton>
-            {isSubDag && (
-              <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
-            )}
-          </>
-        )}
+        {!isMapped || mapIndex !== undefined}
         <LinkButton href={allInstancesLink} title="View all">
           List All Instances
         </LinkButton>
