@@ -172,7 +172,7 @@ with DAG(
 
     export_time = get_export_time(table_name)
     latest_export_time = get_latest_export_time(table_name)
-    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time (Full Export)]
+    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_full_export]
     backup_db_to_point_in_time_full_export = DynamoDBToS3Operator(
         task_id="backup_db_to_point_in_time_full_export",
         dynamodb_table_name=table_name,
@@ -182,9 +182,9 @@ with DAG(
         export_time=export_time,
         s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
     )
-    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time (Full Export)]
+    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_full_export]
 
-    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time (Incremental Export)]
+    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
     backup_db_to_point_in_time_incremental_export = DynamoDBToS3Operator(
         task_id="backup_db_to_point_in_time_full_export",
         dynamodb_table_name=table_name,
@@ -197,7 +197,8 @@ with DAG(
         incremental_export_to_time=latest_export_time,
         incremental_export_view_type="NEW_AND_OLD_IMAGES",
     )
-    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time (Incremental Export)]
+    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
+
     # This operation can take a long time to complete
     backup_db_to_point_in_time_full_export.max_attempts = 90
     backup_db_to_point_in_time_incremental_export.max_attempts = 90
