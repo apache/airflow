@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteClusterTrigger,
     EksDeleteFargateProfileTrigger,
     EksDeleteNodegroupTrigger,
+    EksPodTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -1021,7 +1022,9 @@ class EksPodOperator(KubernetesPodOperator):
         pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
         Deprecated - use `on_finish_action` instead.
-
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = tuple(
@@ -1032,6 +1035,7 @@ class EksPodOperator(KubernetesPodOperator):
             "pod_name",
             "aws_conn_id",
             "region",
+            "deferrable",
         }
         | set(KubernetesPodOperator.template_fields)
     )
@@ -1050,6 +1054,9 @@ class EksPodOperator(KubernetesPodOperator):
         region: str | None = None,
         on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         if is_delete_operator_pod is not None:
@@ -1081,6 +1088,9 @@ class EksPodOperator(KubernetesPodOperator):
         self.pod_name = pod_name
         self.aws_conn_id = aws_conn_id
         self.region = region
+        self.waiter_delay = (waiter_delay,)
+        self.waiter_max_attempts = (waiter_max_attempts,)
+        self.deferrable = deferrable
         super().__init__(
             in_cluster=self.in_cluster,
             namespace=self.namespace,
@@ -1100,4 +1110,25 @@ class EksPodOperator(KubernetesPodOperator):
         with eks_hook.generate_config_file(
             eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
         ) as self.config_file:
+            if self.deferrable:
+                self.defer(
+                    trigger=EksPodTrigger(
+                        cluster_name=self.cluster_name,
+                        namespace=self.namespace,
+                        pod_name=self.pod_name,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                        region_name=self.region,
+                    ),
+                    method_name="execute_complete",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                )
+
+            if not self.wait_for_completion:
+                return
+
             return super().execute(context)
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        return
