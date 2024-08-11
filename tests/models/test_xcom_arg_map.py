@@ -29,6 +29,7 @@ from airflow.utils.trigger_rule import TriggerRule
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_map(dag_maker, session):
     results = set()
     with dag_maker(session=session) as dag:
@@ -64,6 +65,7 @@ def test_xcom_map(dag_maker, session):
     assert results == {"aa", "bb", "cc"}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_map_transform_to_none(dag_maker, session):
     results = set()
 
@@ -98,6 +100,7 @@ def test_xcom_map_transform_to_none(dag_maker, session):
     assert results == {"a", "b", None}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_convert_to_kwargs_fails_task(dag_maker, session):
     results = set()
 
@@ -145,6 +148,7 @@ def test_xcom_convert_to_kwargs_fails_task(dag_maker, session):
     ]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_map_error_fails_task(dag_maker, session):
     with dag_maker(session=session) as dag:
 
@@ -241,6 +245,7 @@ def test_task_map_variant():
     assert task_map.variant == TaskMapVariant.DICT
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_map_raise_to_skip(dag_maker, session):
     result = None
 
@@ -285,6 +290,7 @@ def test_xcom_map_raise_to_skip(dag_maker, session):
     assert result == ["a", "b"]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_map_nest(dag_maker, session):
     results = set()
 
@@ -318,6 +324,7 @@ def test_xcom_map_nest(dag_maker, session):
     assert results == {"aa", "bb", "cc"}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_map_zip_nest(dag_maker, session):
     results = set()
 
@@ -364,6 +371,7 @@ def test_xcom_map_zip_nest(dag_maker, session):
     assert results == {"aa", "bbbb", "cccccc", "dddddddd"}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_xcom_concat(dag_maker, session):
     from airflow.models.xcom_arg import _ConcatResult
 
