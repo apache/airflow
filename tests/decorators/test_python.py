@@ -1000,7 +1000,7 @@ def test_task_decorator_dataset(dag_maker, session):
 
 
 def test_teardown_trigger_rule_selective_application(dag_maker, session):
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task
         def my_work():
@@ -1025,7 +1025,7 @@ def test_teardown_trigger_rule_selective_application(dag_maker, session):
 
 
 def test_teardown_trigger_rule_override_behavior(dag_maker, session):
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
         def my_work():
