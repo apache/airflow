@@ -1055,7 +1055,7 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             with assert_queries_count(
-                expected_count=154,
+                expected_count=94,
                 margin=10,
                 session=session,
             ):

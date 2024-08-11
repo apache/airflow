@@ -459,8 +459,6 @@ class DAG(LoggingMixin):
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
-        or it can specify the resource name if there is a DAGs Run resource, e.g.,
-        "{'role1': {'DAG Runs': {'can_create'}}, 'role2': {'DAGs': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -550,7 +548,7 @@ class DAG(LoggingMixin):
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
         params: abc.MutableMapping | None = None,
-        access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
+        access_control: dict | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
         render_template_as_native_obj: bool = False,
@@ -917,33 +915,21 @@ class DAG(LoggingMixin):
         """
         if access_control is None:
             return None
-        new_dag_perm_mapping = {
+        new_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
             permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
         }
-
-        def update_old_perm(permission: str):
-            new_perm = new_dag_perm_mapping.get(permission, permission)
-            if new_perm != permission:
-                warnings.warn(
-                    f"The '{permission}' permission is deprecated. Please use '{new_perm}'.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=3,
-                )
-            return new_perm
-
         updated_access_control = {}
         for role, perms in access_control.items():
-            updated_access_control[role] = updated_access_control.get(role, {})
-            if isinstance(perms, (set, list)):
-                # Support for old-style access_control where only the actions are specified
-                updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
-            else:
-                updated_access_control[role] = perms
-            if permissions.RESOURCE_DAG in updated_access_control[role]:
-                updated_access_control[role][permissions.RESOURCE_DAG] = {
-                    update_old_perm(perm) for perm in updated_access_control[role][permissions.RESOURCE_DAG]
-                }
+            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
+
+        if access_control != updated_access_control:
+            warnings.warn(
+                "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
+                "Please use 'can_read' and 'can_edit', respectively.",
+                RemovedInAirflow3Warning,
+                stacklevel=3,
+            )
 
         return updated_access_control
 
@@ -4180,7 +4166,7 @@ def dag(
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
     params: abc.MutableMapping | None = None,
-    access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
+    access_control: dict | None = None,
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
     render_template_as_native_obj: bool = False,

@@ -972,44 +972,7 @@ class TestDagBag:
             dag.access_control = {"Public": {"can_read"}}
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}}}
-            )
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
-    def test_sync_perm_for_dag_with_dict_access_control(self, mock_security_manager):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        """
-        db_clean_up()
-        with create_session() as session:
-            security_manager = ApplessAirflowSecurityManager(session)
-            mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
-            mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
-
-            dagbag = DagBag(
-                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
-                include_examples=False,
-            )
-            dag = dagbag.dags["test_example_bash_operator"]
-
-            def _sync_perms():
-                mock_sync_perm_for_dag.reset_mock()
-                DagBag._sync_perm_for_dag(dag, session=session)
-
-            # perms dont exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
-
-            # perms now exist
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
-
-            # Always sync if we have access_control
-            dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-            _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
+                "test_example_bash_operator", {"Public": {"can_read"}}
             )
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

@@ -2788,27 +2788,19 @@ my_postgres_conn:
         outdated_permissions = {
             "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
             "role2": {permissions.DEPRECATED_ACTION_CAN_DAG_READ, permissions.DEPRECATED_ACTION_CAN_DAG_EDIT},
-            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
         }
         updated_permissions = {
-            "role1": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-            "role2": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+            "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+            "role2": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
         }
 
-        with pytest.warns(DeprecationWarning) as deprecation_warnings:
+        with pytest.warns(DeprecationWarning):
             dag = DAG(dag_id="dag_with_outdated_perms", access_control=outdated_permissions)
         assert dag.access_control == updated_permissions
-        assert len(deprecation_warnings) == 2
-        assert "permission is deprecated" in str(deprecation_warnings[0].message)
-        assert "permission is deprecated" in str(deprecation_warnings[1].message)
 
-        with pytest.warns(DeprecationWarning) as deprecation_warnings:
+        with pytest.warns(DeprecationWarning):
             dag.access_control = outdated_permissions
         assert dag.access_control == updated_permissions
-        assert len(deprecation_warnings) == 2
-        assert "permission is deprecated" in str(deprecation_warnings[0].message)
-        assert "permission is deprecated" in str(deprecation_warnings[1].message)
 
     def test_validate_executor_field_executor_not_configured(self):
         dag = DAG(
