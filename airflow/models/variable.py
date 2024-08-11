@@ -97,10 +97,8 @@ class Variable(Base, LoggingMixin):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
-    @staticmethod
-    @provide_session
-    @internal_api_call
-    def setdefault(key, default, description=None, deserialize_json=False, session: Session = None):
+    @classmethod
+    def setdefault(cls, key, default, description=None, deserialize_json=False):
         """
         Return the current value for a key or store the default value and return it.
 
@@ -118,13 +116,7 @@ class Variable(Base, LoggingMixin):
         obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
         if obj is None:
             if default is not None:
-                Variable.set(
-                    key=key,
-                    value=default,
-                    description=description,
-                    serialize_json=deserialize_json,
-                    session=session,
-                )
+                Variable.set(key=key, value=default, description=description, serialize_json=deserialize_json)
                 return default
             else:
                 raise ValueError("Default Value must be set")
