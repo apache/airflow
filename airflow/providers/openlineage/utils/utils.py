@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def try_import_from_string(string: str) -> Any:
@@ -85,6 +85,10 @@ def get_job_name(task: TaskInstance) -> str:
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
+    log.debug(
+        "AirflowMappedTaskRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
         return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
     return {}
@@ -240,7 +244,7 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "owner", "schedule_interval", "start_date", "tags"]
+    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -536,6 +540,10 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
 def get_unknown_source_attribute_run_facet(task: BaseOperator, name: str | None = None):
     if not name:
         name = get_operator_class(task).__name__
+    log.debug(
+        "UnknownOperatorAttributeRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     return {
         "unknownSourceAttribute": attrs.asdict(
             UnknownOperatorAttributeRunFacet(
@@ -663,7 +671,7 @@ def normalize_sql(sql: str | Iterable[str]):
 
 def should_use_external_connection(hook) -> bool:
     # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    if not _IS_AIRFLOW_2_10_OR_HIGHER:
+    if not IS_AIRFLOW_2_10_OR_HIGHER:
         return hook.__class__.__name__ not in ["SnowflakeHook", "SnowflakeSqlApiHook", "RedshiftSQLHook"]
     return True
 

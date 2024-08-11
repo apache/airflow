@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+1.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add AirflowRun on COMPLETE/FAIL events (#40996)``
+* ``openlineage: extend custom_run_facets to also be executed on complete and fail (#40953)``
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``openlineage: Add AirflowRunFacet for dag runEvents (#40854)``
+* ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
+* ``Ability to add custom facet in OpenLineage events (#38982)``
+* ``openlineage: add method to common.compat to not force hooks to try/except every 2.10 hook lineage call (#40812)``
+* ``openlineage: use airflow provided getters from conf (#40790)``
+* ``openlineage: add config to include 'full' task info based on conf setting (#40589)``
+* ``Add TaskInstance log_url to OpenLineage facet (#40797)``
+* ``openlineage: add deferrable information to task info in airflow run facet (#40682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Adjust default extractor's on_failure detection for airflow 2.10 fix (#41094)``
+* ``openlineage: make value of slots in attrs.define consistent across all OL usages (#40992)``
+* ``Set 'slots' to True for facets used in DagRun (#40972)``
+* ``openlineage: fix / add some task attributes in AirflowRunFacet (#40725)``
+
+Misc
+~~~~
+
+* ``openlineage: replace dt.now with airflow.utils.timezone.utcnow (#40887)``
+* ``openlineage: remove deprecated parentRun facet key (#40681)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.9.1
 .....
 

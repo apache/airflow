@@ -64,7 +64,7 @@ INSTANCE_TEMPLATE_BODY = {
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                    "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
                 },
             }
         ],

@@ -121,7 +121,7 @@ with DAG(
         task_id="wait_cluster_paused",
         cluster_identifier=redshift_cluster_identifier,
         target_status="paused",
-        poke_interval=15,
+        poke_interval=30,
         timeout=60 * 30,
     )
 
@@ -136,7 +136,7 @@ with DAG(
         task_id="wait_cluster_available_after_resume",
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
-        poke_interval=15,
+        poke_interval=30,
         timeout=60 * 30,
     )
 

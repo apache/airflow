@@ -1,4 +1,6 @@
-#
+#!/usr/bin/env bash
+
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +17,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This package is deprecated. Please use :mod:`airflow.task.task_runner`."""
 
-from __future__ import annotations
-
-import warnings
-
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.utils.deprecation_tools import add_deprecated_classes
-
-warnings.warn(
-    "This module is deprecated. Please use airflow.task.task_runner.", RemovedInAirflow3Warning, stacklevel=2
-)
-
-__deprecated_classes = {
-    "cgroup_task_runner": {
-        "CgroupTaskRunner": "airflow.task.task_runner.cgroup_task_runner.CgroupTaskRunner",
-    },
-}
-
-add_deprecated_classes(__deprecated_classes, __name__)
+# Run this script in Breeze to get the list of all devel dependencies
+VERSION=2.9.3
+uv pip freeze --python /usr/local/bin/python | grep -v "pip==" | grep -v "uv==" > freeze.txt
+uv pip uninstall -r freeze.txt --python /usr/local/bin/python
+uv pip install "apache-airflow[all]==${VERSION}" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" --python /usr/local/bin/python
+uv pip freeze --python /usr/local/bin/python >non-devel-freeze.txt
+sed "s/==.*//" < freeze.txt > all_deps.txt
+sed "s/==.*//" < non-devel-freeze.txt > all_non_devel_deps.txt
+grep -v -f all_non_devel_deps.txt all_deps.txt

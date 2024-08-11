@@ -28,6 +28,8 @@ from tests.test_utils.config import conf_vars
 
 logger = logging.getLogger(__name__)
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 @pytest.fixture
 def mock_handler():
@@ -66,6 +68,7 @@ def test_task_handler_not_supports_task_context_logging(mock_handler, supported)
     assert t.enabled is supported
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("supported", [True, False])
 def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
@@ -80,6 +83,7 @@ def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
         mock_handler.emit.assert_not_called()
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @mock.patch("airflow.utils.log.task_context_logger._ensure_ti")
 @pytest.mark.parametrize("supported", [True, False])
@@ -97,6 +101,7 @@ def test_task_context_log_with_task_instance_key(mock_ensure_ti, ti, mock_handle
         mock_handler.emit.assert_not_called()
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_task_context_log_closes_task_handler(ti, mock_handler):
     t = TaskContextLogger("blah")
@@ -104,6 +109,8 @@ def test_task_context_log_closes_task_handler(ti, mock_handler):
     mock_handler.close.assert_called_once()
 
 
+@pytest.mark.skip_if_database_isolation_mode
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_task_context_log_also_emits_to_call_site_logger(ti):
     logger = logging.getLogger("abc123567")

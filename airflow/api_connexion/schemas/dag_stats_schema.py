@@ -14,22 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This package is deprecated. Please use :mod:`airflow.utils.log`."""
-
 from __future__ import annotations
 
-import warnings
+from marshmallow import Schema, fields
 
-from airflow.utils.deprecation_tools import add_deprecated_classes
+from airflow.api_connexion.schemas.enum_schemas import DagStateField
 
-warnings.warn("This module is deprecated. Please use `airflow.utils.log`.", DeprecationWarning, stacklevel=2)
 
-__deprecated_classes = {
-    "task_handler_with_custom_formatter": {
-        "TaskHandlerWithCustomFormatter": (
-            "airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter"
-        ),
-    },
-}
+class DagStatsStateSchema(Schema):
+    """DagStatsState Schema."""
 
-add_deprecated_classes(__deprecated_classes, __name__)
+    state = DagStateField(dump_only=True)
+    count = fields.Int(dump_only=True)
+
+
+class DagStatsSchema(Schema):
+    """DagStats Schema."""
+
+    dag_id = fields.String(required=True)
+    stats = fields.List(fields.Nested(DagStatsStateSchema))
+
+
+class DagStatsCollectionSchema(Schema):
+    """DagStassCollection Schema."""
+
+    dags = fields.List(fields.Nested(DagStatsSchema))
+    total_entries = fields.Int()
+
+
+dag_stats_state_schema = DagStatsStateSchema()
+dag_stats_schema = DagStatsSchema()
+dag_stats_collection_schema = DagStatsCollectionSchema()
