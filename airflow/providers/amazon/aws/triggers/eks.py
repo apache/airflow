@@ -401,3 +401,48 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+
+class EksPodTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger for EksPodOperator.
+
+    The trigger will asynchronously poll the boto3 API and wait for the
+    pod to be in the state specified by the waiter.
+
+    :param cluster_name: The name of the EKS cluster associated with the node group.
+    :param namespace: The name of the namespace.
+    :param pod_name: The name of the pod for check.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    """
+
+    def __init__(
+        self,
+        cluster_name: str,
+        namespace: str,
+        pod_name: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str | None,
+        region_name: str | None = None,
+    ):
+        super().__init__(
+            serialized_fields={"cluster_name": cluster_name, "namespace": namespace, "pod_name": pod_name},
+            waiter_name="pod_active",
+            waiter_args={"clusterName": cluster_name, "namespace": namespace, "podName": pod_name},
+            failure_message="Error Creating pod",
+            status_message="pod status is",
+            status_queries=["pod.status", "pod.health.issues"],
+            return_value=None,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
