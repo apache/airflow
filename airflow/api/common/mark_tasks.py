@@ -166,7 +166,7 @@ def get_all_dag_task_query(
     qry_dag = select(TaskInstance).where(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id.in_(run_ids),
-        TaskInstance.ti_selector_condition(task_ids),
+        TaskInstance.ti_selector_condition(task_ids, session=session),
     )
 
     qry_dag = qry_dag.where(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
