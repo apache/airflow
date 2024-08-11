@@ -423,8 +423,8 @@ class EksPodTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_name: str,
-        namespace: str,
-        pod_name: str,
+        namespace: str | None,
+        pod_name: str | None,
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,

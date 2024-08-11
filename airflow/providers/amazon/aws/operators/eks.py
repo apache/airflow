@@ -1003,6 +1003,7 @@ class EksPodOperator(KubernetesPodOperator):
 
     :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
+    :param wait_for_completion: The maximum number of attempts to check pod state
     :param namespace: The namespace in which to execute the pod. (templated)
     :param pod_name: The unique name to give the pod. (templated)
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
@@ -1031,11 +1032,11 @@ class EksPodOperator(KubernetesPodOperator):
         {
             "cluster_name",
             "in_cluster",
+            "wait_for_completion",
             "namespace",
             "pod_name",
             "aws_conn_id",
             "region",
-            "deferrable",
         }
         | set(KubernetesPodOperator.template_fields)
     )
@@ -1043,9 +1044,8 @@ class EksPodOperator(KubernetesPodOperator):
     def __init__(
         self,
         cluster_name: str,
-        # Setting in_cluster to False tells the pod that the config
-        # file is stored locally in the worker and not in the cluster.
         in_cluster: bool = False,
+        wait_for_completion: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
         pod_context: str | None = None,
         pod_name: str | None = None,
@@ -1084,12 +1084,13 @@ class EksPodOperator(KubernetesPodOperator):
 
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster
+        self.wait_for_completion = wait_for_completion
         self.namespace = namespace
         self.pod_name = pod_name
         self.aws_conn_id = aws_conn_id
         self.region = region
-        self.waiter_delay = (waiter_delay,)
-        self.waiter_max_attempts = (waiter_max_attempts,)
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
         super().__init__(
             in_cluster=self.in_cluster,
@@ -1130,5 +1131,5 @@ class EksPodOperator(KubernetesPodOperator):
 
             return super().execute(context)
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(self, context: Context, event: dict[Any, Any], **kwargs: Any) -> Any:
         return
