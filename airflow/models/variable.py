@@ -110,12 +110,13 @@ class Variable(Base, LoggingMixin):
         :param description: Default value to set Description of the Variable
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
+        :param session: Session
         :return: Mixed
         """
         obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
         if obj is None:
             if default is not None:
-                Variable.set(key, default, description=description, serialize_json=deserialize_json)
+                Variable.set(key=key, value=default, description=description, serialize_json=deserialize_json)
                 return default
             else:
                 raise ValueError("Default Value must be set")
@@ -170,9 +171,10 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param session: Session
         """
         # check if the secret exists in the custom secrets' backend.
-        Variable.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key=key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -201,8 +203,9 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param session: Session
         """
-        Variable.check_for_write_conflict(key)
+        Variable.check_for_write_conflict(key=key)
 
         if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
@@ -210,7 +213,9 @@ class Variable(Base, LoggingMixin):
         if obj is None:
             raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
-        Variable.set(key, value, description=obj.description, serialize_json=serialize_json)
+        Variable.set(
+            key=key, value=value, description=obj.description, serialize_json=serialize_json, session=session
+        )
 
     @staticmethod
     @provide_session
