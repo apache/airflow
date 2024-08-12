@@ -1,6 +1,6 @@
 **Breaking Change**
 
-The following deprecated functions, constants, and classes have been removed as part of the preparation for Airflow 3.0:
+The following deprecated functions, constants, and classes have been removed as part of Airflow 3.0:
 
 - ``airflow.executors.executor_loader.UNPICKLEABLE_EXECUTORS``: No direct replacement; this constant is no longer needed.
 - ``airflow.utils.dag_cycle_tester.test_cycle`` function: Use ``airflow.utils.dag_cycle_tester.check_cycle`` instead.
