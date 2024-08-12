@@ -107,6 +107,22 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         error_message,
                     )
 
+                    repair_reason = next(
+                        (
+                            reason
+                            for reason in (operator.databricks_repair_reason_new_settings or {}).keys()
+                            if reason in run_state.state_message
+                        ),
+                        None,
+                    )
+
+                    if repair_reason is not None and operator.databricks_repair_reason_new_settings:
+                        new_settings_json = normalise_json_content(
+                            operator.databricks_repair_reason_new_settings[repair_reason]
+                        )
+                        log.warning("Repairing the run with new_settings json: %s", new_settings_json)
+                        hook.update_job(job_id=operator.json["job_id"], json=new_settings_json)
+
                     latest_repair_id = hook.get_latest_repair_id(operator.run_id)
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
@@ -674,6 +690,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``spark_submit_params``
         - ``idempotency_token``
         - ``repair_run``
+        - ``databricks_repair_reason_new_settings``
         - ``cancel_previous_runs``
 
     :param job_id: the job_id of the existing Databricks job.
@@ -764,6 +781,11 @@ class DatabricksRunNowOperator(BaseOperator):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
     :param repair_run: Repair the databricks run in case of failure.
+    :param databricks_repair_reason_new_settings: A dict of reason and new_settings JSON object for which
+            to repair the run. `None` by default. `None` means to repair in all reasons with existing job
+            settings otherwise check whether `RunState` state_message contains reason and
+            update job settings as per new_settings using databricks partial job update endpoint
+            (https://docs.databricks.com/api/workspace/jobs/update)
     :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
     """
 
@@ -796,6 +818,7 @@ class DatabricksRunNowOperator(BaseOperator):
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         repair_run: bool = False,
+        databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
         **kwargs,
     ) -> None:
@@ -810,6 +833,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
         self.repair_run = repair_run
+        self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings
         self.cancel_previous_runs = cancel_previous_runs
 
         if job_id is not None:
@@ -872,7 +896,23 @@ class DatabricksRunNowOperator(BaseOperator):
             _handle_deferrable_databricks_operator_completion(event, self.log)
             if event["repair_run"]:
                 self.repair_run = False
+                run_state = RunState.from_json(event["run_state"])
                 self.run_id = event["run_id"]
+                job_id = self._hook.get_job_id(self.run_id)
+                repair_reason = next(
+                    (
+                        reason
+                        for reason in (self.databricks_repair_reason_new_settings or {}).keys()
+                        if reason in run_state.state_message
+                    ),
+                    None,
+                )
+                if repair_reason is not None and self.databricks_repair_reason_new_settings:
+                    new_settings_json = normalise_json_content(
+                        self.databricks_repair_reason_new_settings[repair_reason]
+                    )
+                    self._hook.update_job(job_id=str(job_id), json=new_settings_json)
+
                 latest_repair_id = self._hook.get_latest_repair_id(self.run_id)
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:
