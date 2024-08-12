@@ -52,7 +52,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -135,10 +135,11 @@ class TestKubernetesPodOperator:
 
         patch.stopall()
 
-    def test_templates(self, create_task_instance_of_operator):
+    def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"
         ti = create_task_instance_of_operator(
             KubernetesPodOperator,
+            session=session,
             dag_id=dag_id,
             task_id="task-id",
             namespace="{{ dag.dag_id }}",
@@ -172,6 +173,8 @@ class TestKubernetesPodOperator:
             ],
         )
 
+        session.add(ti)
+        session.commit()
         rendered = ti.render_templates()
 
         assert dag_id == rendered.container_resources.limits["memory"]

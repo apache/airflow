@@ -683,6 +683,17 @@ database:
       type: string
       example: 'airflow_local_settings.connect_args'
       default: ~
+    sql_alchemy_session_maker:
+      description: |
+        Important Warning: Use of sql_alchemy_session_maker Highly Discouraged
+        Import path for function which returns 'sqlalchemy.orm.sessionmaker'.
+        Improper configuration of sql_alchemy_session_maker can lead to serious issues,
+        including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
+        documentation for detailed guidance on proper configuration and best practices.
+      version_added: 2.9.4
+      type: string
+      example: 'airflow_local_settings._sessionmaker'
+      default: ~
     load_default_connections:
       description: |
         Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.

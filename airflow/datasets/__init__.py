@@ -194,6 +194,9 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
+    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+        raise NotImplementedError
+
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate a base dataset as dag dependency.
@@ -294,6 +297,9 @@ class Dataset(os.PathLike, BaseDataset):
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
 
+    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+        return iter(())
+
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return statuses.get(self.uri, False)
 
@@ -335,6 +341,11 @@ class _DatasetBooleanCondition(BaseDataset):
                     continue
                 yield k, v
                 seen.add(k)
+
+    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+        """Filter dataest aliases in the condition."""
+        for o in self.objects:
+            yield from o.iter_dataset_aliases()
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -390,6 +401,9 @@ class _DatasetAliasCondition(DatasetAny):
         :meta private:
         """
         return {"alias": self.name}
+
+    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+        yield DatasetAlias(self.name)
 
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """

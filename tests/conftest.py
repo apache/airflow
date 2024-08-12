@@ -1082,6 +1082,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
+    from airflow.operators.empty import EmptyOperator
 
     def maker(
         execution_date=None,
@@ -1091,6 +1092,19 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_type=None,
         data_interval=None,
         external_executor_id=None,
+        dag_id="dag",
+        task_id="op1",
+        task_display_name=None,
+        max_active_tis_per_dag=16,
+        max_active_tis_per_dagrun=None,
+        pool="default_pool",
+        executor_config=None,
+        trigger_rule="all_done",
+        on_success_callback=None,
+        on_execute_callback=None,
+        on_failure_callback=None,
+        on_retry_callback=None,
+        email=None,
         map_index=-1,
         **kwargs,
     ) -> TaskInstance:
@@ -1098,7 +1112,26 @@ def create_task_instance(dag_maker, create_dummy_dag):
             from airflow.utils import timezone
 
             execution_date = timezone.utcnow()
-        _, task = create_dummy_dag(with_dagrun_type=None, **kwargs)
+        with dag_maker(dag_id, **kwargs):
+            op_kwargs = {}
+            from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
+
+            if AIRFLOW_V_2_9_PLUS:
+                op_kwargs["task_display_name"] = task_display_name
+            task = EmptyOperator(
+                task_id=task_id,
+                max_active_tis_per_dag=max_active_tis_per_dag,
+                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+                executor_config=executor_config or {},
+                on_success_callback=on_success_callback,
+                on_execute_callback=on_execute_callback,
+                on_failure_callback=on_failure_callback,
+                on_retry_callback=on_retry_callback,
+                email=email,
+                pool=pool,
+                trigger_rule=trigger_rule,
+                **op_kwargs,
+            )
 
         dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
         if run_id is not None:
@@ -1152,7 +1185,7 @@ def create_task_instance_of_operator(dag_maker):
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        with dag_maker(dag_id=dag_id, session=session):
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
             operator_class(**operator_kwargs)
         if execution_date is None:
             dagrun_kwargs = {}

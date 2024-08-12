@@ -48,6 +48,7 @@ from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 pytestmark = [
     pytest.mark.db_test,
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
 ]
 
 

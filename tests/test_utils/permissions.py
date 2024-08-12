@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,4 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This package is deprecated."""
+from __future__ import annotations
+
+from airflow.security import permissions
+
+
+def _resource_name(dag_id: str, resource_name: str) -> str:
+    """
+    This method is to keep compatibility with new FAB versions
+    running with old airflow versions.
+    """
+    if hasattr(permissions, "resource_name"):
+        return getattr(permissions, "resource_name")(dag_id, resource_name)
+    if resource_name == permissions.RESOURCE_DAG:
+        return getattr(permissions, "resource_name_for_dag")(dag_id)
+    raise Exception("Only DAG resource is supported in this Airflow version.")

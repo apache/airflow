@@ -53,6 +53,7 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def initialize_method_map() -> dict[str, Callable]:
+    from airflow.api.common.trigger_dag import trigger_dag
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
@@ -92,6 +93,7 @@ def initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
+        trigger_dag,
         DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
@@ -121,7 +123,7 @@ def initialize_method_map() -> dict[str, Callable]:
         MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
-        XCom.get_many,
+        # XCom.get_many, # Not supported because it returns query
         XCom.clear,
         XCom.set,
         Variable.set,
