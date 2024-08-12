@@ -92,6 +92,16 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
 DAGs are nothing without :doc:`tasks` to run, and those will usually come in the form of either :doc:`operators`, :doc:`sensors` or :doc:`taskflow`.
 
+.. note::
+
+    Due to historical reasons, the default ``schedule`` value defaults to ``timedelta(days=1)``, i.e. the DAG
+    is run every day starting from ``start_date``.
+
+    To avoid confusion, it is recommended to always set an explicit ``schedule`` for your DAGs instead.
+
+    This default can be changed by setting the ``[scheduler] default_none_schedule`` configuration to *True*
+    (default is *False*).
+
 
 Task Dependencies
 ~~~~~~~~~~~~~~~~~

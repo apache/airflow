@@ -183,10 +183,6 @@ ScheduleArg = Union[
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
-# Backward compatibility: If neither schedule_interval nor timetable is
-# *provided by the user*, default to a one-day interval.
-DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
-
 
 class InconsistentDataInterval(AirflowException):
     """
@@ -227,10 +223,8 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTimezone) -> Timetable:
+def create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
-    if interval is NOTSET:
-        return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
     if interval is None:
         return NullTimetable()
     if interval == "@once":
@@ -684,8 +678,11 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, ArgNotSet):
-            self.timetable = create_timetable(schedule, self.timezone)
-            self.schedule_interval = DEFAULT_SCHEDULE_INTERVAL
+            if airflow_conf.getboolean("scheduler", "default_none_schedule"):
+                self.schedule_interval = None
+            else:
+                self.schedule_interval = timedelta(days=1)
+            self.timetable = create_timetable(self.schedule_interval, self.timezone)
         else:
             self.timetable = create_timetable(schedule, self.timezone)
             self.schedule_interval = schedule

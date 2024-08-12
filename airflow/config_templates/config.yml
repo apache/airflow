@@ -2639,6 +2639,21 @@ scheduler:
       example: ~
       default: "True"
       see_also: ":ref:`Differences between the two cron timetables`"
+    default_none_schedule:
+      description: |
+        When a DAG is created without an explicit ``schedule`` argument, whether to default to *None* or a
+        runnable schedule.
+
+        The default is *False*, which sets the default schedule to ``timedelta(days=1)``. If set to *True*,
+        the default schedule will be *None*.
+
+        This configuration exists only for backward compatibility. The default of this configuration will be
+        changed to *True* in a future release.
+      version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "False"
+      see_also: :ref:`Core Concepts — DAGs <concepts-dags>`
 triggerer:
   description: ~
   options:
