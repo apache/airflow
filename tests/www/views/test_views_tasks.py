@@ -76,6 +76,14 @@ def init_dagruns(app):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
+        app.dag_bag.get_dag("example_python_operator").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
         XCom.set(
             key="return_value",
             value="{'x':1}",

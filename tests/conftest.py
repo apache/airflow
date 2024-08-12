@@ -846,6 +846,7 @@ def dag_maker(request):
 
         def _bag_dag_compat(self, dag):
             # This is a compatibility shim for the old bag_dag method in Airflow <3.0
+            # TODO: Remove this when we drop support for Airflow <3.0 in Providers
             if hasattr(dag, "parent_dag"):
                 return self.dagbag.bag_dag(dag, root_dag=dag)
             return self.dagbag.bag_dag(dag)

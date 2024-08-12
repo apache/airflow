@@ -2355,7 +2355,7 @@ class DAG(LoggingMixin):
             end_date=end_date,
             run_id=None,
             state=state,
-            include_dependent_dags=False,
+            include_dependent_dags=True,
             session=session,
             dag_bag=dag_bag,
             exclude_task_ids=exclude_task_ids,

@@ -1337,6 +1337,7 @@ class TestDag:
         )
         with dag:
             EmptyOperator(task_id="task", owner="owner1")
+            EmptyOperator(task_id="task2", owner="owner2")
         session = settings.Session()
         dag.sync_to_db(session=session)
 
