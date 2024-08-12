@@ -243,7 +243,7 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
-    if: inputs.canary-run == 'true'
+    if: inputs.canary-run == 'true' && inputs.branch == 'main'
     steps:
       - name: "Cleanup repo"
         shell: bash
