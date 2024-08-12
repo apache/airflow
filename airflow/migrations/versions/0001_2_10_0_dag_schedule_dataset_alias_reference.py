@@ -20,7 +20,7 @@
 Add dag_schedule_dataset_alias_reference table.
 
 Revision ID: 22ed7efa9da2
-Revises: 8684e37832e6
+Revises:
 Create Date: 2024-08-05 08:41:47.696495
 
 """
@@ -35,7 +35,7 @@ from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
 revision = "22ed7efa9da2"
-down_revision = "8684e37832e6"
+down_revision = None
 branch_labels = None
 depends_on = None
 airflow_version = "2.10.0"

@@ -156,11 +156,11 @@ class TestDb:
         """Offline upgrade should work with no version / revision options."""
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "postgresql"  # offline migration supported with postgres
-            mock_gcr.return_value = "ff6b78394492"
+            mock_gcr.return_value = "22ed7efa9da2"
             upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
-            # TODO (ephraimbuddy): Enable the below assertion once we have a migration higher than ff6b78394492
+            # TODO (ephraimbuddy): Enable the below assertion once we have a migration higher than 22ed7efa9da2
             # actual = mock_om.call_args.args[2]
-            # assert re.match(r"ff6b78394492:[a-z0-9]+", actual) is not None
+            # assert re.match(r"22ed7efa9da2:[a-z0-9]+", actual) is not None
 
     @mock.patch("airflow.utils.db._get_current_revision")
     def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr):

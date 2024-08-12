@@ -91,17 +91,17 @@ class TestCliDb:
                 dict(to_revision="abc", from_revision=None, show_sql_only=True),
             ),
             (
-                ["--to-version", "3.0.0"],
+                ["--to-version", "2.10.0"],
                 dict(
-                    to_revision="ff6b78394492",
+                    to_revision="22ed7efa9da2",
                     from_revision=None,
                     show_sql_only=False,
                 ),
             ),
             (
-                ["--to-version", "3.0.0", "--show-sql-only"],
+                ["--to-version", "2.10.0", "--show-sql-only"],
                 dict(
-                    to_revision="ff6b78394492",
+                    to_revision="22ed7efa9da2",
                     from_revision=None,
                     show_sql_only=True,
                 ),
@@ -115,26 +115,26 @@ class TestCliDb:
                 ),
             ),
             (
-                ["--to-revision", "abc", "--from-version", "3.0.0", "--show-sql-only"],
+                ["--to-revision", "abc", "--from-version", "2.10.0", "--show-sql-only"],
                 dict(
                     to_revision="abc",
-                    from_revision="ff6b78394492",
+                    from_revision="22ed7efa9da2",
                     show_sql_only=True,
                 ),
             ),
             (
-                ["--to-version", "3.0.0", "--from-revision", "abc123", "--show-sql-only"],
+                ["--to-version", "2.10.0", "--from-revision", "abc123", "--show-sql-only"],
                 dict(
-                    to_revision="ff6b78394492",
+                    to_revision="22ed7efa9da2",
                     from_revision="abc123",
                     show_sql_only=True,
                 ),
             ),
             (
-                ["--to-version", "3.0.0", "--from-version", "3.0.0", "--show-sql-only"],
+                ["--to-version", "2.10.0", "--from-version", "2.10.0", "--show-sql-only"],
                 dict(
-                    to_revision="ff6b78394492",
-                    from_revision="ff6b78394492",
+                    to_revision="22ed7efa9da2",
+                    from_revision="22ed7efa9da2",
                     show_sql_only=True,
                 ),
             ),
@@ -142,7 +142,7 @@ class TestCliDb:
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
-        # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 3.0.0/ff6b78394492
+        # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 2.10.0/22ed7efa9da2
         db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
         mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
 
@@ -150,12 +150,12 @@ class TestCliDb:
         "args, pattern",
         [
             pytest.param(
-                ["--to-revision", "abc", "--to-version", "3.0.0"],
+                ["--to-revision", "abc", "--to-version", "2.10.0"],
                 "Cannot supply both",
                 id="to both version and revision",
             ),
             pytest.param(
-                ["--from-revision", "abc", "--from-version", "3.0.0"],
+                ["--from-revision", "abc", "--from-version", "2.10.0"],
                 "Cannot supply both",
                 id="from both version and revision",
             ),
@@ -167,17 +167,17 @@ class TestCliDb:
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "abc", "--from-version", "3.0.0"],
+                ["--to-revision", "abc", "--from-version", "2.10.0"],
                 "used with `--show-sql-only`",
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "3.0.0", "--from-version", "2.1.25", "--show-sql-only"],
+                ["--to-revision", "2.10.0", "--from-version", "2.1.25", "--show-sql-only"],
                 "Unknown version '2.1.25'",
                 id="unknown from version",
             ),
             pytest.param(
-                ["--to-revision", "3.0.0", "--from-version", "abc", "--show-sql-only"],
+                ["--to-revision", "2.10.0", "--from-version", "abc", "--show-sql-only"],
                 "Invalid version 'abc'",
                 id="invalid from version",
             ),
@@ -305,14 +305,14 @@ class TestCliDb:
                 dict(to_revision="abc1", from_revision="abc2", show_sql_only=True),
             ),
             (
-                ["-y", "--to-revision", "abc1", "--from-version", "3.0.0", "-s"],
-                dict(to_revision="abc1", from_revision="ff6b78394492", show_sql_only=True),
+                ["-y", "--to-revision", "abc1", "--from-version", "2.10.0", "-s"],
+                dict(to_revision="abc1", from_revision="22ed7efa9da2", show_sql_only=True),
             ),
             (
-                ["-y", "--to-version", "3.0.0", "--from-version", "3.0.0", "-s"],
-                dict(to_revision="ff6b78394492", from_revision="ff6b78394492", show_sql_only=True),
+                ["-y", "--to-version", "2.10.0", "--from-version", "2.10.0", "-s"],
+                dict(to_revision="22ed7efa9da2", from_revision="22ed7efa9da2", show_sql_only=True),
             ),
-            (["-y", "--to-version", "3.0.0"], dict(to_revision="ff6b78394492")),
+            (["-y", "--to-version", "2.10.0"], dict(to_revision="22ed7efa9da2")),
         ],
     )
     @mock.patch("airflow.utils.db.downgrade")
