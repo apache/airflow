@@ -27,6 +27,8 @@ from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRe
 
 DAG_ID = "example_refresh_powerbi_dataset"
 CONN_ID = "powerbi_default"
+
+# Before running this system test, you should set following environment variables:
 DATASET_ID = os.environ.get("DATASET_ID", "None")
 GROUP_ID = os.environ.get("GROUP_ID", "None")
 CLIENT_ID = os.environ.get("CLIENT_ID", None)

@@ -27,6 +27,7 @@ import pytest
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
+from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import get_airflow_connection
 
 POWERBI_CONN_ID = "powerbi_default"
@@ -63,9 +64,10 @@ def mock_powerbi_hook():
     return hook
 
 
-# @pytest.fixture
-# def mock_trigger_dataset_refresh(mock_powerbi_hook):
-#     mock_powerbi_hook.trigger_dataset_refresh = AsyncMock(return_value=DATASET_REFRESH_ID)
+@pytest.fixture
+def base_functions():
+    base = Base()
+    return base
 
 
 def test_powerbi_trigger_serialization():
@@ -113,7 +115,7 @@ async def test_powerbi_trigger_run_inprogress(
     task = asyncio.create_task(powerbi_trigger.run().__anext__())
     await asyncio.sleep(0.5)
 
-    # TriggerEvent was not returned
+    # Assert TriggerEvent was not returned
     assert task.done() is False
     asyncio.get_event_loop().stop()
 
@@ -122,7 +124,7 @@ async def test_powerbi_trigger_run_inprogress(
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
 async def test_powerbi_trigger_run_failed(
-    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger, base_functions
 ):
     """Assert event is triggered upon failed dataset refresh."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}

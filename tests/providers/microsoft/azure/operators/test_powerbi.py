@@ -89,7 +89,6 @@ def test_execute_wait_for_termination_with_Deferrable(mock_powerbi_hook):
     with pytest.raises(TaskDeferred) as exc:
         operator.execute(context)
 
-    # assert mock_powerbi_hook.trigger_dataset_refresh.called
     assert isinstance(exc.value.trigger, PowerBITrigger)
 
 
