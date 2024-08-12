@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-11T23:26:25.453460
+# This constraints file was automatically generated on 2024-08-12T09:36:47.901151
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -290,7 +290,7 @@ importlib_resources==6.4.0
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
-influxdb-client==1.44.0
+influxdb-client==1.45.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
@@ -471,7 +471,7 @@ pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.2
-python-arango==8.0.0
+python-arango==8.1.0
 python-daemon==3.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
