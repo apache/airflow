@@ -17,10 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Iterable
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.weekday import WeekDay
@@ -75,7 +73,6 @@ class DayOfWeekSensor(BaseSensorOperator):
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
-    :param use_task_execution_day: deprecated parameter, same effect as `use_task_logical_date`
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -88,19 +85,11 @@ class DayOfWeekSensor(BaseSensorOperator):
         *,
         week_day: str | Iterable[str] | WeekDay | Iterable[WeekDay],
         use_task_logical_date: bool = False,
-        use_task_execution_day: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.week_day = week_day
         self.use_task_logical_date = use_task_logical_date
-        if use_task_execution_day:
-            self.use_task_logical_date = use_task_execution_day
-            warnings.warn(
-                "Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
     def poke(self, context: Context) -> bool:
