@@ -1093,10 +1093,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        with pytest.raises(
-            AirflowException,
-            match="`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled.",
-        ):
+        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        with pytest.raises(AirflowException, match=re.escape(error_msg)):
             self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
 
     @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
@@ -1107,10 +1105,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        with pytest.raises(
-            AirflowException,
-            match="`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled.",
-        ):
+        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        with pytest.raises(AirflowException, match=re.escape(error_msg)):
             self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
 
 
