@@ -9,4 +9,3 @@ The following deprecated functions, constants, and classes have been removed as 
 - ``airflow.utils.state.SHUTDOWN`` state: No action needed; this state is no longer used.
 - ``airflow.utils.state.terminating_states`` constant: No action needed; this constant is no longer used.
 
-Users should update their code to remove dependencies on these deprecated features to ensure compatibility with future Airflow versions.
