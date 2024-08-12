@@ -486,19 +486,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
-        if use_airflow_context:
-            if not is_pydantic_2_installed():
-                warnings.warn(
-                    "warning",  # FIXME
-                    Warning,
-                    stacklevel=3,
-                )
-            if not _ENABLE_AIP_44:
-                warnings.warn(
-                    "warning",  # FIXME
-                    Warning,
-                    stacklevel=3,
-                )
 
         self.pickling_library = _SERIALIZERS[serializer]
         self.serializer: _SerializerTypeDef = serializer
@@ -565,7 +552,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             self._write_args(input_path)
             self._write_string_args(string_args_path)
 
-            use_airflow_context = self.use_airflow_context and is_pydantic_2_installed() and _ENABLE_AIP_44
+            if self.use_airflow_context and (not is_pydantic_2_installed() or not _ENABLE_AIP_44):
+                error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+                raise AirflowException(error_msg)
 
             jinja_context = {
                 "op_args": self.op_args,
@@ -574,7 +563,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 "pickling_library": self.serializer,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": self.get_python_source(),
-                "use_airflow_context": use_airflow_context,
+                "use_airflow_context": self.use_airflow_context,
             }
 
             if inspect.getfile(self.python_callable) == self.dag.fileloc:
@@ -585,7 +574,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 filename=os.fspath(script_path),
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
-            if use_airflow_context:
+            if self.use_airflow_context:
                 from airflow.serialization.serialized_objects import BaseSerialization
 
                 context = get_current_context()
