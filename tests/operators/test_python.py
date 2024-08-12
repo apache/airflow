@@ -88,8 +88,9 @@ DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not insta
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
+HAS_PYDANTIC_2 = is_pydantic_2_installed()
 USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(
-    not is_pydantic_2_installed() or not _ENABLE_AIP_44, reason="`pydantic<2` or AIP-44 is not enabled"
+    not HAS_PYDANTIC_2 or not _ENABLE_AIP_44, reason="`pydantic<2` or AIP-44 is not enabled"
 )
 
 
@@ -1083,6 +1084,34 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
         assert ti.state == TaskInstanceState.SUCCESS
+
+    @pytest.mark.skipif(HAS_PYDANTIC_2, reason="`pydantic>=2` is installed")
+    def test_use_airflow_context_without_pydantic_v2_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(
+            AirflowException,
+            match="`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled.",
+        ):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+
+    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
+    def test_use_airflow_context_without_aip_44_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(
+            AirflowException,
+            match="`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled.",
+        ):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
