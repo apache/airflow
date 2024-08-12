@@ -176,7 +176,6 @@ with DAG(
     backup_db_to_point_in_time_full_export = DynamoDBToS3Operator(
         task_id="backup_db_to_point_in_time_full_export",
         dynamodb_table_name=table_name,
-        file_size=1000,
         s3_bucket_name=bucket_name,
         point_in_time_export=True,
         export_time=export_time,
@@ -188,14 +187,17 @@ with DAG(
     backup_db_to_point_in_time_incremental_export = DynamoDBToS3Operator(
         task_id="backup_db_to_point_in_time_incremental_export",
         dynamodb_table_name=table_name,
-        file_size=1000,
         s3_bucket_name=bucket_name,
         point_in_time_export=True,
         s3_key_prefix=f"{S3_KEY_PREFIX}-4-",
-        export_type="INCREMENTAL_EXPORT",
-        incremental_export_from_time=export_time,
-        incremental_export_to_time=latest_export_time,
-        incremental_export_view_type="NEW_AND_OLD_IMAGES",
+        export_table_to_point_in_time_kwargs={
+            "ExportType": "INCREMENTAL_EXPORT",
+            "IncrementalExportSpecification": {
+                "ExportFromTime": export_time,
+                "ExportToTime": latest_export_time,
+                "ExportViewType": "NEW_AND_OLD_IMAGES",
+            },
+        },
     )
     # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
 
