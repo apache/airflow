@@ -190,7 +190,7 @@ class KiotaRequestAdapterHook(BaseHook):
             client_id = connection.login
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
-            tenant_id = config.get("tenant_id")
+            tenant_id = config.get("tenantId") or config.get("tenant_id")
             api_version = self.get_api_version(config)
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version.value))
