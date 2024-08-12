@@ -237,7 +237,7 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             response = json.dumps(output_json) if output_json is not None else None
             log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
-    # In case of AirflowException or other selective known types transport the exception class back to caller
+    # In case of AirflowException or other selective known types, transport the exception class back to caller
     except (KeyError, AttributeError, AirflowException) as e:
         exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
         response = json.dumps(exception_json)
