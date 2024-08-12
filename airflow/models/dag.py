@@ -443,8 +443,8 @@ class DAG(LoggingMixin):
         new active DAG runs
     :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed DAG runs,
         beyond this the scheduler will disable the DAG
-    :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created.
+    :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
+        fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
@@ -3434,10 +3434,14 @@ class DAG(LoggingMixin):
         # reconcile dag-schedule-on-dataset and dag-schedule-on-dataset-alias references
         for dag_id, base_dataset_list in dag_references.items():
             dag_refs_needed = {
-                DagScheduleDatasetReference(dataset_id=stored_datasets[base_dataset.uri].id, dag_id=dag_id)
-                if isinstance(base_dataset, Dataset)
-                else DagScheduleDatasetAliasReference(
-                    alias_id=stored_dataset_aliases[base_dataset.name].id, dag_id=dag_id
+                (
+                    DagScheduleDatasetReference(
+                        dataset_id=stored_datasets[base_dataset.uri].id, dag_id=dag_id
+                    )
+                    if isinstance(base_dataset, Dataset)
+                    else DagScheduleDatasetAliasReference(
+                        alias_id=stored_dataset_aliases[base_dataset.name].id, dag_id=dag_id
+                    )
                 )
                 for base_dataset in base_dataset_list
             }
