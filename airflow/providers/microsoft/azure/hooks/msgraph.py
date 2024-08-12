@@ -190,7 +190,10 @@ class KiotaRequestAdapterHook(BaseHook):
             client_id = connection.login
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
-            tenant_id = config.get("tenantId") or config.get("tenant_id")
+            if connection.conn_type == 'http':
+                tenant_id = config.get("tenant_id")
+            elif connection.conn_type == 'azure':
+                tenant_id = config.get("tenantId")
             api_version = self.get_api_version(config)
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version.value))
