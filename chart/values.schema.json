@@ -7120,6 +7120,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "clusterIp": {
+                            "description": "Specific ClusterIP for the PgBouncer Service.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
