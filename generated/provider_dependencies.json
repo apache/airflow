@@ -820,6 +820,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.14.1",
       "apache-airflow>=2.7.0",
+      "methodtools>=0.4.7",
       "pymssql>=2.3.0"
     ],
     "devel-deps": [],
