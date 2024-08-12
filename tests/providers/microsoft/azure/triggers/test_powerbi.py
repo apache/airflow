@@ -34,9 +34,9 @@ POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
-POWERBI_DATASET_END_TIME = time.time() + 10
-MODULE = "airflow.providers.microsoft.azure"
 TIMEOUT = 60
+POWERBI_DATASET_END_TIME = time.time() + TIMEOUT
+MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 3
 API_VERSION = "v1.0"
 

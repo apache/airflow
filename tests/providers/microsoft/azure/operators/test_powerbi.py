@@ -132,6 +132,7 @@ def test_execute_complete_no_event(create_task_instance_of_operator):
     assert context["ti"].xcom_push.call_count == 0
 
 
+@pytest.mark.db_test
 def test_powerbilink(create_task_instance_of_operator):
     """Assert Power BI Extra link matches the expected URL."""
     ti = create_task_instance_of_operator(
