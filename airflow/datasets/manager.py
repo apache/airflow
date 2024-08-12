@@ -222,7 +222,7 @@ class DatasetManager(LoggingMixin):
                 with session.begin_nested():
                     session.merge(req)
             except exc.IntegrityError:
-                cls.logger().debug("Skipping request %s", req, exc_info=True)
+                cls.logger().debug("Skipping request %s, already present", req, exc_info=True)
                 return None
             return req.fileloc
 
