@@ -57,7 +57,7 @@ class PowerBITrigger(BaseTrigger):
         dataset_id: str,
         group_id: str,
         end_time: float,
-        timeout: float | None = None,
+        timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
         check_interval: int = 60,
@@ -66,6 +66,7 @@ class PowerBITrigger(BaseTrigger):
         super().__init__()
         self.hook = PowerBIHook(conn_id=conn_id, proxies=proxies, api_version=api_version, timeout=timeout)
         self.dataset_id = dataset_id
+        self.timeout = timeout
         self.group_id = group_id
         self.end_time = end_time
         self.check_interval = check_interval
@@ -83,6 +84,7 @@ class PowerBITrigger(BaseTrigger):
                 "dataset_id": self.dataset_id,
                 "group_id": self.group_id,
                 "end_time": self.end_time,
+                "timeout": self.timeout,
                 "check_interval": self.check_interval,
                 "wait_for_termination": self.wait_for_termination,
             },
@@ -108,13 +110,13 @@ class PowerBITrigger(BaseTrigger):
         )
         try:
             dataset_refresh_status = None
-            while self.end_time > time.time():
+            start_time = time.monotonic()
+            while start_time + self.timeout > time.monotonic():
                 refresh_details = await self.hook.get_refresh_details_by_refresh_id(
                     dataset_id=self.dataset_id,
                     group_id=self.group_id,
                     refresh_id=self.dataset_refresh_id,
                 )
-
                 dataset_refresh_status = refresh_details.get("status")
 
                 if dataset_refresh_status == PowerBIDatasetRefreshStatus.COMPLETED:
@@ -135,6 +137,7 @@ class PowerBITrigger(BaseTrigger):
                         }
                     )
                     return
+
                 self.log.info(
                     "Sleeping for %s. The dataset refresh status is %s.",
                     self.check_interval,

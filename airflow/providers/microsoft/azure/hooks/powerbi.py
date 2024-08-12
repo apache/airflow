@@ -67,7 +67,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
         self,
         conn_id: str = default_conn_name,
         proxies: dict | None = None,
-        timeout: float | None = None,
+        timeout: float = 60 * 60 * 24 * 7,
         api_version: APIVersion | str | None = None,
     ):
         super().__init__(

@@ -34,10 +34,10 @@ POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
-TIMEOUT = 60
+TIMEOUT = 30
 POWERBI_DATASET_END_TIME = time.time() + TIMEOUT
 MODULE = "airflow.providers.microsoft.azure"
-CHECK_INTERVAL = 3
+CHECK_INTERVAL = 10
 API_VERSION = "v1.0"
 
 
@@ -94,6 +94,7 @@ def test_powerbi_trigger_serialization():
         assert kwargs == {
             "conn_id": POWERBI_CONN_ID,
             "dataset_id": DATASET_ID,
+            "timeout": TIMEOUT,
             "group_id": GROUP_ID,
             "end_time": POWERBI_DATASET_END_TIME,
             "proxies": None,
