@@ -2405,7 +2405,7 @@
                     "default": null
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "description": "Grace period for scheduler to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 10
                 },
