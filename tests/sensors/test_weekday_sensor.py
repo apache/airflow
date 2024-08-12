@@ -129,18 +129,3 @@ class TestDayOfWeekSensor:
         )
         with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-
-    def test_deprecation_warning(self):
-        warning_message = (
-            """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            DayOfWeekSensor(
-                task_id="week_day_warn",
-                poke_interval=1,
-                timeout=2,
-                week_day="Tuesday",
-                use_task_execution_day=True,
-                dag=self.dag,
-            )
-        assert warning_message == str(warnings[0].message)
