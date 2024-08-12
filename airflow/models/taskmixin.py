@@ -16,11 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -89,7 +88,7 @@ class DependencyMixin:
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
         """
-        Update relationship information about another TaskMixin. Default is no-op.
+        Update relationship information about another DependencyMixin. Default is no-op.
 
         Override if necessary.
         """
@@ -126,22 +125,6 @@ class DependencyMixin:
         elif isinstance(obj, Sequence):
             for o in obj:
                 yield from cls._iter_references(o)
-
-
-class TaskMixin(DependencyMixin):
-    """
-    Mixin to provide task-related things.
-
-    :meta private:
-    """
-
-    def __init_subclass__(cls) -> None:
-        warnings.warn(
-            f"TaskMixin has been renamed to DependencyMixin, please update {cls.__name__}",
-            category=RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return super().__init_subclass__()
 
 
 class DAGNode(DependencyMixin, metaclass=ABCMeta):
