@@ -81,7 +81,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - adlfs>=2023.10.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.6.0
