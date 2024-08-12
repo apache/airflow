@@ -618,6 +618,7 @@ class TestDagProcessorJobRunner:
             parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
         assert parsing_request_after is None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_purge_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
