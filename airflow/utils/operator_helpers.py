@@ -164,7 +164,7 @@ class KeywordParameters:
 
         for name in itertools.islice(signature.parameters.keys(), len(args)):
             # Check if args conflict with names in kwargs.
-            if name in kwargs:
+            if signature.parameters[name].kind == inspect.Parameter.POSITIONAL_ONLY and name in kwargs:
                 raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
 
         if has_wildcard_kwargs:

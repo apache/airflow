@@ -224,3 +224,8 @@ def test_make_kwargs_callable_conflict():
         kwargs_callable(*args, **kwargs)
 
     assert "ds_nodash" in str(exc_info)
+
+
+def test_args_and_kwargs_conflicts():
+    kwargs_callable = operator_helpers.determine(callable9)
+    assert kwargs_callable(args=[1, 2], kwargs={"keyword_argument": 1})
