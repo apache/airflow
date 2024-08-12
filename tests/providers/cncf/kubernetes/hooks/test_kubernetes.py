@@ -53,7 +53,8 @@ CONTAINER_NAME = "test-container"
 POLL_INTERVAL = 100
 
 
-class DeprecationRemovalRequired(AirflowException): ...
+class DeprecationRemovalRequired(AirflowException):
+    ...
 
 
 DEFAULT_CONN_ID = "kubernetes_default"
@@ -79,6 +80,7 @@ class TestKubernetesHook:
             ("in_cluster", {"in_cluster": True}),
             ("in_cluster_empty", {"in_cluster": ""}),
             ("kube_config", {"kube_config": '{"test": "kube"}'}),
+            ("kube_config_dict", {"kube_config": {"test": "kube"}}),
             ("kube_config_path", {"kube_config_path": "path/to/file"}),
             ("kube_config_empty", {"kube_config": ""}),
             ("kube_config_path_empty", {"kube_config_path": ""}),
@@ -285,6 +287,7 @@ class TestKubernetesHook:
         (
             (None, False),
             ("kube_config", True),
+            ("kube_config_dict", True),
             ("kube_config_empty", False),
         ),
     )
