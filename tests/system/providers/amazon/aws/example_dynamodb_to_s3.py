@@ -186,7 +186,7 @@ with DAG(
 
     # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
     backup_db_to_point_in_time_incremental_export = DynamoDBToS3Operator(
-        task_id="backup_db_to_point_in_time_full_export",
+        task_id="backup_db_to_point_in_time_incremental_export",
         dynamodb_table_name=table_name,
         file_size=1000,
         s3_bucket_name=bucket_name,
