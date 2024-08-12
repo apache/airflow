@@ -45,11 +45,12 @@ const SourceTaskInstance = ({
   const { sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex } =
     datasetEvent;
 
+
   const { data: taskInstance } = useTaskInstance({
     dagId: sourceDagId || "",
     dagRunId: sourceRunId || "",
     taskId: sourceTaskId || "",
-    mapIndex: sourceMapIndex || undefined,
+    mapIndex: sourceMapIndex,
     options: {
       enabled: !!(sourceDagId && sourceRunId && sourceTaskId),
       refetchInterval: false,
