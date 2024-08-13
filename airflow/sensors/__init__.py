@@ -16,3 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # fmt: off
+"""
+Sensors.
+
+:sphinx-autoapi-skip:
+"""
