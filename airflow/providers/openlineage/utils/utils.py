@@ -23,6 +23,7 @@ import logging
 import re
 from contextlib import redirect_stdout, suppress
 from functools import wraps
+from importlib import metadata
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
@@ -38,6 +39,7 @@ from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
+    AirflowDebugRunFacet,
     AirflowJobFacet,
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
@@ -85,6 +87,10 @@ def get_job_name(task: TaskInstance) -> str:
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
+    log.debug(
+        "AirflowMappedTaskRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
         return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
     return {}
@@ -240,7 +246,7 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "owner", "schedule_interval", "start_date", "tags"]
+    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -370,6 +376,28 @@ def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
         "airflowDagRun": AirflowDagRunFacet(
             dag=DagInfo(dag_run.dag),
             dagRun=DagRunInfo(dag_run),
+        )
+    }
+
+
+@conf.cache
+def _get_all_packages_installed() -> dict[str, str]:
+    """
+    Retrieve a dictionary of all installed packages and their versions.
+
+    This operation involves scanning the system's installed packages, which can be a heavy operation.
+    It is recommended to cache the result to avoid repeated, expensive lookups.
+    """
+    return {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}
+
+
+def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
+    if not conf.debug_mode():
+        return {}
+    log.warning("OpenLineage debug_mode is enabled. Be aware that this may log and emit extensive details.")
+    return {
+        "debug": AirflowDebugRunFacet(
+            packages=_get_all_packages_installed(),
         )
     }
 
@@ -536,6 +564,10 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
 def get_unknown_source_attribute_run_facet(task: BaseOperator, name: str | None = None):
     if not name:
         name = get_operator_class(task).__name__
+    log.debug(
+        "UnknownOperatorAttributeRunFacet is deprecated and will be removed. "
+        "Use information from AirflowRunFacet instead."
+    )
     return {
         "unknownSourceAttribute": attrs.asdict(
             UnknownOperatorAttributeRunFacet(

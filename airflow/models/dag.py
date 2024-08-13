@@ -115,6 +115,7 @@ from airflow.models.taskinstance import (
     TaskInstanceKey,
     clear_task_instances,
 )
+from airflow.models.tasklog import LogTemplate
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json
@@ -338,6 +339,9 @@ def _create_orm_dagrun(
         creating_job_id=creating_job_id,
         data_interval=data_interval,
     )
+    # Load defaults into the following two fields to ensure result can be serialized detached
+    run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    run.consumed_dataset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
@@ -455,6 +459,8 @@ class DAG(LoggingMixin):
         that it is executed when the dag succeeds.
     :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
+        or it can specify the resource name if there is a DAGs Run resource, e.g.,
+        "{'role1': {'DAG Runs': {'can_create'}}, 'role2': {'DAGs': {'can_read', 'can_edit', 'can_delete'}}"
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -491,7 +497,6 @@ class DAG(LoggingMixin):
     _comps = {
         "dag_id",
         "task_ids",
-        "parent_dag",
         "start_date",
         "end_date",
         "schedule_interval",
@@ -504,13 +509,11 @@ class DAG(LoggingMixin):
 
     fileloc: str
     """
-    File path that needs to be imported to load this DAG or subdag.
+    File path that needs to be imported to load this DAG.
 
     This may not be an actual file on disk in the case when this DAG is loaded
     from a ZIP file or other DAG distribution format.
     """
-
-    parent_dag: DAG | None = None  # Gets set when DAGs are loaded
 
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
@@ -544,7 +547,7 @@ class DAG(LoggingMixin):
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
         params: abc.MutableMapping | None = None,
-        access_control: dict | None = None,
+        access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
         render_template_as_native_obj: bool = False,
@@ -917,21 +920,33 @@ class DAG(LoggingMixin):
         """
         if access_control is None:
             return None
-        new_perm_mapping = {
+        new_dag_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
             permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
         }
+
+        def update_old_perm(permission: str):
+            new_perm = new_dag_perm_mapping.get(permission, permission)
+            if new_perm != permission:
+                warnings.warn(
+                    f"The '{permission}' permission is deprecated. Please use '{new_perm}'.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=3,
+                )
+            return new_perm
+
         updated_access_control = {}
         for role, perms in access_control.items():
-            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
-
-        if access_control != updated_access_control:
-            warnings.warn(
-                "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
-                "Please use 'can_read' and 'can_edit', respectively.",
-                RemovedInAirflow3Warning,
-                stacklevel=3,
-            )
+            updated_access_control[role] = updated_access_control.get(role, {})
+            if isinstance(perms, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
+            else:
+                updated_access_control[role] = perms
+            if permissions.RESOURCE_DAG in updated_access_control[role]:
+                updated_access_control[role][permissions.RESOURCE_DAG] = {
+                    update_old_perm(perm) for perm in updated_access_control[role][permissions.RESOURCE_DAG]
+                }
 
         return updated_access_control
 
@@ -1123,10 +1138,6 @@ class DAG(LoggingMixin):
         :return: DagRunInfo of the next dagrun, or None if a dagrun is not
             going to be scheduled.
         """
-        # Never schedule a subdag. It will be scheduled by its parent dag.
-        if self.is_subdag:
-            return None
-
         data_interval = None
         if isinstance(last_automated_dagrun, datetime):
             warnings.warn(
@@ -1205,8 +1216,7 @@ class DAG(LoggingMixin):
 
         If ``align`` is ``False``, the first run will happen immediately on
         ``earliest``, even if it does not fall on the logical timetable schedule.
-        The default is ``True``, but subdags will ignore this value and always
-        behave as if this is set to ``False`` for backward compatibility.
+        The default is ``True``.
 
         Example: A DAG is scheduled to run every midnight (``0 0 * * *``). If
         ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
@@ -1221,15 +1231,6 @@ class DAG(LoggingMixin):
         latest = timezone.coerce_datetime(latest)
 
         restriction = TimeRestriction(earliest, latest, catchup=True)
-
-        # HACK: Sub-DAGs are currently scheduled differently. For example, say
-        # the schedule is @daily and start is 2021-06-03 22:16:00, a top-level
-        # DAG should be first scheduled to run on midnight 2021-06-04, but a
-        # sub-DAG should be first scheduled to run RIGHT NOW. We can change
-        # this, but since sub-DAGs are going away in 3.0 anyway, let's keep
-        # compatibility for now and remove this entirely later.
-        if self.is_subdag:
-            align = False
 
         try:
             info = self.timetable.next_dagrun_info(
@@ -1334,10 +1335,6 @@ class DAG(LoggingMixin):
     @dag_id.setter
     def dag_id(self, value: str) -> None:
         self._dag_id = value
-
-    @property
-    def is_subdag(self) -> bool:
-        return self.parent_dag is not None
 
     @property
     def full_filepath(self) -> str:
@@ -1743,25 +1740,6 @@ class DAG(LoggingMixin):
         )
         return self.get_latest_execution_date()
 
-    @property
-    def subdags(self):
-        """Return a list of the subdag objects associated to this DAG."""
-        # Check SubDag for class but don't check class directly
-        from airflow.operators.subdag import SubDagOperator
-
-        subdag_lst = []
-        for task in self.tasks:
-            if (
-                isinstance(task, SubDagOperator)
-                or
-                # TODO remove in Airflow 2.0
-                type(task).__name__ == "SubDagOperator"
-                or task.task_type == "SubDagOperator"
-            ):
-                subdag_lst.append(task.subdag)
-                subdag_lst += task.subdag.subdags
-        return subdag_lst
-
     def resolve_template_files(self):
         for t in self.tasks:
             t.resolve_template_files()
@@ -1854,8 +1832,6 @@ class DAG(LoggingMixin):
             end_date=end_date,
             run_id=None,
             state=state or (),
-            include_subdags=False,
-            include_parentdag=False,
             include_dependent_dags=False,
             exclude_task_ids=(),
             session=session,
@@ -1871,8 +1847,6 @@ class DAG(LoggingMixin):
         end_date: datetime | None,
         run_id: str | None,
         state: TaskInstanceState | Sequence[TaskInstanceState],
-        include_subdags: bool,
-        include_parentdag: bool,
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
@@ -1889,8 +1863,6 @@ class DAG(LoggingMixin):
         end_date: datetime | None,
         run_id: str | None,
         state: TaskInstanceState | Sequence[TaskInstanceState],
-        include_subdags: bool,
-        include_parentdag: bool,
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
@@ -1909,8 +1881,6 @@ class DAG(LoggingMixin):
         end_date: datetime | None,
         run_id: str | None,
         state: TaskInstanceState | Sequence[TaskInstanceState],
-        include_subdags: bool,
-        include_parentdag: bool,
         include_dependent_dags: bool,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
@@ -1921,7 +1891,7 @@ class DAG(LoggingMixin):
     ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
         TI = TaskInstance
 
-        # If we are looking at subdags/dependent dags we want to avoid UNION calls
+        # If we are looking at dependent dags we want to avoid UNION calls
         # in SQL (it doesn't play nice with fields that have no equality operator,
         # like JSON types), we instead build our result set separately.
         #
@@ -1936,15 +1906,7 @@ class DAG(LoggingMixin):
             tis = select(TaskInstance)
         tis = tis.join(TaskInstance.dag_run)
 
-        if include_subdags:
-            # Crafting the right filter for dag_id and task_ids combo
-            conditions = []
-            for dag in [*self.subdags, self]:
-                conditions.append(
-                    (TaskInstance.dag_id == dag.dag_id) & TaskInstance.task_id.in_(dag.task_ids)
-                )
-            tis = tis.where(or_(*conditions))
-        elif self.partial:
+        if self.partial:
             tis = tis.where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
         else:
             tis = tis.where(TaskInstance.dag_id == self.dag_id)
@@ -1977,36 +1939,6 @@ class DAG(LoggingMixin):
                         )
                 else:
                     tis = tis.where(TaskInstance.state.in_(state))
-
-        # Next, get any of them from our parent DAG (if there is one)
-        if include_parentdag and self.parent_dag is not None:
-            if visited_external_tis is None:
-                visited_external_tis = set()
-
-            p_dag = self.parent_dag.partial_subset(
-                task_ids_or_regex=r"^{}$".format(self.dag_id.split(".")[1]),
-                include_upstream=False,
-                include_downstream=True,
-            )
-            result.update(
-                p_dag._get_task_instances(
-                    task_ids=task_ids,
-                    start_date=start_date,
-                    end_date=end_date,
-                    run_id=None,
-                    state=state,
-                    include_subdags=include_subdags,
-                    include_parentdag=False,
-                    include_dependent_dags=include_dependent_dags,
-                    as_pk_tuple=True,
-                    exclude_task_ids=exclude_task_ids,
-                    session=session,
-                    dag_bag=dag_bag,
-                    recursion_depth=recursion_depth,
-                    max_recursion_depth=max_recursion_depth,
-                    visited_external_tis=visited_external_tis,
-                )
-            )
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
@@ -2077,9 +2009,7 @@ class DAG(LoggingMixin):
                             start_date=None,
                             end_date=None,
                             state=state,
-                            include_subdags=include_subdags,
                             include_dependent_dags=include_dependent_dags,
-                            include_parentdag=False,
                             as_pk_tuple=True,
                             exclude_task_ids=exclude_task_ids,
                             dag_bag=dag_bag,
@@ -2091,7 +2021,7 @@ class DAG(LoggingMixin):
                     )
 
         if result or as_pk_tuple:
-            # Only execute the `ti` query if we have also collected some other results (i.e. subdags etc.)
+            # Only execute the `ti` query if we have also collected some other results
             if as_pk_tuple:
                 tis_query = session.execute(tis).all()
                 result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
@@ -2206,8 +2136,6 @@ class DAG(LoggingMixin):
         subdag.clear(
             start_date=start_date,
             end_date=end_date,
-            include_subdags=True,
-            include_parentdag=True,
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
@@ -2307,8 +2235,6 @@ class DAG(LoggingMixin):
             task_subset.clear(
                 start_date=start_date,
                 end_date=end_date,
-                include_subdags=True,
-                include_parentdag=True,
                 only_failed=True,
                 session=session,
                 # Exclude the task from the current group from being cleared
@@ -2327,7 +2253,7 @@ class DAG(LoggingMixin):
         """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
         return [task for task in self.tasks if not task.downstream_list]
 
-    def topological_sort(self, include_subdag_tasks: bool = False):
+    def topological_sort(self):
         """
         Sorts tasks in topographical order, such that a task comes after any of its upstream dependencies.
 
@@ -2336,7 +2262,7 @@ class DAG(LoggingMixin):
         from airflow.utils.task_group import TaskGroup
 
         def nested_topo(group):
-            for node in group.topological_sort(_include_subdag_tasks=include_subdag_tasks):
+            for node in group.topological_sort():
                 if isinstance(node, TaskGroup):
                     yield from nested_topo(node)
                 else:
@@ -2375,8 +2301,6 @@ class DAG(LoggingMixin):
         only_failed: bool = False,
         only_running: bool = False,
         confirm_prompt: bool = False,
-        include_subdags: bool = True,
-        include_parentdag: bool = True,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
@@ -2395,14 +2319,11 @@ class DAG(LoggingMixin):
         :param only_failed: Only clear failed tasks
         :param only_running: Only clear running tasks.
         :param confirm_prompt: Ask for confirmation
-        :param include_subdags: Clear tasks in subdags and clear external tasks
-            indicated by ExternalTaskMarker
-        :param include_parentdag: Clear tasks in the parent dag of the subdag.
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
         :param session: The sqlalchemy session to use
-        :param dag_bag: The DagBag used to find the dags subdags (Optional)
+        :param dag_bag: The DagBag used to find the dags (Optional)
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         """
@@ -2440,9 +2361,7 @@ class DAG(LoggingMixin):
             end_date=end_date,
             run_id=None,
             state=state,
-            include_subdags=include_subdags,
-            include_parentdag=include_parentdag,
-            include_dependent_dags=include_subdags,  # compat, yes this is not a typo
+            include_dependent_dags=True,
             session=session,
             dag_bag=dag_bag,
             exclude_task_ids=exclude_task_ids,
@@ -2485,8 +2404,6 @@ class DAG(LoggingMixin):
         only_failed=False,
         only_running=False,
         confirm_prompt=False,
-        include_subdags=True,
-        include_parentdag=False,
         dag_run_state=DagRunState.QUEUED,
         dry_run=False,
     ):
@@ -2498,8 +2415,6 @@ class DAG(LoggingMixin):
                 only_failed=only_failed,
                 only_running=only_running,
                 confirm_prompt=False,
-                include_subdags=include_subdags,
-                include_parentdag=include_parentdag,
                 dag_run_state=dag_run_state,
                 dry_run=True,
             )
@@ -2526,7 +2441,6 @@ class DAG(LoggingMixin):
                     only_failed=only_failed,
                     only_running=only_running,
                     confirm_prompt=False,
-                    include_subdags=include_subdags,
                     dag_run_state=dag_run_state,
                     dry_run=False,
                 )
@@ -2550,15 +2464,6 @@ class DAG(LoggingMixin):
         if hasattr(self, "_log"):
             result._log = self._log
         return result
-
-    def sub_dag(self, *args, **kwargs):
-        """Use `airflow.models.DAG.partial_subset`, this method is deprecated."""
-        warnings.warn(
-            "This method is deprecated and will be removed in a future version. Please use partial_subset",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.partial_subset(*args, **kwargs)
 
     def partial_subset(
         self,
@@ -2702,13 +2607,9 @@ class DAG(LoggingMixin):
     def task_group_dict(self):
         return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
-    def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
+    def get_task(self, task_id: str) -> Operator:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
-        if include_subdags:
-            for dag in self.subdags:
-                if task_id in dag.task_dict:
-                    return dag.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
 
     def pickle_info(self):
@@ -3186,8 +3087,6 @@ class DAG(LoggingMixin):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB.
 
-        Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
-
         :param dags: the DAG objects to save to the DB
         :return: None
         """
@@ -3239,15 +3138,8 @@ class DAG(LoggingMixin):
         for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
             dag = dag_by_ids[orm_dag.dag_id]
             filelocs.append(dag.fileloc)
-            if dag.is_subdag:
-                orm_dag.is_subdag = True
-                orm_dag.fileloc = dag.parent_dag.fileloc  # type: ignore
-                orm_dag.root_dag_id = dag.parent_dag.dag_id  # type: ignore
-                orm_dag.owners = dag.parent_dag.owner  # type: ignore
-            else:
-                orm_dag.is_subdag = False
-                orm_dag.fileloc = dag.fileloc
-                orm_dag.owners = dag.owner
+            orm_dag.fileloc = dag.fileloc
+            orm_dag.owners = dag.owner
             orm_dag.is_active = True
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
@@ -3462,9 +3354,6 @@ class DAG(LoggingMixin):
         # decide when to commit
         session.flush()
 
-        for dag in dags:
-            cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
-
     @classmethod
     def _get_latest_runs_stmt(cls, dags: list[str]) -> Select:
         """
@@ -3513,8 +3402,6 @@ class DAG(LoggingMixin):
     def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB.
-
-        Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
 
         :return: None
         """
@@ -3609,7 +3496,6 @@ class DAG(LoggingMixin):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             exclusion_list = {
-                "parent_dag",
                 "schedule_dataset_references",
                 "schedule_dataset_alias_references",
                 "task_outlet_dataset_references",
@@ -3741,13 +3627,10 @@ class DagModel(Base):
     These items are stored in the database for state related information
     """
     dag_id = Column(StringID(), primary_key=True)
-    root_dag_id = Column(StringID())
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused = Column(Boolean, default=is_paused_at_creation)
-    # Whether the DAG is a subdag
-    is_subdag = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
     is_active = Column(Boolean, default=False)
     # Last time the scheduler started
@@ -3806,14 +3689,8 @@ class DagModel(Base):
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after = Column(UtcDateTime)
 
-    __table_args__ = (
-        Index("idx_root_dag_id", root_dag_id, unique=False),
-        Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
-    )
+    __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
-    parent_dag = relationship(
-        "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
-    )
     schedule_dataset_references = relationship(
         "DagScheduleDatasetReference",
         back_populates="dag",
@@ -3886,7 +3763,6 @@ class DagModel(Base):
         return session.get(
             DagModel,
             dag_id,
-            options=[joinedload(DagModel.parent_dag)],
         )
 
     @classmethod
@@ -3951,19 +3827,17 @@ class DagModel(Base):
             return path
 
     @provide_session
-    def set_is_paused(self, is_paused: bool, including_subdags: bool = True, session=NEW_SESSION) -> None:
+    def set_is_paused(self, is_paused: bool, session=NEW_SESSION) -> None:
         """
         Pause/Un-pause a DAG.
 
         :param is_paused: Is the DAG paused
-        :param including_subdags: whether to include the DAG's subdags
         :param session: session
         """
         filter_query = [
             DagModel.dag_id == self.dag_id,
         ]
-        if including_subdags:
-            filter_query.append(DagModel.root_dag_id == self.dag_id)
+
         session.execute(
             update(DagModel)
             .where(or_(*filter_query))
@@ -4168,7 +4042,7 @@ def dag(
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
     params: abc.MutableMapping | None = None,
-    access_control: dict | None = None,
+    access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
     render_template_as_native_obj: bool = False,

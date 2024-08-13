@@ -69,11 +69,19 @@ def configured_app(minimal_app_for_api):
     create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
     app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
-        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+        access_control={
+            "TestGranularDag": {
+                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+            },
+        },
     )
     app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
-        access_control={"TestGranularDag": [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
+        access_control={
+            "TestGranularDag": {
+                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+            },
+        },
     )
 
     with DAG(
@@ -188,9 +196,7 @@ class TestGetDag(TestDagEndpoint):
             "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
             "is_paused": False,
             "is_active": True,
-            "is_subdag": False,
             "owners": [],
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "tags": [],
             "next_dagrun": None,
@@ -231,9 +237,7 @@ class TestGetDag(TestDagEndpoint):
             "file_token": "Ii90bXAvZGFnXzEucHki.EnmIdPaUPo26lHQClbWMbDFD1Pk",
             "is_paused": False,
             "is_active": False,
-            "is_subdag": False,
             "owners": [],
-            "root_dag_id": None,
             "schedule_interval": None,
             "tags": [],
             "next_dagrun": None,
@@ -364,7 +368,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
-            "is_subdag": False,
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
@@ -388,7 +391,6 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -430,7 +432,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
-            "is_subdag": False,
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
@@ -454,7 +455,6 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -491,7 +491,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
-            "is_subdag": False,
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
@@ -508,7 +507,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {},
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -545,7 +543,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
-            "is_subdag": False,
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": None,
@@ -562,7 +559,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {},
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "scheduler_lock": None,
             "start_date": None,
@@ -602,7 +598,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
-            "is_subdag": False,
             "last_expired": None,
             "last_parsed_time": None,
             "last_pickled": None,
@@ -625,7 +620,6 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -666,7 +660,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
-            "is_subdag": False,
             "last_expired": None,
             "last_parsed_time": None,
             "last_pickled": None,
@@ -689,7 +682,6 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "root_dag_id": None,
             "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
@@ -766,7 +758,7 @@ class TestGetDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})
@@ -784,9 +776,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -817,9 +807,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token2,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -862,9 +850,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -908,9 +894,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -941,9 +925,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token_2,
                     "is_paused": False,
                     "is_active": False,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1112,9 +1094,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": True,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1157,9 +1137,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1202,9 +1180,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": True,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1235,9 +1211,7 @@ class TestGetDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1299,7 +1273,7 @@ class TestGetDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.get("api/v1/dags")
@@ -1326,9 +1300,7 @@ class TestPatchDag(TestDagEndpoint):
             "file_token": file_token,
             "is_paused": False,
             "is_active": False,
-            "is_subdag": False,
             "owners": [],
-            "root_dag_id": None,
             "schedule_interval": {
                 "__type": "CronExpression",
                 "value": "2 2 * * *",
@@ -1463,9 +1435,7 @@ class TestPatchDag(TestDagEndpoint):
             "file_token": file_token,
             "is_paused": False,
             "is_active": False,
-            "is_subdag": False,
             "owners": [],
-            "root_dag_id": None,
             "schedule_interval": {
                 "__type": "CronExpression",
                 "value": "2 2 * * *",
@@ -1559,7 +1529,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.patch(
@@ -1581,9 +1551,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1614,9 +1582,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token2,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1650,7 +1616,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.patch(
@@ -1672,9 +1638,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1705,9 +1669,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token2,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1739,7 +1701,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.patch(
@@ -1762,7 +1724,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.patch(
@@ -1803,9 +1765,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1857,9 +1817,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -1890,9 +1848,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token_2,
                     "is_paused": False,
                     "is_active": False,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2107,9 +2063,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": True,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2140,9 +2094,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token2,
                     "is_paused": True,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2194,9 +2146,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": True,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2227,9 +2177,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token10,
                     "is_paused": True,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2283,9 +2231,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token10,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2316,9 +2262,7 @@ class TestPatchDags(TestDagEndpoint):
                     "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
-                    "is_subdag": False,
                     "owners": [],
-                    "root_dag_id": None,
                     "schedule_interval": {
                         "__type": "CronExpression",
                         "value": "2 2 * * *",
@@ -2369,7 +2313,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = session.query(DagModel)
         assert len(dags_query.all()) == 3
 
         response = self.client.patch(

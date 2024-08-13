@@ -55,7 +55,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - papermill[all]>=2.4.0
   - scrapbook[all]
   - ipykernel
