@@ -46,19 +46,6 @@ class BaseTestAuth:
 
 
 class TestEmptyCors(BaseTestAuth):
-    @pytest.fixture(autouse=True, scope="class")
-    def with_basic_auth_backend(self, minimal_app_for_api):
-        from airflow.www.extensions.init_security import init_api_experimental_auth
-
-        old_auth = getattr(minimal_app_for_api, "api_auth")
-
-        try:
-            with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
-                init_api_experimental_auth(minimal_app_for_api)
-                yield
-        finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
-
     def test_empty_cors_headers(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
@@ -72,24 +59,6 @@ class TestEmptyCors(BaseTestAuth):
 
 
 class TestCorsOrigin(BaseTestAuth):
-    @pytest.fixture(autouse=True, scope="class")
-    def with_basic_auth_backend(self, minimal_app_for_api):
-        from airflow.www.extensions.init_security import init_api_experimental_auth
-
-        old_auth = getattr(minimal_app_for_api, "api_auth")
-
-        try:
-            with conf_vars(
-                {
-                    ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-                    ("api", "access_control_allow_origins"): "http://apache.org http://example.com",
-                }
-            ):
-                init_api_experimental_auth(minimal_app_for_api)
-                yield
-        finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
-
     def test_cors_origin_reflection(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()
@@ -113,24 +82,6 @@ class TestCorsOrigin(BaseTestAuth):
 
 
 class TestCorsWildcard(BaseTestAuth):
-    @pytest.fixture(autouse=True, scope="class")
-    def with_basic_auth_backend(self, minimal_app_for_api):
-        from airflow.www.extensions.init_security import init_api_experimental_auth
-
-        old_auth = getattr(minimal_app_for_api, "api_auth")
-
-        try:
-            with conf_vars(
-                {
-                    ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-                    ("api", "access_control_allow_origins"): "*",
-                }
-            ):
-                init_api_experimental_auth(minimal_app_for_api)
-                yield
-        finally:
-            setattr(minimal_app_for_api, "api_auth", old_auth)
-
     def test_cors_origin_reflection(self):
         token = "Basic " + b64encode(b"test:test").decode()
         clear_db_pools()

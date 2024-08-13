@@ -46,7 +46,6 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "Integration",
             [
-                "tests/integration/api_experimental",
                 "tests/integration/cli",
                 "tests/integration/executors",
                 "tests/integration/security",
@@ -55,7 +54,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal"],
             False,
         ),
         (
@@ -238,7 +237,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
     [
         (
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal"],
             False,
         ),
         (
@@ -252,7 +251,6 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             "API CLI",
             [
                 "tests/api",
-                "tests/api_experimental",
                 "tests/api_connexion",
                 "tests/api_internal",
                 "tests/cli",

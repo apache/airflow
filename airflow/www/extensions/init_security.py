@@ -47,25 +47,6 @@ def init_xframe_protection(app):
     app.after_request(apply_caching)
 
 
-def init_api_experimental_auth(app):
-    """Load authentication backends."""
-    auth_backends = "airflow.api.auth.backend.default"
-    try:
-        auth_backends = conf.get("api", "auth_backends")
-    except AirflowConfigException:
-        pass
-
-    app.api_auth = []
-    try:
-        for backend in auth_backends.split(","):
-            auth = import_module(backend.strip())
-            auth.init_app(app)
-            app.api_auth.append(auth)
-    except ImportError as err:
-        log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-        raise AirflowException(err)
-
-
 def init_cache_control(app):
     def apply_cache_control(response):
         if "Cache-Control" not in response.headers:

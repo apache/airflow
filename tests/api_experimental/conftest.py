@@ -33,7 +33,7 @@ def minimal_app_for_experimental_api():
     ):
 
         @dont_initialize_flask_app_submodules(
-            skip_all_except=["init_appbuilder", "init_api_experimental", "init_api_experimental_auth"]
+            skip_all_except=["init_appbuilder"]
         )
         def factory():
             # Make sure we don't issue a warning in the test summary about deprecation

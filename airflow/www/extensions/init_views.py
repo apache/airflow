@@ -314,24 +314,6 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     app.extensions["csrf"].exempt(api_bp)
 
 
-def init_api_experimental(app):
-    """Initialize Experimental API."""
-    if not conf.getboolean("api", "enable_experimental_api", fallback=False):
-        return
-    from airflow.www.api.experimental import endpoints
-
-    warnings.warn(
-        "The experimental REST API is deprecated. Please migrate to the stable REST API. "
-        "Please note that the experimental API do not have access control. "
-        "The authenticated user has full access.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    base_paths.append("/api/experimental")
-    app.register_blueprint(endpoints.api_experimental, url_prefix="/api/experimental")
-    app.extensions["csrf"].exempt(endpoints.api_experimental)
-
-
 def init_api_auth_provider(app):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
