@@ -126,7 +126,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         *,
         dynamodb_table_name: str,
         s3_bucket_name: str,
-        file_size: int | None = None,
+        file_size: int = 1000,
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
