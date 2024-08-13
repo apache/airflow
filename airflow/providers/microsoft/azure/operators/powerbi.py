@@ -99,7 +99,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     conn_id=self.conn_id,
                     group_id=self.group_id,
                     dataset_id=self.dataset_id,
-                    # dataset_refresh_id=refresh_id,
                     end_time=end_time,
                     timeout=self.timeout,
                     check_interval=self.check_interval,
@@ -118,7 +117,6 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
             if event["status"] == "error":
                 raise AirflowException(event["message"])
 
-            # Push Dataset refresh Id and status to Xcom
             self.xcom_push(
                 context=context, key="powerbi_dataset_refresh_Id", value=event["dataset_refresh_id"]
             )
