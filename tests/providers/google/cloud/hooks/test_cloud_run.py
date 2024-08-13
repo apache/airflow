@@ -22,16 +22,25 @@ from unittest import mock
 import pytest
 from google.cloud.run_v2 import (
     CreateJobRequest,
+    CreateServiceRequest,
     DeleteJobRequest,
+    DeleteServiceRequest,
     GetJobRequest,
+    GetServiceRequest,
     Job,
     ListJobsRequest,
     RunJobRequest,
+    Service,
     UpdateJobRequest,
 )
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook, CloudRunHook
+from airflow.providers.google.cloud.hooks.cloud_run import (
+    CloudRunAsyncHook,
+    CloudRunHook,
+    CloudRunServiceAsyncHook,
+    CloudRunServiceHook,
+)
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 
@@ -294,3 +303,131 @@ class TestCloudRunAsyncHook:
 
     def _dummy_get_credentials(self):
         pass
+
+
+@pytest.mark.db_test
+class TestCloudRunServiceHook:
+    def dummy_get_credentials(self):
+        pass
+
+    @pytest.fixture
+    def cloud_run_service_hook(self):
+        cloud_run_service_hook = CloudRunServiceHook()
+        cloud_run_service_hook.get_credentials = self.dummy_get_credentials
+        return cloud_run_service_hook
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesClient")
+    def test_get_service(self, mock_batch_service_client, cloud_run_service_hook):
+        service_name = "service1"
+        region = "region1"
+        project_id = "projectid"
+
+        get_service_request = GetServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+
+        cloud_run_service_hook.get_service(service_name=service_name, region=region, project_id=project_id)
+        cloud_run_service_hook._client.get_service.assert_called_once_with(get_service_request)
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesClient")
+    def test_create_service(self, mock_batch_service_client, cloud_run_service_hook):
+        service_name = "service1"
+        region = "region1"
+        project_id = "projectid"
+        service = Service()
+
+        create_request = CreateServiceRequest()
+        create_request.service = service
+        create_request.service_id = service_name
+        create_request.parent = f"projects/{project_id}/locations/{region}"
+
+        cloud_run_service_hook.create_service(
+            service=service, service_name=service_name, region=region, project_id=project_id
+        )
+        cloud_run_service_hook._client.create_service.assert_called_once_with(create_request)
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesClient")
+    def test_delete_service(self, mock_batch_service_client, cloud_run_service_hook):
+        service_name = "service1"
+        region = "region1"
+        project_id = "projectid"
+
+        delete_request = DeleteServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+
+        cloud_run_service_hook.delete_service(service_name=service_name, region=region, project_id=project_id)
+        cloud_run_service_hook._client.delete_service.assert_called_once_with(delete_request)
+
+
+class TestCloudRunServiceAsyncHook:
+    def dummy_get_credentials(self):
+        pass
+
+    def mock_service(self):
+        return mock.AsyncMock()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
+    async def test_create_service(self, mock_client):
+        mock_client.return_value = mock.MagicMock()
+        mock_client.return_value.create_service = self.mock_service()
+
+        hook = CloudRunServiceAsyncHook()
+        hook.get_credentials = self.dummy_get_credentials
+
+        await hook.create_service(
+            service_name="service1",
+            service=Service(),
+            region="region1",
+            project_id="projectid",
+        )
+
+        expected_request = CreateServiceRequest(
+            service=Service(),
+            service_id="service1",
+            parent="projects/projectid/locations/region1",
+        )
+
+        mock_client.return_value.create_service.assert_called_once_with(expected_request)
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.ServicesAsyncClient")
+    async def test_delete_service(self, mock_client):
+        mock_client.return_value = mock.MagicMock()
+        mock_client.return_value.delete_service = self.mock_service()
+
+        hook = CloudRunServiceAsyncHook()
+        hook.get_credentials = self.dummy_get_credentials
+
+        await hook.delete_service(
+            service_name="service1",
+            region="region1",
+            project_id="projectid",
+        )
+
+        expected_request = DeleteServiceRequest(
+            name="projects/projectid/locations/region1/services/service1",
+        )
+
+        mock_client.return_value.delete_service.assert_called_once_with(expected_request)
