@@ -367,7 +367,7 @@ def test_mark_task_instance_state(test_app):
         session.commit()
 
     test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
-    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+    test_app.dag_bag.bag_dag(dag=dag)
 
     with test_app.test_request_context():
         view = Airflow()
@@ -469,7 +469,7 @@ def test_mark_task_group_state(test_app):
         session.commit()
 
     test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
-    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+    test_app.dag_bag.bag_dag(dag=dag)
 
     with test_app.test_request_context():
         view = Airflow()

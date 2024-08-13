@@ -692,22 +692,6 @@ class TestCliTasks:
                 )
             )
 
-    def test_subdag_clear(self):
-        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator", "--yes"])
-        task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator", "--yes", "--exclude-subdags"]
-        )
-        task_command.task_clear(args)
-
-    def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator.section-1", "--yes"])
-        task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator.section-1", "--yes", "--exclude-parentdag"]
-        )
-        task_command.task_clear(args)
-
 
 def _set_state_and_try_num(ti, session):
     ti.state = TaskInstanceState.QUEUED

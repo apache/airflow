@@ -3106,11 +3106,6 @@ components:
             Human centric display text for the DAG.
 
             *New in version 2.9.0*
-        root_dag_id:
-          type: string
-          readOnly: true
-          nullable: true
-          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null.
         is_paused:
           type: boolean
           nullable: true
@@ -3125,10 +3120,6 @@ components:
           nullable: true
           readOnly: true
           type: boolean
-        is_subdag:
-          description: Whether the DAG is SubDAG.
-          type: boolean
-          readOnly: true
         last_parsed_time:
           type: string
           format: date-time
@@ -4902,14 +4893,6 @@ components:
           description: Only clear running tasks.
           type: boolean
           default: false
-
-        include_subdags:
-          description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
-          type: boolean
-
-        include_parentdag:
-          description: Clear tasks in the parent dag of the subdag.
-          type: boolean
 
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
