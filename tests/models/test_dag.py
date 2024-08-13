@@ -3293,7 +3293,7 @@ class TestQueries:
         dag = DAG("test_dagrun_query_count", start_date=DEFAULT_DATE)
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 state=State.RUNNING,

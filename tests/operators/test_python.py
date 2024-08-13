@@ -39,15 +39,10 @@ import pytest
 from slugify import slugify
 
 from airflow.decorators import task_group
-from airflow.exceptions import (
-    AirflowException,
-    DeserializingResultError,
-    RemovedInAirflow3Warning,
-)
+from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
-from airflow.operators.branch import BranchMixIn
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchExternalPythonOperator,
@@ -1010,75 +1005,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
 
-    def test_branch_current_context(self):
-        if not issubclass(self.opcls, BranchMixIn):
-            pytest.skip("This test is only applicable to BranchMixIn")
-
-    def test_current_context(self):
-        def f():
-            from airflow.operators.python import get_current_context
-            from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
-                raise TypeError(error_msg)
-
-            return []
-
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        assert ti.state == TaskInstanceState.SUCCESS
-
-    def test_current_context_not_found_error(self):
-        def f():
-            from airflow.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        with pytest.raises(
-            AirflowException,
-            match="Current context was requested but no context was found! "
-            "Are you running within an airflow task?",
-        ):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
-
-    def test_current_context_airflow_not_found_error(self):
-        airflow_flag: dict[str, bool] = {"expect_airflow": False}
-        error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
-
-        if not issubclass(self.opcls, ExternalPythonOperator):
-            airflow_flag["system_site_packages"] = False
-            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
-
-        def f():
-            from airflow.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        with pytest.raises(AirflowException, match=error_msg):
-            self.run_as_task(
-                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
-            )
-
-    def test_use_airflow_context_touch_other_variables(self):
-        def f():
-            from airflow.operators.python import get_current_context
-            from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
-                raise TypeError(error_msg)
-
-            from airflow.operators.python import PythonOperator  # noqa: F401
-
-            return []
-
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        assert ti.state == TaskInstanceState.SUCCESS
-
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
@@ -1500,29 +1426,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
-    def test_current_context_system_site_packages(self, session):
-        def f():
-            from airflow.operators.python import get_current_context
-            from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
-                raise TypeError(error_msg)
-
-            return []
-
-        ti = self.run_as_task(
-            f,
-            return_ti=True,
-            multiple_outputs=False,
-            use_airflow_context=True,
-            session=session,
-            expect_airflow=False,
-            system_site_packages=True,
-        )
-        assert ti.state == TaskInstanceState.SUCCESS
-
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1841,29 +1744,6 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
             if "venv_cache_path" not in kwargs:
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
-
-    def test_current_context_system_site_packages(self, session):
-        def f():
-            from airflow.operators.python import get_current_context
-            from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
-                raise TypeError(error_msg)
-
-            return []
-
-        ti = self.run_as_task(
-            f,
-            return_ti=True,
-            multiple_outputs=False,
-            use_airflow_context=True,
-            session=session,
-            expect_airflow=False,
-            system_site_packages=True,
-        )
-        assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
