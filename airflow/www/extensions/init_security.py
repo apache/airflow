@@ -17,12 +17,10 @@
 from __future__ import annotations
 
 import logging
-from importlib import import_module
 
 from flask import redirect, request
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 log = logging.getLogger(__name__)

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -29,7 +28,6 @@ from flask import request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED

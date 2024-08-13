@@ -22,7 +22,6 @@ import pytest
 from flask_login import current_user
 
 from tests.test_utils.api_connexion_utils import assert_401
-from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 from tests.test_utils.www import client_with_login
 
