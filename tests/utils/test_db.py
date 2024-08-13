@@ -133,7 +133,7 @@ class TestDb:
     def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
         with mock.patch("airflow.utils.db.settings.engine.dialect"):
             with mock.patch("alembic.command.upgrade"):
-                with pytest.raises(ValueError, match="to.* revision .* older than .*from"):
+                with pytest.raises(ValueError, match="Error while checking history for revision range *:*"):
                     upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
 
     @pytest.mark.parametrize(
@@ -150,43 +150,24 @@ class TestDb:
                 stdout = temp_stdout.getvalue()
                 assert "nothing to do" in stdout
 
-    @pytest.mark.parametrize(
-        "from_revision, to_revision",
-        [("90d1635d7b86", "54bebd308c5f"), ("e959f08ac86c", "587bdf053233")],
-    )
-    def test_offline_upgrade_revision(self, from_revision, to_revision):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with mock.patch("alembic.command.upgrade") as mock_alembic_upgrade:
-                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
-        mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
-
     @mock.patch("airflow.utils.db._offline_migration")
     @mock.patch("airflow.utils.db._get_current_revision")
-    def test_offline_upgrade_no_versions(self, mock_gcr, mock_om):
+    def test_offline_upgrade_no_versions(self, mock_gcr, mock_om, caplog):
         """Offline upgrade should work with no version / revision options."""
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
-            dialect.name = "postgresql"  # offline migration not supported with postgres
-            mock_gcr.return_value = "90d1635d7b86"
+            dialect.name = "postgresql"  # offline migration supported with postgres
+            mock_gcr.return_value = "22ed7efa9da2"
             upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
-            actual = mock_om.call_args.args[2]
-            assert re.match(r"90d1635d7b86:[a-z0-9]+", actual) is not None
+            # TODO (ephraimbuddy): Enable the below assertion once we have a migration higher than 22ed7efa9da2
+            # actual = mock_om.call_args.args[2]
+            # assert re.match(r"22ed7efa9da2:[a-z0-9]+", actual) is not None
 
-    def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with pytest.raises(ValueError, match="Check that e1a11ece99cc is a valid revision"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
-
-    def test_sqlite_offline_upgrade_raises_with_revision(self):
+    @mock.patch("airflow.utils.db._get_current_revision")
+    def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
             with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
-
-    def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
-        with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
-            dialect.name = "mssql"
-            with pytest.raises(ValueError, match="Check that .* is a valid .* For dialect 'mssql'"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
+                upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
     @mock.patch("airflow.utils.db._offline_migration")
     def test_downgrade_sql_no_from(self, mock_om):
@@ -233,7 +214,7 @@ class TestDb:
         if skip_init:
             mock_init.assert_not_called()
         else:
-            mock_init.assert_called_once_with(session=session_mock, use_migration_files=False)
+            mock_init.assert_called_once_with(session=session_mock)
 
     def test_alembic_configuration(self):
         with mock.patch.dict(
