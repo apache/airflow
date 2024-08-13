@@ -95,6 +95,7 @@ log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP = {
     "2.10.0": "22ed7efa9da2",
+    "3.0.0": "044f740568ec",
 }
 
 
