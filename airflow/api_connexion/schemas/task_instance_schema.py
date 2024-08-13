@@ -177,8 +177,6 @@ class ClearTaskInstanceFormSchema(Schema):
     end_date = fields.DateTime(load_default=None, validate=validate_istimezone)
     only_failed = fields.Boolean(load_default=True)
     only_running = fields.Boolean(load_default=False)
-    include_subdags = fields.Boolean(load_default=False)
-    include_parentdag = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
     dag_run_id = fields.Str(load_default=None)

@@ -164,11 +164,8 @@ class TestSerializedDagModel:
     def test_remove_dags_by_id(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
-        # Remove SubDags from the list as they are not stored in DB in a separate row
-        # and are directly added in Json blob of the main DAG
-        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
         # Tests removing by dag_id.
-        dag_removed_by_id = filtered_example_dags_list[0]
+        dag_removed_by_id = example_dags_list[0]
         SDM.remove_dag(dag_removed_by_id.dag_id)
         assert not SDM.has_dag(dag_removed_by_id.dag_id)
 
@@ -176,13 +173,10 @@ class TestSerializedDagModel:
     def test_remove_dags_by_filepath(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
-        # Remove SubDags from the list as they are not stored in DB in a separate row
-        # and are directly added in Json blob of the main DAG
-        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
         # Tests removing by file path.
-        dag_removed_by_file = filtered_example_dags_list[0]
+        dag_removed_by_file = example_dags_list[0]
         # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
-        example_dag_files = list({dag.fileloc for dag in filtered_example_dags_list})
+        example_dag_files = list({dag.fileloc for dag in example_dags_list})
         example_dag_files.remove(dag_removed_by_file.fileloc)
         SDM.remove_deleted_dags(example_dag_files, processor_subdir="/tmp/test")
         assert not SDM.has_dag(dag_removed_by_file.dag_id)

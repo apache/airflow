@@ -1031,8 +1031,6 @@ export interface components {
        * *New in version 2.9.0*
        */
       dag_display_name?: string;
-      /** @description If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null. */
-      root_dag_id?: string | null;
       /** @description Whether the DAG is paused. */
       is_paused?: boolean | null;
       /**
@@ -1043,8 +1041,6 @@ export interface components {
        * *Changed in version 2.2.0*&#58; Field is read-only.
        */
       is_active?: boolean | null;
-      /** @description Whether the DAG is SubDAG. */
-      is_subdag?: boolean;
       /**
        * Format: date-time
        * @description The last time the DAG was parsed.
@@ -2090,10 +2086,6 @@ export interface components {
        * @default false
        */
       only_running?: boolean;
-      /** @description Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker. */
-      include_subdags?: boolean;
-      /** @description Clear tasks in the parent dag of the subdag. */
-      include_parentdag?: boolean;
       /** @description Set state of DAG runs to RUNNING. */
       reset_dag_runs?: boolean;
       /** @description The DagRun ID for this task instance */
