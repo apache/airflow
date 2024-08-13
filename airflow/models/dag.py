@@ -131,7 +131,7 @@ from airflow.timetables.simple import (
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.dates import cron_presets, date_range as utils_date_range
+from airflow.utils.dates import cron_presets
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import at_most_one, exactly_one, validate_instance_args, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
