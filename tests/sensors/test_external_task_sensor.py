@@ -41,7 +41,6 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
     ExternalTaskSensor,
-    ExternalTaskSensorLink,
 )
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -1737,11 +1736,3 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         )
         == 70
     )
-
-
-class TestExternalTaskSensorLink:
-    def test_deprecation_warning(self):
-        with pytest.warns(DeprecationWarning) as warnings:
-            ExternalTaskSensorLink()
-            assert len(warnings) == 1
-            assert warnings[0].filename == __file__

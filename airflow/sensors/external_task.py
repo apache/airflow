@@ -22,10 +22,8 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
-import attr
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -511,20 +509,3 @@ class ExternalTaskMarker(EmptyOperator):
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields
-
-
-@attr.s(auto_attribs=True)
-class ExternalTaskSensorLink(ExternalDagLink):
-    """
-    This external link is deprecated.
-
-    Please use :class:`airflow.sensors.external_task.ExternalDagLink`.
-    """
-
-    def __attrs_post_init__(self):
-        warnings.warn(
-            "This external link is deprecated. "
-            "Please use :class:`airflow.sensors.external_task.ExternalDagLink`.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )

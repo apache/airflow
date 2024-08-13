@@ -44,7 +44,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
-    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -1404,6 +1403,25 @@ def _get_previous_execution_date(
     return pendulum.instance(prev_ti.execution_date) if prev_ti and prev_ti.execution_date else None
 
 
+def _get_previous_start_date(
+    *,
+    task_instance: TaskInstance | TaskInstancePydantic,
+    state: DagRunState | None,
+    session: Session,
+) -> pendulum.DateTime | None:
+    """
+    Return the start date from property previous_ti_success.
+
+    :param task_instance: the task instance
+    :param state: If passed, it only take into account instances of a specific state.
+    :param session: SQLAlchemy ORM Session
+    """
+    log.debug("previous_start_date was called")
+    prev_ti = task_instance.get_previous_ti(state=state, session=session)
+    # prev_ti may not exist and prev_ti.start_date may be None.
+    return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
+
+
 def _email_alert(
     *, task_instance: TaskInstance | TaskInstancePydantic, exception, task: BaseOperator
 ) -> None:
@@ -2533,10 +2551,7 @@ class TaskInstance(Base, LoggingMixin):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
-        self.log.debug("previous_start_date was called")
-        prev_ti = self.get_previous_ti(state=state, session=session)
-        # prev_ti may not exist and prev_ti.start_date may be None.
-        return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
+        return _get_previous_start_date(task_instance=self, state=state, session=session)
 
     @property
     def previous_start_date_success(self) -> pendulum.DateTime | None:
@@ -4154,7 +4169,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True)
+    user_id = Column(Integer, nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

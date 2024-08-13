@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from decimal import Decimal
 from urllib.parse import quote
 
 import pytest
@@ -28,6 +29,7 @@ from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
+from airflow.utils.json import WebEncoder
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
@@ -90,6 +92,32 @@ def test_trigger_dag_conf(admin_client):
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
     assert run.conf == conf_dict
+
+
+def test_trigger_dag_conf_serializable_fields(admin_client):
+    test_dag_id = "example_bash_operator"
+    time_now = timezone.utcnow()
+    conf_dict = {
+        "string": "Hello, World!",
+        "date_str": "2024-08-08T09:57:35.300858",
+        "datetime": time_now,
+        "decimal": Decimal(10.465),
+    }
+    expected_conf = {
+        "string": "Hello, World!",
+        "date_str": "2024-08-08T09:57:35.300858",
+        "datetime": time_now.isoformat(),
+        "decimal": 10.465,
+    }
+
+    admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": json.dumps(conf_dict, cls=WebEncoder)})
+
+    with create_session() as session:
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    assert run is not None
+    assert DagRunType.MANUAL in run.run_id
+    assert run.run_type == DagRunType.MANUAL
+    assert run.conf == expected_conf
 
 
 def test_trigger_dag_conf_malformed(admin_client):
