@@ -190,10 +190,6 @@ __deprecated_classes = {
     "sqlite_operator": {
         "SqliteOperator": "airflow.providers.sqlite.operators.sqlite.SqliteOperator",
     },
-    "subdag_operator": {
-        "SkippedStatePropagationOptions": "airflow.operators.subdag.SkippedStatePropagationOptions",
-        "SubDagOperator": "airflow.operators.subdag.SubDagOperator",
-    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
