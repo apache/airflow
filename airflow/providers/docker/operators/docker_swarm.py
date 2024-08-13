@@ -104,14 +104,14 @@ class DockerSwarmOperator(DockerOperator):
         This parameter has precedence on the mem_limit parameter.
     :param logging_driver: The logging driver to use for container logs. Docker by default uses 'json-file'.
         For more information on Docker logging drivers: https://docs.docker.com/engine/logging/configure/
-        NOTE: Only drivers 'json-file' and 'gelf' are currently supported.
+        NOTE: Only drivers 'json-file' and 'gelf' are currently supported. If left empty, 'json-file' will be used.
     :param logging_driver_opts: Dictionary of logging options to use with the associated logging driver chosen.
         Depending on the logging driver, some options are required.
         Failure to include them, will result in the operator failing.
         All option values must be strings and wrapped in double quotes.
         For information on 'json-file' options: https://docs.docker.com/engine/logging/drivers/json-file/
         For information on 'gelf' options: https://docs.docker.com/engine/logging/drivers/gelf/
-          NOTE: 'gelf' driver requires the 'gelf-address' option to be set.
+        NOTE: 'gelf' driver requires the 'gelf-address' option to be set.
     """
 
     def __init__(
@@ -143,11 +143,6 @@ class DockerSwarmOperator(DockerOperator):
         self.logging_driver = logging_driver
         self.logging_driver_opts = logging_driver_opts
 
-    def execute(self, context: Context) -> None:
-        self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
-        return self._run_service()
-
-    def _run_service(self) -> None:
         if self.logging_driver:
             logging_driver = self.logging_driver.lower()
             supported_logging_drivers = ["json-file", "gelf"]
@@ -155,10 +150,15 @@ class DockerSwarmOperator(DockerOperator):
                 raise AirflowException(
                     f"Unsupported logging driver provided: {logging_driver}. Must be one of: [{', '.join(supported_logging_drivers)}]"
                 )
-            log_driver = types.DriverConfig(logging_driver, self.logging_driver_opts)
+            self.log_driver_config = types.DriverConfig(logging_driver, self.logging_driver_opts)
         else:
-            log_driver = None
+            self.log_driver_config = None
 
+    def execute(self, context: Context) -> None:
+        self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
+        return self._run_service()
+
+    def _run_service(self) -> None:
         self.log.info("Starting docker service from image %s", self.image)
         self.service = self.cli.create_service(
             types.TaskTemplate(
@@ -177,7 +177,7 @@ class DockerSwarmOperator(DockerOperator):
                 resources=self.container_resources,
                 networks=self.networks,
                 placement=self.placement,
-                log_driver=log_driver,
+                log_driver=self.log_driver_config,
             ),
             name=f"airflow-{get_random_string()}",
             labels={"name": f"airflow__{self.dag_id}__{self.task_id}"},
