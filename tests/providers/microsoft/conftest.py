@@ -194,11 +194,15 @@ def load_file(*args: str, mode="r", encoding="utf-8"):
 
 def get_airflow_connection(
     conn_id: str,
+    host: str = "graph.microsoft.com",
     login: str = "client_id",
     password: str = "client_secret",
     tenant_id: str = "tenant-id",
     proxies: dict | None = None,
+    scopes: list[str] | None = None,
     api_version: APIVersion | str | None = APIVersion.v1.value,
+    authority: str | None = None,
+    disable_instance_discovery: bool = False,
 ):
     from airflow.models import Connection
 
@@ -206,9 +210,17 @@ def get_airflow_connection(
         schema="https",
         conn_id=conn_id,
         conn_type="http",
-        host="graph.microsoft.com",
+        host=host,
         port=80,
         login=login,
         password=password,
-        extra={"tenant_id": tenant_id, "api_version": api_version, "proxies": proxies or {}},
+        extra={
+            "tenant_id": tenant_id,
+            "api_version": api_version,
+            "proxies": proxies or {},
+            "verify": False,
+            "scopes": scopes or [],
+            "authority": authority,
+            "disable_instance_discovery": disable_instance_discovery,
+        },
     )
