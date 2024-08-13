@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any
 import pymssql
 from pymssql import Connection as PymssqlConnection
 
+from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
+from airflow.providers.common.sql.hooks.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -104,6 +106,10 @@ class MsSqlHook(DbApiHook):
         """Sqlalchemy connection object."""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
+
+    @cached_property
+    def dialect(self) -> Dialect:
+        return MsSqlDialect(self)
 
     def get_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""

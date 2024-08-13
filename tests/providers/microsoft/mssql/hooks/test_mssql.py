@@ -182,7 +182,9 @@ class TestMsSqlHook:
         hook.get_sqlalchemy_engine()
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
-    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_primary_keys", get_primary_keys)
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.dialect.get_primary_keys", get_primary_keys
+    )
     def test_generate_insert_sql(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 
