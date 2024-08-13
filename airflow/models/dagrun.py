@@ -590,7 +590,6 @@ class DagRun(Base, LoggingMixin):
             )
             filter_query = [
                 DagModel.dag_id == self.dag_id,
-                DagModel.root_dag_id == self.dag_id,  # for sub-dags
             ]
             session.execute(
                 update(DagModel)
