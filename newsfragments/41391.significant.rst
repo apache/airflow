@@ -1,0 +1,5 @@
+**Breaking Change**
+
+The ``airflow.sensors.external_task.ExternalTaskSensorLink`` class has been removed.
+This class was deprecated and is no longer available. Users should now use
+the ``airflow.sensors.external_task.ExternalDagLink`` class directly.
