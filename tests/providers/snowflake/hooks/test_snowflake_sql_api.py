@@ -145,7 +145,7 @@ HOOK_PARAMS: dict = {
     "database": "airflow_db",
     "schema": "airflow_schema",
     "warehouse": "airflow_warehouse",
-    "role": "airflow_role"
+    "role": "airflow_role",
 }
 
 
@@ -587,82 +587,97 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         response = await hook.get_sql_api_query_status_async("uuid")
         assert response == expected_response
-    
-    @pytest.mark.parametrize(
-        "hook_params",
-        [(HOOK_PARAMS), ({})]
-    )
-    def test_hook_parameter_propagation(
-            self, hook_params
-    ):
+
+    @pytest.mark.parametrize("hook_params", [(HOOK_PARAMS), ({})])
+    def test_hook_parameter_propagation(self, hook_params):
         """
         This tests the proper propagation of unpacked hook params into the SnowflakeSqlApiHook object.
         """
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", **hook_params)
-        assert hook.database == hook_params.get('database', None)
-        assert hook.schema == hook_params.get('schema', None)
-        assert hook.warehouse == hook_params.get('warehouse', None)
-        assert hook.role == hook_params.get('role', None)
+        assert hook.database == hook_params.get("database", None)
+        assert hook.schema == hook_params.get("schema", None)
+        assert hook.warehouse == hook_params.get("warehouse", None)
+        assert hook.role == hook_params.get("role", None)
 
     @pytest.mark.parametrize(
         "test_hook_params,sql,statement_count,expected_payload,expected_response",
         [
-            ({}, SINGLE_STMT, 1, {
-                "statement": SINGLE_STMT,
-                "resultSetMetaData": {"format": "json"},
-                "database": CONN_PARAMS["database"],
-                "schema": CONN_PARAMS["schema"],
-                "warehouse": CONN_PARAMS["warehouse"],
-                "role": CONN_PARAMS["role"],
-                "bindings": {},
-                "parameters": {
-                    "MULTI_STATEMENT_COUNT": 1,
-                    "query_tag": "",
+            (
+                {},
+                SINGLE_STMT,
+                1,
+                {
+                    "statement": SINGLE_STMT,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": CONN_PARAMS["database"],
+                    "schema": CONN_PARAMS["schema"],
+                    "warehouse": CONN_PARAMS["warehouse"],
+                    "role": CONN_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 1,
+                        "query_tag": "",
+                    },
                 },
-            },
-            {"statementHandle": "uuid"}),
-            ({},SQL_MULTIPLE_STMTS, 4, {
-                "statement": SQL_MULTIPLE_STMTS,
-                "resultSetMetaData": {"format": "json"},
-                "database": CONN_PARAMS["database"],
-                "schema": CONN_PARAMS["schema"],
-                "warehouse": CONN_PARAMS["warehouse"],
-                "role": CONN_PARAMS["role"],
-                "bindings": {},
-                "parameters": {
-                    "MULTI_STATEMENT_COUNT": 4,
-                    "query_tag": "",
+                {"statementHandle": "uuid"},
+            ),
+            (
+                {},
+                SQL_MULTIPLE_STMTS,
+                4,
+                {
+                    "statement": SQL_MULTIPLE_STMTS,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": CONN_PARAMS["database"],
+                    "schema": CONN_PARAMS["schema"],
+                    "warehouse": CONN_PARAMS["warehouse"],
+                    "role": CONN_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 4,
+                        "query_tag": "",
+                    },
                 },
-            },
-            {"statementHandles": ["uuid", "uuid1"]}),
-            (HOOK_PARAMS,SINGLE_STMT, 1, {
-                "statement": SINGLE_STMT,
-                "resultSetMetaData": {"format": "json"},
-                "database": HOOK_PARAMS["database"],
-                "schema": HOOK_PARAMS["schema"],
-                "warehouse": HOOK_PARAMS["warehouse"],
-                "role": HOOK_PARAMS["role"],
-                "bindings": {},
-                "parameters": {
-                    "MULTI_STATEMENT_COUNT": 1,
-                    "query_tag": "",
+                {"statementHandles": ["uuid", "uuid1"]},
+            ),
+            (
+                HOOK_PARAMS,
+                SINGLE_STMT,
+                1,
+                {
+                    "statement": SINGLE_STMT,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": HOOK_PARAMS["database"],
+                    "schema": HOOK_PARAMS["schema"],
+                    "warehouse": HOOK_PARAMS["warehouse"],
+                    "role": HOOK_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 1,
+                        "query_tag": "",
+                    },
                 },
-            },
-            {"statementHandle": "uuid"}),
-            (HOOK_PARAMS,SQL_MULTIPLE_STMTS, 4, {
-                "statement": SQL_MULTIPLE_STMTS,
-                "resultSetMetaData": {"format": "json"},
-                "database": HOOK_PARAMS["database"],
-                "schema": HOOK_PARAMS["schema"],
-                "warehouse": HOOK_PARAMS["warehouse"],
-                "role": HOOK_PARAMS["role"],
-                "bindings": {},
-                "parameters": {
-                    "MULTI_STATEMENT_COUNT": 4,
-                    "query_tag": "",
+                {"statementHandle": "uuid"},
+            ),
+            (
+                HOOK_PARAMS,
+                SQL_MULTIPLE_STMTS,
+                4,
+                {
+                    "statement": SQL_MULTIPLE_STMTS,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": HOOK_PARAMS["database"],
+                    "schema": HOOK_PARAMS["schema"],
+                    "warehouse": HOOK_PARAMS["warehouse"],
+                    "role": HOOK_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 4,
+                        "query_tag": "",
+                    },
                 },
-            },
-            {"statementHandles": ["uuid", "uuid1"]}),
+                {"statementHandles": ["uuid", "uuid1"]},
+            ),
         ],
     )
     @mock.patch("uuid.uuid4")
@@ -682,13 +697,13 @@ class TestSnowflakeSqlApiHook:
         sql,
         statement_count,
         expected_payload,
-        expected_response
+        expected_response,
     ):
         """
         This tests if the query execution ordered by POST request to Snowflake API
         is sent with proper context parameters (database, schema, warehouse, role)
         """
-        mock_uuid.return_value="uuid"
+        mock_uuid.return_value = "uuid"
         params = {"requestId": "uuid", "async": True, "pageSize": 10}
         mock_conn_param.return_value = CONN_PARAMS
         mock_get_headers.return_value = HEADERS
@@ -705,5 +720,3 @@ class TestSnowflakeSqlApiHook:
         hook.execute_query(sql, statement_count)
 
         mock_requests.post.assert_called_once_with(url, headers=HEADERS, json=expected_payload, params=params)
-
-    
