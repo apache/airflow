@@ -369,12 +369,9 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
-    from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_10_PLUS
+    from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
-    if AIRFLOW_V_2_10_PLUS:
-        db.resetdb(use_migration_files=True)
-    else:
-        db.resetdb()
+    db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
