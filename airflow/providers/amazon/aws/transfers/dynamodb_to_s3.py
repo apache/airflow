@@ -199,8 +199,10 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             "S3BucketOwner": self.s3_bucket_owner,
             "ExportFormat": self.export_format,
         }
-        export_table_to_point_in_time_args = {**export_table_to_point_in_time_base_args,
-                                              **self.export_table_to_point_in_time_kwargs}
+        export_table_to_point_in_time_args = {
+            **export_table_to_point_in_time_base_args,
+            **self.export_table_to_point_in_time_kwargs,
+        }
 
         args_filtered = {
             key: value for key, value in export_table_to_point_in_time_args.items() if value is not None
