@@ -1383,24 +1383,6 @@ debug:
 api:
   description: ~
   options:
-    enable_experimental_api:
-      description: |
-        Enables the deprecated experimental API. Please note that these API endpoints do not have
-        access control. An authenticated user has full access.
-
-        .. warning::
-
-          This `Experimental REST API
-          <https://airflow.apache.org/docs/apache-airflow/stable/deprecated-rest-api-ref.html>`__ is
-          deprecated since version 2.0. Please consider using
-          `the Stable REST API
-          <https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html>`__.
-          For more information on migration, see
-          `RELEASE_NOTES.rst <https://github.com/apache/airflow/blob/main/RELEASE_NOTES.rst>`_
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
