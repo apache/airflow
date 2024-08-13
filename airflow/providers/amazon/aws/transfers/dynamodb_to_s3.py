@@ -84,8 +84,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     :param dynamodb_table_name: Dynamodb table to replicate data from
     :param s3_bucket_name: S3 bucket to replicate data to
-    :param s3_bucket_owner: The ID of the Amazon Web Services account that owns the bucket the export will be stored in.
-    (NOTE: S3BucketOwner is a required parameter when exporting to a S3 bucket in another account.)
     :param file_size: Flush file to s3 if file size >= file_size
     :param dynamodb_scan_kwargs: kwargs pass to
         <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
@@ -107,7 +105,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         *AwsToAwsBaseOperator.template_fields,
         "dynamodb_table_name",
         "s3_bucket_name",
-        "s3_bucket_owner",
         "file_size",
         "dynamodb_scan_kwargs",
         "s3_key_prefix",
@@ -128,7 +125,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         *,
         dynamodb_table_name: str,
         s3_bucket_name: str,
-        s3_bucket_owner: str | None = None,
         file_size: int | None = None,
         dynamodb_scan_kwargs: dict[str, Any] | None = None,
         s3_key_prefix: str = "",
@@ -148,7 +144,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.dynamodb_scan_kwargs = dynamodb_scan_kwargs
         self.s3_bucket_name = s3_bucket_name
         self.s3_key_prefix = s3_key_prefix
-        self.s3_bucket_owner = s3_bucket_owner
         self.point_in_time_export = point_in_time_export
         self.export_time = export_time
         self.export_format = export_format
@@ -196,7 +191,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             "ExportTime": self.export_time,
             "S3Bucket": self.s3_bucket_name,
             "S3Prefix": self.s3_key_prefix,
-            "S3BucketOwner": self.s3_bucket_owner,
             "ExportFormat": self.export_format,
         }
         export_table_to_point_in_time_args = {
