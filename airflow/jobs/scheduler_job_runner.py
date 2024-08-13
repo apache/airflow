@@ -1398,30 +1398,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # instead of falling in a loop of Integrity Error.
             exec_date = exec_dates[dag.dag_id]
             if (dag.dag_id, exec_date) not in existing_dagruns:
-                previous_dag_run = session.scalar(
-                    select(DagRun)
-                    .where(
-                        DagRun.dag_id == dag.dag_id,
-                        DagRun.execution_date < exec_date,
-                        DagRun.run_type == DagRunType.DATASET_TRIGGERED,
-                    )
-                    .order_by(DagRun.execution_date.desc())
-                    .limit(1)
-                )
-                dataset_event_filters = [
-                    DagScheduleDatasetReference.dag_id == dag.dag_id,
-                    DatasetEvent.timestamp <= exec_date,
-                ]
-                if previous_dag_run:
-                    dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
-
                 dataset_events = session.scalars(
                     select(DatasetEvent)
                     .join(
-                        DagScheduleDatasetReference,
-                        DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DatasetDagRunQueue,
+                        and_(
+                            DatasetDagRunQueue.dataset_id == DatasetEvent.dataset_id,
+                            DatasetDagRunQueue.created_at <= DatasetEvent.timestamp,
+                        ),
                     )
-                    .where(*dataset_event_filters)
+                    .where(
+                        DatasetDagRunQueue.target_dag_id == dag.dag_id,
+                        DatasetEvent.timestamp <= exec_date,
+                    )
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(exec_date, dataset_events)
