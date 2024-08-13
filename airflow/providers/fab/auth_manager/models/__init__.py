@@ -32,6 +32,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    MetaData,
     String,
     Table,
     UniqueConstraint,
@@ -39,16 +40,19 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import backref, declared_attr, relationship
+from sqlalchemy.orm import backref, declared_attr, registry, relationship
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.models.base import Base
+from airflow.models.base import get_schema, naming_convention
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
 """
-# Use airflow metadata to create the tables
-Model.metadata = Base.metadata
+
+metadata = MetaData(schema=get_schema(), naming_convention=naming_convention)
+mapper_registry = registry(metadata=metadata)
+
+Model.metadata = metadata
 
 if TYPE_CHECKING:
     try:
