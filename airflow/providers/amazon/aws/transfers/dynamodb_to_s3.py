@@ -27,6 +27,7 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
+from airflow.utils.helpers import prune_dict
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
@@ -198,9 +199,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             **self.export_table_to_point_in_time_kwargs,
         }
 
-        args_filtered = {
-            key: value for key, value in export_table_to_point_in_time_args.items() if value is not None
-        }
+        args_filtered = prune_dict(export_table_to_point_in_time_args)
 
         response = client.export_table_to_point_in_time(**args_filtered)
         waiter = self.hook.get_waiter("export_table")
