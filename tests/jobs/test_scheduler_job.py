@@ -5286,7 +5286,7 @@ class TestSchedulerJob:
         scheduler_job.executor.callback_sink.send.assert_called_once()
         requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert 1 == len(requests)
-        assert requests[0].full_filepath == dag.fileloc
+        assert requests[0].fileloc == dag.fileloc
         assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
         assert requests[0].is_failure_callback is True
         assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
