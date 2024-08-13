@@ -36,14 +36,13 @@ Here's the list of all the Database Migrations that are executed via when you ru
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
-+-------------------------+--------------+-------------------+-----------------------------------------------------+
-| Revision ID             | Revises ID   | Airflow Version   | Description                                         |
-+=========================+==============+===================+=====================================================+
++-------------------------+------------------+-------------------+-------------------------------------------------+
+| Revision ID             | Revises ID       | Airflow Version   | Description                                     |
++=========================+==================+===================+=================================================+
 | ``044f740568ec`` (head) | ``22ed7efa9da2`` | ``3.0.0``         | Drop ab_user.id foreign key.                    |
 +-------------------------+------------------+-------------------+-------------------------------------------------+
-| ``22ed7efa9da2``        | ``None``         | ``2.10.0``        | Add dag_schedule_dataset_alias_reference table. |
+| ``22ed7efa9da2`` (base) | ``None``         | ``2.10.0``        | Add dag_schedule_dataset_alias_reference table. |
 +-------------------------+------------------+-------------------+-------------------------------------------------+
-
 
  .. End of auto-generated table
 
