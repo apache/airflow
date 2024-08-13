@@ -26,11 +26,11 @@ import pymssql
 from pymssql import Connection as PymssqlConnection
 
 from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
-from airflow.providers.common.sql.hooks.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.models import Connection
+    from airflow.providers.common.sql.hooks.dialect import Dialect
 
 
 class MsSqlHook(DbApiHook):
