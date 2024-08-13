@@ -526,6 +526,8 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
+            if not Path(dag.fileloc).is_relative_to(dag_directory):
+                to_deactivate.add(dag.dag_id)
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
