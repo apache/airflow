@@ -221,8 +221,8 @@ class S3ToRedshiftOperator(BaseOperator):
         if isinstance(redshift_hook, RedshiftDataHook):
             database = self.redshift_data_api_kwargs.get("database")
             identifier = self.redshift_data_api_kwargs.get(
-                "cluster_identifier"
-            ) or self.redshift_data_api_kwargs.get("workgroup_name")
+                "cluster_identifier", self.redshift_data_api_kwargs.get("workgroup_name")
+            )
             port = self.redshift_data_api_kwargs.get("port", "5439")
             authority = f"{identifier}.{redshift_hook.region_name}:{port}"
         else:
