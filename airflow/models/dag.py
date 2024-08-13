@@ -947,29 +947,6 @@ class DAG(LoggingMixin):
 
         return updated_access_control
 
-    def date_range(
-        self,
-        start_date: pendulum.DateTime,
-        num: int | None = None,
-        end_date: datetime | None = None,
-    ) -> list[datetime]:
-        message = "`DAG.date_range()` is deprecated."
-        if num is not None:
-            warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-                return utils_date_range(
-                    start_date=start_date, num=num, delta=self.normalized_schedule_interval
-                )
-        message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
-        warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
-        if end_date is None:
-            coerced_end_date = timezone.utcnow()
-        else:
-            coerced_end_date = end_date
-        it = self.iter_dagrun_infos_between(start_date, pendulum.instance(coerced_end_date), align=False)
-        return [info.logical_date for info in it]
-
     def is_fixed_time_schedule(self):
         """
         Figures out if the schedule has a fixed time (e.g. 3 AM every day).
