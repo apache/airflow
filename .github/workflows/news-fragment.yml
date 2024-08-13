@@ -38,15 +38,14 @@ jobs:
 
       - name: Check news fragment
         run: >
-          if ! pipx run towncrier check
+          pipx run towncrier check
           --dir .
           --config newsfragments/config.toml
-          --compare-with origin/${{ github.base_ref }}; then
-
-          echo "Please check
+          --compare-with origin/${{ github.base_ref }}
+          ||
+          printf "\033[1;33mMissing significant newsfragment for PR labeled with
+          'airflow3.0:breaking'.\nCheck
           https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst
-          for guidance."
-
+          for guidance.\033[m\n"
+          &&
           false
-
-          fi
