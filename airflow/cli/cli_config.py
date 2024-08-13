@@ -704,12 +704,6 @@ ARG_DB_SKIP_INIT = Arg(
     action="store_true",
     default=False,
 )
-ARG_DB_USE_MIGRATION_FILES = Arg(
-    ("-m", "--use-migration-files"),
-    help="Use migration files to perform migration",
-    action="store_true",
-    default=False,
-)
 
 # webserver
 ARG_PORT = Arg(
@@ -1546,7 +1540,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="upgrade",
@@ -1566,7 +1560,6 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
-            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
         hide=True,
@@ -1590,7 +1583,6 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
-            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
