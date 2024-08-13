@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from typing import (
@@ -250,9 +250,10 @@ class DbApiHook(BaseHook):
 
     @cached_property
     def dialect(self) -> Dialect:
-        self.log.debug("dialect_name: %s", self.dialect_name)
-        if self.dialect_name:
-            return self.dialects.get(self.dialect_name, Dialect)(self)
+        with suppress(Exception):
+            self.log.debug("dialect_name: %s", self.dialect_name)
+            if self.dialect_name:
+                return self.dialects.get(self.dialect_name, Dialect)(self)
         return Dialect(self)
 
     def get_pandas_df(

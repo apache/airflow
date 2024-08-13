@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar
 
 from methodtools import lru_cache
@@ -62,20 +63,24 @@ class Dialect(LoggingMixin):
         return table.split(".")[::-1]
 
     @lru_cache(maxsize=None)
-    def get_column_names(self, table: str) -> list[str]:
-        column_names = list(
-            column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
-        )
-        self.log.debug("Column names for table '%s': %s", table, column_names)
-        return column_names
+    def get_column_names(self, table: str) -> list[str] | None:
+        with suppress(Exception):
+            column_names = list(
+                column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
+            )
+            self.log.debug("Column names for table '%s': %s", table, column_names)
+            return column_names
+        return None
 
     @lru_cache(maxsize=None)
-    def get_primary_keys(self, table: str) -> list[str]:
-        primary_keys = self.inspector.get_pk_constraint(*self._extract_schema_from_table(table)).get(
-            "constrained_columns", []
-        )
-        self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
-        return primary_keys
+    def get_primary_keys(self, table: str) -> list[str] | None:
+        with suppress(Exception):
+            primary_keys = self.inspector.get_pk_constraint(*self._extract_schema_from_table(table)).get(
+                "constrained_columns", []
+            )
+            self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
+            return primary_keys
+        return None
 
     def run(
         self,

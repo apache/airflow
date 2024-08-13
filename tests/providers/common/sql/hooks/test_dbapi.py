@@ -27,6 +27,7 @@ from pyodbc import Cursor
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
 from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
