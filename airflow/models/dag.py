@@ -115,6 +115,7 @@ from airflow.models.taskinstance import (
     TaskInstanceKey,
     clear_task_instances,
 )
+from airflow.models.tasklog import LogTemplate
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json
@@ -338,6 +339,9 @@ def _create_orm_dagrun(
         creating_job_id=creating_job_id,
         data_interval=data_interval,
     )
+    # Load defaults into the following two fields to ensure result can be serialized detached
+    run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    run.consumed_dataset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
