@@ -49,6 +49,7 @@ def dag():
     return DAG(
         "testdag",
         start_date=DEFAULT_DATE,
+        schedule="0 * * * *",
         user_defined_filters={"hello": lambda name: f"Hello {name}"},
         user_defined_macros={"fullname": lambda fname, lname: f"{fname} {lname}"},
     )
