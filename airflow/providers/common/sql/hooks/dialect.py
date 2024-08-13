@@ -66,7 +66,8 @@ class Dialect(LoggingMixin):
     def get_column_names(self, table: str) -> list[str] | None:
         with suppress(Exception):
             column_names = list(
-                column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
+                column["name"]
+                for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
             )
             self.log.debug("Column names for table '%s': %s", table, column_names)
             return column_names
