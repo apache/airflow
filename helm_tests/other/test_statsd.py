@@ -349,9 +349,7 @@ class TestStatsd:
             values=statsd_values,
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        assert expected == jmespath.search(
-            "spec.template.spec.terminationGracePeriodSeconds", docs[0]
-        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
 
 class TestStatsdServiceAccount:

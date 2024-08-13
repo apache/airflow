@@ -415,9 +415,7 @@ class TestRedis:
             values=redis_values,
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert expected == jmespath.search(
-            "spec.template.spec.terminationGracePeriodSeconds", docs[0]
-        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
 
 class TestRedisServiceAccount:

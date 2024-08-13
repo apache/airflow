@@ -869,9 +869,7 @@ class TestScheduler:
             values=scheduler_values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        assert expected == jmespath.search(
-            "spec.template.spec.terminationGracePeriodSeconds", docs[0]
-        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
 
 class TestSchedulerNetworkPolicy:
