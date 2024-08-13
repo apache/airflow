@@ -63,6 +63,28 @@ def _get_normalized_scheme(uri: str) -> str:
     return parsed.scheme.lower()
 
 
+class _IdentifierValidator:
+    @staticmethod
+    def validate(kind: str, value: str | None, *, optional: bool = False) -> None:
+        if optional and value is None:
+            return
+        if not value:
+            raise ValueError(f"{kind} cannot be empty")
+        if len(value) > 3000:
+            raise ValueError(f"{kind} must be at most 3000 characters")
+        if value.isspace():
+            raise ValueError(f"{kind} cannot be just whitespace")
+        if not value.isascii():
+            raise ValueError(f"{kind} must only consist of ASCII characters")
+
+    def __call__(self, inst: Dataset | DatasetAlias, attribute: attr.Attribute, value: str | None) -> None:
+        self.validate(
+            f"{type(inst).__name__} {attribute.name}",
+            value,
+            optional=attribute.default is None,
+        )
+
+
 def _sanitize_uri(uri: str) -> str:
     """
     Sanitize a dataset URI.
@@ -70,12 +92,6 @@ def _sanitize_uri(uri: str) -> str:
     This checks for URI validity, and normalizes the URI if needed. A fully
     normalized URI is returned.
     """
-    if not uri:
-        raise ValueError("Dataset URI cannot be empty")
-    if uri.isspace():
-        raise ValueError("Dataset URI cannot be just whitespace")
-    if not uri.isascii():
-        raise ValueError("Dataset URI must only consist of ASCII characters")
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
@@ -133,10 +149,10 @@ def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
     """
     if isinstance(value, DatasetAlias):
         return value.name
-
     if isinstance(value, Dataset):
         return value.uri
-    return _sanitize_uri(str(value))
+    _IdentifierValidator.validate("Dataset event key", uri := str(value))
+    return _sanitize_uri(uri)
 
 
 @internal_api_call
@@ -210,7 +226,7 @@ class BaseDataset:
 class DatasetAlias(BaseDataset):
     """A represeation of dataset alias which is used to create dataset during the runtime."""
 
-    name: str
+    name: str = attr.field(validator=_IdentifierValidator())
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, DatasetAlias):
@@ -245,13 +261,24 @@ class DatasetAliasEvent(TypedDict):
 class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 
+    name: str = attr.field(default=None, validator=_IdentifierValidator())
     uri: str = attr.field(
+        default=None,
+        kw_only=True,
         converter=_sanitize_uri,
-        validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
+        validator=_IdentifierValidator(),
     )
-    extra: dict[str, Any] | None = None
+    extra: dict[str, Any] | None = attr.field(kw_only=True, default=None)
 
     __version__: ClassVar[int] = 1
+
+    def __attrs_post_init__(self) -> None:
+        if self.name is None and self.uri is None:
+            raise TypeError("Dataset requires either name or URI")
+        if self.name is None:
+            self.name = self.uri
+        elif self.uri is None:
+            self.uri = self.name
 
     def __fspath__(self) -> str:
         return self.uri

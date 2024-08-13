@@ -253,7 +253,7 @@ def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
     :meta private:
     """
     if isinstance(var, Dataset):
-        return {"__type": DAT.DATASET, "uri": var.uri, "extra": var.extra}
+        return {"__type": DAT.DATASET, "name": var.name, "uri": var.uri, "extra": var.extra}
     if isinstance(var, DatasetAlias):
         return {"__type": DAT.DATASET_ALIAS, "name": var.name}
     if isinstance(var, DatasetAll):
@@ -271,7 +271,8 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
     """
     dat = var["__type"]
     if dat == DAT.DATASET:
-        return Dataset(var["uri"], extra=var["extra"])
+        uri = var["uri"]
+        return Dataset(name=var.get("name", uri), uri=uri, extra=var["extra"])
     if dat == DAT.DATASET_ALL:
         return DatasetAll(*(decode_dataset_condition(x) for x in var["objects"]))
     if dat == DAT.DATASET_ANY:

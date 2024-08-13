@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``0bfc26bc256e`` (head) | ``d0f1c55954fa`` | ``3.0.0``         | Rename DagModel schedule_interval to timetable_summary.      |
+| ``0d9e73a75ee4`` (head) | ``0bfc26bc256e`` | ``3.0.0``         | Add name field to DatasetModel.                              |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``0bfc26bc256e``        | ``d0f1c55954fa`` | ``3.0.0``         | Rename DagModel schedule_interval to timetable_summary.      |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``d0f1c55954fa``        | ``044f740568ec`` | ``3.0.0``         | Remove SubDAGs: ``is_subdag`` & ``root_dag_id`` columns from |
 |                         |                  |                   | DAG table.                                                   |

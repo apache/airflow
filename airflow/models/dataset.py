@@ -148,6 +148,18 @@ class DatasetModel(Base):
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(
+        String(length=3000).with_variant(
+            String(
+                length=3000,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
     uri = Column(
         String(length=3000).with_variant(
             String(
