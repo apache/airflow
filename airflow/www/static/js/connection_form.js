@@ -238,14 +238,7 @@ $(document).ready(() => {
    * @param {string} message - The text message to show in alert box
    */
   function displayAlert(status, message) {
-    let alertClass;
-    if (status === "success") {
-      alertClass = "alert-success";
-    } else if (status === "error") {
-      alertClass = "alert-error";
-    } else if (status === "warning") {
-      alertClass = "alert-warning";
-    }
+    const alertClass = `alert-${status}`;
     let alertBox = $(".container .row .alert");
     if (alertBox.length) {
       alertBox.removeClass("alert-success").removeClass("alert-error");
