@@ -15,31 +15,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Add ``conf`` column in ``dag_run`` table.
 
-Revision ID: 40e67319e3a9
-Revises: 2e541a1dcfed
-Create Date: 2015-10-29 08:36:31.726728
+"""
+Drop ab_user.id foreign key.
+
+Revision ID: 044f740568ec
+Revises: 22ed7efa9da2
+Create Date: 2024-08-02 07:18:29.830521
 
 """
 
 from __future__ import annotations
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "40e67319e3a9"
-down_revision = "2e541a1dcfed"
+revision = "044f740568ec"
+down_revision = "22ed7efa9da2"
 branch_labels = None
 depends_on = None
-airflow_version = "1.6.0"
+airflow_version = "3.0.0"
 
 
 def upgrade():
-    op.add_column("dag_run", sa.Column("conf", sa.PickleType(), nullable=True))
+    """Apply Drop ab_user.id foreign key."""
+    with op.batch_alter_table("dag_run_note", schema=None) as batch_op:
+        batch_op.drop_constraint("dag_run_note_user_fkey", type_="foreignkey")
+
+    with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
+        batch_op.drop_constraint("task_instance_note_user_fkey", type_="foreignkey")
 
 
 def downgrade():
-    op.drop_column("dag_run", "conf")
+    """Unapply Drop ab_user.id foreign key."""
+    with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
+        batch_op.create_foreign_key("task_instance_note_user_fkey", "ab_user", ["user_id"], ["id"])
+
+    with op.batch_alter_table("dag_run_note", schema=None) as batch_op:
+        batch_op.create_foreign_key("dag_run_note_user_fkey", "ab_user", ["user_id"], ["id"])

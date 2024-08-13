@@ -217,11 +217,6 @@ class TestImpersonation(BaseImpersonationTest):
         monkeypatch.setenv("AIRFLOW__CORE__DEFAULT_IMPERSONATION", TEST_USER)
         self.run_backfill("test_default_impersonation", "test_deelevated_user")
 
-    @pytest.mark.execution_timeout(150)
-    def test_impersonation_subdag(self):
-        """Tests that impersonation using a subdag correctly passes the right configuration."""
-        self.run_backfill("impersonation_subdag", "test_subdag_operation")
-
 
 class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):
     @pytest.fixture(autouse=True)

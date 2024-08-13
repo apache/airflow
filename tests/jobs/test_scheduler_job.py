@@ -3097,12 +3097,12 @@ class TestSchedulerJob:
             dag_id = "test_task_start_date_scheduling"
             dag = self.dagbag.get_dag(dag_id)
             dag.is_paused_upon_creation = False
-            dagbag.bag_dag(dag=dag, root_dag=dag)
+            dagbag.bag_dag(dag=dag)
 
             # Deactivate other dags in this file so the scheduler doesn't waste time processing them
             other_dag = self.dagbag.get_dag("test_start_date_scheduling")
             other_dag.is_paused_upon_creation = True
-            dagbag.bag_dag(dag=other_dag, root_dag=other_dag)
+            dagbag.bag_dag(dag=other_dag)
 
             dagbag.sync_to_db()
 

@@ -49,7 +49,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - pdpyras>=4.2.0
 
 integrations:

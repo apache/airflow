@@ -552,6 +552,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
     """Asynchronous hook for Google Storage Transfer Service."""
 
+    sync_hook_class = CloudDataTransferServiceHook
+
     def __init__(self, project_id: str = PROVIDE_PROJECT_ID, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id

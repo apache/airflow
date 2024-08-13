@@ -844,7 +844,7 @@ class Airflow(AirflowBaseView):
 
         with create_session() as session:
             # read orm_dags from the db
-            dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
+            dags_query = select(DagModel).where(DagModel.is_active)
 
             if arg_search_query:
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
@@ -2163,7 +2163,7 @@ class Airflow(AirflowBaseView):
             .limit(num_recent_confs)
         )
         recent_confs = {
-            run_id: json.dumps(run_conf)
+            run_id: json.dumps(run_conf, cls=utils_json.WebEncoder)
             for run_id, run_conf in ((run.run_id, run.conf) for run in recent_runs)
             if isinstance(run_conf, dict) and any(run_conf)
         }
@@ -2198,6 +2198,7 @@ class Airflow(AirflowBaseView):
                         },
                         indent=4,
                         ensure_ascii=False,
+                        cls=utils_json.WebEncoder,
                     )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
@@ -2340,8 +2341,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 session=session,
             )
@@ -2354,8 +2353,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 dry_run=True,
                 session=session,
@@ -5487,8 +5484,6 @@ class TaskInstanceModelView(AirflowModelView):
                             start_date=dag_run.execution_date,
                             end_date=dag_run.execution_date,
                             task_ids=downstream_task_ids_to_clear,
-                            include_subdags=False,
-                            include_parentdag=False,
                             session=session,
                             dry_run=True,
                         )
@@ -5637,7 +5632,6 @@ class AutocompleteView(AirflowBaseView):
             DagModel.dag_id.label("name"),
             DagModel._dag_display_property_value.label("dag_display_name"),
         ).where(
-            ~DagModel.is_subdag,
             DagModel.is_active,
             or_(
                 DagModel.dag_id.ilike(f"%{query}%"),
@@ -5652,7 +5646,7 @@ class AutocompleteView(AirflowBaseView):
                 sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
-            .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
+            .where(DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
         )
 
         # Hide DAGs if not showing status: "all"

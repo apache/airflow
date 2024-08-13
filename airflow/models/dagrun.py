@@ -590,7 +590,6 @@ class DagRun(Base, LoggingMixin):
             )
             filter_query = [
                 DagModel.dag_id == self.dag_id,
-                DagModel.root_dag_id == self.dag_id,  # for sub-dags
             ]
             session.execute(
                 update(DagModel)
@@ -1688,11 +1687,7 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(
-        Integer,
-        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
-        nullable=True,
-    )
+    user_id = Column(Integer, nullable=True)
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
