@@ -1649,8 +1649,7 @@ class DAG(LoggingMixin):
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         session: Session,
         dag_bag: DagBag | None = ...,
-    ) -> Iterable[TaskInstance]:
-        ...  # pragma: no cover
+    ) -> Iterable[TaskInstance]: ...  # pragma: no cover
 
     @overload
     def _get_task_instances(
@@ -1669,8 +1668,7 @@ class DAG(LoggingMixin):
         recursion_depth: int = ...,
         max_recursion_depth: int = ...,
         visited_external_tis: set[TaskInstanceKey] = ...,
-    ) -> set[TaskInstanceKey]:
-        ...  # pragma: no cover
+    ) -> set[TaskInstanceKey]: ...  # pragma: no cover
 
     def _get_task_instances(
         self,
