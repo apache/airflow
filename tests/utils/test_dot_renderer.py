@@ -34,7 +34,7 @@ from tests.test_utils.db import clear_db_dags
 
 START_DATE = timezone.utcnow()
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDotRenderer:
@@ -66,7 +66,7 @@ class TestDotRenderer:
         assert "task_2 -> dag_three" in dot.source
 
     def test_should_render_dag(self):
-        with DAG(dag_id="DAG_ID") as dag:
+        with DAG(dag_id="DAG_ID", schedule=None) as dag:
             task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
             task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
             task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
@@ -150,7 +150,7 @@ class TestDotRenderer:
 
         # Change orientation
         orientation = "LR"
-        dag = DAG(dag_id="DAG_ID", orientation=orientation)
+        dag = DAG(dag_id="DAG_ID", schedule=None, orientation=orientation)
         dot = dot_renderer.render_dag(dag, tis=tis)
         source = dot.source
         # Should render DAG title with orientation
@@ -158,7 +158,7 @@ class TestDotRenderer:
         assert f"label=DAG_ID labelloc=t rankdir={orientation}" in source
 
     def test_render_task_group(self):
-        with DAG(dag_id="example_task_group", start_date=START_DATE) as dag:
+        with DAG(dag_id="example_task_group", schedule=None, start_date=START_DATE) as dag:
             start = EmptyOperator(task_id="start")
 
             with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:

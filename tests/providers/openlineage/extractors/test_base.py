@@ -224,7 +224,7 @@ def test_extraction_without_on_start():
         task_instance=task_instance
     )
 
-    assert metadata is None
+    assert metadata == OperatorLineage()
 
     assert metadata_on_complete == OperatorLineage(
         inputs=INPUTS,
