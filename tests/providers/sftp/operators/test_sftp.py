@@ -324,7 +324,11 @@ class TestSFTPOperator:
 
     @mock.patch.dict("os.environ", {"AIRFLOW_CONN_" + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):
-        dag = DAG(dag_id="unit_tests_sftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
+        dag = DAG(
+            dag_id="unit_tests_sftp_op_arg_checking",
+            schedule=None,
+            default_args={"start_date": DEFAULT_DATE},
+        )
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         task_0 = SFTPOperator(
             task_id="test_sftp_0",
@@ -528,7 +532,7 @@ class TestSFTPOperator:
         task = SFTPOperator(
             task_id=task_id,
             ssh_conn_id="sftp_conn_id",
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/local",
             remote_filepath="/path/remote",
@@ -559,7 +563,7 @@ class TestSFTPOperator:
         task = SFTPOperator(
             task_id=task_id,
             sftp_hook=SFTPHook(ssh_conn_id="sftp_conn_id"),
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/local",
             remote_filepath="/path/remote",
@@ -590,7 +594,7 @@ class TestSFTPOperator:
         task = SFTPOperator(
             task_id=task_id,
             ssh_hook=SSHHook(ssh_conn_id="sftp_conn_id"),
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/local",
             remote_filepath="/path/remote",

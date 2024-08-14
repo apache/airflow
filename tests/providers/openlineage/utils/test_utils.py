@@ -58,7 +58,7 @@ class CustomOperatorFromEmpty(EmptyOperator):
 
 
 def test_get_airflow_job_facet():
-    with DAG(dag_id="dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
 
         with TaskGroup("section_1", prefix_group_id=True):
@@ -215,7 +215,7 @@ def test_get_operator_class_mapped_operator():
 
 
 def test_get_tasks_details():
-    with DAG(dag_id="dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         task = CustomOperatorForTest(task_id="task", bash_command="exit 0;")  # noqa: F841
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")  # noqa: F841
         task_1 = CustomOperatorFromEmpty(task_id="task_1")  # noqa: F841
@@ -339,7 +339,7 @@ def test_get_tasks_details():
 
 
 def test_get_tasks_details_empty_dag():
-    assert _get_tasks_details(DAG("test_dag", start_date=datetime.datetime(2024, 6, 1))) == {}
+    assert _get_tasks_details(DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))) == {}
 
 
 def test_dag_tree_level_indent():
@@ -350,7 +350,7 @@ def test_dag_tree_level_indent():
     subsequent level in the DAG. The test asserts that the generated tree view matches the expected
     lines with correct indentation.
     """
-    with DAG(dag_id="dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         task_0 = EmptyOperator(task_id="task_0")
         task_1 = EmptyOperator(task_id="task_1")
         task_2 = EmptyOperator(task_id="task_2")
@@ -391,7 +391,7 @@ def test_get_dag_tree():
     def sum_values(values: list[int]) -> int:
         return sum(values)
 
-    with DAG(dag_id="dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         task_ = BashOperator(task_id="task", bash_command="exit 0;")
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 1;")
@@ -463,11 +463,16 @@ def test_get_dag_tree():
 
 
 def test_get_dag_tree_empty_dag():
-    assert _get_parsed_dag_tree(DAG("test_dag", start_date=datetime.datetime(2024, 6, 1))) == {}
+    assert (
+        _get_parsed_dag_tree(
+            DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)),
+        )
+        == {}
+    )
 
 
 def test_get_task_groups_details():
-    with DAG("test_dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         with TaskGroup("tg1", prefix_group_id=True):
             task_1 = EmptyOperator(task_id="task_1")  # noqa: F841
         with TaskGroup("tg2", prefix_group_id=False):
@@ -504,7 +509,7 @@ def test_get_task_groups_details():
 
 
 def test_get_task_groups_details_nested():
-    with DAG("test_dag", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         with TaskGroup("tg1", prefix_group_id=True) as tg:
             with TaskGroup("tg2", parent_group=tg) as tg2:
                 with TaskGroup("tg3", parent_group=tg2):
@@ -539,14 +544,19 @@ def test_get_task_groups_details_nested():
 
 
 def test_get_task_groups_details_no_task_groups():
-    assert _get_task_groups_details(DAG("test_dag", start_date=datetime.datetime(2024, 6, 1))) == {}
+    assert (
+        _get_task_groups_details(
+            DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)),
+        )
+        == {}
+    )
 
 
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
 def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )
@@ -561,7 +571,7 @@ def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_fa
 def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )
@@ -582,7 +592,7 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
         task=BashOperator(
             task_id="test-task",
             bash_command="exit 0;",
-            dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1)),
+            dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
         ),
         state="running",
     )
@@ -602,7 +612,7 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
 def test_get_user_provided_run_facets_with_multiple_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )
@@ -623,7 +633,7 @@ def test_get_user_provided_run_facets_with_multiple_function_definition(mock_cus
 def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )
@@ -640,7 +650,7 @@ def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_face
 def test_get_user_provided_run_facets_with_invalid_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )
@@ -655,7 +665,7 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
 def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )
@@ -670,7 +680,7 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
         task=EmptyOperator(
-            task_id="test-task", dag=DAG("test-dag", start_date=datetime.datetime(2024, 7, 1))
+            task_id="test-task", dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1))
         ),
         state="running",
     )

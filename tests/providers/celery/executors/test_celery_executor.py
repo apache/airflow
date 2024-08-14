@@ -185,7 +185,7 @@ class TestCeleryExecutor:
     def test_try_adopt_task_instances_none(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_try_adopt_task_instances_none"):
+        with DAG("test_try_adopt_task_instances_none", schedule=None):
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
         key1 = TaskInstance(task=task_1, run_id=None)
@@ -200,7 +200,7 @@ class TestCeleryExecutor:
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_try_adopt_task_instances_none") as dag:
+        with DAG("test_try_adopt_task_instances_none", schedule=None) as dag:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
@@ -237,7 +237,7 @@ class TestCeleryExecutor:
     def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_cleanup_stuck_queued_tasks_failed"):
+        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None):
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         ti = TaskInstance(task=task, run_id=None)

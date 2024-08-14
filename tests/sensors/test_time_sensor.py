@@ -46,7 +46,7 @@ class TestTimeSensor:
     @time_machine.travel(timezone.datetime(2020, 1, 1, 23, 0).replace(tzinfo=timezone.utc))
     def test_timezone(self, default_timezone, start_date, expected, monkeypatch):
         monkeypatch.setattr("airflow.settings.TIMEZONE", timezone.parse_timezone(default_timezone))
-        dag = DAG("test", default_args={"start_date": start_date})
+        dag = DAG("test", schedule=None, default_args={"start_date": start_date})
         op = TimeSensor(task_id="test", target_time=time(10, 0), dag=dag)
         assert op.poke(None) == expected
 
@@ -54,7 +54,11 @@ class TestTimeSensor:
 class TestTimeSensorAsync:
     @time_machine.travel("2020-07-07 00:00:00", tick=False)
     def test_task_is_deferred(self):
-        with DAG("test_task_is_deferred", start_date=timezone.datetime(2020, 1, 1, 23, 0)):
+        with DAG(
+            dag_id="test_task_is_deferred",
+            schedule=None,
+            start_date=timezone.datetime(2020, 1, 1, 23, 0),
+        ):
             op = TimeSensorAsync(task_id="test", target_time=time(10, 0))
         assert not timezone.is_naive(op.target_datetime)
 
@@ -67,7 +71,7 @@ class TestTimeSensorAsync:
         assert exc_info.value.method_name == "execute_complete"
 
     def test_target_time_aware(self):
-        with DAG("test_target_time_aware", start_date=timezone.datetime(2020, 1, 1, 23, 0)):
+        with DAG("test_target_time_aware", schedule=None, start_date=timezone.datetime(2020, 1, 1, 23, 0)):
             aware_time = time(0, 1).replace(tzinfo=pendulum.local_timezone())
             op = TimeSensorAsync(task_id="test", target_time=aware_time)
             assert op.target_datetime.tzinfo == timezone.utc
@@ -77,7 +81,8 @@ class TestTimeSensorAsync:
         Tests that naive target_time gets converted correctly using the DAG's timezone.
         """
         with DAG(
-            "test_target_time_naive_dag_timezone",
+            dag_id="test_target_time_naive_dag_timezone",
+            schedule=None,
             start_date=pendulum.datetime(2020, 1, 1, 0, 0, tz=DEFAULT_TIMEZONE),
         ):
             op = TimeSensorAsync(task_id="test", target_time=pendulum.time(9, 0))
