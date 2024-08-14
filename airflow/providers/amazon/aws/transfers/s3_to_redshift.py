@@ -204,7 +204,7 @@ class S3ToRedshiftOperator(BaseOperator):
         """Implement on_complete as we will query destination table."""
         from pathlib import Path
 
-        from airflow.providers.amazon.aws.utils.open_lineage import (
+        from airflow.providers.amazon.aws.utils.openlineage import (
             get_facets_from_redshift_table,
             get_identity_column_lineage_facet,
         )
