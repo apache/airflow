@@ -46,7 +46,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
         return self.value
 
 

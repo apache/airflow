@@ -17,28 +17,53 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Union
+import hashlib
+import json
+from collections import defaultdict
+from typing import TYPE_CHECKING, Union
 
 import attr
 
 from airflow.datasets import Dataset
-from airflow.hooks.base import BaseHook
-from airflow.io.store import ObjectStore
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-# Store context what sent lineage.
-LineageContext = Union[BaseHook, ObjectStore]
+if TYPE_CHECKING:
+    from airflow.hooks.base import BaseHook
+    from airflow.io.path import ObjectStoragePath
+
+    # Store context what sent lineage.
+    LineageContext = Union[BaseHook, ObjectStoragePath]
 
 _hook_lineage_collector: HookLineageCollector | None = None
 
 
 @attr.define
-class HookLineage:
-    """Holds lineage collected by HookLineageCollector."""
+class DatasetLineageInfo:
+    """
+    Holds lineage information for a single dataset.
 
-    inputs: list[tuple[Dataset, LineageContext]] = attr.ib(factory=list)
-    outputs: list[tuple[Dataset, LineageContext]] = attr.ib(factory=list)
+    This class represents the lineage information for a single dataset, including the dataset itself,
+    the count of how many times it has been encountered, and the context in which it was encountered.
+    """
+
+    dataset: Dataset
+    count: int
+    context: LineageContext
+
+
+@attr.define
+class HookLineage:
+    """
+    Holds lineage collected by HookLineageCollector.
+
+    This class represents the lineage information collected by the `HookLineageCollector`. It stores
+    the input and output datasets, each with an associated count indicating how many times the dataset
+    has been encountered during the hook execution.
+    """
+
+    inputs: list[DatasetLineageInfo] = attr.ib(factory=list)
+    outputs: list[DatasetLineageInfo] = attr.ib(factory=list)
 
 
 class HookLineageCollector(LoggingMixin):
@@ -50,8 +75,24 @@ class HookLineageCollector(LoggingMixin):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.inputs: list[tuple[Dataset, LineageContext]] = []
-        self.outputs: list[tuple[Dataset, LineageContext]] = []
+        # Dictionary to store input datasets, counted by unique key (dataset URI, MD5 hash of extra
+        # dictionary, and LineageContext's unique identifier)
+        self._inputs: dict[str, tuple[Dataset, LineageContext]] = {}
+        self._outputs: dict[str, tuple[Dataset, LineageContext]] = {}
+        self._input_counts: dict[str, int] = defaultdict(int)
+        self._output_counts: dict[str, int] = defaultdict(int)
+
+    def _generate_key(self, dataset: Dataset, context: LineageContext) -> str:
+        """
+        Generate a unique key for the given dataset and context.
+
+        This method creates a unique key by combining the dataset URI, the MD5 hash of the dataset's extra
+        dictionary, and the LineageContext's unique identifier. This ensures that the generated key is
+        unique for each combination of dataset and context.
+        """
+        extra_str = json.dumps(dataset.extra, sort_keys=True)
+        extra_hash = hashlib.md5(extra_str.encode()).hexdigest()
+        return f"{dataset.uri}_{extra_hash}_{id(context)}"
 
     def create_dataset(
         self, scheme: str | None, uri: str | None, dataset_kwargs: dict | None, dataset_extra: dict | None
@@ -104,7 +145,10 @@ class HookLineageCollector(LoggingMixin):
             scheme=scheme, uri=uri, dataset_kwargs=dataset_kwargs, dataset_extra=dataset_extra
         )
         if dataset:
-            self.inputs.append((dataset, context))
+            key = self._generate_key(dataset, context)
+            if key not in self._inputs:
+                self._inputs[key] = (dataset, context)
+            self._input_counts[key] += 1
 
     def add_output_dataset(
         self,
@@ -119,17 +163,29 @@ class HookLineageCollector(LoggingMixin):
             scheme=scheme, uri=uri, dataset_kwargs=dataset_kwargs, dataset_extra=dataset_extra
         )
         if dataset:
-            self.outputs.append((dataset, context))
+            key = self._generate_key(dataset, context)
+            if key not in self._outputs:
+                self._outputs[key] = (dataset, context)
+            self._output_counts[key] += 1
 
     @property
     def collected_datasets(self) -> HookLineage:
         """Get the collected hook lineage information."""
-        return HookLineage(self.inputs, self.outputs)
+        return HookLineage(
+            [
+                DatasetLineageInfo(dataset=dataset, count=self._input_counts[key], context=context)
+                for key, (dataset, context) in self._inputs.items()
+            ],
+            [
+                DatasetLineageInfo(dataset=dataset, count=self._output_counts[key], context=context)
+                for key, (dataset, context) in self._outputs.items()
+            ],
+        )
 
     @property
     def has_collected(self) -> bool:
         """Check if any datasets have been collected."""
-        return len(self.inputs) != 0 or len(self.outputs) != 0
+        return len(self._inputs) != 0 or len(self._outputs) != 0
 
 
 class NoOpCollector(HookLineageCollector):

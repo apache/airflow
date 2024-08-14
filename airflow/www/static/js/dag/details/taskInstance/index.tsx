@@ -54,7 +54,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
 
   const children = group?.children;
   const isMapped = group?.isMapped;
-  const operator = group?.operator;
 
   const isMappedTaskSummary = !!isMapped && !isMapIndexDefined && taskId;
   const isGroup = !!children;
@@ -65,7 +64,9 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     dagRunId: runId,
     taskId,
     mapIndex,
-    enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    options: {
+      enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    },
   });
 
   const showTaskSchedulingDependencies =
@@ -88,7 +89,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           isMapped={isMapped}
           mapIndex={mapIndex}
           executionDate={run?.executionDate}
-          operator={operator}
         />
       )}
       {!isGroupOrMappedTaskSummary && <TaskDocumentation taskId={taskId} />}

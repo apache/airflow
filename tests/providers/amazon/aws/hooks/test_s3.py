@@ -395,7 +395,7 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
         assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.outputs[0][0] == Dataset(
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
             uri=f"s3://{s3_bucket}/my_key"
         )
 
@@ -988,7 +988,7 @@ class TestAwsS3Hook:
         path.write_text("Content")
         hook.load_file(path, "my_key", s3_bucket)
         assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.outputs[0][0] == Dataset(
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
             uri=f"s3://{s3_bucket}/my_key"
         )
 
@@ -1060,12 +1060,12 @@ class TestAwsS3Hook:
         ):
             mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket)
             assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-            assert hook_lineage_collector.collected_datasets.inputs[0][0] == Dataset(
+            assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
                 uri=f"s3://{s3_bucket}/my_key"
             )
 
             assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-            assert hook_lineage_collector.collected_datasets.outputs[0][0] == Dataset(
+            assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
                 uri=f"s3://{s3_bucket}/my_key3"
             )
 
@@ -1198,7 +1198,7 @@ class TestAwsS3Hook:
         s3_hook.download_file(key=key, bucket_name=bucket)
 
         assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0][0] == Dataset(
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
             uri="s3://test_bucket/test_key"
         )
 
@@ -1250,12 +1250,12 @@ class TestAwsS3Hook:
         )
 
         assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0][0] == Dataset(
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
             uri="s3://test_bucket/test_key/test.log"
         )
 
         assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.outputs[0][0] == Dataset(
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
             uri=f"file://{local_path}/test.log",
         )
 

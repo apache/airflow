@@ -34,7 +34,6 @@ from airflow import models
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.operators.dataprep import (
     DataprepCopyFlowOperator,
@@ -51,7 +50,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_dataprep"
+DAG_ID = "dataprep"
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATAPREP_TOKEN = os.environ.get("SYSTEM_TESTS_DATAPREP_TOKEN", "")
@@ -95,21 +94,23 @@ with models.DAG(
     )
 
     @task
-    def create_connection(**kwargs) -> None:
+    def create_connection(connection_id: str) -> None:
         connection = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             description="Example Dataprep connection",
             conn_type="dataprep",
             extra={"token": DATAPREP_TOKEN},
         )
         session = Session()
-        if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
-            log.warning("Connection %s already exists", CONNECTION_ID)
-            return None
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+
         session.add(connection)
         session.commit()
+        log.info("Connection created: '%s'", connection_id)
 
-    create_connection_task = create_connection()
+    create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     @task
     def create_imported_dataset():
@@ -276,11 +277,15 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_connection = BashOperator(
-        task_id="delete_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     chain(
         # TEST SETUP
@@ -298,7 +303,7 @@ with models.DAG(
         # TEST TEARDOWN
         delete_dataset_task,
         [delete_flow_task, delete_flow_task_original],
-        [delete_bucket_task, delete_connection],
+        [delete_bucket_task, delete_connection_task],
     )
 
     from tests.system.utils.watcher import watcher

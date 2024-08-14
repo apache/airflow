@@ -28,7 +28,7 @@ from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestTriggerDag:
@@ -48,49 +48,21 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
-        dag = DAG(dag_id)
+        dag = DAG(dag_id, schedule=None)
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_run_mock.find_duplicate.return_value = DagRun()
         with pytest.raises(AirflowException):
             _trigger_dag(dag_id, dag_bag_mock)
 
-    @mock.patch("airflow.models.DAG")
-    @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
-    @mock.patch("airflow.models.DagBag")
-    def test_trigger_dag_include_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
-        dag_id = "trigger_dag"
-        dag_bag_mock.dags = [dag_id]
-        dag_bag_mock.get_dag.return_value = dag_mock
-        dag_run_mock.find_duplicate.return_value = None
-        dag1 = mock.MagicMock(subdags=[])
-        dag2 = mock.MagicMock(subdags=[])
-        dag_mock.subdags = [dag1, dag2]
-
-        triggers = _trigger_dag(dag_id, dag_bag_mock)
-
-        assert 3 == len(triggers)
-
-    @mock.patch("airflow.models.DAG")
-    @mock.patch("airflow.api.common.trigger_dag.DagRun", spec=DagRun)
-    @mock.patch("airflow.models.DagBag")
-    def test_trigger_dag_include_nested_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
-        dag_id = "trigger_dag"
-        dag_bag_mock.dags = [dag_id]
-        dag_bag_mock.get_dag.return_value = dag_mock
-        dag_run_mock.find_duplicate.return_value = None
-        dag1 = mock.MagicMock(subdags=[])
-        dag2 = mock.MagicMock(subdags=[dag1])
-        dag_mock.subdags = [dag1, dag2]
-
-        triggers = _trigger_dag(dag_id, dag_bag_mock)
-
-        assert 3 == len(triggers)
-
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_too_early_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_too_early_start_date"
-        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag = DAG(
+            dag_id=dag_id,
+            schedule=None,
+            default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)},
+        )
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
 
@@ -100,14 +72,18 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_valid_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_valid_start_date"
-        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag = DAG(
+            dag_id=dag_id,
+            schedule=None,
+            default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)},
+        )
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_bag_mock.dags_hash = {}
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0))
+        dagrun = _trigger_dag(dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0))
 
-        assert len(triggers) == 1
+        assert dagrun
 
     @pytest.mark.parametrize(
         "conf, expected_conf",
@@ -120,12 +96,12 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_conf(self, dag_bag_mock, conf, expected_conf):
         dag_id = "trigger_dag_with_conf"
-        dag = DAG(dag_id)
+        dag = DAG(dag_id, schedule=None)
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
 
         dag_bag_mock.dags_hash = {}
 
-        triggers = _trigger_dag(dag_id, dag_bag_mock, conf=conf)
+        dagrun = _trigger_dag(dag_id, dag_bag_mock, conf=conf)
 
-        assert triggers[0].conf == expected_conf
+        assert dagrun.conf == expected_conf

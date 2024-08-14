@@ -86,6 +86,12 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param container_timeout: max time allowed for the execution of
         the container instance.
     :param tags: azure tags as dict of str:str
+    :param xcom_all: Control if logs are pushed to XCOM similarly to how DockerOperator does.
+        Possible values include: 'None', 'True', 'False'. Defaults to 'None', meaning no logs
+        are pushed to XCOM which is the historical behaviour. 'True' means push all logs to XCOM
+        which may run the risk of hitting XCOM size limits. 'False' means push only the last line
+        of the logs to XCOM. However, the logs are pushed into XCOM under "logs", not return_value
+        to avoid breaking the existing behaviour.
     :param os_type: The operating system type required by the containers
         in the container group. Possible values include: 'Windows', 'Linux'
     :param restart_policy: Restart policy for all containers within the container group.
@@ -158,6 +164,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         remove_on_error: bool = True,
         fail_if_exists: bool = True,
         tags: dict[str, str] | None = None,
+        xcom_all: bool | None = None,
         os_type: str = "Linux",
         restart_policy: str = "Never",
         ip_address: IpAddress | None = None,
@@ -187,6 +194,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.fail_if_exists = fail_if_exists
         self._ci_hook: Any = None
         self.tags = tags
+        self.xcom_all = xcom_all
         self.os_type = os_type
         if self.os_type not in ["Linux", "Windows"]:
             raise AirflowException(
@@ -296,6 +304,16 @@ class AzureContainerInstancesOperator(BaseOperator):
             self.log.info("Container group started %s/%s", self.resource_group, self.name)
 
             exit_code = self._monitor_logging(self.resource_group, self.name)
+            if self.xcom_all is not None:
+                logs = self._ci_hook.get_logs(self.resource_group, self.name)
+                if logs is None:
+                    context["ti"].xcom_push(key="logs", value=[])
+                else:
+                    if self.xcom_all:
+                        context["ti"].xcom_push(key="logs", value=logs)
+                    else:
+                        # slice off the last entry in the list logs and return it as a list
+                        context["ti"].xcom_push(key="logs", value=logs[-1:])
 
             self.log.info("Container had exit code: %s", exit_code)
             if exit_code != 0:

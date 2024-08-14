@@ -53,7 +53,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -618,7 +618,10 @@ class DagFileProcessorManager(LoggingMixin):
                             self._processors.pop(processor.file_path)
 
                 if self.standalone_dag_processor:
-                    self._fetch_callbacks(max_callbacks_per_loop)
+                    for callback in DagFileProcessorManager._fetch_callbacks(
+                        max_callbacks_per_loop, self.standalone_dag_processor, self.get_dag_directory()
+                    ):
+                        self._add_callback_to_queue(callback)
                 self._scan_stale_dags()
                 DagWarning.purge_inactive_dag_warnings()
                 refreshed_dag_dir = self._refresh_dag_dir()
@@ -707,30 +710,46 @@ class DagFileProcessorManager(LoggingMixin):
                     else:
                         poll_time = 0.0
 
+    @classmethod
+    @internal_api_call
     @provide_session
-    def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
-        self._fetch_callbacks_with_retries(max_callbacks, session)
+    def _fetch_callbacks(
+        cls,
+        max_callbacks: int,
+        standalone_dag_processor: bool,
+        dag_directory: str,
+        session: Session = NEW_SESSION,
+    ) -> list[CallbackRequest]:
+        return cls._fetch_callbacks_with_retries(
+            max_callbacks, standalone_dag_processor, dag_directory, session
+        )
 
+    @classmethod
     @retry_db_transaction
-    def _fetch_callbacks_with_retries(self, max_callbacks: int, session: Session):
+    def _fetch_callbacks_with_retries(
+        cls, max_callbacks: int, standalone_dag_processor: bool, dag_directory: str, session: Session
+    ) -> list[CallbackRequest]:
         """Fetch callbacks from database and add them to the internal queue for execution."""
-        self.log.debug("Fetching callbacks from the database.")
+        cls.logger().debug("Fetching callbacks from the database.")
+
+        callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
             query = select(DbCallbackRequest)
-            if self.standalone_dag_processor:
+            if standalone_dag_processor:
                 query = query.where(
-                    DbCallbackRequest.processor_subdir == self.get_dag_directory(),
+                    DbCallbackRequest.processor_subdir == dag_directory,
                 )
             query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
             query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
-                    self._add_callback_to_queue(callback.get_callback_request())
+                    callback_queue.append(callback.get_callback_request())
                     session.delete(callback)
                 except Exception as e:
-                    self.log.warning("Error adding callback for execution: %s, %s", callback, e)
+                    cls.logger().warning("Error adding callback for execution: %s, %s", callback, e)
             guard.commit()
+        return callback_queue
 
     def _add_callback_to_queue(self, request: CallbackRequest):
         # requests are sent by dag processors. SLAs exist per-dag, but can be generated once per SLA-enabled
@@ -768,23 +787,30 @@ class DagFileProcessorManager(LoggingMixin):
             self._add_paths_to_queue([request.full_filepath], True)
             Stats.incr("dag_processing.other_callback_count")
 
-    @provide_session
-    def _refresh_requested_filelocs(self, session=NEW_SESSION) -> None:
+    def _refresh_requested_filelocs(self) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
         # Get values from DB table
+        filelocs = DagFileProcessorManager._get_priority_filelocs()
+        for fileloc in filelocs:
+            # Try removing the fileloc if already present
+            try:
+                self._file_path_queue.remove(fileloc)
+            except ValueError:
+                pass
+            # enqueue fileloc to the start of the queue.
+            self._file_path_queue.appendleft(fileloc)
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def _get_priority_filelocs(cls, session: Session = NEW_SESSION):
+        """Get filelocs from DB table."""
+        filelocs: list[str] = []
         requests = session.scalars(select(DagPriorityParsingRequest))
         for request in requests:
-            # Check if fileloc is in valid file paths. Parsing any
-            # filepaths can be a security issue.
-            if request.fileloc in self._file_paths:
-                # Try removing the fileloc if already present
-                try:
-                    self._file_path_queue.remove(request.fileloc)
-                except ValueError:
-                    pass
-                # enqueue fileloc to the start of the queue.
-                self._file_path_queue.appendleft(request.fileloc)
+            filelocs.append(request.fileloc)
             session.delete(request)
+        return filelocs
 
     def _refresh_dag_dir(self) -> bool:
         """Refresh file paths from dag dir if we haven't done it for too long."""
@@ -1184,7 +1210,7 @@ class DagFileProcessorManager(LoggingMixin):
             callback_requests=callback_requests,
         )
 
-    @span
+    @add_span
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -1222,7 +1248,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
-    @span
+    @add_span
     def add_new_file_path_to_queue(self):
         for file_path in self.file_paths:
             if file_path not in self._file_stats:

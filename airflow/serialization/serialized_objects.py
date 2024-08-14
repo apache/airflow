@@ -25,21 +25,30 @@ import inspect
 import logging
 import warnings
 import weakref
-from dataclasses import dataclass
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
 
 import attrs
 import lazy_object_proxy
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow import macros
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, DatasetAny
+from airflow.datasets import (
+    BaseDataset,
+    Dataset,
+    DatasetAlias,
+    DatasetAll,
+    DatasetAny,
+    _DatasetAliasCondition,
+)
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
+from airflow.models import Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, create_timetable
@@ -48,9 +57,11 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, 
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
@@ -60,6 +71,7 @@ from airflow.serialization.pydantic.dataset import DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
+from airflow.serialization.pydantic.trigger import TriggerPydantic
 from airflow.settings import _ENABLE_AIP_44, DAGS_FOLDER, json
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
@@ -68,14 +80,20 @@ from airflow.task.priority_strategy import (
 )
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import Context, OutletEventAccessor, OutletEventAccessors
+from airflow.utils.context import (
+    ConnectionAccessor,
+    Context,
+    OutletEventAccessor,
+    OutletEventAccessors,
+    VariableAccessor,
+)
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.timezone import from_timestamp, parse_timezone
-from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -342,6 +360,42 @@ def decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     return priority_weight_strategy_class()
 
 
+def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
+    """
+    Encode a StartTriggerArgs.
+
+    :meta private:
+    """
+    serialize_kwargs = (
+        lambda key: BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
+    )
+    return {
+        "__type": "START_TRIGGER_ARGS",
+        "trigger_cls": var.trigger_cls,
+        "trigger_kwargs": serialize_kwargs("trigger_kwargs"),
+        "next_method": var.next_method,
+        "next_kwargs": serialize_kwargs("next_kwargs"),
+        "timeout": var.timeout.total_seconds() if var.timeout else None,
+    }
+
+
+def decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
+    """
+    Decode a StartTriggerArgs.
+
+    :meta private:
+    """
+    deserialize_kwargs = lambda key: BaseSerialization.deserialize(var[key]) if var[key] is not None else None
+
+    return StartTriggerArgs(
+        trigger_cls=var["trigger_cls"],
+        trigger_kwargs=deserialize_kwargs("trigger_kwargs"),
+        next_method=var["next_method"],
+        next_kwargs=deserialize_kwargs("next_kwargs"),
+        timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
+    )
+
+
 class _XComRef(NamedTuple):
     """
     Store info needed to create XComArg.
@@ -421,6 +475,7 @@ _orm_to_model = {
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
     Dataset: DatasetPydantic,
+    Trigger: TriggerPydantic,
 }
 _type_to_class: dict[DAT | str, list] = {
     DAT.BASE_JOB: [JobPydantic, Job],
@@ -429,6 +484,7 @@ _type_to_class: dict[DAT | str, list] = {
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
     DAT.DATA_SET: [DatasetPydantic, Dataset],
+    DAT.TRIGGER: [TriggerPydantic, Trigger],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
 
@@ -621,6 +677,11 @@ class BaseSerialization:
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
+        elif isinstance(var, TaskInstanceKey):
+            return cls._encode(
+                var._asdict(),
+                type_=DAT.TASK_INSTANCE_KEY,
+            )
         elif isinstance(var, (AirflowException, TaskDeferred)) and hasattr(var, "serialize"):
             exc_cls_name, args, kwargs = var.serialize()
             return cls._encode(
@@ -630,6 +691,15 @@ class BaseSerialization:
                     strict=strict,
                 ),
                 type_=DAT.AIRFLOW_EXC_SER,
+            )
+        elif isinstance(var, (KeyError, AttributeError)):
+            return cls._encode(
+                cls.serialize(
+                    {"exc_cls_name": var.__class__.__name__, "args": [var.args], "kwargs": {}},
+                    use_pydantic_models=use_pydantic_models,
+                    strict=strict,
+                ),
+                type_=DAT.BASE_EXC_SER,
             )
         elif isinstance(var, BaseTrigger):
             return cls._encode(
@@ -676,6 +746,12 @@ class BaseSerialization:
             )
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
+        elif isinstance(var, TaskCallbackRequest):
+            return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
+        elif isinstance(var, DagCallbackRequest):
+            return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
+        elif isinstance(var, SlaCallbackRequest):
+            return cls._encode(var.to_json(), type_=DAT.SLA_CALLBACK_REQUEST)
         elif var.__class__ == Context:
             d = {}
             for k, v in var._context.items():
@@ -735,6 +811,12 @@ class BaseSerialization:
                     continue
                 d[k] = cls.deserialize(v, use_pydantic_models=True)
             d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
+            d["macros"] = macros
+            d["var"] = {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            }
+            d["conn"] = ConnectionAccessor()
             return Context(**d)
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
@@ -761,13 +843,16 @@ class BaseSerialization:
             return decode_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
-        elif type_ == DAT.AIRFLOW_EXC_SER:
+        elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
             deser = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
             exc_cls_name = deser["exc_cls_name"]
             args = deser["args"]
             kwargs = deser["kwargs"]
             del deser
-            exc_cls = import_string(f"airflow.exceptions.{exc_cls_name}")
+            if type_ == DAT.AIRFLOW_EXC_SER:
+                exc_cls = import_string(exc_cls_name)
+            else:
+                exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
@@ -793,6 +878,14 @@ class BaseSerialization:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
+        elif type_ == DAT.TASK_CALLBACK_REQUEST:
+            return TaskCallbackRequest.from_json(var)
+        elif type_ == DAT.DAG_CALLBACK_REQUEST:
+            return DagCallbackRequest.from_json(var)
+        elif type_ == DAT.SLA_CALLBACK_REQUEST:
+            return SlaCallbackRequest.from_json(var)
+        elif type_ == DAT.TASK_INSTANCE_KEY:
+            return TaskInstanceKey(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             return _type_to_class[type_][0].model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
@@ -953,6 +1046,10 @@ class DependencyDetector:
                         dependency_id=obj.uri,
                     )
                 )
+            elif isinstance(obj, DatasetAlias):
+                cond = _DatasetAliasCondition(obj.name)
+
+                deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
 
     @staticmethod
@@ -960,13 +1057,8 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        for uri, _ in dag.timetable.dataset_condition.iter_datasets():
-            yield DagDependency(
-                source="dataset",
-                target=dag.dag_id,
-                dependency_type="dataset",
-                dependency_id=uri,
-            )
+
+        yield from dag.timetable.dataset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
@@ -1069,7 +1161,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
         serialize_op["start_trigger_args"] = (
-            op.start_trigger_args.serialize() if op.start_trigger_args else None
+            encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
         )
         serialize_op["start_from_trigger"] = op.start_from_trigger
 
@@ -1193,8 +1285,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             elif k == "downstream_task_ids":
                 v = set(v)
-            elif k == "subdag":
-                v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
@@ -1257,8 +1347,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
         start_trigger_args = None
-        if encoded_op.get("start_trigger_args", None):
-            start_trigger_args = StartTriggerArgs(**encoded_op.get("start_trigger_args", None))
+        encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
+        if encoded_start_trigger_args:
+            encoded_start_trigger_args = cast(dict, encoded_start_trigger_args)
+            start_trigger_args = decode_start_trigger_args(encoded_start_trigger_args)
         setattr(op, "start_trigger_args", start_trigger_args)
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
@@ -1276,9 +1368,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for date_attr in ("start_date", "end_date"):
             if getattr(task, date_attr, None) is None:
                 setattr(task, date_attr, getattr(dag, date_attr, None))
-
-        if task.subdag is not None:
-            task.subdag.parent_dag = dag
 
         # Dereference expand_input and op_kwargs_expand_input.
         for k in ("expand_input", "op_kwargs_expand_input"):
@@ -1329,7 +1418,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
-        op.dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
+        op.dag = AttributeRemoved("dag")  # type: ignore[assignment]
         cls.populate_operator(op, encoded_op)
         return op
 
@@ -1365,7 +1454,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
-        if var is not None and op.has_dag() and attrname.endswith("_date"):
+        if (
+            var is not None
+            and op.has_dag()
+            and op.dag.__class__ is not AttributeRemoved
+            and attrname.endswith("_date")
+        ):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.
             dag_date = getattr(op.dag, attrname, None)
@@ -1549,12 +1643,12 @@ class SerializedDAG(DAG, BaseSerialization):
 
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
 
-            dag_deps = {
+            dag_deps = [
                 dep
                 for task in dag.task_dict.values()
                 for dep in SerializedBaseOperator.detect_dependencies(task)
-            }
-            dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
+            ]
+            dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
@@ -1576,7 +1670,7 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"])
+        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
             if k == "_downstream_task_ids":
@@ -1758,30 +1852,6 @@ class TaskGroupSerialization(BaseSerialization):
         group.upstream_task_ids.update(cls.deserialize(encoded_group["upstream_task_ids"]))
         group.downstream_task_ids.update(cls.deserialize(encoded_group["downstream_task_ids"]))
         return group
-
-
-@dataclass(frozen=True, order=True)
-class DagDependency:
-    """
-    Dataclass for representing dependencies between DAGs.
-
-    These are calculated during serialization and attached to serialized DAGs.
-    """
-
-    source: str
-    target: str
-    dependency_type: str
-    dependency_id: str | None = None
-
-    @property
-    def node_id(self):
-        """Node ID for graph rendering."""
-        val = f"{self.dependency_type}"
-        if self.dependency_type != "dataset":
-            val += f":{self.source}:{self.target}"
-        if self.dependency_id:
-            val += f":{self.dependency_id}"
-        return val
 
 
 def _has_kubernetes() -> bool:

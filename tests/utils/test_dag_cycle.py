@@ -30,13 +30,13 @@ from tests.models import DEFAULT_DATE
 class TestCycleTester:
     def test_cycle_empty(self):
         # test empty
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         assert not check_cycle(dag)
 
     def test_cycle_single_task(self):
         # test single task
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         with dag:
             EmptyOperator(task_id="A")
@@ -44,7 +44,7 @@ class TestCycleTester:
         assert not check_cycle(dag)
 
     def test_semi_complex(self):
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> B -> C
         #      B -> D
@@ -61,7 +61,7 @@ class TestCycleTester:
 
     def test_cycle_no_cycle(self):
         # test no cycle
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> B -> C
         #      B -> D
@@ -82,7 +82,7 @@ class TestCycleTester:
 
     def test_cycle_loop(self):
         # test self loop
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> A
         with dag:
@@ -94,7 +94,7 @@ class TestCycleTester:
 
     def test_cycle_downstream_loop(self):
         # test downstream self loop
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> B -> C -> D -> E -> E
         with dag:
@@ -114,7 +114,7 @@ class TestCycleTester:
 
     def test_cycle_large_loop(self):
         # large loop
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # A -> B -> C -> D -> E -> A
         with dag:
@@ -132,7 +132,7 @@ class TestCycleTester:
 
     def test_cycle_arbitrary_loop(self):
         # test arbitrary loop
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         # E-> A -> B -> F -> A
         #       -> C -> F
@@ -155,7 +155,7 @@ class TestCycleTester:
     def test_cycle_task_group_with_edge_labels(self):
         # Test a cycle is not detected when Labels are used between tasks in Task Groups.
 
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
 
         with dag:
             with TaskGroup(group_id="group"):

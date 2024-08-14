@@ -94,7 +94,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
     def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb):
-        from openlineage.client.run import Dataset
+        from airflow.providers.common.compat.openlineage.facet import Dataset
 
         MOCK_AZURE_ACCOUNT_NAME = "mock_account_name"
         mock_hook_wasb.return_value.get_conn.return_value.account_name = MOCK_AZURE_ACCOUNT_NAME

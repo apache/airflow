@@ -101,7 +101,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import ATTRIBUTE_REMOVED, NOTSET
+from airflow.utils.types import NOTSET, AttributeRemoved
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -517,7 +517,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
                 partial_desc.class_method = classmethod(partial)
-        new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+
+        # We patch `__init__` only if the class defines it.
+        if inspect.getmro(new_cls)[1].__init__ is not new_cls.__init__:
+            new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+
         return new_cls
 
 
@@ -849,10 +853,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _dag: DAG | None = None
     task_group: TaskGroup | None = None
-
-    # subdag parameter is only set for SubDagOperator.
-    # Setting it to None by default as other Operators do not have that field
-    subdag: DAG | None = None
 
     start_date: pendulum.DateTime | None = None
     end_date: pendulum.DateTime | None = None
@@ -1243,12 +1243,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return
 
         # if set to removed, then just set and exit
-        if self._dag is ATTRIBUTE_REMOVED:
+        if self._dag.__class__ is AttributeRemoved:
             self._dag = dag
             return
         # if setting to removed, then just set and exit
-        if dag is ATTRIBUTE_REMOVED:
-            self._dag = ATTRIBUTE_REMOVED  # type: ignore[assignment]
+        if dag.__class__ is AttributeRemoved:
+            self._dag = AttributeRemoved("_dag")  # type: ignore[assignment]
             return
 
         from airflow.models.dag import DAG
@@ -1720,7 +1720,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "end_date",
                     "_task_type",
                     "_operator_name",
-                    "subdag",
                     "ui_color",
                     "ui_fgcolor",
                     "template_ext",
@@ -1764,7 +1763,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
         This is achieved by raising a special exception (TaskDeferred)
-        which is caught in the main _execute_task wrapper.
+        which is caught in the main _execute_task wrapper. Triggers can send execution back to task or end
+        the task instance directly. If the trigger will end the task instance itself, ``method_name`` should
+        be None; otherwise, provide the name of the method that should be used when resuming execution in
+        the task.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 

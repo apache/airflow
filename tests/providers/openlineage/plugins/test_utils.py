@@ -30,10 +30,13 @@ from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
 from airflow.operators.bash import BashOperator
+from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
+    _get_all_packages_installed,
     _is_name_redactable,
+    get_airflow_debug_facet,
     get_airflow_run_facet,
     get_fully_qualified_class_name,
     is_operator_disabled,
@@ -53,6 +56,27 @@ class SafeStrDict(dict):
             except (TypeError, NotImplementedError):
                 continue
         return str(dict(castable))
+
+
+@patch("airflow.providers.openlineage.utils.utils.metadata.distributions")
+def test_get_all_packages_installed(mock_distributions):
+    mock_distributions.return_value = [MagicMock(metadata={"Name": "package1"}, version="1.0.0")]
+    assert _get_all_packages_installed() == {"package1": "1.0.0"}
+
+
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode", return_value=False)
+def test_get_airflow_debug_facet_not_in_debug_mode(mock_debug_mode):
+    assert get_airflow_debug_facet() == {}
+
+
+@patch("airflow.providers.openlineage.utils.utils._get_all_packages_installed")
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode")
+def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_packages):
+    mock_debug_mode.return_value = True
+    mock_get_packages.return_value = {"package1": "1.0.0"}
+    result = get_airflow_debug_facet()
+    expected_result = {"debug": AirflowDebugRunFacet(packages={"package1": "1.0.0"})}
+    assert result == expected_result
 
 
 @pytest.mark.db_test
@@ -102,6 +126,28 @@ def test_info_json_encodable():
         casts = {"iwanttobeint": lambda x: int(x.imastring)}
         renames = {"_faulty_name": "goody_name"}
 
+    @define
+    class Test:
+        exclude_1: str
+        imastring: str
+        _faulty_name: str
+        donotcare: str
+
+    obj = Test("val", "123", "not_funny", "abc")
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {
+        "iwanttobeint": 123,
+        "goody_name": "not_funny",
+        "donotcare": "abc",
+    }
+
+
+def test_info_json_encodable_without_slots():
+    class TestInfo(InfoJsonEncodable):
+        excludes = ["exclude_1", "exclude_2", "imastring"]
+        casts = {"iwanttobeint": lambda x: int(x.imastring)}
+        renames = {"_faulty_name": "goody_name"}
+
     @define(slots=False)
     class Test:
         exclude_1: str
@@ -122,7 +168,7 @@ def test_info_json_encodable_list_does_not_flatten():
     class TestInfo(InfoJsonEncodable):
         includes = ["alist"]
 
-    @define(slots=False)
+    @define
     class Test:
         alist: list[str]
 
@@ -135,7 +181,7 @@ def test_info_json_encodable_list_does_include_nonexisting():
     class TestInfo(InfoJsonEncodable):
         includes = ["exists", "doesnotexist"]
 
-    @define(slots=False)
+    @define
     class Test:
         exists: str
 
@@ -191,7 +237,7 @@ def test_redact_with_exclusions(monkeypatch):
             self.password = "passwd"
             self.transparent = "123"
 
-    @define(slots=False)
+    @define
     class NestedMixined(RedactMixin):
         _skip_redact = ["nested_field"]
         password: str

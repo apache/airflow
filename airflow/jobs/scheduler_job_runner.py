@@ -61,7 +61,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
@@ -717,11 +717,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # across all executors.
         num_occupied_slots = sum([executor.slots_occupied for executor in self.job.executors])
         parallelism = conf.getint("core", "parallelism")
+        # Parallelism configured to 0 means infinite currently running tasks
+        if parallelism == 0:
+            parallelism = sys.maxsize
         if self.job.max_tis_per_query == 0:
             max_tis = parallelism - num_occupied_slots
         else:
             max_tis = min(self.job.max_tis_per_query, parallelism - num_occupied_slots)
         if max_tis <= 0:
+            self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
             return 0
 
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
@@ -1139,14 +1143,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self.processor_agent:
                     self.processor_agent.heartbeat()
 
-                    # Heartbeat the scheduler periodically
-                    perform_heartbeat(
-                        job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
-                    )
+                # Heartbeat the scheduler periodically
+                perform_heartbeat(
+                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                )
 
-                    # Run any pending timed events
-                    next_event = timers.run(blocking=False)
-                    self.log.debug("Next timed event is in %f", next_event)
+                # Run any pending timed events
+                next_event = timers.run(blocking=False)
+                self.log.debug("Next timed event is in %f", next_event)
 
             self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
             if span.is_recording():
@@ -1300,7 +1304,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         # END: create dagruns
 
-    @span
+    @add_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and execution_date same
@@ -1508,7 +1512,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return False
         return True
 
-    @span
+    @add_span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
@@ -1518,13 +1522,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
         )
 
-        @span
+        @add_span
         def _update_state(dag: DAG, dag_run: DagRun):
-            __span = Trace.get_current_span()
-            __span.set_attribute("state", str(DagRunState.RUNNING))
-            __span.set_attribute("run_id", dag_run.run_id)
-            __span.set_attribute("type", dag_run.run_type)
-            __span.set_attribute("dag_id", dag_run.dag_id)
+            span = Trace.get_current_span()
+            span.set_attribute("state", str(DagRunState.RUNNING))
+            span.set_attribute("run_id", dag_run.run_id)
+            span.set_attribute("type", dag_run.run_type)
+            span.set_attribute("dag_id", dag_run.dag_id)
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1545,8 +1549,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
                 )
-                if __span.is_recording():
-                    __span.add_event(
+                if span.is_recording():
+                    span.add_event(
                         name="schedule_delay",
                         attributes={"dag_id": dag.dag_id, "schedule_delay": str(schedule_delay)},
                     )
@@ -1556,7 +1560,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.dagbag.get_dag, session=session)
         )
 
-        _span = Trace.get_current_span()
+        span = Trace.get_current_span()
         for dag_run in dag_runs:
             dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
 
@@ -1573,8 +1577,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_run.execution_date,
                 )
             else:
-                if _span.is_recording():
-                    _span.add_event(
+                if span.is_recording():
+                    span.add_event(
                         name="dag_run",
                         attributes={
                             "run_id": dag_run.run_id,
@@ -2066,6 +2070,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .group_by(DatasetModel.id)
+            .where(~DatasetModel.is_orphaned)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,

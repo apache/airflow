@@ -97,14 +97,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.9.3)     |
-|-------------|------------------------------|----------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11, 3.12   | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)            |
-| Kubernetes  | 1.26, 1.27, 1.28, 1.29, 1.30 | 1.26, 1.27, 1.28, 1.29     |
-| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16         |
-| MySQL       | 8.0, 8.4, Innovation         | 8.0, Innovation            |
-| SQLite      | 3.15.0+                      | 3.15.0+                    |
+|            | Main version (dev)         | Stable version (2.9.3)     |
+|------------|----------------------------|----------------------------|
+| Python     | 3.8, 3.9, 3.10, 3.11, 3.12 | 3.8, 3.9, 3.10, 3.11, 3.12 |
+| Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
+| Kubernetes | 1.27, 1.28, 1.29, 1.30     | 1.26, 1.27, 1.28, 1.29     |
+| PostgreSQL | 12, 13, 14, 15, 16         | 12, 13, 14, 15, 16         |
+| MySQL      | 8.0, 8.4, Innovation       | 8.0, Innovation            |
+| SQLite     | 3.15.0+                    | 3.15.0+                    |
 
 \* Experimental
 
@@ -477,17 +477,33 @@ Generally we release `MINOR` versions of Airflow from a branch that is named aft
 `2.7.*` releases are released from `v2-7-stable` branch, `2.8.*` releases are released from `v2-8-stable`
 branch, etc.
 
-Most of the time in our release cycle, when the branch for next `MINOR` branch is not yet created, all
+1. Most of the time in our release cycle, when the branch for next `MINOR` branch is not yet created, all
 PRs merged to `main` (unless they get reverted), will find their way to the next `MINOR` release. For example
 if the last release is `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
-is `2.8.0` and all PRs merged to main will be released in `2.8.0`. There is a brief period of time when we
-cut a new `MINOR` release branch and prepare the alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
-where PRs merged to main will only be released in the following `MINOR` release.
+is `2.8.0` and all PRs merged to main will be released in `2.8.0`. However, some PRs (bug-fixes and
+doc-only changes) when merged, can be cherry-picked to current `MINOR` branch and released in the
+next `PATCHLEVEL` release. For example, if `2.8.1` is already released and we are working on `2.9.0dev`,  then
+marking a PR with `2.8.2` milestone means that it will be cherry-picked to `v2-8-test` branch and
+released in `2.8.2rc1`, and eventually in `2.8.2`.
 
-However, some PRs (bug-fixes and doc-only changes) when merged, can be cherry-picked to current `MINOR` branch
-and released in the next `PATCHLEVEL` release - for example when the last released version from `v2-7-stable`
-branch is `2.7.2`. Some of the PRs from main can be marked as `2.7.3` milestone by committers, the release manager
-will try to cherry-pick them into the release branch. If successful, they will be released in `2.7.3`.
+2. When we prepare for the next `MINOR` release, we cut new `v2-*-test` and `v2-*-stable` branch
+and prepare `alpha`, `beta` releases for the next `MINOR` version, the PRs merged to main will still be
+released in the next `MINOR` release until `rc` version is cut. This is happening because the `v2-*-test`
+and `v2-*-stable` branches are rebased on top of main when next `beta` and `rc` releases are prepared.
+For example, when we cut `2.10.0beta1` version, anything merged to main before `2.10.0rc1` is released,
+will find its way to 2.10.0rc1.
+
+3. Then, once we prepare the first RC candidate for the MINOR release, we stop moving the `v2-*-test` and
+`v2-*-stable` branches and the PRs merged to main will be released in the next `MINOR` release.
+However, some PRs (bug-fixes and doc-only changes) when merged, can be cherry-picked to current `MINOR`
+branch and released in the next `PATCHLEVEL` release - for example when the last released version from `v2-10-stable`
+branch is `2.10.0rc1`, some of the PRs from main can be marked as `2.10.0` milestone by committers,
+the release manager will try to cherry-pick them into the release branch.
+If successful, they will be released in `2.10.0rc2` and subsequently in `2.10.0`. This also applies to
+subsequent `PATCHLEVEL` versions. When for example `2.10.1` is already released, marking a PR with
+`2.10.2` milestone will mean that it will be cherry-picked to `v2-10-stable` branch and released in `2.10.2rc1`
+and eventually in `2.10.2`.
+
 The final decision about cherry-picking is made by the release manager.
 
 Marking issues with a milestone is a bit different. Maintainers do not mark issues with a milestone usually,

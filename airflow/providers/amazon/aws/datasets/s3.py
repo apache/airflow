@@ -16,8 +16,30 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.datasets import Dataset
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
 def create_dataset(*, bucket: str, key: str, extra=None) -> Dataset:
     return Dataset(uri=f"s3://{bucket}/{key}", extra=extra)
+
+
+def sanitize_uri(uri: SplitResult) -> SplitResult:
+    if not uri.netloc:
+        raise ValueError("URI format s3:// must contain a bucket name")
+    return uri
+
+
+def convert_dataset_to_openlineage(dataset: Dataset, lineage_context) -> OpenLineageDataset:
+    """Translate Dataset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+
+    bucket, key = S3Hook.parse_s3_url(dataset.uri)
+    return OpenLineageDataset(namespace=f"s3://{bucket}", name=key if key else "/")

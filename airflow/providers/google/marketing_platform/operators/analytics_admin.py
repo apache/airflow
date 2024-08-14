@@ -530,6 +530,7 @@ class GoogleAnalyticsAdminGetGoogleAdsLinkOperator(GoogleCloudBaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "google_ads_link_id",
+        "property_id",
     )
 
     def __init__(

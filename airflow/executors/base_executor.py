@@ -30,10 +30,11 @@ import pendulum
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import Trace, gen_context, span
+from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -227,7 +228,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @span
+    @add_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -238,43 +239,75 @@ class BaseExecutor(LoggingMixin):
         num_running_tasks = len(self.running)
         num_queued_tasks = len(self.queued_tasks)
 
-        self.log.debug("%s running task instances", num_running_tasks)
-        self.log.debug("%s in queue", num_queued_tasks)
-        if open_slots == 0:
-            self.log.info("Executor parallelism limit reached. 0 open slots.")
-        else:
-            self.log.debug("%s open slots", open_slots)
+        self._emit_metrics(open_slots, num_running_tasks, num_queued_tasks)
+        self.trigger_tasks(open_slots)
+
+        # Calling child class sync method
+        self.log.debug("Calling the %s sync method", self.__class__)
+        self.sync()
+
+    def _emit_metrics(self, open_slots, num_running_tasks, num_queued_tasks):
+        """
+        Emit metrics relevant to the Executor.
+
+        In the case of multiple executors being configured, the metric names include the name of
+        executor to differentiate them from metrics from other executors.
+
+        If only one executor is configured, the metric names will not be changed.
+        """
+        name = self.__class__.__name__
+        multiple_executors_configured = len(ExecutorLoader.get_executor_names()) > 1
+        if multiple_executors_configured:
+            metric_suffix = name
+
+        open_slots_metric_name = (
+            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
+        )
+        queued_tasks_metric_name = (
+            f"executor.queued_tasks.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.queued_tasks"
+        )
+        running_tasks_metric_name = (
+            f"executor.running_tasks.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.running_tasks"
+        )
 
         span = Trace.get_current_span()
         if span.is_recording():
             span.add_event(
                 name="executor",
                 attributes={
-                    "executor.open_slots": open_slots,
-                    "executor.queued_tasks": num_queued_tasks,
-                    "executor.running_tasks": num_running_tasks,
+                    open_slots_metric_name: open_slots,
+                    queued_tasks_metric_name: num_queued_tasks,
+                    running_tasks_metric_name: num_running_tasks,
                 },
             )
 
+        self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
+        self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
+        if open_slots == 0:
+            if self.parallelism:
+                self.log.info("Executor parallelism limit reached. 0 open slots.")
+        else:
+            self.log.debug("%s open slots for executor %s", open_slots, name)
+
         Stats.gauge(
-            "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
+            open_slots_metric_name,
+            value=open_slots,
+            tags={"status": "open", "name": name},
         )
         Stats.gauge(
-            "executor.queued_tasks",
+            queued_tasks_metric_name,
             value=num_queued_tasks,
-            tags={"status": "queued", "name": self.__class__.__name__},
+            tags={"status": "queued", "name": name},
         )
         Stats.gauge(
-            "executor.running_tasks",
+            running_tasks_metric_name,
             value=num_running_tasks,
-            tags={"status": "running", "name": self.__class__.__name__},
+            tags={"status": "running", "name": name},
         )
-
-        self.trigger_tasks(open_slots)
-
-        # Calling child class sync method
-        self.log.debug("Calling the %s sync method", self.__class__)
-        self.sync()
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
         """
@@ -288,7 +321,7 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
-    @span
+    @add_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -348,7 +381,7 @@ class BaseExecutor(LoggingMixin):
         if task_tuples:
             self._process_tasks(task_tuples)
 
-    @span
+    @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
             task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element

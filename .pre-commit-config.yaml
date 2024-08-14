@@ -343,7 +343,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.4.5"]
+        additional_dependencies: ["ruff==0.5.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -353,7 +353,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.4.5"]
+        additional_dependencies: ["ruff==0.5.5"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -387,6 +387,14 @@ repos:
         require_serial: true
         exclude: ^airflow/kubernetes/
         entry: ./scripts/ci/pre_commit/check_airflow_k8s_not_used.py
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-common-compat-used-for-openlineage
+        name: Check common.compat is used for OL deprecated classes
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/openlineage/
+        entry: ./scripts/ci/pre_commit/check_common_compat_used_for_openlineage.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-providers-bug-report-template
         name: Check airflow-bug-report provider list is sorted/unique
@@ -552,6 +560,7 @@ repos:
         entry: ./scripts/ci/pre_commit/new_session_in_provide_session.py
         pass_filenames: true
         files: ^airflow/.+\.py$
+        exclude: ^airflow/serialization/pydantic/.*
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -684,14 +693,14 @@ repos:
           ^airflow/providers/.*\.py$
         exclude: ^.*/.*_vendor/
       - id: check-get-lineage-collector-providers
-        language: pygrep
+        language: python
         name: Check providers import hook lineage code from compat
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
           airflow.lineage.hook.
-        entry: "airflow\\.lineage\\.hook"
-        pass_filenames: true
+        entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
         files: ^airflow/providers/.*\.py$
         exclude: ^airflow/providers/common/compat/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python

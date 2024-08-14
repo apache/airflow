@@ -27,6 +27,7 @@ from click import IntRange
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     option_backend,
+    option_database_isolation,
     option_db_reset,
     option_debug_resources,
     option_downgrade_pendulum,
@@ -504,6 +505,7 @@ option_force_sa_warnings = click.option(
 @option_airflow_constraints_reference
 @option_backend
 @option_collect_only
+@option_database_isolation
 @option_db_reset
 @option_debug_resources
 @option_downgrade_pendulum
@@ -564,6 +566,7 @@ def command_for_tests(**kwargs):
 @option_airflow_constraints_reference
 @option_backend
 @option_collect_only
+@option_database_isolation
 @option_debug_resources
 @option_downgrade_pendulum
 @option_downgrade_sqlalchemy
@@ -660,15 +663,16 @@ def command_for_db_tests(**kwargs):
 @option_verbose
 def command_for_non_db_tests(**kwargs):
     _run_test_command(
-        integration=(),
-        run_in_parallel=False,
-        use_xdist=True,
-        skip_db_tests=True,
-        run_db_tests_only=False,
-        test_type="Default",
-        db_reset=False,
         backend="none",
+        database_isolation=False,
+        db_reset=False,
         extra_pytest_args=(),
+        integration=(),
+        run_db_tests_only=False,
+        run_in_parallel=False,
+        skip_db_tests=True,
+        test_type="Default",
+        use_xdist=True,
         **kwargs,
     )
 
@@ -679,6 +683,7 @@ def _run_test_command(
     backend: str,
     collect_only: bool,
     db_reset: bool,
+    database_isolation: bool,
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -735,6 +740,7 @@ def _run_test_command(
         airflow_constraints_reference=airflow_constraints_reference,
         backend=backend,
         collect_only=collect_only,
+        database_isolation=database_isolation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,

@@ -40,9 +40,14 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent, extract_event_key
+from airflow.datasets import (
+    Dataset,
+    DatasetAlias,
+    DatasetAliasEvent,
+    extract_event_key,
+)
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -245,12 +250,20 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
 
     _inlets: list[Any]
     _datasets: dict[str, Dataset]
+    _dataset_aliases: dict[str, DatasetAlias]
     _session: Session
 
     def __init__(self, inlets: list, *, session: Session) -> None:
         self._inlets = inlets
-        self._datasets = {inlet.uri: inlet for inlet in inlets if isinstance(inlet, Dataset)}
         self._session = session
+        self._datasets = {}
+        self._dataset_aliases = {}
+
+        for inlet in inlets:
+            if isinstance(inlet, Dataset):
+                self._datasets[inlet.uri] = inlet
+            elif isinstance(inlet, DatasetAlias):
+                self._dataset_aliases[inlet.name] = inlet
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._inlets)
@@ -258,15 +271,27 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | Dataset) -> LazyDatasetEventSelectSequence:
+    def __getitem__(self, key: int | str | Dataset | DatasetAlias) -> LazyDatasetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
-            dataset = self._inlets[key]
-            if not isinstance(dataset, Dataset):
+            obj = self._inlets[key]
+            if not isinstance(obj, (Dataset, DatasetAlias)):
                 raise IndexError(key)
         else:
-            dataset = self._datasets[extract_event_key(key)]
+            obj = key
+
+        if isinstance(obj, DatasetAlias):
+            dataset_alias = self._dataset_aliases[obj.name]
+            join_clause = DatasetEvent.source_aliases
+            where_clause = DatasetAliasModel.name == dataset_alias.name
+        elif isinstance(obj, (Dataset, str)):
+            dataset = self._datasets[extract_event_key(obj)]
+            join_clause = DatasetEvent.dataset
+            where_clause = DatasetModel.uri == dataset.uri
+        else:
+            raise ValueError(key)
+
         return LazyDatasetEventSelectSequence.from_select(
-            select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri == dataset.uri),
+            select(DatasetEvent).join(join_clause).where(where_clause),
             order_by=[DatasetEvent.timestamp],
             session=self._session,
         )

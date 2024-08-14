@@ -649,7 +649,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "tests/providers/common/io/operators/test_file_transfer.py",
             ),
             {
-                "affected-providers-list-as-string": "common.io openlineage",
+                "affected-providers-list-as-string": "common.compat common.io openlineage",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -663,11 +663,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[common.io,openlineage]",
+                "parallel-test-types-list-as-string": "Always Providers[common.compat,common.io,openlineage]",
                 "needs-mypy": "true",
                 "mypy-folders": "['airflow', 'providers']",
             },
-            id="Only Always and Common.IO tests should run when only common.io and tests/always changed",
+            id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
         pytest.param(
             ("airflow/operators/bash.py",),
@@ -714,6 +714,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "mypy-folders": "['airflow']",
             },
             id="Force Core and Serialization tests to run when tests bash changed",
+        ),
+        (
+            pytest.param(
+                ("tests/utils/test_cli_util.py",),
+                {
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
+                    "run-tests": "true",
+                    "run-amazon-tests": "true",
+                    "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                },
+                id="All tests should be run when tests/utils/ change",
+            )
         ),
     ],
 )
@@ -853,9 +879,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['12', '13', '14', '15', '16']",
                     "python-versions": "['3.8', '3.9', '3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": "3.8 3.9 3.10 3.11 3.12",
-                    "kubernetes-versions": "['v1.26.15', 'v1.27.13', 'v1.28.9', 'v1.29.4', 'v1.30.0']",
-                    "kubernetes-versions-list-as-string": "v1.26.15 v1.27.13 v1.28.9 v1.29.4 v1.30.0",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.15 3.9-v1.27.13 3.10-v1.28.9 3.11-v1.29.4 3.12-v1.30.0",
+                    "kubernetes-versions": "['v1.27.13', 'v1.28.9', 'v1.29.4', 'v1.30.0']",
+                    "kubernetes-versions-list-as-string": "v1.27.13 v1.28.9 v1.29.4 v1.30.0",
+                    "kubernetes-combos-list-as-string": "3.8-v1.27.13 3.9-v1.28.9 3.10-v1.29.4 3.11-v1.30.0 3.12-v1.27.13",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -887,9 +913,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['12']",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.15']",
-                    "kubernetes-versions-list-as-string": "v1.26.15",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
+                    "kubernetes-versions": "['v1.27.13']",
+                    "kubernetes-versions-list-as-string": "v1.27.13",
+                    "kubernetes-combos-list-as-string": "3.8-v1.27.13",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -921,9 +947,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['12']",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.15']",
-                    "kubernetes-versions-list-as-string": "v1.26.15",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
+                    "kubernetes-versions": "['v1.27.13']",
+                    "kubernetes-versions-list-as-string": "v1.27.13",
+                    "kubernetes-combos-list-as-string": "3.8-v1.27.13",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -991,9 +1017,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.15']",
-                    "kubernetes-versions-list-as-string": "v1.26.15",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
+                    "kubernetes-versions": "['v1.27.13']",
+                    "kubernetes-versions-list-as-string": "v1.27.13",
+                    "kubernetes-combos-list-as-string": "3.8-v1.27.13",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1023,9 +1049,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.8']",
                     "python-versions-list-as-string": "3.8",
-                    "kubernetes-versions": "['v1.26.15']",
-                    "kubernetes-versions-list-as-string": "v1.26.15",
-                    "kubernetes-combos-list-as-string": "3.8-v1.26.15",
+                    "kubernetes-versions": "['v1.27.13']",
+                    "kubernetes-versions-list-as-string": "v1.27.13",
+                    "kubernetes-combos-list-as-string": "3.8-v1.27.13",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1126,7 +1152,7 @@ def test_expected_output_full_tests_needed(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
-                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
+                "common.compat common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
                 "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
@@ -1155,7 +1181,7 @@ def test_expected_output_full_tests_needed(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.sql facebook google "
+                "cncf.kubernetes common.compat common.sql facebook google "
                 "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
@@ -1272,7 +1298,7 @@ def test_expected_output_pull_request_v2_7(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.sql "
+                "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
@@ -1283,7 +1309,7 @@ def test_expected_output_pull_request_v2_7(
                 "run-tests": "true",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.sql facebook google hashicorp microsoft.azure "
+                "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
@@ -1291,9 +1317,9 @@ def test_expected_output_pull_request_v2_7(
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Always CLI Providers[amazon] "
-                "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,hashicorp,"
-                "microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,salesforce,"
-                "samba,sftp,ssh,trino] Providers[google]",
+                "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
+                "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
+                "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['airflow', 'providers']",
             },
@@ -1588,7 +1614,7 @@ def test_upgrade_to_newer_dependencies(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.sql facebook google hashicorp "
+                "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
             },
@@ -1722,7 +1748,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 @pytest.mark.parametrize(
     (
         "github_event, github_actor, github_repository, pr_labels, "
-        "github_context_dict, runs_on_as_json_default, is_self_hosted_runner, "
+        "github_context_dict, runs_on_as_json_default, runs_on_as_docs_build, is_self_hosted_runner, "
         "is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner, exception"
     ),
     [
@@ -1734,6 +1760,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             dict(),
             # TODO: revert it when we fix self-hosted runners
             '["ubuntu-22.04"]',
+            '["self-hosted", "asf-runner"]',
             # '["self-hosted", "Linux", "X64"]',
             # TODO: revert it when we fix self-hosted runners
             "false",
@@ -1756,6 +1783,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1771,6 +1799,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1788,6 +1817,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1803,6 +1833,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1820,6 +1851,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1835,6 +1867,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1852,6 +1885,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1867,6 +1901,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             (),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1884,6 +1919,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             [],
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1899,6 +1935,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1916,6 +1953,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             (),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1932,6 +1970,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             ("use self-hosted runners",),
             dict(),
             '["ubuntu-22.04"]',
+            '["ubuntu-22.04"]',
             "false",
             "false",
             "true",
@@ -1947,6 +1986,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             ("use public runners",),
             dict(),
+            '["ubuntu-22.04"]',
             '["ubuntu-22.04"]',
             "false",
             "false",
@@ -1965,7 +2005,8 @@ def test_runs_on(
     github_repository: str,
     pr_labels: tuple[str, ...],
     github_context_dict: dict[str, Any],
-    runs_on_as_json_default,
+    runs_on_as_json_default: str,
+    runs_on_as_docs_build: str,
     is_self_hosted_runner: str,
     is_airflow_runner: str,
     is_amd_runner: str,
@@ -1994,6 +2035,7 @@ def test_runs_on(
     else:
         stderr = get_output()
         assert_outputs_are_printed({"runs-on-as-json-default": runs_on_as_json_default}, str(stderr))
+        assert_outputs_are_printed({"runs-on-as-json-docs-build": runs_on_as_docs_build}, str(stderr))
         assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
         assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
         assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))

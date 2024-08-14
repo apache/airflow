@@ -40,8 +40,9 @@ class TestTimedeltaSensor:
     def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+        self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=self.args)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_timedelta_sensor(self):
         op = TimeDeltaSensor(task_id="timedelta_sensor_check", delta=timedelta(seconds=2), dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -51,7 +52,7 @@ class TestTimeDeltaSensorAsync:
     def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+        self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=self.args)
 
     @pytest.mark.parametrize(
         "should_defer",

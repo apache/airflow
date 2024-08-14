@@ -23,19 +23,21 @@ from typing import TYPE_CHECKING
 
 import psutil
 from openlineage.client.serde import Serde
-from packaging.version import Version
 from setproctitle import getproctitle, setproctitle
 
-from airflow import __version__ as AIRFLOW_VERSION, settings
+from airflow import settings
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
+    IS_AIRFLOW_2_10_OR_HIGHER,
+    get_airflow_debug_facet,
     get_airflow_job_facet,
+    get_airflow_mapped_task_facet,
     get_airflow_run_facet,
-    get_custom_facets,
     get_job_name,
+    get_user_provided_run_facets,
     is_operator_disabled,
     is_selective_lineage_enabled,
     print_warning,
@@ -43,21 +45,20 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.settings import configure_orm
 from airflow.stats import Stats
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models import DagRun, TaskInstance
-    from airflow.utils.state import TaskInstanceState
 
 _openlineage_listener: OpenLineageListener | None = None
-_IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
 
 
 def _get_try_number_success(val):
     # todo: remove when min airflow version >= 2.10.0
-    if _IS_AIRFLOW_2_10_OR_HIGHER:
+    if IS_AIRFLOW_2_10_OR_HIGHER:
         return val.try_number
     return val.try_number - 1
 
@@ -122,6 +123,9 @@ class OpenLineageListener:
             )
             return
 
+        # Needs to be calculated outside of inner method so that it gets cached for usage in fork processes
+        debug_facet = get_airflow_debug_facet()
+
         @print_warning(self.log)
         def on_running():
             # that's a workaround to detect task running from deferred state
@@ -163,8 +167,10 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **get_custom_facets(task_instance),
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
+                    **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **debug_facet,
                 },
             )
             Stats.gauge(
@@ -233,6 +239,11 @@ class OpenLineageListener:
                 parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
+                },
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
@@ -241,7 +252,7 @@ class OpenLineageListener:
 
         self._execute(on_success, "on_success", use_fork=True)
 
-    if _IS_AIRFLOW_2_10_OR_HIGHER:
+    if IS_AIRFLOW_2_10_OR_HIGHER:
 
         @hookimpl
         def on_task_instance_failed(
@@ -328,6 +339,11 @@ class OpenLineageListener:
                 end_time=end_date.isoformat(),
                 task=task_metadata,
                 error=error,
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
+                },
             )
             Stats.gauge(
                 f"ol.event.size.{event_type}.{operator_name}",
@@ -420,7 +436,7 @@ class OpenLineageListener:
             nominal_end_time=data_interval_end,
             # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
             # as it causes lack of some TaskGroup attributes and crashes event emission.
-            job_facets={**get_airflow_job_facet(dag_run=dag_run)},
+            job_facets=get_airflow_job_facet(dag_run=dag_run),
         )
 
     @hookimpl

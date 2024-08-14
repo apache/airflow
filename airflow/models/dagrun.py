@@ -590,7 +590,6 @@ class DagRun(Base, LoggingMixin):
             )
             filter_query = [
                 DagModel.dag_id == self.dag_id,
-                DagModel.root_dag_id == self.dag_id,  # for sub-dags
             ]
             session.execute(
                 update(DagModel)
@@ -625,7 +624,7 @@ class DagRun(Base, LoggingMixin):
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
         """
-        task_ids = self.dag.task_ids if self.dag and self.dag.partial else None
+        task_ids = DagRun._get_partial_task_ids(self.dag)
         return DagRun.fetch_task_instances(
             dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
         )
@@ -1678,17 +1677,17 @@ class DagRun(Base, LoggingMixin):
         )
         return self.get_log_template(session=session).filename
 
+    @staticmethod
+    def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
+        return dag.task_ids if dag and dag.partial else None
+
 
 class DagRunNote(Base):
     """For storage of arbitrary notes concerning the dagrun instance."""
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(
-        Integer,
-        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
-        nullable=True,
-    )
+    user_id = Column(Integer, nullable=True)
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)

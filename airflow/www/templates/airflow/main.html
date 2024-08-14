@@ -29,7 +29,6 @@
 {% endblock %}
 
 {% block head_meta %}
-  <script src="/static/js/toggle_theme.js"></script>
   {{ super() }}
   {% if scheduler_job is defined and (scheduler_job and scheduler_job.is_alive()) %}
     <meta name="is_scheduler_running" content="True">
@@ -130,6 +129,7 @@
   <script src="{{ url_for_asset('main.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
+  <script src="{{ url_for_asset('toggleTheme.js') }}"></script>
 
   {% if analytics_tool is defined and analytics_tool %}
     {% include "analytics/" + analytics_tool + ".html" %}

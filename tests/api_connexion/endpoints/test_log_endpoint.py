@@ -36,7 +36,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -92,7 +92,7 @@ class TestGetLog:
             start_date=timezone.parse(self.default_time),
         )
 
-        configured_app.dag_bag.bag_dag(dag, root_dag=dag)
+        configured_app.dag_bag.bag_dag(dag)
 
         # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
         with dag_maker(
@@ -105,7 +105,7 @@ class TestGetLog:
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
-        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+        configured_app.dag_bag.bag_dag(dummy_dag)
 
         for ti in dr.task_instances:
             ti.try_number = 1
@@ -284,9 +284,9 @@ class TestGetLog:
 
         # Recreate DAG without tasks
         dagbag = self.app.dag_bag
-        dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
         del dagbag.dags[self.DAG_ID]
-        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.bag_dag(dag=dag)
 
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
