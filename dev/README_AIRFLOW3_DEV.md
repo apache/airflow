@@ -71,6 +71,6 @@ Our goal is to avoid breaking changes if we can so we should allow time to revie
 
 # Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
-The committer who merge the PR is responsible for cherry pick the PR to `v-2-10-test`
+The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test` (opening a new PR where original change gets cherry-picked and conflicts resolved). 
 If cherry pick is too complex then ask the PR author / start your own PR against `v-2-10-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
