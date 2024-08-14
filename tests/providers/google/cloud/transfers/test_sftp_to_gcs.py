@@ -252,3 +252,56 @@ class TestSFTPToGCSOperator:
 
         err = ctx.value
         assert "Only one wildcard '*' is allowed in source_path parameter" in str(err)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_execute_file_does_not_exist_fail(self, sftp_hook, gcs_hook):
+        """
+        Test that the SFTPToGCSOperator raises an error when the file does not exist and
+        fail_on_sftp_file_not_exist is True.
+        """
+        sftp_hook.return_value.retrieve_file.side_effect = FileNotFoundError
+
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=TEST_BUCKET,
+            destination_path=DESTINATION_PATH_FILE,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            fail_on_sftp_file_not_exist=True,
+        )
+
+        with pytest.raises(FileNotFoundError):
+            task.execute(None)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_execute_file_does_not_exist_no_fail(self, sftp_hook, gcs_hook):
+        """
+        Test that the SFTPToGCSOperator does not raise an error when the file does not exist and
+        fail_on_sftp_file_not_exist is False.
+        """
+        sftp_hook.return_value.retrieve_file.side_effect = FileNotFoundError
+
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=TEST_BUCKET,
+            destination_path=DESTINATION_PATH_FILE,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            fail_on_sftp_file_not_exist=False,
+        )
+
+        # Execute should not raise an error
+        task.execute(None)
+        sftp_hook.return_value.retrieve_file.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=True
+        )
+        gcs_hook.return_value.upload.assert_not_called()  # Upload should not be called
+
