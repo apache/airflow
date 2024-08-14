@@ -139,7 +139,11 @@ class TestFTPFileTransmitOperator:
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     def test_arg_checking(self, mock_put):
-        dag = DAG(dag_id="unit_tests_ftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
+        dag = DAG(
+            dag_id="unit_tests_ftp_op_arg_checking",
+            schedule=None,
+            default_args={"start_date": DEFAULT_DATE},
+        )
         # If ftp_conn_id is not passed in, it should be assigned the default connection id
         task_0 = FTPFileTransmitOperator(
             task_id="test_ftp_args_0",
@@ -297,7 +301,7 @@ class TestFTPSFileTransmitOperator:
         task = FTPFileTransmitOperator(
             task_id=task_id,
             ftp_conn_id="ftp_conn_id",
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/to/local",
             remote_filepath="/path/to/remote",
@@ -327,7 +331,7 @@ class TestFTPSFileTransmitOperator:
         task = FTPFileTransmitOperator(
             task_id=task_id,
             ftp_conn_id="ftp_conn_id",
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/to/local",
             remote_filepath="/path/to/remote",

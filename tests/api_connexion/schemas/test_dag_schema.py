@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pendulum
 import pytest
@@ -150,6 +150,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
 def test_serialize_test_dag_detail_schema(url_safe_serializer):
     dag = DAG(
         dag_id="test_dag",
+        schedule=timedelta(days=1),
         start_date=datetime(2020, 6, 19),
         doc_md="docs",
         orientation="LR",
