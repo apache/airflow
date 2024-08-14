@@ -148,7 +148,7 @@ class TestSchedulerJob:
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         self.clean_db()
-        self.job_runner = None
+        self.job_runner: SchedulerJobRunner | None = None
 
         yield
 
@@ -5577,7 +5577,7 @@ class TestSchedulerJob:
         def watch_set_state(dr: DagRun, state, **kwargs):
             if state in (DagRunState.SUCCESS, DagRunState.FAILED):
                 # Stop the scheduler
-                self.job_runner.num_runs = 1  # type: ignore[attr-defined]
+                self.job_runner.num_runs = 1  # type: ignore[attr-defined, union-attr]
             orig_set_state(dr, state, **kwargs)  # type: ignore[call-arg]
 
         def watch_heartbeat(*args, **kwargs):
