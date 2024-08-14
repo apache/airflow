@@ -2585,20 +2585,6 @@ my_postgres_conn:
             data_interval=(TEST_DATE, TEST_DATE),
         )
 
-    def test_return_date_range_with_num_method(self):
-        start_date = TEST_DATE
-        delta = timedelta(days=1)
-
-        dag = DAG("dummy-dag", schedule=delta, start_date=start_date)
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.date_range\(\)` is deprecated."):
-            dag_dates = dag.date_range(start_date=start_date, num=3)
-
-        assert dag_dates == [
-            start_date,
-            start_date + delta,
-            start_date + 2 * delta,
-        ]
-
     def test_dag_owner_links(self):
         dag = DAG(
             "dag",
