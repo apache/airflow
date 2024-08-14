@@ -37,39 +37,47 @@
 The main branch is for development of Airflow 3.
 Airflow 2.10.x releases will be cut from `v-2-10-stable` branch.
 
-# Developing for providers and Helm chart
+# Contributors
+
+The following section explains which branch you should target your PR
+
+## Developing for providers and Helm chart
 
 PRs should target `main` branch.
 
-# Developing for Airflow 3
+## Developing for Airflow 3
 
 PRs should target `main` branch.
 
-# Developing for Airflow 2.10.x
+## Developing for Airflow 2.10.x
 
 PR should target `v-2-10-test` branch. When cutting a new release for 2.10 release manager
 will sync `v-2-10-test`  branch to `v-2-10-stable` and cut the release from the stable branch.
 PR should never target `v-2-10-stable` unless specifically instructed by release manager.
 
-# Developing for Airflow 3 and 2.10.x / 2.11.x
+## Developing for Airflow 3 and 2.10.x / 2.11.x
 
 If the PR is relevant for both Airflow 3 and 2 it should target `main` branch.
 
-# Merging PRs 2.10.x
+# Committers / PMCs
+
+The following section explains the protocol for merging PRs.
+
+## Merging PRs 2.10.x
 
 Make sure PR target `v-2-10-test` branch and merge it when ready.
 All regular protocols of merging considerations are applied.
 
-# Merging PRs for Airflow 3
+## Merging PRs for Airflow 3
 
 Make sure PR target `main` branch.
 
-## PRs that involve breaking changes
+### PRs that involve breaking changes
 
 Make sure it has newsfragment, please allow time for community members to review.
 Our goal is to avoid breaking changes if we can so we should allow time to review, don't rush to merge.
 
-# Merging PR for Airflow 3 and 2.10.x / 2.11.x
+## Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
 The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test` (opening a new PR where original change gets cherry-picked and conflicts resolved). 
 If cherry pick is too complex then ask the PR author / start your own PR against `v-2-10-test` directly with the change.
