@@ -39,7 +39,11 @@ import pytest
 from slugify import slugify
 
 from airflow.decorators import task_group
-from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    DeserializingResultError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
@@ -56,8 +60,10 @@ from airflow.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
+from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
+from airflow.utils.pydantic import is_pydantic_2_installed
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -81,6 +87,11 @@ DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+
+HAS_PYDANTIC_2 = is_pydantic_2_installed()
+USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(
+    not HAS_PYDANTIC_2 or not _ENABLE_AIP_44, reason="`pydantic<2` or AIP-44 is not enabled"
+)
 
 
 class BasePythonTest:
@@ -1005,6 +1016,99 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
 
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context(self):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_not_found_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(
+            AirflowException,
+            match="Current context was requested but no context was found! "
+            "Are you running within an airflow task?",
+        ):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_airflow_not_found_error(self):
+        airflow_flag: dict[str, bool] = {"expect_airflow": False}
+        error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+
+        if not issubclass(self.opcls, ExternalPythonOperator):
+            airflow_flag["system_site_packages"] = False
+            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
+
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(AirflowException, match=error_msg):
+            self.run_as_task(
+                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
+            )
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_use_airflow_context_touch_other_variables(self):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            from airflow.operators.python import PythonOperator  # noqa: F401
+
+            return []
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    @pytest.mark.skipif(HAS_PYDANTIC_2, reason="`pydantic>=2` is installed")
+    def test_use_airflow_context_without_pydantic_v2_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        with pytest.raises(AirflowException, match=re.escape(error_msg)):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+
+    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
+    def test_use_airflow_context_without_aip_44_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        with pytest.raises(AirflowException, match=re.escape(error_msg)):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
@@ -1426,6 +1530,30 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_system_site_packages(self, session):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(
+            f,
+            return_ti=True,
+            multiple_outputs=False,
+            use_airflow_context=True,
+            session=session,
+            expect_airflow=False,
+            system_site_packages=True,
+        )
+        assert ti.state == TaskInstanceState.SUCCESS
+
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1744,6 +1872,30 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
             if "venv_cache_path" not in kwargs:
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_system_site_packages(self, session):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(
+            f,
+            return_ti=True,
+            multiple_outputs=False,
+            use_airflow_context=True,
+            session=session,
+            expect_airflow=False,
+            system_site_packages=True,
+        )
+        assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
