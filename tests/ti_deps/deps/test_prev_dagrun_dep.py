@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import ANY, Mock, patch
 
 import pytest
@@ -42,7 +43,7 @@ class TestPrevDagrunDep:
         The first task run of a new task in an old DAG should pass if the task has
         ignore_first_depends_on_past set to True.
         """
-        dag = DAG("test_dag")
+        dag = DAG("test_dag", schedule=timedelta(days=1))
         old_task = BaseOperator(
             task_id="test_task",
             dag=dag,
@@ -220,7 +221,7 @@ def test_dagrun_dep(
 ):
     task = BaseOperator(
         task_id="test_task",
-        dag=DAG("test_dag"),
+        dag=DAG("test_dag", schedule=timedelta(days=1)),
         depends_on_past=depends_on_past,
         start_date=datetime(2016, 1, 1),
         wait_for_downstream=wait_for_downstream,

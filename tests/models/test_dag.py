@@ -210,7 +210,7 @@ class TestDag:
         params = {"param1": Param(type="string")}
 
         with pytest.raises(AirflowException):
-            DAG("dummy-dag", schedule=timedelta(days=1), params=params)
+            DAG("dummy-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
 
     def test_dag_invalid_default_view(self):
         """
@@ -1393,7 +1393,7 @@ class TestDag:
         dag.sync_to_db()
         assert not dag.get_is_paused()
 
-        dag = DAG("dag_paused", is_paused_upon_creation=True)
+        dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
         dag.sync_to_db()
         # Since the dag existed before, it should not follow the pause flag upon creation
         assert not dag.get_is_paused()
@@ -1421,7 +1421,7 @@ class TestDag:
         dag = DAG("test_dag", schedule=None)
         assert dag.max_consecutive_failed_dag_runs == 4
         # but we can override the value using params
-        dag = DAG("test_dag2", max_consecutive_failed_dag_runs=2)
+        dag = DAG("test_dag2", schedule=None, max_consecutive_failed_dag_runs=2)
         assert dag.max_consecutive_failed_dag_runs == 2
 
     def test_existing_dag_is_paused_after_limit(self):
@@ -1819,8 +1819,8 @@ class TestDag:
         dag_diff_load_time = DAG(test_dag_id, schedule=None, default_args=args)
         dag_diff_name = DAG(test_dag_id + "_neq", schedule=None, default_args=args)
 
-        dag_subclass = DAGsubclass(test_dag_id, default_args=args)
-        dag_subclass_diff_name = DAGsubclass(test_dag_id + "2", default_args=args)
+        dag_subclass = DAGsubclass(test_dag_id, schedule=None, default_args=args)
+        dag_subclass_diff_name = DAGsubclass(test_dag_id + "2", schedule=None, default_args=args)
 
         for dag_ in [dag_eq, dag_diff_name, dag_subclass, dag_subclass_diff_name]:
             dag_.last_loaded = dag.last_loaded
@@ -1856,7 +1856,7 @@ class TestDag:
 
     def test_get_paused_dag_ids(self):
         dag_id = "test_get_paused_dag_ids"
-        dag = DAG(dag_id, is_paused_upon_creation=True)
+        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         dag.sync_to_db()
         assert DagModel.get_dagmodel(dag_id) is not None
 
@@ -2624,7 +2624,7 @@ my_postgres_conn:
 
         # Check wrong formatted owner link
         with pytest.raises(AirflowException):
-            DAG("dag", start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
+            DAG("dag", schedule=None, start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
 
     @pytest.mark.parametrize(
         "kwargs",

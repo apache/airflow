@@ -161,7 +161,7 @@ class TestDagBag:
         def create_dag():
             from airflow.decorators import dag
 
-            @dag(default_args={"owner": "owner1"})
+            @dag(schedule=None, default_args={"owner": "owner1"})
             def my_flow():
                 pass
 
