@@ -187,7 +187,7 @@ class MSGraphTrigger(BaseTrigger):
         return self.hook.proxies
 
     @property
-    def api_version(self) -> APIVersion:
+    def api_version(self) -> APIVersion | str:
         return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
