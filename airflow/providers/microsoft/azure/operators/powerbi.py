@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -93,13 +92,11 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
         if self.wait_for_termination:
-            end_time = time.time() + self.timeout
             self.defer(
                 trigger=PowerBITrigger(
                     conn_id=self.conn_id,
                     group_id=self.group_id,
                     dataset_id=self.dataset_id,
-                    end_time=end_time,
                     timeout=self.timeout,
                     check_interval=self.check_interval,
                     wait_for_termination=self.wait_for_termination,

@@ -58,7 +58,6 @@ DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 COMPLETED_REFRESH_DETAILS = {
     PowerBIDatasetRefreshFields.REQUEST_ID.value: NEW_REFRESH_REQUEST_ID,
     PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
-    # serviceExceptionJson is not present when status is not "Failed"
 }
 
 FAILED_REFRESH_DETAILS = {
@@ -119,7 +118,7 @@ def test_powerbi_operator_async_execute_complete_fail():
     assert context["ti"].xcom_push.call_count == 0
 
 
-def test_execute_complete_no_event(create_task_instance_of_operator):
+def test_execute_complete_no_event():
     """Test execute_complete when event is None or empty."""
     operator = PowerBIDatasetRefreshOperator(
         **CONFIG,

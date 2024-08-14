@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from unittest import mock
 from unittest.mock import patch
 
@@ -27,7 +26,6 @@ import pytest
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIDatasetRefreshStatus, PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import get_airflow_connection
 
 POWERBI_CONN_ID = "powerbi_default"
@@ -35,7 +33,6 @@ DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
 TIMEOUT = 30
-POWERBI_DATASET_END_TIME = time.time() + TIMEOUT
 MODULE = "airflow.providers.microsoft.azure"
 CHECK_INTERVAL = 10
 API_VERSION = "v1.0"
@@ -49,7 +46,6 @@ def powerbi_trigger():
         api_version=API_VERSION,
         dataset_id=DATASET_ID,
         group_id=GROUP_ID,
-        end_time=POWERBI_DATASET_END_TIME,
         check_interval=CHECK_INTERVAL,
         wait_for_termination=True,
         timeout=TIMEOUT,
@@ -62,12 +58,6 @@ def powerbi_trigger():
 def mock_powerbi_hook():
     hook = PowerBIHook()
     return hook
-
-
-@pytest.fixture
-def base_functions():
-    base = Base()
-    return base
 
 
 def test_powerbi_trigger_serialization():
@@ -83,7 +73,6 @@ def test_powerbi_trigger_serialization():
             api_version=API_VERSION,
             dataset_id=DATASET_ID,
             group_id=GROUP_ID,
-            end_time=POWERBI_DATASET_END_TIME,
             check_interval=CHECK_INTERVAL,
             wait_for_termination=True,
             timeout=TIMEOUT,
@@ -96,7 +85,6 @@ def test_powerbi_trigger_serialization():
             "dataset_id": DATASET_ID,
             "timeout": TIMEOUT,
             "group_id": GROUP_ID,
-            "end_time": POWERBI_DATASET_END_TIME,
             "proxies": None,
             "api_version": API_VERSION,
             "check_interval": CHECK_INTERVAL,
@@ -125,7 +113,7 @@ async def test_powerbi_trigger_run_inprogress(
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
 @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
 async def test_powerbi_trigger_run_failed(
-    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger, base_functions
+    mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
 ):
     """Assert event is triggered upon failed dataset refresh."""
     mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}

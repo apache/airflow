@@ -56,7 +56,6 @@ class PowerBITrigger(BaseTrigger):
         conn_id: str,
         dataset_id: str,
         group_id: str,
-        end_time: float,
         timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
@@ -68,7 +67,6 @@ class PowerBITrigger(BaseTrigger):
         self.dataset_id = dataset_id
         self.timeout = timeout
         self.group_id = group_id
-        self.end_time = end_time
         self.check_interval = check_interval
         self.wait_for_termination = wait_for_termination
 
@@ -83,7 +81,6 @@ class PowerBITrigger(BaseTrigger):
                 "api_version": api_version,
                 "dataset_id": self.dataset_id,
                 "group_id": self.group_id,
-                "end_time": self.end_time,
                 "timeout": self.timeout,
                 "check_interval": self.check_interval,
                 "wait_for_termination": self.wait_for_termination,

@@ -38,7 +38,6 @@ class PowerBIDatasetRefreshFields(Enum):
 class PowerBIDatasetRefreshStatus:
     """Power BI refresh dataset statuses."""
 
-    # If the completion state is unknown or a refresh is in progress.
     IN_PROGRESS = "In Progress"
     FAILED = "Failed"
     COMPLETED = "Completed"
