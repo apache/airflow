@@ -56,7 +56,45 @@ PYMSSQL_CONN_ALT_2 = Connection(
 )
 
 
-def get_primary_keys(self, table: str) -> list[str]:
+def get_column_names(self, table: str) -> list[str] | None:
+    return [
+        "ReportRefreshDate",
+        "UserId",
+        "UserPrincipalName",
+        "LastActivityDate",
+        "IsDeleted",
+        "DeletedDate",
+        "AssignedProducts",
+        "TeamChatMessageCount",
+        "PrivateChatMessageCount",
+        "CallCount",
+        "MeetingCount",
+        "MeetingsOrganizedCount",
+        "MeetingsAttendedCount",
+        "AdHocMeetingsOrganizedCount",
+        "AdHocMeetingsAttendedCount",
+        "ScheduledOne-timeMeetingsOrganizedCount",
+        "ScheduledOne-timeMeetingsAttendedCount",
+        "ScheduledRecurringMeetingsOrganizedCount",
+        "ScheduledRecurringMeetingsAttendedCount",
+        "AudioDuration",
+        "VideoDuration",
+        "ScreenShareDuration",
+        "AudioDurationInSeconds",
+        "VideoDurationInSeconds",
+        "ScreenShareDurationInSeconds",
+        "HasOtherAction",
+        "UrgentMessages",
+        "PostMessages",
+        "TenantDisplayName",
+        "SharedChannelTenantDisplayNames",
+        "ReplyMessages",
+        "IsLicensed",
+        "ReportPeriod",
+        "LoadDate",
+    ]
+
+def get_primary_keys(self, table: str) -> list[str] | None:
     return [
         "GroupDisplayName",
         "OwnerPrincipalName",
@@ -183,7 +221,12 @@ class TestMsSqlHook:
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     @mock.patch(
-        "airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.dialect.get_primary_keys", get_primary_keys
+         "airflow.providers.common.sql.dialects.mssql.MsSqlDialect.get_column_names",
+        get_column_names,
+    )
+    @mock.patch(
+         "airflow.providers.common.sql.dialects.mssql.MsSqlDialect.get_primary_keys",
+        get_primary_keys,
     )
     def test_generate_insert_sql(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
@@ -226,42 +269,6 @@ class TestMsSqlHook:
                 "Yes",
                 1,
                 "2024-07-17T00:00:00+00:00",
-            ],
-            target_fields=[
-                "ReportRefreshDate",
-                "UserId",
-                "UserPrincipalName",
-                "LastActivityDate",
-                "IsDeleted",
-                "DeletedDate",
-                "AssignedProducts",
-                "TeamChatMessageCount",
-                "PrivateChatMessageCount",
-                "CallCount",
-                "MeetingCount",
-                "MeetingsOrganizedCount",
-                "MeetingsAttendedCount",
-                "AdHocMeetingsOrganizedCount",
-                "AdHocMeetingsAttendedCount",
-                "ScheduledOne-timeMeetingsOrganizedCount",
-                "ScheduledOne-timeMeetingsAttendedCount",
-                "ScheduledRecurringMeetingsOrganizedCount",
-                "ScheduledRecurringMeetingsAttendedCount",
-                "AudioDuration",
-                "VideoDuration",
-                "ScreenShareDuration",
-                "AudioDurationInSeconds",
-                "VideoDurationInSeconds",
-                "ScreenShareDurationInSeconds",
-                "HasOtherAction",
-                "UrgentMessages",
-                "PostMessages",
-                "TenantDisplayName",
-                "SharedChannelTenantDisplayNames",
-                "ReplyMessages",
-                "IsLicensed",
-                "ReportPeriod",
-                "LoadDate",
             ],
             replace=True,
         )

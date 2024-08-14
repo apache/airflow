@@ -539,7 +539,7 @@ class DbApiHook(BaseHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+    def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -553,7 +553,8 @@ class DbApiHook(BaseHook):
         :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
         if not target_fields:
-            target_fields = self.dialect.get_column_names(table)
+            with suppress(Exception):
+                target_fields = self.dialect.get_column_names(table)
 
         if replace:
             return self.dialect.generate_replace_sql(table, values, target_fields, **kwargs)
