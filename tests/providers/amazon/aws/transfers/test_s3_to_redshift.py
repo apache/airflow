@@ -795,8 +795,8 @@ class TestS3ToRedshiftTransfer:
         rs_sql_lineage = op_rs_sql.get_openlineage_facets_on_complete(None)
 
         assert rs_sql_lineage.inputs == rs_data_lineage.inputs
-        assert len(rs_sql_lineage) == 1
-        assert len(rs_data_lineage) == 1
+        assert len(rs_sql_lineage.outputs) == 1
+        assert len(rs_data_lineage.outputs) == 1
         assert rs_sql_lineage.outputs[0].facets["schema"] == rs_data_lineage.outputs[0].facets["schema"]
         assert (
             rs_sql_lineage.outputs[0].facets["columnLineage"]
