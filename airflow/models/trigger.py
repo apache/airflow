@@ -324,5 +324,5 @@ class Trigger(Base):
         """
         reassigned_trigger_ids = session.scalars(
             select(cls.id).where(cls.triggerer_id != triggerer_id, cls.id.in_(local_trigger_ids))
-        ).all()
+        )
         return set(reassigned_trigger_ids)
