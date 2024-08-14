@@ -340,7 +340,6 @@ def test_mark_task_instance_state(test_app):
 
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        schedule="0 * * * *",
         execution_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
@@ -441,7 +440,6 @@ def test_mark_task_group_state(test_app):
 
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        schedule="0 0 * * *",
         execution_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
