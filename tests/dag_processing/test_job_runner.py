@@ -708,7 +708,6 @@ class TestDagProcessorJobRunner:
             ("scheduler", "stale_dag_threshold"): "50",
         }
     )
-
     def test_purge_stale_dags_standalone_mode(self):
         """
         Ensure only dags from current dag_directory are updated
