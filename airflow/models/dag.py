@@ -680,6 +680,12 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
             self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, ArgNotSet):
+            warnings.warn(
+                "Creating a DAG with an implicit schedule is deprecated, and will stop working "
+                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
             self.timetable = create_timetable(schedule, self.timezone)
             self.schedule_interval = DEFAULT_SCHEDULE_INTERVAL
         else:
@@ -3282,7 +3288,7 @@ class DAG(LoggingMixin):
                 "auto_register",
                 "fail_stop",
             }
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test"))) - exclusion_list
+            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test", schedule=None))) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
