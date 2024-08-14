@@ -161,7 +161,7 @@ class TestDagBag:
         def create_dag():
             from airflow.decorators import dag
 
-            @dag(default_args={"owner": "owner1"})
+            @dag(schedule=None, default_args={"owner": "owner1"})
             def my_flow():
                 pass
 
@@ -671,7 +671,7 @@ class TestDagBag:
 
             dag_name = "cycle_dag"
             default_args = {"owner": "owner1", "start_date": datetime.datetime(2016, 1, 1)}
-            dag = DAG(dag_name, default_args=default_args)
+            dag = DAG(dag_name, schedule=timedelta(days=1), default_args=default_args)
 
             # A -> A
             with dag:

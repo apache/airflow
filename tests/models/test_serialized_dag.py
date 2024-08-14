@@ -190,9 +190,9 @@ class TestSerializedDagModel:
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_bulk_sync_to_db(self):
         dags = [
-            DAG("dag_1"),
-            DAG("dag_2"),
-            DAG("dag_3"),
+            DAG("dag_1", schedule=None),
+            DAG("dag_2", schedule=None),
+            DAG("dag_3", schedule=None),
         ]
         with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)

@@ -117,7 +117,7 @@ class TestDockerDecorator:
         def do_run():
             return 4
 
-        with DAG("test", start_date=DEFAULT_DATE) as dag:
+        with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
             do_run()
             for _ in range(20):
                 do_run()

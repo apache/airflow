@@ -72,6 +72,7 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
 
     dag = DAG(
         "test",
+        schedule=None,
         start_date=dt.datetime(2022, 1, 1),
         user_defined_macros={"render_df": render_df},
         params={"df": {"col": [1, 2]}},
@@ -143,6 +144,7 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
     """
     dag = DAG(
         f"test_{scenario_name}",
+        schedule=None,
         start_date=dt.datetime(2022, 1, 1),
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
@@ -574,6 +576,7 @@ class TestOpenLineageSelectiveEnable:
     def setup_method(self):
         self.dag = DAG(
             "test_selective_enable",
+            schedule=None,
             start_date=dt.datetime(2022, 1, 1),
         )
 
