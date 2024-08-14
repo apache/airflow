@@ -399,6 +399,67 @@ In the above example, the trigger will end the task instance directly if ``end_f
 
 .. note::
     Exiting from the trigger works only when listeners are not integrated for the deferrable operator. Currently, when deferrable operator has the ``end_from_trigger`` attribute set to ``True`` and listeners are integrated it raises an exception during parsing to indicate this limitation. While writing the custom trigger, ensure that the trigger is not set to end the task instance directly if the listeners are added from plugins. If the ``end_from_trigger`` attribute is changed to different attribute by author of trigger, the DAG parsing would not raise any exception and the listeners dependent on this task would not work. This limitation will be addressed in future releases.
+Clean up Trigger on termination
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ .. versionadded:: 2.10.0
+
+The ``cleanup`` is called when the trigger is no longer needed due to normal completion, task cancellation, triggerer restart, reassignment of the trigger, etc.
+
+Typically, this method is always invoked after the run method, regardless of whether the trigger exits cleanly or otherwise. It can be used to clean up any resources that the trigger may have acquired during its execution.
+
+Specially, you will have a change to decide to cleanup the resource or not base on the termination context, for example, the trigger is reassigned to another triggerer, you can use ``should_cleanup`` to decide whether to cleanup the resource or not in this case.
+
+.. code-block:: python
+
+
+    class RemoteJobTrigger(BaseTrigger):
+        def __init__(self, remote_job_id: int):
+            super().__init__()
+            self.remote_job_id = remote_job_id
+
+        def serialize(self) -> tuple[str, dict[str, Any]]:
+            return (
+                "your_module.RemoteJobTrigger",
+                {"remote_job_id": remote_job_id},
+            )
+
+        def get_remote_job_status(self):
+            return "SUCCESS"
+
+        def kill_remote_job(self) -> None:
+            # Kill the remote job by self.remote_job_id
+
+        async def run(self) -> AsyncIterator[TriggerEvent]:
+            while self.get_remote_job_status() == "RUNNING":
+                await asyncio.sleep(1)
+            yield TriggerEvent(self.remote_job_id)
+
+        async def cleanup(self) -> None:
+            # Clean up the resource by shutting down a remote process.
+            kill_remote_job()
+
+        def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
+            # Does not clean up the resource if the trigger is reassigned to another triggerer.
+            return termination_reason != TriggerTerminationReason.REASSIGNED
+
+
+The ``cleanup`` is defined to clean up resources, such as killing a remote job if it is still running, upon termination. However, there are other cases where the trigger might be canceled due to reassignment, and in such cases, we may not want to clean up the resource. The ``should_cleanup`` is used to determine whether to call cleanup based on the termination context.
+
+Currently, the termination Reasons are defined as follows:
+
++--------------------------------------------------------+--------------------------------------------------------+
+|           Termination Reason                           |                 Scenario                               |
++========================================================+========================================================+
+| REASSIGNED                                             |  The current running trigger has already been          |
+|                                                        |  reassigned to another triggerer                       |
++--------------------------------------------------------+--------------------------------------------------------+
+| OTHER                                                  |  Normal exit, cancellation etc                         |
+|                                                        |                                                        |
++--------------------------------------------------------+--------------------------------------------------------+
+| ...                                                    |  To be classified                                      |
+|                                                        |                                                        |
++--------------------------------------------------------+--------------------------------------------------------+
 
 
 High Availability
