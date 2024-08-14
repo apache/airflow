@@ -221,11 +221,11 @@ class TestMsSqlHook:
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     @mock.patch(
-         "airflow.providers.common.sql.dialects.mssql.MsSqlDialect.get_column_names",
+        "airflow.providers.common.sql.dialects.mssql.MsSqlDialect.get_column_names",
         get_column_names,
     )
     @mock.patch(
-         "airflow.providers.common.sql.dialects.mssql.MsSqlDialect.get_primary_keys",
+        "airflow.providers.common.sql.dialects.mssql.MsSqlDialect.get_primary_keys",
         get_primary_keys,
     )
     def test_generate_insert_sql(self, get_connection):
